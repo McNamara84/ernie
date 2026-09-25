@@ -134,8 +134,10 @@ type DashboardPageProps = SharedData & {
         id: number;
         title: string;
         updated_at: string | null;
-        status?: 'draft' | 'curation' | 'review' | 'published';
+        status?: 'draft' | 'curation' | 'review' | 'embargo' | 'published';
     }>;
+    dueEmbargos?: Array<{ id: number; title: string; availableDate: string }>;
+    dueEmbargoCount?: number;
     guidedTour?: GuidedTourAutostartPayload | null;
     phpVersion?: string;
     laravelVersion?: string;
@@ -272,6 +274,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         igsnInstitutionCount,
         draftCount,
         recentResources,
+        dueEmbargos = [],
+        dueEmbargoCount = 0,
         pendingAssistanceTotalCount,
         guidedTour = null,
         phpVersion = '8.4.12',
@@ -517,6 +521,24 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
             <Head title="Dashboard" />
             <GuidedTourAutostart guidedTour={guidedTour} />
             <div data-testid="dashboard-page" className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4 lg:p-6">
+                {dueEmbargoCount > 0 && (
+                    <Card className="border-amber-400" data-testid="due-embargos">
+                        <CardHeader>
+                            <CardTitle>Embargos ready for manual release ({dueEmbargoCount})</CardTitle>
+                            <CardDescription>The Available date has passed. Review each resource before registering it at DataCite.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {dueEmbargos.map((resource) => (
+                                <p key={resource.id}>
+                                    <Link href={editorRoute({ query: { resourceId: resource.id } }).url} className="underline">
+                                        {resource.title}
+                                    </Link>{' '}
+                                    — Available {resource.availableDate}
+                                </p>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.95fr)]">
                     <div className="grid gap-4">
                         <Card

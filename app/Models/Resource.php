@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\AccessLevel;
 use App\Enums\ResourceWorkflowStatus;
+use App\Services\EmbargoService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -37,6 +38,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $legacy_source_id
  * @property string|null $legacy_source_status
  * @property Carbon|null $legacy_description_breaks_normalized_at
+ * @property Carbon|null $embargo_registration_started_at
+ * @property string|null $embargo_registration_prefix
  * @property bool $force_review_status
  * @property ResourceWorkflowStatus|null $workflow_status_override
  * @property AccessLevel|null $access_level
@@ -86,6 +89,7 @@ class Resource extends Model
         'publication_year' => 'integer',
         'legacy_source_id' => 'integer',
         'legacy_description_breaks_normalized_at' => 'datetime',
+        'embargo_registration_started_at' => 'datetime',
         'force_review_status' => 'boolean',
         'workflow_status_override' => ResourceWorkflowStatus::class,
         'access_level' => AccessLevel::class,
@@ -598,14 +602,7 @@ class Resource extends Model
         }
 
         if ($this->access_level === AccessLevel::EMBARGOED) {
-            $this->loadMissing('dates.dateType');
-
-            $hasAvailableDate = $this->dates->contains(
-                static fn (ResourceDate $date): bool => strcasecmp($date->dateType->slug, 'available') === 0
-                    && trim((string) ($date->start_date ?? $date->date_value)) !== '',
-            );
-
-            if (! $hasAvailableDate) {
+            if (app(EmbargoService::class)->availableDate($this) === null) {
                 return false;
             }
         }
@@ -630,6 +627,12 @@ class Resource extends Model
     {
         if ($this->doi && $this->landingPage?->is_published) {
             return 'published';
+        }
+
+        if ($this->landingPage !== null && ! $this->landingPage->is_published
+            && app(EmbargoService::class)->isEmbargoed($this)
+            && app(EmbargoService::class)->availableDate($this) !== null) {
+            return 'embargo';
         }
 
         if ($this->workflow_status_override === ResourceWorkflowStatus::REVIEW || $this->force_review_status) {

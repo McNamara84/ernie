@@ -42,6 +42,7 @@ import {
     parseEditorDate,
     requireEditorDateIso,
     resolveEditorDateLocale,
+    todayLocalIso,
     validateEditorDate,
 } from '@/lib/editor-date';
 import { feedback } from '@/lib/feedback';
@@ -1403,7 +1404,9 @@ export default function DataCiteForm({
                 }
             }
 
-            const startValidation = date.startDate?.trim() ? validateEditorDate(date.startDate, editorDateLocale) : null;
+            const startValidation = date.startDate?.trim()
+                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), date.dateType === 'available')
+                : null;
             const endValidation = date.endDate?.trim() ? validateEditorDate(date.endDate, editorDateLocale) : null;
 
             if (startValidation?.error) issues.push(`Date ${dateIndex} (Start): ${startValidation.error}`);
@@ -1459,8 +1462,17 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'accessLevel', 'Access Level is required.');
         }
 
-        if (form.accessLevel === 'embargoed' && !dates.some((date) => date.dateType === 'available' && Boolean(date.startDate?.trim()))) {
-            appendValidationMessage(errors, 'accessLevel', 'Embargoed access requires an Available date.');
+        const availableDates = dates.filter((date) => date.dateType === 'available');
+        if (
+            form.accessLevel === 'embargoed' &&
+            (availableDates.length !== 1 ||
+                !/^\d{4}-\d{2}-\d{2}$/.test(availableDates[0].startDate?.trim() ?? '') ||
+                Boolean(availableDates[0].endDate))
+        ) {
+            appendValidationMessage(errors, 'accessLevel', 'Embargoed access requires exactly one day-precision Available date.');
+        }
+        if (form.accessLevel !== 'embargoed' && availableDates.some((date) => (date.startDate ?? '') > todayLocalIso())) {
+            appendValidationMessage(errors, 'accessLevel', 'A future Available date requires Embargoed access.');
         }
 
         if (!licenseEntries.some(hasLicenseEntryEvidence)) {
@@ -2309,7 +2321,12 @@ export default function DataCiteForm({
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
                 dateMode: date.dateMode,
-                startDate: buildDateTime(requireEditorDateIso(date.startDate ?? '', editorDateLocale), date.startTime, date.startTimezone) || null,
+                startDate:
+                    buildDateTime(
+                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, date.dateType === 'available'),
+                        date.startTime,
+                        date.startTimezone,
+                    ) || null,
                 endDate:
                     date.dateMode === 'range'
                         ? buildDateTime(requireEditorDateIso(date.endDate ?? '', editorDateLocale), date.endTime, date.endTimezone) || null

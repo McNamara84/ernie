@@ -107,6 +107,7 @@ export function DateField({
                         id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
                         inputLabel={isDateRange ? 'Start Date' : 'Date'}
                         value={startDate}
+                        allowFuture={dateType === 'available'}
                         onChange={onStartDateChange}
                         onEditingChange={onEditingChange}
                         locale={locale}

@@ -46,7 +46,7 @@ interface EditorProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     resourceId?: string;
-    publicStatus?: 'draft' | 'curation' | 'review' | 'published';
+    publicStatus?: 'draft' | 'curation' | 'review' | 'embargo' | 'published';
     canEditDoi?: boolean;
     landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];

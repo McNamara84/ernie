@@ -21,6 +21,12 @@ const STATUS_CONFIGS: Record<string, StatusConfig> = {
         textColor: 'text-amber-700',
         label: 'Draft',
     },
+    embargo: {
+        icon: Eye,
+        color: 'text-purple-600',
+        textColor: 'text-purple-700',
+        label: 'Embargo',
+    },
     // Review Preview (not a database status, but for preview mode)
     preview: {
         icon: Eye,

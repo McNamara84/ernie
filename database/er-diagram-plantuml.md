@@ -279,6 +279,8 @@ entity "resources" as resources {
     legacy_description_breaks_normalized_at : TIMESTAMP <<nullable>>
     * force_review_status : BOOLEAN = false
     workflow_status_override : VARCHAR(20) <<nullable>> //indexed//
+    embargo_registration_started_at : TIMESTAMP <<nullable>>
+    embargo_registration_prefix : VARCHAR(64) <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
