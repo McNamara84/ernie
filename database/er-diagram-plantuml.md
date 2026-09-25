@@ -643,6 +643,22 @@ entity "resource_assessments" as resource_assessments {
     updated_at : TIMESTAMP
 }
 
+entity "resource_assessment_refreshes" as resource_assessment_refreshes {
+    * **resource_id** : BIGINT <<PK>> <<FK>> //1:1, cascade delete//
+    --
+    * status : VARCHAR(20) <<IDX>>
+    * generation : INT UNSIGNED = 1
+    * attempts : SMALLINT UNSIGNED = 0
+    * service_attempts : SMALLINT UNSIGNED = 0
+    * requested_at : TIMESTAMP
+    available_at : TIMESTAMP <<nullable>> <<IDX>>
+    lease_expires_at : TIMESTAMP <<nullable>> <<IDX>>
+    completed_at : TIMESTAMP <<nullable>>
+    last_error : TEXT <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "assessment_runs" as assessment_runs {
     * **id** : UUID <<PK>>
     --
@@ -1455,6 +1471,7 @@ resources ||--o{ resource_rights
 resources ||--o{ sizes
 resources ||--o{ formats
 resources ||--o| resource_assessments
+resources ||--o| resource_assessment_refreshes
 resources ||--o| landing_pages
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments

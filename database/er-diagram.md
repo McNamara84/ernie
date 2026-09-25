@@ -589,6 +589,21 @@ erDiagram
         timestamp updated_at
     }
 
+    resource_assessment_refreshes {
+        bigint resource_id PK, FK "1:1 with resources, cascade delete"
+        varchar status "20, indexed"
+        int generation "unsigned, default 1"
+        smallint attempts "unsigned, default 0"
+        smallint service_attempts "unsigned, default 0"
+        timestamp requested_at
+        timestamp available_at "nullable, indexed"
+        timestamp lease_expires_at "nullable, indexed"
+        timestamp completed_at "nullable"
+        text last_error "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     assessment_runs {
         uuid id PK
         varchar scope "20, indexed"
@@ -1353,6 +1368,7 @@ erDiagram
     resources ||--o{ sizes : "has"
     resources ||--o{ formats : "has"
     resources ||--o| resource_assessments : "has latest assessment"
+    resources ||--o| resource_assessment_refreshes : "has publication refresh"
     resources ||--o| landing_pages : "has"
     resources ||--o{ alternate_identifiers : "has"
 

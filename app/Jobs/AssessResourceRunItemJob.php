@@ -112,6 +112,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
                 errorDetail: $exception->errorDetail,
                 durationMs: $exception->durationMs ?? $this->durationMs($started),
                 expectedIdentifier: $identifier,
+                assessedAt: $assessedAt,
             );
             $item->refresh();
             if ($item->status->isTerminal()) {

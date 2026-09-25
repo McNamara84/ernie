@@ -685,6 +685,32 @@ test('a permanent F-UJI failure becomes a terminal resource failure', function (
         ->toBe(ResourceAssessment::STATUS_FAILED);
 });
 
+test('an older terminal failure does not replace a newer completed assessment', function (): void {
+    $resource = Resource::factory()->withDoi('10.5880/assessment.failure-race')->create();
+    [, $item] = queuedAssessmentItem($resource);
+    Http::fake(function () use ($resource) {
+        $this->travel(2)->seconds();
+        ResourceAssessment::query()->create([
+            'resource_id' => $resource->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 82,
+            'assessed_identifier' => $resource->doi,
+            'payload' => ['software_version' => '4.0.1'],
+            'assessed_at' => now(),
+        ]);
+
+        return Http::response(['error' => 'Bad request'], 400);
+    });
+
+    handleAssessmentItem(new AssessResourceRunItemJob($item->id));
+
+    $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->firstOrFail();
+    expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::FAILED)
+        ->and($assessment->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
+        ->and($assessment->total_score)->toBe('82.00')
+        ->and($assessment->assessed_at?->equalTo(now()->startOfSecond()))->toBeTrue();
+});
+
 test('a transient failure becomes terminal after the configured attempt limit', function (): void {
     $resource = Resource::factory()->withDoi('10.5880/assessment.exhausted')->create();
     [$run, $item] = queuedAssessmentItem($resource);

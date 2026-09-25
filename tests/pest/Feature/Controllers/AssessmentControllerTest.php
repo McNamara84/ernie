@@ -160,11 +160,16 @@ describe('index', function () {
                 ->where('resourcesNeedingAttention.0.diagnostics', null)
             );
 
+        ResourceAssessmentRefresh::query()->whereKey($resource->id)->update(['status' => ResourceAssessmentRefresh::FAILED]);
+        $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'failed'));
+
+        $this->travel(2)->seconds();
         $assessment->forceFill([
-            'assessed_at' => now()->addMinute(),
+            'assessed_at' => now(),
             'payload' => [...$assessment->payload, 'software_version' => '4.0.0'],
         ])->save();
-        ResourceAssessmentRefresh::query()->whereKey($resource->id)->update(['status' => ResourceAssessmentRefresh::COMPLETED]);
         $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'stale'));

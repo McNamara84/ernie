@@ -71,7 +71,7 @@ final class ResourceAssessmentRefreshService
                     $pending->where('status', ResourceAssessmentRefresh::PENDING)
                         ->where('available_at', '<=', now());
                 })->orWhere(function ($processing): void {
-                    $processing->where('status', ResourceAssessmentRefresh::PROCESSING)
+                    $processing->whereIn('status', [ResourceAssessmentRefresh::QUEUED, ResourceAssessmentRefresh::PROCESSING])
                         ->where('lease_expires_at', '<=', now());
                 });
             })
@@ -83,9 +83,27 @@ final class ResourceAssessmentRefreshService
 
     public function dispatch(int $resourceId): void
     {
-        RefreshPublishedResourceAssessmentJob::dispatch($resourceId)
-            ->onConnection($this->queue->connection())
-            ->onQueue($this->queue->queue())
-            ->afterCommit();
+        DB::transaction(function () use ($resourceId): void {
+            $refresh = ResourceAssessmentRefresh::query()->lockForUpdate()->find($resourceId);
+            if ($refresh === null || ! (
+                ($refresh->status === ResourceAssessmentRefresh::PENDING && $refresh->available_at?->isPast())
+                || (in_array($refresh->status, [ResourceAssessmentRefresh::QUEUED, ResourceAssessmentRefresh::PROCESSING], true)
+                    && $refresh->lease_expires_at?->isPast())
+            )) {
+                return;
+            }
+
+            $refresh->forceFill([
+                'status' => ResourceAssessmentRefresh::QUEUED,
+                // A queued job can wait behind a full run on the shared worker.
+                // Keep its claim long enough to avoid minute-by-minute duplicates.
+                'lease_expires_at' => now()->addDay(),
+            ])->save();
+
+            RefreshPublishedResourceAssessmentJob::dispatch($resourceId)
+                ->onConnection($this->queue->connection())
+                ->onQueue($this->queue->queue())
+                ->afterCommit();
+        }, 3);
     }
 }

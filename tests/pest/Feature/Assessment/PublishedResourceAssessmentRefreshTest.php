@@ -69,7 +69,7 @@ it('queues a durable refresh only when an already assessed DOI page is published
     expect(ResourceAssessmentRefresh::query()->count())->toBe(0);
 
     $refresh = publishAssessedPage($page);
-    expect($refresh->status)->toBe(ResourceAssessmentRefresh::PENDING)
+    expect($refresh->status)->toBe(ResourceAssessmentRefresh::QUEUED)
         ->and($refresh->generation)->toBe(1)
         ->and($refresh->requested_at)->not->toBeNull();
 
@@ -257,6 +257,30 @@ it('requeues expired processing leases from the durable refresh table', function
     app(ResourceAssessmentRefreshService::class)->recover();
 
     Queue::assertPushed(RefreshPublishedResourceAssessmentJob::class);
-    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PROCESSING)
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and($refresh->fresh()->resource_id)->toBe($resource->id);
+});
+
+it('claims a queued refresh once while a worker is busy and recovers an expired claim', function (): void {
+    [$resource, $page] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    $service = app(ResourceAssessmentRefreshService::class);
+
+    expect($refresh->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and($refresh->lease_expires_at?->isFuture())->toBeTrue();
+    Queue::assertPushed(RefreshPublishedResourceAssessmentJob::class, 1);
+
+    $this->travel(10)->minutes();
+    $service->recover();
+    $service->recover();
+    Queue::assertPushed(RefreshPublishedResourceAssessmentJob::class, 1);
+
+    $refresh->forceFill(['lease_expires_at' => now()->subSecond()])->save();
+    $service->recover();
+    $service->recover();
+
+    Queue::assertPushed(RefreshPublishedResourceAssessmentJob::class, 2);
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and($refresh->fresh()->lease_expires_at?->isFuture())->toBeTrue()
         ->and($refresh->fresh()->resource_id)->toBe($resource->id);
 });

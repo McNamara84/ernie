@@ -191,6 +191,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             if ($refresh === null || $refresh->status === ResourceAssessmentRefresh::COMPLETED
                 || $refresh->status === ResourceAssessmentRefresh::FAILED
                 || ($refresh->status === ResourceAssessmentRefresh::PENDING && $refresh->available_at?->isFuture())
+                || ($refresh->status === ResourceAssessmentRefresh::QUEUED && $refresh->lease_expires_at?->isPast())
                 || ($refresh->status === ResourceAssessmentRefresh::PROCESSING && $refresh->lease_expires_at?->isFuture())) {
                 return null;
             }

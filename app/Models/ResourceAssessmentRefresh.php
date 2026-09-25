@@ -19,11 +19,15 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $lease_expires_at
  * @property Carbon|null $completed_at
  * @property string|null $last_error
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  */
 final class ResourceAssessmentRefresh extends Model
 {
     public const PENDING = 'pending';
+
+    public const QUEUED = 'queued';
 
     public const PROCESSING = 'processing';
 
