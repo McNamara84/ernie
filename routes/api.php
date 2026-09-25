@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\DataCiteController;
 use App\Http\Controllers\Api\RorResolveController;
 use App\Http\Controllers\ApiDocController;
-use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\DateTypeController;
 use App\Http\Controllers\DescriptionTypeController;
 use App\Http\Controllers\LanguageController;
@@ -17,8 +16,6 @@ use App\Http\Controllers\RorAffiliationController;
 use App\Http\Controllers\TitleTypeController;
 use App\Http\Controllers\VocabularyController;
 use Illuminate\Support\Facades\Route;
-
-Route::get('/changelog', [ChangelogController::class, 'index']);
 
 Route::get('/v1/resource-types', [ResourceTypeController::class, 'index']);
 Route::middleware('ernie.api-key')->get('/v1/resource-types/elmo', [ResourceTypeController::class, 'elmo']);

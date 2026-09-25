@@ -20,13 +20,10 @@ function resolveHref(href: unknown): string {
 }
 
 vi.mock('@inertiajs/react', () => ({
+    usePage: () => ({ props: { auth: { user: null } } }),
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    Form: ({ children }: { children: (args: { processing: boolean }) => React.ReactNode }) => (
-        <form>{children({ processing: formProcessing })}</form>
-    ),
-    Link: ({ children, href }: { children?: React.ReactNode; href: unknown }) => (
-        <a href={resolveHref(href)}>{children}</a>
-    ),
+    Form: ({ children }: { children: (args: { processing: boolean }) => React.ReactNode }) => <form>{children({ processing: formProcessing })}</form>,
+    Link: ({ children, href }: { children?: React.ReactNode; href: unknown }) => <a href={resolveHref(href)}>{children}</a>,
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/EmailVerificationNotificationController', () => ({
@@ -58,20 +55,14 @@ describe('VerifyEmail page', () => {
 
     it('shows status message when verification link is sent', () => {
         render(<VerifyEmail status="verification-link-sent" />);
-        expect(
-            screen.getByText(
-                /a new verification link has been sent to the email address you provided during registration./i,
-            ),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/a new verification link has been sent to the email address you provided during registration./i)).toBeInTheDocument();
     });
 
     it('enables resend button by default and hides status message', () => {
         render(<VerifyEmail />);
         expect(screen.getByRole('button', { name: /resend verification email/i })).not.toBeDisabled();
         expect(
-            screen.queryByText(
-                /a new verification link has been sent to the email address you provided during registration./i,
-            ),
+            screen.queryByText(/a new verification link has been sent to the email address you provided during registration./i),
         ).not.toBeInTheDocument();
     });
 

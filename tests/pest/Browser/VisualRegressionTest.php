@@ -39,6 +39,9 @@ describe('Welcome Page Visual Regression', function (): void {
 
 describe('Changelog Visual Regression', function (): void {
     it('matches changelog page screenshot', function (): void {
+        /** @var TestCase $this */
+        $this->actingAs(User::factory()->create());
+
         visit('/changelog')
             ->wait(1) // Wait for Framer Motion animation
             ->assertNoSmoke()
@@ -174,6 +177,9 @@ describe('Dark Mode Visual Regression', function (): void {
     });
 
     it('matches changelog in dark mode', function (): void {
+        /** @var TestCase $this */
+        $this->actingAs(User::factory()->create());
+
         visit('/changelog')
             ->inDarkMode()
             ->wait(1)

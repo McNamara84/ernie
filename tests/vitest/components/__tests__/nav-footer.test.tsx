@@ -2,8 +2,8 @@ import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
 import { Book, type LucideProps } from 'lucide-react';
-import { type ComponentType,forwardRef } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { type ComponentType, forwardRef } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NavFooter } from '@/components/nav-footer';
 
@@ -15,8 +15,16 @@ vi.mock('@/components/ui/sidebar', () => ({
     SidebarMenuItem: ({ children }: { children?: React.ReactNode }) => <li>{children}</li>,
 }));
 
+let mockUrl = '/dashboard';
+
 vi.mock('@inertiajs/react', () => ({
-    Link: ({ children, href, prefetch, ...props }: { children?: React.ReactNode; href: string; prefetch?: boolean } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+    usePage: () => ({ url: mockUrl }),
+    Link: ({
+        children,
+        href,
+        prefetch,
+        ...props
+    }: { children?: React.ReactNode; href: string; prefetch?: boolean } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         void prefetch;
 
         return (
@@ -29,17 +37,20 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('@/components/icon', () => ({
     Icon: ({ iconNode: IconComponent }: { iconNode: ComponentType<LucideProps> }) => (
-        <span data-testid="icon"><IconComponent /></span>
+        <span data-testid="icon">
+            <IconComponent />
+        </span>
     ),
 }));
 
 // Mock LucideIcon for testing - use forwardRef to match LucideIcon type signature
-const MockIcon = forwardRef<SVGSVGElement, LucideProps>((_props, ref) => (
-    <svg ref={ref} data-testid="mock-icon" />
-));
+const MockIcon = forwardRef<SVGSVGElement, LucideProps>((_props, ref) => <svg ref={ref} data-testid="mock-icon" />);
 MockIcon.displayName = 'MockIcon';
 
 describe('NavFooter', () => {
+    beforeEach(() => {
+        mockUrl = '/dashboard';
+    });
     it('renders footer items with links and icons', () => {
         render(
             <NavFooter
@@ -55,6 +66,13 @@ describe('NavFooter', () => {
         expect(links[0]).toHaveAttribute('href', '/docs');
         expect(screen.getByTestId('icon')).toBeInTheDocument();
         expect(links[1]).toHaveAttribute('href', '/github');
+    });
+
+    it('marks the current Changelog link as active', () => {
+        mockUrl = '/changelog#v1.0.9';
+        render(<NavFooter items={[{ title: 'Changelog', href: '/changelog', icon: Book }]} />);
+
+        expect(screen.getByRole('link', { name: 'Changelog' })).toHaveAttribute('aria-current', 'page');
     });
 
     it('passes data-tour attributes to footer links', () => {
@@ -78,4 +96,3 @@ describe('NavFooter', () => {
         expect(screen.getByRole('link', { name: /portal/i })).toHaveAttribute('rel', 'nofollow noopener noreferrer');
     });
 });
-
