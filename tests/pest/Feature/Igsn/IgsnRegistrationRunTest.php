@@ -584,6 +584,24 @@ test('failed job pauses the run and releases a processing item for resume', func
         ->and($run->fresh()->last_error)->toBe('worker stopped');
 });
 
+test('a queued update cannot publish a registered IGSN with an embargo draft', function (): void {
+    $resource = createQueuedIgsn(
+        ['access_level' => AccessLevel::EMBARGOED],
+        ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
+    );
+    $resource->landingPage->update(['is_published' => false, 'published_at' => null]);
+    $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+    $resource->dates()->create(['date_type_id' => $available->id, 'date_value' => '2099-01-01']);
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    Http::fake();
+
+    runQueuedIgsnRegistrationStep($run->id);
+
+    expect($run->fresh()->failed)->toBe(1)
+        ->and($resource->fresh()->landingPage->is_published)->toBeFalse();
+    Http::assertNothingSent();
+});
+
 test('a queued IGSN rechecks Available immediately before its DataCite POST', function (): void {
     $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
     $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);

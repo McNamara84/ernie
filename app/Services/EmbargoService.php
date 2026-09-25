@@ -83,6 +83,25 @@ final class EmbargoService
         }
     }
 
+    /** Existing identifiers may be updated only when their landing page is public. */
+    public function canUpdateMetadata(Resource $resource): bool
+    {
+        if (! $this->isEmbargoed($resource)) {
+            return true;
+        }
+
+        $resource->loadMissing('landingPage');
+
+        return $resource->landingPage?->is_published === true;
+    }
+
+    public function assertCanUpdateMetadata(Resource $resource): void
+    {
+        if (! $this->canUpdateMetadata($resource)) {
+            throw new \InvalidArgumentException('Embargoed resources need a published landing page before DataCite metadata can be updated. Release the embargo first.');
+        }
+    }
+
     /** Claim the one create attempt allowed before remote reconciliation. */
     public function claimRegistration(Resource $resource, string $prefix): bool
     {

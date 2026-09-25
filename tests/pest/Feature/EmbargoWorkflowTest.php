@@ -9,6 +9,9 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteSyncService;
+use App\Services\FakeDataCiteRegistrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -395,4 +398,138 @@ test('a timed-out embargo IGSN create is reconciled by identifier', function ():
         ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
         ->and($metadata->fresh()->isRegistered())->toBeTrue()
         ->and($landingPage->fresh()->is_published)->toBeTrue();
+});
+
+test('an unpublished embargo page prevents existing DOI metadata updates before and after its date', function (string $date): void {
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password',
+    ]);
+    $resource = workflowEmbargo($date);
+    $resource->update(['doi' => '10.83279/EXISTING-EMBARGO']);
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    Http::fake();
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(InvalidArgumentException::class, 'published landing page');
+    Http::assertNothingSent();
+})->with(['2099-01-01', '2020-01-01', '2027']);
+
+test('a stale public resource snapshot cannot publish an embargo draft DOI', function (): void {
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password',
+    ]);
+    $resource = Resource::factory()->create(['doi' => '10.83279/STALE-EMBARGO']);
+    $page = LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => true]);
+    $stale = $resource->fresh(['landingPage']);
+    $resource->update(['access_level' => AccessLevel::EMBARGOED]);
+    $page->update(['is_published' => false, 'published_at' => null]);
+    Http::fake();
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($stale))
+        ->toThrow(InvalidArgumentException::class, 'published landing page');
+    Http::assertNothingSent();
+});
+
+test('existing public embargo identifiers remain updatable without a publish event', function (): void {
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password',
+    ]);
+    $resource = workflowEmbargo('2099-01-01');
+    $resource->update(['doi' => '10.83279/PUBLIC-LEGACY']);
+    LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => true]);
+    Http::fake(['*datacite.org/*' => Http::response(['data' => ['id' => $resource->doi]], 200)]);
+
+    app(DataCiteRegistrationService::class)->updateMetadata($resource);
+
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'PUT'
+        && ! array_key_exists('event', $request->data()['data']['attributes'])
+        && $request->data()['data']['attributes']['url'] === $resource->landingPage->public_url);
+});
+
+test('automatic sync defers imported IGSNs with an embargo draft page', function (): void {
+    $resource = workflowEmbargo('2099-01-01');
+    $resource->update(['doi' => '10.60510/IMPORTED-EMBARGO']);
+    IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_PENDING]);
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    Http::fake();
+
+    $result = app(DataCiteSyncService::class)->syncIfRegistered($resource);
+
+    expect($result->attempted)->toBeFalse()
+        ->and($result->success)->toBeTrue()
+        ->and($resource->fresh()->landingPage->is_published)->toBeFalse();
+    Http::assertNothingSent();
+});
+
+test('manual and batch updates cannot publish an existing DOI behind an embargo draft', function (): void {
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password',
+        'datacite.test.prefixes' => ['10.83279'],
+    ]);
+    $resource = workflowEmbargo('2099-01-01');
+    $resource->update(['doi' => '10.83279/EXISTING-HTTP']);
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    $user = User::factory()->curator()->create();
+    Http::fake();
+
+    $this->actingAs($user)->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279'])
+        ->assertStatus(422);
+    $this->actingAs($user)->postJson('/resources/batch-register', ['ids' => [$resource->id], 'prefix' => '10.83279'])
+        ->assertStatus(207)
+        ->assertJsonPath('failed.0.id', $resource->id);
+    Http::assertNothingSent();
+});
+
+test('a registered IGSN with a draft embargo page cannot be updated manually', function (): void {
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password',
+    ]);
+    $resource = workflowEmbargo('2099-01-01');
+    $resource->update(['doi' => '10.83279/REGISTERED-EMBARGO']);
+    IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_REGISTERED]);
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    Http::fake();
+
+    $this->actingAs(User::factory()->curator()->create())
+        ->postJson("/igsns/{$resource->id}/register")
+        ->assertStatus(422);
+    Http::assertNothingSent();
+});
+
+test('the fake DataCite update also rejects an embargo draft', function (): void {
+    $resource = workflowEmbargo('2099-01-01');
+    $resource->update(['doi' => '10.83279/FAKE-EMBARGO']);
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+
+    expect(fn () => app(FakeDataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(InvalidArgumentException::class, 'published landing page');
+});
+
+test('automatic sync fails safely when an earlier public snapshot becomes an embargo draft', function (): void {
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password',
+    ]);
+    $resource = Resource::factory()->create(['doi' => '10.83279/STALE-SYNC']);
+    $page = LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => true]);
+    $stale = $resource->fresh(['landingPage']);
+    $resource->update(['access_level' => AccessLevel::EMBARGOED]);
+    $page->update(['is_published' => false, 'published_at' => null]);
+    Http::fake();
+
+    $result = app(DataCiteSyncService::class)->syncIfRegistered($stale);
+
+    expect($result->hasFailed())->toBeTrue();
+    Http::assertNothingSent();
 });

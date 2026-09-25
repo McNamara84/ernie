@@ -429,6 +429,9 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
      */
     public function updateMetadata(Resource $resource): array
     {
+        // A queued job or editor can hold an older access level or landing page.
+        $resource = Resource::query()->with(Resource::DATACITE_EXPORT_RELATIONS)->findOrFail($resource->id);
+
         // Validate resource has a DOI
         if (! $resource->doi) {
             throw new \RuntimeException(
@@ -438,11 +441,15 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
 
         // Check if resource has a landing page
         $resource->loadMissing('landingPage');
-        if (! $resource->landingPage) {
+        $landingPage = $resource->landingPage;
+        if ($landingPage === null) {
             throw new \RuntimeException(
                 "Resource #{$resource->id} must have a landing page to update metadata."
             );
         }
+
+        $embargo = app(EmbargoService::class);
+        $embargo->assertCanUpdateMetadata($resource);
 
         // Generate DataCite metadata using the existing exporter
         $jsonExporter = new DataCiteJsonExporter;
@@ -456,8 +463,10 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                 'attributes' => array_merge(
                     $dataCiteData['data']['attributes'],
                     [
-                        'url' => $resource->landingPage->public_url,
-                        'event' => 'publish', // Ensure DOI remains published
+                        'url' => $landingPage->public_url,
+                        // A public legacy page may receive metadata updates without
+                        // changing the DOI state or publishing a remote draft.
+                        ...($embargo->isEmbargoed($resource) ? [] : ['event' => 'publish']),
                         'schemaVersion' => DataCiteSchemaVersion::KERNEL_4,
                     ]
                 ),
