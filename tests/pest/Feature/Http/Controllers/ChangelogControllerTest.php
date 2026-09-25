@@ -3,15 +3,21 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\ChangelogController;
+use App\Models\User;
 use Illuminate\Support\Facades\File;
 
 covers(ChangelogController::class);
+
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
 
 it('returns changelog data as JSON', function () {
     $response = $this->getJson('/api/changelog');
 
     $response->assertOk()
-        ->assertJsonIsArray();
+        ->assertJsonIsArray()
+        ->assertHeader('Cache-Control', 'no-store, private');
 });
 
 it('returns empty array when changelog file does not exist', function () {

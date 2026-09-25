@@ -8,6 +8,7 @@ use App\Http\Controllers\BatchIgsnController;
 use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
+use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\CsrfCookieController;
 use App\Http\Controllers\DashboardController;
@@ -87,8 +88,6 @@ Route::get('/', [StaticPageController::class, 'home'])->name('home');
 Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
 Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');
-
-Route::get('/changelog', [StaticPageController::class, 'changelog'])->name('changelog');
 
 // Public Portals (DOI and IGSN discovery)
 // ===========================================================
@@ -259,6 +258,11 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
 }
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::middleware('changelog.verified')->group(function () {
+        Route::get('/changelog', [StaticPageController::class, 'changelog'])->name('changelog');
+        Route::get('/api/changelog', [ChangelogController::class, 'index'])->name('api.changelog');
+    });
+
     // Assistance routes are registered dynamically by AssistantServiceProvider.
     // @see \App\Providers\AssistantServiceProvider::registerRoutes()
 

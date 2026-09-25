@@ -317,20 +317,11 @@ disabled functions as `N/A` and provide a reason.
 
 ### 3.2 Public Pages
 
-- [ ] The home/login page, `About`, `Legal Notice`, and `Changelog` open directly
-      by URL without errors.
+- [ ] The home/login page, `About`, and `Legal Notice` open directly by URL
+      without errors.
 
 - [ ] Header and footer links lead to the expected destinations; external links
       open safely without losing the ERNIE state.
-
-- [ ] The `Changelog` shows the current version, meaningful categories, and
-      expandable/collapsible entries.
-
-- [ ] Changelog entries with related GitHub issues or pull requests show every
-      expected reference; each link opens the correct GitHub page safely in a new
-      tab, while entries without references retain their normal layout.
-
-- [ ] The changelog timeline/jump navigation works with mouse and keyboard.
 
 - [ ] A known public landing page opens directly and does not request
       authentication.
@@ -338,6 +329,19 @@ disabled functions as `N/A` and provide a reason.
 ### 3.3 Authentication, Session, and Access Control
 
 Run with both test roles where applicable.
+
+- [ ] Guests cannot read `/changelog` or `/api/changelog`. The public footer
+      shows the version as text without a Changelog link.
+- [ ] A signed-in, verified user can open Changelog from the active left sidebar.
+      The newest release is expanded alone by default; other releases can be
+      opened and closed using mouse or keyboard.
+- [ ] The right-side version list shows large labeled buttons and the Major,
+      Minor, and Patch color legend. Mobile users can open the version menu.
+      Direct `#v...` links select the requested release.
+- [ ] Changelog entries with related GitHub issues or pull requests show every
+      expected reference; each link opens the correct GitHub page safely in a
+      new tab.
+
 
 - [ ] An incorrect password displays an understandable error and does not log the
       user in.

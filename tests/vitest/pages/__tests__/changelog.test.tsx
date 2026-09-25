@@ -20,7 +20,7 @@ const pageMocks = vi.hoisted(() => ({
     reducedMotionListeners: new Set<(event: MediaQueryListEvent) => void>(),
 }));
 
-vi.mock('@/layouts/changelog-layout', () => ({
+vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
@@ -339,9 +339,9 @@ describe('Changelog', () => {
     it('colors anchors based on version changes', async () => {
         render(<Changelog />);
         const anchors = await screen.findAllByTestId('version-anchor');
-        expect(anchors[0]).toHaveClass('ring-green-500');
-        expect(anchors[1]).toHaveClass('ring-red-500');
-        expect(anchors[2]).toHaveClass('ring-blue-500');
+        expect(anchors[0]).toHaveClass('ring-red-500');
+        expect(anchors[1]).toHaveClass('ring-blue-500');
+        expect(anchors[2]).toHaveClass('ring-green-500');
     });
 
     it('shows an error message when fetch fails', async () => {
@@ -370,6 +370,18 @@ describe('Changelog', () => {
         expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+        [401, /session has expired/i],
+        [403, /email address must be verified/i],
+    ])('explains a %i response from the protected changelog API', async (status, message) => {
+        (global.fetch as unknown as Mock).mockResolvedValueOnce({ ok: false, status, json: vi.fn() });
+
+        render(<Changelog />);
+
+        const alert = await screen.findByRole('alert');
+        expect(alert.textContent).toMatch(message);
+    });
+
     it('fetches releases from /api/changelog', async () => {
         const fetchSpy = global.fetch as unknown as Mock;
 
@@ -378,7 +390,7 @@ describe('Changelog', () => {
         await screen.findByRole('list', { name: /changelog timeline/i });
 
         await vi.waitFor(() => {
-            expect(fetchSpy).toHaveBeenCalledWith('/api/changelog');
+            expect(fetchSpy).toHaveBeenCalledWith('/api/changelog', { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
         });
     });
 
