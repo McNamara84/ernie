@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bd4b8d365f80bf2ee4fe11e241ae092382e391100ead5f65135d7661f89395b9}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b3230ac3a1959561ae2e3365c0c7d0d3f2fba2bef68bffa9983a6d6c9a2877d2}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -139,7 +139,7 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   webserver:
-    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:492b03fa738a05314a064f9c789c999373b3eed8150b81d433645dbad2a57454}"
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:2a703d60ea7125f8e8677baa06d386c381aedf0b5c7e184268e749d8794de79a}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -230,7 +230,7 @@ services:
       start_period: 60s
 
   queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bd4b8d365f80bf2ee4fe11e241ae092382e391100ead5f65135d7661f89395b9}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b3230ac3a1959561ae2e3365c0c7d0d3f2fba2bef68bffa9983a6d6c9a2877d2}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -320,7 +320,7 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   assessment-queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bd4b8d365f80bf2ee4fe11e241ae092382e391100ead5f65135d7661f89395b9}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b3230ac3a1959561ae2e3365c0c7d0d3f2fba2bef68bffa9983a6d6c9a2877d2}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -378,7 +378,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bd4b8d365f80bf2ee4fe11e241ae092382e391100ead5f65135d7661f89395b9}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b3230ac3a1959561ae2e3365c0c7d0d3f2fba2bef68bffa9983a6d6c9a2877d2}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped

@@ -55,7 +55,8 @@ test.describe('DOI Registration Workflow', () => {
         const dialog = page.getByRole('alertdialog');
         await expect(dialog).toBeVisible({ timeout: 15000 });
         await expect(dialog.getByRole('heading', { name: /update metadata/i })).toBeVisible();
-        await expect(dialog.getByText(/update metadata at datacite for 1 resource/i)).toBeVisible();
+        await expect(dialog).toContainText('This sends the saved metadata for 1 resource to DataCite');
+        await expect(dialog).toContainText('It does not save unsaved editor changes or create a new DOI');
 
         await dialog.getByRole('button', { name: /^update metadata$/i }).click();
 

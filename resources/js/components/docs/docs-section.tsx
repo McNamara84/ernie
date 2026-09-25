@@ -14,7 +14,9 @@ export function DocsSection({ id, title, icon: Icon, children }: DocsSectionProp
                 <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
                     <Icon className="size-5 text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+                <h2 tabIndex={-1} className="text-2xl font-bold tracking-tight focus-visible:outline-2">
+                    {title}
+                </h2>
             </div>
             <div className="prose dark:prose-invert max-w-none">{children}</div>
         </section>

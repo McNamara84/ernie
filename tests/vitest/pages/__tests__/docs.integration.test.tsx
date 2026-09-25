@@ -68,6 +68,7 @@ const defaultDataCite: DataCiteDocsSettings = {
 };
 describe('Docs integration', () => {
     beforeEach(() => {
+        window.history.replaceState(null, '', '/');
         document.title = '';
     });
 
