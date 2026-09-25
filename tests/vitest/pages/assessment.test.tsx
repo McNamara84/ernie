@@ -92,6 +92,7 @@ describe('Assessment FAIR opportunity integration', () => {
         ['processing', 'Reassessment running after publication'],
         ['current', 'Current assessment'],
         ['failed', 'Automatic reassessment failed'],
+        ['stale', 'Reassessment needed after changes'],
     ] as const)('labels %s assessment results', (state, label) => {
         render(
             <AssessmentTable

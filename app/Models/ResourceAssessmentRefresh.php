@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
  * @property int $resource_id
  * @property string $status
  * @property int $generation
+ * @property string|null $claim_token
  * @property int $attempts
  * @property int $service_attempts
  * @property Carbon $requested_at
@@ -39,7 +40,7 @@ final class ResourceAssessmentRefresh extends Model
 
     public $incrementing = false;
 
-    protected $fillable = ['resource_id', 'status', 'generation', 'attempts', 'service_attempts', 'requested_at', 'available_at', 'lease_expires_at', 'completed_at', 'last_error'];
+    protected $fillable = ['resource_id', 'status', 'generation', 'claim_token', 'attempts', 'service_attempts', 'requested_at', 'available_at', 'lease_expires_at', 'completed_at', 'last_error'];
 
     protected $casts = [
         'generation' => 'integer',

@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /** Reassess a DOI once its newly published landing page is the resolver target. */
@@ -46,13 +47,13 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             return;
         }
 
-        [$generation, $requestedAt] = $claimed;
+        [$generation, $requestedAt, $claimToken] = $claimed;
         $resource = Resource::query()->with('landingPage.externalDomain')->find($this->resourceId);
         $page = $resource?->landingPage;
         $identifier = trim((string) $resource?->doi);
 
         if ($page === null || ! $page->is_published || $identifier === '') {
-            $this->finish($generation, ResourceAssessmentRefresh::FAILED, 'The published landing page or DOI is no longer available.');
+            $this->finish($generation, $claimToken, ResourceAssessmentRefresh::FAILED, 'The published landing page or DOI is no longer available.');
 
             return;
         }
@@ -63,7 +64,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             // mean the assessment started just before publication.
             && $assessment->assessed_at?->greaterThan($requestedAt)
             && $assessment->assessed_identifier === $identifier) {
-            $this->finish($generation, ResourceAssessmentRefresh::COMPLETED);
+            $this->finish($generation, $claimToken, ResourceAssessmentRefresh::COMPLETED);
 
             return;
         }
@@ -73,7 +74,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             AssessmentRunStatus::QUEUED->value,
             AssessmentRunStatus::RUNNING->value,
         ])->exists()) {
-            $this->defer($generation, 60, 'Waiting for the active resource assessment run.');
+            $this->defer($generation, $claimToken, 60, 'Waiting for the active resource assessment run.');
 
             return;
         }
@@ -87,29 +88,33 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             $resolverTarget = $response->header('Location');
             if (! $response->redirect() || trim($resolverTarget) === ''
                 || ! $this->sameUrl($resolverTarget, $page->public_url)) {
-                $this->retryOrFail($generation, 300, 12, 'The DOI resolver does not yet point to the published landing page.');
+                $this->retryOrFail($generation, $claimToken, 300, 12, 'The DOI resolver does not yet point to the published landing page.');
 
                 return;
             }
         } catch (Throwable $exception) {
-            $this->retryOrFail($generation, 300, 12, 'The DOI resolver could not be checked.');
+            $this->retryOrFail($generation, $claimToken, 300, 12, 'The DOI resolver could not be checked.');
 
             return;
         }
 
         $waitMs = $limiter->reserveSlot();
         if ($waitMs > 0) {
-            $this->defer($generation, max(1, (int) ceil($waitMs / 1000)), 'Waiting for the shared F-UJI rate limit.');
+            $this->defer($generation, $claimToken, max(1, (int) ceil($waitMs / 1000)), 'Waiting for the shared F-UJI rate limit.');
 
             return;
         }
 
         $startedAt = now();
-        ResourceAssessmentRefresh::query()
+        $incremented = ResourceAssessmentRefresh::query()
             ->whereKey($this->resourceId)
             ->where('generation', $generation)
             ->where('status', ResourceAssessmentRefresh::PROCESSING)
+            ->where('claim_token', $claimToken)
             ->increment('service_attempts');
+        if ($incremented === 0) {
+            return;
+        }
 
         try {
             $result = $fuji->assessIdentifier($identifier);
@@ -120,6 +125,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
 
             $this->retryOrFail(
                 $generation,
+                $claimToken,
                 $exception->retryAfterSeconds ?? 60,
                 $exception->retryable ? 3 : 1,
                 $exception->getMessage(),
@@ -133,14 +139,14 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);
-            $this->retryOrFail($generation, 60, 3, 'An unexpected assessment error occurred.', 'service_attempts');
+            $this->retryOrFail($generation, $claimToken, 60, 3, 'An unexpected assessment error occurred.', 'service_attempts');
 
             return;
         }
 
-        DB::transaction(function () use ($generation, $requestedAt, $identifier, $result, $startedAt): void {
+        DB::transaction(function () use ($generation, $requestedAt, $claimToken, $identifier, $result, $startedAt): void {
             $refresh = ResourceAssessmentRefresh::query()->lockForUpdate()->find($this->resourceId);
-            if ($refresh === null || $refresh->generation !== $generation || $refresh->status !== ResourceAssessmentRefresh::PROCESSING) {
+            if ($refresh === null || ! $this->ownsClaim($refresh, $generation, $claimToken)) {
                 return;
             }
 
@@ -175,6 +181,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
 
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::COMPLETED,
+                'claim_token' => null,
                 'available_at' => null,
                 'lease_expires_at' => null,
                 'completed_at' => now(),
@@ -183,7 +190,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
         }, 3);
     }
 
-    /** @return array{int, Carbon}|null */
+    /** @return array{int, Carbon, string}|null */
     private function claim(): ?array
     {
         return DB::transaction(function (): ?array {
@@ -196,22 +203,24 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
                 return null;
             }
 
+            $claimToken = Str::uuid()->toString();
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::PROCESSING,
+                'claim_token' => $claimToken,
                 'attempts' => $refresh->attempts + 1,
                 'available_at' => null,
                 'lease_expires_at' => now()->addSeconds(max($this->timeout + 30, (int) config('fuji.assessment.lease_seconds', 390))),
             ])->save();
 
-            return [$refresh->generation, $refresh->requested_at];
+            return [$refresh->generation, $refresh->requested_at, $claimToken];
         }, 3);
     }
 
-    private function defer(int $generation, int $seconds, string $message): void
+    private function defer(int $generation, string $claimToken, int $seconds, string $message): void
     {
-        DB::transaction(function () use ($generation, $seconds, $message): void {
+        DB::transaction(function () use ($generation, $claimToken, $seconds, $message): void {
             $refresh = ResourceAssessmentRefresh::query()->lockForUpdate()->find($this->resourceId);
-            if ($refresh === null || $refresh->generation !== $generation || $refresh->status !== ResourceAssessmentRefresh::PROCESSING) {
+            if ($refresh === null || ! $this->ownsClaim($refresh, $generation, $claimToken)) {
                 return;
             }
 
@@ -219,11 +228,11 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
         }, 3);
     }
 
-    private function retryOrFail(int $generation, int $seconds, int $maxAttempts, string $message, string $counter = 'attempts'): void
+    private function retryOrFail(int $generation, string $claimToken, int $seconds, int $maxAttempts, string $message, string $counter = 'attempts'): void
     {
-        DB::transaction(function () use ($generation, $seconds, $maxAttempts, $message, $counter): void {
+        DB::transaction(function () use ($generation, $claimToken, $seconds, $maxAttempts, $message, $counter): void {
             $refresh = ResourceAssessmentRefresh::query()->lockForUpdate()->find($this->resourceId);
-            if ($refresh === null || $refresh->generation !== $generation || $refresh->status !== ResourceAssessmentRefresh::PROCESSING) {
+            if ($refresh === null || ! $this->ownsClaim($refresh, $generation, $claimToken)) {
                 return;
             }
 
@@ -235,6 +244,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
 
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::FAILED,
+                'claim_token' => null,
                 'available_at' => null,
                 'lease_expires_at' => null,
                 'last_error' => $message,
@@ -242,14 +252,16 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
         }, 3);
     }
 
-    private function finish(int $generation, string $status, ?string $error = null): void
+    private function finish(int $generation, string $claimToken, string $status, ?string $error = null): void
     {
         ResourceAssessmentRefresh::query()
             ->whereKey($this->resourceId)
             ->where('generation', $generation)
             ->where('status', ResourceAssessmentRefresh::PROCESSING)
+            ->where('claim_token', $claimToken)
             ->update([
                 'status' => $status,
+                'claim_token' => null,
                 'available_at' => null,
                 'lease_expires_at' => null,
                 'completed_at' => $status === ResourceAssessmentRefresh::COMPLETED ? now() : null,
@@ -261,11 +273,19 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
     {
         $refresh->forceFill([
             'status' => ResourceAssessmentRefresh::PENDING,
+            'claim_token' => null,
             'attempts' => str_starts_with($message, 'Waiting for ') ? max(0, $refresh->attempts - 1) : $refresh->attempts,
             'available_at' => now()->addSeconds($seconds),
             'lease_expires_at' => null,
             'last_error' => $message,
         ])->save();
+    }
+
+    private function ownsClaim(ResourceAssessmentRefresh $refresh, int $generation, string $claimToken): bool
+    {
+        return $refresh->generation === $generation
+            && $refresh->status === ResourceAssessmentRefresh::PROCESSING
+            && $refresh->claim_token === $claimToken;
     }
 
     private function sameUrl(string $actual, string $expected): bool

@@ -45,6 +45,7 @@ final class ResourceAssessmentRefreshService
                 $refresh->forceFill([
                     'status' => ResourceAssessmentRefresh::PENDING,
                     'generation' => $refresh->generation + 1,
+                    'claim_token' => null,
                     'attempts' => 0,
                     'service_attempts' => 0,
                     'requested_at' => now(),
@@ -95,6 +96,8 @@ final class ResourceAssessmentRefreshService
 
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::QUEUED,
+                // Expiring the old lease must revoke its worker before a new claim.
+                'claim_token' => null,
                 // A queued job can wait behind a full run on the shared worker.
                 // Keep its claim long enough to avoid minute-by-minute duplicates.
                 'lease_expires_at' => now()->addDay(),

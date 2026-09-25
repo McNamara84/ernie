@@ -284,3 +284,50 @@ it('claims a queued refresh once while a worker is busy and recovers an expired 
         ->and($refresh->fresh()->lease_expires_at?->isFuture())->toBeTrue()
         ->and($refresh->fresh()->resource_id)->toBe($resource->id);
 });
+
+it('rejects an old worker result after another worker claims the recovered lease', function (bool $fails): void {
+    [$resource, $page, $assessment] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+
+    $replacementToken = null;
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturnUsing(function () use ($resource, $page, $refresh, $fails, &$replacementToken): array {
+        $oldToken = $refresh->fresh()->claim_token;
+        expect($oldToken)->not->toBeNull();
+
+        $refresh->forceFill(['lease_expires_at' => now()->subSecond()])->save();
+        app(ResourceAssessmentRefreshService::class)->recover();
+        expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+            ->and($refresh->fresh()->claim_token)->toBeNull();
+
+        $replacement = new RefreshPublishedResourceAssessmentJob($resource->id);
+        $claim = (new ReflectionMethod($replacement, 'claim'))->invoke($replacement);
+        expect($claim)->not->toBeNull();
+        $replacementToken = $claim[2];
+        expect($replacementToken)->not->toBe($oldToken);
+
+        if ($fails) {
+            throw new FujiAssessmentException('Old worker failed.', retryable: false);
+        }
+
+        return [
+            'score' => 10.0,
+            'payload' => ['software_version' => 'old-worker'],
+            'resolvedUrl' => $page->public_url,
+            'normalizedIdentifier' => $resource->doi,
+        ];
+    });
+
+    runRefresh($resource->id, $fuji);
+
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PROCESSING)
+        ->and($refresh->fresh()->claim_token)->toBe($replacementToken)
+        ->and($refresh->fresh()->last_error)->toBeNull()
+        ->and((float) $assessment->fresh()->total_score)->toBe(40.0)
+        ->and($assessment->fresh()->payload['software_version'])->toBe('4.0.0');
+})->with([
+    'stale success' => false,
+    'stale failure' => true,
+]);

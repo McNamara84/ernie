@@ -595,6 +595,7 @@ erDiagram
         bigint resource_id PK, FK "1:1 with resources, cascade delete"
         varchar status "20, indexed"
         int generation "unsigned, default 1"
+        uuid claim_token "nullable"
         smallint attempts "unsigned, default 0"
         smallint service_attempts "unsigned, default 0"
         timestamp requested_at

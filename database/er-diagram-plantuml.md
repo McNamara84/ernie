@@ -650,6 +650,7 @@ entity "resource_assessment_refreshes" as resource_assessment_refreshes {
     --
     * status : VARCHAR(20) <<IDX>>
     * generation : INT UNSIGNED = 1
+    claim_token : UUID <<nullable>>
     * attempts : SMALLINT UNSIGNED = 0
     * service_attempts : SMALLINT UNSIGNED = 0
     * requested_at : TIMESTAMP
