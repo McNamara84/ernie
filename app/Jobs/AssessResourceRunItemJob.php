@@ -291,13 +291,14 @@ final class AssessResourceRunItemJob implements ShouldQueue
             }
 
             if ($currentResource !== null) {
+                $resultStartedAt = $assessedAt ?? now();
                 $existingAssessment = ResourceAssessment::query()
                     ->where('resource_id', $currentResource->id)
                     ->lockForUpdate()
                     ->first();
 
-                if ($existingAssessment?->assessed_at === null
-                    || $existingAssessment->assessed_at->lessThanOrEqualTo($assessedAt ?? now())) {
+                if ($existingAssessment?->assessment_started_at === null
+                    || $existingAssessment->assessment_started_at->lessThanOrEqualTo($resultStartedAt)) {
                     ResourceAssessment::query()->updateOrCreate(
                         ['resource_id' => $currentResource->id],
                         [
@@ -312,7 +313,8 @@ final class AssessResourceRunItemJob implements ShouldQueue
                             'assessed_identifier' => $currentResource->doi,
                             'error_message' => $error === null ? null : $this->sanitize($error),
                             'payload' => $result['payload'] ?? null,
-                            'assessed_at' => $assessedAt ?? now(),
+                            'assessed_at' => $resultStartedAt,
+                            'assessment_started_at' => $resultStartedAt,
                         ],
                     );
 

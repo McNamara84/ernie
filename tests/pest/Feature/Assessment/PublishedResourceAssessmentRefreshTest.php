@@ -16,6 +16,7 @@ use App\Models\ResourceAssessmentRefresh;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -159,6 +160,7 @@ it('does not trust a newer full assessment before checking the published DOI tar
 });
 
 it('retries if a newer unverified full assessment finishes during the targeted F-UJI call', function (): void {
+    $this->travelTo(Carbon::parse('2026-09-25 12:00:00.100000'));
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);
     Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
@@ -168,9 +170,10 @@ it('retries if a newer unverified full assessment finishes during the targeted F
     $fuji = $this->mock(FujiAssessmentService::class);
     $fuji->shouldReceive('assessIdentifier')->twice()->andReturnUsing(function () use (&$calls, $assessment, $page, $resource): array {
         if (++$calls === 1) {
-            $this->travel(2)->seconds();
+            $this->travelTo(Carbon::parse('2026-09-25 12:00:00.800000'));
             $assessment->forceFill([
-                'assessed_at' => now(),
+                'assessed_at' => now()->startOfSecond(),
+                'assessment_started_at' => now(),
                 'total_score' => 55,
                 'payload' => ['resolved_url' => 'https://example.org/old-target'],
             ])->save();
@@ -188,6 +191,7 @@ it('retries if a newer unverified full assessment finishes during the targeted F
 
     expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PENDING)
         ->and($refresh->fresh()->attempts)->toBe(0)
+        ->and($assessment->fresh()->assessment_started_at?->format('u'))->toBe('800000')
         ->and((float) $assessment->fresh()->total_score)->toBe(55.0);
 
     $this->travel(1)->minute();

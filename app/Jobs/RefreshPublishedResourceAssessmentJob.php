@@ -156,7 +156,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             // A complete run may have produced a newer result while this call was running.
             $existing = ResourceAssessment::query()->where('resource_id', $this->resourceId)->lockForUpdate()->first();
             if ($existing?->status === ResourceAssessment::STATUS_COMPLETED
-                && $existing->assessed_at?->greaterThan($startedAt)) {
+                && $existing->assessment_started_at?->greaterThan($startedAt)) {
                 $this->resetPending($refresh, 60, 'Waiting for the newer assessment before checking the published landing page again.');
 
                 return;
@@ -171,6 +171,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
                 'error_message' => null,
                 'payload' => $result['payload'],
                 'assessed_at' => $startedAt,
+                'assessment_started_at' => $startedAt,
             ]);
 
             if ($startedAt->lessThan($requestedAt)) {

@@ -587,6 +587,7 @@ erDiagram
         text error_message "nullable"
         json payload "nullable"
         timestamp assessed_at "nullable"
+        timestamp assessment_started_at "nullable, microsecond precision for result ordering"
         timestamp created_at
         timestamp updated_at
     }

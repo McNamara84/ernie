@@ -6,9 +6,12 @@ use App\Enums\AssessmentScope;
 use App\Models\AssessmentRun;
 use App\Models\AssessmentRunItem;
 use App\Models\Resource;
+use App\Models\ResourceAssessment;
 use App\Models\ResourceAssessmentRefresh;
 use App\Models\User;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 uses()->group('database', 'mysql-sensitive');
@@ -46,6 +49,29 @@ it('stores resumable snapshot preparation progress', function (): void {
             'failure_type',
             'error_code',
         ]))->toBeTrue();
+});
+
+it('persists microsecond precision for assessment result ordering', function (): void {
+    expect(Schema::hasColumn('resource_assessments', 'assessment_started_at'))->toBeTrue();
+
+    $resource = Resource::factory()->withDoi('10.5880/assessment.precision')->create();
+    $assessment = ResourceAssessment::query()->create([
+        'resource_id' => $resource->id,
+        'status' => ResourceAssessment::STATUS_COMPLETED,
+        'assessment_started_at' => Carbon::parse('2026-09-25 12:00:00.123456'),
+    ]);
+
+    expect($assessment->fresh()->assessment_started_at?->format('u'))->toBe('123456');
+
+    if (DB::getDriverName() === 'mysql') {
+        $precision = DB::table('information_schema.COLUMNS')
+            ->where('TABLE_SCHEMA', DB::getDatabaseName())
+            ->where('TABLE_NAME', 'resource_assessments')
+            ->where('COLUMN_NAME', 'assessment_started_at')
+            ->value('DATETIME_PRECISION');
+
+        expect((int) $precision)->toBe(6);
+    }
 });
 
 it('stores one durable publication refresh per resource and removes it on resource deletion', function (): void {

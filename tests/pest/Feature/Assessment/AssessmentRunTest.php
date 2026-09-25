@@ -23,6 +23,7 @@ use App\Services\Assessment\AssessmentRunService;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\ResourceCacheService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -549,10 +550,39 @@ test('an item job stores a successful assessment atomically', function (): void 
         ->and($item->fresh()->last_http_status)->toBe(200)
         ->and($assessment->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
         ->and($assessment->total_score)->toBe('73.08')
+        ->and($assessment->assessment_started_at)->not->toBeNull()
         ->and($run->fresh()->processed)->toBe(1)
         ->and($run->fresh()->assessed)->toBe(1)
         ->and($run->fresh()->pending)->toBe(0);
     Queue::assertPushed(DispatchAssessmentRunItemsJob::class);
+});
+
+test('an older full run cannot replace a publication refresh started later in the same second', function (): void {
+    $this->travelTo(Carbon::parse('2026-09-25 12:00:00.100000'));
+    $resource = Resource::factory()->withDoi('10.5880/assessment.publication-race')->create();
+    [, $item] = queuedAssessmentItem($resource);
+    Http::fake(function () use ($resource) {
+        $this->travelTo(Carbon::parse('2026-09-25 12:00:00.800000'));
+        ResourceAssessment::query()->create([
+            'resource_id' => $resource->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 82,
+            'assessed_identifier' => $resource->doi,
+            'payload' => ['software_version' => '4.0.1'],
+            'assessed_at' => now()->startOfSecond(),
+            'assessment_started_at' => now(),
+        ]);
+
+        return Http::response(successfulFujiAssessment(40));
+    });
+
+    handleAssessmentItem(new AssessResourceRunItemJob($item->id));
+
+    $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->firstOrFail();
+    expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::ASSESSED)
+        ->and($assessment->total_score)->toBe('82.00')
+        ->and($assessment->assessment_started_at?->format('u'))->toBe('800000')
+        ->and($assessment->assessed_at?->format('Y-m-d H:i:s'))->toBe('2026-09-25 12:00:00');
 });
 
 test('a full run supersedes an earlier failed refresh within the same stored second', function (): void {
@@ -766,17 +796,19 @@ test('a permanent F-UJI failure becomes a terminal resource failure', function (
 });
 
 test('an older terminal failure does not replace a newer completed assessment', function (): void {
+    $this->travelTo(Carbon::parse('2026-09-25 12:00:00.100000'));
     $resource = Resource::factory()->withDoi('10.5880/assessment.failure-race')->create();
     [, $item] = queuedAssessmentItem($resource);
     Http::fake(function () use ($resource) {
-        $this->travel(2)->seconds();
+        $this->travelTo(Carbon::parse('2026-09-25 12:00:00.800000'));
         ResourceAssessment::query()->create([
             'resource_id' => $resource->id,
             'status' => ResourceAssessment::STATUS_COMPLETED,
             'total_score' => 82,
             'assessed_identifier' => $resource->doi,
             'payload' => ['software_version' => '4.0.1'],
-            'assessed_at' => now(),
+            'assessed_at' => now()->startOfSecond(),
+            'assessment_started_at' => now(),
         ]);
 
         return Http::response(['error' => 'Bad request'], 400);
@@ -788,6 +820,7 @@ test('an older terminal failure does not replace a newer completed assessment', 
     expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::FAILED)
         ->and($assessment->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
         ->and($assessment->total_score)->toBe('82.00')
+        ->and($assessment->assessment_started_at?->format('u'))->toBe('800000')
         ->and($assessment->assessed_at?->equalTo(now()->startOfSecond()))->toBeTrue();
 });
 

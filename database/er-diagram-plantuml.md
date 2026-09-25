@@ -641,6 +641,7 @@ entity "resource_assessments" as resource_assessments {
     error_message : TEXT
     payload : JSON
     assessed_at : TIMESTAMP
+    assessment_started_at : TIMESTAMP(6) //nullable, result ordering//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
