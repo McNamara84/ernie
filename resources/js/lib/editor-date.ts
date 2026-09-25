@@ -67,6 +67,7 @@ export function validateEditorDate(
     value: string,
     locale: EditorDateLocale,
     today: Date = new Date(),
+    allowFuture = false,
 ): { parsed: ParsedEditorDate | null; error: string | null } {
     const parsed = parseEditorDate(value, locale);
     if (!parsed) {
@@ -79,7 +80,7 @@ export function validateEditorDate(
         };
     }
     if (parsed.earliest < EDITOR_MIN_DATE) return { parsed, error: 'Date must be on or after 1900-01-01.' };
-    if (parsed.earliest > todayLocalIso(today)) return { parsed, error: 'Date cannot be in the future.' };
+    if (!allowFuture && parsed.earliest > todayLocalIso(today)) return { parsed, error: 'Date cannot be in the future.' };
     return { parsed, error: null };
 }
 
@@ -121,9 +122,9 @@ export function isEditorDateRangeReversed(
 }
 
 /** Keep localized or invalid raw text out of every API payload. */
-export function requireEditorDateIso(value: string, locale: EditorDateLocale): string {
+export function requireEditorDateIso(value: string, locale: EditorDateLocale, allowFuture = false): string {
     if (!value.trim()) return '';
-    const result = validateEditorDate(value, locale);
+    const result = validateEditorDate(value, locale, new Date(), allowFuture);
     if (result.error || !result.parsed) throw new Error(result.error ?? 'Invalid editor date.');
     return result.parsed.iso;
 }

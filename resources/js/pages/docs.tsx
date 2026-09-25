@@ -1392,6 +1392,28 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
+                        <h4>Embargo and Manual Release</h4>
+                        <p>
+                            Choose <strong>Embargoed access</strong> and enter exactly one full calendar <strong>Available</strong> date. Keep an
+                            internal landing page unpublished. ERNIE blocks registration before that date and does not release the resource
+                            automatically.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                The Resources List shows an <strong>Embargo</strong> badge. Use the <strong>Status</strong> filter to find embargoed
+                                resources; selecting the badge opens and copies the tokenized landing-page preview link.
+                            </li>
+                            <li>
+                                The preview shows the embargo date but hides file, link, and FTP downloads. The landing page remains unpublished, even
+                                when the Available date has passed.
+                            </li>
+                            <li>
+                                From the Available date onward, the Dashboard lists resources ready for manual release. Review the record, then use{' '}
+                                <strong>Register</strong> in the editor or the IGSN registration action. After DataCite accepts the registration,
+                                ERNIE changes access to Open, publishes the landing page, and shows <strong>Published</strong> status.
+                            </li>
+                        </ul>
+
                         <WorkflowSuccess>
                             Your curated dataset is now saved and available under <code>/resources</code> for further processing.
                         </WorkflowSuccess>
@@ -1859,7 +1881,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Valid:</strong> Time period for which the data is valid
                             </li>
                             <li>
-                                <strong>Available:</strong> When the resource became publicly available
+                                <strong>Available:</strong> When the resource becomes publicly available. For Embargoed access, enter exactly one full
+                                calendar date (YYYY-MM-DD); DataCite uses Available as the embargo end date.
                             </li>
                             <li>
                                 <strong>Submitted:</strong> When the resource was submitted
@@ -2666,8 +2689,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Registering DOIs</h3>
                         <p>
-                            Once your landing page is public, you can register a DOI through DataCite. Beginner users follow the same workflow, but
-                            ERNIE forces their requests to the DataCite test API.
+                            Once a landing page is configured, you can register a DOI through DataCite. Embargoed resources need an unpublished
+                            internal landing page and can be registered only from their Available date onward. Beginner users follow the same
+                            workflow, but ERNIE forces their requests to the DataCite test API.
                         </p>
                         <p>
                             In the Data Editor, <strong>Register</strong> and <strong>Update Metadata</strong> first run local completeness checks and

@@ -45,6 +45,9 @@ interface DefaultGfzIgsnTemplatePageProps {
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
+    embargoDate?: string | null;
+    embargoPending?: boolean;
+    embargoDue?: boolean;
     supportsIso19115?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
@@ -74,6 +77,9 @@ export default function DefaultGfzIgsnTemplate() {
         documentTitle,
         landingPage,
         isPreview,
+        embargoDate = null,
+        embargoPending = false,
+        embargoDue = false,
         supportsIso19115 = false,
         metadataLinks,
         sectionOrder,
@@ -231,13 +237,27 @@ export default function DefaultGfzIgsnTemplate() {
                 hero={
                     <ResourceHero
                         resourceType="IGSN"
-                        status={status}
+                        status={embargoPending && embargoDate ? 'embargo' : status}
                         mainTitle={mainTitle}
                         subtitle={subtitle}
                         citation={citation}
                         citationPresentation={citationPresentation}
                         useIgsnIcon={true}
                     />
+                }
+                notice={
+                    embargoPending ? (
+                        <div
+                            role="status"
+                            className="rounded-lg border-2 border-purple-500 bg-purple-50 p-4 font-semibold text-purple-900 dark:bg-purple-950 dark:text-purple-100"
+                        >
+                            {!embargoDate
+                                ? 'Embargo date is missing or invalid; publication is blocked.'
+                                : embargoDue
+                                  ? `Embargo expired on ${embargoDate}; publication is pending manual release.`
+                                  : `Under embargo until ${embargoDate}.`}
+                        </div>
+                    ) : undefined
                 }
                 rightColumnSections={orders.right.map((key) => sectionRegistry[key]).filter(Boolean)}
                 leftColumnSections={orders.left.map((key) => sectionRegistry[key]).filter(Boolean)}

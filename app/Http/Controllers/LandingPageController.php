@@ -12,6 +12,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageLink;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Services\EmbargoService;
 use App\Services\KeywordSuggestionService;
 use App\Services\LandingPageContentDescriptorOptionsService;
 use App\Services\LandingPageTemplateResolverService;
@@ -24,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -221,6 +223,13 @@ class LandingPageController extends Controller
         $validated = $request->validated();
 
         $resource->loadMissing(['resourceType', 'formats', 'sizes']);
+        if (app(EmbargoService::class)->isEmbargoed($resource)
+            && (($validated['status'] ?? null) === 'published' || ($validated['is_published'] ?? false) || $validated['template'] === 'external')) {
+            return response()->json([
+                'message' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                'error' => 'embargo_pending',
+            ], 422);
+        }
 
         if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
             return response()->json([
@@ -288,6 +297,13 @@ class LandingPageController extends Controller
                     $isPublished = $validated['status'] === 'published';
                 } elseif (isset($validated['is_published'])) {
                     $isPublished = $validated['is_published'];
+                }
+
+                if (app(EmbargoService::class)->isEmbargoed($lockedResource)
+                    && ($isPublished || $validated['template'] === 'external')) {
+                    throw ValidationException::withMessages([
+                        'status' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                    ]);
                 }
 
                 // Create landing page.
@@ -526,6 +542,14 @@ class LandingPageController extends Controller
                 $requestedStatus = $validated['status'] === 'published';
             } elseif (isset($validated['is_published'])) {
                 $requestedStatus = $validated['is_published'];
+            }
+
+            if (app(EmbargoService::class)->isEmbargoed($lockedResource)
+                && (($requestedStatus === true && ! $lockedLandingPage->isPublished()) || $effectiveTemplate === 'external')) {
+                return response()->json([
+                    'message' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                    'error' => 'embargo_pending',
+                ], 422);
             }
 
             $currentlyPublished = $lockedLandingPage->isPublished();

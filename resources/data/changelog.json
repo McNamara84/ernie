@@ -4,6 +4,17 @@
         "date": "2026-09-24",
         "features": [
             {
+                "title": "Embargo Workflow and DataCite Available Dates",
+                "description": "Embargoed resources now use one day-precision DataCite Available date as their release boundary. Tokenized previews show the embargo date without download links, new DOI and IGSN registrations wait until the date, and due resources appear on every curator dashboard. Manual registration publishes the landing page and changes the DataCite access right to Open access while preserving schema-compliant Available metadata.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1350,
+                        "url": "https://github.com/McNamara84/ernie/issues/1350"
+                    }
+                ]
+            },
+            {
                 "title": "Direct Date Entry in the Editor",
                 "description": "Dates in the editor can now be typed directly or chosen from a calendar with month and year selection back to 1900. German browser settings also accept and display day-month-year dates, while saved values remain in ISO format. Year-only and year-month dates can be edited without losing their precision, and invalid entries are highlighted before a draft or resource is saved.",
                 "references": [

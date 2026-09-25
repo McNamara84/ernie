@@ -289,7 +289,7 @@ const normalizeDeleteStatus = (resource: Resource): ResourceDeleteStatus => {
         return 'published';
     }
 
-    if (resource.publicstatus === 'review') {
+    if (resource.publicstatus === 'review' || resource.publicstatus === 'embargo') {
         return 'review';
     }
 
@@ -1316,7 +1316,7 @@ function ResourcesPage({
 
                 // Open in new tab
                 window.open(doiUrl, '_blank', 'noopener,noreferrer');
-            } else if (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url) {
+            } else if ((status === 'embargo' || (canSendReviewLinks && status === 'review')) && resource.landingPage?.preview_url) {
                 // Review: Open preview landing page and copy URL to clipboard
                 const previewUrl = resource.landingPage.preview_url;
 
@@ -2160,7 +2160,8 @@ function ResourcesPage({
 
                 // Determine if badge is clickable
                 const isClickable =
-                    (status === 'published' && resource.doi) || (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url);
+                    (status === 'published' && resource.doi) ||
+                    ((status === 'embargo' || (canSendReviewLinks && status === 'review')) && resource.landingPage?.preview_url);
 
                 // Determine badge style based on status
                 let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center justify-center';
@@ -2169,6 +2170,8 @@ function ResourcesPage({
                     if (isClickable) {
                         statusClasses += ' cursor-pointer hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors';
                     }
+                } else if (status === 'embargo') {
+                    statusClasses += ' bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 cursor-pointer';
                 } else if (status === 'review') {
                     statusClasses += ' bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
                     if (isClickable) {

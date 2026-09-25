@@ -136,7 +136,7 @@ class StoreResourceRequest extends FormRequest
                 Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
-            'dates.*.startDate' => ['nullable', app(EditorDate::class)],
+            'dates.*.startDate' => ['nullable', new EditorDate(allowFuture: true)],
             'dates.*.endDate' => ['nullable', app(EditorDate::class)],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],
@@ -1256,16 +1256,16 @@ class StoreResourceRequest extends FormRequest
                 }
 
                 $dates = $this->input('dates', []);
-                $hasAvailableDate = is_array($dates) && collect($dates)->contains(
+                $available = is_array($dates) ? collect($dates)->filter(
                     static fn (mixed $date): bool => is_array($date)
-                        && Str::kebab((string) ($date['dateType'] ?? '')) === 'available'
-                        && trim((string) ($date['startDate'] ?? '')) !== '',
-                );
+                        && Str::kebab((string) ($date['dateType'] ?? '')) === 'available',
+                ) : collect();
 
-                if (! $hasAvailableDate) {
+                if ($available->count() !== 1 || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($available->first()['startDate'] ?? ''))
+                    || trim((string) ($available->first()['endDate'] ?? '')) !== '') {
                     $validator->errors()->add(
                         'accessLevel',
-                        '[Resource Information] Embargoed access requires an Available date.',
+                        '[Resource Information] Embargoed access requires exactly one day-precision Available date.',
                     );
                 }
             },

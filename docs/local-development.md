@@ -78,22 +78,30 @@ If the repository stays under `D:\` or another NTFS path:
 
     This installs the local `node_modules` required by Oxlint, Oxfmt, TypeScript, Vitest, OpenAPI linting, and Playwright.
 
-4. Start Fast Mode.
+4. Install the repository's Git pre-commit hook for this checkout.
+
+    ```bash
+    npm run hooks:install
+    ```
+
+    The hook checks staged whitespace, PHP style with Pint, frontend lint and formatting, and OpenAPI changes when applicable. PHP checks start the Docker backend. It rejects partially staged files that need checking because the tools read the worktree. Full tests remain in the validation commands and CI.
+
+5. Start Fast Mode.
 
     ```bash
     npm run docker:dev:up
     ```
 
-5. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
+6. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
 
-6. Open the application.
+7. Open the application.
 
     - Main URL: `https://ernie.localhost:3333`
     - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
 
     If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
-7. Create the first administrator account.
+8. Create the first administrator account.
 
     ```bash
     npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword
@@ -698,3 +706,9 @@ This command:
 - runs the current explicit MySQL-sensitive migration file slice with a schema reset before each file
 
 It does not reuse the regular development schema. For broader testing guidance, see [testing.md](testing.md).
+
+### Embargo workflow (issue #1350)
+
+ERNIE uses `Embargo` only as an internal workflow status. DataCite 4.7 metadata keeps `dateType=Available` and the COAR `Embargoed access` right. A valid embargo needs exactly one day-precision `Available` date (`YYYY-MM-DD`). The configured `APP_TIMEZONE` determines when that date becomes due at 00:00. The status remains Embargo until a curator manually registers the DOI or IGSN; successful registration changes the access right to Open and publishes the internal landing page. The dashboard lists due resources for every curator. Unpublished preview URLs require their token and omit stored download destinations. The XML schema snapshot under `resources/data/scheme/datacite-4.7/` comes from the official DataCite 4.7 schema and is used by the schema regression test.
+
+An uncertain DataCite create response leaves a durable registration attempt on the resource. A retry first reads DataCite by the stable `/datasets/{id}` target (or by the known IGSN) and completes the local release only when the remote record is Findable and has the expected Open access right. It never sends a second POST while the attempt is pending; editor saves are blocked until reconciliation. If the retry reports that no matching record exists, an operator must inspect the correct DataCite environment and prefix before clearing `embargo_registration_started_at` and `embargo_registration_prefix` for that resource in MySQL. Keep the marker when the remote outcome is uncertain or when multiple records match.
