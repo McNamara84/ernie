@@ -13,6 +13,7 @@ use App\Models\AssessmentRun;
 use App\Models\AssessmentRunItem;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Models\ResourceAssessmentRefresh;
 use App\Services\Assessment\AssessmentRunService;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use App\Services\Assessment\FujiAssessmentService;
@@ -83,6 +84,13 @@ final class AssessResourceRunItemJob implements ShouldQueue
         $item->refresh();
         $started = microtime(true);
         $assessedAt = now();
+        // Observe a failed publication refresh before the F-UJI request. Its
+        // generation identifies a failure that this successful run can replace,
+        // even when both results are stored in the same timestamp second.
+        $failedRefreshGeneration = ResourceAssessmentRefresh::query()
+            ->whereKey($resource->id)
+            ->where('status', ResourceAssessmentRefresh::FAILED)
+            ->value('generation');
 
         try {
             $result = $fuji->assessIdentifier($identifier);
@@ -133,6 +141,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
             durationMs: $this->durationMs($started),
             expectedIdentifier: $identifier,
             assessedAt: $assessedAt,
+            failedRefreshGeneration: is_numeric($failedRefreshGeneration) ? (int) $failedRefreshGeneration : null,
         );
         $item->refresh();
         if ($item->status->isTerminal()) {
@@ -228,13 +237,14 @@ final class AssessResourceRunItemJob implements ShouldQueue
         ?int $durationMs = null,
         ?string $expectedIdentifier = null,
         ?Carbon $assessedAt = null,
+        ?int $failedRefreshGeneration = null,
     ): void {
         $runId = AssessmentRunItem::query()->whereKey($item->id)->value('run_id');
         if (! is_string($runId)) {
             return;
         }
 
-        DB::transaction(function () use ($runId, $item, $status, $resource, $resourceCache, $result, $error, $httpStatus, $failureType, $errorCode, $errorDetail, $durationMs, $expectedIdentifier, $assessedAt): void {
+        DB::transaction(function () use ($runId, $item, $status, $resource, $resourceCache, $result, $error, $httpStatus, $failureType, $errorCode, $errorDetail, $durationMs, $expectedIdentifier, $assessedAt, $failedRefreshGeneration): void {
             $run = AssessmentRun::query()->lockForUpdate()->find($runId);
             if ($run === null) {
                 return;
@@ -305,6 +315,20 @@ final class AssessResourceRunItemJob implements ShouldQueue
                             'assessed_at' => $assessedAt ?? now(),
                         ],
                     );
+
+                    if ($status === AssessmentRunItemStatus::ASSESSED && $failedRefreshGeneration !== null) {
+                        ResourceAssessmentRefresh::query()
+                            ->whereKey($currentResource->id)
+                            ->where('generation', $failedRefreshGeneration)
+                            ->where('status', ResourceAssessmentRefresh::FAILED)
+                            ->update([
+                                'status' => ResourceAssessmentRefresh::COMPLETED,
+                                'available_at' => null,
+                                'lease_expires_at' => null,
+                                'completed_at' => now(),
+                                'last_error' => null,
+                            ]);
+                    }
                 }
             }
 

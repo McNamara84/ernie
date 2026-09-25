@@ -165,11 +165,16 @@ describe('index', function () {
             ->assertOk()
             ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'failed'));
 
-        $this->travel(2)->seconds();
+        $failedAt = ResourceAssessmentRefresh::query()->findOrFail($resource->id)->updated_at;
         $assessment->forceFill([
-            'assessed_at' => now(),
+            'assessed_at' => $failedAt,
             'payload' => [...$assessment->payload, 'software_version' => '4.0.0'],
         ])->save();
+        $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'failed'));
+
+        ResourceAssessmentRefresh::query()->whereKey($resource->id)->update(['status' => ResourceAssessmentRefresh::COMPLETED]);
         $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'stale'));

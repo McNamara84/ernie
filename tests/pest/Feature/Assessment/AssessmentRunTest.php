@@ -11,9 +11,12 @@ use App\Jobs\DispatchAssessmentRunItemsJob;
 use App\Jobs\PrepareAssessmentRunSnapshotJob;
 use App\Models\AssessmentRun;
 use App\Models\AssessmentRunItem;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Models\ResourceAssessmentRefresh;
 use App\Models\ResourceType;
+use App\Models\Title;
 use App\Models\User;
 use App\Services\Assessment\AssessmentQueueService;
 use App\Services\Assessment\AssessmentRunService;
@@ -550,6 +553,83 @@ test('an item job stores a successful assessment atomically', function (): void 
         ->and($run->fresh()->assessed)->toBe(1)
         ->and($run->fresh()->pending)->toBe(0);
     Queue::assertPushed(DispatchAssessmentRunItemsJob::class);
+});
+
+test('a full run supersedes an earlier failed refresh within the same stored second', function (): void {
+    $this->travelTo(now()->startOfSecond());
+    $resource = Resource::factory()->withDoi('10.5880/assessment.same-second')->create();
+    Title::factory()->for($resource)->create(['value' => 'Same-second assessment']);
+    LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->published()->create();
+    ResourceAssessment::query()->create([
+        'resource_id' => $resource->id,
+        'status' => ResourceAssessment::STATUS_COMPLETED,
+        'total_score' => 40,
+        'assessed_identifier' => $resource->doi,
+        'payload' => ['software_version' => '4.0.0'],
+        'assessed_at' => now()->subDay(),
+    ]);
+    $refresh = ResourceAssessmentRefresh::query()->create([
+        'resource_id' => $resource->id,
+        'status' => ResourceAssessmentRefresh::FAILED,
+        'requested_at' => now(),
+        'last_error' => 'The automatic reassessment failed.',
+    ]);
+    $failedAt = $refresh->updated_at;
+    [, $item] = queuedAssessmentItem($resource);
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->with((string) $resource->doi)->andReturn([
+        'score' => 82.0,
+        'payload' => ['software_version' => '4.0.1'],
+        'resolvedUrl' => $resource->landingPage->public_url,
+        'normalizedIdentifier' => $resource->doi,
+    ]);
+    $fuji->shouldReceive('healthStatus')->once()->andReturn(['healthy' => true, 'message' => null, 'statusCode' => 200]);
+    $fuji->shouldReceive('isConfigured')->once()->andReturn(true);
+
+    handleAssessmentItem(new AssessResourceRunItemJob($item->id));
+
+    $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->firstOrFail();
+    expect($assessment->assessed_at?->equalTo($failedAt))->toBeTrue()
+        ->and($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
+        ->and($refresh->fresh()->last_error)->toBeNull()
+        ->and($assessment->total_score)->toBe('82.00');
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get('/assessment?include_draft_review_resources=1')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('resourcesNeedingAttention.0.assessmentState', 'current'));
+});
+
+test('a full run does not clear a newer publication refresh generation', function (): void {
+    $resource = Resource::factory()->withDoi('10.5880/assessment.newer-generation')->create();
+    $refresh = ResourceAssessmentRefresh::query()->create([
+        'resource_id' => $resource->id,
+        'status' => ResourceAssessmentRefresh::FAILED,
+        'requested_at' => now(),
+    ]);
+    [, $item] = queuedAssessmentItem($resource);
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturnUsing(function () use ($refresh, $resource): array {
+        $refresh->refresh();
+        $refresh->forceFill([
+            'generation' => $refresh->generation + 1,
+            'status' => ResourceAssessmentRefresh::PENDING,
+            'available_at' => now(),
+        ])->save();
+
+        return [
+            'score' => 82.0,
+            'payload' => ['software_version' => '4.0.1'],
+            'resolvedUrl' => null,
+            'normalizedIdentifier' => $resource->doi,
+        ];
+    });
+
+    handleAssessmentItem(new AssessResourceRunItemJob($item->id));
+
+    expect($refresh->fresh()->generation)->toBe(2)
+        ->and($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PENDING)
+        ->and($item->fresh()->status)->toBe(AssessmentRunItemStatus::ASSESSED);
 });
 
 test('duplicate item delivery does not assess a terminal item twice', function (): void {

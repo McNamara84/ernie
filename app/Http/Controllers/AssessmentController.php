@@ -357,11 +357,7 @@ class AssessmentController extends Controller
             return 'processing';
         }
 
-        if ($refresh?->status === ResourceAssessmentRefresh::FAILED
-            && ! ($assessment?->status === ResourceAssessment::STATUS_COMPLETED
-                && $assessment->assessed_identifier === $resource->doi
-                && $refresh->updated_at !== null
-                && $assessment->assessed_at?->greaterThan($refresh->updated_at))) {
+        if ($refresh?->status === ResourceAssessmentRefresh::FAILED) {
             return 'failed';
         }
 
