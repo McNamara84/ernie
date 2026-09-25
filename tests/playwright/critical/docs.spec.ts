@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { loginAsTestUser } from '../helpers/test-helpers';
@@ -66,6 +67,27 @@ test.describe('Documentation Page - Interactive Features', () => {
 
             await expect(gettingStartedTab).toHaveAttribute('data-state', 'active');
             await expect(page.getByTestId('tab-datasets')).toHaveAttribute('data-state', 'inactive');
+        });
+    });
+
+    test.describe('action guidance', () => {
+        test('explains the consequences of Register and Update metadata', async ({ page }) => {
+            await page.getByTestId('tab-datasets').click();
+
+            const register = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Register', exact: true }) });
+            await expect(register).toContainText('create and publish a DOI');
+            await expect(register).toContainText('failed remote step does not undo a successful local save');
+
+            const update = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Update metadata', exact: true }) });
+            await expect(update).toContainText('does not mint new DOIs');
+            await expect(update).toContainText('partial success');
+        });
+
+        test('opens a direct action link in its tab and transfers keyboard focus', async ({ page }) => {
+            await page.goto('/docs?tab=datasets&section=resources-update-metadata');
+            await expect(page.getByTestId('tab-datasets')).toHaveAttribute('aria-selected', 'true');
+            await expect(page.getByRole('heading', { name: 'Update metadata', exact: true })).toBeFocused();
+            await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', /trigger-datasets/);
         });
     });
 
@@ -148,6 +170,16 @@ test.describe('Documentation Page - Interactive Features', () => {
     });
 
     test.describe('accessibility', () => {
+        test('action guidance has no automated WCAG A or AA violations', async ({ page }) => {
+            await page.getByTestId('tab-datasets').click();
+            const results = await new AxeBuilder({ page })
+                .include('#editor-actions')
+                .include('#resources-actions')
+                .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+                .analyze();
+            expect(results.violations).toEqual([]);
+        });
+
         test('tabs have proper ARIA roles', async ({ page }) => {
             const tabsList = page.locator('[role="tablist"]').filter({
                 has: page.getByTestId('tab-getting-started'),

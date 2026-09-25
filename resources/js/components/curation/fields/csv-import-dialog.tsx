@@ -39,15 +39,15 @@ interface CsvImportDialogProps {
 }
 
 const FIELD_OPTIONS = [
-    { value: 'firstName', label: 'Vorname (First Name)' },
-    { value: 'lastName', label: 'Nachname (Last Name)' },
+    { value: 'firstName', label: 'First Name' },
+    { value: 'lastName', label: 'Last Name' },
     { value: 'orcid', label: 'ORCID' },
     { value: 'email', label: 'Email' },
     { value: 'affiliations', label: 'Affiliations (comma-separated)' },
     { value: 'isContact', label: 'Contact Person (yes/no)' },
     { value: 'type', label: 'Type (person/institution)' },
     { value: 'organizationName', label: 'Institution Name' },
-    { value: 'ignore', label: '--- Ignorieren ---' },
+    { value: 'ignore', label: '--- Ignore ---' },
 ];
 
 export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportDialogProps) {
@@ -209,7 +209,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
             },
             error: (error) => {
                 console.error('CSV parsing error:', error);
-                alert('Fehler beim Lesen der CSV-Datei.');
+                alert('Could not read the CSV file.');
             },
         });
     };
@@ -257,11 +257,11 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
             // Validation
             if (mappedRow.type === 'person' || !mappedRow.type) {
                 if (!mappedRow.firstName && !mappedRow.lastName) {
-                    mappedRow.errors?.push('Vorname oder Nachname erforderlich');
+                    mappedRow.errors?.push('First or last name is required');
                 }
             } else if (mappedRow.type === 'institution') {
                 if (!mappedRow.organizationName) {
-                    mappedRow.errors?.push('Institution Name erforderlich');
+                    mappedRow.errors?.push('Institution name is required');
                 }
             }
 
@@ -269,7 +269,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
             if (mappedRow.orcid) {
                 const orcidPattern = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
                 if (!orcidPattern.test(mappedRow.orcid)) {
-                    mappedRow.errors?.push('Ungültiges ORCID-Format');
+                    mappedRow.errors?.push('Invalid ORCID format');
                 }
             }
 
@@ -285,7 +285,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
         const validRows = mappedData.filter((row) => !row.errors || row.errors.length === 0);
 
         if (validRows.length === 0) {
-            alert('Keine gültigen Zeilen zum Importieren gefunden.');
+            alert('No valid rows found to import.');
             return;
         }
 
@@ -319,11 +319,11 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
             </DialogTrigger>
             <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col">
                 <DialogHeader>
-                    <DialogTitle>{type === 'author' ? 'Authors' : 'Contributors'} aus CSV importieren</DialogTitle>
+                    <DialogTitle>{type === 'author' ? 'Authors' : 'Contributors'} from CSV</DialogTitle>
                     <DialogDescription>
-                        {step === 'upload' && 'CSV-Datei hochladen'}
-                        {step === 'mapping' && 'Spalten zuordnen'}
-                        {step === 'preview' && 'Vorschau & Import'}
+                        {step === 'upload' && 'Upload a CSV file'}
+                        {step === 'mapping' && 'Map columns'}
+                        {step === 'preview' && 'Preview and import'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -335,10 +335,9 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                             <div className="flex items-start gap-3">
                                 <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
                                 <div className="flex-1">
-                                    <h4 className="mb-1 text-sm font-medium text-blue-900">Beispiel-CSV herunterladen</h4>
+                                    <h4 className="mb-1 text-sm font-medium text-blue-900">Download example CSV</h4>
                                     <p className="mb-3 text-sm text-blue-800">
-                                        Laden Sie eine Beispieldatei mit 4 Mustereinträgen herunter, um die richtige Struktur Ihrer CSV-Datei zu
-                                        sehen.
+                                        Download an example with four sample rows to see the required CSV structure.
                                     </p>
                                     <Button
                                         type="button"
@@ -348,7 +347,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                                         className="border-blue-300 hover:bg-blue-100"
                                     >
                                         <Download className="mr-2 h-4 w-4" />
-                                        Beispiel-CSV herunterladen
+                                        Download example CSV
                                     </Button>
                                 </div>
                             </div>
@@ -358,13 +357,13 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                         <div className="flex flex-1 flex-col items-center justify-center rounded-lg border-2 border-dashed p-8">
                             <FileText className="mb-4 h-16 w-16 text-muted-foreground" />
                             <Label htmlFor="csv-upload" className="cursor-pointer text-center">
-                                <div className="mb-2 text-lg font-medium">CSV-Datei auswählen</div>
-                                <div className="mb-4 text-sm text-muted-foreground">Klicken oder Datei hierher ziehen</div>
+                                <div className="mb-2 text-lg font-medium">Choose a CSV file</div>
+                                <div className="mb-4 text-sm text-muted-foreground">Click or drag a file here</div>
                             </Label>
                             <input id="csv-upload" type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
                             <Button type="button" onClick={() => document.getElementById('csv-upload')?.click()}>
                                 <Upload className="mr-2 h-4 w-4" />
-                                Datei auswählen
+                                Choose file
                             </Button>
                         </div>
                     </div>
@@ -375,7 +374,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                     <div className="flex-1 space-y-4 overflow-y-auto">
                         <div className="rounded-md bg-muted/50 p-3">
                             <p className="text-sm">
-                                <strong>Datei:</strong> {fileName} ({csvData.length} Zeilen)
+                                <strong>File:</strong> {fileName} ({csvData.length} rows)
                             </p>
                         </div>
 
@@ -402,17 +401,17 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="w-32 truncate text-xs text-muted-foreground">{csvData[0]?.[header] || '(leer)'}</div>
+                                    <div className="w-32 truncate text-xs text-muted-foreground">{csvData[0]?.[header] || '(empty)'}</div>
                                 </div>
                             ))}
                         </div>
 
                         <div className="flex justify-between border-t pt-4">
                             <Button type="button" variant="outline" onClick={() => setStep('upload')}>
-                                Zurück
+                                Back
                             </Button>
                             <Button type="button" onClick={handlePreview}>
-                                Vorschau anzeigen
+                                Show preview
                             </Button>
                         </div>
                     </div>
@@ -425,12 +424,14 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
                                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                    <span className="text-sm font-medium">{validRowCount} gültig</span>
+                                    <span className="text-sm font-medium">{validRowCount} valid</span>
                                 </div>
                                 {errorRowCount > 0 && (
                                     <div className="flex items-center gap-2">
                                         <AlertCircle className="h-4 w-4 text-red-600" />
-                                        <span className="text-sm font-medium">{errorRowCount} Fehler</span>
+                                        <span className="text-sm font-medium">
+                                            {errorRowCount} {errorRowCount === 1 ? 'error' : 'errors'}
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -460,7 +461,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                                                         <div className="text-xs text-red-600">{row.errors.join(', ')}</div>
                                                     </div>
                                                 ) : (
-                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                                    <CheckCircle2 className="h-4 w-4 text-green-600" aria-label="Valid row" />
                                                 )}
                                             </TableCell>
                                             <TableCell>{row.type || 'person'}</TableCell>
@@ -482,10 +483,11 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
 
                         <div className="flex justify-between border-t pt-4">
                             <Button type="button" variant="outline" onClick={() => setStep('mapping')}>
-                                Zurück
+                                Back
                             </Button>
                             <Button type="button" onClick={handleImport} disabled={validRowCount === 0}>
-                                {validRowCount} {type === 'author' ? 'Authors' : 'Contributors'} importieren
+                                Import {validRowCount} {type}
+                                {validRowCount === 1 ? '' : 's'}
                             </Button>
                         </div>
                     </div>
