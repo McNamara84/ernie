@@ -122,6 +122,81 @@ it('waits for the DOI redirect and then replaces the previous score once', funct
         ->and($assessment->fresh()->payload['software_version'])->toBe('4.0.1');
 });
 
+it('does not trust a newer full assessment before checking the published DOI target', function (): void {
+    [$resource, $page, $assessment] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    $this->travel(2)->seconds();
+    $assessment->forceFill([
+        'assessed_at' => now(),
+        'total_score' => 55,
+        'payload' => ['resolved_url' => 'https://example.org/old-target'],
+    ])->save();
+    Http::fakeSequence('doi.org/*')
+        ->push('', 302, ['Location' => 'https://example.org/old-target'])
+        ->push('', 302, ['Location' => $page->public_url]);
+
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturn([
+        'score' => 73.0,
+        'payload' => ['software_version' => '4.0.1', 'resolved_url' => $page->public_url],
+        'resolvedUrl' => $page->public_url,
+        'normalizedIdentifier' => $resource->doi,
+    ]);
+
+    runRefresh($resource->id, $fuji);
+
+    Http::assertSentCount(1);
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PENDING)
+        ->and($refresh->fresh()->service_attempts)->toBe(0)
+        ->and((float) $assessment->fresh()->total_score)->toBe(55.0);
+
+    $this->travel(5)->minutes();
+    runRefresh($resource->id, $fuji);
+
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
+        ->and((float) $assessment->fresh()->total_score)->toBe(73.0);
+});
+
+it('retries if a newer unverified full assessment finishes during the targeted F-UJI call', function (): void {
+    [$resource, $page, $assessment] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+
+    $calls = 0;
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->twice()->andReturnUsing(function () use (&$calls, $assessment, $page, $resource): array {
+        if (++$calls === 1) {
+            $this->travel(2)->seconds();
+            $assessment->forceFill([
+                'assessed_at' => now(),
+                'total_score' => 55,
+                'payload' => ['resolved_url' => 'https://example.org/old-target'],
+            ])->save();
+        }
+
+        return [
+            'score' => 74.0,
+            'payload' => ['software_version' => '4.0.1', 'resolved_url' => $page->public_url],
+            'resolvedUrl' => $page->public_url,
+            'normalizedIdentifier' => $resource->doi,
+        ];
+    });
+
+    runRefresh($resource->id, $fuji);
+
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PENDING)
+        ->and($refresh->fresh()->attempts)->toBe(0)
+        ->and((float) $assessment->fresh()->total_score)->toBe(55.0);
+
+    $this->travel(1)->minute();
+    runRefresh($resource->id, $fuji);
+
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
+        ->and((float) $assessment->fresh()->total_score)->toBe(74.0);
+});
+
 it('keeps the previous assessment until F-UJI resolves the published landing page', function (?string $firstResolvedUrl): void {
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);

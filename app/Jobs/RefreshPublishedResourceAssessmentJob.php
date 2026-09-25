@@ -58,17 +58,6 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             return;
         }
 
-        $assessment = ResourceAssessment::query()->where('resource_id', $this->resourceId)->first();
-        if ($assessment?->status === ResourceAssessment::STATUS_COMPLETED
-            // Timestamps are persisted with second precision. Equality may
-            // mean the assessment started just before publication.
-            && $assessment->assessed_at?->greaterThan($requestedAt)
-            && $assessment->assessed_identifier === $identifier) {
-            $this->finish($generation, $claimToken, ResourceAssessmentRefresh::COMPLETED);
-
-            return;
-        }
-
         if (AssessmentRun::query()->whereNotNull('active_scope')->whereIn('status', [
             AssessmentRunStatus::PREPARING->value,
             AssessmentRunStatus::QUEUED->value,
@@ -166,19 +155,23 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
 
             // A complete run may have produced a newer result while this call was running.
             $existing = ResourceAssessment::query()->where('resource_id', $this->resourceId)->lockForUpdate()->first();
-            if ($existing?->status !== ResourceAssessment::STATUS_COMPLETED
-                || $existing->assessed_at === null || $existing->assessed_at->lessThanOrEqualTo($startedAt)) {
-                ResourceAssessment::query()->updateOrCreate(['resource_id' => $this->resourceId], [
-                    'status' => ResourceAssessment::STATUS_COMPLETED,
-                    'failure_type' => null,
-                    'error_code' => null,
-                    'total_score' => $result['score'],
-                    'assessed_identifier' => $identifier,
-                    'error_message' => null,
-                    'payload' => $result['payload'],
-                    'assessed_at' => $startedAt,
-                ]);
+            if ($existing?->status === ResourceAssessment::STATUS_COMPLETED
+                && $existing->assessed_at?->greaterThan($startedAt)) {
+                $this->resetPending($refresh, 60, 'Waiting for the newer assessment before checking the published landing page again.');
+
+                return;
             }
+
+            ResourceAssessment::query()->updateOrCreate(['resource_id' => $this->resourceId], [
+                'status' => ResourceAssessment::STATUS_COMPLETED,
+                'failure_type' => null,
+                'error_code' => null,
+                'total_score' => $result['score'],
+                'assessed_identifier' => $identifier,
+                'error_message' => null,
+                'payload' => $result['payload'],
+                'assessed_at' => $startedAt,
+            ]);
 
             if ($startedAt->lessThan($requestedAt)) {
                 $this->resetPending($refresh, 60, 'The landing page changed during assessment.');
