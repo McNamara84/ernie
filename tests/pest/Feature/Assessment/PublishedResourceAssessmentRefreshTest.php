@@ -16,8 +16,10 @@ use App\Models\ResourceAssessmentRefresh;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
@@ -123,6 +125,44 @@ it('waits for the DOI redirect and then replaces the previous score once', funct
         ->and($assessment->fresh()->payload['software_version'])->toBe('4.0.1');
 });
 
+it('locks the resource before the refresh row when storing a successful result', function (): void {
+    [$resource, $page] = assessedDraftResource();
+    publishAssessedPage($page);
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+
+    $recordCompletionQueries = false;
+    $lockOrder = [];
+    DB::listen(function (QueryExecuted $query) use (&$recordCompletionQueries, &$lockOrder): void {
+        if (! $recordCompletionQueries || ! str_starts_with(strtolower($query->sql), 'select')) {
+            return;
+        }
+
+        if (preg_match('/from ["`](resources|resource_assessment_refreshes)["`]/i', $query->sql, $matches) === 1) {
+            $lockOrder[] = $matches[1];
+        }
+    });
+
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturnUsing(function () use (&$recordCompletionQueries, $page, $resource): array {
+        $recordCompletionQueries = true;
+
+        return [
+            'score' => 68.5,
+            'payload' => ['software_version' => '4.0.1'],
+            'resolvedUrl' => $page->public_url,
+            'normalizedIdentifier' => $resource->doi,
+        ];
+    });
+
+    runRefresh($resource->id, $fuji);
+    $recordCompletionQueries = false;
+
+    expect($lockOrder[0] ?? null)->toBe('resources')
+        ->and($lockOrder[1] ?? null)->toBe('resource_assessment_refreshes')
+        ->and(ResourceAssessmentRefresh::query()->findOrFail($resource->id)->status)->toBe(ResourceAssessmentRefresh::COMPLETED);
+});
+
 it('does not trust a newer full assessment before checking the published DOI target', function (): void {
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);
@@ -159,7 +199,7 @@ it('does not trust a newer full assessment before checking the published DOI tar
         ->and((float) $assessment->fresh()->total_score)->toBe(73.0);
 });
 
-it('retries if a newer unverified full assessment finishes during the targeted F-UJI call', function (): void {
+it('retries if a newer terminal full assessment finishes during the targeted F-UJI call', function (string $status, ?float $score): void {
     $this->travelTo(Carbon::parse('2026-09-25 12:00:00.100000'));
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);
@@ -168,13 +208,14 @@ it('retries if a newer unverified full assessment finishes during the targeted F
     $calls = 0;
     /** @var FujiAssessmentService&MockInterface $fuji */
     $fuji = $this->mock(FujiAssessmentService::class);
-    $fuji->shouldReceive('assessIdentifier')->twice()->andReturnUsing(function () use (&$calls, $assessment, $page, $resource): array {
+    $fuji->shouldReceive('assessIdentifier')->twice()->andReturnUsing(function () use (&$calls, $assessment, $page, $resource, $status, $score): array {
         if (++$calls === 1) {
             $this->travelTo(Carbon::parse('2026-09-25 12:00:00.800000'));
             $assessment->forceFill([
+                'status' => $status,
                 'assessed_at' => now()->startOfSecond(),
                 'assessment_started_at' => now(),
-                'total_score' => 55,
+                'total_score' => $score,
                 'payload' => ['resolved_url' => 'https://example.org/old-target'],
             ])->save();
         }
@@ -192,14 +233,20 @@ it('retries if a newer unverified full assessment finishes during the targeted F
     expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PENDING)
         ->and($refresh->fresh()->attempts)->toBe(0)
         ->and($assessment->fresh()->assessment_started_at?->format('u'))->toBe('800000')
-        ->and((float) $assessment->fresh()->total_score)->toBe(55.0);
+        ->and($assessment->fresh()->status)->toBe($status)
+        ->and($assessment->fresh()->total_score)->toBe($score === null ? null : '55.00');
 
     $this->travel(1)->minute();
     runRefresh($resource->id, $fuji);
 
     expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
+        ->and($assessment->fresh()->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
         ->and((float) $assessment->fresh()->total_score)->toBe(74.0);
-});
+})->with([
+    'completed' => [ResourceAssessment::STATUS_COMPLETED, 55.0],
+    'failed' => [ResourceAssessment::STATUS_FAILED, null],
+    'skipped' => [ResourceAssessment::STATUS_SKIPPED, null],
+]);
 
 it('keeps the previous assessment until F-UJI resolves the published landing page', function (?string $firstResolvedUrl): void {
     [$resource, $page, $assessment] = assessedDraftResource();

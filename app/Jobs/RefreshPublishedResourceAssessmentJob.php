@@ -134,12 +134,13 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
         }
 
         DB::transaction(function () use ($generation, $requestedAt, $claimToken, $identifier, $result, $startedAt): void {
+            // Publication requests and full runs lock the resource before the refresh row.
+            $current = Resource::query()->lockForUpdate()->find($this->resourceId);
             $refresh = ResourceAssessmentRefresh::query()->lockForUpdate()->find($this->resourceId);
             if ($refresh === null || ! $this->ownsClaim($refresh, $generation, $claimToken)) {
                 return;
             }
 
-            $current = Resource::query()->with('landingPage')->find($this->resourceId);
             $currentPage = $current?->landingPage;
             if ($current?->doi !== $identifier || $currentPage === null || ! $currentPage->is_published) {
                 $this->resetPending($refresh, 60, 'The resource changed during assessment.');
@@ -153,10 +154,9 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
                 return;
             }
 
-            // A complete run may have produced a newer result while this call was running.
+            // A complete run may have produced a newer terminal result while this call was running.
             $existing = ResourceAssessment::query()->where('resource_id', $this->resourceId)->lockForUpdate()->first();
-            if ($existing?->status === ResourceAssessment::STATUS_COMPLETED
-                && $existing->assessment_started_at?->greaterThan($startedAt)) {
+            if ($existing?->assessment_started_at?->greaterThan($startedAt)) {
                 $this->resetPending($refresh, 60, 'Waiting for the newer assessment before checking the published landing page again.');
 
                 return;
