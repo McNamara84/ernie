@@ -151,8 +151,15 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             }
 
             $current = Resource::query()->with('landingPage')->find($this->resourceId);
-            if ($current?->doi !== $identifier || ! $current->landingPage?->is_published) {
+            $currentPage = $current?->landingPage;
+            if ($current?->doi !== $identifier || $currentPage === null || ! $currentPage->is_published) {
                 $this->resetPending($refresh, 60, 'The resource changed during assessment.');
+
+                return;
+            }
+
+            if (! $this->sameUrl((string) $result['resolvedUrl'], $currentPage->public_url)) {
+                $this->retryOrFailClaimed($refresh, 300, 12, 'F-UJI did not resolve the DOI to the published landing page.');
 
                 return;
             }
@@ -236,20 +243,25 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
                 return;
             }
 
-            if ($refresh->{$counter} < $maxAttempts) {
-                $this->resetPending($refresh, $seconds, $message);
-
-                return;
-            }
-
-            $refresh->forceFill([
-                'status' => ResourceAssessmentRefresh::FAILED,
-                'claim_token' => null,
-                'available_at' => null,
-                'lease_expires_at' => null,
-                'last_error' => $message,
-            ])->save();
+            $this->retryOrFailClaimed($refresh, $seconds, $maxAttempts, $message, $counter);
         }, 3);
+    }
+
+    private function retryOrFailClaimed(ResourceAssessmentRefresh $refresh, int $seconds, int $maxAttempts, string $message, string $counter = 'attempts'): void
+    {
+        if ($refresh->{$counter} < $maxAttempts) {
+            $this->resetPending($refresh, $seconds, $message);
+
+            return;
+        }
+
+        $refresh->forceFill([
+            'status' => ResourceAssessmentRefresh::FAILED,
+            'claim_token' => null,
+            'available_at' => null,
+            'lease_expires_at' => null,
+            'last_error' => $message,
+        ])->save();
     }
 
     private function finish(int $generation, string $claimToken, string $status, ?string $error = null): void

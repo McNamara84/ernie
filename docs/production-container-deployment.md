@@ -159,8 +159,9 @@ Edit the existing stack; do not delete or recreate it:
 - repository reference: `refs/heads/deploy/prod`;
 - Compose path: `docker-compose.prod.yml`;
 - existing stack environment variables: retain them unchanged;
-- `ERNIE_PROD_APP_IMAGE` and `ERNIE_PROD_NGINX_IMAGE`: leave both unset during
-  normal operation; remove stale values because these variables override the
+- `ERNIE_PROD_APP_IMAGE`, `ERNIE_PROD_FUJI_IMAGE`, and
+  `ERNIE_PROD_NGINX_IMAGE`: leave all three unset during normal operation;
+  remove stale values because these variables override the
   release-managed digests and are reserved for an explicit rollback;
 - registry: reuse the GHCR registry already configured for Stage when the
   packages are private;
