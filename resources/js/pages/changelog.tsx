@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';
 import { Button } from '@/components/ui/button';
-import ChangelogLayout from '@/layouts/changelog-layout';
+import AppLayout from '@/layouts/app-layout';
+import { getReleaseKind } from '@/lib/changelog-release-kind';
 
 // Type declaration for test helpers exposed on window object
 declare global {
@@ -150,8 +151,14 @@ export default function Changelog() {
 
     // Fetch changelog data on mount
     useEffect(() => {
-        fetch('/api/changelog')
+        fetch('/api/changelog', { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
             .then((res) => {
+                if (res.status === 401) {
+                    throw new Error('Your session has expired. Reload to sign in again.');
+                }
+                if (res.status === 403) {
+                    throw new Error('Your email address must be verified to view the changelog.');
+                }
                 if (!res.ok) {
                     throw new Error('Failed to fetch changelog');
                 }
@@ -177,7 +184,10 @@ export default function Changelog() {
                     setHighlightedIndex(defaultIndex);
                 }
             })
-            .catch(() => setError('Unable to load changelog.'));
+            .catch((reason: unknown) => {
+                const message = reason instanceof Error ? reason.message : '';
+                setError(message.startsWith('Your ') ? message : 'Unable to load changelog.');
+            });
     }, [getReleaseIndexFromHash, getScrollBehavior]);
 
     useEffect(() => {
@@ -424,200 +434,204 @@ export default function Changelog() {
     const activeTimelineIndex = highlightedIndex ?? openIndex;
 
     return (
-        <ChangelogLayout>
+        <AppLayout breadcrumbs={[{ title: 'Changelog', href: '/changelog' }]}>
             <Head title="Changelog" />
-            <ChangelogTimelineNav releases={releases} activeIndex={activeTimelineIndex} onNavigate={handleNavigate} />
+            <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-6">
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_15rem]">
+                    <div className="order-2 min-w-0 xl:order-1">
+                        {/* Screen reader announcements */}
+                        <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+                            {announcement}
+                        </div>
 
-            {/* Screen reader announcements */}
-            <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-                {announcement}
-            </div>
-
-            <h1 className="mb-6 text-2xl font-semibold">Changelog</h1>
-            {error ? (
-                <div
-                    role="alert"
-                    aria-atomic="true"
-                    className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-950/20"
-                >
-                    <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">Failed to load changelog</h2>
-                    <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
-                    <Button onClick={() => browserNavigation.reload()} variant="destructive">
-                        Reload page
-                    </Button>
-                </div>
-            ) : (
-                <ul className="relative space-y-4 border-l border-gray-300 pl-6" aria-label="Changelog Timeline">
-                    {releases.map((release, index) => {
-                        const isOpen = openIndex === index;
-                        const buttonId = `release-trigger-${index}`;
-                        const panelId = `release-${index}`;
-                        const prev = releases[index - 1];
-                        const [currMajor, currMinor] = release.version.split('.').map(Number);
-                        const [prevMajor, prevMinor] = prev ? prev.version.split('.').map(Number) : [currMajor, currMinor];
-                        const ringColor = (() => {
-                            if (!prev) return 'ring-green-500';
-                            if (currMajor !== prevMajor) return 'ring-green-500';
-                            if (currMinor !== prevMinor) return 'ring-blue-500';
-                            return 'ring-red-500';
-                        })();
-
-                        const gradientBg = (() => {
-                            if (!prev) return 'from-green-50 to-transparent dark:from-green-950/20';
-                            if (currMajor !== prevMajor) return 'from-green-50 to-transparent dark:from-green-950/20';
-                            if (currMinor !== prevMinor) return 'from-blue-50 to-transparent dark:from-blue-950/20';
-                            return 'from-red-50 to-transparent dark:from-red-950/20';
-                        })();
-
-                        return (
-                            <motion.li
-                                key={release.version}
-                                className="relative"
-                                ref={(el) => {
-                                    releaseRefs.current[index] = el;
-                                }}
-                                initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
-                                animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-                                transition={
-                                    prefersReducedMotion
-                                        ? {}
-                                        : {
-                                              duration: 0.2,
-                                              ease: 'easeOut',
-                                          }
-                                }
+                        <h1 className="mb-6 text-2xl font-semibold">Changelog</h1>
+                        {error ? (
+                            <div
+                                role="alert"
+                                aria-atomic="true"
+                                className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-950/20"
                             >
-                                <div
-                                    className={`rounded-lg bg-linear-to-r p-1 ${gradientBg} ${highlightedIndex === index ? 'ring-1 ring-slate-300/70 dark:ring-slate-700/70' : ''}`}
-                                >
-                                    <span
-                                        aria-hidden="true"
-                                        data-testid="version-anchor"
-                                        className={`absolute top-3 -left-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
-                                    ></span>
-                                    <Button
-                                        onClick={() => {
-                                            const wasOpen = isOpen;
-                                            const nextIsOpen = !wasOpen;
+                                <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">Failed to load changelog</h2>
+                                <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
+                                <Button onClick={() => browserNavigation.reload()} variant="destructive">
+                                    Reload page
+                                </Button>
+                            </div>
+                        ) : (
+                            <ul className="relative space-y-4 border-l border-gray-300 pl-6" aria-label="Changelog Timeline">
+                                {releases.map((release, index) => {
+                                    const isOpen = openIndex === index;
+                                    const buttonId = `release-trigger-${index}`;
+                                    const panelId = `release-${index}`;
+                                    const kind = getReleaseKind(releases, index);
+                                    const ringColor = {
+                                        major: 'ring-green-500',
+                                        minor: 'ring-blue-500',
+                                        patch: 'ring-red-500',
+                                    }[kind];
+                                    const gradientBg = {
+                                        major: 'from-green-50 to-transparent dark:from-green-950/20',
+                                        minor: 'from-blue-50 to-transparent dark:from-blue-950/20',
+                                        patch: 'from-red-50 to-transparent dark:from-red-950/20',
+                                    }[kind];
 
-                                            // Announce for screen readers
-                                            setAnnouncement(wasOpen ? `Version ${release.version} collapsed` : `Version ${release.version} expanded`);
-
-                                            if (nextIsOpen) {
-                                                navigateToRelease(index);
-                                                return;
+                                    return (
+                                        <motion.li
+                                            key={release.version}
+                                            className="relative"
+                                            ref={(el) => {
+                                                releaseRefs.current[index] = el;
+                                            }}
+                                            initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
+                                            animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
+                                            transition={
+                                                prefersReducedMotion
+                                                    ? {}
+                                                    : {
+                                                          duration: 0.2,
+                                                          ease: 'easeOut',
+                                                      }
                                             }
-
-                                            pendingScrollRef.current = null;
-                                            setHighlightedIndex(index);
-                                            setOpenIndex(null);
-                                        }}
-                                        id={buttonId}
-                                        data-version={release.version}
-                                        aria-expanded={isOpen}
-                                        aria-controls={panelId}
-                                        type="button"
-                                        variant="ghost"
-                                        className="h-auto w-full justify-start rounded px-2 py-3 text-left whitespace-normal hover:bg-gray-50 focus-visible:ring-blue-500 dark:hover:bg-gray-800"
-                                    >
-                                        <span className="flex flex-1 items-center gap-2">
-                                            <span className="font-medium">Version {release.version}</span>
-                                            {isNewRelease(release.date, index) && (
-                                                <span
-                                                    className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white"
-                                                    style={{ backgroundColor: '#000200' }}
-                                                >
-                                                    New
-                                                </span>
-                                            )}
-                                        </span>
-                                        <span className="ml-4 text-sm text-gray-700 dark:text-gray-300">{release.date}</span>
-                                    </Button>
-                                    <AnimatePresence initial={false}>
-                                        {isOpen && (
-                                            <motion.div
-                                                id={panelId}
-                                                initial={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
-                                                animate={prefersReducedMotion ? {} : { height: 'auto', opacity: 1 }}
-                                                exit={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
-                                                transition={prefersReducedMotion ? {} : { duration: 0.2 }}
-                                                className="mt-2 ml-5 border-l pl-4 text-sm text-gray-700"
-                                                role="region"
-                                                aria-labelledby={buttonId}
+                                        >
+                                            <div
+                                                className={`rounded-lg bg-linear-to-r p-1 ${gradientBg} ${highlightedIndex === index ? 'ring-1 ring-slate-300/70 dark:ring-slate-700/70' : ''}`}
                                             >
-                                                {(Object.keys(sectionConfig) as Array<keyof typeof sectionConfig>).map((key) => {
-                                                    const items = release[key];
-                                                    if (!items || items.length === 0) return null;
-                                                    const Icon = sectionConfig[key].icon;
-                                                    const iconTestId =
-                                                        key === 'features'
-                                                            ? 'sparkles-icon'
-                                                            : key === 'improvements'
-                                                              ? 'trending-up-icon'
-                                                              : 'bug-icon';
-                                                    return (
-                                                        <section key={key} className="mb-4 last:mb-0">
-                                                            <h3
-                                                                className={`mb-1 flex items-center gap-1.5 font-semibold ${sectionConfig[key].color}`}
+                                                <span
+                                                    aria-hidden="true"
+                                                    data-testid="version-anchor"
+                                                    className={`absolute top-3 -left-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
+                                                ></span>
+                                                <Button
+                                                    onClick={() => {
+                                                        const wasOpen = isOpen;
+                                                        const nextIsOpen = !wasOpen;
+
+                                                        // Announce for screen readers
+                                                        setAnnouncement(
+                                                            wasOpen ? `Version ${release.version} collapsed` : `Version ${release.version} expanded`,
+                                                        );
+
+                                                        if (nextIsOpen) {
+                                                            navigateToRelease(index);
+                                                            return;
+                                                        }
+
+                                                        pendingScrollRef.current = null;
+                                                        setHighlightedIndex(index);
+                                                        setOpenIndex(null);
+                                                    }}
+                                                    id={buttonId}
+                                                    data-version={release.version}
+                                                    aria-expanded={isOpen}
+                                                    aria-controls={panelId}
+                                                    type="button"
+                                                    variant="ghost"
+                                                    className="h-auto w-full justify-start rounded px-2 py-3 text-left whitespace-normal hover:bg-gray-50 focus-visible:ring-blue-500 dark:hover:bg-gray-800"
+                                                >
+                                                    <span className="flex flex-1 items-center gap-2">
+                                                        <span className="font-medium">Version {release.version}</span>
+                                                        {isNewRelease(release.date, index) && (
+                                                            <span
+                                                                className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white"
+                                                                style={{ backgroundColor: '#000200' }}
                                                             >
-                                                                <Icon className="h-4 w-4" aria-hidden="true" data-testid={iconTestId} />
-                                                                {sectionConfig[key].label}
-                                                            </h3>
-                                                            <ul className="space-y-1">
-                                                                {items.map((item) => {
-                                                                    const safeReferences = (item.references ?? []).filter(isSafeGitHubReference);
+                                                                New
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <span className="ml-4 text-sm text-gray-700 dark:text-gray-300">{release.date}</span>
+                                                </Button>
+                                                <AnimatePresence initial={false}>
+                                                    {isOpen && (
+                                                        <motion.div
+                                                            id={panelId}
+                                                            initial={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
+                                                            animate={prefersReducedMotion ? {} : { height: 'auto', opacity: 1 }}
+                                                            exit={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
+                                                            transition={prefersReducedMotion ? {} : { duration: 0.2 }}
+                                                            className="mt-2 ml-5 border-l pl-4 text-sm text-gray-700"
+                                                            role="region"
+                                                            aria-labelledby={buttonId}
+                                                        >
+                                                            {(Object.keys(sectionConfig) as Array<keyof typeof sectionConfig>).map((key) => {
+                                                                const items = release[key];
+                                                                if (!items || items.length === 0) return null;
+                                                                const Icon = sectionConfig[key].icon;
+                                                                const iconTestId =
+                                                                    key === 'features'
+                                                                        ? 'sparkles-icon'
+                                                                        : key === 'improvements'
+                                                                          ? 'trending-up-icon'
+                                                                          : 'bug-icon';
+                                                                return (
+                                                                    <section key={key} className="mb-4 last:mb-0">
+                                                                        <h3
+                                                                            className={`mb-1 flex items-center gap-1.5 font-semibold ${sectionConfig[key].color}`}
+                                                                        >
+                                                                            <Icon className="h-4 w-4" aria-hidden="true" data-testid={iconTestId} />
+                                                                            {sectionConfig[key].label}
+                                                                        </h3>
+                                                                        <ul className="space-y-1">
+                                                                            {items.map((item) => {
+                                                                                const safeReferences = (item.references ?? []).filter(
+                                                                                    isSafeGitHubReference,
+                                                                                );
 
-                                                                    return (
-                                                                        <li key={item.title}>
-                                                                            <p className="font-medium">{item.title}</p>
-                                                                            <p>{item.description}</p>
-                                                                            {safeReferences.length > 0 && (
-                                                                                <div
-                                                                                    className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
-                                                                                    role="group"
-                                                                                    aria-label={`Related GitHub references for ${item.title}`}
-                                                                                >
-                                                                                    <span className="font-medium text-gray-600 dark:text-gray-400">
-                                                                                        Related:
-                                                                                    </span>
-                                                                                    {safeReferences.map((reference) => {
-                                                                                        const label = getReferenceLabel(reference);
-
-                                                                                        return (
-                                                                                            <a
-                                                                                                key={`${reference.type}-${reference.number}-${reference.url}`}
-                                                                                                href={reference.url}
-                                                                                                target="_blank"
-                                                                                                rel="noopener noreferrer"
-                                                                                                aria-label={`Open ${label} on GitHub (opens in a new tab)`}
-                                                                                                className="inline-flex items-center gap-1 rounded-sm font-medium text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-blue-300 dark:hover:text-blue-200 dark:focus-visible:ring-offset-gray-900"
+                                                                                return (
+                                                                                    <li key={item.title}>
+                                                                                        <p className="font-medium">{item.title}</p>
+                                                                                        <p>{item.description}</p>
+                                                                                        {safeReferences.length > 0 && (
+                                                                                            <div
+                                                                                                className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+                                                                                                role="group"
+                                                                                                aria-label={`Related GitHub references for ${item.title}`}
                                                                                             >
-                                                                                                {label}
-                                                                                                <ExternalLink
-                                                                                                    className="h-3 w-3 shrink-0"
-                                                                                                    aria-hidden="true"
-                                                                                                />
-                                                                                            </a>
-                                                                                        );
-                                                                                    })}
-                                                                                </div>
-                                                                            )}
-                                                                        </li>
-                                                                    );
-                                                                })}
-                                                            </ul>
-                                                        </section>
-                                                    );
-                                                })}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </motion.li>
-                        );
-                    })}
-                </ul>
-            )}
-        </ChangelogLayout>
+                                                                                                <span className="font-medium text-gray-600 dark:text-gray-400">
+                                                                                                    Related:
+                                                                                                </span>
+                                                                                                {safeReferences.map((reference) => {
+                                                                                                    const label = getReferenceLabel(reference);
+
+                                                                                                    return (
+                                                                                                        <a
+                                                                                                            key={`${reference.type}-${reference.number}-${reference.url}`}
+                                                                                                            href={reference.url}
+                                                                                                            target="_blank"
+                                                                                                            rel="noopener noreferrer"
+                                                                                                            aria-label={`Open ${label} on GitHub (opens in a new tab)`}
+                                                                                                            className="inline-flex items-center gap-1 rounded-sm font-medium text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-blue-300 dark:hover:text-blue-200 dark:focus-visible:ring-offset-gray-900"
+                                                                                                        >
+                                                                                                            {label}
+                                                                                                            <ExternalLink
+                                                                                                                className="h-3 w-3 shrink-0"
+                                                                                                                aria-hidden="true"
+                                                                                                            />
+                                                                                                        </a>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </li>
+                                                                                );
+                                                                            })}
+                                                                        </ul>
+                                                                    </section>
+                                                                );
+                                                            })}
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        </motion.li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </div>
+                    <ChangelogTimelineNav releases={releases} activeIndex={activeTimelineIndex} onNavigate={handleNavigate} />
+                </div>
+            </div>
+        </AppLayout>
     );
 }

@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { type ComponentPropsWithoutRef } from 'react';
 
 import { Icon } from '@/components/icon';
@@ -13,12 +13,15 @@ export function NavFooter({
 }: ComponentPropsWithoutRef<typeof SidebarGroup> & {
     items: NavItem[];
 }) {
+    const currentPath = usePage().url.split(/[?#]/, 1)[0];
+
     return (
         <SidebarGroup {...props} className={`group-data-[collapsible=icon]:p-0 ${className || ''}`}>
             <SidebarGroupContent>
                 <SidebarMenu>
                     {items.map((item) => {
                         const href = typeof item.href === 'string' ? item.href : item.href.url;
+                        const isActive = currentPath === href;
 
                         const linkContent = (
                             <>
@@ -31,14 +34,21 @@ export function NavFooter({
                             <SidebarMenuItem key={item.title}>
                                 <SidebarMenuButton
                                     asChild
+                                    isActive={isActive}
                                     className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
                                 >
                                     {item.openInNewTab ? (
-                                        <a href={href} target="_blank" rel={buildExternalLinkRel(item.rel)} data-tour={item.tourId}>
+                                        <a
+                                            href={href}
+                                            target="_blank"
+                                            rel={buildExternalLinkRel(item.rel)}
+                                            data-tour={item.tourId}
+                                            aria-current={isActive ? 'page' : undefined}
+                                        >
                                             {linkContent}
                                         </a>
                                     ) : (
-                                        <Link href={href} prefetch data-tour={item.tourId}>
+                                        <Link href={href} prefetch data-tour={item.tourId} aria-current={isActive ? 'page' : undefined}>
                                             {linkContent}
                                         </Link>
                                     )}

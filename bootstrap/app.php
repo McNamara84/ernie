@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Kernel as ConsoleKernel;
+use App\Http\Middleware\EnsureChangelogEmailVerified;
 use App\Http\Middleware\EnsureTestEnvironment;
 use App\Http\Middleware\EnsureValidErnieApiKey;
 use App\Http\Middleware\HandleAppearance;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'ernie.api-key' => EnsureValidErnieApiKey::class,
             'ensure.test-environment' => EnsureTestEnvironment::class,
+            'changelog.verified' => EnsureChangelogEmailVerified::class,
             // Note: 'can.manage.users' middleware has been replaced by Gate-based authorization
             // Use Route::middleware(['can:access-administration']) or ['can:manage-users'] instead
         ]);
