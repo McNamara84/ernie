@@ -619,6 +619,35 @@ describe('DataCiteForm', () => {
             expect(screen.getAllByTestId('save-resource-button')).toHaveLength(1);
         });
 
+        it('opens editor action guidance in a new tab so unsaved form values remain available', () => {
+            mockUsePageProps.mockReturnValue({
+                auth: { user: { can_register_doi: true } },
+                curationAccordionOpenItems: null,
+                curationAccordionRevision: null,
+            });
+
+            const { unmount } = renderDataCiteForm();
+            const draftActions = within(screen.getByTestId('editor-floating-actions'));
+            const validateHelp = draftActions.getByRole('link', { name: 'Details (opens in a new tab)' });
+            const registerHelp = draftActions.getByRole('link', { name: 'What happens? (opens in a new tab)' });
+
+            expect(validateHelp).toHaveAttribute('href', '/docs?tab=datasets&section=editor-validate');
+            expect(registerHelp).toHaveAttribute('href', '/docs?tab=datasets&section=editor-register');
+            for (const link of [validateHelp, registerHelp]) {
+                expect(link).toHaveAttribute('target', '_blank');
+                expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+            }
+
+            unmount();
+            renderDataCiteForm({ initialDoi: '10.5880/existing.001', initialPublicStatus: 'published' });
+            const updateHelp = within(screen.getByTestId('editor-floating-actions')).getByRole('link', {
+                name: 'What happens? (opens in a new tab)',
+            });
+            expect(updateHelp).toHaveAttribute('href', '/docs?tab=datasets&section=editor-update-metadata');
+            expect(updateHelp).toHaveAttribute('target', '_blank');
+            expect(updateHelp).toHaveAttribute('rel', 'noopener noreferrer');
+        });
+
         it('uses transparent small-screen idle state with hover, focus, and touch reveal fallbacks', () => {
             renderDataCiteForm();
 

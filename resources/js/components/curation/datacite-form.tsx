@@ -3956,8 +3956,8 @@ export default function DataCiteForm({
                     {!isPublishedResource && (
                         <p>
                             <strong>Validate</strong> saves in ERNIE only.{' '}
-                            <a className="underline" href={docsActionHref('editor-validate')}>
-                                Details
+                            <a className="underline" href={docsActionHref('editor-validate')} target="_blank" rel="noopener noreferrer">
+                                Details (opens in a new tab)
                             </a>
                         </p>
                     )}
@@ -3967,8 +3967,13 @@ export default function DataCiteForm({
                             {hasExistingDoi
                                 ? 'saves locally, then updates the existing DOI at DataCite after confirmation.'
                                 : 'saves locally, then publishes a DOI at DataCite after confirmation.'}{' '}
-                            <a className="underline" href={docsActionHref(hasExistingDoi ? 'editor-update-metadata' : 'editor-register')}>
-                                What happens?
+                            <a
+                                className="underline"
+                                href={docsActionHref(hasExistingDoi ? 'editor-update-metadata' : 'editor-register')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                What happens? (opens in a new tab)
                             </a>
                         </p>
                     )}

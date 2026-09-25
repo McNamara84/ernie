@@ -486,7 +486,8 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                                 Back
                             </Button>
                             <Button type="button" onClick={handleImport} disabled={validRowCount === 0}>
-                                {validRowCount} {type === 'author' ? 'Authors' : 'Contributors'} import
+                                Import {validRowCount} {type}
+                                {validRowCount === 1 ? '' : 's'}
                             </Button>
                         </div>
                     </div>

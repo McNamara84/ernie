@@ -34,6 +34,7 @@ import { DocsSection } from '@/components/docs/docs-section';
 import { DocsSidebar, DocsSidebarMobile } from '@/components/docs/docs-sidebar';
 import { type DocsTabId, DocsTabs } from '@/components/docs/docs-tabs';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
+import { Input } from '@/components/ui/input';
 import { DOCS_ACTIONS, docsActionHref } from '@/data/docs-actions';
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
@@ -3849,12 +3850,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <label htmlFor="docs-search" className="mb-2 block font-medium">
                         Search documentation
                     </label>
-                    <input
+                    <Input
                         id="docs-search"
                         type="search"
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
-                        className="w-full rounded-md border bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2"
+                        className="bg-background text-foreground"
                         placeholder="Search actions and topics"
                     />
                     {searchQuery.trim() && (

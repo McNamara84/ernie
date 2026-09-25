@@ -66,6 +66,31 @@ test.describe('Editor Form', () => {
         await expect(page).toHaveURL(/\/editor/);
     });
 
+    test('opens action guidance separately and preserves unsaved editor input', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved metadata before opening help');
+
+        const helpLink = page.getByTestId('editor-floating-actions').getByRole('link', {
+            name: 'Details (opens in a new tab)',
+        });
+        const popupPromise = page.waitForEvent('popup');
+        await helpLink.click();
+        const docsPage = await popupPromise;
+
+        await expect(docsPage).toHaveURL(/\/docs\?tab=datasets&section=editor-validate/);
+        await expect(page).toHaveURL(/\/editor/);
+        await expect(titleInput).toHaveValue('Unsaved metadata before opening help');
+        await docsPage.close();
+    });
+
     test('keeps resource information fields in complete responsive rows', async ({ page }) => {
         await page.setViewportSize({ width: 1600, height: 900 });
         await gotoWithLocalTlsRetry(page, '/login');

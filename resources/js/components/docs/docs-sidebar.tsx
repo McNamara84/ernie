@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { DocsSidebarItem } from '@/types/docs';
 
@@ -53,10 +54,12 @@ function SidebarItem({ item, activeId, onSectionClick, depth }: SidebarItemProps
 
     return (
         <div>
-            <button
+            <Button
+                type="button"
+                variant="ghost"
                 onClick={handleClick}
                 className={cn(
-                    'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    'group flex h-auto w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     'hover:bg-accent hover:text-accent-foreground',
                     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none',
                     isActive && 'bg-accent text-accent-foreground',
@@ -69,7 +72,7 @@ function SidebarItem({ item, activeId, onSectionClick, depth }: SidebarItemProps
                 {item.icon && <item.icon className={cn('size-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />}
                 <span className="truncate">{item.label}</span>
                 {isActive && <ChevronRight className="ml-auto size-4 text-primary" />}
-            </button>
+            </Button>
             {hasChildren && (
                 <div className="mt-1 space-y-1">
                     {item.children?.map((child) => (
@@ -99,20 +102,21 @@ export function DocsSidebarMobile({ items, activeId, onSectionClick }: DocsSideb
                     {items
                         .flatMap((item) => [item, ...(item.children ?? [])])
                         .map((item) => (
-                            <button
+                            <Button
                                 key={item.id}
                                 type="button"
+                                variant="ghost"
                                 onClick={() => onSectionClick(item.id)}
                                 aria-current={activeId === item.id ? 'location' : undefined}
                                 className={cn(
-                                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors',
+                                    'inline-flex h-auto max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sm whitespace-normal transition-colors',
                                     'hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2',
                                     activeId === item.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
                                 )}
                             >
                                 {item.icon && <item.icon aria-hidden="true" className="size-3.5" />}
                                 {item.label}
-                            </button>
+                            </Button>
                         ))}
                 </nav>
             </div>

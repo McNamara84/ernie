@@ -320,13 +320,37 @@ describe('CsvImportDialog', () => {
         it('shows import button with valid row count', async () => {
             await setupPreviewStep();
 
-            expect(screen.getByRole('button', { name: /1 authors import/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /import 1 author/i })).toBeInTheDocument();
+        });
+
+        it('uses the plural contributor label when two rows are valid', async () => {
+            const user = userEvent.setup();
+            mockedPapaParse.mockImplementation((file, options) => {
+                options.complete({
+                    data: [
+                        { 'First Name': 'Ada', 'Last Name': 'Lovelace' },
+                        { 'First Name': 'Grace', 'Last Name': 'Hopper' },
+                    ],
+                    errors: [],
+                    meta: { fields: ['First Name', 'Last Name'] },
+                });
+            });
+
+            render(<CsvImportDialog {...defaultProps} type="contributor" />);
+            await user.click(screen.getByRole('button', { name: /import csv/i }));
+            fireEvent.change(document.getElementById('csv-upload') as HTMLInputElement, {
+                target: { files: [new File(['test'], 'contributors.csv', { type: 'text/csv' })] },
+            });
+            await screen.findByText('Map columns');
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
+
+            expect(screen.getByRole('button', { name: 'Import 2 contributors' })).toBeEnabled();
         });
 
         it('calls onImport with valid rows when import button is clicked', async () => {
             const user = await setupPreviewStep();
 
-            const importButton = screen.getByRole('button', { name: /1 authors import/i });
+            const importButton = screen.getByRole('button', { name: /import 1 author/i });
             await user.click(importButton);
 
             expect(mockOnImport).toHaveBeenCalledWith(
@@ -342,7 +366,7 @@ describe('CsvImportDialog', () => {
         it('closes dialog after successful import', async () => {
             const user = await setupPreviewStep();
 
-            const importButton = screen.getByRole('button', { name: /1 authors import/i });
+            const importButton = screen.getByRole('button', { name: /import 1 author/i });
             await user.click(importButton);
 
             await waitFor(() => {
@@ -540,7 +564,7 @@ describe('CsvImportDialog', () => {
             });
 
             // Import button should be disabled when no valid rows
-            const importButton = screen.getByRole('button', { name: /0 authors import/i });
+            const importButton = screen.getByRole('button', { name: /import 0 authors/i });
             expect(importButton).toBeDisabled();
 
             alertMock.mockRestore();
@@ -619,7 +643,7 @@ describe('CsvImportDialog', () => {
             });
 
             await user.click(screen.getByRole('button', { name: /show preview/i }));
-            await user.click(screen.getByRole('button', { name: /1 authors import/i }));
+            await user.click(screen.getByRole('button', { name: /import 1 author/i }));
 
             expect(mockOnImport).toHaveBeenCalledWith(
                 expect.arrayContaining([
