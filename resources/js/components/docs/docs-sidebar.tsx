@@ -95,21 +95,25 @@ export function DocsSidebarMobile({ items, activeId, onSectionClick }: DocsSideb
         <div className="mb-6 lg:hidden">
             <div className="rounded-lg border bg-card p-4">
                 <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">On this page</h2>
-                <nav className="flex flex-wrap gap-2">
-                    {items.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => onSectionClick(item.id)}
-                            className={cn(
-                                'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors',
-                                'hover:bg-accent hover:text-accent-foreground',
-                                activeId === item.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                            )}
-                        >
-                            {item.icon && <item.icon className="size-3.5" />}
-                            {item.label}
-                        </button>
-                    ))}
+                <nav aria-label="On this page" className="flex flex-wrap gap-2">
+                    {items
+                        .flatMap((item) => [item, ...(item.children ?? [])])
+                        .map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => onSectionClick(item.id)}
+                                aria-current={activeId === item.id ? 'location' : undefined}
+                                className={cn(
+                                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors',
+                                    'hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2',
+                                    activeId === item.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                                )}
+                            >
+                                {item.icon && <item.icon aria-hidden="true" className="size-3.5" />}
+                                {item.label}
+                            </button>
+                        ))}
                 </nav>
             </div>
         </div>

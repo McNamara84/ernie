@@ -1,7 +1,7 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-09-24",
+        "date": "2026-09-25",
         "features": [
             {
                 "title": "Embargo Workflow and DataCite Available Dates",
@@ -65,6 +65,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Clear, Role-Aware Action Guidance",
+                "description": "The English user guide now explains the exact effects of Data Editor and Resources List actions, including when ERNIE saves locally, when DataCite receives or publishes metadata, and what can remain after a failure. Action-specific deep links, searchable guidance, keyboard focus handling, and visible consequences in editor and resource controls make these workflows easier to understand. The guide follows current permissions and editor settings, while DOI conflict and CSV import messages now use consistent English."
+            },
             {
                 "title": "Internal Changelog Navigation",
                 "description": "The Changelog now uses the regular signed-in sidebar and a labeled version menu with a Major, Minor, and Patch color legend. Only the newest release starts expanded, and version links keep their direct navigation. The page and its release data require a verified ERNIE session; public pages still display the version number without linking to the private Changelog.",

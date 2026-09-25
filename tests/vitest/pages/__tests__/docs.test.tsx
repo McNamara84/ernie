@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@tests/vitest/utils/render';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Docs from '@/pages/docs';
 import type { UserRole } from '@/types';
@@ -112,6 +112,7 @@ const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) 
 };
 
 describe('Docs page', () => {
+    beforeEach(() => window.history.replaceState(null, '', '/'));
     it('renders documentation for beginner role', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Check for sections visible in Getting Started tab (default)
@@ -372,10 +373,7 @@ describe('Docs page', () => {
 
                 const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return (
-                    text.includes('For Admins, Group Leaders, and Curators') &&
-                    text.includes('Assessment entry also shows the current average FAIR score summary in the format Resources / IGSNs')
-                );
+                return text.includes('Assessment entry shows the current average FAIR score summary in the format Resources / IGSNs');
             }),
         ).toBeInTheDocument();
     });
@@ -560,9 +558,34 @@ describe('Docs page', () => {
 
                 const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Admins and Group Leaders now see a Curation / Administration switcher at the top of the sidebar.');
+                return text.includes('Workspace Switcher: Use Curation for day-to-day metadata work');
             }),
         ).toBeInTheDocument();
+    });
+
+    it('does not explain restricted workspace navigation to beginners', () => {
+        renderDocsPage('beginner');
+        expect(screen.queryByText(/Workspace Switcher:/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Assessment entry shows/)).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Validate and save in ERNIE without DataCite' })).toHaveAttribute(
+            'href',
+            '/docs?tab=datasets&section=editor-validate',
+        );
+    });
+
+    it('hides privileged guidance throughout the beginner documentation', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        expect(screen.queryByText(/Admins and Group Leaders also have an Editor Settings entry/)).not.toBeInTheDocument();
+
+        await openDatasetsTab(user);
+        expect(screen.queryByText(/Administrators can configure which resource types/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Administrators and Group Leaders can manage the list of available datacenters/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Curators and above can also delete draft landing pages/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Selecting the badge opens and copies the tokenized landing-page preview link/)).not.toBeInTheDocument();
+
+        await openPhysicalSamplesTab(user);
+        expect(screen.queryByText(/Administrators can delete the selected IGSNs/)).not.toBeInTheDocument();
     });
 
     it('describes the current authenticated header navigation behavior', () => {
@@ -686,10 +709,7 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return (
-                    text.includes('When multiple resources are selected') &&
-                    text.includes('fallback dialog with direct links for only the blocked resources')
-                );
+                return text.includes('browser blocks editor tabs') && text.includes('direct links for the blocked resources');
             }),
         ).toBeInTheDocument();
     });
@@ -959,10 +979,10 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Edit and Set up landing page appear as quick actions directly in the selection toolbar.');
+                return text.includes('Edit appears in the selection toolbar');
             }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Delete Selected Resources (Curator and above)')).toBeInTheDocument();
+        expect(screen.getByText('Delete Selected Resources')).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -1138,15 +1158,15 @@ describe('Docs page', () => {
         expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
         expect(screen.getByText(/Beginners do not receive that link in the Resources list/i)).toBeInTheDocument();
         expect(screen.queryByText('Send Review Links (Curator and above)')).not.toBeInTheDocument();
-        expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Delete Selected Resources')).not.toBeInTheDocument();
     });
     it('documents beginner test-only bulk DOI actions', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText('Bulk Register / Update DOI (all roles, Beginner test-only)')).toBeInTheDocument();
-        expect(screen.getByText(/Beginner users can run the same training action/i)).toBeInTheDocument();
+        expect(screen.getByText('Register one DOI or update selected metadata')).toBeInTheDocument();
+        expect(screen.getByText(/Beginners use the DataCite test environment for both actions/i)).toBeInTheDocument();
     });
 
     it('shows landing page templates for group leaders', async () => {
@@ -1427,7 +1447,7 @@ describe('Docs page', () => {
         const authors = screen.getByRole('heading', { name: 'Managing Authors & Contributors', level: 3 });
         const descriptions = screen.getByRole('heading', { name: 'Descriptions', level: 3 });
         const relatedIdentifiers = screen.getByRole('heading', { name: 'Linking Related Resources', level: 3 });
-        const relatedItems = screen.getByRole('heading', { name: /Related Items/i, level: 3 });
+        const relatedItems = screen.getByRole('heading', { name: /Related Items \(DataCite/i, level: 3 });
         const funding = screen.getByRole('heading', { name: 'Acknowledging Funding Sources', level: 3 });
         const portal = screen.getByRole('heading', { name: 'Searching Published Records in the Portal', level: 3 });
 
@@ -1578,5 +1598,62 @@ describe('Docs page', () => {
         expect(screen.getByText('Check for updates by comparing local vs. remote counts')).toBeInTheDocument();
         expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
         expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();
+    });
+    it('explains editor registration and resource metadata updates as separate external actions', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const register = screen.getByRole('heading', { name: 'Register', level: 3 }).closest('article');
+        expect(register?.textContent).toMatch(/This click does not save for this action or contact DataCite/);
+        expect(register?.textContent).toMatch(/sends metadata to DataCite to create and publish a DOI/);
+        expect(register?.textContent).toMatch(/a failed remote step does not undo a successful local save/);
+
+        const update = screen.getByRole('heading', { name: 'Update metadata', level: 3 }).closest('article');
+        expect(update?.textContent).toMatch(/It does not mint new DOIs/);
+        expect(update?.textContent).toMatch(/batch may report partial success/);
+    });
+
+    it('filters action content, navigation, and search with the supplied capabilities', async () => {
+        const capabilities = {
+            registerDoi: false,
+            sendReviewLinks: false,
+            deleteResources: false,
+            deletePublishedResources: false,
+            manageLandingPages: false,
+            importFromDataCite: false,
+            updateDataCiteUrls: false,
+            manageUsers: false,
+            accessEditorSettings: false,
+        };
+        const user = userEvent.setup();
+        render(<Docs userRole="beginner" capabilities={capabilities} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        await openDatasetsTab(user);
+
+        expect(screen.queryByRole('heading', { name: 'Register', level: 3 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Update metadata', level: 3 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Send review link', level: 3 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Import old resources', level: 3 })).not.toBeInTheDocument();
+
+        await user.type(screen.getByRole('searchbox', { name: 'Search documentation' }), 'Notify changed review link');
+        expect(screen.getByRole('status')).toHaveTextContent('0 results');
+        expect(screen.queryByRole('link', { name: 'Notify changed review link' })).not.toBeInTheDocument();
+    });
+
+    it('opens a permitted action deep link in its tab and focuses its heading', async () => {
+        window.history.replaceState(null, '', '/docs?tab=datasets&section=resources-update-metadata');
+        renderDocsPage('curator');
+
+        expect(screen.getByRole('tab', { name: /Datasets/i })).toHaveAttribute('aria-selected', 'true');
+        const heading = screen.getByRole('heading', { name: 'Update metadata', level: 3 });
+        await waitFor(() => expect(heading).toHaveFocus());
+        expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby');
+    });
+
+    it('redirects an inaccessible action deep link to a visible section', async () => {
+        window.history.replaceState(null, '', '/docs?tab=datasets&section=resources-review-migration');
+        renderDocsPage('beginner');
+
+        await waitFor(() => expect(window.location.search).toContain('section=editor-actions'));
+        expect(screen.queryByRole('heading', { name: 'Notify changed review link', level: 3 })).not.toBeInTheDocument();
     });
 });

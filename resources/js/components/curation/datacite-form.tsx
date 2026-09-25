@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
+import { docsActionHref } from '@/data/docs-actions';
 import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
@@ -619,7 +620,7 @@ export default function DataCiteForm({
     } = useDoiValidation({
         excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
         onSuccess: () => {
-            toast.success('DOI ist verfügbar', { duration: 2000 });
+            toast.success('DOI is available', { duration: 2000 });
         },
     });
 
@@ -661,7 +662,7 @@ export default function DataCiteForm({
             // Clear any existing DOI conflict state since this is a verified available DOI
             resetDoiValidation();
             // Show success toast to confirm the DOI was accepted
-            toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+            toast.success('Suggested DOI applied', { duration: 2000 });
             // Note: 'form' is intentionally excluded - we use functional update for setForm
             // and only need the new DOI value for validation
         },
@@ -3951,6 +3952,27 @@ export default function DataCiteForm({
                 data-testid="editor-floating-actions"
                 className="group fixed right-2 bottom-2 z-40 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 p-2 sm:right-4 sm:bottom-4 sm:max-w-[calc(100vw-2rem)] lg:right-6 lg:bottom-6 lg:p-0"
             >
+                <div className="max-w-md rounded-md border bg-background p-2 text-right text-xs text-foreground shadow-sm">
+                    {!isPublishedResource && (
+                        <p>
+                            <strong>Validate</strong> saves in ERNIE only.{' '}
+                            <a className="underline" href={docsActionHref('editor-validate')}>
+                                Details
+                            </a>
+                        </p>
+                    )}
+                    {canRegisterDoi && (
+                        <p>
+                            <strong>{hasExistingDoi ? 'Update Metadata' : 'Register'}</strong>{' '}
+                            {hasExistingDoi
+                                ? 'saves locally, then updates the existing DOI at DataCite after confirmation.'
+                                : 'saves locally, then publishes a DOI at DataCite after confirmation.'}{' '}
+                            <a className="underline" href={docsActionHref(hasExistingDoi ? 'editor-update-metadata' : 'editor-register')}>
+                                What happens?
+                            </a>
+                        </p>
+                    )}
+                </div>
                 <div
                     data-testid="editor-floating-actions-panel"
                     className="flex max-w-full flex-wrap justify-end gap-2 opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100 hover:opacity-100 sm:gap-3 lg:opacity-100 [@media(hover:none)]:opacity-100"

@@ -26,22 +26,25 @@ import {
     Upload,
     Users,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { DocsActionReference } from '@/components/docs/docs-action-reference';
 import { DocsCodeBlock } from '@/components/docs/docs-code-block';
 import { DocsSection } from '@/components/docs/docs-section';
 import { DocsSidebar, DocsSidebarMobile } from '@/components/docs/docs-sidebar';
 import { type DocsTabId, DocsTabs } from '@/components/docs/docs-tabs';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
+import { DOCS_ACTIONS, docsActionHref } from '@/data/docs-actions';
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, UserRole } from '@/types';
-import type { DataCiteDocsSettings, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
+import type { DataCiteDocsSettings, DocsCapabilities, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
 
 interface DocsProps {
     userRole: UserRole;
     editorSettings: EditorSettings;
     dataCite: DataCiteDocsSettings;
+    capabilities?: DocsCapabilities;
 }
 
 /**
@@ -62,8 +65,37 @@ function formatConfiguredList(values: string[]): string {
     return values.length > 0 ? values.join(', ') : NOT_CONFIGURED_LABEL;
 }
 
-export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) {
-    const [activeTab, setActiveTab] = useState<DocsTabId>('getting-started');
+export default function Docs({ userRole, editorSettings, dataCite, capabilities }: DocsProps) {
+    const permissions = useMemo<DocsCapabilities>(
+        () =>
+            capabilities ?? {
+                registerDoi: true,
+                sendReviewLinks: userRole !== 'beginner',
+                deleteResources: userRole !== 'beginner',
+                deletePublishedResources: userRole === 'admin' || userRole === 'group_leader',
+                manageLandingPages: true,
+                importFromDataCite: userRole === 'admin' || userRole === 'group_leader',
+                updateDataCiteUrls: userRole === 'admin',
+                manageUsers: userRole === 'admin' || userRole === 'group_leader',
+                accessEditorSettings: userRole === 'admin' || userRole === 'group_leader',
+            },
+        [capabilities, userRole],
+    );
+    const initialParams = new URLSearchParams(window.location.search);
+    const requestedTab = initialParams.get('tab');
+    const [activeTab, setActiveTab] = useState<DocsTabId>(
+        requestedTab === 'datasets' || requestedTab === 'physical-samples' ? requestedTab : 'getting-started',
+    );
+    const [navigationTarget, setNavigationTarget] = useState<string | null>(initialParams.get('section'));
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        const previousLanguage = document.documentElement.lang;
+        document.documentElement.lang = 'en';
+        return () => {
+            document.documentElement.lang = previousLanguage;
+        };
+    }, []);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -73,6 +105,9 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
     ];
 
     const userRoleLevel = roleHierarchy[userRole] ?? 1;
+    const visibleActions = useMemo(() => DOCS_ACTIONS.filter((action) => !action.capability || permissions[action.capability]), [permissions]);
+    const editorActions = useMemo(() => visibleActions.filter((action) => action.area === 'editor'), [visibleActions]);
+    const resourceActions = useMemo(() => visibleActions.filter((action) => action.area === 'resources'), [visibleActions]);
 
     // ===========================================
     // TAB 1: Getting Started Sections
@@ -111,33 +146,44 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             <li>Reaching the import hub immediately from the first screen area instead of scrolling past large cards</li>
                         </ul>
 
-                        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
-                            <p className="text-sm text-emerald-900 dark:text-emerald-100">
-                                <strong>Guided Tours:</strong> Beginners now receive a role-specific product tour the first time they return to the
-                                Dashboard after logging in. The tour highlights the dashboard, the main navigation, the upload area, the resources
-                                list, and the IGSN tools. Closing the tour does not mark it as completed, so it can be assigned again later.
-                            </p>
-                        </div>
+                        {userRole === 'beginner' && (
+                            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+                                <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                                    <strong>Guided Tours:</strong> Beginners receive a role-specific product tour when they return to the Dashboard
+                                    after logging in. Closing the tour does not mark it as completed, so it can be assigned again later.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources List</strong> and{' '}
-                                <strong>IGSNs List</strong>. The <strong>Assistance</strong> entry continues to show the number of pending
-                                suggestions. For Admins, Group Leaders, and Curators, the <strong>Assessment</strong> entry also shows the current
-                                average FAIR score summary in the format <strong>Resources / IGSNs</strong>.
+                                <strong>IGSNs List</strong>.
+                                {roleHierarchy[userRole] >= roleHierarchy.group_leader && (
+                                    <>
+                                        {' '}
+                                        The <strong>Assistance</strong> entry shows the number of pending suggestions.
+                                    </>
+                                )}
+                                {roleHierarchy[userRole] >= roleHierarchy.curator && (
+                                    <>
+                                        {' '}
+                                        The <strong>Assessment</strong> entry shows the current average FAIR score summary in the format{' '}
+                                        <strong>Resources / IGSNs</strong>.
+                                    </>
+                                )}
                             </p>
                         </div>
 
-                        <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
-                            <p className="text-sm text-violet-900 dark:text-violet-100">
-                                <strong>Workspace Switcher:</strong> Admins and Group Leaders now see a <strong>Curation</strong> /{' '}
-                                <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for day-to-day
-                                metadata work such as the Dashboard, Resources List, and IGSN tools. Use <strong>Administration</strong> for
-                                privileged destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment, and Logs.
-                                Curators do not use this workspace switcher and reach Assessment from their <strong>Tools</strong> section instead.
-                                ERNIE remembers the last selected workspace locally.
-                            </p>
-                        </div>
+                        {(userRole === 'admin' || userRole === 'group_leader') && (
+                            <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+                                <p className="text-sm text-violet-900 dark:text-violet-100">
+                                    <strong>Workspace Switcher:</strong> Use <strong>Curation</strong> for day-to-day metadata work and{' '}
+                                    <strong>Administration</strong> for destinations such as Users, Statistics, Editor Settings, Landing Pages,
+                                    Assistance, and Assessment. ERNIE remembers your last selected workspace locally.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm text-slate-900 dark:text-slate-100">
@@ -155,6 +201,48 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                                 quickly from internal curation to published-record discovery without losing your current ERNIE workspace.
                             </p>
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'choose-an-action',
+                title: 'Choose an action',
+                icon: ClipboardCheck,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Start with the result you need</h3>
+                        <ul className="list-disc space-y-2 pl-5">
+                            <li>
+                                <a className="text-primary underline" href={docsActionHref('editor-save-draft')}>
+                                    Save an incomplete draft in ERNIE
+                                </a>
+                            </li>
+                            <li>
+                                <a className="text-primary underline" href={docsActionHref('editor-validate')}>
+                                    Validate and save in ERNIE without DataCite
+                                </a>
+                            </li>
+                            {permissions.registerDoi && (
+                                <>
+                                    <li>
+                                        <a className="text-primary underline" href={docsActionHref('editor-register')}>
+                                            Register and publish a new DOI at DataCite
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a className="text-primary underline" href={docsActionHref('resources-update-metadata')}>
+                                            Update existing DOI metadata at DataCite
+                                        </a>
+                                    </li>
+                                </>
+                            )}
+                            <li>
+                                <a className="text-primary underline" href={docsActionHref('resources-actions')}>
+                                    Review all Resources List actions
+                                </a>
+                            </li>
+                        </ul>
                     </>
                 ),
             },
@@ -235,10 +323,12 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             Open the user menu from your avatar in the page header and choose <strong>Settings</strong>. This opens your personal
                             profile settings at <code>/settings/profile</code>.
                         </p>
-                        <p>
-                            Admins and Group Leaders also have an <strong>Editor Settings</strong> entry at <code>/settings</code>. That page controls
-                            ERNIE configuration and is separate from your personal settings.
-                        </p>
+                        {permissions.accessEditorSettings && (
+                            <p>
+                                Admins and Group Leaders also have an <strong>Editor Settings</strong> entry at <code>/settings</code>. That page
+                                controls ERNIE configuration and is separate from your personal settings.
+                            </p>
+                        )}
 
                         <h4>Profile Settings</h4>
                         <p>
@@ -310,6 +400,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
             },
             {
                 id: 'user-management',
+                capability: 'manageUsers',
                 title: 'User Management',
                 icon: Users,
                 minRole: 'group_leader',
@@ -388,6 +479,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
             },
             {
                 id: 'editor-settings',
+                capability: 'accessEditorSettings',
                 title: 'Editor Settings',
                 icon: Settings,
                 minRole: 'group_leader',
@@ -1271,7 +1363,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
         ],
-        [userRole],
+        [userRole, permissions],
     );
 
     // ===========================================
@@ -1279,6 +1371,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
     // ===========================================
     const datasetsSections: DocSection[] = useMemo(
         () => [
+            {
+                id: 'editor-actions',
+                title: 'Data Editor buttons',
+                icon: Edit3,
+                minRole: 'beginner',
+                content: <DocsActionReference actions={editorActions} mode={dataCite.currentMode} />,
+            },
+            {
+                id: 'resources-actions',
+                title: 'Resources List actions',
+                icon: Database,
+                minRole: 'beginner',
+                content: <DocsActionReference actions={resourceActions} mode={dataCite.currentMode} />,
+            },
             {
                 id: 'xml-upload',
                 title: 'File Upload (XML / JSON)',
@@ -1401,7 +1507,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 The Resources List shows an <strong>Embargo</strong> badge. Use the <strong>Status</strong> filter to find embargoed
-                                resources; selecting the badge opens and copies the tokenized landing-page preview link.
+                                resources.
+                                {permissions.sendReviewLinks && ' Selecting the badge opens and copies the tokenized landing-page preview link.'}
                             </li>
                             <li>
                                 The preview shows the embargo date but hides file, link, and FTP downloads. The landing page remains unpublished, even
@@ -1459,11 +1566,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </div>
                         </div>
 
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Tip:</strong> Administrators can configure which resource types are available in Editor Settings.
-                            </p>
-                        </div>
+                        {permissions.accessEditorSettings && (
+                            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                                <p className="text-sm text-blue-900 dark:text-blue-100">
+                                    <strong>Tip:</strong> Administrators can configure which resource types are available in Editor Settings.
+                                </p>
+                            </div>
+                        )}
                     </>
                 ),
             },
@@ -1502,7 +1611,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Note:</strong> Datacenters are for internal categorization only and are not included in DataCite metadata
-                                exports. Administrators and Group Leaders can manage the list of available datacenters in Editor Settings.
+                                exports.
+                                {permissions.accessEditorSettings &&
+                                    ' Administrators and Group Leaders can manage the list of available datacenters in Editor Settings.'}
                             </p>
                         </div>
                     </>
@@ -2333,8 +2444,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Creating Landing Pages</h3>
                         <p>
                             Landing pages are public-facing pages for your datasets. A published landing page is <strong>required</strong> before DOI
-                            registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow; deleting
-                            draft landing pages remains available only to Curators and above.
+                            registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow.
+                            {permissions.deleteResources && ' Curators and above can also delete draft landing pages.'}
                         </p>
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
@@ -2682,6 +2793,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'doi-registration',
+                capability: 'registerDoi',
                 title: 'DOI Registration',
                 icon: Link2,
                 minRole: 'beginner',
@@ -2817,6 +2929,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'datacite-landing-page-url-migration',
+                capability: 'updateDataCiteUrls',
                 title: 'DataCite Landing-Page URL Migration',
                 icon: Link2,
                 minRole: 'admin',
@@ -2980,14 +3093,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Quick Resource Actions</h4>
                         <p>
-                            <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
-                            Edit opens every selected resource in the Data Editor. When multiple resources are selected and the browser blocks one or
-                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page
-                            stays visible as a quick action and reports the standard single-record message when more than one row is selected.
+                            <strong>Edit</strong> appears in the selection toolbar and opens every selected resource in the Data Editor. When the
+                            browser blocks editor tabs, ERNIE shows direct links for the blocked resources.
+                            {permissions.manageLandingPages && (
+                                <>
+                                    {' '}
+                                    <strong>Set up landing page</strong> is also shown; it requires exactly one selected resource.
+                                </>
+                            )}
                         </p>
                         <p>
-                            The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related
-                            items, and deletion remain grouped together.
+                            Additional actions available to your role are in the <strong>Actions</strong> menu. The reference above explains their
+                            requirements and effects.
                         </p>
 
                         <h4>Bulk Export (all roles)</h4>
@@ -3006,18 +3123,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             need schema-validated output.
                         </p>
 
-                        <h4>Bulk Register / Update DOI (all roles, Beginner test-only)</h4>
-                        <p>
-                            Open the <strong>Actions</strong> menu and choose <strong>Register DOI</strong> or <strong>Update metadata</strong> to
-                            push selected resources to DataCite in one batch. Beginner users can run the same training action, but ERNIE always routes
-                            their requests to DataCite test mode. The bulk flow <strong>only updates resources that already have a DOI</strong>; the
-                            action is unavailable when the selection contains any DOI-less resource so you never accidentally mint a DOI without
-                            picking a prefix. To mint a new DOI, open the resource in the editor and use the single-resource register action there.
-                            Resources without a landing page or that are physical samples (IGSNs) are skipped and reported in the response toast.
-                        </p>
-                        <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
+                        {permissions.registerDoi && (
+                            <>
+                                <h4>Register one DOI or update selected metadata</h4>
+                                <p>
+                                    <strong>Register DOI</strong> is available only for exactly one selected resource without a DOI and with a landing
+                                    page. It opens a prefix dialog; after confirmation, ERNIE sends the saved metadata to DataCite to create and
+                                    publish a new DOI. It is not a bulk registration action.
+                                </p>
+                                <p>
+                                    <strong>Update metadata</strong> is available for selected resources that each already have a DOI and a landing
+                                    page. After confirmation, ERNIE updates existing DataCite records one by one from the saved metadata. It does not
+                                    save unsaved editor changes or mint a new DOI. Some updates may succeed while others fail; review each result.
+                                    Beginners use the DataCite test environment for both actions.
+                                </p>
+                                <p className="text-sm text-muted-foreground">Update limit: up to 25 resources per batch.</p>
+                            </>
+                        )}
 
-                        {roleHierarchy[userRole] >= roleHierarchy.curator && (
+                        {permissions.sendReviewLinks && (
                             <>
                                 <h4>Send Review Links (Curator and above)</h4>
                                 <p>
@@ -3049,8 +3173,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p className="text-sm text-muted-foreground">
                                     Limit: up to 100 resources per batch and up to 10 send requests per user per minute.
                                 </p>
+                            </>
+                        )}
 
-                                <h4>Delete Selected Resources (Curator and above)</h4>
+                        {permissions.deleteResources && (
+                            <>
+                                <h4>Delete Selected Resources</h4>
                                 <p>
                                     Use <strong>Delete</strong> from the <strong>Actions</strong> menu to remove selected resources. Curators can
                                     delete draft, curation, and preview resources. Admins and Group Leaders can additionally delete published
@@ -3085,50 +3213,58 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             essential columns (Title, Author/Year, Status, Actions) remain readable without horizontal scrolling.
                         </p>
 
-                        <h4>Import Existing GFZ Legacy Resources</h4>
-                        <p>
-                            Admins and Group Leaders see three import actions to the right of the bulk toolbar on the <code>/resources</code> page:
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
-                            </li>
-                            <li>
-                                <strong>Import all Resources from a Datacenter</strong> loads the current datacenter list from the GFZ Data Services
-                                portal and imports resources for one selected datacenter.
-                            </li>
-                            <li>
-                                <strong>Import old single Resource</strong> opens a dialog for a single DOI.
-                            </li>
-                        </ul>
-                        <p>
-                            The datacenter import uses the portal assignment for visible resources. It also includes matching pending SUMARIO
-                            resources, whose datacenter is determined from the legacy databases and the established DOI rules. Pending resources
-                            without a more specific assignment remain part of the general GFZ datacenter through the existing fallback.
-                        </p>
-                        <p>
-                            Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist in ERNIE
-                            are not re-imported or overwritten, and their current datacenter assignments are preserved. Where applicable, the job may
-                            still enrich them with missing legacy download links or an external landing page URL from DataCite.
-                        </p>
-                        <p>
-                            The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL such as{' '}
-                            <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database before the
-                            import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the current record.
-                        </p>
-                        <p>
-                            GEOFON seismic-event records retain a published external landing page when their findable DataCite record points to a
-                            trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to <code>https://</code>; this
-                            applies to both single-resource and datacenter imports. Because the target remains externally hosted, the import does not
-                            write that normalized URL back to DataCite; automatic post-import DataCite URL updates are reserved for published landing
-                            pages hosted by ERNIE.
-                        </p>
-                        <p>
-                            ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation cache
-                            before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup resolves a label,
-                            the valid related DOI is still imported without one instead of failing the complete resource import; its label can be
-                            curated later in the Data Editor.
-                        </p>
+                        {permissions.importFromDataCite && (
+                            <>
+                                <h4>Import Existing GFZ Legacy Resources</h4>
+                                <p>
+                                    Admins and Group Leaders see three import actions to the right of the bulk toolbar on the <code>/resources</code>{' '}
+                                    page:
+                                </p>
+                                <ul className="list-inside list-disc space-y-1">
+                                    <li>
+                                        <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
+                                    </li>
+                                    <li>
+                                        <strong>Import all Resources from a Datacenter</strong> loads the current datacenter list from the GFZ Data
+                                        Services portal and imports resources for one selected datacenter.
+                                    </li>
+                                    <li>
+                                        <strong>Import old single Resource</strong> opens a dialog for a single DOI.
+                                    </li>
+                                </ul>
+                                <p>
+                                    The datacenter import uses the portal assignment for visible resources. It also includes matching pending SUMARIO
+                                    resources, whose datacenter is determined from the legacy databases and the established DOI rules. Pending
+                                    resources without a more specific assignment remain part of the general GFZ datacenter through the existing
+                                    fallback.
+                                </p>
+                                <p>
+                                    Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist
+                                    in ERNIE are not re-imported or overwritten, and their current datacenter assignments are preserved. Where
+                                    applicable, the job may still enrich them with missing legacy download links or an external landing page URL from
+                                    DataCite.
+                                </p>
+                                <p>
+                                    The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL
+                                    such as <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database
+                                    before the import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the
+                                    current record.
+                                </p>
+                                <p>
+                                    GEOFON seismic-event records retain a published external landing page when their findable DataCite record points
+                                    to a trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to{' '}
+                                    <code>https://</code>; this applies to both single-resource and datacenter imports. Because the target remains
+                                    externally hosted, the import does not write that normalized URL back to DataCite; automatic post-import DataCite
+                                    URL updates are reserved for published landing pages hosted by ERNIE.
+                                </p>
+                                <p>
+                                    ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation
+                                    cache before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup
+                                    resolves a label, the valid related DOI is still imported without one instead of failing the complete resource
+                                    import; its label can be curated later in the Data Editor.
+                                </p>
+                            </>
+                        )}
                     </>
                 ),
             },
@@ -3200,7 +3336,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
         ],
-        [userRole, editorSettings, dataCite],
+        [userRole, editorSettings, dataCite, editorActions, resourceActions, permissions],
     );
 
     // ===========================================
@@ -3425,11 +3561,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
 
                         <h4>Bulk Actions for up to 1000 IGSNs</h4>
-                        <p>
-                            A complete 1000-row page can be selected and processed at once. Administrators can delete the selected IGSNs as one
-                            all-or-nothing operation. If any selected record is missing or is not an IGSN, ERNIE leaves the complete selection
-                            unchanged.
-                        </p>
+                        <p>A complete 1000-row page can be selected and processed at once.</p>
+                        {userRole === 'admin' && (
+                            <p>
+                                Administrators can delete the selected IGSNs as one all-or-nothing operation. If any selected record is missing or is
+                                not an IGSN, ERNIE leaves the complete selection unchanged.
+                            </p>
+                        )}
                         <p>
                             <strong>Register Selected</strong> starts a persistent background run for new registrations and metadata updates. The
                             progress dialog distinguishes registered, updated, failed, cancelled, and remaining items and identifies whether the run
@@ -3558,7 +3696,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
         ],
-        [],
+        [userRole],
     );
 
     // ===========================================
@@ -3569,11 +3707,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             return sections.filter((section) => {
                 const sectionRoleLevel = roleHierarchy[section.minRole] ?? 1;
                 if (sectionRoleLevel > userRoleLevel) return false;
+                if (section.capability && !permissions[section.capability]) return false;
                 if (section.showIf && !section.showIf(editorSettings)) return false;
                 return true;
             });
         },
-        [userRoleLevel, editorSettings],
+        [userRoleLevel, editorSettings, permissions],
     );
 
     const filteredGettingStarted = useMemo(() => filterSections(gettingStartedSections), [filterSections, gettingStartedSections]);
@@ -3594,36 +3733,105 @@ DATACITE_TEST_PASSWORD=your_test_password`}
         }
     }, [activeTab, filteredGettingStarted, filteredDatasets, filteredPhysicalSamples]);
 
-    // Sidebar items
+    // Navigation and search share the same permission-filtered section list.
     const sidebarItems: DocsSidebarItem[] = useMemo(
         () =>
             currentSections.map((section) => ({
                 id: section.id,
                 label: section.title,
                 icon: section.icon,
+                children:
+                    section.id === 'editor-actions'
+                        ? editorActions.map((action) => ({ id: action.id, label: action.label }))
+                        : section.id === 'resources-actions'
+                          ? resourceActions.map((action) => ({ id: action.id, label: action.label }))
+                          : undefined,
             })),
-        [currentSections],
+        [currentSections, editorActions, resourceActions],
     );
 
-    // Scroll-spy
-    const sectionIds = useMemo(() => currentSections.map((s) => s.id), [currentSections]);
+    const sectionIds = useMemo(() => sidebarItems.flatMap((item) => [item.id, ...(item.children?.map((child) => child.id) ?? [])]), [sidebarItems]);
     const activeId = useScrollSpy(sectionIds);
 
-    // Scroll to section
-    const scrollToSection = useCallback((id: string) => {
+    const scrollToAndFocus = useCallback((id: string) => {
         const element = document.getElementById(id);
-        if (element) {
-            const elementPosition = element.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.scrollY - SCROLL_TO_SECTION_OFFSET;
-            window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-        }
+        if (!element) return;
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+        const top = element.getBoundingClientRect().top + window.scrollY - SCROLL_TO_SECTION_OFFSET;
+        window.scrollTo({ top, behavior: reducedMotion ? 'instant' : 'smooth' });
+        const heading = element.matches('h1, h2, h3') ? element : element.querySelector('h2, h3');
+        if (heading instanceof HTMLElement) heading.focus({ preventScroll: true });
     }, []);
 
-    // Tab change handler
+    const navigateToSection = useCallback(
+        (id: string, tab: DocsTabId = activeTab) => {
+            window.history.pushState(null, '', `/docs?tab=${tab}&section=${encodeURIComponent(id)}`);
+            setActiveTab(tab);
+            setNavigationTarget(id);
+            if (tab === activeTab) scrollToAndFocus(id);
+        },
+        [activeTab, scrollToAndFocus],
+    );
+
     const handleTabChange = useCallback((tab: DocsTabId) => {
+        window.history.pushState(null, '', `/docs?tab=${tab}`);
+        setNavigationTarget(null);
         setActiveTab(tab);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+        window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
     }, []);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            setActiveTab(tab === 'datasets' || tab === 'physical-samples' ? tab : 'getting-started');
+            setNavigationTarget(params.get('section'));
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    useEffect(() => {
+        if (!navigationTarget) return;
+        if (!sectionIds.includes(navigationTarget)) {
+            const fallback = currentSections[0]?.id;
+            if (fallback) {
+                window.history.replaceState(null, '', `/docs?tab=${activeTab}&section=${fallback}`);
+                setNavigationTarget(fallback);
+            }
+            return;
+        }
+        const frame = window.requestAnimationFrame(() => scrollToAndFocus(navigationTarget));
+        return () => window.cancelAnimationFrame(frame);
+    }, [activeTab, currentSections, navigationTarget, scrollToAndFocus, sectionIds]);
+
+    const searchResults = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return [];
+        const sections = [
+            ...filteredGettingStarted.map((section) => ({
+                id: section.id,
+                label: section.title,
+                tab: 'getting-started' as const,
+                text: section.title,
+            })),
+            ...filteredDatasets.map((section) => ({ id: section.id, label: section.title, tab: 'datasets' as const, text: section.title })),
+            ...filteredPhysicalSamples.map((section) => ({
+                id: section.id,
+                label: section.title,
+                tab: 'physical-samples' as const,
+                text: section.title,
+            })),
+            ...visibleActions.map((action) => ({
+                id: action.id,
+                label: action.label,
+                tab: 'datasets' as const,
+                text: [action.label, action.requirements, action.onClick, action.afterConfirmation, action.externalEffect].join(' '),
+            })),
+        ];
+        return sections.filter((result) => result.text.toLowerCase().includes(query));
+    }, [searchQuery, filteredGettingStarted, filteredDatasets, filteredPhysicalSamples, visibleActions]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -3637,28 +3845,70 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     </p>
                 </div>
 
-                {/* Tabs */}
-                <DocsTabs activeTab={activeTab} onTabChange={handleTabChange} />
-
-                {/* Mobile Sidebar */}
-                <DocsSidebarMobile items={sidebarItems} activeId={activeId} onSectionClick={scrollToSection} />
-
-                {/* Main Content with Sidebar */}
-                <div className="flex gap-8">
-                    {/* Desktop Sidebar */}
-                    <DocsSidebar items={sidebarItems} activeId={activeId} onSectionClick={scrollToSection} />
-
-                    {/* Content */}
-                    <main className="min-w-0 flex-1">
-                        <div className="space-y-12">
-                            {currentSections.map((section) => (
-                                <DocsSection key={section.id} id={section.id} title={section.title} icon={section.icon}>
-                                    {section.content}
-                                </DocsSection>
-                            ))}
+                <div role="search" className="mb-6 max-w-xl">
+                    <label htmlFor="docs-search" className="mb-2 block font-medium">
+                        Search documentation
+                    </label>
+                    <input
+                        id="docs-search"
+                        type="search"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className="w-full rounded-md border bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2"
+                        placeholder="Search actions and topics"
+                    />
+                    {searchQuery.trim() && (
+                        <div className="mt-2 rounded-md border bg-card p-3">
+                            <p className="text-sm text-muted-foreground" role="status">
+                                {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                            </p>
+                            {searchResults.length > 0 && (
+                                <nav aria-label="Documentation search results" className="mt-2 max-h-64 overflow-y-auto">
+                                    <ul className="space-y-1">
+                                        {searchResults.map((result) => (
+                                            <li key={result.id}>
+                                                <a
+                                                    href={`/docs?tab=${result.tab}&section=${encodeURIComponent(result.id)}`}
+                                                    className="block rounded px-2 py-1.5 text-sm text-primary underline-offset-2 hover:underline focus-visible:outline-2"
+                                                    onClick={(event) => {
+                                                        event.preventDefault();
+                                                        navigateToSection(result.id, result.tab);
+                                                        setSearchQuery('');
+                                                    }}
+                                                >
+                                                    {result.label}
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </nav>
+                            )}
                         </div>
-                    </main>
+                    )}
                 </div>
+
+                {/* Tabs */}
+                <DocsTabs activeTab={activeTab} onTabChange={handleTabChange}>
+                    {/* Mobile Sidebar */}
+                    <DocsSidebarMobile items={sidebarItems} activeId={activeId} onSectionClick={navigateToSection} />
+
+                    {/* Main Content with Sidebar */}
+                    <div className="flex gap-8">
+                        {/* Desktop Sidebar */}
+                        <DocsSidebar items={sidebarItems} activeId={activeId} onSectionClick={navigateToSection} />
+
+                        {/* Content */}
+                        <div id="docs-content" className="min-w-0 flex-1">
+                            <div className="space-y-12">
+                                {currentSections.map((section) => (
+                                    <DocsSection key={section.id} id={section.id} title={section.title} icon={section.icon}>
+                                        {section.content}
+                                    </DocsSection>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </DocsTabs>
             </div>
         </AppLayout>
     );
