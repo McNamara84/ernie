@@ -226,6 +226,45 @@ function AssessmentDoi({ doi }: { doi: string | null }) {
     );
 }
 
+const ASSESSMENT_STATE_LABELS: Record<NonNullable<AssessmentEntry['assessmentState']>, string> = {
+    provisional: 'Provisional: landing page not published',
+    pending: 'Reassessment pending after publication',
+    processing: 'Reassessment running after publication',
+    failed: 'Automatic reassessment failed',
+    stale: 'Reassessment needed after changes',
+    current: 'Current assessment',
+};
+
+function AssessmentProvenance({ entry }: { entry: AssessmentEntry }) {
+    const details = entry.diagnostics;
+    if (!details) {
+        return null;
+    }
+
+    return (
+        <details className="mt-1 text-xs font-normal text-muted-foreground">
+            <summary className="cursor-pointer">F-UJI details</summary>
+            <div className="mt-1 grid gap-1 pl-2 break-all">
+                <div>
+                    Software: {details.softwareVersion ?? 'not reported'}; metrics: {details.metricVersion ?? 'not reported'}
+                </div>
+                <div>F4 searchable metadata: {details.f4Status ?? 'not reported'}</div>
+                <div>Resolved URL: {details.resolvedUrl ?? 'not reported'}</div>
+                {details.metadataSources.length === 0 ? (
+                    <div>Metadata sources: not reported</div>
+                ) : (
+                    details.metadataSources.map((source, index) => (
+                        <div key={index}>
+                            Metadata source {index + 1}:{' '}
+                            {[source.source, source.format, source.schema, source.url].filter(Boolean).join(' · ') || 'unspecified'}
+                        </div>
+                    ))
+                )}
+            </div>
+        </details>
+    );
+}
+
 function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, canRunAssessments: boolean, hasActiveFilters = false): string {
     if (hasActiveFilters && summary.total === 0) {
         return `No ${scopeNoun(scope)} match the active DOI and Datacenter filters.`;
@@ -289,6 +328,12 @@ export function AssessmentTable({
                             <span className="block truncate" title={entry.mainTitle}>
                                 {entry.mainTitle}
                             </span>
+                            {entry.assessmentState && (
+                                <span className="block text-xs font-normal text-muted-foreground" data-testid={`assessment-state-${entry.id}`}>
+                                    {ASSESSMENT_STATE_LABELS[entry.assessmentState]}
+                                </span>
+                            )}
+                            {showImprovementActorLabels && <AssessmentProvenance entry={entry} />}
                             <span className="block truncate font-mono text-[11px] font-normal text-muted-foreground sm:hidden">
                                 <AssessmentDoi doi={entry.doi} />
                             </span>
@@ -351,6 +396,20 @@ export default function Assessment({
         igsn: null,
     });
     const startPollingRef = useRef<(scope: AssessmentScope, jobId: string) => void>(() => undefined);
+
+    const hasAutomaticReassessment = [...resourcesNeedingAttention, ...igsnsNeedingAttention].some(
+        (entry) => entry.assessmentState === 'pending' || entry.assessmentState === 'processing',
+    );
+
+    useEffect(() => {
+        if (!hasAutomaticReassessment) {
+            return;
+        }
+
+        const timer = setTimeout(() => router.reload({ only: ['resourcesNeedingAttention', 'igsnsNeedingAttention'] }), 15000);
+
+        return () => clearTimeout(timer);
+    }, [hasAutomaticReassessment, resourcesNeedingAttention, igsnsNeedingAttention]);
 
     useEffect(() => {
         const timers = pollingRefs.current;

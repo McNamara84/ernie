@@ -6,6 +6,7 @@ use App\Enums\AssessmentScope;
 use App\Models\AssessmentRun;
 use App\Models\AssessmentRunItem;
 use App\Models\Resource;
+use App\Models\ResourceAssessmentRefresh;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
@@ -45,6 +46,29 @@ it('stores resumable snapshot preparation progress', function (): void {
             'failure_type',
             'error_code',
         ]))->toBeTrue();
+});
+
+it('stores one durable publication refresh per resource and removes it on resource deletion', function (): void {
+    expect(Schema::hasColumns('resource_assessment_refreshes', [
+        'resource_id', 'status', 'generation', 'attempts', 'service_attempts',
+        'requested_at', 'available_at', 'lease_expires_at', 'completed_at', 'last_error',
+    ]))->toBeTrue();
+
+    $resource = Resource::factory()->withDoi('10.5880/assessment.refresh-schema')->create();
+    ResourceAssessmentRefresh::query()->create([
+        'resource_id' => $resource->id,
+        'status' => ResourceAssessmentRefresh::PENDING,
+        'requested_at' => now(),
+    ]);
+
+    expect(fn () => ResourceAssessmentRefresh::query()->create([
+        'resource_id' => $resource->id,
+        'status' => ResourceAssessmentRefresh::PENDING,
+        'requested_at' => now(),
+    ]))->toThrow(QueryException::class);
+
+    $resource->delete();
+    expect(ResourceAssessmentRefresh::query()->whereKey($resource->id)->exists())->toBeFalse();
 });
 
 it('allows only one active run per scope while retaining terminal run history', function (): void {

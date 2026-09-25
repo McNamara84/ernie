@@ -19,6 +19,7 @@ use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Models\ResourceAssessmentRefresh;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\User;
@@ -110,6 +111,70 @@ beforeEach(function (): void {
 });
 
 describe('index', function () {
+    it('reports provisional and pending published assessments with admin-only F-UJI provenance', function () {
+        Config::set('fuji.assessment.queue_connection', 'assessment');
+        Config::set('queue.connections.assessment.driver', 'database');
+        Queue::fake();
+
+        $resource = Resource::factory()->withDoi('10.5880/assessment.provenance')->create();
+        Title::factory()->for($resource)->create(['value' => 'F-UJI provenance resource']);
+        $assessment = ResourceAssessment::query()->create([
+            'resource_id' => $resource->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 40,
+            'assessed_identifier' => $resource->doi,
+            'assessed_at' => now()->subDay(),
+            'payload' => [
+                ...assessmentControllerFujiPayload(['F' => 0]),
+                'software_version' => '4.0.1',
+                'resolved_url' => 'https://example.org/old',
+                'harvested_metadata' => [['method' => 'json_in_html', 'format' => 'json-ld', 'schema' => 'http://schema.org', 'url' => 'https://example.org/old']],
+            ],
+        ]);
+        $page = LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->draft()->create();
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia
+                ->where('resourcesNeedingAttention.0.assessmentState', 'provisional')
+                ->where('resourcesNeedingAttention.0.diagnostics.softwareVersion', '4.0.1')
+                ->where('resourcesNeedingAttention.0.diagnostics.metadataSources.0.source', 'json_in_html')
+            );
+
+        $page->forceFill(['is_published' => true, 'published_at' => now()])->save();
+        expect(ResourceAssessmentRefresh::query()->whereKey($resource->id)->exists())->toBeTrue();
+
+        $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia
+                ->where('resourcesNeedingAttention.0.assessmentState', 'pending')
+                ->where('resourcesNeedingAttention.0.diagnostics.resolvedUrl', 'https://example.org/old')
+            );
+
+        $curator = User::factory()->create(['role' => 'curator']);
+        $this->actingAs($curator)->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia
+                ->where('resourcesNeedingAttention.0.assessmentState', 'pending')
+                ->where('resourcesNeedingAttention.0.diagnostics', null)
+            );
+
+        $assessment->forceFill([
+            'assessed_at' => now()->addMinute(),
+            'payload' => [...$assessment->payload, 'software_version' => '4.0.0'],
+        ])->save();
+        ResourceAssessmentRefresh::query()->whereKey($resource->id)->update(['status' => ResourceAssessmentRefresh::COMPLETED]);
+        $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'stale'));
+
+        $assessment->forceFill(['payload' => [...$assessment->payload, 'software_version' => '4.0.1']])->save();
+        $this->actingAs($admin)->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'current'));
+    });
+
     it('returns assessment page for admins', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
@@ -936,7 +1001,7 @@ describe('index', function () {
                 ->where('resourcesNeedingAttention.1.improvementOpportunity.suggestions.0.actor', 'administrator')
                 ->where(
                     'resourcesNeedingAttention.1.improvementOpportunity.suggestions.0.text',
-                    'Make the published ERNIE landing page\'s Schema.org metadata crawlable in the initial server response.',
+                    'F-UJI did not recognize searchable Schema.org metadata for the published ERNIE landing page. Check the DOI resolver target and F-UJI harvest details.',
                 )
                 ->where('igsnsNeedingAttention.0.improvementOpportunity.suggestions.0.actor', 'curator')
                 ->where(

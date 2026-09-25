@@ -400,7 +400,13 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByText(/Resource and IGSN rankings are always displayed as separate cards, one below the other/)).toBeInTheDocument();
-        expect(document.body).not.toHaveTextContent('F-UJI');
+        expect(
+            screen.getByText(
+                (_, element) =>
+                    element?.tagName === 'P' &&
+                    (element.textContent?.includes('A DOI assessment before its landing page is published is marked') ?? false),
+            ),
+        ).toHaveTextContent('F-UJI details');
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -1160,7 +1166,9 @@ describe('Docs page', () => {
         expect(sectionContent).toMatch(/Use drag & drop to rearrange modules within a column or move them between the left and right columns/i);
         expect(screen.getByText(/Every Resource module can be placed in either column/i)).toBeInTheDocument();
         expect(screen.getByText(/Each template type only offers the modules intended for its landing pages/i)).toBeInTheDocument();
-        expect(sectionContent).toMatch(/For IGSN landing pages, each module renders in its own card and can be placed in either column or in Hidden cards/i);
+        expect(sectionContent).toMatch(
+            /For IGSN landing pages, each module renders in its own card and can be placed in either column or in Hidden cards/i,
+        );
         expect(screen.getByText(/Sample Image displays the locally managed or approved external legacy photo/i)).toBeInTheDocument();
         expect(sectionContent).toMatch(/On ICDP IGSN landing pages, a dedicated Drilling card/i);
         expect(sectionContent).toMatch(/Drilling and Sample Image start in Hidden cards/i);
@@ -1444,7 +1452,9 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
-        expect(screen.getByText(/normal text search also finds Authors, Contributors, and Contact Persons by person or institution name/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/normal text search also finds Authors, Contributors, and Contact Persons by person or institution name/i),
+        ).toBeInTheDocument();
         expect(screen.getByText(/stored contact email addresses are not part of the public search/i)).toBeInTheDocument();
         const partyLabelsHelp = screen.getByText((_, element) => {
             if (element?.tagName !== 'P') return false;

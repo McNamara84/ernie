@@ -22,6 +22,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -81,6 +82,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
         $item->increment('attempts');
         $item->refresh();
         $started = microtime(true);
+        $assessedAt = now();
 
         try {
             $result = $fuji->assessIdentifier($identifier);
@@ -129,6 +131,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
             httpStatus: 200,
             durationMs: $this->durationMs($started),
             expectedIdentifier: $identifier,
+            assessedAt: $assessedAt,
         );
         $item->refresh();
         if ($item->status->isTerminal()) {
@@ -223,13 +226,14 @@ final class AssessResourceRunItemJob implements ShouldQueue
         ?string $errorDetail = null,
         ?int $durationMs = null,
         ?string $expectedIdentifier = null,
+        ?Carbon $assessedAt = null,
     ): void {
         $runId = AssessmentRunItem::query()->whereKey($item->id)->value('run_id');
         if (! is_string($runId)) {
             return;
         }
 
-        DB::transaction(function () use ($runId, $item, $status, $resource, $resourceCache, $result, $error, $httpStatus, $failureType, $errorCode, $errorDetail, $durationMs, $expectedIdentifier): void {
+        DB::transaction(function () use ($runId, $item, $status, $resource, $resourceCache, $result, $error, $httpStatus, $failureType, $errorCode, $errorDetail, $durationMs, $expectedIdentifier, $assessedAt): void {
             $run = AssessmentRun::query()->lockForUpdate()->find($runId);
             if ($run === null) {
                 return;
@@ -276,23 +280,31 @@ final class AssessResourceRunItemJob implements ShouldQueue
             }
 
             if ($currentResource !== null) {
-                ResourceAssessment::query()->updateOrCreate(
-                    ['resource_id' => $currentResource->id],
-                    [
-                        'status' => match ($status) {
-                            AssessmentRunItemStatus::ASSESSED => ResourceAssessment::STATUS_COMPLETED,
-                            AssessmentRunItemStatus::FAILED => ResourceAssessment::STATUS_FAILED,
-                            default => ResourceAssessment::STATUS_SKIPPED,
-                        },
-                        'failure_type' => $status === AssessmentRunItemStatus::FAILED ? $failureType : null,
-                        'error_code' => $status === AssessmentRunItemStatus::FAILED ? $errorCode : null,
-                        'total_score' => $result['score'] ?? null,
-                        'assessed_identifier' => $currentResource->doi,
-                        'error_message' => $error === null ? null : $this->sanitize($error),
-                        'payload' => $result['payload'] ?? null,
-                        'assessed_at' => now(),
-                    ],
-                );
+                $existingAssessment = ResourceAssessment::query()
+                    ->where('resource_id', $currentResource->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingAssessment?->assessed_at === null
+                    || $existingAssessment->assessed_at->lessThanOrEqualTo($assessedAt ?? now())) {
+                    ResourceAssessment::query()->updateOrCreate(
+                        ['resource_id' => $currentResource->id],
+                        [
+                            'status' => match ($status) {
+                                AssessmentRunItemStatus::ASSESSED => ResourceAssessment::STATUS_COMPLETED,
+                                AssessmentRunItemStatus::FAILED => ResourceAssessment::STATUS_FAILED,
+                                default => ResourceAssessment::STATUS_SKIPPED,
+                            },
+                            'failure_type' => $status === AssessmentRunItemStatus::FAILED ? $failureType : null,
+                            'error_code' => $status === AssessmentRunItemStatus::FAILED ? $errorCode : null,
+                            'total_score' => $result['score'] ?? null,
+                            'assessed_identifier' => $currentResource->doi,
+                            'error_message' => $error === null ? null : $this->sanitize($error),
+                            'payload' => $result['payload'] ?? null,
+                            'assessed_at' => $assessedAt ?? now(),
+                        ],
+                    );
+                }
             }
 
             $resolvedIdentifier = $currentResource?->doi;

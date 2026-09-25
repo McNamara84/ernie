@@ -154,6 +154,8 @@ The default HTTP timeout is 300 seconds. A cURL 28 response timeout that consume
 
 For a one-worker local load comparison, run:
 
+The local assessment profile builds `Dockerfile.fuji` from the pinned F-UJI 4.0.1 base image. That build installs Chromium because the upstream image starts Playwright but does not include its browser executable. The first build therefore downloads browser packages. Stage and Production receive the same derived image through the digest-pinned image publication workflow.
+
 ```bash
 docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assessment up --build --scale assessment-queue=1
 ```

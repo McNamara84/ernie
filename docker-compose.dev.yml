@@ -249,7 +249,10 @@ services:
       - "${REDIS_PORT:-6379}:6379"
 
   fuji:
-    image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
+    build:
+      context: .
+      dockerfile: Dockerfile.fuji
+    image: ernie-fuji-dev:4.0.1
     container_name: ernie-fuji-dev
     restart: unless-stopped
     profiles:

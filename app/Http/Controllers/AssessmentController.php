@@ -14,11 +14,13 @@ use App\Models\AssessmentRun;
 use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Models\ResourceAssessmentRefresh;
 use App\Models\User;
 use App\Services\Assessment\AssessmentRunPresenterService;
 use App\Services\Assessment\AssessmentRunService;
 use App\Services\Assessment\FairImprovementContextFactory;
 use App\Services\Assessment\FairImprovementOpportunityResolver;
+use App\Services\Assessment\FujiAssessmentDiagnosticsService;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\Assistance\AssistanceReviewService;
 use App\Services\ResourceCacheService;
@@ -43,6 +45,7 @@ class AssessmentController extends Controller
         private readonly FairImprovementOpportunityResolver $fairImprovementResolver,
         private readonly AssessmentRunService $assessmentRuns,
         private readonly AssessmentRunPresenterService $assessmentRunPresenter,
+        private readonly FujiAssessmentDiagnosticsService $fujiDiagnostics,
     ) {}
 
     public function index(IndexAssessmentRequest $request): Response
@@ -275,6 +278,7 @@ class AssessmentController extends Controller
             ->with([
                 'titles.titleType',
                 'resourceAssessment',
+                'resourceAssessmentRefresh',
                 'landingPage.externalDomain',
                 'landingPage.files',
                 'landingPage.links',
@@ -309,6 +313,10 @@ class AssessmentController extends Controller
                     'mainTitle' => $resource->main_title ?? 'Untitled',
                     'score' => round((float) ($assessment->total_score ?? 0), 2),
                     'assessedAt' => $assessment?->assessed_at?->toIso8601String(),
+                    'assessmentState' => $this->assessmentState($resource, $assessment, $context->requiresReassessment()),
+                    'diagnostics' => in_array('administrator', $allowedImprovementActors, true)
+                        ? $this->fujiDiagnostics->fromPayload($assessment?->payload)
+                        : null,
                     'hasPendingSuggestions' => isset($pendingSuggestionResourceIds[$resource->id]),
                     'improvementOpportunity' => $this->fairImprovementResolver->resolve(
                         payload: $assessment?->payload,
@@ -332,6 +340,30 @@ class AssessmentController extends Controller
          * }> $items
          */
         return $items;
+    }
+
+    private function assessmentState(Resource $resource, ?ResourceAssessment $assessment, bool $requiresReassessment): string
+    {
+        if (! $resource->landingPage?->is_published) {
+            return 'provisional';
+        }
+
+        $refresh = $resource->resourceAssessmentRefresh;
+        if ($refresh?->status === ResourceAssessmentRefresh::PENDING) {
+            return 'pending';
+        }
+
+        if ($refresh?->status === ResourceAssessmentRefresh::PROCESSING) {
+            return 'processing';
+        }
+
+        if ($refresh?->status === ResourceAssessmentRefresh::FAILED) {
+            return 'failed';
+        }
+
+        return $requiresReassessment || ($assessment?->payload['software_version'] ?? null) !== '4.0.1'
+            ? 'stale'
+            : 'current';
     }
 
     /**

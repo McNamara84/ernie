@@ -87,6 +87,49 @@ const igsnEntry: AssessmentEntry = {
 
 describe('Assessment FAIR opportunity integration', () => {
     it.each([
+        ['provisional', 'Provisional: landing page not published'],
+        ['pending', 'Reassessment pending after publication'],
+        ['processing', 'Reassessment running after publication'],
+        ['current', 'Current assessment'],
+        ['failed', 'Automatic reassessment failed'],
+    ] as const)('labels %s assessment results', (state, label) => {
+        render(
+            <AssessmentTable
+                entries={[{ ...resourceEntry, assessmentState: state }]}
+                summary={summary}
+                scope="resource"
+                canRunAssessments
+                canAccessAssistance
+                showImprovementActorLabels={false}
+            />,
+        );
+
+        expect(screen.getByText(label)).toBeInTheDocument();
+    });
+
+    it('shows stored F-UJI provenance only to administrators', async () => {
+        const entry: AssessmentEntry = {
+            ...resourceEntry,
+            diagnostics: {
+                softwareVersion: '4.0.1',
+                metricVersion: '0.8',
+                resolvedUrl: 'https://dataservices.gfz.de/example',
+                f4Status: 'fail',
+                metadataSources: [{ source: 'embedded', format: 'jsonld', schema: 'schema.org', url: null }],
+            },
+        };
+        const props = { entries: [entry], summary, scope: 'resource' as const, canRunAssessments: true, canAccessAssistance: true };
+        const view = render(<AssessmentTable {...props} showImprovementActorLabels={false} />);
+        expect(screen.queryByText('F-UJI details')).not.toBeInTheDocument();
+
+        view.rerender(<AssessmentTable {...props} showImprovementActorLabels />);
+        await userEvent.setup().click(screen.getByText('F-UJI details'));
+        expect(screen.getByText(/Software: 4.0.1; metrics: 0.8/)).toBeVisible();
+        expect(screen.getByText(/F4 searchable metadata: fail/)).toBeVisible();
+        expect(screen.getByText(/embedded · jsonld · schema.org/)).toBeVisible();
+    });
+
+    it.each([
         ['Resource', 'resource', resourceEntry],
         ['IGSN', 'igsn', igsnEntry],
     ] as const)('links the %s DOI to its resolver in a new tab on desktop and mobile', (_label, scope, entry) => {

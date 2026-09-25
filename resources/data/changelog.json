@@ -1,7 +1,7 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-09-24",
+        "date": "2026-09-25",
         "features": [
             {
                 "title": "Direct Date Entry in the Editor",
@@ -54,6 +54,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "F-UJI 4.0.1 and Published Landing Page Reassessments",
+                "description": "FAIR assessments now use a verified, digest-pinned F-UJI 4.0.1 image with the Chromium runtime required for startup. Existing DOI assessments are automatically refreshed after their ERNIE landing page is published and the DOI resolver points to it, while the previous score remains available during retries. Assessment rows distinguish provisional, pending, current, and failed results; Admins can inspect F-UJI provenance and F4 test details. Guidance no longer assumes that a failed F4 test proves missing server-side Schema.org metadata."
+            },
             {
                 "title": "Reliable Size and Format Suggestions",
                 "description": "The Size and Format Suggestions assistant now inspects the configured FTP URL and Additional Download Links directly instead of scraping legacy DOI landing pages. It records exact primary-data byte counts, reports archive containers together with their contained formats, excludes Data Description documents from size and format calculations, detects conflicting existing digital sizes, removes stale suggestions only after complete checks, and shows detailed discovery diagnostics. Accepted changes synchronize registered resources with DataCite once per review action, with a retry option if synchronization fails while preserving the locally saved metadata."
