@@ -9,10 +9,12 @@ import type { EditorDateLocale } from '@/lib/editor-date';
 function DateInputHarness({
     initial,
     locale = 'iso',
+    allowFuture = false,
     onValueChange = vi.fn(),
 }: {
     initial: string;
     locale?: EditorDateLocale;
+    allowFuture?: boolean;
     onValueChange?: (value: string, committed?: boolean) => void;
 }) {
     const [value, setValue] = useState(initial);
@@ -24,6 +26,7 @@ function DateInputHarness({
                 inputLabel="Date"
                 value={value}
                 locale={locale}
+                allowFuture={allowFuture}
                 calendarLabel="Choose date"
                 clearLabel="Clear date"
                 onChange={(next, committed) => {
@@ -105,6 +108,24 @@ describe('EditorDateInput', () => {
 
         expect(onValueChange).toHaveBeenLastCalledWith('1900-02-02', true);
         expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue('1900-02-02');
+    });
+
+    it('allows choosing a future day when the date type permits it', async () => {
+        const user = userEvent.setup();
+        const onValueChange = vi.fn();
+        const futureYear = new Date().getFullYear() + 2;
+        const initial = `${futureYear}-10-12`;
+        render(<DateInputHarness initial={initial} allowFuture onValueChange={onValueChange} />);
+
+        await user.click(screen.getByRole('button', { name: 'Choose date' }));
+        const dayLabel = new Date(futureYear, 9, 13).toLocaleDateString();
+        const dayButton = document.querySelector<HTMLButtonElement>(`button[data-day="${dayLabel}"]`);
+        expect(dayButton).toBeTruthy();
+        expect(dayButton).toBeEnabled();
+        await user.click(dayButton!);
+
+        expect(onValueChange).toHaveBeenLastCalledWith(`${futureYear}-10-13`, true);
+        expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(`${futureYear}-10-13`);
     });
 
     it('opens the old date in a month and year dropdown that reaches 1900', async () => {

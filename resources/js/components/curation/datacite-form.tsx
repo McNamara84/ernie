@@ -98,7 +98,7 @@ import {
     type SerializedContributor,
     type TitleEntry,
 } from './types/datacite-form-types';
-import { type DateMode, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
+import { type DateMode, isAvailableDateType, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
 import { ABSTRACT_MAX_LENGTH } from './utils/description-rules';
 import {
     canAddDate,
@@ -320,7 +320,7 @@ export default function DataCiteForm({
             dateTypes
                 .filter((dt) => isEditableDateType(dt.slug))
                 .map((dt) => ({
-                    value: dt.slug,
+                    value: normalizeDateTypeSlug(dt.slug),
                     label: dt.name,
                     description: dt.description ?? '',
                 })),
@@ -496,7 +496,7 @@ export default function DataCiteForm({
 
                     return {
                         id: crypto.randomUUID(),
-                        dateType: date.dateType,
+                        dateType: normalizeDateTypeSlug(date.dateType),
                         dateMode,
                         startDate: parsedStart.date || null,
                         endDate: dateMode === 'range' ? parsedEnd.date || null : null,
@@ -1406,7 +1406,7 @@ export default function DataCiteForm({
             }
 
             const startValidation = date.startDate?.trim()
-                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), date.dateType === 'available')
+                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), isAvailableDateType(date.dateType))
                 : null;
             const endValidation = date.endDate?.trim() ? validateEditorDate(date.endDate, editorDateLocale) : null;
 
@@ -1463,7 +1463,7 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'accessLevel', 'Access Level is required.');
         }
 
-        const availableDates = dates.filter((date) => date.dateType === 'available');
+        const availableDates = dates.filter((date) => isAvailableDateType(date.dateType));
         if (
             form.accessLevel === 'embargoed' &&
             (availableDates.length !== 1 ||
@@ -1994,7 +1994,7 @@ export default function DataCiteForm({
                     updated.endTimezone = null;
                 }
             } else if (field === 'dateType') {
-                updated = { ...updated, dateType: value };
+                updated = { ...updated, dateType: normalizeDateTypeSlug(value) };
 
                 if (!isDateRangeCapable(value)) {
                     updated.dateMode = 'single';
@@ -2324,7 +2324,7 @@ export default function DataCiteForm({
                 dateMode: date.dateMode,
                 startDate:
                     buildDateTime(
-                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, date.dateType === 'available'),
+                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, isAvailableDateType(date.dateType)),
                         date.startTime,
                         date.startTimezone,
                     ) || null,

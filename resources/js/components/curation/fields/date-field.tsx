@@ -9,7 +9,7 @@ import { normalizeTimeForInput, TIMEZONE_OPTIONS } from '@/lib/date-utils';
 import { type EditorDateLocale, parseEditorDate } from '@/lib/editor-date';
 import { cn } from '@/lib/utils';
 
-import { type DateMode, isDateRangeCapable } from '../utils/date-rules';
+import { type DateMode, isAvailableDateType, isDateRangeCapable } from '../utils/date-rules';
 import { EditorDateInput } from './editor-date-input';
 import { SelectField } from './select-field';
 
@@ -107,7 +107,7 @@ export function DateField({
                         id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
                         inputLabel={isDateRange ? 'Start Date' : 'Date'}
                         value={startDate}
-                        allowFuture={dateType === 'available'}
+                        allowFuture={isAvailableDateType(dateType)}
                         onChange={onStartDateChange}
                         onEditingChange={onEditingChange}
                         locale={locale}
