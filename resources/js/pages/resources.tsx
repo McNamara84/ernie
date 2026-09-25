@@ -2668,7 +2668,9 @@ function ResourcesPage({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Update metadata?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will update metadata at DataCite for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'}.
+                            This sends the saved metadata for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'} to DataCite, updating
+                            existing DOIs one by one. It does not save unsaved editor changes or create a new DOI. Some updates may succeed even if
+                            others fail; check the results before retrying.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

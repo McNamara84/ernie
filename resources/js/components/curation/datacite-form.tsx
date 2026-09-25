@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
+import { docsActionHref } from '@/data/docs-actions';
 import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
@@ -97,7 +98,7 @@ import {
     type SerializedContributor,
     type TitleEntry,
 } from './types/datacite-form-types';
-import { type DateMode, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
+import { type DateMode, isAvailableDateType, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
 import { ABSTRACT_MAX_LENGTH } from './utils/description-rules';
 import {
     canAddDate,
@@ -319,7 +320,7 @@ export default function DataCiteForm({
             dateTypes
                 .filter((dt) => isEditableDateType(dt.slug))
                 .map((dt) => ({
-                    value: dt.slug,
+                    value: normalizeDateTypeSlug(dt.slug),
                     label: dt.name,
                     description: dt.description ?? '',
                 })),
@@ -495,7 +496,7 @@ export default function DataCiteForm({
 
                     return {
                         id: crypto.randomUUID(),
-                        dateType: date.dateType,
+                        dateType: normalizeDateTypeSlug(date.dateType),
                         dateMode,
                         startDate: parsedStart.date || null,
                         endDate: dateMode === 'range' ? parsedEnd.date || null : null,
@@ -619,7 +620,7 @@ export default function DataCiteForm({
     } = useDoiValidation({
         excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
         onSuccess: () => {
-            toast.success('DOI ist verfügbar', { duration: 2000 });
+            toast.success('DOI is available', { duration: 2000 });
         },
     });
 
@@ -661,7 +662,7 @@ export default function DataCiteForm({
             // Clear any existing DOI conflict state since this is a verified available DOI
             resetDoiValidation();
             // Show success toast to confirm the DOI was accepted
-            toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+            toast.success('Suggested DOI applied', { duration: 2000 });
             // Note: 'form' is intentionally excluded - we use functional update for setForm
             // and only need the new DOI value for validation
         },
@@ -1405,7 +1406,7 @@ export default function DataCiteForm({
             }
 
             const startValidation = date.startDate?.trim()
-                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), date.dateType === 'available')
+                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), isAvailableDateType(date.dateType))
                 : null;
             const endValidation = date.endDate?.trim() ? validateEditorDate(date.endDate, editorDateLocale) : null;
 
@@ -1462,7 +1463,7 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'accessLevel', 'Access Level is required.');
         }
 
-        const availableDates = dates.filter((date) => date.dateType === 'available');
+        const availableDates = dates.filter((date) => isAvailableDateType(date.dateType));
         if (
             form.accessLevel === 'embargoed' &&
             (availableDates.length !== 1 ||
@@ -1993,7 +1994,7 @@ export default function DataCiteForm({
                     updated.endTimezone = null;
                 }
             } else if (field === 'dateType') {
-                updated = { ...updated, dateType: value };
+                updated = { ...updated, dateType: normalizeDateTypeSlug(value) };
 
                 if (!isDateRangeCapable(value)) {
                     updated.dateMode = 'single';
@@ -2323,7 +2324,7 @@ export default function DataCiteForm({
                 dateMode: date.dateMode,
                 startDate:
                     buildDateTime(
-                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, date.dateType === 'available'),
+                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, isAvailableDateType(date.dateType)),
                         date.startTime,
                         date.startTimezone,
                     ) || null,
@@ -3951,6 +3952,32 @@ export default function DataCiteForm({
                 data-testid="editor-floating-actions"
                 className="group fixed right-2 bottom-2 z-40 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 p-2 sm:right-4 sm:bottom-4 sm:max-w-[calc(100vw-2rem)] lg:right-6 lg:bottom-6 lg:p-0"
             >
+                <div className="max-w-md rounded-md border bg-background p-2 text-right text-xs text-foreground shadow-sm">
+                    {!isPublishedResource && (
+                        <p>
+                            <strong>Validate</strong> saves in ERNIE only.{' '}
+                            <a className="underline" href={docsActionHref('editor-validate')} target="_blank" rel="noopener noreferrer">
+                                Details (opens in a new tab)
+                            </a>
+                        </p>
+                    )}
+                    {canRegisterDoi && (
+                        <p>
+                            <strong>{hasExistingDoi ? 'Update Metadata' : 'Register'}</strong>{' '}
+                            {hasExistingDoi
+                                ? 'saves locally, then updates the existing DOI at DataCite after confirmation.'
+                                : 'saves locally, then publishes a DOI at DataCite after confirmation.'}{' '}
+                            <a
+                                className="underline"
+                                href={docsActionHref(hasExistingDoi ? 'editor-update-metadata' : 'editor-register')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                What happens? (opens in a new tab)
+                            </a>
+                        </p>
+                    )}
+                </div>
                 <div
                     data-testid="editor-floating-actions-panel"
                     className="flex max-w-full flex-wrap justify-end gap-2 opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100 hover:opacity-100 sm:gap-3 lg:opacity-100 [@media(hover:none)]:opacity-100"

@@ -1,360 +1,96 @@
+import '@testing-library/jest-dom/vitest';
+
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';
 
-const mocks = vi.hoisted(() => ({
-    motionDiv: vi.fn(),
-    motionButton: vi.fn(),
-}));
-
-type MotionButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    whileHover?: unknown;
-    whileTap?: unknown;
-};
-
-const consumeMotionOnlyProps = (...values: unknown[]) => {
-    values.forEach(() => {
-        // Accessing the values is enough to satisfy Oxlint while discarding motion-only props.
-    });
-};
-
-const sanitizeButtonMotionProps = ({ whileHover, whileTap, ...rest }: MotionButtonProps) => {
-    consumeMotionOnlyProps(whileHover, whileTap);
-    return rest;
-};
-
-// Mock framer-motion to avoid animation issues in tests
-vi.mock('framer-motion', () => ({
-    motion: {
-        div: ({ children, ...props }: React.PropsWithChildren<object>) => {
-            mocks.motionDiv(props);
-            return <div {...props}>{children}</div>;
-        },
-        button: ({
-            children,
-            ...props
-        }: React.PropsWithChildren<MotionButtonProps>) => {
-            const rest = sanitizeButtonMotionProps(props);
-
-            mocks.motionButton(rest);
-            return <button {...rest}>{children}</button>;
-        },
-        span: ({ children, ...props }: React.PropsWithChildren<object>) => <span {...props}>{children}</span>,
-    },
-}));
+const releases = [
+    { version: '2.0.0', date: '2025-01-15' },
+    { version: '1.1.0', date: '2025-01-01' },
+    { version: '1.0.1', date: '2024-12-20' },
+    { version: '1.0.0', date: '2024-12-01' },
+];
 
 describe('ChangelogTimelineNav', () => {
-    const mockReleases = [
-        { version: '2.0.0', date: '2025-01-15' },
-        { version: '1.1.0', date: '2025-01-01' },
-        { version: '1.0.1', date: '2024-12-20' },
-        { version: '1.0.0', date: '2024-12-01' },
-    ];
-
-    const mockOnNavigate = vi.fn();
+    const onNavigate = vi.fn();
 
     beforeEach(() => {
         vi.clearAllMocks();
-        // Set desktop viewport
-        Object.defineProperty(window, 'innerWidth', { value: 1024, writable: true });
-
-        // Mock matchMedia for reduced motion
-        Object.defineProperty(window, 'matchMedia', {
-            writable: true,
-            value: vi.fn().mockImplementation((query: string) => ({
-                matches: false,
-                media: query,
-                onchange: null,
-                addListener: vi.fn(),
-                removeListener: vi.fn(),
-                addEventListener: vi.fn(),
-                removeEventListener: vi.fn(),
-                dispatchEvent: vi.fn(),
-            })),
-        });
+        Object.defineProperty(window, 'innerWidth', { value: 1440, writable: true });
     });
 
-    afterEach(() => {
-        vi.restoreAllMocks();
+    it('renders nothing without releases', () => {
+        const { container } = render(<ChangelogTimelineNav releases={[]} activeIndex={null} onNavigate={onNavigate} />);
+        expect(container.firstChild).toBeNull();
     });
 
-    describe('when releases array is empty', () => {
-        it('renders nothing', () => {
-            const { container } = render(
-                <ChangelogTimelineNav releases={[]} activeIndex={null} onNavigate={mockOnNavigate} />,
-            );
+    it('shows a scrollable desktop outline with version labels, active state and legend', () => {
+        render(<ChangelogTimelineNav releases={releases} activeIndex={1} onNavigate={onNavigate} />);
 
-            expect(container.firstChild).toBeNull();
-        });
+        const nav = screen.getByRole('navigation', { name: 'Version timeline navigation' });
+        expect(nav).toHaveClass('sticky', 'overflow-y-auto', 'max-h-[calc(100vh-6rem)]');
+        expect(within(nav).getByText('Versions')).toBeInTheDocument();
+        expect(within(nav).getByLabelText('Version color legend')).toHaveTextContent('MajorMinorPatch');
+
+        const buttons = within(nav).getAllByRole('button');
+        expect(buttons).toHaveLength(4);
+        expect(buttons.map((button) => button.textContent)).toEqual(['v2.0.0', 'v1.1.0', 'v1.0.1', 'v1.0.0']);
+        expect(buttons[0]).toHaveClass('h-10');
+        expect(buttons[0]).toHaveAttribute('data-variant', 'outline');
+        expect(buttons[1]).toHaveAttribute('aria-current', 'true');
+        expect(buttons[0]).not.toHaveAttribute('aria-current');
     });
 
-    describe('desktop view', () => {
-        it('renders navigation buttons for each release', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
+    it('uses the older release to classify major, minor, patch and oldest versions', () => {
+        render(<ChangelogTimelineNav releases={releases} activeIndex={0} onNavigate={onNavigate} />);
 
-            // Wait for component to determine it's desktop
-            await waitFor(() => {
-                // Should have 4 buttons (one for each release)
-                const buttons = screen.getAllByRole('button');
-                expect(buttons.length).toBe(4);
-            });
-        });
-
-        it('renders with correct aria-label for each version button', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                expect(screen.getByLabelText('Navigate to version 2.0.0')).toBeInTheDocument();
-                expect(screen.getByLabelText('Navigate to version 1.1.0')).toBeInTheDocument();
-                expect(screen.getByLabelText('Navigate to version 1.0.1')).toBeInTheDocument();
-                expect(screen.getByLabelText('Navigate to version 1.0.0')).toBeInTheDocument();
-            });
-        });
-
-        it('calls onNavigate when a version button is clicked', async () => {
-            const user = userEvent.setup();
-
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(async () => {
-                const button = screen.getByLabelText('Navigate to version 1.1.0');
-                await user.click(button);
-            });
-
-            expect(mockOnNavigate).toHaveBeenCalledWith(1);
-        });
-
-        it('uses larger desktop hit targets for timeline buttons', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const button = screen.getByLabelText('Navigate to version 2.0.0');
-                expect(button).toHaveClass('h-8', 'w-8');
-                expect(button).toHaveAttribute('data-variant', 'ghost');
-                expect(button).toHaveAttribute('data-size', 'default');
-            });
-        });
-
-        it('marks the active version with aria-current', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={1} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const activeButton = screen.getByLabelText('Navigate to version 1.1.0');
-                expect(activeButton).toHaveAttribute('aria-current', 'true');
-            });
-        });
-
-        it('does not mark inactive versions with aria-current', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const inactiveButton = screen.getByLabelText('Navigate to version 1.1.0');
-                expect(inactiveButton).not.toHaveAttribute('aria-current');
-            });
-        });
+        const dots = screen.getAllByTestId('timeline-dot');
+        expect(dots[0]).toHaveClass('bg-green-500');
+        expect(dots[1]).toHaveClass('bg-blue-500');
+        expect(dots[2]).toHaveClass('bg-red-500');
+        expect(dots[3]).toHaveClass('bg-green-500');
     });
 
-    describe('mobile view', () => {
-        beforeEach(() => {
-            // Set mobile viewport
-            Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
-            // Trigger resize event
-            window.dispatchEvent(new Event('resize'));
-        });
+    it('opens the selected desktop version', async () => {
+        const user = userEvent.setup();
+        render(<ChangelogTimelineNav releases={releases} activeIndex={0} onNavigate={onNavigate} />);
 
-        it('renders a toggle button with history icon', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const toggleButton = screen.getByLabelText('Toggle timeline navigation');
-                expect(toggleButton).toBeInTheDocument();
-            });
-        });
-
-        it('shows version list when toggle button is clicked', async () => {
-            const user = userEvent.setup();
-
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(async () => {
-                const toggleButton = screen.getByLabelText('Toggle timeline navigation');
-                await user.click(toggleButton);
-            });
-
-            // Version text should now be visible
-            await waitFor(() => {
-                expect(screen.getByText('v2.0.0')).toBeInTheDocument();
-                expect(screen.getByText('v1.1.0')).toBeInTheDocument();
-            });
-        });
-
-        it('calls onNavigate and closes dropdown when a version is selected', async () => {
-            const user = userEvent.setup();
-
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            // Open dropdown
-            await waitFor(async () => {
-                const toggleButton = screen.getByLabelText('Toggle timeline navigation');
-                await user.click(toggleButton);
-            });
-
-            // Wait for dropdown to open
-            await waitFor(() => {
-                expect(screen.getByText('v1.0.1')).toBeInTheDocument();
-            });
-
-            // Click on a version
-            const versionButton = screen.getByText('v1.0.1');
-            await user.click(versionButton);
-
-            expect(mockOnNavigate).toHaveBeenCalledWith(2);
-        });
-
-        it('marks the active mobile version with aria-current', async () => {
-            const user = userEvent.setup();
-
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={1} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(async () => {
-                const toggleButton = screen.getByLabelText('Toggle timeline navigation');
-                await user.click(toggleButton);
-            });
-
-            await waitFor(() => {
-                const activeButton = screen.getByRole('button', { name: 'v1.1.0' });
-                const inactiveButton = screen.getByRole('button', { name: 'v1.0.1' });
-
-                expect(activeButton).toHaveAttribute('aria-current', 'true');
-                expect(inactiveButton).not.toHaveAttribute('aria-current');
-            });
-        });
+        await user.click(screen.getByRole('button', { name: 'Navigate to version 1.1.0' }));
+        expect(onNavigate).toHaveBeenCalledWith(1);
     });
 
-    describe('version color coding', () => {
-        it('assigns green color to the first release (latest)', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
+    it('opens a labeled mobile menu and closes it after selecting a version', async () => {
+        Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
+        const user = userEvent.setup();
+        render(<ChangelogTimelineNav releases={releases} activeIndex={0} onNavigate={onNavigate} />);
 
-            await waitFor(() => {
-                const buttons = screen.getAllByTestId('timeline-dot');
-                // First button should have green background
-                expect(buttons[0]).toHaveClass('bg-green-500');
-            });
-        });
+        const toggle = await screen.findByRole('button', { name: 'Toggle timeline navigation' });
+        expect(toggle).toHaveTextContent('Versions');
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByRole('button', { name: 'Navigate to version 1.1.0' })).not.toBeInTheDocument();
 
-        it('assigns green color to major version changes', async () => {
-            // 2.0.0 -> 1.1.0 is a major version change when looking backward
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
+        await user.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByLabelText('Version color legend')).toBeInTheDocument();
 
-            await waitFor(() => {
-                const buttons = screen.getAllByTestId('timeline-dot');
-                // Second button (1.1.0 compared to 2.0.0) - major change
-                expect(buttons[1]).toHaveClass('bg-green-500');
-            });
-        });
-
-        it('assigns blue color to minor version changes', async () => {
-            // 1.1.0 -> 1.0.1 is a minor version change
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const buttons = screen.getAllByTestId('timeline-dot');
-                // Third button (1.0.1 compared to 1.1.0) - minor change
-                expect(buttons[2]).toHaveClass('bg-blue-500');
-            });
-        });
-
-        it('assigns red color to patch version changes', async () => {
-            // 1.0.1 -> 1.0.0 is a patch version change
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const buttons = screen.getAllByTestId('timeline-dot');
-                // Fourth button (1.0.0 compared to 1.0.1) - patch change
-                expect(buttons[3]).toHaveClass('bg-red-500');
-            });
-        });
+        await user.click(screen.getByRole('button', { name: 'Navigate to version 1.1.0' }));
+        expect(onNavigate).toHaveBeenCalledWith(1);
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(toggle).toHaveFocus();
     });
 
-    describe('reduced motion preference', () => {
-        it('respects prefers-reduced-motion setting', async () => {
-            Object.defineProperty(window, 'matchMedia', {
-                writable: true,
-                value: vi.fn().mockImplementation((query: string) => ({
-                    matches: query === '(prefers-reduced-motion: reduce)',
-                    media: query,
-                    onchange: null,
-                    addListener: vi.fn(),
-                    removeListener: vi.fn(),
-                    addEventListener: vi.fn(),
-                    removeEventListener: vi.fn(),
-                    dispatchEvent: vi.fn(),
-                })),
-            });
+    it('closes the mobile version menu with Escape', async () => {
+        Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
+        const user = userEvent.setup();
+        render(<ChangelogTimelineNav releases={releases} activeIndex={0} onNavigate={onNavigate} />);
 
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
+        const toggle = await screen.findByRole('button', { name: 'Toggle timeline navigation' });
+        await user.click(toggle);
+        fireEvent.keyDown(screen.getByRole('navigation'), { key: 'Escape' });
 
-            await waitFor(() => {
-                // Component should render without errors with reduced motion
-                expect(screen.getByLabelText('Navigate to version 2.0.0')).toBeInTheDocument();
-            });
-        });
-    });
-
-    describe('navigation structure', () => {
-        it('renders a nav element with proper aria-label on desktop', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const nav = screen.getByRole('navigation');
-                expect(nav).toHaveAttribute('aria-label', 'Version timeline navigation');
-            });
-        });
-
-        it('keeps long desktop timelines inside a scrollable viewport region', async () => {
-            render(
-                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
-            );
-
-            await waitFor(() => {
-                const nav = screen.getByRole('navigation', { name: 'Version timeline navigation' });
-
-                expect(nav).toHaveClass('max-h-[calc(100vh-2rem)]', 'overflow-y-auto');
-            });
-        });
+        await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'false'));
+        expect(toggle).toHaveFocus();
     });
 });

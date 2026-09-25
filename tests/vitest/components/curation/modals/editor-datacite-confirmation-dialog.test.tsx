@@ -41,7 +41,9 @@ describe('EditorDataCiteConfirmationDialog', () => {
 
         render(<EditorDataCiteConfirmationDialog {...defaultProps} onConfirm={onConfirm} />);
 
-        expect(screen.getByText(/Are you sure you want to register this dataset at DataCite/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/save your editor changes in ERNIE, prepare a landing page if needed, then create and publish a DOI at DataCite/i),
+        ).toBeInTheDocument();
         expect(onConfirm).not.toHaveBeenCalled();
 
         const confirmButton = await screen.findByTestId('confirm-editor-datacite-action');
@@ -49,6 +51,11 @@ describe('EditorDataCiteConfirmationDialog', () => {
         await user.click(confirmButton);
 
         expect(onConfirm).toHaveBeenCalledWith({ prefix: '10.83279', force: false, submittingAction: 'submit' });
+    });
+
+    it('explains that an update changes the existing DOI and a local save may remain on failure', () => {
+        render(<EditorDataCiteConfirmationDialog {...defaultProps} action="update" doi="10.5880/existing" />);
+        expect(screen.getByText(/No new DOI is created. If DataCite fails, the local save may remain/i)).toBeInTheDocument();
     });
 
     it('closes without confirming and explains the landing-page continuation', async () => {

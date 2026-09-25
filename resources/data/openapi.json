@@ -55,8 +55,8 @@
         },
         {
             "name": "Changelog",
-            "summary": "Public release history endpoint",
-            "description": "Endpoint for retrieving ERNIE releases and their related GitHub context."
+            "summary": "Authenticated release history endpoint",
+            "description": "Session-protected endpoint for retrieving ERNIE releases and their related GitHub context."
         }
     ],
     "security": [],
@@ -65,8 +65,12 @@
             "get": {
                 "tags": ["Changelog"],
                 "summary": "List changelog releases",
-                "description": "Returns ERNIE releases and their feature, improvement, and fix entries. Any changelog entry may include related GitHub issue and pull-request references.",
-                "security": [],
+                "description": "Requires an authenticated, verified ERNIE browser session. Returns releases and their feature, improvement, and fix entries. Entries may include related GitHub issue and pull-request references.",
+                "security": [
+                    {
+                        "LaravelSession": []
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Changelog releases in reverse chronological order.",
@@ -80,6 +84,12 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication required. The request must include a valid ERNIE session."
+                    },
+                    "403": {
+                        "description": "The signed-in user's email address is not verified."
                     },
                     "500": {
                         "description": "The changelog data is malformed.",

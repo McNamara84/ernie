@@ -1,15 +1,22 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
 import { latestVersion } from '@/lib/version';
 import { about, changelog as changelogRoute, legalNotice } from '@/routes';
+import { type SharedData } from '@/types';
 
 export function AppFooter() {
+    const canViewChangelog = Boolean(usePage<SharedData>().props.auth.user?.email_verified_at);
+
     return (
         <footer className="border-t py-4 text-sm text-neutral-600 dark:text-neutral-300">
             <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-2 px-4 md:flex-row">
-                <Link href={changelogRoute().url} className="hover:underline" aria-label={`View changelog for version ${latestVersion}`}>
-                    ERNIE v{latestVersion}
-                </Link>
+                {canViewChangelog ? (
+                    <Link href={changelogRoute().url} className="hover:underline" aria-label={`View changelog for version ${latestVersion}`}>
+                        ERNIE v{latestVersion}
+                    </Link>
+                ) : (
+                    <span>ERNIE v{latestVersion}</span>
+                )}
                 <div className="flex gap-4">
                     <Link href={about().url} className="hover:underline">
                         About

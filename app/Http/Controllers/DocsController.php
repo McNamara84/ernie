@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\CacheKey;
+use App\Enums\UserRole;
 use App\Models\Language;
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\DataCiteModeResolverService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,6 +41,17 @@ class DocsController extends Controller
 
         return Inertia::render('docs', [
             'userRole' => $user->role->value,
+            'capabilities' => [
+                'registerDoi' => $user->can('register-doi'),
+                'sendReviewLinks' => $user->can('send-review-links'),
+                'deleteResources' => in_array($user->role, [UserRole::CURATOR, UserRole::GROUP_LEADER, UserRole::ADMIN], true),
+                'deletePublishedResources' => $user->can('delete-published-resources'),
+                'manageLandingPages' => $user->can('manage-landing-pages'),
+                'importFromDataCite' => $user->can('importFromDataCite', Resource::class),
+                'updateDataCiteUrls' => $user->can('update-datacite-landing-page-urls'),
+                'manageUsers' => $user->can('manage-users'),
+                'accessEditorSettings' => $user->can('access-editor-settings'),
+            ],
             'editorSettings' => $this->getEditorSettingsForDocs(),
             'dataCite' => [
                 'currentMode' => $isTestMode ? 'test' : 'production',
@@ -58,8 +69,7 @@ class DocsController extends Controller
      *
      * Returns a simplified view of the editor settings that the
      * documentation page needs to conditionally render content.
-     * Results are cached for 1 hour to reduce database load since
-     * these settings rarely change.
+     * Read current values on every request so disabled features disappear immediately.
      *
      * @return array{
      *     thesauri: array{
@@ -89,62 +99,55 @@ class DocsController extends Controller
      */
     private function getEditorSettingsForDocs(): array
     {
-        $cacheKey = CacheKey::DOCS_EDITOR_SETTINGS;
+        // Read the current settings so disabled features disappear immediately.
+        // Get thesaurus settings
+        $thesauri = ThesaurusSetting::all()->keyBy('type');
 
-        return Cache::remember(
-            $cacheKey->key(),
-            $cacheKey->ttl(),
-            function (): array {
-                // Get thesaurus settings
-                $thesauri = ThesaurusSetting::all()->keyBy('type');
+        $scienceKeywordsSetting = $thesauri->get(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS);
+        $platformsSetting = $thesauri->get(ThesaurusSetting::TYPE_PLATFORMS);
+        $instrumentsSetting = $thesauri->get(ThesaurusSetting::TYPE_INSTRUMENTS);
+        $chronostratSetting = $thesauri->get(ThesaurusSetting::TYPE_CHRONOSTRAT);
+        $gemetSetting = $thesauri->get(ThesaurusSetting::TYPE_GEMET);
+        $analyticalMethodsSetting = $thesauri->get(ThesaurusSetting::TYPE_ANALYTICAL_METHODS);
+        $euroSciVocSetting = $thesauri->get(ThesaurusSetting::TYPE_EUROSCIVOC);
+        $simpleLithologySetting = $thesauri->get(ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY);
 
-                $scienceKeywordsSetting = $thesauri->get(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS);
-                $platformsSetting = $thesauri->get(ThesaurusSetting::TYPE_PLATFORMS);
-                $instrumentsSetting = $thesauri->get(ThesaurusSetting::TYPE_INSTRUMENTS);
-                $chronostratSetting = $thesauri->get(ThesaurusSetting::TYPE_CHRONOSTRAT);
-                $gemetSetting = $thesauri->get(ThesaurusSetting::TYPE_GEMET);
-                $analyticalMethodsSetting = $thesauri->get(ThesaurusSetting::TYPE_ANALYTICAL_METHODS);
-                $euroSciVocSetting = $thesauri->get(ThesaurusSetting::TYPE_EUROSCIVOC);
-                $simpleLithologySetting = $thesauri->get(ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY);
+        $scienceKeywordsActive = $scienceKeywordsSetting !== null ? $scienceKeywordsSetting->is_active : false;
+        $platformsActive = $platformsSetting !== null ? $platformsSetting->is_active : false;
+        $instrumentsActive = $instrumentsSetting !== null ? $instrumentsSetting->is_active : false;
+        $chronostratActive = $chronostratSetting !== null ? $chronostratSetting->is_active : false;
+        $gemetActive = $gemetSetting !== null ? $gemetSetting->is_active : false;
+        $analyticalMethodsActive = $analyticalMethodsSetting !== null ? $analyticalMethodsSetting->is_active : false;
+        $euroSciVocActive = $euroSciVocSetting !== null ? $euroSciVocSetting->is_active : false;
+        $simpleLithologyActive = $simpleLithologySetting !== null ? $simpleLithologySetting->is_active : false;
 
-                $scienceKeywordsActive = $scienceKeywordsSetting !== null ? $scienceKeywordsSetting->is_active : false;
-                $platformsActive = $platformsSetting !== null ? $platformsSetting->is_active : false;
-                $instrumentsActive = $instrumentsSetting !== null ? $instrumentsSetting->is_active : false;
-                $chronostratActive = $chronostratSetting !== null ? $chronostratSetting->is_active : false;
-                $gemetActive = $gemetSetting !== null ? $gemetSetting->is_active : false;
-                $analyticalMethodsActive = $analyticalMethodsSetting !== null ? $analyticalMethodsSetting->is_active : false;
-                $euroSciVocActive = $euroSciVocSetting !== null ? $euroSciVocSetting->is_active : false;
-                $simpleLithologyActive = $simpleLithologySetting !== null ? $simpleLithologySetting->is_active : false;
+        // Check if MSL vocabulary file exists (indicates MSL is available)
+        $hasMslVocabulary = Storage::exists('msl-vocabulary.json');
 
-                // Check if MSL vocabulary file exists (indicates MSL is available)
-                $hasMslVocabulary = Storage::exists('msl-vocabulary.json');
-
-                return [
-                    'thesauri' => [
-                        'scienceKeywords' => $scienceKeywordsActive,
-                        'platforms' => $platformsActive,
-                        'instruments' => $instrumentsActive,
-                        'chronostratigraphy' => $chronostratActive,
-                        'gemet' => $gemetActive,
-                        'analyticalMethods' => $analyticalMethodsActive,
-                        'euroSciVoc' => $euroSciVocActive,
-                        'simpleLithology' => $simpleLithologyActive,
-                    ],
-                    'features' => [
-                        'hasActiveGcmd' => $scienceKeywordsActive || $platformsActive || $instrumentsActive,
-                        'hasActiveMsl' => $hasMslVocabulary,
-                        'hasActiveChronostrat' => $chronostratActive,
-                        'hasActiveGemet' => $gemetActive,
-                        'hasActiveAnalyticalMethods' => $analyticalMethodsActive,
-                        'hasActiveEuroSciVoc' => $euroSciVocActive,
-                        'hasActiveSimpleLithology' => $simpleLithologyActive,
-                        'hasActiveLicenses' => Right::where('is_active', true)->exists(),
-                        'hasActiveResourceTypes' => ResourceType::where('is_active', true)->exists(),
-                        'hasActiveTitleTypes' => TitleType::where('is_active', true)->exists(),
-                        'hasActiveLanguages' => Language::where('active', true)->exists(),
-                    ],
-                ];
-            }
-        );
+        return [
+            'thesauri' => [
+                'scienceKeywords' => $scienceKeywordsActive,
+                'platforms' => $platformsActive,
+                'instruments' => $instrumentsActive,
+                'chronostratigraphy' => $chronostratActive,
+                'gemet' => $gemetActive,
+                'analyticalMethods' => $analyticalMethodsActive,
+                'euroSciVoc' => $euroSciVocActive,
+                'simpleLithology' => $simpleLithologyActive,
+            ],
+            'features' => [
+                'hasActiveGcmd' => $scienceKeywordsActive || $platformsActive || $instrumentsActive,
+                'hasActiveMsl' => $hasMslVocabulary,
+                'hasActiveChronostrat' => $chronostratActive,
+                'hasActiveGemet' => $gemetActive,
+                'hasActiveAnalyticalMethods' => $analyticalMethodsActive,
+                'hasActiveEuroSciVoc' => $euroSciVocActive,
+                'hasActiveSimpleLithology' => $simpleLithologyActive,
+                'hasActiveLicenses' => Right::where('is_active', true)->exists(),
+                'hasActiveResourceTypes' => ResourceType::where('is_active', true)->exists(),
+                'hasActiveTitleTypes' => TitleType::where('is_active', true)->exists(),
+                'hasActiveLanguages' => Language::where('active', true)->exists(),
+            ],
+        ];
     }
 }

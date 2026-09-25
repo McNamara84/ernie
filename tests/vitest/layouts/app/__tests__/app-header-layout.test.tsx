@@ -6,6 +6,10 @@ import { describe, expect, it, vi } from 'vitest';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { BreadcrumbItem } from '@/types';
 
+vi.mock('@/components/app-footer', () => ({
+    AppFooter: () => <footer data-testid="app-footer" />,
+}));
+
 vi.mock('@/components/app-shell', () => ({
     AppShell: ({ children }: { children?: React.ReactNode }) => <div data-testid="shell">{children}</div>,
 }));
@@ -36,4 +40,3 @@ describe('AppHeaderLayout', () => {
         expect(screen.getByText('Body')).toBeInTheDocument();
     });
 });
-

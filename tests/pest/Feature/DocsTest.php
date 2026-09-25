@@ -289,3 +289,53 @@ test('docs page passes correct user role for curators', function () {
         ->component('docs')
         ->where('userRole', 'curator'));
 });
+
+test('docs capabilities follow the same gates and import policy as resource actions', function () {
+    withoutVite();
+
+    $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+    $this->actingAs($beginner)->get(route('docs'))->assertInertia(fn (Assert $page) => $page
+        ->where('capabilities.registerDoi', true)
+        ->where('capabilities.manageLandingPages', true)
+        ->where('capabilities.sendReviewLinks', false)
+        ->where('capabilities.deleteResources', false)
+        ->where('capabilities.importFromDataCite', false)
+        ->where('capabilities.updateDataCiteUrls', false));
+
+    $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+    $this->actingAs($curator)->get(route('docs'))->assertInertia(fn (Assert $page) => $page
+        ->where('capabilities.sendReviewLinks', true)
+        ->where('capabilities.deleteResources', true)
+        ->where('capabilities.deletePublishedResources', false)
+        ->where('capabilities.importFromDataCite', false));
+
+    $groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+    $this->actingAs($groupLeader)->get(route('docs'))->assertInertia(fn (Assert $page) => $page
+        ->where('capabilities.manageUsers', true)
+        ->where('capabilities.accessEditorSettings', true)
+        ->where('capabilities.deletePublishedResources', true)
+        ->where('capabilities.importFromDataCite', true)
+        ->where('capabilities.updateDataCiteUrls', false));
+
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $this->actingAs($admin)->get(route('docs'))->assertInertia(fn (Assert $page) => $page
+        ->where('capabilities.updateDataCiteUrls', true));
+});
+
+test('docs feature availability changes immediately after an editor setting changes', function () {
+    withoutVite();
+    $user = User::factory()->create();
+    $setting = ThesaurusSetting::query()->firstOrCreate(
+        ['type' => ThesaurusSetting::TYPE_GEMET],
+        ['display_name' => 'GEMET', 'is_active' => false, 'is_elmo_active' => false],
+    );
+    $setting->update(['is_active' => false]);
+
+    $this->actingAs($user)->get(route('docs'))->assertInertia(fn (Assert $page) => $page
+        ->where('editorSettings.thesauri.gemet', false));
+
+    $setting->update(['is_active' => true]);
+
+    $this->get(route('docs'))->assertInertia(fn (Assert $page) => $page
+        ->where('editorSettings.thesauri.gemet', true));
+});

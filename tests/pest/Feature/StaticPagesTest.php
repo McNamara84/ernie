@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ScienceTopic;
+use App\Enums\UserRole;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -34,8 +35,18 @@ it('displays the legal notice page', function () {
     $response->assertInertia(fn (Assert $page) => $page->component('legal-notice'));
 });
 
-it('displays the changelog page', function () {
-    withoutVite();
-    $response = $this->get(route('changelog'))->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->component('changelog'));
+it('redirects guests away from the changelog', function () {
+    $this->get(route('changelog'))->assertRedirect(route('login'));
 });
+
+it('redirects unverified users away from the changelog', function () {
+    $this->actingAs(User::factory()->unverified()->create())
+        ->get(route('changelog'))
+        ->assertRedirect(route('verification.notice'));
+});
+
+it('displays the changelog for every verified internal role', function (UserRole $role) {
+    withoutVite();
+    $response = $this->actingAs(User::factory()->create(['role' => $role]))->get(route('changelog'))->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->component('changelog'));
+})->with(UserRole::cases());
