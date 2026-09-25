@@ -144,7 +144,7 @@ final class ResourceListItemResource extends JsonResource
                 'is_published' => $resource->landingPage->is_published,
                 'public_url' => $resource->landingPage->public_url,
                 'preview_url' => $this->when(
-                    $canSendReviewLinks,
+                    $canSendReviewLinks || $publicStatus === 'embargo',
                     fn (): ?string => $resource->landingPage->preview_url,
                 ),
             ] : null,

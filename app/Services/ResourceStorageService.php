@@ -125,6 +125,12 @@ class ResourceStorageService
                     ->lockForUpdate()
                     ->findOrFail($data['resourceId']);
 
+                if ($resource->embargo_registration_started_at !== null) {
+                    throw ValidationException::withMessages([
+                        'resourceId' => 'A DataCite embargo registration is pending reconciliation. Finish that registration before editing this resource.',
+                    ]);
+                }
+
                 if ($hasDoiInput && $doiChangeActor !== null) {
                     // Publication uses the resource lock as its serialization
                     // boundary. Resolve the landing page only after that lock so

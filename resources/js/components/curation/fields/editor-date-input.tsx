@@ -24,16 +24,27 @@ interface EditorDateInputProps {
     locale: EditorDateLocale;
     calendarLabel: string;
     clearLabel: string;
+    allowFuture?: boolean;
 }
 
 /** Text and calendar controls for one ISO or reduced-precision editor date. */
-export function EditorDateInput({ id, inputLabel, value, onChange, onEditingChange, locale, calendarLabel, clearLabel }: EditorDateInputProps) {
+export function EditorDateInput({
+    id,
+    inputLabel,
+    value,
+    onChange,
+    onEditingChange,
+    locale,
+    calendarLabel,
+    clearLabel,
+    allowFuture = false,
+}: EditorDateInputProps) {
     const [focused, setFocused] = useState(false);
     const [draft, setDraft] = useState('');
     const [touched, setTouched] = useState(false);
     const [open, setOpen] = useState(false);
     const [month, setMonth] = useState<Date>(new Date());
-    const validation = value?.trim() ? validateEditorDate(value, locale) : null;
+    const validation = value?.trim() ? validateEditorDate(value, locale, new Date(), allowFuture) : null;
     const error = touched ? validation?.error : null;
     const calendarDate = validation?.error ? undefined : editorDateToCalendarDate(value, locale);
     const selected = validation?.parsed?.precision === 'day' ? calendarDate : undefined;
@@ -47,7 +58,7 @@ export function EditorDateInput({ id, inputLabel, value, onChange, onEditingChan
             onChange('', true);
             return;
         }
-        const result = validateEditorDate(draft, locale);
+        const result = validateEditorDate(draft, locale, new Date(), allowFuture);
         if (!result.error && result.parsed) onChange(result.parsed.iso, true);
     };
 
@@ -119,8 +130,8 @@ export function EditorDateInput({ id, inputLabel, value, onChange, onEditingChan
                             captionLayout="dropdown"
                             navLayout="after"
                             startMonth={new Date(1900, 0)}
-                            endMonth={new Date(new Date().getFullYear(), new Date().getMonth())}
-                            disabled={(date) => todayLocalIso(date) < EDITOR_MIN_DATE || todayLocalIso(date) > todayLocalIso()}
+                            endMonth={new Date(new Date().getFullYear() + (allowFuture ? 50 : 0), allowFuture ? 11 : new Date().getMonth())}
+                            disabled={(date) => todayLocalIso(date) < EDITOR_MIN_DATE || (!allowFuture && todayLocalIso(date) > todayLocalIso())}
                             locale={locale === 'de' ? de : undefined}
                             autoFocus
                         />

@@ -76,6 +76,23 @@ describe('DefaultGfzIgsnTemplate', () => {
     });
 
     describe('Layout Structure', () => {
+        it('shows a due embargo until manual release', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: { ...mockLandingPage, status: 'draft' },
+                    isPreview: true,
+                    embargoDate: '2027-01-01',
+                    embargoPending: true,
+                    embargoDue: true,
+                    sectionOrder: allIgsnSectionsVisible,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+            expect(screen.getByText('Embargo expired on 2027-01-01; publication is pending manual release.')).toBeInTheDocument();
+        });
+
         it('renders the main layout structure', () => {
             mockUsePage.mockReturnValue({
                 props: {

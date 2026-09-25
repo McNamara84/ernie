@@ -190,7 +190,7 @@ describe('Legacy URL Redirect', function () {
             ->assertRedirect($landingPage->public_url);
     });
 
-    test('legacy URL redirects to draft URL when no DOI', function () {
+    test('legacy URL keeps unpublished draft landing pages private', function () {
         $resourceWithoutDoi = Resource::factory()->create(['doi' => null]);
         $landingPage = LandingPage::factory()
             ->draft()
@@ -202,8 +202,7 @@ describe('Legacy URL Redirect', function () {
 
         $response = $this->get("/datasets/{$resourceWithoutDoi->id}");
 
-        $response->assertStatus(301)
-            ->assertRedirect($landingPage->public_url);
+        $response->assertNotFound();
     });
 
     test('legacy URL returns 404 when landing page does not exist', function () {

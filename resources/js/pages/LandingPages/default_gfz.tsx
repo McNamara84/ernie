@@ -50,6 +50,9 @@ interface DefaultGfzTemplatePageProps {
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
+    embargoDate?: string | null;
+    embargoPending?: boolean;
+    embargoDue?: boolean;
     supportsIso19115?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
@@ -102,6 +105,9 @@ export default function DefaultGfzTemplate() {
         documentTitle,
         landingPage,
         isPreview,
+        embargoDate = null,
+        embargoPending = false,
+        embargoDue = false,
         supportsIso19115 = false,
         metadataLinks,
         sectionOrder,
@@ -165,7 +171,7 @@ export default function DefaultGfzTemplate() {
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {
-            files: downloadsUnavailable ? (
+            files: embargoPending ? null : downloadsUnavailable ? (
                 <DataRequestSection
                     key="files"
                     contactPersons={resource.contact_persons || []}
@@ -221,6 +227,7 @@ export default function DefaultGfzTemplate() {
         landingPage,
         mainTitle,
         downloadsUnavailable,
+        embargoPending,
         citationStyles,
         peopleDisplayLimits.citationAuthors,
         isDark,
@@ -243,14 +250,30 @@ export default function DefaultGfzTemplate() {
                 hero={
                     <ResourceHero
                         resourceType={resourceType}
-                        status={status}
+                        status={embargoPending && embargoDate ? 'embargo' : status}
                         mainTitle={mainTitle}
                         subtitle={subtitle}
                         citation={citation}
                         citationPresentation={citationPresentation}
                     />
                 }
-                notice={<VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />}
+                notice={
+                    <>
+                        {embargoPending && (
+                            <div
+                                role="status"
+                                className="rounded-lg border-2 border-purple-500 bg-purple-50 p-4 font-semibold text-purple-900 dark:bg-purple-950 dark:text-purple-100"
+                            >
+                                {!embargoDate
+                                    ? 'Embargo date is missing or invalid; publication is blocked.'
+                                    : embargoDue
+                                      ? `Embargo expired on ${embargoDate}; publication is pending manual release.`
+                                      : `Under embargo until ${embargoDate}.`}
+                            </div>
+                        )}
+                        <VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />
+                    </>
+                }
                 rightColumnSections={rightColumnSections}
                 leftColumnSections={leftColumnSections}
             />

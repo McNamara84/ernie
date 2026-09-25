@@ -287,7 +287,7 @@ export interface DataCiteFormProps {
     activeIdentifierTypes?: string[];
 }
 
-export type ResourcePublicStatus = 'draft' | 'curation' | 'review' | 'published';
+export type ResourcePublicStatus = 'draft' | 'curation' | 'review' | 'embargo' | 'published';
 
 export type EditorDraftSaveIntent = 'save-draft' | 'autosave' | 'landing-page-preview';
 
