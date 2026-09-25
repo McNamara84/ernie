@@ -551,18 +551,18 @@ describe('DataCiteForm', () => {
     const authorRoles: Role[] = [{ id: 5, name: 'Author', slug: 'author' }];
 
     const dateTypes: DateType[] = [
-        { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.' },
-        { id: 2, name: 'Available', slug: 'available', description: 'The date the resource is made publicly available.' },
-        { id: 3, name: 'Collected', slug: 'collected', description: 'The date the resource content was collected.' },
-        { id: 4, name: 'Copyrighted', slug: 'copyrighted', description: 'The date the resource receives a copyrighted status.' },
-        { id: 5, name: 'Issued', slug: 'issued', description: 'The date the resource is published or distributed.' },
-        { id: 6, name: 'Other', slug: 'other', description: 'Other date type.' },
-        { id: 7, name: 'Submitted', slug: 'submitted', description: 'The date the creator submits the resource to the publisher.' },
-        { id: 8, name: 'Valid', slug: 'valid', description: 'The date range during which the dataset is accurate.' },
-        { id: 9, name: 'Withdrawn', slug: 'withdrawn', description: 'The date the resource is removed.' },
-        { id: 10, name: 'Created', slug: 'created', description: 'The date the resource was created.' },
-        { id: 11, name: 'Updated', slug: 'updated', description: 'The date the resource metadata was updated.' },
-        { id: 12, name: 'Coverage', slug: 'coverage', description: 'Temporal coverage for the resource.' },
+        { id: 1, name: 'Accepted', slug: 'Accepted', description: 'The date that the publisher accepted the resource.' },
+        { id: 2, name: 'Available', slug: 'Available', description: 'The date the resource is made publicly available.' },
+        { id: 3, name: 'Collected', slug: 'Collected', description: 'The date the resource content was collected.' },
+        { id: 4, name: 'Copyrighted', slug: 'Copyrighted', description: 'The date the resource receives a copyrighted status.' },
+        { id: 5, name: 'Issued', slug: 'Issued', description: 'The date the resource is published or distributed.' },
+        { id: 6, name: 'Other', slug: 'Other', description: 'Other date type.' },
+        { id: 7, name: 'Submitted', slug: 'Submitted', description: 'The date the creator submits the resource to the publisher.' },
+        { id: 8, name: 'Valid', slug: 'Valid', description: 'The date range during which the dataset is accurate.' },
+        { id: 9, name: 'Withdrawn', slug: 'Withdrawn', description: 'The date the resource is removed.' },
+        { id: 10, name: 'Created', slug: 'Created', description: 'The date the resource was created.' },
+        { id: 11, name: 'Updated', slug: 'Updated', description: 'The date the resource metadata was updated.' },
+        { id: 12, name: 'Coverage', slug: 'Coverage', description: 'Temporal coverage for the resource.' },
     ];
 
     const descriptionTypes: DescriptionType[] = [
@@ -5240,6 +5240,122 @@ describe('DataCiteForm', () => {
             expect(updatedOption).not.toBeInTheDocument();
             expect(coverageOption).not.toBeInTheDocument();
             expect(createdOption).toBeInTheDocument();
+        });
+
+        it('saves a future Available date entered with the seeded slug for Embargoed access', { timeout: 60000 }, async () => {
+            vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('de-DE');
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            const futureIso = `${futureYear}-10-12`;
+
+            renderDataCiteForm({
+                initialYear: String(new Date().getFullYear()),
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Embargo Dataset', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenterId: 1,
+                initialAccessLevel: 'embargoed',
+            });
+            await ensureDatesOpen(user);
+            await user.click(screen.getByRole('button', { name: 'Add Date' }));
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Available');
+
+            const dateInput = screen.getByRole('textbox', { name: 'Date' });
+            await user.type(dateInput, `12.10.${futureYear}`);
+            await user.tab();
+            expect(dateInput).toHaveValue(`12.10.${futureYear}`);
+            expect(dateInput).not.toHaveAttribute('aria-invalid', 'true');
+            expect(screen.queryByText('Date cannot be in the future.')).not.toBeInTheDocument();
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
+
+            const mockPost = axios.post as ReturnType<typeof vi.fn>;
+            await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/editor/resources', expect.any(Object), expect.any(Object)));
+            expect(mockPost.mock.calls.find(([url]) => url === '/editor/resources')?.[1]).toMatchObject({
+                accessLevel: 'embargoed',
+                dates: [{ dateType: 'available', dateMode: 'single', startDate: futureIso, endDate: null }],
+            });
+        });
+
+        it('chooses a future Available day from the editor calendar with seeded slugs', async () => {
+            vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('en-US');
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            renderDataCiteForm({
+                initialAccessLevel: 'embargoed',
+                initialDates: [{ dateType: 'Available', startDate: `${futureYear}-10-12`, endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+
+            await user.click(screen.getByRole('button', { name: 'Choose date' }));
+            const dayLabel = new Date(futureYear, 9, 13).toLocaleDateString();
+            const dayButton = document.querySelector<HTMLButtonElement>(`button[data-day="${dayLabel}"]`);
+            expect(dayButton).toBeTruthy();
+            expect(dayButton).toBeEnabled();
+            await user.click(dayButton!);
+
+            expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(`${futureYear}-10-13`);
+        });
+
+        it('rejects a future Available date for Open access with seeded slugs', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            renderDataCiteForm({
+                initialYear: String(new Date().getFullYear()),
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Open Dataset', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenterId: 1,
+                initialAccessLevel: 'open',
+                initialDates: [{ dateType: 'Available', startDate: `${futureYear}-10-12`, endDate: '' }],
+            });
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
+
+            expect(axios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText('A future Available date requires Embargoed access.').length).toBeGreaterThan(0);
+        });
+
+        it('rejects a future Created date with seeded slugs', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Future Created Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Created', startDate: `${futureYear}-10-12`, endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            expect(axios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText(/Date cannot be in the future/).length).toBeGreaterThan(0);
+        });
+
+        it.each(['Available', 'available'])('loads and saves an existing %s date type', { timeout: 60000 }, async (dateType) => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            const futureIso = `${futureYear}-10-12`;
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Existing Embargo Dataset', titleType: 'main-title' }],
+                initialAccessLevel: 'embargoed',
+                initialDates: [{ dateType, startDate: futureIso, endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Available');
+            expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(futureIso);
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            const mockPost = axios.post as ReturnType<typeof vi.fn>;
+            await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            expect(mockPost.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1].dates).toMatchObject([
+                { dateType: 'available', startDate: futureIso },
+            ]);
         });
 
         it('supports removing date fields', async () => {

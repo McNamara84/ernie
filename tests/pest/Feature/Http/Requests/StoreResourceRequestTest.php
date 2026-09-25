@@ -129,9 +129,9 @@ describe('required fields', function () {
             ->assertJsonMissingValidationErrors(['accessLevel']);
     });
 
-    it('accepts a future Available day for embargoed access and rejects it for Open access', function () {
+    it('accepts a future Available day for embargoed access and rejects it for Open access', function (string $dateType) {
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
-        $data['dates'] = [['dateType' => 'available', 'startDate' => '2099-01-01', 'endDate' => '']];
+        $data['dates'] = [['dateType' => $dateType, 'startDate' => '2099-01-01', 'endDate' => '']];
 
         $this->actingAs($this->user)->postJson('/editor/resources', $data)
             ->assertJsonValidationErrors(['dates.0.startDate']);
@@ -139,7 +139,7 @@ describe('required fields', function () {
         $data['accessLevel'] = 'embargoed';
         $this->actingAs($this->user)->postJson('/editor/resources', $data)
             ->assertJsonMissingValidationErrors(['accessLevel', 'dates.0.startDate']);
-    });
+    })->with(['available', 'Available']);
 
     it('requires one complete Available day for embargoed access', function () {
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
