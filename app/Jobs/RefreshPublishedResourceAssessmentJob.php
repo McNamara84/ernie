@@ -37,8 +37,11 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
 
     public bool $failOnTimeout = true;
 
-    public function __construct(public readonly int $resourceId)
-    {
+    public function __construct(
+        public readonly int $resourceId,
+        public readonly ?int $generation,
+        public readonly ?string $dispatchToken,
+    ) {
         $this->timeout = max(30, (int) config('fuji.assessment.item_timeout_seconds', 330));
     }
 
@@ -190,6 +193,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::COMPLETED,
                 'claim_token' => null,
+                'queue_job_id' => null,
                 'available_at' => null,
                 'lease_expires_at' => null,
                 'completed_at' => now(),
@@ -201,13 +205,17 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
     /** @return array{int, Carbon, string}|null */
     private function claim(): ?array
     {
+        // Jobs serialized before dispatch tokens were introduced have neither
+        // property; recovery will enqueue a replacement for their refresh.
+        if (! isset($this->generation, $this->dispatchToken)) {
+            return null;
+        }
+
         return DB::transaction(function (): ?array {
             $refresh = ResourceAssessmentRefresh::query()->lockForUpdate()->find($this->resourceId);
-            if ($refresh === null || $refresh->status === ResourceAssessmentRefresh::COMPLETED
-                || $refresh->status === ResourceAssessmentRefresh::FAILED
-                || ($refresh->status === ResourceAssessmentRefresh::PENDING && $refresh->available_at?->isFuture())
-                || ($refresh->status === ResourceAssessmentRefresh::QUEUED && $refresh->lease_expires_at?->isPast())
-                || ($refresh->status === ResourceAssessmentRefresh::PROCESSING && $refresh->lease_expires_at?->isFuture())) {
+            if ($refresh === null || $refresh->status !== ResourceAssessmentRefresh::QUEUED
+                || $refresh->generation !== $this->generation
+                || $refresh->claim_token !== $this->dispatchToken) {
                 return null;
             }
 
@@ -215,6 +223,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::PROCESSING,
                 'claim_token' => $claimToken,
+                'queue_job_id' => null,
                 'attempts' => $refresh->attempts + 1,
                 'available_at' => null,
                 'lease_expires_at' => now()->addSeconds(max($this->timeout + 30, (int) config('fuji.assessment.lease_seconds', 390))),
@@ -275,6 +284,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             ->update([
                 'status' => $status,
                 'claim_token' => null,
+                'queue_job_id' => null,
                 'available_at' => null,
                 'lease_expires_at' => null,
                 'completed_at' => $status === ResourceAssessmentRefresh::COMPLETED ? now() : null,
@@ -287,6 +297,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
         $refresh->forceFill([
             'status' => ResourceAssessmentRefresh::PENDING,
             'claim_token' => null,
+            'queue_job_id' => null,
             'attempts' => str_starts_with($message, 'Waiting for ') ? max(0, $refresh->attempts - 1) : $refresh->attempts,
             'available_at' => now()->addSeconds($seconds),
             'lease_expires_at' => null,

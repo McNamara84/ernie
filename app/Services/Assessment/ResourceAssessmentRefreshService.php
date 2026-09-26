@@ -11,6 +11,8 @@ use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceAssessmentRefresh;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 final class ResourceAssessmentRefreshService
 {
@@ -46,6 +48,7 @@ final class ResourceAssessmentRefreshService
                     'status' => ResourceAssessmentRefresh::PENDING,
                     'generation' => $refresh->generation + 1,
                     'claim_token' => null,
+                    'queue_job_id' => null,
                     'attempts' => 0,
                     'service_attempts' => 0,
                     'requested_at' => now(),
@@ -94,19 +97,61 @@ final class ResourceAssessmentRefreshService
                 return;
             }
 
+            $leaseSeconds = max(
+                (int) config('fuji.assessment.lease_seconds', 390),
+                (int) config('fuji.assessment.item_timeout_seconds', 330) + 30,
+            );
+            if ($refresh->status === ResourceAssessmentRefresh::QUEUED
+                && $refresh->queue_job_id !== null && $this->queuedJobExists($refresh->queue_job_id)) {
+                // A queued job can wait behind a full run; renew its lease without duplicating it.
+                $refresh->forceFill(['lease_expires_at' => now()->addSeconds($leaseSeconds)])->save();
+
+                return;
+            }
+
+            $dispatchToken = Str::uuid()->toString();
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::QUEUED,
-                // Expiring the old lease must revoke its worker before a new claim.
-                'claim_token' => null,
-                // A queued job can wait behind a full run on the shared worker.
-                // Keep its claim long enough to avoid minute-by-minute duplicates.
-                'lease_expires_at' => now()->addDay(),
+                // A new dispatch token revokes both old queued jobs and expired workers.
+                'claim_token' => $dispatchToken,
+                'queue_job_id' => null,
+                'lease_expires_at' => now()->addSeconds($leaseSeconds),
             ])->save();
 
-            RefreshPublishedResourceAssessmentJob::dispatch($resourceId)
-                ->onConnection($this->queue->connection())
-                ->onQueue($this->queue->queue())
-                ->afterCommit();
+            $queueDatabase = config('queue.connections.'.$this->queue->connection().'.connection');
+            if ($this->queue->driver() === 'database'
+                && (! is_string($queueDatabase) || $queueDatabase === '' || $queueDatabase === DB::getDefaultConnection())) {
+                // Store the job and refresh in one transaction. The durable job ID
+                // lets recovery distinguish a backlog from a missing queue row.
+                $job = (new RefreshPublishedResourceAssessmentJob($resourceId, $refresh->generation, $dispatchToken))
+                    ->onConnection($this->queue->connection())
+                    ->onQueue($this->queue->queue());
+                $queueJobId = Queue::connection($this->queue->connection())->push($job, '', $this->queue->queue());
+                if (is_numeric($queueJobId)) {
+                    $refresh->forceFill(['queue_job_id' => (int) $queueJobId])->save();
+                }
+            } else {
+                // Other queue backends cannot join the refresh transaction.
+                // Preserve after-commit dispatch for these configurations.
+                RefreshPublishedResourceAssessmentJob::dispatch($resourceId, $refresh->generation, $dispatchToken)
+                    ->onConnection($this->queue->connection())
+                    ->onQueue($this->queue->queue())
+                    ->afterCommit();
+            }
         }, 3);
+    }
+
+    private function queuedJobExists(int $queueJobId): bool
+    {
+        if ($this->queue->driver() !== 'database') {
+            return false;
+        }
+
+        $connection = $this->queue->connection();
+        $database = config("queue.connections.{$connection}.connection");
+        $table = (string) config("queue.connections.{$connection}.table", 'jobs');
+
+        return DB::connection(is_string($database) ? $database : null)
+            ->table($table)->where('id', $queueJobId)->exists();
     }
 }

@@ -72,7 +72,13 @@ function publishAssessedPage(LandingPage $page): ResourceAssessmentRefresh
 
 function runRefresh(int $resourceId, FujiAssessmentService $fuji): void
 {
-    (new RefreshPublishedResourceAssessmentJob($resourceId))->handle(
+    app(ResourceAssessmentRefreshService::class)->dispatch($resourceId);
+    $job = Queue::pushed(RefreshPublishedResourceAssessmentJob::class)->last();
+    if (! $job instanceof RefreshPublishedResourceAssessmentJob) {
+        throw new RuntimeException('No published assessment refresh job was queued.');
+    }
+
+    $job->handle(
         $fuji,
         app(FujiAssessmentRequestLimiterService::class),
         app(ResourceCacheService::class),
@@ -119,6 +125,71 @@ it('updates the request timestamp when publication requests share a second', fun
 
     expect($refresh->fresh()->generation)->toBe(2)
         ->and($refresh->fresh()->requested_at->format('u'))->toBe('800000');
+});
+
+it('does not let an older queued job claim a newer publication generation', function (): void {
+    [$resource, $page, $assessment] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    $oldJob = Queue::pushed(RefreshPublishedResourceAssessmentJob::class)->last();
+
+    app(ResourceAssessmentRefreshService::class)->request($resource->id);
+    $newJob = Queue::pushed(RefreshPublishedResourceAssessmentJob::class)->last();
+    expect($refresh->fresh()->generation)->toBe(2)
+        ->and($oldJob)->toBeInstanceOf(RefreshPublishedResourceAssessmentJob::class)
+        ->and($newJob)->toBeInstanceOf(RefreshPublishedResourceAssessmentJob::class);
+
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturn([
+        'score' => 73.0,
+        'payload' => ['software_version' => 'new-generation'],
+        'resolvedUrl' => $page->public_url,
+        'normalizedIdentifier' => $resource->doi,
+    ]);
+
+    $oldJob->handle($fuji, app(FujiAssessmentRequestLimiterService::class), app(ResourceCacheService::class));
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and($refresh->fresh()->attempts)->toBe(0)
+        ->and((float) $assessment->fresh()->total_score)->toBe(40.0);
+
+    $newJob->handle($fuji, app(FujiAssessmentRequestLimiterService::class), app(ResourceCacheService::class));
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
+        ->and((float) $assessment->fresh()->total_score)->toBe(73.0);
+});
+
+it('does not let a replaced queued job claim the same generation', function (): void {
+    [$resource, $page, $assessment] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    $oldJob = Queue::pushed(RefreshPublishedResourceAssessmentJob::class)->last();
+
+    $refresh->forceFill(['lease_expires_at' => now()->subSecond()])->save();
+    app(ResourceAssessmentRefreshService::class)->recover();
+    $newJob = Queue::pushed(RefreshPublishedResourceAssessmentJob::class)->last();
+
+    expect($refresh->fresh()->generation)->toBe(1)
+        ->and($oldJob)->toBeInstanceOf(RefreshPublishedResourceAssessmentJob::class)
+        ->and($newJob)->toBeInstanceOf(RefreshPublishedResourceAssessmentJob::class)
+        ->and($newJob->dispatchToken)->not->toBe($oldJob->dispatchToken);
+
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturn([
+        'score' => 74.0,
+        'payload' => ['software_version' => 'requeued'],
+        'resolvedUrl' => $page->public_url,
+        'normalizedIdentifier' => $resource->doi,
+    ]);
+
+    $oldJob->handle($fuji, app(FujiAssessmentRequestLimiterService::class), app(ResourceCacheService::class));
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and($refresh->fresh()->attempts)->toBe(0)
+        ->and((float) $assessment->fresh()->total_score)->toBe(40.0);
+
+    $newJob->handle($fuji, app(FujiAssessmentRequestLimiterService::class), app(ResourceCacheService::class));
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
+        ->and((float) $assessment->fresh()->total_score)->toBe(74.0);
 });
 
 it('waits for the DOI redirect and then replaces the previous score once', function (): void {
@@ -567,27 +638,34 @@ it('requeues expired processing leases from the durable refresh table', function
         ->and($refresh->fresh()->resource_id)->toBe($resource->id);
 });
 
-it('claims a queued refresh once while a worker is busy and recovers an expired claim', function (): void {
+it('keeps a queued database job during worker backlog and replaces it when missing', function (): void {
+    app()->forgetInstance('queue');
+    Queue::clearResolvedInstance('queue');
     [$resource, $page] = assessedDraftResource();
     $refresh = publishAssessedPage($page);
     $service = app(ResourceAssessmentRefreshService::class);
+    $firstQueueJobId = $refresh->fresh()->queue_job_id;
 
     expect($refresh->status)->toBe(ResourceAssessmentRefresh::QUEUED)
-        ->and($refresh->lease_expires_at?->isFuture())->toBeTrue();
-    Queue::assertPushed(RefreshPublishedResourceAssessmentJob::class, 1);
+        ->and($firstQueueJobId)->toBeInt()
+        ->and(DB::table('jobs')->where('id', $firstQueueJobId)->exists())->toBeTrue();
 
-    $this->travel(10)->minutes();
+    $this->travel(7)->minutes();
     $service->recover();
     $service->recover();
-    Queue::assertPushed(RefreshPublishedResourceAssessmentJob::class, 1);
-
-    $refresh->forceFill(['lease_expires_at' => now()->subSecond()])->save();
-    $service->recover();
-    $service->recover();
-
-    Queue::assertPushed(RefreshPublishedResourceAssessmentJob::class, 2);
-    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+    expect($refresh->fresh()->queue_job_id)->toBe($firstQueueJobId)
         ->and($refresh->fresh()->lease_expires_at?->isFuture())->toBeTrue()
+        ->and(DB::table('jobs')->where('queue', 'assessments')->count())->toBe(1);
+
+    DB::table('jobs')->where('id', $firstQueueJobId)->delete();
+    $this->travel(7)->minutes();
+    $service->recover();
+    $service->recover();
+
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and($refresh->fresh()->queue_job_id)->toBeInt()->not->toBe($firstQueueJobId)
+        ->and($refresh->fresh()->lease_expires_at?->isFuture())->toBeTrue()
+        ->and(DB::table('jobs')->where('queue', 'assessments')->count())->toBe(1)
         ->and($refresh->fresh()->resource_id)->toBe($resource->id);
 });
 
@@ -596,23 +674,31 @@ it('rejects an old worker result after another worker claims the recovered lease
     $refresh = publishAssessedPage($page);
     Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
 
-    $replacementToken = null;
+    $calls = 0;
     /** @var FujiAssessmentService&MockInterface $fuji */
     $fuji = $this->mock(FujiAssessmentService::class);
-    $fuji->shouldReceive('assessIdentifier')->once()->andReturnUsing(function () use ($resource, $page, $refresh, $fails, &$replacementToken): array {
+    $fuji->shouldReceive('assessIdentifier')->twice()->andReturnUsing(function () use ($resource, $page, $refresh, $fuji, $fails, &$calls): array {
+        if (++$calls === 2) {
+            return [
+                'score' => 76.0,
+                'payload' => ['software_version' => 'replacement-worker'],
+                'resolvedUrl' => $page->public_url,
+                'normalizedIdentifier' => $resource->doi,
+            ];
+        }
+
         $oldToken = $refresh->fresh()->claim_token;
         expect($oldToken)->not->toBeNull();
 
         $refresh->forceFill(['lease_expires_at' => now()->subSecond()])->save();
         app(ResourceAssessmentRefreshService::class)->recover();
         expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
-            ->and($refresh->fresh()->claim_token)->toBeNull();
+            ->and($refresh->fresh()->claim_token)->not->toBe($oldToken);
 
-        $replacement = new RefreshPublishedResourceAssessmentJob($resource->id);
-        $claim = (new ReflectionMethod($replacement, 'claim'))->invoke($replacement);
-        expect($claim)->not->toBeNull();
-        $replacementToken = $claim[2];
-        expect($replacementToken)->not->toBe($oldToken);
+        $replacement = Queue::pushed(RefreshPublishedResourceAssessmentJob::class)->last();
+        expect($replacement)->toBeInstanceOf(RefreshPublishedResourceAssessmentJob::class);
+        $replacement->handle($fuji, app(FujiAssessmentRequestLimiterService::class), app(ResourceCacheService::class));
+        expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED);
 
         if ($fails) {
             throw new FujiAssessmentException('Old worker failed.', retryable: false);
@@ -628,11 +714,10 @@ it('rejects an old worker result after another worker claims the recovered lease
 
     runRefresh($resource->id, $fuji);
 
-    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PROCESSING)
-        ->and($refresh->fresh()->claim_token)->toBe($replacementToken)
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
         ->and($refresh->fresh()->last_error)->toBeNull()
-        ->and((float) $assessment->fresh()->total_score)->toBe(40.0)
-        ->and($assessment->fresh()->payload['software_version'])->toBe('4.0.0');
+        ->and((float) $assessment->fresh()->total_score)->toBe(76.0)
+        ->and($assessment->fresh()->payload['software_version'])->toBe('replacement-worker');
 })->with([
     'stale success' => false,
     'stale failure' => true,

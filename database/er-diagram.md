@@ -597,6 +597,7 @@ erDiagram
         varchar status "20, indexed"
         int generation "unsigned, default 1"
         uuid claim_token "nullable"
+        bigint queue_job_id "nullable, queued database job ID"
         smallint attempts "unsigned, default 0"
         smallint service_attempts "unsigned, default 0"
         timestamp requested_at "microsecond precision for publication ordering"

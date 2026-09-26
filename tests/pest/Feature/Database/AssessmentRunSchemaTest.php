@@ -98,7 +98,7 @@ it('persists microsecond precision for publication request ordering', function (
 it('stores one durable publication refresh per resource and removes it on resource deletion', function (): void {
     expect(Schema::hasColumns('resource_assessment_refreshes', [
         'resource_id', 'status', 'generation', 'attempts', 'service_attempts',
-        'requested_at', 'available_at', 'lease_expires_at', 'completed_at', 'last_error',
+        'queue_job_id', 'requested_at', 'available_at', 'lease_expires_at', 'completed_at', 'last_error',
     ]))->toBeTrue();
 
     $resource = Resource::factory()->withDoi('10.5880/assessment.refresh-schema')->create();
