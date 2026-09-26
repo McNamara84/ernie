@@ -185,6 +185,29 @@ describe('index', function () {
             ->assertInertia(fn ($inertia) => $inertia->where('resourcesNeedingAttention.0.assessmentState', 'current'));
     });
 
+    it('renders stored assessments with scalar F-UJI results without failing', function (): void {
+        $resource = Resource::factory()->withDoi('10.5880/assessment.scalar-results')->create();
+        Title::factory()->for($resource)->create(['value' => 'Malformed F-UJI results']);
+        LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->draft()->create();
+        ResourceAssessment::query()->create([
+            'resource_id' => $resource->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 40,
+            'assessed_identifier' => $resource->doi,
+            'assessed_at' => now(),
+            'payload' => ['software_version' => '4.0.1', 'results' => 'invalid'],
+        ]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('resourcesNeedingAttention.0.assessmentState', 'provisional')
+                ->where('resourcesNeedingAttention.0.diagnostics.softwareVersion', '4.0.1')
+                ->where('resourcesNeedingAttention.0.diagnostics.f4Status', null)
+                ->where('resourcesNeedingAttention.0.diagnostics.metadataSources', []));
+    });
+
     it('returns assessment page for admins', function () {
         $user = User::factory()->create(['role' => 'admin']);
 

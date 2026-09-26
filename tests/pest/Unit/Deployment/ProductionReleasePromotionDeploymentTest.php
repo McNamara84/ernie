@@ -115,7 +115,7 @@ it('rejects v1.0.8 after v1.0.9 even when GitHub marks the older release latest'
         ->toContain('Refusing to replace deployed release');
 });
 
-it('promotes the exact digest pair previously deployed to Stage', function (): void {
+it('promotes the exact image digests previously deployed to Stage', function (): void {
     $workflowContents = file_get_contents(base_path('.github/workflows/promote-production-release.yml'));
     $workflow = Yaml::parseFile(base_path('.github/workflows/promote-production-release.yml'));
     $steps = collect($workflow['jobs']['inspect']['steps'] ?? [])->keyBy('name');
@@ -125,7 +125,13 @@ it('promotes the exact digest pair previously deployed to Stage', function (): v
     expect($workflowContents)->toBeString()
         ->not->toContain('uses: docker/build-push-action@')
         ->not->toContain('docker buildx imagetools create')
+        ->and($workflow['jobs']['validate']['outputs']['fuji_image'] ?? null)
+        ->toBe('${{ steps.source.outputs.fuji_image }}')
+        ->and($workflow['jobs']['inspect']['outputs']['fuji_digest'] ?? null)
+        ->toBe('${{ steps.artifacts.outputs.fuji_digest }}')
         ->and($artifacts)->toBeArray()
+        ->and($artifacts['env']['FUJI_IMAGE'] ?? null)
+        ->toBe('${{ needs.validate.outputs.fuji_image }}')
         ->and($artifacts['run'] ?? null)
         ->toBeString()
         ->toContain('+refs/heads/deploy/stage:refs/remotes/origin/deploy/stage')
@@ -135,16 +141,26 @@ it('promotes the exact digest pair previously deployed to Stage', function (): v
         ->toContain('docker compose -f "$STAGE_COMPOSE" config --format json')
         ->toContain("'.services.app.image'")
         ->toContain("'.services.webserver.image'")
+        ->toContain('FUJI_REF="$(jq -r')
+        ->toContain("'.services.fuji.image'")
+        ->toContain('FUJI_DIGEST="${FUJI_REF#"${FUJI_IMAGE}@"}"')
+        ->toContain('if [[ "$FUJI_REF" != "${FUJI_IMAGE}@${FUJI_DIGEST}" ||')
+        ->toContain('! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]')
         ->toContain('for service in queue assessment-queue scheduler')
         ->toContain('docker buildx imagetools inspect "$APP_REF"')
         ->toContain('docker buildx imagetools inspect "$NGINX_REF"')
+        ->toContain('docker buildx imagetools inspect "$FUJI_REF"')
+        ->toContain('echo "fuji_digest=$FUJI_DIGEST"')
         ->and($scan)->toBeArray()
         ->and($scan['env']['APP_IMAGE_REF'] ?? null)
         ->toBe('${{ needs.validate.outputs.app_image }}@${{ steps.artifacts.outputs.app_digest }}')
         ->and($scan['env']['NGINX_IMAGE_REF'] ?? null)
         ->toBe('${{ needs.validate.outputs.nginx_image }}@${{ steps.artifacts.outputs.nginx_digest }}')
+        ->and($scan['env']['FUJI_IMAGE_REF'] ?? null)
+        ->toBe('${{ needs.validate.outputs.fuji_image }}@${{ steps.artifacts.outputs.fuji_digest }}')
         ->and($scan['run'] ?? null)
         ->toBeString()
+        ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do')
         ->toContain('aquasec/trivy:0.74.0@sha256:')
         ->toContain('--exit-code 1')
         ->toContain('--severity CRITICAL,HIGH');
@@ -180,10 +196,19 @@ it('publishes a latest-release-only digest-pinned Production deployment branch',
         ->toBe('${{ needs.inspect.outputs.app_digest }}')
         ->and($deployment['env']['NGINX_DIGEST'] ?? null)
         ->toBe('${{ needs.inspect.outputs.nginx_digest }}')
+        ->and($deployment['env']['FUJI_DIGEST'] ?? null)
+        ->toBe('${{ needs.inspect.outputs.fuji_digest }}')
+        ->and($deployment['env']['FUJI_IMAGE'] ?? null)
+        ->toBe('${{ needs.validate.outputs.fuji_image }}')
         ->and($deployment['run'] ?? null)
         ->toBeString()
+        ->toContain('if [[ ! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]')
         ->toContain('APP_TEMPLATE="${APP_IMAGE}:deployment-template"')
         ->toContain('NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"')
+        ->toContain('FUJI_TEMPLATE="${FUJI_IMAGE}:deployment-template"')
+        ->toContain('"$FUJI_TEMPLATE_COUNT" -ne 1')
+        ->toContain('sed -i "s|${FUJI_TEMPLATE}|${FUJI_IMAGE}@${FUJI_DIGEST}|g" "$PROD_COMPOSE"')
+        ->toContain('grep -Fq "$FUJI_TEMPLATE" "$PROD_COMPOSE"')
         ->toContain('git show "${SOURCE_SHA}:docker-compose.prod.yml" > "$PROD_COMPOSE"')
         ->toContain('docker compose -f "$PROD_COMPOSE" config --quiet')
         ->toContain('git hash-object -w "$PROD_COMPOSE"')
@@ -222,6 +247,7 @@ it('uses Production image templates only as workflow input', function (): void {
     expect($contents)->toBeString()
         ->and(substr_count($contents, 'ghcr.io/mcnamara84/ernie-app:deployment-template'))->toBe(4)
         ->and(substr_count($contents, 'ghcr.io/mcnamara84/ernie-nginx:deployment-template'))->toBe(1)
+        ->and(substr_count($contents, 'ghcr.io/mcnamara84/ernie-fuji:deployment-template'))->toBe(1)
         ->and($compose)->toBeArray();
 
     foreach (['app', 'queue', 'assessment-queue', 'scheduler', 'webserver'] as $serviceName) {

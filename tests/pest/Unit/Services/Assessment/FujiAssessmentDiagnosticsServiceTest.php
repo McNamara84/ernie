@@ -44,3 +44,22 @@ it('handles assessments without provenance or F4 details', function (): void {
         'metadataSources' => [],
     ]);
 });
+
+it('ignores scalar metric results while retaining other diagnostics', function (bool|int|string $results): void {
+    expect(app(FujiAssessmentDiagnosticsService::class)->fromPayload([
+        'software_version' => '4.0.1',
+        'metric_version' => '0.8',
+        'resolved_url' => 'https://example.org/landing-page',
+        'results' => $results,
+    ]))->toBe([
+        'softwareVersion' => '4.0.1',
+        'metricVersion' => '0.8',
+        'resolvedUrl' => 'https://example.org/landing-page',
+        'f4Status' => null,
+        'metadataSources' => [],
+    ]);
+})->with([
+    'string' => 'invalid',
+    'integer' => 42,
+    'boolean' => false,
+]);

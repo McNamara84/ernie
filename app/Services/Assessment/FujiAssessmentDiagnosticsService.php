@@ -31,7 +31,12 @@ final class FujiAssessmentDiagnosticsService
         }
 
         $f4Status = null;
-        foreach ($payload['results'] ?? [] as $result) {
+        $results = $payload['results'] ?? null;
+        if (! is_array($results)) {
+            $results = [];
+        }
+
+        foreach ($results as $result) {
             if (! is_array($result) || ($result['metric_identifier'] ?? null) !== 'FsF-F4-01M') {
                 continue;
             }
