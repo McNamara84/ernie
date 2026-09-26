@@ -13,9 +13,11 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceAssessmentRefresh;
+use App\Models\ResourceType;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
+use App\Services\ResourceCacheService;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -38,9 +40,16 @@ beforeEach(function (): void {
 });
 
 /** @return array{Resource, LandingPage, ResourceAssessment} */
-function assessedDraftResource(): array
+function assessedDraftResource(AssessmentScope $scope = AssessmentScope::RESOURCE): array
 {
     $resource = Resource::factory()->withDoi('10.5880/refresh.test')->create();
+    if ($scope === AssessmentScope::IGSN) {
+        $physicalObjectType = ResourceType::query()->firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'is_active' => true],
+        );
+        $resource->update(['resource_type_id' => $physicalObjectType->id]);
+    }
     $page = LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->draft()->create();
     $assessment = ResourceAssessment::query()->create([
         'resource_id' => $resource->id,
@@ -63,7 +72,11 @@ function publishAssessedPage(LandingPage $page): ResourceAssessmentRefresh
 
 function runRefresh(int $resourceId, FujiAssessmentService $fuji): void
 {
-    (new RefreshPublishedResourceAssessmentJob($resourceId))->handle($fuji, app(FujiAssessmentRequestLimiterService::class));
+    (new RefreshPublishedResourceAssessmentJob($resourceId))->handle(
+        $fuji,
+        app(FujiAssessmentRequestLimiterService::class),
+        app(ResourceCacheService::class),
+    );
 }
 
 it('queues a durable refresh only when an already assessed DOI page is published', function (): void {
@@ -394,12 +407,12 @@ it('records a publication while the first full assessment is still processing', 
     expect(ResourceAssessmentRefresh::query()->whereKey($resource->id)->exists())->toBeTrue();
 });
 
-it('defers the targeted request while a full resource run is active', function (): void {
-    [$resource, $page] = assessedDraftResource();
+it('defers the targeted request while a full run of its scope is active', function (AssessmentScope $scope): void {
+    [$resource, $page] = assessedDraftResource($scope);
     $refresh = publishAssessedPage($page);
     AssessmentRun::factory()->create([
-        'scope' => AssessmentScope::RESOURCE,
-        'active_scope' => AssessmentScope::RESOURCE,
+        'scope' => $scope,
+        'active_scope' => $scope,
         'status' => AssessmentRunStatus::RUNNING,
     ]);
     Http::fake();
@@ -413,7 +426,39 @@ it('defers the targeted request while a full resource run is active', function (
         ->and($refresh->fresh()->attempts)->toBe(0)
         ->and($refresh->fresh()->available_at?->isFuture())->toBeTrue();
     Http::assertNothingSent();
-});
+})->with([
+    'resource scope' => AssessmentScope::RESOURCE,
+    'IGSN scope' => AssessmentScope::IGSN,
+]);
+
+it('does not defer a targeted request for an unrelated active run', function (AssessmentScope $resourceScope, AssessmentScope $runScope): void {
+    [$resource, $page, $assessment] = assessedDraftResource($resourceScope);
+    $refresh = publishAssessedPage($page);
+    AssessmentRun::factory()->create([
+        'scope' => $runScope,
+        'active_scope' => $runScope,
+        'status' => AssessmentRunStatus::RUNNING,
+    ]);
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->with((string) $resource->doi)->andReturn([
+        'score' => 70.0,
+        'payload' => ['software_version' => '4.0.1'],
+        'resolvedUrl' => $page->public_url,
+        'normalizedIdentifier' => $resource->doi,
+    ]);
+
+    runRefresh($resource->id, $fuji);
+
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::COMPLETED)
+        ->and((float) $assessment->fresh()->total_score)->toBe(70.0);
+    Http::assertSentCount(1);
+})->with([
+    'resource with active IGSN run' => [AssessmentScope::RESOURCE, AssessmentScope::IGSN],
+    'IGSN with active resource run' => [AssessmentScope::IGSN, AssessmentScope::RESOURCE],
+]);
 
 it('continues a targeted refresh while a full run is paused', function (): void {
     [$resource, $page] = assessedDraftResource();

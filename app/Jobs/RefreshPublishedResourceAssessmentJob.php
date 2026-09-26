@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\AssessmentRunStatus;
+use App\Enums\AssessmentScope;
 use App\Exceptions\FujiAssessmentException;
 use App\Models\AssessmentRun;
 use App\Models\Resource;
@@ -12,6 +13,7 @@ use App\Models\ResourceAssessment;
 use App\Models\ResourceAssessmentRefresh;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use App\Services\Assessment\FujiAssessmentService;
+use App\Services\ResourceCacheService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -40,7 +42,7 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
         $this->timeout = max(30, (int) config('fuji.assessment.item_timeout_seconds', 330));
     }
 
-    public function handle(FujiAssessmentService $fuji, FujiAssessmentRequestLimiterService $limiter): void
+    public function handle(FujiAssessmentService $fuji, FujiAssessmentRequestLimiterService $limiter, ResourceCacheService $resourceCache): void
     {
         $claimed = $this->claim();
         if ($claimed === null) {
@@ -58,7 +60,12 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
             return;
         }
 
-        if (AssessmentRun::query()->whereNotNull('active_scope')->whereIn('status', [
+        $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
+        $scope = $physicalObjectTypeId !== null && $resource->resource_type_id === $physicalObjectTypeId
+            ? AssessmentScope::IGSN
+            : AssessmentScope::RESOURCE;
+
+        if (AssessmentRun::query()->where('active_scope', $scope->value)->whereIn('status', [
             AssessmentRunStatus::PREPARING->value,
             AssessmentRunStatus::QUEUED->value,
             AssessmentRunStatus::RUNNING->value,
