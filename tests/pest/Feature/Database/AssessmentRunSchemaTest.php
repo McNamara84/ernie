@@ -74,6 +74,27 @@ it('persists microsecond precision for assessment result ordering', function ():
     }
 });
 
+it('persists microsecond precision for publication request ordering', function (): void {
+    $resource = Resource::factory()->withDoi('10.5880/refresh.precision')->create();
+    $refresh = ResourceAssessmentRefresh::query()->create([
+        'resource_id' => $resource->id,
+        'status' => ResourceAssessmentRefresh::PENDING,
+        'requested_at' => Carbon::parse('2026-09-25 12:00:00.654321'),
+    ]);
+
+    expect($refresh->fresh()->requested_at->format('u'))->toBe('654321');
+
+    if (DB::getDriverName() === 'mysql') {
+        $precision = DB::table('information_schema.COLUMNS')
+            ->where('TABLE_SCHEMA', DB::getDatabaseName())
+            ->where('TABLE_NAME', 'resource_assessment_refreshes')
+            ->where('COLUMN_NAME', 'requested_at')
+            ->value('DATETIME_PRECISION');
+
+        expect((int) $precision)->toBe(6);
+    }
+});
+
 it('stores one durable publication refresh per resource and removes it on resource deletion', function (): void {
     expect(Schema::hasColumns('resource_assessment_refreshes', [
         'resource_id', 'status', 'generation', 'attempts', 'service_attempts',

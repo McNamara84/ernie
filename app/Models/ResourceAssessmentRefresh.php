@@ -52,6 +52,22 @@ final class ResourceAssessmentRefresh extends Model
         'completed_at' => 'datetime',
     ];
 
+    public function setRequestedAtAttribute(Carbon|string $value): void
+    {
+        // Eloquent's default date format drops microseconds before the database write.
+        $this->attributes['requested_at'] = Carbon::parse($value)->format('Y-m-d H:i:s.u');
+    }
+
+    public function originalIsEquivalent($key): bool
+    {
+        if ($key === 'requested_at' && array_key_exists($key, $this->original)) {
+            // Eloquent's default date comparison also drops microseconds.
+            return ($this->attributes[$key] ?? null) === $this->original[$key];
+        }
+
+        return parent::originalIsEquivalent($key);
+    }
+
     /** @return BelongsTo<Resource, $this> */
     public function resource(): BelongsTo
     {

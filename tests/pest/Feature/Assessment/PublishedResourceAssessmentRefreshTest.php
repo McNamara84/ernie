@@ -109,6 +109,18 @@ it('queues a durable refresh only when an already assessed DOI page is published
     expect(ResourceAssessmentRefresh::query()->whereKey($withoutDoi->id)->exists())->toBeFalse();
 });
 
+it('updates the request timestamp when publication requests share a second', function (): void {
+    $this->travelTo(Carbon::parse('2026-09-25 12:00:00.100000'));
+    [$resource, $page] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+
+    $this->travelTo(Carbon::parse('2026-09-25 12:00:00.800000'));
+    app(ResourceAssessmentRefreshService::class)->request($resource->id);
+
+    expect($refresh->fresh()->generation)->toBe(2)
+        ->and($refresh->fresh()->requested_at->format('u'))->toBe('800000');
+});
+
 it('waits for the DOI redirect and then replaces the previous score once', function (): void {
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);
@@ -261,10 +273,11 @@ it('retries if a newer terminal full assessment finishes during the targeted F-U
     'skipped' => [ResourceAssessment::STATUS_SKIPPED, null],
 ]);
 
-it('does not store a result started before the publication request timestamp', function (): void {
+it('does not store a result started before a publication request in the same second', function (): void {
+    $this->travelTo(Carbon::parse('2026-09-25 12:00:00.100000'));
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);
-    $refresh->forceFill(['requested_at' => now()->addMinute()])->save();
+    $refresh->forceFill(['requested_at' => Carbon::parse('2026-09-25 12:00:00.800000')])->save();
     Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
 
     /** @var FujiAssessmentService&MockInterface $fuji */
@@ -275,6 +288,9 @@ it('does not store a result started before the publication request timestamp', f
         'resolvedUrl' => $page->public_url,
         'normalizedIdentifier' => $resource->doi,
     ]);
+
+    expect($refresh->fresh()->requested_at->format('u'))->toBe('800000')
+        ->and(now()->format('u'))->toBe('100000');
 
     runRefresh($resource->id, $fuji);
 

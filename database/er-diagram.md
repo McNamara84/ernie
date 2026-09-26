@@ -599,7 +599,7 @@ erDiagram
         uuid claim_token "nullable"
         smallint attempts "unsigned, default 0"
         smallint service_attempts "unsigned, default 0"
-        timestamp requested_at
+        timestamp requested_at "microsecond precision for publication ordering"
         timestamp available_at "nullable, indexed"
         timestamp lease_expires_at "nullable, indexed"
         timestamp completed_at "nullable"

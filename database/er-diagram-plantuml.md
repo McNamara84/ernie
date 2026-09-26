@@ -654,7 +654,7 @@ entity "resource_assessment_refreshes" as resource_assessment_refreshes {
     claim_token : UUID <<nullable>>
     * attempts : SMALLINT UNSIGNED = 0
     * service_attempts : SMALLINT UNSIGNED = 0
-    * requested_at : TIMESTAMP
+    * requested_at : TIMESTAMP(6) //publication ordering//
     available_at : TIMESTAMP <<nullable>> <<IDX>>
     lease_expires_at : TIMESTAMP <<nullable>> <<IDX>>
     completed_at : TIMESTAMP <<nullable>>
