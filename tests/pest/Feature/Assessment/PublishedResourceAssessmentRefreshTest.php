@@ -261,6 +261,54 @@ it('retries if a newer terminal full assessment finishes during the targeted F-U
     'skipped' => [ResourceAssessment::STATUS_SKIPPED, null],
 ]);
 
+it('does not store a result started before the publication request timestamp', function (): void {
+    [$resource, $page, $assessment] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    $refresh->forceFill(['requested_at' => now()->addMinute()])->save();
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturn([
+        'score' => 74.0,
+        'payload' => ['software_version' => 'stale-result'],
+        'resolvedUrl' => $page->public_url,
+        'normalizedIdentifier' => $resource->doi,
+    ]);
+
+    runRefresh($resource->id, $fuji);
+
+    expect($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::PENDING)
+        ->and((float) $assessment->fresh()->total_score)->toBe(40.0)
+        ->and($assessment->fresh()->payload['software_version'])->toBe('4.0.0');
+});
+
+it('keeps the previous score when a new publication request arrives during F-UJI assessment', function (): void {
+    [$resource, $page, $assessment] = assessedDraftResource();
+    $refresh = publishAssessedPage($page);
+    Http::fake(['doi.org/*' => Http::response('', 302, ['Location' => $page->public_url])]);
+
+    /** @var FujiAssessmentService&MockInterface $fuji */
+    $fuji = $this->mock(FujiAssessmentService::class);
+    $fuji->shouldReceive('assessIdentifier')->once()->andReturnUsing(function () use ($resource, $page): array {
+        app(ResourceAssessmentRefreshService::class)->request($resource->id);
+
+        return [
+            'score' => 74.0,
+            'payload' => ['software_version' => 'stale-result'],
+            'resolvedUrl' => $page->public_url,
+            'normalizedIdentifier' => $resource->doi,
+        ];
+    });
+
+    runRefresh($resource->id, $fuji);
+
+    expect($refresh->fresh()->generation)->toBe(2)
+        ->and($refresh->fresh()->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and((float) $assessment->fresh()->total_score)->toBe(40.0)
+        ->and($assessment->fresh()->payload['software_version'])->toBe('4.0.0');
+});
+
 it('keeps the previous assessment until F-UJI resolves the published landing page', function (?string $firstResolvedUrl): void {
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);

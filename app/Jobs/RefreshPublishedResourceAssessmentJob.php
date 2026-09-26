@@ -169,6 +169,12 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
                 return;
             }
 
+            if ($startedAt->lessThan($requestedAt)) {
+                $this->resetPending($refresh, 60, 'The landing page changed during assessment.');
+
+                return;
+            }
+
             ResourceAssessment::query()->updateOrCreate(['resource_id' => $this->resourceId], [
                 'status' => ResourceAssessment::STATUS_COMPLETED,
                 'failure_type' => null,
@@ -180,12 +186,6 @@ final class RefreshPublishedResourceAssessmentJob implements ShouldQueue
                 'assessed_at' => $startedAt,
                 'assessment_started_at' => $startedAt,
             ]);
-
-            if ($startedAt->lessThan($requestedAt)) {
-                $this->resetPending($refresh, 60, 'The landing page changed during assessment.');
-
-                return;
-            }
 
             $refresh->forceFill([
                 'status' => ResourceAssessmentRefresh::COMPLETED,
