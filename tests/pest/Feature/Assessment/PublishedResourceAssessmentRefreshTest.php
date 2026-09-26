@@ -124,6 +124,9 @@ it('updates the request timestamp when publication requests share a second', fun
 it('waits for the DOI redirect and then replaces the previous score once', function (): void {
     [$resource, $page, $assessment] = assessedDraftResource();
     $refresh = publishAssessedPage($page);
+    expect($refresh->status)->toBe(ResourceAssessmentRefresh::QUEUED)
+        ->and($refresh->lease_expires_at?->isFuture())->toBeTrue();
+
     Http::fakeSequence('doi.org/*')
         ->push('', 302, ['Location' => 'https://example.org/old-target'])
         ->push('', 302, ['Location' => $page->public_url]);
