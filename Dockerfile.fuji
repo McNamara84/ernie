@@ -1,0 +1,5 @@
+FROM ghcr.io/pangaea-data-publisher/fuji@sha256:cff88e482cf9932eb2150210cf331ac1439cbed1a20408a04b6b7688cee5a2bc
+
+# F-UJI 4.0.1 launches Playwright during application startup. The upstream
+# image contains the Python package but omits the browser executable.
+RUN python3 -m playwright install --with-deps chromium

@@ -1,7 +1,7 @@
 # Production deployment from stable Stage artifacts
 
 Production does not build ERNIE images on its Portainer host. A published
-stable GitHub release promotes the exact application and Nginx image digests
+stable GitHub release promotes the exact application, Nginx, and F-UJI image digests
 that were previously deployed to Stage and creates a machine-managed
 `deploy/prod` commit. Portainer follows that branch and therefore deploys only
 immutable, release-approved images.
@@ -11,7 +11,7 @@ immutable, release-approved images.
 1. A normal pull request is merged into `main`.
 2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
    the `main` commit.
-3. `Publish Stage Images` builds and scans the application and Nginx images,
+3. `Publish Stage Images` builds and scans the application, Nginx, and F-UJI images,
    pins their exact digests in `deploy/stage`, and Stage deploys them.
 4. A GitHub release such as `v1.0.9` is published for that commit.
 5. The read-only `Production Release Signal` workflow records the release
@@ -33,7 +33,7 @@ immutable, release-approved images.
 No developer works on or merges into `deploy/prod`. Its commits record the
 release tag and source SHA, retain the validated source commit as a parent,
 and form a linear deployment history. The generated Compose file references
-both images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
+the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
 `latest`, `production`, or version tag.
 
 ## Public homepage routing
@@ -90,7 +90,7 @@ A release workflow runs in the context of its tag, whereas the
 `workflow_run` promotion is loaded from the default branch. The promotion
 does not trust the signal workflow's code or artifacts: its read-only jobs
 query the latest release, resolve the tag, check `main` and all CI results,
-inspect the trusted Stage deployment history, and rescan both images before a
+inspect the trusted Stage deployment history, and rescan all three images before a
 separate job receives write access.
 
 Neither workflow offers `workflow_dispatch`. This prevents a branch copy of a
@@ -159,8 +159,9 @@ Edit the existing stack; do not delete or recreate it:
 - repository reference: `refs/heads/deploy/prod`;
 - Compose path: `docker-compose.prod.yml`;
 - existing stack environment variables: retain them unchanged;
-- `ERNIE_PROD_APP_IMAGE` and `ERNIE_PROD_NGINX_IMAGE`: leave both unset during
-  normal operation; remove stale values because these variables override the
+- `ERNIE_PROD_APP_IMAGE`, `ERNIE_PROD_FUJI_IMAGE`, and
+  `ERNIE_PROD_NGINX_IMAGE`: leave all three unset during normal operation;
+  remove stale values because these variables override the
   release-managed digests and are reserved for an explicit rollback;
 - registry: reuse the GHCR registry already configured for Stage when the
   packages are private;
@@ -217,7 +218,7 @@ If a newer stable release appears while an older promotion is running, the
 concurrency guard cancels the older run. The final latest-release check and
 compare-and-swap branch update prevent a superseded run from overwriting a
 newer deployment. Every deployment commit remains internally consistent
-because both image references are immutable digests from one Stage deployment.
+because all image references are immutable digests from one Stage deployment.
 
 ## Manual retry
 
@@ -232,15 +233,16 @@ create another release merely to retry an infrastructure failure.
 
 ## Rollback
 
-Every `deploy/prod` commit records a release tag and immutable digest pair. To
-restore a previous pair, read both references from the corresponding
+Every `deploy/prod` commit records a release tag and immutable image digests. To
+restore a previous deployment, read all references from the corresponding
 deployment commit and set these stack variables in Portainer:
 
 - `ERNIE_PROD_APP_IMAGE=ghcr.io/mcnamara84/ernie-app@sha256:<good-digest>`
+- `ERNIE_PROD_FUJI_IMAGE=ghcr.io/mcnamara84/ernie-fuji@sha256:<good-digest>`
 - `ERNIE_PROD_NGINX_IMAGE=ghcr.io/mcnamara84/ernie-nginx@sha256:<good-digest>`
 
-Use both digests from the same Production deployment commit, then manually
-pull/redeploy. The override persists across automatic Git updates; remove both
+Use all three digests from the same Production deployment commit, then manually
+pull/redeploy. The overrides persist across automatic Git updates; remove all three
 variables together to return to the release-managed `deploy/prod` branch.
 
 Database migrations are not automatically reversible. Check schema and data

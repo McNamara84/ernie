@@ -1238,6 +1238,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             dash identifies either a zero-gap assessment or guidance that cannot be calculated from the stored details; its accessible
                             explanation states which case applies.
                         </p>
+                        <p>
+                            A DOI assessment before its landing page is published is marked <strong>Provisional</strong>. When an existing assessed
+                            Resource landing page is published, ERNIE waits until the DOI resolver points to that page and automatically queues a
+                            fresh F-UJI assessment. The row shows when that reassessment is pending or running and updates after it finishes. If the
+                            automatic check fails, the previous score remains visible and the row marks the failure. Admins can expand
+                            <strong> F-UJI details</strong> to inspect the resolved URL, F4 test status, reported software and metric versions, and
+                            harvested metadata sources. A failed F4 check means F-UJI did not recognize searchable metadata; it does not by itself
+                            prove that the published page lacks Schema.org JSON-LD.
+                        </p>
+                        <p>
+                            Assessments from an older F-UJI version are marked as needing reassessment. After upgrading the service, an Admin or Group
+                            Leader can use <strong>Check Resources</strong> and <strong>Check IGSNs</strong> to refresh previously published records
+                            in a controlled run.
+                        </p>
 
                         <h4>Workflow</h4>
                         {userRole === 'admin' || userRole === 'group_leader' ? (

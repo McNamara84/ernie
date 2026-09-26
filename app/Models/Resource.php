@@ -478,6 +478,15 @@ class Resource extends Model
         return $relation;
     }
 
+    /** @return HasOne<ResourceAssessmentRefresh, static> */
+    public function resourceAssessmentRefresh(): HasOne
+    {
+        /** @var HasOne<ResourceAssessmentRefresh, static> $relation */
+        $relation = $this->hasOne(ResourceAssessmentRefresh::class);
+
+        return $relation;
+    }
+
     // =========================================================================
     // Helper Methods
     // =========================================================================

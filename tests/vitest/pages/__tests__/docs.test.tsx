@@ -398,7 +398,13 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByText(/Resource and IGSN rankings are always displayed as separate cards, one below the other/)).toBeInTheDocument();
-        expect(document.body).not.toHaveTextContent('F-UJI');
+        expect(
+            screen.getByText(
+                (_, element) =>
+                    element?.tagName === 'P' &&
+                    (element.textContent?.includes('A DOI assessment before its landing page is published is marked') ?? false),
+            ),
+        ).toHaveTextContent('F-UJI details');
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {

@@ -1,12 +1,12 @@
 # Stage deployment from prebuilt container images
 
 Stage does not build ERNIE images on RZ-VM182. GitHub Actions builds the
-application and Nginx images, publishes them to GitHub Container Registry
+application, Nginx, and F-UJI images, publishes them to GitHub Container Registry
 (GHCR), and creates a machine-managed `deploy/stage` commit whose Compose file
-pins both images by immutable digest.
+pins all three images by immutable digest.
 
 Production promotion remains separate from this workflow. It promotes a
-published latest stable release only after locating the exact digest pair in
+published latest stable release only after locating the exact image digests in
 Stage deployment history. See
 [production-container-deployment.md](production-container-deployment.md).
 
@@ -19,11 +19,11 @@ Stage deployment history. See
 3. `Publish Stage Images` verifies that all five workflows succeeded for the
    exact current `main` commit, then builds and pushes the images under
    traceable `sha-<full-commit-sha>` tags.
-4. The publication job scans the exact pushed application and Nginx digest
-   references. A HIGH or CRITICAL vulnerability in either published image
+4. The publication job scans the exact pushed application, Nginx, and F-UJI digest
+   references. A HIGH or CRITICAL vulnerability in any published image
    stops the workflow before it can change `deploy/stage`.
 5. The workflow creates a deployment commit derived from that source commit.
-   Its Stage Compose file pins the application and Nginx images as
+   Its Stage Compose file pins the application, Nginx, and F-UJI images as
    `ghcr.io/...@sha256:<digest>`.
 6. If the source commit is still the head of `main`, the workflow advances
    `deploy/stage` to the digest-pinned deployment commit.
@@ -40,6 +40,7 @@ The published images are:
 
 - `ghcr.io/mcnamara84/ernie-app:sha-<full-commit-sha>`
 - `ghcr.io/mcnamara84/ernie-nginx:sha-<full-commit-sha>`
+- `ghcr.io/mcnamara84/ernie-fuji:sha-<full-commit-sha>` (F-UJI 4.0.1 with Chromium)
 
 The generated deployment Compose file does not use mutable `stage` tags. It
 references the exact digest produced by each image build. Therefore a manual
@@ -97,7 +98,7 @@ receives HTTP 403, verify the repository or organization policy under
 requested write scopes.
 
 Before the publish job creates or advances `deploy/stage`, it scans the exact
-application and Nginx digest references it just pushed. This closes the gap
+application, Nginx, and F-UJI digest references it just pushed. This closes the gap
 between the earlier validation build and the artifacts that Portainer will
 actually deploy, including when package repositories changed between the two
 builds.
@@ -178,7 +179,7 @@ After the one-time rollout, the normal developer process remains unchanged:
 If another commit reaches `main` while images are building, the final head
 guard normally skips the older deployment and the newer validated workflow
 replaces it. Even if `main` changes at the final update boundary, every
-deployment commit remains internally consistent because it pins both image
+deployment commit remains internally consistent because it pins all image
 digests; a later pull can never silently substitute images from another
 commit.
 
@@ -194,13 +195,14 @@ lint/PHPStan, and Playwright push workflows for that exact commit.
 ## Rollback
 
 Every deployment commit records immutable image digests. To restore a previous
-pair, read both digest references from the corresponding `deploy/stage` commit
-and set these two Stage stack variables in Portainer:
+deployment, read all digest references from the corresponding `deploy/stage` commit
+and set these three Stage stack variables in Portainer:
 
 - `ERNIE_STAGE_APP_IMAGE=ghcr.io/mcnamara84/ernie-app@sha256:<good-digest>`
+- `ERNIE_STAGE_FUJI_IMAGE=ghcr.io/mcnamara84/ernie-fuji@sha256:<good-digest>`
 - `ERNIE_STAGE_NGINX_IMAGE=ghcr.io/mcnamara84/ernie-nginx@sha256:<good-digest>`
 
-Use both digests from the same deployment commit and manually pull/redeploy
+Use all three digests from the same deployment commit and manually pull/redeploy
 the stack. Remove the overrides to return to the automatically maintained,
 digest-pinned deployment branch.
 

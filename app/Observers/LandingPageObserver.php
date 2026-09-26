@@ -7,6 +7,7 @@ namespace App\Observers;
 use App\Enums\PortalCacheArea;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
+use App\Services\Assessment\ResourceAssessmentRefreshService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalCacheInvalidationService;
@@ -23,6 +24,7 @@ class LandingPageObserver
         private readonly LandingPageRenderDataCacheService $renderDataCache,
         private readonly ResourceCacheService $resourceCacheService,
         private readonly PortalCacheInvalidationService $portalCacheInvalidationService,
+        private readonly ResourceAssessmentRefreshService $assessmentRefresh,
     ) {}
 
     public function created(LandingPage $landingPage): void
@@ -32,6 +34,7 @@ class LandingPageObserver
         if ($landingPage->is_published) {
             $this->resourceCacheService->invalidatePublishedResourceCounts();
             $this->schedulePortalInvalidation($landingPage, PortalCacheArea::all());
+            $this->assessmentRefresh->request((int) $landingPage->resource_id);
         }
     }
 
@@ -96,6 +99,7 @@ class LandingPageObserver
         } else {
             // Republished → remove from deleted records
             OaiPmhDeletedRecord::where('oai_identifier', $oaiIdentifier)->delete();
+            $this->assessmentRefresh->request((int) $landingPage->resource_id);
         }
     }
 

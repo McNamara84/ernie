@@ -66,6 +66,10 @@
         ],
         "improvements": [
             {
+                "title": "F-UJI 4.0.1 and Published Landing Page Reassessments",
+                "description": "FAIR assessments now use a verified, digest-pinned F-UJI 4.0.1 image with the Chromium runtime required for startup. Existing DOI assessments are automatically refreshed after their ERNIE landing page is published and the DOI resolver points to it, while the previous score remains available during retries. Assessment rows distinguish provisional, pending, current, and failed results; Admins can inspect F-UJI provenance and F4 test details. Guidance no longer assumes that a failed F4 test proves missing server-side Schema.org metadata."
+            },
+            {
                 "title": "Clear, Role-Aware Action Guidance",
                 "description": "The English user guide now explains the exact effects of Data Editor and Resources List actions, including when ERNIE saves locally, when DataCite receives or publishes metadata, and what can remain after a failure. Action-specific deep links, searchable guidance, keyboard focus handling, and visible consequences in editor and resource controls make these workflows easier to understand. The guide follows current permissions and editor settings, while DOI conflict and CSV import messages now use consistent English."
             },

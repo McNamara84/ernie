@@ -28,6 +28,7 @@ jobs:
       checks_ready: ${{ steps.deployment-checks.outputs.ready }}
       current: ${{ steps.source.outputs.current }}
       nginx_image: ${{ steps.source.outputs.nginx_image }}
+      fuji_image: ${{ steps.source.outputs.fuji_image }}
       release_id: ${{ steps.release.outputs.id }}
       release_tag: ${{ steps.release.outputs.tag }}
       sha: ${{ steps.source.outputs.sha }}
@@ -165,6 +166,7 @@ jobs:
             echo "sha=$SOURCE_SHA"
             echo "app_image=ghcr.io/${OWNER}/ernie-app"
             echo "nginx_image=ghcr.io/${OWNER}/ernie-nginx"
+            echo "fuji_image=ghcr.io/${OWNER}/ernie-fuji"
           } >> "$GITHUB_OUTPUT"
 
       - name: Require successful deployment checks
@@ -252,6 +254,7 @@ jobs:
       app_digest: ${{ steps.artifacts.outputs.app_digest }}
       current: ${{ steps.latest.outputs.current }}
       nginx_digest: ${{ steps.artifacts.outputs.nginx_digest }}
+      fuji_digest: ${{ steps.artifacts.outputs.fuji_digest }}
       stage_commit: ${{ steps.artifacts.outputs.stage_commit }}
 
     steps:
@@ -273,6 +276,7 @@ jobs:
         env:
           APP_IMAGE: ${{ needs.validate.outputs.app_image }}
           NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
+          FUJI_IMAGE: ${{ needs.validate.outputs.fuji_image }}
           SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
           set -euo pipefail
@@ -314,8 +318,10 @@ jobs:
 
           APP_REF="$(jq -r '.services.app.image' <<< "$STAGE_CONFIG")"
           NGINX_REF="$(jq -r '.services.webserver.image' <<< "$STAGE_CONFIG")"
+          FUJI_REF="$(jq -r '.services.fuji.image' <<< "$STAGE_CONFIG")"
           APP_DIGEST="${APP_REF#"${APP_IMAGE}@"}"
           NGINX_DIGEST="${NGINX_REF#"${NGINX_IMAGE}@"}"
+          FUJI_DIGEST="${FUJI_REF#"${FUJI_IMAGE}@"}"
 
           if [[ "$APP_REF" != "${APP_IMAGE}@${APP_DIGEST}" ||
               ! "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
@@ -329,6 +335,12 @@ jobs:
             exit 1
           fi
 
+          if [[ "$FUJI_REF" != "${FUJI_IMAGE}@${FUJI_DIGEST}" ||
+              ! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid Stage F-UJI image reference: $FUJI_REF" >&2
+            exit 1
+          fi
+
           for service in queue assessment-queue scheduler; do
             if [[ "$(jq -r --arg service "$service" '.services[$service].image' <<< "$STAGE_CONFIG")" != "$APP_REF" ]]; then
               echo "Stage service $service does not use the release application image." >&2
@@ -338,10 +350,12 @@ jobs:
 
           docker buildx imagetools inspect "$APP_REF" >/dev/null
           docker buildx imagetools inspect "$NGINX_REF" >/dev/null
+          docker buildx imagetools inspect "$FUJI_REF" >/dev/null
 
           {
             echo "app_digest=$APP_DIGEST"
             echo "nginx_digest=$NGINX_DIGEST"
+            echo "fuji_digest=$FUJI_DIGEST"
             echo "stage_commit=$STAGE_DEPLOY_COMMIT"
           } >> "$GITHUB_OUTPUT"
 
@@ -349,6 +363,7 @@ jobs:
         env:
           APP_IMAGE_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.artifacts.outputs.app_digest }}
           NGINX_IMAGE_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.artifacts.outputs.nginx_digest }}
+          FUJI_IMAGE_REF: ${{ needs.validate.outputs.fuji_image }}@${{ steps.artifacts.outputs.fuji_digest }}
           TRIVY_DISABLE_VEX_NOTICE: 'true'
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           TRIVY_USERNAME: ${{ github.actor }}
@@ -356,7 +371,7 @@ jobs:
           set -uo pipefail
           scan_status=0
 
-          for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"; do
+          for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do
             if [[ ! "$image_ref" =~ @sha256:[0-9a-f]{64}$ ]]; then
               echo "Invalid Production image reference: $image_ref" >&2
               scan_status=1
@@ -428,6 +443,8 @@ jobs:
           APP_IMAGE: ${{ needs.validate.outputs.app_image }}
           NGINX_DIGEST: ${{ needs.inspect.outputs.nginx_digest }}
           NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
+          FUJI_DIGEST: ${{ needs.inspect.outputs.fuji_digest }}
+          FUJI_IMAGE: ${{ needs.validate.outputs.fuji_image }}
           RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
           SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
@@ -476,8 +493,14 @@ jobs:
             exit 1
           fi
 
+          if [[ ! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid F-UJI image digest: $FUJI_DIGEST" >&2
+            exit 1
+          fi
+
           APP_TEMPLATE="${APP_IMAGE}:deployment-template"
           NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"
+          FUJI_TEMPLATE="${FUJI_IMAGE}:deployment-template"
           PROD_COMPOSE="${RUNNER_TEMP}/docker-compose.prod.yml"
 
           git cat-file -e "${SOURCE_SHA}^{commit}"
@@ -485,16 +508,18 @@ jobs:
 
           APP_TEMPLATE_COUNT="$(grep -Fc "$APP_TEMPLATE" "$PROD_COMPOSE")"
           NGINX_TEMPLATE_COUNT="$(grep -Fc "$NGINX_TEMPLATE" "$PROD_COMPOSE")"
+          FUJI_TEMPLATE_COUNT="$(grep -Fc "$FUJI_TEMPLATE" "$PROD_COMPOSE")"
 
-          if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 ]]; then
-            echo "Unexpected Production image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT" >&2
+          if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 || "$FUJI_TEMPLATE_COUNT" -ne 1 ]]; then
+            echo "Unexpected Production image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT fuji=$FUJI_TEMPLATE_COUNT" >&2
             exit 1
           fi
 
           sed -i "s|${APP_TEMPLATE}|${APP_IMAGE}@${APP_DIGEST}|g" "$PROD_COMPOSE"
           sed -i "s|${NGINX_TEMPLATE}|${NGINX_IMAGE}@${NGINX_DIGEST}|g" "$PROD_COMPOSE"
+          sed -i "s|${FUJI_TEMPLATE}|${FUJI_IMAGE}@${FUJI_DIGEST}|g" "$PROD_COMPOSE"
 
-          if grep -Fq "$APP_TEMPLATE" "$PROD_COMPOSE" || grep -Fq "$NGINX_TEMPLATE" "$PROD_COMPOSE"; then
+          if grep -Fq "$APP_TEMPLATE" "$PROD_COMPOSE" || grep -Fq "$NGINX_TEMPLATE" "$PROD_COMPOSE" || grep -Fq "$FUJI_TEMPLATE" "$PROD_COMPOSE"; then
             echo "Production image templates remain after digest pinning." >&2
             exit 1
           fi

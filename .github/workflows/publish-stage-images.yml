@@ -33,6 +33,7 @@ jobs:
       checks_ready: ${{ steps.deployment-checks.outputs.ready }}
       current: ${{ steps.source.outputs.current }}
       nginx_image: ${{ steps.source.outputs.nginx_image }}
+      fuji_image: ${{ steps.source.outputs.fuji_image }}
       sha: ${{ steps.source.outputs.sha }}
 
     steps:
@@ -66,6 +67,7 @@ jobs:
             echo "sha=$SOURCE_SHA"
             echo "app_image=ghcr.io/${OWNER}/ernie-app"
             echo "nginx_image=ghcr.io/${OWNER}/ernie-nginx"
+            echo "fuji_image=ghcr.io/${OWNER}/ernie-fuji"
           } >> "$GITHUB_OUTPUT"
 
       - name: Require successful deployment checks
@@ -215,6 +217,21 @@ jobs:
             type=gha,scope=stage-nginx
           cache-to: type=gha,mode=max,scope=stage-nginx
 
+      - name: Build and push F-UJI image with Chromium
+        id: fuji-build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile.fuji
+          push: true
+          tags: ${{ needs.validate.outputs.fuji_image }}:sha-${{ needs.validate.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.validate.outputs.sha }}
+            org.opencontainers.image.version=sha-${{ needs.validate.outputs.sha }}
+          cache-from: type=gha,scope=stage-fuji
+          cache-to: type=gha,mode=max,scope=stage-fuji
+
       - name: Prepare Trivy cache
         run: mkdir -p "${{ runner.temp }}/trivy-cache"
 
@@ -222,6 +239,7 @@ jobs:
         env:
           APP_IMAGE_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}
           NGINX_IMAGE_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.nginx-build.outputs.digest }}
+          FUJI_IMAGE_REF: ${{ needs.validate.outputs.fuji_image }}@${{ steps.fuji-build.outputs.digest }}
           TRIVY_DISABLE_VEX_NOTICE: 'true'
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           TRIVY_USERNAME: ${{ github.actor }}
@@ -229,7 +247,7 @@ jobs:
           set -uo pipefail
           scan_status=0
 
-          for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"; do
+          for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do
             if [[ ! "$image_ref" =~ @sha256:[0-9a-f]{64}$ ]]; then
               echo "Invalid published image reference: $image_ref" >&2
               scan_status=1
@@ -279,6 +297,8 @@ jobs:
           APP_IMAGE: ${{ needs.validate.outputs.app_image }}
           NGINX_DIGEST: ${{ steps.nginx-build.outputs.digest }}
           NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
+          FUJI_DIGEST: ${{ steps.fuji-build.outputs.digest }}
+          FUJI_IMAGE: ${{ needs.validate.outputs.fuji_image }}
           SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
           set -euo pipefail
@@ -293,20 +313,28 @@ jobs:
             exit 1
           fi
 
+          if [[ ! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid F-UJI image digest: $FUJI_DIGEST" >&2
+            exit 1
+          fi
+
           APP_TEMPLATE="${APP_IMAGE}:deployment-template"
           NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"
+          FUJI_TEMPLATE="${FUJI_IMAGE}:deployment-template"
           APP_TEMPLATE_COUNT="$(grep -Fc "$APP_TEMPLATE" docker-compose.stage.yml)"
           NGINX_TEMPLATE_COUNT="$(grep -Fc "$NGINX_TEMPLATE" docker-compose.stage.yml)"
+          FUJI_TEMPLATE_COUNT="$(grep -Fc "$FUJI_TEMPLATE" docker-compose.stage.yml)"
 
-          if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 ]]; then
-            echo "Unexpected Stage image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT" >&2
+          if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 || "$FUJI_TEMPLATE_COUNT" -ne 1 ]]; then
+            echo "Unexpected Stage image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT fuji=$FUJI_TEMPLATE_COUNT" >&2
             exit 1
           fi
 
           sed -i "s|${APP_TEMPLATE}|${APP_IMAGE}@${APP_DIGEST}|g" docker-compose.stage.yml
           sed -i "s|${NGINX_TEMPLATE}|${NGINX_IMAGE}@${NGINX_DIGEST}|g" docker-compose.stage.yml
+          sed -i "s|${FUJI_TEMPLATE}|${FUJI_IMAGE}@${FUJI_DIGEST}|g" docker-compose.stage.yml
 
-          if grep -Fq "$APP_TEMPLATE" docker-compose.stage.yml || grep -Fq "$NGINX_TEMPLATE" docker-compose.stage.yml; then
+          if grep -Fq "$APP_TEMPLATE" docker-compose.stage.yml || grep -Fq "$NGINX_TEMPLATE" docker-compose.stage.yml || grep -Fq "$FUJI_TEMPLATE" docker-compose.stage.yml; then
             echo "Stage image templates remain after digest pinning." >&2
             exit 1
           fi

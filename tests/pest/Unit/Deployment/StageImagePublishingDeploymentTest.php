@@ -139,16 +139,28 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->and($composeContents)->toBeString()
         ->and(substr_count($composeContents, 'ghcr.io/mcnamara84/ernie-app:deployment-template'))->toBe(4)
         ->and(substr_count($composeContents, 'ghcr.io/mcnamara84/ernie-nginx:deployment-template'))->toBe(1)
+        ->and(substr_count($composeContents, 'ghcr.io/mcnamara84/ernie-fuji:deployment-template'))->toBe(1)
         ->and($composeContents)
         ->not->toContain('ghcr.io/mcnamara84/ernie-app:stage')
         ->not->toContain('ghcr.io/mcnamara84/ernie-nginx:stage')
+        ->not->toContain('ghcr.io/mcnamara84/ernie-fuji:stage')
         ->and($workflowContents)->not->toContain('docker buildx imagetools create --tag');
 
     $publishSteps = collect($workflow['jobs']['publish']['steps'] ?? [])->keyBy('name');
+    $fujiBuild = $publishSteps->get('Build and push F-UJI image with Chromium');
     $prepareTrivyCache = $publishSteps->get('Prepare Trivy cache');
     $publishedDigestScan = $publishSteps->get('Scan exact published image digests');
     $createDeployment = $publishSteps->get('Create digest-pinned Stage deployment commit');
     $advanceDeployment = $publishSteps->get('Advance the digest-pinned Stage deployment branch');
+
+    expect($workflow['jobs']['validate']['outputs']['fuji_image'] ?? null)
+        ->toBe('${{ steps.source.outputs.fuji_image }}')
+        ->and($fujiBuild)->toBeArray()
+        ->and($fujiBuild['id'] ?? null)->toBe('fuji-build')
+        ->and($fujiBuild['with']['context'] ?? null)->toBe('.')
+        ->and($fujiBuild['with']['file'] ?? null)->toBe('Dockerfile.fuji')
+        ->and($fujiBuild['with']['push'] ?? null)->toBeTrue()
+        ->and($fujiBuild['with']['tags'] ?? null)->toBe('${{ needs.validate.outputs.fuji_image }}:sha-${{ needs.validate.outputs.sha }}');
 
     expect($workflowContents)
         ->not->toContain('uses: actions/cache@')
@@ -162,11 +174,13 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->toBe('${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}')
         ->and($publishedDigestScan['env']['NGINX_IMAGE_REF'] ?? null)
         ->toBe('${{ needs.validate.outputs.nginx_image }}@${{ steps.nginx-build.outputs.digest }}')
+        ->and($publishedDigestScan['env']['FUJI_IMAGE_REF'] ?? null)
+        ->toBe('${{ needs.validate.outputs.fuji_image }}@${{ steps.fuji-build.outputs.digest }}')
         ->and($publishedDigestScan['env']['TRIVY_PASSWORD'] ?? null)
         ->toBe('${{ secrets.GITHUB_TOKEN }}')
         ->and($publishedDigestScan['run'] ?? null)
         ->toBeString()
-        ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"')
+        ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do')
         ->toContain('@sha256:[0-9a-f]{64}$')
         ->toContain('aquasec/trivy:0.74.0@sha256:')
         ->toContain('-v "${{ runner.temp }}/trivy-cache:/root/.cache/trivy"')
@@ -179,11 +193,18 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->toBeArray()
         ->and($createDeployment['id'] ?? null)->toBe('deployment')
         ->and($createDeployment['if'] ?? null)->toBe("steps.latest.outputs.current == 'true'")
+        ->and($createDeployment['env']['FUJI_DIGEST'] ?? null)->toBe('${{ steps.fuji-build.outputs.digest }}')
+        ->and($createDeployment['env']['FUJI_IMAGE'] ?? null)->toBe('${{ needs.validate.outputs.fuji_image }}')
         ->and($createDeployment['run'] ?? null)
         ->toBeString()
         ->toContain('^sha256:[0-9a-f]{64}$')
+        ->toContain('if [[ ! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]')
         ->toContain('APP_TEMPLATE="${APP_IMAGE}:deployment-template"')
         ->toContain('NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"')
+        ->toContain('FUJI_TEMPLATE="${FUJI_IMAGE}:deployment-template"')
+        ->toContain('"$FUJI_TEMPLATE_COUNT" -ne 1')
+        ->toContain('sed -i "s|${FUJI_TEMPLATE}|${FUJI_IMAGE}@${FUJI_DIGEST}|g" docker-compose.stage.yml')
+        ->toContain('grep -Fq "$FUJI_TEMPLATE" docker-compose.stage.yml')
         ->toContain('docker compose -f docker-compose.stage.yml config --quiet')
         ->toContain('git ls-remote --heads origin refs/heads/deploy/stage')
         ->toContain('PARENTS=(-p "$PREVIOUS_DEPLOY_SHA")')
@@ -208,11 +229,13 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
 
     $publishStepNames = collect($workflow['jobs']['publish']['steps'] ?? [])->pluck('name')->values();
     $nginxBuildPosition = $publishStepNames->search('Build and push Nginx image');
+    $fujiBuildPosition = $publishStepNames->search('Build and push F-UJI image with Chromium');
     $digestScanPosition = $publishStepNames->search('Scan exact published image digests');
     $deploymentPosition = $publishStepNames->search('Create digest-pinned Stage deployment commit');
 
     expect($nginxBuildPosition)->toBeInt()
-        ->and($digestScanPosition)->toBeInt()->toBeGreaterThan($nginxBuildPosition)
+        ->and($fujiBuildPosition)->toBeInt()->toBeGreaterThan($nginxBuildPosition)
+        ->and($digestScanPosition)->toBeInt()->toBeGreaterThan($fujiBuildPosition)
         ->and($deploymentPosition)->toBeInt()->toBeGreaterThan($digestScanPosition);
 });
 

@@ -245,7 +245,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
+    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji:deployment-template}"
     container_name: ernie-fuji-prod
     restart: unless-stopped
     entrypoint:
@@ -486,6 +486,7 @@ services:
       - PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS=${PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS:-300}
       - INERTIA_SSR_ENABLED=false
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}
       - FUJI_ASSESSMENT_QUEUE=${FUJI_ASSESSMENT_QUEUE:-assessments}
       - DB_HOST=db

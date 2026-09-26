@@ -587,6 +587,24 @@ erDiagram
         text error_message "nullable"
         json payload "nullable"
         timestamp assessed_at "nullable"
+        timestamp assessment_started_at "nullable, microsecond precision for result ordering"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    resource_assessment_refreshes {
+        bigint resource_id PK, FK "1:1 with resources, cascade delete"
+        varchar status "20, indexed"
+        int generation "unsigned, default 1"
+        uuid claim_token "nullable"
+        bigint queue_job_id "nullable, queued database job ID"
+        smallint attempts "unsigned, default 0"
+        smallint service_attempts "unsigned, default 0"
+        timestamp requested_at "microsecond precision for publication ordering"
+        timestamp available_at "nullable, indexed"
+        timestamp lease_expires_at "nullable, indexed"
+        timestamp completed_at "nullable"
+        text last_error "nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -1355,6 +1373,7 @@ erDiagram
     resources ||--o{ sizes : "has"
     resources ||--o{ formats : "has"
     resources ||--o| resource_assessments : "has latest assessment"
+    resources ||--o| resource_assessment_refreshes : "has publication refresh"
     resources ||--o| landing_pages : "has"
     resources ||--o{ alternate_identifiers : "has"
 
