@@ -18,9 +18,11 @@ use App\Models\PidSetting;
 use App\Models\RelationType;
 use App\Models\ResourceType;
 use App\Models\Right;
+use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Services\KeywordSuggestionService;
+use App\Services\LandingPageDownloadUrlSuggestionService;
 use App\Services\Pid4instStatusService;
 use App\Services\RaidStatusService;
 use App\Services\RorStatusService;
@@ -180,6 +182,8 @@ class EditorSettingsController extends Controller
             'descriptionTypes' => $descriptionTypes,
             'thesauri' => $thesauri,
             'pidSettings' => $pidSettings,
+            'downloadUrlSuggestions' => app(LandingPageDownloadUrlSuggestionService::class)->suggestions(limit: false)['domains'],
+            'downloadUrlSuggestionOrder' => app(LandingPageDownloadUrlSuggestionService::class)->order(),
             'landingPageDomains' => LandingPageDomain::orderBy('domain')->get(['id', 'domain']),
             'contributorPersonRoles' => $contributorPersonRoles,
             'contributorInstitutionRoles' => $contributorInstitutionRoles,
@@ -206,6 +210,13 @@ class EditorSettingsController extends Controller
         // Using direct DB updates instead of Eloquent for efficiency
         DB::transaction(function () use ($validated): void {
             $now = now();
+            if (array_key_exists('downloadUrlSuggestionOrder', $validated)) {
+                Setting::updateOrCreate(
+                    ['key' => LandingPageDownloadUrlSuggestionService::SETTING_KEY],
+                    ['value' => json_encode(array_values($validated['downloadUrlSuggestionOrder']), JSON_THROW_ON_ERROR)],
+                );
+                LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
+            }
 
             // Update resource types
             /** @var array<int, array{id: int, name: string, active: bool, elmo_active: bool}> $resourceTypes */

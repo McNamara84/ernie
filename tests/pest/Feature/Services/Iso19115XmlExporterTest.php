@@ -807,12 +807,13 @@ test('distribution links follow landing-page publication and download-availabili
         'resource_id' => $unavailableResource->id,
         'doi_prefix' => '10.5880/test.iso.unavailable',
         'slug' => 'unavailable-downloads',
-        'downloads_unavailable' => true,
     ]);
     $unavailableLandingPage->files()->create([
         'url' => 'https://downloads.example.org/hidden.nc',
         'position' => 0,
     ]);
+
+    $unavailableLandingPage->update(['downloads_unavailable' => true]);
 
     $unavailableXml = $exporter->export($unavailableResource->fresh());
     [, $unavailableXpath] = parseIso19115($unavailableXml);

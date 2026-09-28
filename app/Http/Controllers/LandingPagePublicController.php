@@ -16,6 +16,7 @@ use App\Services\DataPublicationTeamRecipientService;
 use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
+use App\Services\LandingPageDownloadAvailabilityService;
 use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
@@ -490,6 +491,15 @@ class LandingPagePublicController extends Controller
     private function applyDownloadsUnavailableDisplayPolicy(array $landingPageData): array
     {
         if (($landingPageData['downloads_unavailable'] ?? false) !== true) {
+            $availability = app(LandingPageDownloadAvailabilityService::class);
+            if (! $availability->isUsableUrl($landingPageData['ftp_url'] ?? null)) {
+                $landingPageData['ftp_url'] = null;
+            }
+            $landingPageData['files'] = array_values(array_filter(
+                is_array($landingPageData['files'] ?? null) ? $landingPageData['files'] : [],
+                fn (mixed $file): bool => is_array($file) && $availability->isUsableUrl($file['url'] ?? null),
+            ));
+
             return $landingPageData;
         }
 

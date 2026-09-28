@@ -9,6 +9,7 @@ use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\LandingPageDownloadUrlSuggestionService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
@@ -29,6 +30,8 @@ class LandingPageObserver
 
     public function created(LandingPage $landingPage): void
     {
+        LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
+
         $this->invalidateIgsnFamily($landingPage);
 
         if ($landingPage->is_published) {
@@ -51,6 +54,8 @@ class LandingPageObserver
      */
     public function updated(LandingPage $landingPage): void
     {
+        LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
+
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
 
@@ -105,6 +110,8 @@ class LandingPageObserver
 
     public function deleted(LandingPage $landingPage): void
     {
+        LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
+
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
 
