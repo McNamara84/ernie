@@ -382,7 +382,7 @@ test('unverified users can open the changelog from the sidebar and footer', asyn
     }
 
     // The regression was reported when following the sidebar link after login.
-    await page.getByRole('link', { name: 'Changelog', exact: true }).click();
+    await page.locator('[data-sidebar="sidebar"]').getByRole('link', { name: 'Changelog', exact: true }).click();
     await expect(page).toHaveURL(/\/changelog(?:#.*)?$/);
     await expect(page.getByRole('heading', { name: 'Changelog', exact: true })).toBeVisible();
     await expect(page.getByRole('list', { name: 'Changelog Timeline' })).toBeVisible();
