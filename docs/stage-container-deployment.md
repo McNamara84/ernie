@@ -231,9 +231,10 @@ workflow uses the repository's built-in `GITHUB_TOKEN`.
 
 ### Portainer reports manifest unknown or unauthorized
 
-Confirm that both pinned digests exist. For private packages, verify the
-Portainer GHCR username, the token's `read:packages` scope, package access, and
-that the registry is selected for the stack.
+Confirm that all three pinned digests exist in `ernie-app`, `ernie-nginx`, and
+`ernie-fuji`. For private packages, verify the Portainer GHCR username, the
+token's `read:packages` scope, access to each package, and that the registry is
+selected for the stack.
 
 ### The deploy branch does not move
 
