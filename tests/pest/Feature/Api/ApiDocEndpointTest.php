@@ -58,7 +58,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/changelog.get.tags.0', 'Changelog')
         ->assertJsonPath('paths./api/changelog.get.security.0.LaravelSession', [])
         ->assertJsonPath('paths./api/changelog.get.responses.401.description', 'Authentication required. The request must include a valid ERNIE session.')
-        ->assertJsonPath('paths./api/changelog.get.responses.403.description', "The signed-in user's email address is not verified.")
+        ->assertJsonMissingPath('paths./api/changelog.get.responses.403')
         ->assertJsonPath('paths./api/changelog.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ChangelogRelease')
         ->assertJsonPath('paths./api/changelog.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/ErrorResponse')
         ->assertJsonPath('components.schemas.ChangelogRelease.properties.features.items.$ref', '#/components/schemas/ChangelogEntry')

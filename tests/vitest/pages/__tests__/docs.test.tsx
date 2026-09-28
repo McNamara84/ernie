@@ -139,7 +139,7 @@ describe('Docs page', () => {
         const heading = screen.getByRole('heading', { name: 'Review Release Changes and Their GitHub Context' });
         const sectionContent = heading.parentElement;
 
-        expect(sectionContent?.textContent).toMatch(/after signing in and verifying your email address/i);
+        expect(sectionContent?.textContent).toMatch(/after signing in, open Changelog/i);
         expect(sectionContent?.textContent).toMatch(/Related row lists every associated issue and pull request/i);
         expect(sectionContent?.textContent).toMatch(/Issue # link to review the original requirement or problem report/i);
         expect(sectionContent?.textContent).toMatch(/PR # link to review the implementation and code discussion/i);

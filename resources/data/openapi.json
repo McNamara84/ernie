@@ -65,7 +65,7 @@
             "get": {
                 "tags": ["Changelog"],
                 "summary": "List changelog releases",
-                "description": "Requires an authenticated, verified ERNIE browser session. Returns releases and their feature, improvement, and fix entries. Entries may include related GitHub issue and pull-request references.",
+                "description": "Requires an authenticated ERNIE browser session. Email verification is not required. Returns releases and their feature, improvement, and fix entries. Entries may include related GitHub issue and pull-request references.",
                 "security": [
                     {
                         "LaravelSession": []
@@ -87,9 +87,6 @@
                     },
                     "401": {
                         "description": "Authentication required. The request must include a valid ERNIE session."
-                    },
-                    "403": {
-                        "description": "The signed-in user's email address is not verified."
                     },
                     "500": {
                         "description": "The changelog data is malformed.",

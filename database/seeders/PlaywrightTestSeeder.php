@@ -156,6 +156,18 @@ class PlaywrightTestSeeder extends Seeder
             ]
         );
 
+        // Keep a dedicated account unverified to cover real account provisioning.
+        User::updateOrCreate(
+            ['email' => 'changelog-unverified@example.com'],
+            [
+                'name' => 'Unverified Changelog Reader',
+                'password' => $this->hashedPassword,
+                'role' => UserRole::BEGINNER,
+                'is_active' => true,
+                'email_verified_at' => null,
+            ]
+        );
+
         $this->seedPlaywrightE2eResources($testUser);
 
         // Seed comprehensive test resources for landing page tests

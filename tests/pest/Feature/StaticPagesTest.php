@@ -49,14 +49,13 @@ it('redirects guests away from the changelog', function () {
     $this->get(route('changelog'))->assertRedirect(route('login'));
 });
 
-it('redirects unverified users away from the changelog', function () {
-    $this->actingAs(User::factory()->unverified()->create())
-        ->get(route('changelog'))
-        ->assertRedirect(route('verification.notice'));
-});
-
-it('displays the changelog for every verified internal role', function (UserRole $role) {
+it('displays the changelog for every internal role regardless of email verification', function (UserRole $role, bool $verified) {
     withoutVite();
-    $response = $this->actingAs(User::factory()->create(['role' => $role]))->get(route('changelog'))->assertOk();
+    $user = User::factory()->create([
+        'role' => $role,
+        'email_verified_at' => $verified ? now() : null,
+    ]);
+
+    $response = $this->actingAs($user)->get(route('changelog'))->assertOk();
     $response->assertInertia(fn (Assert $page) => $page->component('changelog'));
-})->with(UserRole::cases());
+})->with(UserRole::cases())->with(['verified' => true, 'unverified' => false]);

@@ -332,9 +332,12 @@ Run with both test roles where applicable.
 
 - [ ] Guests cannot read `/changelog` or `/api/changelog`. The public footer
       shows the version as text without a Changelog link.
-- [ ] A signed-in, verified user can open Changelog from the active left sidebar.
-      The newest release is expanded alone by default; other releases can be
-      opened and closed using mouse or keyboard.
+- [ ] A signed-in user can open Changelog from the active left sidebar and the
+      footer, with or without a verified email address. Test all internal roles,
+      including an account created through the invitation or `add-user` flow.
+      `/api/changelog` loads successfully with the same session. The newest
+      release is expanded alone by default; other releases can be opened and
+      closed using mouse or keyboard.
 - [ ] The right-side version list shows large labeled buttons and the Major,
       Minor, and Patch color legend. Mobile users can open the version menu.
       Direct `#v...` links select the requested release.

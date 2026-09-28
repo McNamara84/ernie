@@ -5,7 +5,7 @@ import { about, changelog as changelogRoute, legalNotice } from '@/routes';
 import { type SharedData } from '@/types';
 
 export function AppFooter() {
-    const canViewChangelog = Boolean(usePage<SharedData>().props.auth.user?.email_verified_at);
+    const canViewChangelog = Boolean(usePage<SharedData>().props.auth.user);
 
     return (
         <footer className="border-t py-4 text-sm text-neutral-600 dark:text-neutral-300">
