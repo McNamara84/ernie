@@ -156,9 +156,6 @@ export default function Changelog() {
                 if (res.status === 401) {
                     throw new Error('Your session has expired. Reload to sign in again.');
                 }
-                if (res.status === 403) {
-                    throw new Error('Your email address must be verified to view the changelog.');
-                }
                 if (!res.ok) {
                     throw new Error('Failed to fetch changelog');
                 }

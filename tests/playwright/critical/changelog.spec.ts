@@ -367,6 +367,30 @@ test.describe('Changelog Page', () => {
     });
 });
 
+test('unverified users can open the changelog from the sidebar and footer', async ({ page }) => {
+    await loginAsTestUser(page, 'changelog-unverified@example.com', 'password');
+
+    // The regression was reported when following the sidebar link after login.
+    await page.getByRole('link', { name: 'Changelog', exact: true }).click();
+    await expect(page).toHaveURL(/\/changelog(?:#.*)?$/);
+    await expect(page.getByRole('heading', { name: 'Changelog', exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Changelog Timeline' })).toBeVisible();
+    await expect(page.locator('#release-trigger-0')).toHaveAttribute('aria-expanded', 'true');
+
+    const response = await page.request.get('/api/changelog', { headers: { Accept: 'application/json' } });
+    expect(response.status()).toBe(200);
+    expect(response.headers()['cache-control']).toBe('no-store, private');
+    expect(await response.json()).toEqual(expect.arrayContaining([expect.objectContaining({ version: expect.any(String) })]));
+
+    await page.goto('/about');
+    await page
+        .getByRole('contentinfo')
+        .getByRole('link', { name: /view changelog for version/i })
+        .click();
+    await expect(page).toHaveURL(/\/changelog(?:#.*)?$/);
+    await expect(page.getByRole('list', { name: 'Changelog Timeline' })).toBeVisible();
+});
+
 test('guests cannot read the changelog page or JSON', async ({ page, request }) => {
     await page.goto('/changelog');
     await expect(page).toHaveURL(/\/login(?:\?|$)/);

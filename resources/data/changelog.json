@@ -79,7 +79,7 @@
             },
             {
                 "title": "Internal Changelog Navigation",
-                "description": "The Changelog now uses the regular signed-in sidebar and a labeled version menu with a Major, Minor, and Patch color legend. Only the newest release starts expanded, and version links keep their direct navigation. The page and its release data require a verified ERNIE session; public pages still display the version number without linking to the private Changelog.",
+                "description": "The Changelog now uses the regular signed-in sidebar and a labeled version menu with a Major, Minor, and Patch color legend. Only the newest release starts expanded, and version links keep their direct navigation. The page and its release data require an authenticated ERNIE session, regardless of email verification; guests still see the version number without a link to the private Changelog.",
                 "references": [
                     {
                         "type": "issue",

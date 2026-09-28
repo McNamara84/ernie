@@ -50,17 +50,11 @@ describe('AppFooter', () => {
         expect(screen.getByRole('link', { name: /legal notice/i })).toHaveAttribute('href', '/legal-notice');
     });
 
-    it('shows the version as plain text for unverified users', () => {
-        usePageMock.mockReturnValue({ props: { auth: { user: { email_verified_at: null } } } });
-
-        render(<AppFooter />);
-
-        expect(screen.getByText(`ERNIE v${latestVersion}`)).toBeInTheDocument();
-        expect(screen.queryByRole('link', { name: /view changelog/i })).not.toBeInTheDocument();
-    });
-
-    it('links the version to the changelog for verified users', () => {
-        usePageMock.mockReturnValue({ props: { auth: { user: { email_verified_at: '2026-09-25T00:00:00Z' } } } });
+    it.each([
+        ['verified', '2026-09-25T00:00:00Z'],
+        ['unverified', null],
+    ])('links the version to the changelog for %s users', (_state, emailVerifiedAt) => {
+        usePageMock.mockReturnValue({ props: { auth: { user: { email_verified_at: emailVerifiedAt } } } });
 
         render(<AppFooter />);
 

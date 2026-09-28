@@ -372,7 +372,7 @@ describe('Changelog', () => {
 
     it.each([
         [401, /session has expired/i],
-        [403, /email address must be verified/i],
+        [403, /unable to load changelog/i],
     ])('explains a %i response from the protected changelog API', async (status, message) => {
         (global.fetch as unknown as Mock).mockResolvedValueOnce({ ok: false, status, json: vi.fn() });
 

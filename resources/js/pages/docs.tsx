@@ -256,8 +256,8 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                     <>
                         <h3>Review Release Changes and Their GitHub Context</h3>
                         <p>
-                            After signing in and verifying your email address, open <strong>Changelog</strong> from the ERNIE sidebar or visit{' '}
-                            <code>/changelog</code> to review the changes in each release. Use the version list to jump to an entry.
+                            After signing in, open <strong>Changelog</strong> from the ERNIE sidebar or visit <code>/changelog</code> to review the
+                            changes in each release. Use the version list to jump to an entry.
                         </p>
 
                         <h4>Related GitHub References</h4>

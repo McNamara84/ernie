@@ -259,12 +259,12 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
     });
 }
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::middleware('changelog.verified')->group(function () {
-        Route::get('/changelog', [StaticPageController::class, 'changelog'])->name('changelog');
-        Route::get('/api/changelog', [ChangelogController::class, 'index'])->name('api.changelog');
-    });
+Route::middleware('auth')->group(function () {
+    Route::get('/changelog', [StaticPageController::class, 'changelog'])->name('changelog');
+    Route::get('/api/changelog', [ChangelogController::class, 'index'])->name('api.changelog');
+});
 
+Route::middleware(['auth', 'verified'])->group(function () {
     // Assistance routes are registered dynamically by AssistantServiceProvider.
     // @see \App\Providers\AssistantServiceProvider::registerRoutes()
 
