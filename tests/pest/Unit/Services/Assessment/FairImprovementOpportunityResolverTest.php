@@ -551,7 +551,7 @@ it('selects absent draft and published landing-page actions from local state', f
             landingPageUsesHttps: true,
         ),
         'administrator',
-        'Make the published ERNIE landing page\'s Schema.org metadata crawlable in the initial server response.',
+        'F-UJI did not recognize searchable Schema.org metadata for the published ERNIE landing page. Check the DOI resolver target and F-UJI harvest details.',
     ],
 ]);
 

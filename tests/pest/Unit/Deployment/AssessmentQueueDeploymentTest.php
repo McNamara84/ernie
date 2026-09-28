@@ -80,7 +80,7 @@ it('does not let the general worker bypass assessment concurrency and rate limit
     'production' => 'docker-compose.prod.yml',
 ]);
 
-it('forwards the assessment queue identity and limiter settings to every app container', function (string $composeFile): void {
+it('forwards assessment enablement and queue settings to every app container', function (string $composeFile): void {
     $compose = assessmentCompose($composeFile);
     $environment = $compose['services']['app']['environment'] ?? [];
     $schedulerEnvironment = $compose['services']['scheduler']['environment'] ?? [];
@@ -96,6 +96,7 @@ it('forwards the assessment queue identity and limiter settings to every app con
 
     expect($schedulerEnvironment)
         ->toBeArray()
+        ->toContain('FUJI_ENABLED=${FUJI_ENABLED:-false}')
         ->toContain('FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}')
         ->toContain('FUJI_ASSESSMENT_QUEUE=${FUJI_ASSESSMENT_QUEUE:-assessments}');
 })->with([

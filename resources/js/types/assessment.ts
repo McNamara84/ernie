@@ -44,6 +44,14 @@ export interface AssessmentEntry {
     mainTitle: string;
     score: number;
     assessedAt: string | null;
+    assessmentState?: 'provisional' | 'pending' | 'processing' | 'failed' | 'stale' | 'current';
+    diagnostics?: {
+        softwareVersion: string | null;
+        metricVersion: string | null;
+        resolvedUrl: string | null;
+        f4Status: string | null;
+        metadataSources: { source: string | null; format: string | null; schema: string | null; url: string | null }[];
+    } | null;
     hasPendingSuggestions: boolean;
     improvementOpportunity: FairImprovementOpportunity;
 }

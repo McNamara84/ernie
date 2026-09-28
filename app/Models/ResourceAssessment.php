@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $error_message
  * @property array<string, mixed>|null $payload
  * @property Carbon|null $assessed_at
+ * @property Carbon|null $assessment_started_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Resource $resource
@@ -59,6 +60,7 @@ class ResourceAssessment extends Model
         'error_message',
         'payload',
         'assessed_at',
+        'assessment_started_at',
     ];
 
     /**
@@ -69,7 +71,16 @@ class ResourceAssessment extends Model
         'total_score' => 'decimal:2',
         'payload' => 'array',
         'assessed_at' => 'datetime',
+        'assessment_started_at' => 'datetime',
     ];
+
+    public function setAssessmentStartedAtAttribute(Carbon|string|null $value): void
+    {
+        // Eloquent's default date format drops microseconds before the database write.
+        $this->attributes['assessment_started_at'] = $value === null
+            ? null
+            : Carbon::parse($value)->format('Y-m-d H:i:s.u');
+    }
 
     /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo

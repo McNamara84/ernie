@@ -62,7 +62,7 @@ jobs:
 
       - name: Setup npm
         if: ${{ matrix.slice != 'architecture' }}
-        run: npm install --global npm@12.0.2
+        run: npm install --global npm@12.1.0
 
       - name: Install Node dependencies
         if: ${{ matrix.slice != 'architecture' }}
@@ -156,7 +156,7 @@ jobs:
           merge-multiple: true
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage-serial.xml,coverage-parallel-1.xml,coverage-parallel-2.xml

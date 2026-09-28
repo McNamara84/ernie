@@ -1,12 +1,12 @@
 # Stage deployment from prebuilt container images
 
 Stage does not build ERNIE images on RZ-VM182. GitHub Actions builds the
-application and Nginx images, publishes them to GitHub Container Registry
+application, Nginx, and F-UJI images, publishes them to GitHub Container Registry
 (GHCR), and creates a machine-managed `deploy/stage` commit whose Compose file
-pins both images by immutable digest.
+pins all three images by immutable digest.
 
 Production promotion remains separate from this workflow. It promotes a
-published latest stable release only after locating the exact digest pair in
+published latest stable release only after locating the exact image digests in
 Stage deployment history. See
 [production-container-deployment.md](production-container-deployment.md).
 
@@ -14,16 +14,17 @@ Stage deployment history. See
 
 1. Feature and fix branches are reviewed and merged into `main`.
 2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
-   the merged commit. The security gate builds and scans both deployable
-   runtime targets (`app` and `nginx`) for HIGH and CRITICAL vulnerabilities.
+   the merged commit. The security gate builds and scans all three deployable
+   runtime images (`app`, `nginx`, and F-UJI with Chromium) for fixable HIGH and
+   CRITICAL vulnerabilities. F-UJI also gets a dependency and browser smoke check.
 3. `Publish Stage Images` verifies that all five workflows succeeded for the
    exact current `main` commit, then builds and pushes the images under
    traceable `sha-<full-commit-sha>` tags.
-4. The publication job scans the exact pushed application and Nginx digest
-   references. A HIGH or CRITICAL vulnerability in either published image
+4. The publication job scans the exact pushed application, Nginx, and F-UJI digest
+   references. A HIGH or CRITICAL vulnerability in any published image
    stops the workflow before it can change `deploy/stage`.
 5. The workflow creates a deployment commit derived from that source commit.
-   Its Stage Compose file pins the application and Nginx images as
+   Its Stage Compose file pins the application, Nginx, and F-UJI images as
    `ghcr.io/...@sha256:<digest>`.
 6. If the source commit is still the head of `main`, the workflow advances
    `deploy/stage` to the digest-pinned deployment commit.
@@ -40,6 +41,7 @@ The published images are:
 
 - `ghcr.io/mcnamara84/ernie-app:sha-<full-commit-sha>`
 - `ghcr.io/mcnamara84/ernie-nginx:sha-<full-commit-sha>`
+- `ghcr.io/mcnamara84/ernie-fuji:sha-<full-commit-sha>` (F-UJI 4.0.1 with Chromium)
 
 The generated deployment Compose file does not use mutable `stage` tags. It
 references the exact digest produced by each image build. Therefore a manual
@@ -83,7 +85,7 @@ Merge the implementation into `main`. Wait for:
    `Linter Tests`, and `Playwright UI Tests` to succeed;
 2. `Publish Stage Images` to publish the validated commit.
 
-The second workflow creates the two GHCR packages and the digest-pinned
+The second workflow creates the three GHCR packages and the digest-pinned
 `deploy/stage` branch. It intentionally has no `workflow_dispatch` trigger:
 manual dispatch can target another branch and would execute that branch's
 workflow definition with the publish job's write-scoped token.
@@ -97,19 +99,20 @@ receives HTTP 403, verify the repository or organization policy under
 requested write scopes.
 
 Before the publish job creates or advances `deploy/stage`, it scans the exact
-application and Nginx digest references it just pushed. This closes the gap
+application, Nginx, and F-UJI digest references it just pushed. This closes the gap
 between the earlier validation build and the artifacts that Portainer will
 actually deploy, including when package repositories changed between the two
 builds.
 
 ### 4. Choose GHCR visibility
 
-After their first publication, open both package settings on GitHub:
+After their first publication, open all three package settings on GitHub:
 
 - `ernie-app`;
-- `ernie-nginx`.
+- `ernie-nginx`;
+- `ernie-fuji`.
 
-Either make both packages public or keep both private.
+Either make all three packages public or keep all three private.
 
 For private packages, add `ghcr.io` as a custom registry in Portainer. Use
 the GitHub username and a classic personal access token with at least
@@ -154,7 +157,8 @@ Portainer must show these image references:
 
 - `app`, `queue`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
-- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`.
+- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
+- `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
 
 There must be no local ERNIE Docker build in the Portainer deployment log.
 Verify that:
@@ -167,6 +171,15 @@ Verify that:
 
 ## Normal operation
 
+If `Scan exact published image digests` fails, inspect the findings for each
+image before retrying. A repeat run against the same pinned dependencies will
+not remove a finding. The failed runs on 26 and 28 September 2026 both reported
+`msgpack 1.1.2` and `setuptools 70.3.0` bundled inside F-UJI's pip installer,
+while the app and Nginx scans passed. `Dockerfile.fuji` now removes pip and its
+ensurepip bootstrap after installing and checking runtime dependencies. The
+Security Checks workflow also builds, tests, and scans F-UJI before publication,
+so a failing F-UJI image blocks the earlier validation gate as well.
+
 After the one-time rollout, the normal developer process remains unchanged:
 
 1. create a feature or fix branch from `main`;
@@ -178,7 +191,7 @@ After the one-time rollout, the normal developer process remains unchanged:
 If another commit reaches `main` while images are building, the final head
 guard normally skips the older deployment and the newer validated workflow
 replaces it. Even if `main` changes at the final update boundary, every
-deployment commit remains internally consistent because it pins both image
+deployment commit remains internally consistent because it pins all image
 digests; a later pull can never silently substitute images from another
 commit.
 
@@ -194,13 +207,14 @@ lint/PHPStan, and Playwright push workflows for that exact commit.
 ## Rollback
 
 Every deployment commit records immutable image digests. To restore a previous
-pair, read both digest references from the corresponding `deploy/stage` commit
-and set these two Stage stack variables in Portainer:
+deployment, read all digest references from the corresponding `deploy/stage` commit
+and set these three Stage stack variables in Portainer:
 
 - `ERNIE_STAGE_APP_IMAGE=ghcr.io/mcnamara84/ernie-app@sha256:<good-digest>`
+- `ERNIE_STAGE_FUJI_IMAGE=ghcr.io/mcnamara84/ernie-fuji@sha256:<good-digest>`
 - `ERNIE_STAGE_NGINX_IMAGE=ghcr.io/mcnamara84/ernie-nginx@sha256:<good-digest>`
 
-Use both digests from the same deployment commit and manually pull/redeploy
+Use all three digests from the same deployment commit and manually pull/redeploy
 the stack. Remove the overrides to return to the automatically maintained,
 digest-pinned deployment branch.
 
@@ -217,9 +231,10 @@ workflow uses the repository's built-in `GITHUB_TOKEN`.
 
 ### Portainer reports manifest unknown or unauthorized
 
-Confirm that both pinned digests exist. For private packages, verify the
-Portainer GHCR username, the token's `read:packages` scope, package access, and
-that the registry is selected for the stack.
+Confirm that all three pinned digests exist in `ernie-app`, `ernie-nginx`, and
+`ernie-fuji`. For private packages, verify the Portainer GHCR username, the
+token's `read:packages` scope, access to each package, and that the registry is
+selected for the stack.
 
 ### The deploy branch does not move
 

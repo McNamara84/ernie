@@ -99,6 +99,7 @@ class RunResourceAssessmentsJob implements ShouldQueue
 
             foreach ($query->lazyById(100) as $resource) {
                 $processedResources++;
+                $assessmentStartedAt = now();
 
                 try {
                     $skipReason = $this->resolveSkipReason($resource);
@@ -112,7 +113,8 @@ class RunResourceAssessmentsJob implements ShouldQueue
                                 'assessed_identifier' => $resource->doi,
                                 'error_message' => $skipReason,
                                 'payload' => null,
-                                'assessed_at' => now(),
+                                'assessed_at' => $assessmentStartedAt,
+                                'assessment_started_at' => $assessmentStartedAt,
                             ],
                         );
 
@@ -128,7 +130,8 @@ class RunResourceAssessmentsJob implements ShouldQueue
                                 'assessed_identifier' => $resource->doi,
                                 'error_message' => null,
                                 'payload' => $result['payload'],
-                                'assessed_at' => now(),
+                                'assessed_at' => $assessmentStartedAt,
+                                'assessment_started_at' => $assessmentStartedAt,
                             ],
                         );
 
@@ -143,7 +146,8 @@ class RunResourceAssessmentsJob implements ShouldQueue
                             'assessed_identifier' => $resource->doi,
                             'error_message' => $exception->getMessage(),
                             'payload' => null,
-                            'assessed_at' => now(),
+                            'assessed_at' => $assessmentStartedAt,
+                            'assessment_started_at' => $assessmentStartedAt,
                         ],
                     );
 

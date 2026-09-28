@@ -139,7 +139,7 @@ describe('Docs page', () => {
         const heading = screen.getByRole('heading', { name: 'Review Release Changes and Their GitHub Context' });
         const sectionContent = heading.parentElement;
 
-        expect(sectionContent?.textContent).toMatch(/after signing in and verifying your email address/i);
+        expect(sectionContent?.textContent).toMatch(/after signing in, open Changelog/i);
         expect(sectionContent?.textContent).toMatch(/Related row lists every associated issue and pull request/i);
         expect(sectionContent?.textContent).toMatch(/Issue # link to review the original requirement or problem report/i);
         expect(sectionContent?.textContent).toMatch(/PR # link to review the implementation and code discussion/i);
@@ -398,7 +398,13 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByText(/Resource and IGSN rankings are always displayed as separate cards, one below the other/)).toBeInTheDocument();
-        expect(document.body).not.toHaveTextContent('F-UJI');
+        expect(
+            screen.getByText(
+                (_, element) =>
+                    element?.tagName === 'P' &&
+                    (element.textContent?.includes('A DOI assessment before its landing page is published is marked') ?? false),
+            ),
+        ).toHaveTextContent('F-UJI details');
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -1521,15 +1527,21 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
-    it('makes the homepage topic workflow available to beginners', async () => {
+    it('makes the Find overview and homepage topic workflows available to beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
+        expect(screen.getByRole('heading', { name: 'Finding the Right Service', level: 4 })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Find overview' })).toHaveAttribute('href', '/find');
+        expect(screen.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
+        expect(screen.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         const heading = screen.getByRole('heading', { name: 'Starting with a Science Topic', level: 4 });
         expect(screen.getByRole('link', { name: 'GFZ Data Services homepage' })).toHaveAttribute('href', '/');
         expect(screen.getByRole('link', { name: 'Volcanism' })).toHaveAttribute('href', '/doi-search?topic=volcanism');
         const content = heading.parentElement?.textContent?.replace(/\s+/g, ' ');
+        expect(content).toContain('open Find and select Overview');
+        expect(content).toContain('On smaller screens, open the menu and select Overview in the Find group');
         expect(content).toContain('Science topic panel below the search field');
         expect(content).toContain('open the Filters drawer to find this panel');
         expect(content).toContain('the topic remains active and combines with those selections');

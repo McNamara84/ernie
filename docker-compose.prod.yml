@@ -209,7 +209,7 @@ services:
       - "traefik.docker.network=traefik"
 
   db:
-    image: mysql:9.7.2@sha256:29abb0a179982e4a8928138bfc7f918af9eda64e7eeb1b1d084c1720a20159e6
+    image: mysql:9.7.2@sha256:30a0abfa7b502a496e12339b54cd07aaa70363396dc4b8e8a72a92804a505cd6
     container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
@@ -232,7 +232,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
     container_name: dockerized-laravel-redis
     restart: unless-stopped
     networks:
@@ -245,7 +245,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
+    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji:deployment-template}"
     container_name: ernie-fuji-prod
     restart: unless-stopped
     entrypoint:
@@ -486,6 +486,7 @@ services:
       - PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS=${PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS:-300}
       - INERTIA_SSR_ENABLED=false
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}
       - FUJI_ASSESSMENT_QUEUE=${FUJI_ASSESSMENT_QUEUE:-assessments}
       - DB_HOST=db

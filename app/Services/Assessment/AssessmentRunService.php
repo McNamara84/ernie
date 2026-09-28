@@ -428,6 +428,7 @@ final class AssessmentRunService
                         'error_message' => 'Resource has no DOI.',
                         'payload' => null,
                         'assessed_at' => $now,
+                        'assessment_started_at' => $now->format('Y-m-d H:i:s.u'),
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
@@ -442,7 +443,7 @@ final class AssessmentRunService
                 ResourceAssessment::query()->upsert(
                     $assessmentRows,
                     ['resource_id'],
-                    ['status', 'total_score', 'assessed_identifier', 'error_message', 'payload', 'assessed_at', 'updated_at'],
+                    ['status', 'total_score', 'assessed_identifier', 'error_message', 'payload', 'assessed_at', 'assessment_started_at', 'updated_at'],
                 );
             }
 

@@ -256,8 +256,8 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                     <>
                         <h3>Review Release Changes and Their GitHub Context</h3>
                         <p>
-                            After signing in and verifying your email address, open <strong>Changelog</strong> from the ERNIE sidebar or visit{' '}
-                            <code>/changelog</code> to review the changes in each release. Use the version list to jump to an entry.
+                            After signing in, open <strong>Changelog</strong> from the ERNIE sidebar or visit <code>/changelog</code> to review the
+                            changes in each release. Use the version list to jump to an entry.
                         </p>
 
                         <h4>Related GitHub References</h4>
@@ -1237,6 +1237,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             assessed raw opportunity while the tooltip asks you to run the assessment again before it derives new actions. A neutral
                             dash identifies either a zero-gap assessment or guidance that cannot be calculated from the stored details; its accessible
                             explanation states which case applies.
+                        </p>
+                        <p>
+                            A DOI assessment before its landing page is published is marked <strong>Provisional</strong>. When an existing assessed
+                            Resource landing page is published, ERNIE waits until the DOI resolver points to that page and automatically queues a
+                            fresh F-UJI assessment. The row shows when that reassessment is pending or running and updates after it finishes. If the
+                            automatic check fails, the previous score remains visible and the row marks the failure. Admins can expand
+                            <strong> F-UJI details</strong> to inspect the resolved URL, F4 test status, reported software and metric versions, and
+                            harvested metadata sources. A failed F4 check means F-UJI did not recognize searchable metadata; it does not by itself
+                            prove that the published page lacks Schema.org JSON-LD.
+                        </p>
+                        <p>
+                            Assessments from an older F-UJI version are marked as needing reassessment. After upgrading the service, an Admin or Group
+                            Leader can use <strong>Check Resources</strong> and <strong>Check IGSNs</strong> to refresh previously published records
+                            in a controlled run.
                         </p>
 
                         <h4>Workflow</h4>
@@ -2285,6 +2299,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <code>/igsn-search</code> is the supported search and map interface for published physical samples. Both support text,
                             free-keyword, spatial, temporal, and datacenter filters. Each portal also offers filters tailored to its records. Every
                             filter state is stored in the URL, so filtered views can be bookmarked and shared.
+                        </p>
+
+                        <h4>Finding the Right Service</h4>
+                        <p>
+                            The public <a href="/find">Find overview</a> at <code>/find</code> introduces the <a href="/doi-search">Data Portal</a>{' '}
+                            for research data and scientific software, the <a href="/igsn-search">IGSN Portal</a> for physical samples, Data Centres,
+                            and Research Infrastructures at GFZ. Follow the links on the overview to open the service you need. No sign-in is required
+                            to use the overview or either portal.
+                        </p>
+                        <p>
+                            On the public homepage and in either portal, open <strong>Find</strong> and select <strong>Overview</strong>. Overview is
+                            the first entry, followed by Data Portal and IGSN Portal. On smaller screens, open the menu and select Overview in the
+                            Find group. You can return to the overview from either portal using the same navigation.
                         </p>
 
                         <h4>Starting with a Science Topic</h4>

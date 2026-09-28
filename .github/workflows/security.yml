@@ -31,7 +31,7 @@ jobs:
           node-version-file: '.node-version'
 
       - name: Setup npm
-        run: npm install --global npm@12.0.2
+        run: npm install --global npm@12.1.0
 
       - name: Composer audit
         run: composer audit --locked
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Resolve system package refresh date
         id: system-packages-refresh
@@ -81,10 +81,28 @@ jobs:
             type=gha,scope=security-nginx
           cache-to: type=gha,mode=max,scope=security-nginx
 
+      - name: Build F-UJI image with Chromium
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile.fuji
+          load: true
+          tags: ernie-fuji-security-scan:${{ github.sha }}
+          build-args: |
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
+          cache-from: type=gha,scope=security-fuji
+          cache-to: type=gha,mode=max,scope=security-fuji
+
+      - name: Check F-UJI runtime and Chromium
+        run: |
+          docker run --rm -i --entrypoint python3 \
+            ernie-fuji-security-scan:${{ github.sha }} < scripts/check-fuji-runtime.py
+
       - name: Export runtime images
         run: |
           docker save -o ernie-app-security-scan.tar ernie-app-security-scan:${{ github.sha }}
           docker save -o ernie-nginx-security-scan.tar ernie-nginx-security-scan:${{ github.sha }}
+          docker save -o ernie-fuji-security-scan.tar ernie-fuji-security-scan:${{ github.sha }}
 
       - name: Cache Trivy databases
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -104,7 +122,7 @@ jobs:
           set -euo pipefail
           mkdir -p trivy-results
 
-          for target in app nginx; do
+          for target in app nginx fuji; do
             docker run --rm \
               -e TRIVY_DISABLE_VEX_NOTICE \
               -v "${{ github.workspace }}:/work" \
@@ -125,7 +143,7 @@ jobs:
         id: trivy-sarif
         if: always()
         run: |
-          for target in app nginx; do
+          for target in app nginx fuji; do
             if [ -s "trivy-results/${target}.sarif" ]; then
               echo "${target}_non_empty=true" >> "$GITHUB_OUTPUT"
             else
@@ -135,20 +153,27 @@ jobs:
 
       - name: Upload application Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.app_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: trivy-results/app.sarif
           category: trivy-app-image
 
       - name: Upload Nginx Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.nginx_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: trivy-results/nginx.sarif
           category: trivy-nginx-image
 
+      - name: Upload F-UJI Trivy scan results
+        if: ${{ always() && steps.trivy-sarif.outputs.fuji_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy-results/fuji.sarif
+          category: trivy-fuji-image
+
       - name: Upload Trivy SARIF artifact
-        if: ${{ always() && (steps.trivy-sarif.outputs.app_non_empty == 'true' || steps.trivy-sarif.outputs.nginx_non_empty == 'true') }}
+        if: ${{ always() && (steps.trivy-sarif.outputs.app_non_empty == 'true' || steps.trivy-sarif.outputs.nginx_non_empty == 'true' || steps.trivy-sarif.outputs.fuji_non_empty == 'true') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-results
@@ -156,14 +181,14 @@ jobs:
           if-no-files-found: ignore
 
       - name: Fail on high or critical image vulnerabilities
-        if: ${{ always() && hashFiles('ernie-app-security-scan.tar') != '' && hashFiles('ernie-nginx-security-scan.tar') != '' }}
+        if: ${{ always() && hashFiles('ernie-app-security-scan.tar') != '' && hashFiles('ernie-nginx-security-scan.tar') != '' && hashFiles('ernie-fuji-security-scan.tar') != '' }}
         env:
           TRIVY_DISABLE_VEX_NOTICE: 'true'
         run: |
           set -uo pipefail
           scan_status=0
 
-          for target in app nginx; do
+          for target in app nginx fuji; do
             docker run --rm \
               -e TRIVY_DISABLE_VEX_NOTICE \
               -v "${{ github.workspace }}:/work" \

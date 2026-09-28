@@ -6,6 +6,7 @@ use App\Jobs\DiscoverRelationsJob;
 use App\Models\AssessmentRun;
 use App\Models\User;
 use App\Services\Assessment\AssessmentRunService;
+use App\Services\Assessment\ResourceAssessmentRefreshService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -107,4 +108,9 @@ Schedule::call(function (): void {
 })
     ->everyMinute()
     ->name('recover-assessment-runs')
+    ->withoutOverlapping(2);
+
+Schedule::call(fn () => app(ResourceAssessmentRefreshService::class)->recover())
+    ->everyMinute()
+    ->name('recover-published-resource-assessments')
     ->withoutOverlapping(2);

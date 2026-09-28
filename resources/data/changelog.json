@@ -1,8 +1,12 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-09-25",
+        "date": "2026-09-28",
         "features": [
+            {
+                "title": "Public Find Overview",
+                "description": "The public Find page is now available at /find, with Overview as the first entry in the shared Find menu on desktop and mobile. Updated Data Portal and IGSN Portal introductions describe the available search tools and link directly to the ERNIE portals. Alternating image and text sections combine new screenshots of both portals with the original Data Centres and Research Infrastructures at GFZ previews, whose texts are preserved. ResearchInfrastructure@GFZ links to the discovery portal website. Images are served locally and stack above their descriptions on smaller screens. The page uses the homepage layout with accessible headings, keyboard navigation and responsive light and dark themes. User documentation available to all roles explains the overview and its navigation."
+            },
             {
                 "title": "Embargo Workflow and DataCite Available Dates",
                 "description": "Embargoed resources now use one day-precision DataCite Available date as their release boundary. Tokenized previews show the embargo date without download links, new DOI and IGSN registrations wait until the date, and due resources appear on every curator dashboard. Manual registration publishes the landing page and changes the DataCite access right to Open access while preserving schema-compliant Available metadata.",
@@ -66,12 +70,16 @@
         ],
         "improvements": [
             {
+                "title": "F-UJI 4.0.1 and Published Landing Page Reassessments",
+                "description": "FAIR assessments now use a verified, digest-pinned F-UJI 4.0.1 image with the Chromium runtime required for startup. Existing DOI assessments are automatically refreshed after their ERNIE landing page is published and the DOI resolver points to it, while the previous score remains available during retries. Assessment rows distinguish provisional, pending, current, and failed results; Admins can inspect F-UJI provenance and F4 test details. Guidance no longer assumes that a failed F4 test proves missing server-side Schema.org metadata."
+            },
+            {
                 "title": "Clear, Role-Aware Action Guidance",
                 "description": "The English user guide now explains the exact effects of Data Editor and Resources List actions, including when ERNIE saves locally, when DataCite receives or publishes metadata, and what can remain after a failure. Action-specific deep links, searchable guidance, keyboard focus handling, and visible consequences in editor and resource controls make these workflows easier to understand. The guide follows current permissions and editor settings, while DOI conflict and CSV import messages now use consistent English."
             },
             {
                 "title": "Internal Changelog Navigation",
-                "description": "The Changelog now uses the regular signed-in sidebar and a labeled version menu with a Major, Minor, and Patch color legend. Only the newest release starts expanded, and version links keep their direct navigation. The page and its release data require a verified ERNIE session; public pages still display the version number without linking to the private Changelog.",
+                "description": "The Changelog now uses the regular signed-in sidebar and a labeled version menu with a Major, Minor, and Patch color legend. Only the newest release starts expanded, and version links keep their direct navigation. The page and its release data require an authenticated ERNIE session, regardless of email verification; guests still see the version number without a link to the private Changelog.",
                 "references": [
                     {
                         "type": "issue",

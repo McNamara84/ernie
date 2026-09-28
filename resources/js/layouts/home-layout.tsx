@@ -4,16 +4,17 @@ import type { PropsWithChildren } from 'react';
 import { PortalHeader } from '@/components/portal/PortalHeader';
 import { useNProgress } from '@/hooks/use-nprogress';
 
-export default function HomeLayout({ children }: PropsWithChildren) {
+export default function HomeLayout({ children, page = 'home' }: PropsWithChildren<{ page?: 'home' | 'find' }>) {
     useNProgress();
+    const contentId = `${page}-content`;
 
     return (
         <div className="home-page flex min-h-dvh flex-col bg-background text-foreground">
-            <a href="#home-content" className="sr-only z-50 rounded bg-background p-3 text-foreground focus:not-sr-only focus:absolute">
+            <a href={`#${contentId}`} className="sr-only z-50 rounded bg-background p-3 text-foreground focus:not-sr-only focus:absolute">
                 Skip to content
             </a>
-            <PortalHeader portalKind="home" />
-            <main id="home-content" tabIndex={-1} className="flex-1">
+            <PortalHeader portalKind={page} />
+            <main id={contentId} tabIndex={-1} className="flex-1">
                 {children}
             </main>
             <footer className="border-t bg-portal-header px-6 py-8 text-sm text-portal-header-foreground">
