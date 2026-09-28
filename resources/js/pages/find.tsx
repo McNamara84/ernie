@@ -127,7 +127,7 @@ export default function Find() {
                             ).
                         </p>
                         <p className="max-w-5xl text-base leading-8 text-muted-foreground [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4">
-                            <a href="mailto:ResearchInfrastructure@GFZ" target="_blank" rel="noopener noreferrer">
+                            <a href="https://research-infrastructure.gfz.de/en/" target="_blank" rel="noopener noreferrer">
                                 <strong>ResearchInfrastructure@GFZ</strong>
                             </a>{' '}
                             is the central discovery portal for research infrastructures and data at GFZ. It enables structured searches across

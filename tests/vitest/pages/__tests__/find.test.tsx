@@ -61,11 +61,11 @@ describe('Find overview', () => {
         expect(within(region).getByRole('link', { name: 'DOI' })).toHaveAttribute('href', 'https://dataservices.gfz-potsdam.de/web/support/glossary');
     });
 
-    it('preserves both original infrastructure paragraphs and every link, including the mail link', () => {
+    it('preserves both infrastructure paragraphs and links the discovery portal name to its website', () => {
         render(<Find />);
         const region = screen.getByRole('region', { name: 'Research Infrastructures at GFZ' });
         const paragraphs = region.querySelectorAll('p');
-        // Preserve the source HTML's two paragraphs, including its original mailto target.
+        // Preserve the source paragraphs while correcting the legacy mailto target to the discovery portal.
         expect(paragraphs).toHaveLength(2);
         expect(paragraphs[0]).toHaveTextContent(
             'The research infrastructure at GFZ comprises satellite systems, global station networks, and regional observatories, as well as instrument networks, laboratories, instrument pools and data systems. As a Helmholtz centre, GFZ fulfils an important role in providing infrastructure, data, information, instrument systems and networks. We classify the instruments and services of our research infrastructure that are available to the entire international scientific community and which are subject to special terms of use as Modular Earth Science Infrastructure (MESI).',
@@ -82,7 +82,10 @@ describe('Find overview', () => {
             'href',
             'https://www.gfz.de/en/research/topics/our-research-program/research-infrastructures/mesi',
         );
-        expect(section.getByRole('link', { name: 'ResearchInfrastructure@GFZ' })).toHaveAttribute('href', 'mailto:ResearchInfrastructure@GFZ');
+        expect(section.getByRole('link', { name: 'ResearchInfrastructure@GFZ' })).toHaveAttribute(
+            'href',
+            'https://research-infrastructure.gfz.de/en/',
+        );
         for (const link of section.getAllByRole('link')) {
             expect(link).toHaveAttribute('target', '_blank');
             expect(link).toHaveAttribute('rel', 'noopener noreferrer');

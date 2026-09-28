@@ -2301,6 +2301,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             filter state is stored in the URL, so filtered views can be bookmarked and shared.
                         </p>
 
+                        <h4>Finding the Right Service</h4>
+                        <p>
+                            The public <a href="/find">Find overview</a> at <code>/find</code> introduces the <a href="/doi-search">Data Portal</a>{' '}
+                            for research data and scientific software, the <a href="/igsn-search">IGSN Portal</a> for physical samples, Data Centres,
+                            and Research Infrastructures at GFZ. Follow the links on the overview to open the service you need. No sign-in is required
+                            to use the overview or either portal.
+                        </p>
+                        <p>
+                            On the public homepage and in either portal, open <strong>Find</strong> and select <strong>Overview</strong>. Overview is
+                            the first entry, followed by Data Portal and IGSN Portal. On smaller screens, open the menu and select Overview in the
+                            Find group. You can return to the overview from either portal using the same navigation.
+                        </p>
+
                         <h4>Starting with a Science Topic</h4>
                         <p>
                             Open the <a href="/">GFZ Data Services homepage</a> and choose a subject under <strong>Explore by science topic</strong>.

@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Public Find Overview",
-                "description": "The public Find page is now available at /find, with Overview as the first entry in the shared Find menu on desktop and mobile. Updated Data Portal and IGSN Portal introductions describe the available search tools and link directly to the ERNIE portals. Alternating image and text sections combine new screenshots of both portals with the original Data Centres and Research Infrastructures at GFZ previews, whose texts and link destinations are preserved. Images are served locally and stack above their descriptions on smaller screens. The page uses the homepage layout with accessible headings, keyboard navigation and responsive light and dark themes."
+                "description": "The public Find page is now available at /find, with Overview as the first entry in the shared Find menu on desktop and mobile. Updated Data Portal and IGSN Portal introductions describe the available search tools and link directly to the ERNIE portals. Alternating image and text sections combine new screenshots of both portals with the original Data Centres and Research Infrastructures at GFZ previews, whose texts are preserved. ResearchInfrastructure@GFZ links to the discovery portal website. Images are served locally and stack above their descriptions on smaller screens. The page uses the homepage layout with accessible headings, keyboard navigation and responsive light and dark themes. User documentation available to all roles explains the overview and its navigation."
             },
             {
                 "title": "Embargo Workflow and DataCite Available Dates",
