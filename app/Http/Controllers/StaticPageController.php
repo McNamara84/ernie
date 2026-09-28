@@ -17,6 +17,11 @@ final class StaticPageController extends Controller
         ]);
     }
 
+    public function find(): Response
+    {
+        return Inertia::render('find');
+    }
+
     public function about(): Response
     {
         return Inertia::render('about');

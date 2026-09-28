@@ -26,7 +26,8 @@ const NAV_ITEMS: NavItem[] = [
     { label: 'Data Protection', href: 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection', external: true },
 ];
 
-const FIND_ITEMS: Array<NavItem & { kind: PortalKind }> = [
+const FIND_ITEMS: Array<NavItem & { kind: PortalKind | 'find' }> = [
+    { kind: 'find', label: 'Overview', href: '/find', external: false },
     { kind: 'doi', label: 'Data Portal', href: '/doi-search', external: false },
     { kind: 'igsn', label: 'IGSN Portal', href: '/igsn-search', external: false },
 ];
@@ -87,25 +88,30 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
     );
 }
 
-export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind | 'home' }) {
+export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind | 'home' | 'find' }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [menuContainer, setMenuContainer] = useState<HTMLElement | null>(null);
     const mobileMenuId = useId();
     const mobileMenuTrigger = useRef<HTMLButtonElement>(null);
     const isHome = portalKind === 'home';
+    const isContentPage = isHome || portalKind === 'find';
+    const Wordmark = portalKind === 'find' ? 'p' : 'h1';
     const homeItem = { ...NAV_ITEMS[0], active: isHome };
 
     return (
         <header data-slot="portal-header">
             {/* Top Branding Bar */}
             <div className="bg-portal-header">
-                <div className={cn('flex min-h-16 items-center justify-between gap-4 px-6', isHome && 'flex-wrap py-3 sm:flex-nowrap')}>
-                    <h1
-                        className={cn('text-xl font-semibold tracking-wide text-portal-header-foreground', !isHome && 'sr-only md:not-sr-only')}
+                <div className={cn('flex min-h-16 items-center justify-between gap-4 px-6', isContentPage && 'flex-wrap py-3 sm:flex-nowrap')}>
+                    <Wordmark
+                        className={cn(
+                            'text-xl font-semibold tracking-wide text-portal-header-foreground',
+                            !isContentPage && 'sr-only md:not-sr-only',
+                        )}
                         data-testid="portal-wordmark"
                     >
-                        {isHome ? 'GFZ Data Services' : 'GFZ Data Services Portal'}
-                    </h1>
+                        {isContentPage ? 'GFZ Data Services' : 'GFZ Data Services Portal'}
+                    </Wordmark>
                     <img src="/images/gfz-logo_en.svg" alt="GFZ Helmholtz Centre for Geosciences" className="ml-auto h-10" />
                 </div>
             </div>

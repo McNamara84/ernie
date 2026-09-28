@@ -129,7 +129,9 @@ test.describe('GFZ Data Services homepage', () => {
                 expect(await caption.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
             }
             await topic.tap();
-            await expect(page).toHaveURL(/\/doi-search\?topic=scientific-drilling$/);
+            // The first portal visit also loads its lazy bundles. Use the configured
+            // navigation timeout, including on Windows WebKit with a cold asset cache.
+            await page.waitForURL(/\/doi-search\?topic=scientific-drilling$/);
             await page
                 .getByRole('button', { name: /Filters/ })
                 .first()
@@ -143,7 +145,7 @@ test.describe('GFZ Data Services homepage', () => {
         await openHomepage(page);
         await page.getByRole('searchbox').fill('  Höhle & CO2 + ice  ');
         await page.getByRole('searchbox').press('Enter');
-        await expect(page).toHaveURL(/\/doi-search\?/);
+        await page.waitForURL(/\/doi-search\?/);
         expect(new URL(page.url()).searchParams.get('q')).toBe('Höhle & CO2 + ice');
         await expect(page.getByTestId('portal-wordmark')).toHaveText('GFZ Data Services Portal');
         await page.getByRole('link', { name: 'Home', exact: true }).click();
@@ -155,6 +157,7 @@ test.describe('GFZ Data Services homepage', () => {
     test('preserves and removes a topic while refining a DOI search', async ({ page }) => {
         await openHomepage(page);
         await page.getByRole('link', { name: 'Scientific Drilling', exact: true }).click();
+        await page.waitForURL(/\/doi-search\?topic=scientific-drilling$/);
         await expect(page.getByTestId('portal-topic-filter')).toContainText('Scientific Drilling');
         await page.locator('#portal-search').fill('core');
         await page.locator('#portal-search').press('Enter');
