@@ -14,8 +14,9 @@ Stage deployment history. See
 
 1. Feature and fix branches are reviewed and merged into `main`.
 2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
-   the merged commit. The security gate builds and scans both deployable
-   runtime targets (`app` and `nginx`) for HIGH and CRITICAL vulnerabilities.
+   the merged commit. The security gate builds and scans all three deployable
+   runtime images (`app`, `nginx`, and F-UJI with Chromium) for fixable HIGH and
+   CRITICAL vulnerabilities. F-UJI also gets a dependency and browser smoke check.
 3. `Publish Stage Images` verifies that all five workflows succeeded for the
    exact current `main` commit, then builds and pushes the images under
    traceable `sha-<full-commit-sha>` tags.
@@ -84,7 +85,7 @@ Merge the implementation into `main`. Wait for:
    `Linter Tests`, and `Playwright UI Tests` to succeed;
 2. `Publish Stage Images` to publish the validated commit.
 
-The second workflow creates the two GHCR packages and the digest-pinned
+The second workflow creates the three GHCR packages and the digest-pinned
 `deploy/stage` branch. It intentionally has no `workflow_dispatch` trigger:
 manual dispatch can target another branch and would execute that branch's
 workflow definition with the publish job's write-scoped token.
@@ -105,12 +106,13 @@ builds.
 
 ### 4. Choose GHCR visibility
 
-After their first publication, open both package settings on GitHub:
+After their first publication, open all three package settings on GitHub:
 
 - `ernie-app`;
-- `ernie-nginx`.
+- `ernie-nginx`;
+- `ernie-fuji`.
 
-Either make both packages public or keep both private.
+Either make all three packages public or keep all three private.
 
 For private packages, add `ghcr.io` as a custom registry in Portainer. Use
 the GitHub username and a classic personal access token with at least
@@ -155,7 +157,8 @@ Portainer must show these image references:
 
 - `app`, `queue`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
-- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`.
+- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
+- `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
 
 There must be no local ERNIE Docker build in the Portainer deployment log.
 Verify that:
@@ -167,6 +170,15 @@ Verify that:
 - CPU and RAM remain stable during the update.
 
 ## Normal operation
+
+If `Scan exact published image digests` fails, inspect the findings for each
+image before retrying. A repeat run against the same pinned dependencies will
+not remove a finding. The failed runs on 26 and 28 September 2026 both reported
+`msgpack 1.1.2` and `setuptools 70.3.0` bundled inside F-UJI's pip installer,
+while the app and Nginx scans passed. `Dockerfile.fuji` now removes pip and its
+ensurepip bootstrap after installing and checking runtime dependencies. The
+Security Checks workflow also builds, tests, and scans F-UJI before publication,
+so a failing F-UJI image blocks the earlier validation gate as well.
 
 After the one-time rollout, the normal developer process remains unchanged:
 

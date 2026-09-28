@@ -160,7 +160,12 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->and($fujiBuild['with']['context'] ?? null)->toBe('.')
         ->and($fujiBuild['with']['file'] ?? null)->toBe('Dockerfile.fuji')
         ->and($fujiBuild['with']['push'] ?? null)->toBeTrue()
-        ->and($fujiBuild['with']['tags'] ?? null)->toBe('${{ needs.validate.outputs.fuji_image }}:sha-${{ needs.validate.outputs.sha }}');
+        ->and($fujiBuild['with']['tags'] ?? null)->toBe('${{ needs.validate.outputs.fuji_image }}:sha-${{ needs.validate.outputs.sha }}')
+        ->and($fujiBuild['with']['build-args'] ?? null)
+        ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}')
+        ->and($fujiBuild['with']['cache-from'] ?? null)
+        ->toContain('type=gha,scope=security-fuji')
+        ->toContain('type=gha,scope=stage-fuji');
 
     expect($workflowContents)
         ->not->toContain('uses: actions/cache@')
