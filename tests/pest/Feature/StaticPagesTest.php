@@ -23,6 +23,16 @@ it('displays the public homepage with all locally available science topics', fun
     }
 })->with(['guest' => false, 'signed in' => true]);
 
+it('displays the find overview publicly and for signed-in users', function (?UserRole $role) {
+    withoutVite();
+    if ($role !== null) {
+        $this->actingAs(User::factory()->unverified()->create(['role' => $role]));
+    }
+
+    expect(route('find', absolute: false))->toBe('/find');
+    $this->get('/find')->assertOk()->assertInertia(fn (Assert $page) => $page->component('find'));
+})->with([null, ...UserRole::cases()]);
+
 it('displays the about page', function () {
     withoutVite();
     $response = $this->get(route('about'))->assertOk();

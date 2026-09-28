@@ -1527,15 +1527,21 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
-    it('makes the homepage topic workflow available to beginners', async () => {
+    it('makes the Find overview and homepage topic workflows available to beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
+        expect(screen.getByRole('heading', { name: 'Finding the Right Service', level: 4 })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Find overview' })).toHaveAttribute('href', '/find');
+        expect(screen.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
+        expect(screen.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         const heading = screen.getByRole('heading', { name: 'Starting with a Science Topic', level: 4 });
         expect(screen.getByRole('link', { name: 'GFZ Data Services homepage' })).toHaveAttribute('href', '/');
         expect(screen.getByRole('link', { name: 'Volcanism' })).toHaveAttribute('href', '/doi-search?topic=volcanism');
         const content = heading.parentElement?.textContent?.replace(/\s+/g, ' ');
+        expect(content).toContain('open Find and select Overview');
+        expect(content).toContain('On smaller screens, open the menu and select Overview in the Find group');
         expect(content).toContain('Science topic panel below the search field');
         expect(content).toContain('open the Filters drawer to find this panel');
         expect(content).toContain('the topic remains active and combines with those selections');

@@ -194,6 +194,8 @@ test.describe('Homepage accessibility', () => {
         const trigger = page.getByRole('button', { name: 'Find', exact: true });
         await expect(trigger).toBeFocused();
         await page.keyboard.press('Enter');
+        await expect(page.getByRole('menuitem', { name: 'Overview', exact: true })).toBeFocused();
+        await page.keyboard.press('ArrowDown');
         await expect(page.getByRole('menuitem', { name: 'Data Portal', exact: true })).toBeFocused();
         await page.keyboard.press('ArrowDown');
         await expect(page.getByRole('menuitem', { name: 'IGSN Portal', exact: true })).toBeFocused();

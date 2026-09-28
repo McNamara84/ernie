@@ -85,6 +85,8 @@ if (app()->environment('local', 'testing')) {
 
 Route::get('/', [StaticPageController::class, 'home'])->name('home');
 
+Route::get('/find', [StaticPageController::class, 'find'])->name('find');
+
 Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
 Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');
