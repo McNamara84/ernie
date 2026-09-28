@@ -72,7 +72,11 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
+    Use Node **26.10.0** from `.node-version` and npm **12.1.0** from
+    `package.json`. After switching Node, install the pinned npm version:
+
     ```bash
+    npm install --global npm@12.1.0
     npm ci
     ```
 
@@ -163,6 +167,21 @@ The relevant settings are documented in `.env.docker.example`. Keep these relati
 The default HTTP timeout is 300 seconds. A cURL 28 response timeout that consumes this full window becomes a service error after one attempt instead of blocking the worker for three identical attempts. Short DNS/connect failures and retryable HTTP responses remain bounded by `FUJI_ASSESSMENT_MAX_ATTEMPTS`. The run UI reports service errors separately and can retry only those items after a run completes.
 
 The local assessment profile builds `Dockerfile.fuji` from the pinned F-UJI 4.0.1 base image. That build installs Chromium because the upstream image starts Playwright but does not include its browser executable. The first build therefore downloads browser packages. Stage and Production receive the same derived image through the digest-pinned image publication workflow.
+
+The derived image refreshes Debian packages, applies the compatible Python updates
+in `docker/fuji/requirements.txt`, and checks Python dependency consistency
+before removing the build-only `pip` installer and `ensurepip` bootstrap archive.
+This removes the old libraries bundled inside pip; updating F-UJI's installed
+`setuptools` alone would not replace those copies. Runtime dependencies, including
+the `setuptools` package used by Tika, remain installed. Change dependencies through
+the Dockerfile and rebuild the image. CI checks that F-UJI dependencies import and
+Chromium launches without the installers, then scans the complete image alongside
+the application and Nginx images before Stage publication.
+
+F-UJI 4.0.1 restricts Pandas, Levenshtein, Tika, and Uvicorn to specific release
+lines; Playwright also fixes its supported Pyee major. Their newer incompatible
+releases require an upstream compatibility update. The image build keeps these
+constraints and fails if the installed Python packages become inconsistent.
 
 For a one-worker local load comparison, run:
 

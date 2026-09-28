@@ -75,7 +75,8 @@ Automatic Production promotion requires all of the following:
 - all five deployment-blocking push workflows succeeded for that exact
   commit;
 - `deploy/stage` contains a deployment commit for that exact source SHA;
-- both Stage-pinned image manifests still exist and pass the new digest scan;
+- all three Stage-pinned image manifests (application, Nginx, and F-UJI) still
+  exist and pass the new digest scan;
 - the release remains latest immediately before `deploy/prod` is updated.
 
 Publishing a prerelease, an older release, or a release for an unvalidated or
@@ -188,7 +189,11 @@ Portainer must show:
 
 - `app`, `queue`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
-- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`.
+- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
+- `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
+
+Compare all three digests with the promoted references in the same
+`deploy/prod` commit before declaring the deployment complete.
 
 There must be no local ERNIE Docker build in the deployment log. Verify that:
 
@@ -271,16 +276,23 @@ release through the normal release process.
 
 ### Image inspection or the digest scan fails
 
-Confirm that the two GHCR packages still contain the digests referenced by the
-matching `deploy/stage` commit. Check package access for the repository and the
-current vulnerability report. Promotion deliberately stops on a missing image
-or a HIGH/CRITICAL finding.
+Confirm that all three GHCR packages (`ernie-app`, `ernie-nginx`, and
+`ernie-fuji`) still contain the digests referenced by the matching
+`deploy/stage` commit. Check repository access to each package and inspect the
+vulnerability report for each image, including F-UJI. Promotion deliberately
+stops if any image is missing or has a fixable HIGH/CRITICAL finding.
+
+If F-UJI fails the scan, update the affected dependencies through the normal
+pull-request, Stage validation, and stable release process. Re-running the
+promotion with the same vulnerable digest does not fix the finding.
 
 ### Portainer reports unauthorized or manifest unknown
 
 For private packages, verify the existing Portainer custom registry for
 `ghcr.io`, the GitHub username, a classic token with `read:packages`, package
-access, and registry selection on the Production stack.
+access to all three packages (`ernie-app`, `ernie-nginx`, and `ernie-fuji`),
+and registry selection on the Production stack. Confirm that each promoted
+digest still exists; successful app and Nginx pulls do not verify F-UJI access.
 
 ### Portainer sees the commit but keeps the old image
 

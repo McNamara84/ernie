@@ -1,5 +1,23 @@
 FROM ghcr.io/pangaea-data-publisher/fuji@sha256:cff88e482cf9932eb2150210cf331ac1439cbed1a20408a04b6b7688cee5a2bc
 
+ARG SYSTEM_PACKAGES_REFRESH=manual
+
 # F-UJI 4.0.1 launches Playwright during application startup. The upstream
 # image contains the Python package but omits the browser executable.
-RUN python3 -m playwright install --with-deps chromium
+RUN echo "System package refresh: ${SYSTEM_PACKAGES_REFRESH}" \
+    && apt-get update \
+    && apt-get upgrade -y \
+    && python3 -m playwright install --with-deps chromium \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# pip vendors msgpack 1.1.2 and setuptools 70.3.0 independently of the
+# installed runtime packages (GHSA-6v7p-g79w-8964 / CVE-2025-47273).
+# F-UJI needs neither pip nor ensurepip's bundled installer at runtime.
+# Keep the installed setuptools package: Tika depends on it.
+COPY docker/fuji/requirements.txt /tmp/fuji-runtime-updates.txt
+RUN python3 -m pip install --no-cache-dir --upgrade --requirement /tmp/fuji-runtime-updates.txt \
+    && python3 -m pip check \
+    && python3 -m pip uninstall --yes pip \
+    && python3 -c 'import ensurepip, shutil; shutil.rmtree(ensurepip.__path__[0])' \
+    && rm /tmp/fuji-runtime-updates.txt
