@@ -2515,9 +2515,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             The URL field suggests domains and full URLs from existing downloads. Admins and Group Leaders can add URL prefixes and
                             arrange the domain suggestions under <strong>Settings / Download URL suggestions</strong>, using drag and drop or the move
-                            buttons, then <strong>Save Changes</strong>. New domains follow the configured order. For GFZ, add{' '}
-                            <code>https://datapub.gfz.de/download</code> and move it to the first position. Other repositories can configure their own
-                            prefixes. You can always type another valid URL.
+                            buttons, then <strong>Save Changes</strong>. New domains follow the configured order. Fresh GFZ installations offer{' '}
+                            <code>https://datapub.gfz.de/download</code> first automatically. Saved changes, including an empty list, replace this
+                            default. Other repositories can configure their own prefixes. You can always type another valid URL.
                         </p>
                         <p>
                             The optional <strong>Button label</strong> defaults to <strong>Download data and description</strong>. Imported files take

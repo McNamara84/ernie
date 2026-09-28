@@ -122,6 +122,17 @@
         ],
         "fixes": [
             {
+                "title": "GFZ Download URL Default on Fresh Installations",
+                "description": "Fresh installations and upgrades without a saved suggestion order now offer https://datapub.gfz.de/download first automatically. Other installations can replace or disable the default through configuration. Saved settings, including an explicitly empty order, always take precedence.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1363,
+                        "url": "https://github.com/McNamara84/ernie/issues/1363"
+                    }
+                ]
+            },
+            {
                 "title": "Readable Datacenter Filters in Both Portals",
                 "description": "The Data and IGSN portal filters now show datacenter options in smaller text and wrap long names and selected values across lines, including names with long unbroken parts. Checkboxes, result counts, and remove controls remain visible in desktop sidebars and mobile filter drawers.",
                 "references": [

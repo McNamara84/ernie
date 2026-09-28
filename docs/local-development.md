@@ -121,6 +121,24 @@ For day-to-day Laravel commands, use the npm wrappers. They run inside the app c
 npm run artisan -- make:controller TestController
 ```
 
+### Download URL suggestion default
+
+Until an order has been saved in **Settings / Download URL suggestions**, the
+installation offers `https://datapub.gfz.de/download` first, even with no existing
+downloads. This also applies to upgrades without a stored order; no extra seeder
+or manual setup is required.
+
+Other installations can set `LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX` in their
+environment (`.env.docker` for local Docker) to another HTTP(S) prefix. An empty
+value disables this default. The development, stage and production Compose files
+pass this variable through and preserve explicit empty values. Apply environment
+changes by recreating the affected containers; refresh Laravel's config cache if
+the deployment caches configuration.
+
+A saved order always takes precedence, including an explicitly empty list. Later
+configuration changes or deployments do not overwrite it. Domains observed in
+existing download URLs still follow the configured suggestions.
+
 ## Profiles And Services
 
 Default Fast Mode services:

@@ -1193,7 +1193,7 @@ describe('Landing Page Download URL Suggestions', function () {
 
         $response
             ->assertOk()
-            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/')
+            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/download')
             ->assertJsonPath('suggestions.domains.0.usage_count', 4)
             ->assertJsonPath('suggestions.urls.0.value', $duplicateUrl)
             ->assertJsonPath('suggestions.urls.0.usage_count', 2);
@@ -1220,7 +1220,7 @@ describe('Landing Page Download URL Suggestions', function () {
     test('invalidates cached suggestions when landing pages change', function () {
         $this->getJson('/api/landing-page-download-url-suggestions')
             ->assertOk()
-            ->assertJsonPath('suggestions.domains', [])
+            ->assertJsonPath('suggestions.domains', [['value' => 'https://datapub.gfz.de/download', 'usage_count' => 0]])
             ->assertJsonPath('suggestions.urls', []);
 
         $this->postJson("/resources/{$this->resource->id}/landing-page", [
@@ -1231,7 +1231,9 @@ describe('Landing Page Download URL Suggestions', function () {
 
         $this->getJson('/api/landing-page-download-url-suggestions')
             ->assertOk()
-            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/')
+            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/download')
+            ->assertJsonPath('suggestions.domains.0.usage_count', 1)
+            ->assertJsonPath('suggestions.domains.1.value', 'https://datapub.gfz.de/')
             ->assertJsonPath('suggestions.urls.0.value', 'https://datapub.gfz.de/download/newly-created-file.zip');
     });
 });

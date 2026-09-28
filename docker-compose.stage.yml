@@ -137,6 +137,7 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
+      - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
     image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx:deployment-template}"
@@ -318,6 +319,7 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
+      - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   assessment-queue:
     image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}"

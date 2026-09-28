@@ -17,7 +17,16 @@ final class LandingPageDownloadUrlSuggestionService
     /** @return list<string> */
     public function order(): array
     {
-        $decoded = json_decode((string) Setting::getValue(self::SETTING_KEY, '[]'), true);
+        $storedOrder = Setting::getValue(self::SETTING_KEY);
+
+        if ($storedOrder === null) {
+            $defaultPrefix = config('landing_pages.default_download_url_prefix');
+            $normalizedPrefix = is_string($defaultPrefix) ? self::normalizePrefix($defaultPrefix) : null;
+
+            return $normalizedPrefix === null ? [] : [$normalizedPrefix];
+        }
+
+        $decoded = json_decode((string) $storedOrder, true);
 
         return is_array($decoded)
             ? array_values(array_filter($decoded, static fn (mixed $value): bool => is_string($value)))
