@@ -368,7 +368,18 @@ test.describe('Changelog Page', () => {
 });
 
 test('unverified users can open the changelog from the sidebar and footer', async ({ page }) => {
+    const dashboardResponse = page.waitForResponse(
+        (response) => new URL(response.url()).pathname === '/dashboard' && response.request().method() === 'GET',
+    );
     await loginAsTestUser(page, 'changelog-unverified@example.com', 'password');
+    const dashboard = await (await dashboardResponse).json();
+    expect(dashboard.props.auth.user.email_verified_at).toBeNull();
+
+    // Wait for scheduled onboarding before navigating: it starts asynchronously and covers the sidebar.
+    if (dashboard.props.guidedTour?.autostart) {
+        await page.locator('.ernie-guided-tour').getByRole('button', { name: 'Close', exact: true }).click();
+        await expect(page.locator('.driver-overlay')).toHaveCount(0);
+    }
 
     // The regression was reported when following the sidebar link after login.
     await page.getByRole('link', { name: 'Changelog', exact: true }).click();

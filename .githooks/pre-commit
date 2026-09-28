@@ -2,4 +2,10 @@
 set -eu
 
 cd "$(git rev-parse --show-toplevel)"
-exec npm run precommit:check
+
+# GitHub Desktop's Windows shell has no bash. npm's shell launcher can otherwise
+# resolve Windows' bash.exe (WSL), so use the native npm launcher on Windows.
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) exec npm.cmd run precommit:check ;;
+    *) exec npm run precommit:check ;;
+esac
