@@ -193,7 +193,6 @@ describe('IGSN Template Restriction on Creation', function () {
                 'template' => 'default_gfz_igsn',
                 'status' => 'draft',
                 'ftp_url' => 'https://datapub.gfz-potsdam.de/download/sample.zip',
-                'downloads_unavailable' => true,
             ]);
 
         $response->assertCreated()

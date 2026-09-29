@@ -2508,24 +2508,30 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <strong>Show less</strong>; activate it again to return to the shortened list.
                         </p>
                         <p>
-                            In the landing page setup modal, the primary <strong>Download URL</strong> field now suggests frequently reused base
-                            domains and full URLs from existing landing pages. Click into the field to open the suggestions, pick a base domain such
-                            as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
+                            Choose <strong>Add Download URL</strong> to enter the primary download address. Without a primary URL or imported download
+                            files, the landing page automatically offers the data request section. Adding a URL switches to automatic downloads;
+                            removing the last primary URL switches back. Additional Links alone do not replace the request section.
                         </p>
                         <p>
-                            When no imported download files are available, the <strong>Button label</strong> field below the primary Download URL
-                            controls the text of the main download button. It is optional; an empty field falls back to{' '}
-                            <strong>Download data and description</strong>. If imported files are available, each URL appears under{' '}
-                            <strong>Imported Download Files</strong> with its own editable Button label. Imported URLs remain read-only. An empty
-                            imported-file label falls back to <strong>Download data and description</strong> for a single file, or to numbered labels
-                            such as <strong>Download (1)</strong> when several files are shown.
+                            The URL field suggests domains and full URLs from existing downloads. Admins and Group Leaders can add URL prefixes and
+                            arrange the domain suggestions under <strong>Settings / Download URL suggestions</strong>, using drag and drop or the move
+                            buttons, then <strong>Save Changes</strong>. New domains follow the configured order. Fresh GFZ installations offer{' '}
+                            <code>https://datapub.gfz.de/download</code> first automatically. Saved changes, including an empty list, replace this
+                            default. Other repositories can configure their own prefixes. You can always type another valid URL.
                         </p>
                         <p>
-                            If a generated GFZ landing page should not offer automated downloads, enable{' '}
-                            <strong>No data available for automatic download</strong> in the same Download URL section. ERNIE keeps the saved primary
-                            URL, imported legacy files, and additional download links in the setup modal, but replaces their public download actions
-                            with a request form until the option is disabled again. Requests go to all designated contact persons and the configured
-                            data publication team; if no contact person has an email address, the team receives the request directly. The independent{' '}
+                            The optional <strong>Button label</strong> defaults to <strong>Download data and description</strong>. Imported files take
+                            precedence over the primary URL and retain their read-only URLs, editable labels, formats and sizes. Empty labels use the
+                            default label for a single file or numbered labels such as <strong>Download (1)</strong> for several files.
+                        </p>
+                        <p>
+                            Previously hidden downloads remain hidden. For these records, choose <strong>Activate downloads</strong> and save to make
+                            them available. Opening the dialog, editing other fields or importing metadata does not activate them. Preview shows your
+                            proposed changes without changing the published page. The former general availability checkbox is no longer needed.
+                        </p>
+                        <p>
+                            Data requests go to the designated contact persons and the configured data publication team. If no email recipient is
+                            available, ERNIE displays that information instead of an unusable contact form. The independent{' '}
                             <strong>License &amp; Rights</strong> section remains visible whenever rights metadata exists.
                         </p>
                         <h4>Legacy Creator and Contact Consolidation</h4>

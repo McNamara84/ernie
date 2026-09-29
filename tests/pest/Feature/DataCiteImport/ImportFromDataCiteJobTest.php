@@ -2518,7 +2518,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->template)->toBe('default_gfz')
             ->and($landingPage->ftp_url)->toBeNull()
-            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->downloads_unavailable)->toBeFalse()
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull()
             ->and(LandingPageDomain::count())->toBe(0)
@@ -2590,7 +2590,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
 
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBeNull()
-            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->downloads_unavailable)->toBeFalse()
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull();
     });

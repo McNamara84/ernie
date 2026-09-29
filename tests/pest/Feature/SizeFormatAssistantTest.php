@@ -64,6 +64,55 @@ it('registers via auto-discovery', function (): void {
     expect($registrar->has('size-format-suggestion'))->toBeTrue();
 });
 
+it('discovers usable imported files without a primary URL', function (): void {
+    $resource = Resource::factory()->create();
+    $landingPage = LandingPage::factory()->for($resource)->create(['ftp_url' => null]);
+    $landingPage->files()->createMany([
+        ['url' => '#', 'position' => 0],
+        ['url' => 'https://datapub.gfz.de/download/data.csv', 'position' => 1],
+        ['url' => 'https://datapub.gfz.de/download/data-description.pdf', 'position' => 2],
+    ]);
+    Http::fake([
+        'https://datapub.gfz.de/download/data.csv' => Http::response('', 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Length' => '2048',
+        ]),
+    ]);
+    Http::preventStrayRequests();
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::where('resource_id', $resource->id)->where('target_type', 'format')->pluck('suggested_value')->all())
+        ->toBe(['text/csv']);
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://datapub.gfz.de/download/data.csv');
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'data-description'));
+});
+
+it('removes stale suggestions without probing additional-only request pages', function (): void {
+    $resource = Resource::factory()->create();
+    $landingPage = LandingPage::factory()->for($resource)->create(['ftp_url' => null]);
+    $landingPage->links()->create([
+        'url' => 'https://datapub.gfz.de/download/extra.csv',
+        'label' => 'Additional download',
+        'kind' => LandingPageLink::KIND_DOWNLOAD,
+        'position' => 0,
+    ]);
+    $suggestion = AssistantSuggestion::create([
+        'assistant_id' => SizeFormatSuggestionDiscoveryService::ASSISTANT_ID,
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'text/csv',
+        'suggested_label' => 'FORMAT: text/csv',
+        'discovered_at' => now(),
+    ]);
+    Http::fake();
+
+    expect(app(Assistant::class)->runDiscovery(fn (): null => null))->toBe(0)
+        ->and($suggestion->fresh())->toBeNull();
+    Http::assertNothingSent();
+});
+
 it('does not discover suggestions for physical object resources', function (): void {
     $physicalObjectType = ResourceType::factory()->create([
         'name' => 'Physical Object',

@@ -807,6 +807,8 @@ test.describe('Stage Full Workflow Test', () => {
     const downloadUrl = 'https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW';
     
     // Find the Download URL input field
+    const addDownloadButton = modal.getByRole('button', { name: 'Add Download URL' });
+    if (await addDownloadButton.isVisible()) await addDownloadButton.click();
     const downloadUrlInput = modal.getByLabel(/Download URL/i).first();
     if (await downloadUrlInput.isVisible().catch(() => false)) {
       await downloadUrlInput.fill(downloadUrl);

@@ -10,6 +10,7 @@ use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
+use App\Services\LandingPageDownloadAvailabilityService;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use LogicException;
@@ -60,13 +61,9 @@ final class FairImprovementContextFactory
             }
         }
 
+        $availability = new LandingPageDownloadAvailabilityService;
         $hasConfiguredDownloads = $landingPage !== null
-            && ! $landingPage->downloads_unavailable
-            && (
-                $this->filled($landingPage->ftp_url)
-                || $files->contains(fn (mixed $file): bool => $file instanceof LandingPageFile && $this->filled($file->url))
-                || $links->contains(fn (mixed $link): bool => $link instanceof LandingPageLink && $this->filled($link->url))
-            );
+            && $availability->isAvailable($landingPage);
 
         return new FairImprovementContext(
             hasDoi: $this->filled($resource->doi),

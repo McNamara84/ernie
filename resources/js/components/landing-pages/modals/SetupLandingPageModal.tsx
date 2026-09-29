@@ -4,7 +4,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
+import { Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -23,7 +23,6 @@ import {
     isLandingPageNotFoundError,
 } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,12 +74,13 @@ type DownloadUrlSuggestionEntry = {
 };
 
 type PersistedLandingPageDraftState = {
+    downloadWorkflowVersion?: number;
     template: string;
     ftpUrl: string;
     primaryDownloadLabel: string;
     ftpFormatId: number | null;
     ftpSizeId: number | null;
-    downloadsUnavailable: boolean;
+    activateDownloads: boolean;
     isPublished: boolean;
     externalDomainId: string;
     externalPath: string;
@@ -137,7 +137,7 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
         primaryDownloadLabel: draftState.primaryDownloadLabel,
         ftpFormatId: draftState.ftpFormatId,
         ftpSizeId: draftState.ftpSizeId,
-        downloadsUnavailable: draftState.downloadsUnavailable,
+        activateDownloads: draftState.activateDownloads,
         isPublished: draftState.isPublished,
         externalDomainId: draftState.externalDomainId,
         externalPath: draftState.externalPath,
@@ -234,7 +234,7 @@ function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFi
             primaryDownloadLabel: typeof parsed.primaryDownloadLabel === 'string' ? parsed.primaryDownloadLabel : '',
             ftpFormatId: typeof parsed.ftpFormatId === 'number' ? parsed.ftpFormatId : null,
             ftpSizeId: typeof parsed.ftpSizeId === 'number' ? parsed.ftpSizeId : null,
-            downloadsUnavailable: parsed.downloadsUnavailable === true,
+            activateDownloads: parsed.downloadWorkflowVersion === 2 && parsed.activateDownloads === true,
             isPublished: parsed.isPublished === true,
             externalDomainId: typeof parsed.externalDomainId === 'string' ? parsed.externalDomainId : '',
             externalPath: typeof parsed.externalPath === 'string' ? parsed.externalPath : '',
@@ -407,6 +407,7 @@ export default function SetupLandingPageModal({
                 storageKey,
                 JSON.stringify({
                     ...draftState,
+                    downloadWorkflowVersion: 2,
                     links: cloneLandingPageLinks(draftState.links),
                     files: cloneLandingPageFiles(draftState.files),
                 }),
@@ -433,7 +434,7 @@ export default function SetupLandingPageModal({
                 primaryDownloadLabel: config?.primary_download_label ?? '',
                 ftpFormatId: config?.ftp_format_id ?? null,
                 ftpSizeId: config?.ftp_size_id ?? null,
-                downloadsUnavailable: config?.downloads_unavailable === true,
+                activateDownloads: false,
                 isPublished: (config?.status ?? 'draft') === 'published',
                 externalDomainId: String(config?.external_domain_id ?? ''),
                 externalPath: config?.external_path ?? '',
@@ -448,10 +449,11 @@ export default function SetupLandingPageModal({
     const applyDraftState = useCallback((draftState: PersistedLandingPageDraftState) => {
         setTemplate(draftState.template);
         setFtpUrl(draftState.ftpUrl);
+        setDownloadInputOpen(draftState.ftpUrl.trim() !== '');
         setPrimaryDownloadLabel(draftState.primaryDownloadLabel);
         setFtpFormatId(draftState.ftpFormatId);
         setFtpSizeId(draftState.ftpSizeId);
-        setDownloadsUnavailable(draftState.downloadsUnavailable);
+        setActivateDownloads(draftState.activateDownloads);
         setIsPublished(draftState.isPublished);
         setExternalDomainId(draftState.externalDomainId);
         setExternalPath(draftState.externalPath);
@@ -461,11 +463,14 @@ export default function SetupLandingPageModal({
     }, []);
 
     const [template, setTemplate] = useState<string>(initialTemplate);
+    const [downloadInputOpen, setDownloadInputOpen] = useState(Boolean(existingConfig?.ftp_url?.trim()));
+    const downloadInputRef = useRef<HTMLInputElement>(null);
+    const addDownloadButtonRef = useRef<HTMLButtonElement>(null);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
     const [primaryDownloadLabel, setPrimaryDownloadLabel] = useState<string>(existingConfig?.primary_download_label ?? '');
     const [ftpFormatId, setFtpFormatId] = useState<number | null>(existingConfig?.ftp_format_id ?? null);
     const [ftpSizeId, setFtpSizeId] = useState<number | null>(existingConfig?.ftp_size_id ?? null);
-    const [downloadsUnavailable, setDownloadsUnavailable] = useState<boolean>(existingConfig?.downloads_unavailable === true);
+    const [activateDownloads, setActivateDownloads] = useState<boolean>(false);
     const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
     const [isLoading, setIsLoading] = useState(false);
@@ -502,7 +507,7 @@ export default function SetupLandingPageModal({
     const isExternal = template === 'external';
     const isIgsn = template === 'default_gfz_igsn';
     const supportsFtpUrl = !isExternal && !isIgsn;
-    const supportsDownloadsUnavailable = supportsFtpUrl;
+    const supportsDownloadActivation = supportsFtpUrl;
     const supportsLinks = !isExternal && !isIgsn;
     const MAX_LINKS = 10;
 
@@ -532,6 +537,14 @@ export default function SetupLandingPageModal({
             : `Fallback template: ${templateOptions?.system_default?.name ?? 'Templates Resources'}`;
     const importedDownloadFiles = files;
     const hasImportedFiles = importedDownloadFiles.length > 0;
+    const hasUsableImportedFiles = importedDownloadFiles.some((file) => {
+        try {
+            const url = new URL(file.url.trim());
+            return ['http:', 'https:'].includes(url.protocol) && url.hostname !== '';
+        } catch {
+            return false;
+        }
+    });
     const availableFormats = currentConfig?.available_formats ?? templateOptions?.available_formats ?? [];
     const availableSizes = currentConfig?.available_sizes ?? templateOptions?.available_sizes ?? [];
     const currentDraftState = useMemo<PersistedLandingPageDraftState>(
@@ -541,7 +554,7 @@ export default function SetupLandingPageModal({
             primaryDownloadLabel,
             ftpFormatId,
             ftpSizeId,
-            downloadsUnavailable,
+            activateDownloads,
             isPublished,
             externalDomainId,
             externalPath,
@@ -550,7 +563,7 @@ export default function SetupLandingPageModal({
             files: cloneLandingPageFiles(files),
         }),
         [
-            downloadsUnavailable,
+            activateDownloads,
             externalDomainId,
             externalPath,
             files,
@@ -686,12 +699,12 @@ export default function SetupLandingPageModal({
     ]);
 
     useEffect(() => {
-        if (!supportsFtpUrl || hasImportedFiles) {
+        if (!supportsFtpUrl || hasUsableImportedFiles) {
             setDownloadUrlSuggestionsOpen(false);
             setDownloadUrlSuggestionQuery('');
             setActiveDownloadUrlSuggestionIndex(null);
         }
-    }, [hasImportedFiles, supportsFtpUrl]);
+    }, [hasUsableImportedFiles, supportsFtpUrl]);
 
     const handleSave = async () => {
         if (!resource.id) {
@@ -722,8 +735,8 @@ export default function SetupLandingPageModal({
                 primaryDownloadLabel,
                 ftpFormatId,
                 ftpSizeId,
-                supportsDownloadsUnavailable,
-                downloadsUnavailable,
+                supportsDownloadActivation,
+                activateDownloads,
                 supportsLinks,
                 links,
                 files,
@@ -829,7 +842,7 @@ export default function SetupLandingPageModal({
             (supportsFtpUrl && primaryDownloadLabel !== (currentConfig.primary_download_label ?? '')) ||
             (supportsFtpUrl && ftpFormatId !== (currentConfig.ftp_format_id ?? null)) ||
             (supportsFtpUrl && ftpSizeId !== (currentConfig.ftp_size_id ?? null)) ||
-            (supportsDownloadsUnavailable && downloadsUnavailable !== (currentConfig.downloads_unavailable === true)) ||
+            (supportsDownloadActivation && activateDownloads) ||
             isPublished !== (currentConfig.status === 'published') ||
             landingPageTemplateId !== currentLandingPageTemplateId;
 
@@ -872,7 +885,7 @@ export default function SetupLandingPageModal({
         primaryDownloadLabel,
         ftpFormatId,
         ftpSizeId,
-        downloadsUnavailable,
+        activateDownloads,
         isPublished,
         externalDomainId,
         externalPath,
@@ -881,7 +894,7 @@ export default function SetupLandingPageModal({
         landingPageTemplateId,
         resource.resourcetypegeneral,
         supportsFtpUrl,
-        supportsDownloadsUnavailable,
+        supportsDownloadActivation,
     ]);
 
     const copyToClipboard = async (text: string, label: string) => {
@@ -950,7 +963,7 @@ export default function SetupLandingPageModal({
         [filteredDownloadUrlSuggestions.domains, filteredDownloadUrlSuggestions.urls],
     );
 
-    const shouldShowDownloadUrlSuggestions = supportsFtpUrl && !hasImportedFiles && downloadUrlSuggestionsOpen;
+    const shouldShowDownloadUrlSuggestions = supportsFtpUrl && !hasUsableImportedFiles && downloadUrlSuggestionsOpen;
     const hasVisibleDownloadUrlSuggestions = filteredDownloadUrlSuggestions.domains.length > 0 || filteredDownloadUrlSuggestions.urls.length > 0;
     const activeDownloadUrlSuggestion =
         activeDownloadUrlSuggestionIndex === null ? null : (visibleDownloadUrlSuggestionEntries[activeDownloadUrlSuggestionIndex] ?? null);
@@ -968,7 +981,7 @@ export default function SetupLandingPageModal({
     }, [activeDownloadUrlSuggestionIndex, shouldShowDownloadUrlSuggestions, visibleDownloadUrlSuggestionEntries.length]);
 
     const openDownloadUrlSuggestions = () => {
-        if (!supportsFtpUrl || hasImportedFiles) {
+        if (!supportsFtpUrl || hasUsableImportedFiles) {
             return;
         }
 
@@ -1040,8 +1053,8 @@ export default function SetupLandingPageModal({
                     primaryDownloadLabel,
                     ftpFormatId,
                     ftpSizeId,
-                    supportsDownloadsUnavailable,
-                    downloadsUnavailable,
+                    supportsDownloadActivation,
+                    activateDownloads,
                     supportsLinks,
                     links,
                     files,
@@ -1263,10 +1276,62 @@ export default function SetupLandingPageModal({
                                 />
                             )}
 
-                            {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}
-                            {supportsFtpUrl && (
+                            {supportsDownloadActivation && currentConfig?.download_activation_required && !activateDownloads && (
+                                <div className="space-y-2 rounded-md border border-amber-300 p-3" role="status">
+                                    <p className="font-medium">Existing downloads are currently hidden</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Activate these saved links to offer automatic downloads. Preview does not change the published page; save to
+                                        apply the activation.
+                                    </p>
+                                    <Button type="button" variant="outline" onClick={() => setActivateDownloads(true)}>
+                                        Activate downloads
+                                    </Button>
+                                </div>
+                            )}
+                            {supportsFtpUrl && !hasUsableImportedFiles && !downloadInputOpen && (
+                                <div className="space-y-3">
+                                    <p className="text-sm font-medium">Download URL</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        As long as no specific download URL has been created, the &ldquo;No data available for automatic
+                                        download&rdquo; box will automatically be displayed on the landing page.
+                                    </p>
+                                    <Button
+                                        ref={addDownloadButtonRef}
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => {
+                                            setDownloadInputOpen(true);
+                                            requestAnimationFrame(() => downloadInputRef.current?.focus());
+                                        }}
+                                    >
+                                        <Plus className="mr-2 size-4" />
+                                        Add Download URL
+                                    </Button>
+                                </div>
+                            )}
+                            {supportsFtpUrl && !hasUsableImportedFiles && downloadInputOpen && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="ftp-url">Download URL</Label>
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="ftp-url">Download URL</Label>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Remove download URL"
+                                            onClick={() => {
+                                                setFtpUrl('');
+                                                setPrimaryDownloadLabel('');
+                                                setFtpFormatId(null);
+                                                setFtpSizeId(null);
+                                                setDownloadInputOpen(false);
+                                                setDownloadUrlSuggestionsOpen(false);
+                                                requestAnimationFrame(() => addDownloadButtonRef.current?.focus());
+                                            }}
+                                        >
+                                            <X className="size-4" />
+                                        </Button>
+                                    </div>
                                     <div
                                         className="relative"
                                         onFocusCapture={openDownloadUrlSuggestions}
@@ -1281,10 +1346,11 @@ export default function SetupLandingPageModal({
                                         }}
                                     >
                                         <Input
+                                            ref={downloadInputRef}
                                             id="ftp-url"
                                             type="url"
                                             role="combobox"
-                                            placeholder="https://datapub.gfz-potsdam.de/download/..."
+                                            placeholder="https://example.org/download/..."
                                             value={ftpUrl}
                                             onChange={(e) => {
                                                 setFtpUrl(e.target.value);
@@ -1331,7 +1397,7 @@ export default function SetupLandingPageModal({
                                                     setActiveDownloadUrlSuggestionIndex(null);
                                                 }
                                             }}
-                                            disabled={hasImportedFiles}
+                                            disabled={hasUsableImportedFiles}
                                             autoComplete="off"
                                             aria-activedescendant={activeDownloadUrlSuggestion?.id}
                                             aria-autocomplete="list"
@@ -1428,7 +1494,7 @@ export default function SetupLandingPageModal({
                                             </div>
                                         )}
                                     </div>
-                                    {hasImportedFiles ? (
+                                    {hasUsableImportedFiles ? (
                                         <p className="text-sm text-muted-foreground">
                                             This field is not used because imported download files are available below.
                                         </p>
@@ -1439,7 +1505,7 @@ export default function SetupLandingPageModal({
                                         </p>
                                     )}
 
-                                    {!hasImportedFiles && (
+                                    {!hasUsableImportedFiles && (
                                         <div className="space-y-2">
                                             <Label htmlFor="primary-download-label">Button label</Label>
                                             <Input
@@ -1458,7 +1524,7 @@ export default function SetupLandingPageModal({
                                         </div>
                                     )}
 
-                                    {!hasImportedFiles && ftpUrl.trim() !== '' && (
+                                    {!hasUsableImportedFiles && ftpUrl.trim() !== '' && (
                                         <ContentDescriptorFields
                                             formatId={ftpFormatId}
                                             sizeId={ftpSizeId}
@@ -1468,35 +1534,6 @@ export default function SetupLandingPageModal({
                                             onSizeChange={setFtpSizeId}
                                             testIdPrefix={'primary-download'}
                                         />
-                                    )}
-
-                                    {supportsDownloadsUnavailable && (
-                                        <div className="space-y-2 rounded-md border p-3">
-                                            <div className="flex items-start gap-3">
-                                                <Checkbox
-                                                    id="downloads-unavailable"
-                                                    checked={downloadsUnavailable}
-                                                    onCheckedChange={(checked) => setDownloadsUnavailable(checked === true)}
-                                                    className="mt-0.5"
-                                                />
-                                                <div className="space-y-1">
-                                                    <Label htmlFor="downloads-unavailable" className="text-sm font-medium">
-                                                        No data available for automatic download
-                                                    </Label>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Replace automatic downloads with a request form while keeping saved download values for later
-                                                        use.
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {downloadsUnavailable && hasImportedFiles && (
-                                                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                                                    <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                                                    <p>Imported download files will not be offered automatically while this option is enabled.</p>
-                                                </div>
-                                            )}
-                                        </div>
                                     )}
                                 </div>
                             )}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\PublicMetadataExportController;
 use App\Models\Description;
 use App\Models\LandingPage;
+use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Title;
@@ -70,6 +71,39 @@ test('serves all canonical public metadata representations for a published landi
     $validation = app(Iso19115XmlValidator::class)->validate($isoResponse->getContent());
     expect($validation->isValid())->toBeTrue();
 });
+
+test('ISO export endpoints respect request-only state and explicit activation', function (bool $authenticated) {
+    [$resource, $landingPage] = publicMetadataResource();
+    $landingPage->update(['ftp_url' => null, 'downloads_unavailable' => false]);
+    $landingPage->files()->create(['url' => '#', 'position' => 0]);
+    $landingPage->links()->create([
+        'url' => 'https://example.org/additional.zip',
+        'label' => 'Additional download',
+        'kind' => LandingPageLink::KIND_DOWNLOAD,
+        'position' => 0,
+    ]);
+    $url = $landingPage->getPublicPath().'/metadata/iso-19115-3.xml';
+    if ($authenticated) {
+        $this->actingAs(User::factory()->create());
+        $url = route('resources.export-iso-19115-3', $resource);
+    }
+
+    $this->get($url)->assertOk()->assertDontSee('https://example.org/additional.zip', escape: false);
+
+    $landingPage->update(['ftp_url' => 'https://example.org/main.zip', 'downloads_unavailable' => true]);
+    $this->get($url)->assertOk()
+        ->assertDontSee('https://example.org/main.zip', escape: false)
+        ->assertDontSee('https://example.org/additional.zip', escape: false);
+    expect($landingPage->fresh()->downloads_unavailable)->toBeTrue();
+
+    $landingPage->update(['downloads_unavailable' => false]);
+    $this->get($url)->assertOk()
+        ->assertSee('https://example.org/main.zip', escape: false)
+        ->assertSee('https://example.org/additional.zip', escape: false);
+
+    $landingPage->update(['ftp_url' => null]);
+    $this->get($url)->assertOk()->assertDontSee('https://example.org/additional.zip', escape: false);
+})->with([false, true]);
 
 test('does not expose any metadata representation for draft landing pages', function (string $filename) {
     [, $landingPage] = publicMetadataResource(published: false);

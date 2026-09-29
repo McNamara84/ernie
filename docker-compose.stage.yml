@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:06acf39ebf6d0c05b1680dc4cde20b41c79af93df89cfa353167975690582ee6}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3e26c00d542a31c0a6ed852a73908c3063578ccee5212223f83471e6054c1cb}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -137,9 +137,10 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
+      - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:64f9c36766d22d37cae4db78502d6d3e9885e479bf6a8fad3b24fc3361b7d146}"
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:d02871ac765fa53b3a359b72341b65b6b3e49905366858a7302623adc129a0c3}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -199,7 +200,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:9def0536213a9a3cfb23828208454f84830c5b0b0bae5e2f3824668d54984eb6}"
+    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:b727360e8d8f566e681f074c80eccca1632fc135d995589e5a55cea023dc8d14}"
     container_name: ernie-fuji-stage
     restart: unless-stopped
     entrypoint:
@@ -230,7 +231,7 @@ services:
       start_period: 60s
 
   queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:06acf39ebf6d0c05b1680dc4cde20b41c79af93df89cfa353167975690582ee6}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3e26c00d542a31c0a6ed852a73908c3063578ccee5212223f83471e6054c1cb}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -318,9 +319,10 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
+      - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   assessment-queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:06acf39ebf6d0c05b1680dc4cde20b41c79af93df89cfa353167975690582ee6}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3e26c00d542a31c0a6ed852a73908c3063578ccee5212223f83471e6054c1cb}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -378,7 +380,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:06acf39ebf6d0c05b1680dc4cde20b41c79af93df89cfa353167975690582ee6}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3e26c00d542a31c0a6ed852a73908c3063578ccee5212223f83471e6054c1cb}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped

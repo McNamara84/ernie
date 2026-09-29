@@ -30,6 +30,14 @@ class StoreLandingPageRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'downloads_unavailable.missing' => 'Download availability is automatic. Use activate_downloads to release previously hidden downloads.',
+        ];
+    }
+
     /**
      * @return array<string, array<int, mixed>|string>
      */
@@ -44,7 +52,9 @@ class StoreLandingPageRequest extends FormRequest
             'primary_download_label' => ['nullable', 'string', 'max:255'],
             'ftp_format_id' => ['nullable', 'integer', new ResourceMimeType($resource)],
             'ftp_size_id' => ['nullable', 'integer', new ResourceDigitalSize($resource)],
-            'downloads_unavailable' => ['sometimes', 'boolean'],
+            'downloads_unavailable' => ['missing'],
+            'download_activation_required' => ['missing'],
+            'activate_downloads' => ['sometimes', 'boolean'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'boolean',

@@ -89,6 +89,82 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 30000, waitUntil: 'domcontentloaded' });
     });
 
+    test('automatically switches between request and download previews', async ({ page, context }) => {
+        const resourcesPage = new ResourcesPage(page);
+        await gotoWithLocalTlsRetry(page, '/resources');
+        await resourcesPage.search('Playwright: Curation Resource (no landing page)');
+        const row = resourcesPage.resourceTable.locator('tbody tr').filter({ hasText: 'Playwright: Curation Resource (no landing page)' }).first();
+        await expect(row).toBeVisible();
+        await row.getByRole('checkbox').click();
+        const setup = page.getByTestId('resources-action-setup-landing-page');
+        if (!(await setup.isVisible())) await page.getByTestId('resources-actions-menu-trigger').click();
+        await setup.click();
+        const dialog = page.getByRole('dialog');
+        const preview = async () => {
+            const [tab] = await Promise.all([context.waitForEvent('page'), dialog.getByRole('button', { name: /^Preview$/ }).click()]);
+            await expect(tab.getByText('Preview Mode')).toBeVisible();
+            return tab;
+        };
+
+        await expect(dialog.getByRole('button', { name: 'Add Download URL' })).toBeVisible();
+        const emptyPreview = await preview();
+        await expect(emptyPreview.getByTestId('data-request-section')).toBeVisible();
+        await emptyPreview.close();
+
+        await dialog.getByRole('button', { name: 'Add Download URL' }).click();
+        await expect(dialog.getByRole('combobox', { name: 'Download URL', exact: true })).toBeFocused();
+        await dialog.getByRole('combobox', { name: 'Download URL', exact: true }).fill('https://example.org/issue-1363.zip');
+        await dialog.getByLabel('Button label', { exact: true }).fill('Issue 1363 archive');
+        const downloadPreview = await preview();
+        await expect(downloadPreview.getByRole('link', { name: 'Issue 1363 archive' })).toHaveAttribute('href', 'https://example.org/issue-1363.zip');
+        await expect(downloadPreview.getByTestId('data-request-section')).toHaveCount(0);
+        await downloadPreview.close();
+
+        await dialog.getByRole('button', { name: 'Remove download URL' }).click();
+        await expect(dialog.getByRole('button', { name: 'Add Download URL' })).toBeFocused();
+        const removedPreview = await preview();
+        await expect(removedPreview.getByTestId('data-request-section')).toBeVisible();
+        await removedPreview.close();
+        await dialog.getByRole('button', { name: 'Cancel' }).click();
+    });
+
+    test('reorders download URL suggestions using the keyboard and drag handle', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/settings');
+        await page.getByRole('button', { name: /Download URL suggestions/ }).click();
+        const prefix = page.getByRole('textbox', { name: 'New download URL prefix' });
+        for (const value of ['https://issue-1363.example/first', 'https://issue-1363.example/second']) {
+            await prefix.fill(value);
+            await page.getByRole('button', { name: 'Add prefix', exact: true }).click();
+        }
+        const list = page.getByRole('list', { name: 'Download URL suggestions' });
+        const inputs = list.getByRole('textbox');
+        const count = await inputs.count();
+        const handle = list.getByRole('button', { name: `Reorder suggestion ${count}`, exact: true });
+        await handle.scrollIntoViewIfNeeded();
+        const initialPosition = await handle.boundingBox();
+        await handle.focus();
+        await page.keyboard.press('Space');
+        await expect(handle).toHaveAttribute('aria-pressed', 'true');
+        await page.keyboard.press('ArrowUp');
+        await expect.poll(async () => (await handle.boundingBox())?.y ?? Infinity).toBeLessThan(initialPosition!.y - 10);
+        await page.keyboard.press('Space');
+        await expect(inputs.nth(count - 2)).toHaveValue('https://issue-1363.example/second');
+
+        const from = await list.getByRole('button', { name: `Reorder suggestion ${count - 1}`, exact: true }).boundingBox();
+        const to = await list.getByRole('button', { name: `Reorder suggestion ${count}`, exact: true }).boundingBox();
+        expect(from).not.toBeNull();
+        expect(to).not.toBeNull();
+        if (from && to) {
+            await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+            await page.mouse.down();
+            await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+            await page.mouse.up();
+        }
+        await expect(inputs.nth(count - 1)).toHaveValue('https://issue-1363.example/second');
+        await expect(page.getByRole('button', { name: /^Save changes$/i })).toBeEnabled();
+        // Keep this interaction test independent of installation-wide settings.
+    });
+
     test('opens session-based preview in a new tab without server error', async ({ page, context }) => {
         const resourcesPage = new ResourcesPage(page);
         await resourcesPage.goto();
@@ -125,9 +201,8 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(dialog).toBeVisible({ timeout: 15000 });
         await expect(dialog.getByText(/setup landing page/i)).toBeVisible();
 
-        const downloadsUnavailableCheckbox = dialog.getByRole('checkbox', { name: 'No data available for automatic download' });
-        await downloadsUnavailableCheckbox.click();
-        await expect(downloadsUnavailableCheckbox).toBeChecked();
+        await expect(dialog.getByRole('button', { name: 'Add Download URL' })).toBeVisible();
+        await expect(dialog.getByRole('checkbox', { name: 'No data available for automatic download' })).toHaveCount(0);
 
         // Clicking preview should create a session-based preview and open a new tab
         const previewButton = dialog.getByRole('button', { name: /^preview$/i });

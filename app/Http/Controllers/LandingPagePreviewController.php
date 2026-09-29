@@ -10,8 +10,10 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
+use App\Services\LandingPageDownloadAvailabilityService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -74,29 +76,20 @@ class LandingPagePreviewController extends Controller
         // Only include links for templates that support them.
         // Note: external templates already returned early above, so we only check IGSN here.
         $isLinksTemplate = ! in_array($validated['template'], LandingPageController::IGSN_ONLY_TEMPLATES, true);
-        $previewFiles = [];
-        if (is_array($validated['files'] ?? null) && $resource->landingPage !== null) {
-            $filesById = $resource->landingPage->files()
-                ->whereIn('id', collect($validated['files'])->pluck('id')->filter()->all())
-                ->get()
-                ->keyBy('id');
+        $resource->loadMissing('landingPage.files', 'landingPage.links');
+        /** @var list<array{id: int, label?: string|null, format_id?: int|null, size_id?: int|null}> $submittedFileEdits */
+        $submittedFileEdits = $validated['files'] ?? [];
+        $fileEdits = collect($submittedFileEdits)->keyBy('id');
+        $previewFiles = $resource->landingPage?->files->map(function ($file) use ($fileEdits): array {
+            $edit = $fileEdits->get($file->id, []);
 
-            foreach ($validated['files'] as $fileData) {
-                $file = $filesById->get((int) $fileData['id']);
-                if ($file === null) {
-                    continue;
-                }
-
-                $previewFiles[] = [
-                    ...$file->toArray(),
-                    'label' => $this->normalizeOptionalLabel(
-                        array_key_exists('label', $fileData) ? $fileData['label'] : $file->label,
-                    ),
-                    'format_id' => $fileData['format_id'] ?? null,
-                    'size_id' => $fileData['size_id'] ?? null,
-                ];
-            }
-        }
+            return [
+                ...$file->toArray(),
+                'label' => $this->normalizeOptionalLabel(array_key_exists('label', $edit) ? $edit['label'] : $file->label),
+                'format_id' => array_key_exists('format_id', $edit) ? $edit['format_id'] : $file->format_id,
+                'size_id' => array_key_exists('size_id', $edit) ? $edit['size_id'] : $file->size_id,
+            ];
+        })->all() ?? [];
 
         $effectiveFtpUrl = array_key_exists('ftp_url', $validated)
             ? $validated['ftp_url']
@@ -106,6 +99,8 @@ class LandingPagePreviewController extends Controller
             : $resource->landingPage?->primary_download_label;
 
         Session::put($sessionKey, [
+            'download_workflow_version' => 2,
+            'activate_downloads' => $validated['activate_downloads'] ?? false,
             'template' => $validated['template'],
             'landing_page_template_id' => LandingPageController::templateSupportsCustomTemplateId($validated['template'])
                 ? ($validated['landing_page_template_id'] ?? null)
@@ -123,10 +118,7 @@ class LandingPagePreviewController extends Controller
             'ftp_size_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
                 ? ($validated['ftp_size_id'] ?? null)
                 : null,
-            'downloads_unavailable' => LandingPageController::templateSupportsDownloadsUnavailable($validated['template'])
-                ? ($validated['downloads_unavailable'] ?? false)
-                : false,
-            'links' => $isLinksTemplate ? ($validated['links'] ?? []) : [],
+            'links' => $isLinksTemplate ? ($validated['links'] ?? $resource->landingPage?->links->toArray() ?? []) : [],
             'files' => $previewFiles,
             'resource_id' => $resource->id,
         ]);
@@ -210,9 +202,21 @@ class LandingPagePreviewController extends Controller
         }
         $customLogoUrl = $templateConfig->logo_url;
 
+        $availability = app(LandingPageDownloadAvailabilityService::class);
+        $resource->loadMissing('landingPage.files', 'landingPage.links');
+        $activationRequired = $resource->landingPage !== null && $availability->requiresActivation($resource->landingPage);
+        $activateDownloads = ($previewData['download_workflow_version'] ?? null) === 2
+            && ($previewData['activate_downloads'] ?? false) === true;
+        $files = array_values(array_filter(
+            is_array($previewData['files'] ?? null) ? $previewData['files'] : [],
+            fn (mixed $file): bool => is_array($file) && $availability->isUsableUrl($file['url'] ?? null),
+        ));
+        $embargoPending = app(EmbargoService::class)->isEmbargoed($resource);
         $downloadsUnavailable = LandingPageController::templateSupportsDownloadsUnavailable($template)
-            && ($previewData['downloads_unavailable'] ?? false) === true;
+            && ($embargoPending || ($activationRequired && ! $activateDownloads)
+                || ! $availability->hasSources($previewData['ftp_url'] ?? null, $files));
         $ftpUrl = LandingPageController::templateSupportsFtpUrl($template) && ! $downloadsUnavailable
+            && $availability->isUsableUrl($previewData['ftp_url'] ?? null)
             ? ($previewData['ftp_url'] ?? null)
             : null;
         $links = $template !== LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG
@@ -237,7 +241,7 @@ class LandingPagePreviewController extends Controller
             'ftp_format_id' => $previewData['ftp_format_id'] ?? null,
             'ftp_size_id' => $previewData['ftp_size_id'] ?? null,
             'downloads_unavailable' => $downloadsUnavailable,
-            'files' => is_array($previewData['files'] ?? null) ? $previewData['files'] : [],
+            'files' => ! $downloadsUnavailable && LandingPageController::templateSupportsFtpUrl($template) ? $files : [],
             'links' => $links,
             'status' => 'preview',
             'preview_token' => null,
@@ -253,6 +257,8 @@ class LandingPagePreviewController extends Controller
             'hasDataPublicationTeamRecipient' => $dataPublicationTeamRecipientService->isAvailable(),
             'supportsIso19115' => $isoProfile->supports($resource),
             'isPreview' => true,
+            'embargoPending' => $embargoPending,
+            'embargoDate' => $embargoPending ? app(EmbargoService::class)->availableDate($resource) : null,
             'sectionOrder' => $sectionOrder,
             'customLogoUrl' => $customLogoUrl,
             'landingPageTemplateSource' => $resolvedTemplate['source'],

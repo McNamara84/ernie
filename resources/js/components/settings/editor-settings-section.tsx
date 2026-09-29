@@ -18,6 +18,7 @@ export const EDITOR_SETTINGS_SECTION_ORDER = [
     'thesauri',
     'persistent-identifiers',
     'landing-page-domains',
+    'download-url-suggestions',
     'datacenters',
 ] as const;
 

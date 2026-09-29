@@ -70,11 +70,10 @@ describe('Landing Page Creation', function () {
             ->published_at->toBeNull();
     });
 
-    test('can mark generated landing page downloads unavailable without clearing retained download values', function () {
+    test('automatically offers generated landing page downloads without a manual flag', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
-            'downloads_unavailable' => true,
             'status' => 'draft',
             'links' => [
                 [
@@ -86,13 +85,13 @@ describe('Landing Page Creation', function () {
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('landing_page.downloads_unavailable', true)
+            ->assertJsonPath('landing_page.downloads_unavailable', false)
             ->assertJsonPath('landing_page.ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
             ->assertJsonPath('landing_page.links.0.url', 'https://example.org/supporting-repository');
 
         $landingPage = $this->resource->fresh()->landingPage->load('links');
 
-        expect($landingPage->downloads_unavailable)->toBeTrue()
+        expect($landingPage->downloads_unavailable)->toBeFalse()
             ->and($landingPage->ftp_url)->toBe('https://datapub.gfz-potsdam.de/download/test.zip')
             ->and($landingPage->links)->toHaveCount(1);
     });
@@ -104,7 +103,6 @@ describe('Landing Page Creation', function () {
             'template' => 'external',
             'external_domain_id' => $domain->id,
             'external_path' => '/datasets/123',
-            'downloads_unavailable' => true,
             'status' => 'draft',
         ]);
 
@@ -269,7 +267,6 @@ describe('Landing Page Updates', function () {
         $this->app->instance(LandingPagePolicy::class, $policy);
 
         $this->putJson("/resources/{$this->resource->id}/landing-page", [
-            'downloads_unavailable' => true,
             'status' => 'draft',
         ])->assertOk()
             ->assertJsonPath('landing_page.template', 'external')
@@ -306,10 +303,10 @@ describe('Landing Page Updates', function () {
             ->and($this->landingPage->fresh()->primary_download_label)->toBeNull();
     });
 
-    test('can toggle downloads unavailable without clearing retained download configuration', function () {
+    test('preserves historical suppression until explicitly activated', function () {
         $this->landingPage->update([
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/original.zip',
-            'downloads_unavailable' => false,
+            'downloads_unavailable' => true,
         ]);
         $this->landingPage->links()->create([
             'url' => 'https://example.org/original-link',
@@ -319,7 +316,6 @@ describe('Landing Page Updates', function () {
 
         $this->putJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'default_gfz',
-            'downloads_unavailable' => true,
             'status' => 'draft',
         ])->assertOk()
             ->assertJsonPath('landing_page.downloads_unavailable', true)
@@ -328,7 +324,7 @@ describe('Landing Page Updates', function () {
 
         $this->putJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'default_gfz',
-            'downloads_unavailable' => false,
+            'activate_downloads' => true,
             'status' => 'draft',
         ])->assertOk()
             ->assertJsonPath('landing_page.downloads_unavailable', false)
@@ -961,7 +957,7 @@ describe('Landing Page Template Assignment', function () {
             'external_path' => 'dataset/123',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated.zip',
             'primary_download_label' => 'Unsupported download label',
-            'downloads_unavailable' => true,
+            'activate_downloads' => true,
             'links' => [
                 [
                     'url' => 'https://example.org/details',
@@ -976,7 +972,7 @@ describe('Landing Page Template Assignment', function () {
             ->assertJson([
                 'message' => 'The request includes fields that are not supported for this landing page template.',
             ])
-            ->assertJsonValidationErrors(['ftp_url', 'primary_download_label', 'downloads_unavailable', 'links']);
+            ->assertJsonValidationErrors(['ftp_url', 'primary_download_label', 'activate_downloads', 'links']);
 
         expect($this->resource->fresh()->landingPage)
             ->template->toBe('default_gfz')
@@ -986,7 +982,7 @@ describe('Landing Page Template Assignment', function () {
             ->external_path->toBeNull();
     });
 
-    test('rejects downloads unavailable as an unsupported external template field even when false', function () {
+    test('rejects download activation as an unsupported external template field even when false', function () {
         $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
 
         LandingPage::factory()->draft()->create([
@@ -999,7 +995,7 @@ describe('Landing Page Template Assignment', function () {
             'template' => 'external',
             'external_domain_id' => $domain->id,
             'external_path' => 'dataset/123',
-            'downloads_unavailable' => false,
+            'activate_downloads' => false,
             'status' => 'draft',
         ]);
 
@@ -1007,7 +1003,7 @@ describe('Landing Page Template Assignment', function () {
             ->assertJson([
                 'message' => 'The request includes fields that are not supported for this landing page template.',
             ])
-            ->assertJsonValidationErrors(['downloads_unavailable']);
+            ->assertJsonValidationErrors(['activate_downloads']);
 
         expect($this->resource->fresh()->landingPage)
             ->template->toBe('default_gfz')
@@ -1197,7 +1193,7 @@ describe('Landing Page Download URL Suggestions', function () {
 
         $response
             ->assertOk()
-            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/')
+            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/download')
             ->assertJsonPath('suggestions.domains.0.usage_count', 4)
             ->assertJsonPath('suggestions.urls.0.value', $duplicateUrl)
             ->assertJsonPath('suggestions.urls.0.usage_count', 2);
@@ -1224,7 +1220,7 @@ describe('Landing Page Download URL Suggestions', function () {
     test('invalidates cached suggestions when landing pages change', function () {
         $this->getJson('/api/landing-page-download-url-suggestions')
             ->assertOk()
-            ->assertJsonPath('suggestions.domains', [])
+            ->assertJsonPath('suggestions.domains', [['value' => 'https://datapub.gfz.de/download', 'usage_count' => 0]])
             ->assertJsonPath('suggestions.urls', []);
 
         $this->postJson("/resources/{$this->resource->id}/landing-page", [
@@ -1235,7 +1231,9 @@ describe('Landing Page Download URL Suggestions', function () {
 
         $this->getJson('/api/landing-page-download-url-suggestions')
             ->assertOk()
-            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/')
+            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/download')
+            ->assertJsonPath('suggestions.domains.0.usage_count', 1)
+            ->assertJsonPath('suggestions.domains.1.value', 'https://datapub.gfz.de/')
             ->assertJsonPath('suggestions.urls.0.value', 'https://datapub.gfz.de/download/newly-created-file.zip');
     });
 });
