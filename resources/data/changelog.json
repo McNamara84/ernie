@@ -97,6 +97,17 @@
         ],
         "improvements": [
             {
+                "title": "Stay in the Editor After Saving a Draft",
+                "description": "Saving a draft now keeps the current resource open in the editor. Newly saved drafts receive a reusable editor URL, so curators can continue editing, reload the page, or return to the same draft without accumulating resources-list tabs.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1370,
+                        "url": "https://github.com/McNamara84/ernie/issues/1370"
+                    }
+                ]
+            },
+            {
                 "title": "F-UJI 4.0.1 and Published Landing Page Reassessments",
                 "description": "FAIR assessments now use a verified, digest-pinned F-UJI 4.0.1 image with the Chromium runtime required for startup. Existing DOI assessments are automatically refreshed after their ERNIE landing page is published and the DOI resolver points to it, while the previous score remains available during retries. Assessment rows distinguish provisional, pending, current, and failed results; Admins can inspect F-UJI provenance and F4 test details. Guidance no longer assumes that a failed F4 test proves missing server-side Schema.org metadata."
             },

@@ -50,7 +50,7 @@ import {
 import { feedback } from '@/lib/feedback';
 import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
 import { toImportedFormParts } from '@/lib/imported-metadata-form';
-import { resources } from '@/routes';
+import { editor, resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { LandingPageConfig } from '@/types/landing-page';
@@ -3072,16 +3072,21 @@ export default function DataCiteForm({
             updateDraftAutosaveSignature(payload, savedResourceId);
 
             setHasAttemptedSubmit(false);
-
-            // Show toast before redirect so feedback is visible even if navigation fails
             toast.success(successMsg);
 
-            // Redirect to resources list (Issue #624)
-            router.visit(resourcesUrl, {
-                onError: () => {
-                    toast.warning('Could not navigate to the resources list. Your draft has been saved.');
-                },
-            });
+            // Keep the current form mounted while making a newly saved draft reloadable.
+            const resourceIdForUrl = savedResourceId ?? resolvedResourceId;
+            if (resourceIdForUrl && Number.isSafeInteger(resourceIdForUrl)) {
+                const editorUrl = editor.url({ query: { resourceId: resourceIdForUrl } });
+                if (`${window.location.pathname}${window.location.search}` !== editorUrl) {
+                    router.replace({
+                        url: editorUrl,
+                        props: (props) => ({ ...props, resourceId: String(resourceIdForUrl) }),
+                        preserveState: true,
+                        preserveScroll: true,
+                    });
+                }
+            }
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
