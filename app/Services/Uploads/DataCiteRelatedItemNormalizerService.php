@@ -73,7 +73,7 @@ final class DataCiteRelatedItemNormalizerService
     }
 
     /**
-     * @return array<int, array<string, string>>
+     * @return array<int, array{title: string, title_type: string, language: string|null}>
      */
     private function titles(mixed $titles): array
     {
@@ -89,6 +89,7 @@ final class DataCiteRelatedItemNormalizerService
             $result[] = [
                 'title' => $value,
                 'title_type' => $this->string($title['titleType'] ?? null) ?? 'MainTitle',
+                'language' => $this->string($title['lang'] ?? null),
             ];
         }
         if ($result !== [] && ! in_array('MainTitle', array_column($result, 'title_type'), true)) {

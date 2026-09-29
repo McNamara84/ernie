@@ -48,7 +48,7 @@ test('XML citations survive both draft save and autosave', function (string $int
 
     $xml = '<relatedItems><relatedItem relatedItemType="JournalArticle" relationType="Cites">'
         .'<relatedItemIdentifier relatedItemIdentifierType="DOI">10.1234/cited</relatedItemIdentifier>'
-        .'<titles><title>Cited article</title></titles>'
+        .'<titles><title xml:lang="es">Cited article</title></titles>'
         .'<creators><creator><creatorName nameType="Personal">Doe, Jane</creatorName></creator></creators>'
         .'</relatedItem></relatedItems>';
     $items = $this->postJson(route('editor.upload-xml.preview'), ['file' => editorPreviewXml(relatedItems: $xml)])
@@ -56,6 +56,7 @@ test('XML citations survive both draft save and autosave', function (string $int
         ->json('metadata.relatedItems');
 
     expect($items)->toHaveCount(1);
+    expect($items[0]['titles'][0]['language'])->toBe('es');
     $this->postJson('/editor/resources/draft', [
         'intent' => $intent,
         'titles' => [['title' => 'Imported title', 'titleType' => 'main-title']],
@@ -66,6 +67,7 @@ test('XML citations survive both draft save and autosave', function (string $int
     expect($item->related_item_type)->toBe('JournalArticle')
         ->and($item->identifier)->toBe('10.1234/cited')
         ->and($item->titles->sole()->title)->toBe('Cited article')
+        ->and($item->titles->sole()->language)->toBe('es')
         ->and($item->creators->sole()->name)->toBe('Doe, Jane');
 })->with(['save-draft', 'autosave']);
 
@@ -114,7 +116,7 @@ test('editor JSON preview normalizes inline citations and persists them on draft
                 'relatedItemIdentifier' => '10.1234/json-citation',
                 'relatedItemIdentifierType' => 'DOI',
             ],
-            'titles' => [['title' => 'JSON citation']],
+            'titles' => [['title' => 'JSON citation', 'lang' => 'de']],
             'creators' => [['name' => 'Smith, John', 'nameType' => 'Personal']],
             'publicationYear' => '2024',
         ]],
@@ -124,6 +126,7 @@ test('editor JSON preview normalizes inline citations and persists them on draft
     ])->assertOk()
         ->assertJsonPath('metadata.relatedItems.0.identifier', '10.1234/json-citation')
         ->assertJsonPath('metadata.relatedItems.0.titles.0.title_type', 'MainTitle')
+        ->assertJsonPath('metadata.relatedItems.0.titles.0.language', 'de')
         ->assertJsonPath('metadata.relatedItems.0.creators.0.name', 'Smith, John')
         ->assertJsonPath('metadata.relatedItems.0.publication_year', 2024)
         ->json('metadata.relatedItems');
@@ -134,7 +137,9 @@ test('editor JSON preview normalizes inline citations and persists them on draft
         'relatedItems' => $items,
     ])->assertCreated();
 
-    expect(Resource::latest('id')->firstOrFail()->relatedItems()->sole()->identifier)->toBe('10.1234/json-citation');
+    $item = Resource::latest('id')->firstOrFail()->relatedItems()->with('titles')->sole();
+    expect($item->identifier)->toBe('10.1234/json-citation')
+        ->and($item->titles->sole()->language)->toBe('de');
 });
 
 test('editor JSON-LD preview includes inline citations', function () {
@@ -150,7 +155,7 @@ test('editor JSON-LD preview includes inline citations', function () {
             'relatedItem' => [
                 'attrs' => ['relatedItemType' => 'JournalArticle', 'relationType' => 'Cites'],
                 'value' => [
-                    'titles' => ['title' => ['value' => 'JSON-LD citation']],
+                    'titles' => ['title' => ['attrs' => ['lang' => 'fr'], 'value' => 'JSON-LD citation']],
                     'relatedItemIdentifier' => [
                         'attrs' => ['relatedItemIdentifierType' => 'DOI'],
                         'value' => '10.1234/jsonld-citation',
@@ -164,7 +169,8 @@ test('editor JSON-LD preview includes inline citations', function () {
         'file' => UploadedFile::fake()->createWithContent('citation.jsonld', json_encode($jsonLd, JSON_THROW_ON_ERROR)),
     ])->assertOk()
         ->assertJsonPath('metadata.relatedItems.0.related_item_type', 'JournalArticle')
-        ->assertJsonPath('metadata.relatedItems.0.identifier', '10.1234/jsonld-citation');
+        ->assertJsonPath('metadata.relatedItems.0.identifier', '10.1234/jsonld-citation')
+        ->assertJsonPath('metadata.relatedItems.0.titles.0.language', 'fr');
 });
 
 test('editor upload previews preserve file validation and reject malformed data', function () {
