@@ -23,7 +23,7 @@ export const DOCS_ACTIONS: DocsAction[] = [
         onClick: 'Saves the current editor values as a draft; there is no confirmation dialog.',
         afterConfirmation: 'No confirmation is required.',
         localEffect:
-            'Creates or updates a draft in the ERNIE database. Autosave can also save a draft while you work; check its visible status before leaving.',
+            'Creates or updates a draft in the ERNIE database and keeps the editor open. A newly saved draft gets a resource URL that can be reopened. Autosave can also save a draft while you work; check its visible status before leaving.',
         externalEffect: 'No request is sent to DataCite.',
         publicEffect: 'No DOI is registered and the draft is not published.',
         failure: 'If saving fails, keep the editor open and retry. Do not assume unsaved changes were stored.',

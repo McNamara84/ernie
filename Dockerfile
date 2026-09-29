@@ -148,6 +148,12 @@ FROM app-base AS app
 
 COPY --from=app-build /var/www/html /var/www/html
 
+# linux-libc-dev supplies headers for extension compilation, but is not needed
+# by PHP-FPM at runtime. Remove it (and dependent build tools) from this stage.
+RUN apt-get purge -y linux-libc-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 EXPOSE 9000
 
 ENTRYPOINT ["docker-entrypoint.sh"]

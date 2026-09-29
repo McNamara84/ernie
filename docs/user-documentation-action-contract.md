@@ -4,7 +4,7 @@ The English action descriptions rendered at /docs are maintained in [docs-action
 
 | Action in the UI | Access and record prerequisite | Effect after confirmation or click | Source |
 | --- | --- | --- | --- |
-| Editor: Save Draft | Signed-in user; Main Title; unpublished record | Saves a local draft; no DataCite request | [Editor](../resources/js/components/curation/datacite-form.tsx) |
+| Editor: Save Draft | Signed-in user; Main Title; unpublished record | Saves a local draft, keeps the editor open, and gives a new draft a reusable resource URL; no DataCite request | [Editor](../resources/js/components/curation/datacite-form.tsx) |
 | Editor: Validate | Signed-in user; valid required fields | Saves validated metadata in ERNIE; no DataCite request | [Editor](../resources/js/components/curation/datacite-form.tsx) |
 | Editor: Register | register-doi gate; no DOI; valid metadata; landing page before remote write | First click only validates and opens a dialog. Confirmation saves locally, prepares a landing page if needed, then creates and publishes a DOI at DataCite. A remote failure can leave the local save intact. | [Editor](../resources/js/components/curation/datacite-form.tsx), [DOI controller](../app/Http/Controllers/ResourceDoiRegistrationController.php) |
 | Editor: Update Metadata | register-doi gate; existing DOI; matching DataCite record in the active environment | Confirmation saves locally, then updates the existing DOI at DataCite. No new DOI. | [Editor](../resources/js/components/curation/datacite-form.tsx), [DOI controller](../app/Http/Controllers/ResourceDoiRegistrationController.php) |

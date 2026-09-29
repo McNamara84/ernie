@@ -50,7 +50,7 @@ import {
 import { feedback } from '@/lib/feedback';
 import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
 import { toImportedFormParts } from '@/lib/imported-metadata-form';
-import { resources } from '@/routes';
+import { editor, resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { LandingPageConfig } from '@/types/landing-page';
@@ -320,7 +320,10 @@ export default function DataCiteForm({
     activeRelationTypes,
     activeIdentifierTypes,
 }: DataCiteFormProps) {
-    const { auth, curationAccordionOpenItems, curationAccordionRevision } = usePage<SharedData>().props;
+    const {
+        url: currentPageUrl,
+        props: { auth, curationAccordionOpenItems, curationAccordionRevision },
+    } = usePage<SharedData>();
     // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
     const dateTypeOptions = useMemo(
@@ -1458,6 +1461,7 @@ export default function DataCiteForm({
     const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
     const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
     const draftAutosaveInFlightRef = useRef(false);
+    const manualDraftSaveInFlightRef = useRef(false);
     const [isDraftAutosaveInFlight, setIsDraftAutosaveInFlight] = useState(false);
     const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -2609,6 +2613,7 @@ export default function DataCiteForm({
             isSubmittingDataCite ||
             importInFlightRef.current ||
             registrationSuccess !== null ||
+            manualDraftSaveInFlightRef.current ||
             draftAutosaveInFlightRef.current
         ) {
             return;
@@ -3027,7 +3032,14 @@ export default function DataCiteForm({
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
-        if (!isDraftSaveable || importInFlightRef.current) return;
+        if (
+            !isDraftSaveable ||
+            importInFlightRef.current ||
+            isDraftAutosaveInFlight ||
+            draftAutosaveInFlightRef.current ||
+            manualDraftSaveInFlightRef.current
+        )
+            return;
 
         setIsSavingDraft(true);
         setErrorMessage(null);
@@ -3042,6 +3054,7 @@ export default function DataCiteForm({
         }
 
         const payload = buildPayload();
+        manualDraftSaveInFlightRef.current = true;
 
         try {
             const response = await axios.post(
@@ -3072,16 +3085,28 @@ export default function DataCiteForm({
             updateDraftAutosaveSignature(payload, savedResourceId);
 
             setHasAttemptedSubmit(false);
-
-            // Show toast before redirect so feedback is visible even if navigation fails
             toast.success(successMsg);
 
-            // Redirect to resources list (Issue #624)
-            router.visit(resourcesUrl, {
-                onError: () => {
-                    toast.warning('Could not navigate to the resources list. Your draft has been saved.');
-                },
-            });
+            // Keep the current form mounted while making a newly saved draft reloadable.
+            const resourceIdForUrl = savedResourceId ?? resolvedResourceId;
+            if (resourceIdForUrl && Number.isSafeInteger(resourceIdForUrl)) {
+                const editorUrl = editor.url({ query: { resourceId: resourceIdForUrl } });
+                router.replace({
+                    url: editorUrl,
+                    // History props predate the save. A restored editor must fetch its saved values.
+                    props: (props) => ({
+                        ...props,
+                        resourceId: String(resourceIdForUrl),
+                        refreshSavedDraftOnRestore: true,
+                        // Only the first save of a new draft may retain the previous transition key.
+                        ...(!new URLSearchParams(currentPageUrl.split('?')[1]).has('resourceId') && currentPageUrl !== editorUrl
+                            ? { draftSaveTransition: { fromUrl: currentPageUrl, resourceId: String(resourceIdForUrl) } }
+                            : {}),
+                    }),
+                    preserveState: true,
+                    preserveScroll: true,
+                });
+            }
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
@@ -3108,6 +3133,7 @@ export default function DataCiteForm({
             console.error('Failed to save draft', error);
             setErrorMessage('A network error prevented saving the draft. Please try again.');
         } finally {
+            manualDraftSaveInFlightRef.current = false;
             setIsSavingDraft(false);
         }
     };
@@ -3354,7 +3380,8 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
-    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
+    const isEditorActionInFlight =
+        isSaving || isSavingDraft || isDraftAutosaveInFlight || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
     const isPublishedResource = currentPublicStatus === 'published';
     const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
