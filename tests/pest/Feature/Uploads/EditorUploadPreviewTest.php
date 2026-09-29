@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -103,6 +104,35 @@ test('editor JSON preview returns parsed metadata without creating a draft', fun
     expect(Resource::count())->toBe($before);
 });
 
+test('editor JSON preview preserves title languages through draft save', function () {
+    $this->actingAs(User::factory()->create(['role' => 'curator']));
+    TitleType::create(['name' => 'Subtitle', 'slug' => 'subtitle', 'is_active' => true]);
+    $attributes = minimalAttributes([
+        'titles' => [
+            ['title' => 'English main title', 'lang' => 'en'],
+            ['title' => 'Deutscher Untertitel', 'titleType' => 'Subtitle', 'lang' => 'de'],
+        ],
+    ]);
+
+    $titles = $this->postJson(route('editor.upload-json.preview'), [
+        'file' => UploadedFile::fake()->createWithContent('titles.json', dataCiteJson($attributes)),
+    ])->assertOk()
+        ->assertJsonPath('metadata.titles.0.language', 'en')
+        ->assertJsonPath('metadata.titles.1.language', 'de')
+        ->json('metadata.titles');
+
+    $this->postJson('/editor/resources/draft', [
+        'intent' => 'save-draft',
+        'titles' => $titles,
+    ])->assertCreated();
+
+    $storedTitles = Resource::latest('id')->firstOrFail()->titles()->pluck('language', 'value');
+    expect($storedTitles->all())->toBe([
+        'English main title' => 'en',
+        'Deutscher Untertitel' => 'de',
+    ]);
+});
+
 test('editor JSON preview normalizes inline citations and persists them on draft save', function () {
     $this->actingAs(User::factory()->create(['role' => 'curator']));
     ResourceType::create(['name' => 'Journal Article', 'slug' => 'journal-article']);
@@ -146,7 +176,7 @@ test('editor JSON-LD preview includes inline citations', function () {
     $this->actingAs(User::factory()->create(['role' => 'curator']));
     $jsonLd = [
         '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
-        'titles' => ['title' => ['value' => 'JSON-LD import']],
+        'titles' => ['title' => ['attrs' => ['lang' => 'es'], 'value' => 'JSON-LD import']],
         'creators' => ['creator' => ['creatorName' => ['value' => 'Doe, Jane']]],
         'publisher' => ['value' => 'GFZ Data Services'],
         'publicationYear' => ['value' => '2025'],
@@ -168,6 +198,7 @@ test('editor JSON-LD preview includes inline citations', function () {
     $this->postJson(route('editor.upload-json.preview'), [
         'file' => UploadedFile::fake()->createWithContent('citation.jsonld', json_encode($jsonLd, JSON_THROW_ON_ERROR)),
     ])->assertOk()
+        ->assertJsonPath('metadata.titles.0.language', 'es')
         ->assertJsonPath('metadata.relatedItems.0.related_item_type', 'JournalArticle')
         ->assertJsonPath('metadata.relatedItems.0.identifier', '10.1234/jsonld-citation')
         ->assertJsonPath('metadata.relatedItems.0.titles.0.language', 'fr');

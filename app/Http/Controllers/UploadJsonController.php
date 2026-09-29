@@ -439,7 +439,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $titles
-     * @return array<int, array{title: string, titleType: string}>
+     * @return array<int, array{title: string, titleType: string, language: string|null}>
      */
     private function extractTitles(array $titles): array
     {
@@ -456,6 +456,7 @@ class UploadJsonController extends Controller
             $result[] = [
                 'title' => $titleText,
                 'titleType' => $normalizedType,
+                'language' => LanguageTag::validOrNull($title['lang'] ?? null),
             ];
         }
 
