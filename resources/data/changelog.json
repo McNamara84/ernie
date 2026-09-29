@@ -4,6 +4,22 @@
         "date": "2026-09-28",
         "features": [
             {
+                "title": "Metadata File Uploads While Creating Resources",
+                "description": "Curators can upload DataCite XML from the resource list and open the resulting draft directly in the editor. New resources also have a collapsible XML, JSON and JSON-LD upload area in the editor. Imported metadata fills empty fields and adds unique entries while preserving values already entered; the editor upload does not create a draft until the normal save or autosave runs.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1366,
+                        "url": "https://github.com/McNamara84/ernie/issues/1366"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1372,
+                        "url": "https://github.com/McNamara84/ernie/pull/1372"
+                    }
+                ]
+            },
+            {
                 "title": "Automatic Landing Page Downloads and Configurable URL Suggestions",
                 "description": "Landing page setup now starts with Add Download URL and automatically displays downloads or a data request based on usable primary URLs and imported files. Previously hidden downloads remain protected until explicitly activated, consistently across previews, imports, metadata exports, Signposting and assistants. Admins and Group Leaders can add and reorder URL prefixes using drag and drop or keyboard controls. The configurable default https://datapub.gfz.de/download is offered first until the order is explicitly changed; saving unrelated settings preserves the installation default.",
                 "references": [

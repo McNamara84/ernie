@@ -46,6 +46,7 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
     const inputRef = useRef<HTMLInputElement | null>(null);
     const tagifyRef = useRef<Tagify<TagData> | null>(null);
     const changeHandlerRef = useRef(onChange);
+    const tagifyChangeHandlerRef = useRef<((event: CustomEvent) => void) | null>(null);
     const editingRorIdRef = useRef<string | null>(null);
     const originalDelimitersRef = useRef<string | RegExp>(',');
     const delimitersWereSuspendedRef = useRef(false);
@@ -208,12 +209,14 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
         };
 
         tagify.on('change', handleChange);
+        tagifyChangeHandlerRef.current = handleChange;
         tagify.on('edit:start', handleEditStart);
         tagify.on('edit:updated', handleEditUpdated);
         tagify.on('edit:keydown', handleEditKeydown);
 
         return () => {
             tagify.off('change', handleChange);
+            tagifyChangeHandlerRef.current = null;
             tagify.off('edit:start', handleEditStart);
             tagify.off('edit:updated', handleEditUpdated);
             tagify.off('edit:keydown', handleEditKeydown);
@@ -321,11 +324,18 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             return;
         }
 
-        tagify.removeAllTags();
-        inputElement.value = value.map((item) => item.value).join(', ');
-
-        if (value.length > 0) {
-            tagify.addTags(value, true, true);
+        // Replacing tags from props emits a transient empty `change` event in
+        // Tagify. It must not overwrite a list just imported into parent state.
+        const changeHandler = tagifyChangeHandlerRef.current;
+        if (changeHandler) tagify.off('change', changeHandler);
+        try {
+            tagify.removeAllTags();
+            inputElement.value = value.map((item) => item.value).join(', ');
+            if (value.length > 0) {
+                tagify.addTags(value, true, true);
+            }
+        } finally {
+            if (changeHandler) tagify.on('change', changeHandler);
         }
     }, [value]);
 

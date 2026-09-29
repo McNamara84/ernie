@@ -1451,6 +1451,29 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'curator-file-upload',
+                title: 'Creating Resources from Metadata Files',
+                icon: Upload,
+                minRole: 'curator',
+                content: (
+                    <>
+                        <h3>Upload from the Resources list</h3>
+                        <p>
+                            In <strong>Resources</strong>, choose the XML upload action to create a draft from a DataCite XML file. After the upload,
+                            the new draft opens directly in the editor so you can check and complete its metadata.
+                        </p>
+
+                        <h3>Add metadata while creating a resource</h3>
+                        <p>
+                            When you open a new resource in the editor, expand <strong>Upload DataCite metadata</strong> and select an XML, JSON, or
+                            JSON-LD file. The editor fills empty fields and adds distinct list entries, including inline citations, while preserving
+                            values you already entered. An existing DOI stays in place. Review the merged fields and save the draft as usual; this
+                            upload alone does not create a resource. The upload area is available only when creating a resource.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'curation-workflow',
                 title: 'Curation Workflow',
                 icon: Edit3,
