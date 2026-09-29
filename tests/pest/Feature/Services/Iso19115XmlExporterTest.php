@@ -15,6 +15,7 @@ use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
+use App\Models\LandingPageLink;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
@@ -840,6 +841,77 @@ test('distribution links follow landing-page publication and download-availabili
     expect((float) $draftXpath->evaluate('count(/mdb:MD_Metadata/mdb:distributionInfo)'))->toBe(0.0)
         ->and($draftXml)->not->toContain('draft.nc');
 });
+
+test('ISO distributions use effective availability and usable sources', function (
+    ?string $primaryUrl,
+    array $fileUrls,
+    bool $suppressed,
+    array $expectedDownloads,
+) {
+    [$resource, $exporter] = iso19115Resource();
+    $landingPage = LandingPage::factory()->for($resource)->published()->create([
+        'doi_prefix' => $resource->doi,
+        'ftp_url' => $primaryUrl,
+        'downloads_unavailable' => false,
+    ]);
+    foreach ($fileUrls as $position => $url) {
+        $landingPage->files()->create(['url' => $url, 'position' => $position]);
+    }
+    $landingPage->links()->createMany([
+        ['url' => 'https://example.org/extra.zip', 'label' => 'Additional download', 'kind' => LandingPageLink::KIND_DOWNLOAD, 'position' => 0],
+        ['url' => 'https://example.org/project', 'label' => 'Project', 'kind' => LandingPageLink::KIND_RELATED, 'position' => 1],
+        ['url' => 'javascript:alert(1)', 'label' => 'Unsafe', 'kind' => LandingPageLink::KIND_DOWNLOAD, 'position' => 2],
+    ]);
+    // Restore the historical flag after file-observer normalization during fixture creation.
+    $landingPage->update(['downloads_unavailable' => $suppressed]);
+
+    $xml = $exporter->export($resource->fresh());
+    [, $xpath] = parseIso19115($xml);
+    $basePath = '/mdb:MD_Metadata/mdb:distributionInfo//cit:CI_OnlineResource';
+    $downloads = $xpath->query($basePath.'[cit:function/cit:CI_OnLineFunctionCode/@codeListValue="download"]/cit:linkage/gco:CharacterString');
+    $urls = $xpath->query($basePath.'/cit:linkage/gco:CharacterString');
+    $expectedUrls = [url($landingPage->getPublicPath()), ...$expectedDownloads];
+    if ($expectedDownloads !== []) {
+        $expectedUrls = [...$expectedUrls, 'https://example.org/extra.zip', 'https://example.org/project'];
+    }
+
+    expect(array_map(fn (DOMNode $node): string => $node->textContent, iterator_to_array($downloads)))->toBe($expectedDownloads)
+        ->and(array_map(fn (DOMNode $node): string => $node->textContent, iterator_to_array($urls)))->toBe($expectedUrls)
+        ->and(app(Iso19115XmlValidator::class)->validate($xml)->isValid())->toBeTrue()
+        ->and($landingPage->fresh()->downloads_unavailable)->toBe($suppressed)
+        ->and($landingPage->fresh()->ftp_url)->toBe($primaryUrl);
+})->with([
+    'additional download without primary or files' => [null, [], false, []],
+    'blank primary and placeholder files' => [' ', ['#', ' '], false, []],
+    'invalid primary and file URLs' => ['javascript:alert(1)', ['ftp://example.org/file.zip', 'relative/file'], false, []],
+    'empty historical suppression with retained links' => [null, [], true, []],
+    'primary URL without files' => ['https://example.org/main.zip', [], false, ['https://example.org/main.zip']],
+    'trimmed primary URL' => [' https://example.org/main.zip ', [], false, ['https://example.org/main.zip']],
+    'primary fallback with placeholder files' => ['https://example.org/main.zip', ['#', 'invalid'], false, ['https://example.org/main.zip']],
+    'imported files without primary' => [null, ['https://example.org/file.zip'], false, ['https://example.org/file.zip']],
+    'usable files take precedence over primary' => ['https://example.org/main.zip', ['#', 'https://example.org/file.zip'], false, ['https://example.org/file.zip']],
+    'only usable imported files are emitted' => [null, ['#', 'https://example.org/first.zip', 'relative/file', 'https://example.org/second.zip'], false, ['https://example.org/first.zip', 'https://example.org/second.zip']],
+    'suppressed primary URL' => ['https://example.org/main.zip', [], true, []],
+    'suppressed imported files' => [null, ['https://example.org/file.zip'], true, []],
+]);
+
+test('ISO primary downloads use the configured label or a safe fallback name', function (?string $label, string $primaryUrl, string $expectedName) {
+    [$resource, $exporter] = iso19115Resource();
+    LandingPage::factory()->for($resource)->published()->create([
+        'ftp_url' => $primaryUrl,
+        'primary_download_label' => $label,
+    ]);
+
+    [, $xpath] = parseIso19115($exporter->export($resource->fresh()));
+
+    expect($xpath->evaluate(
+        'string(/mdb:MD_Metadata/mdb:distributionInfo//cit:CI_OnlineResource[cit:function/cit:CI_OnLineFunctionCode/@codeListValue="download"]/cit:name/gco:CharacterString)',
+    ))->toBe($expectedName);
+})->with([
+    'configured label' => [' Download data & description ', 'https://example.org/data.zip', 'Download data & description'],
+    'file name' => [null, 'https://example.org/data%20package.zip', 'data package.zip'],
+    'blank label without file name' => [' ', 'https://example.org/', 'Resource file'],
+]);
 
 test('uses nilReason for an absent abstract and validator reports a warning', function () {
     $resource = Resource::factory()->create();

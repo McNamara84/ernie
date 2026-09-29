@@ -122,6 +122,17 @@
         ],
         "fixes": [
             {
+                "title": "ISO 19115 Export Respects Effective Download Availability",
+                "description": "ISO 19115 distribution metadata now applies the same download availability and activation rules as landing pages. Request-only pages no longer expose hidden additional links through public exports or OAI-PMH. Usable imported files take precedence, with the primary download URL used when imported files are absent or contain only placeholders.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1363,
+                        "url": "https://github.com/McNamara84/ernie/issues/1363"
+                    }
+                ]
+            },
+            {
                 "title": "Consistent Download Availability in Metadata and Assistants",
                 "description": "Machine-readable metadata, Signposting, access backfill and size/format discovery now use the same download availability rules as landing pages. Pages without a usable primary URL or imported file no longer expose additional links as downloadable content or become open through access backfill. Imported placeholders no longer hide a usable primary URL, and explicitly hidden legacy downloads remain protected.",
                 "references": [
