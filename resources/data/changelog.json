@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Automatic Landing Page Downloads and Configurable URL Suggestions",
-                "description": "Landing page setup now starts with an Add Download URL action and automatically displays downloads or the data request section based on the primary URL and imported files. Previously hidden links stay hidden until curators explicitly activate and save them; previews and imports preserve that protection. Admins and Group Leaders can add download URL prefixes and reorder domain suggestions in Editor Settings using drag and drop or keyboard controls.",
+                "description": "Landing page setup now starts with Add Download URL and automatically displays downloads or a data request based on usable primary URLs and imported files. Previously hidden downloads remain protected until explicitly activated, consistently across previews, imports, metadata exports, Signposting and assistants. Admins and Group Leaders can add and reorder URL prefixes using drag and drop or keyboard controls. The configurable default https://datapub.gfz.de/download is offered first until the order is explicitly changed; saving unrelated settings preserves the installation default.",
                 "references": [
                     {
                         "type": "issue",
@@ -121,39 +121,6 @@
             }
         ],
         "fixes": [
-            {
-                "title": "ISO 19115 Export Respects Effective Download Availability",
-                "description": "ISO 19115 distribution metadata now applies the same download availability and activation rules as landing pages. Request-only pages no longer expose hidden additional links through public exports or OAI-PMH. Usable imported files take precedence, with the primary download URL used when imported files are absent or contain only placeholders.",
-                "references": [
-                    {
-                        "type": "issue",
-                        "number": 1363,
-                        "url": "https://github.com/McNamara84/ernie/issues/1363"
-                    }
-                ]
-            },
-            {
-                "title": "Consistent Download Availability in Metadata and Assistants",
-                "description": "Machine-readable metadata, Signposting, access backfill and size/format discovery now use the same download availability rules as landing pages. Pages without a usable primary URL or imported file no longer expose additional links as downloadable content or become open through access backfill. Imported placeholders no longer hide a usable primary URL, and explicitly hidden legacy downloads remain protected.",
-                "references": [
-                    {
-                        "type": "issue",
-                        "number": 1363,
-                        "url": "https://github.com/McNamara84/ernie/issues/1363"
-                    }
-                ]
-            },
-            {
-                "title": "GFZ Download URL Default on Fresh Installations",
-                "description": "Fresh installations and upgrades without a saved suggestion order now offer https://datapub.gfz.de/download first automatically. Other installations can replace or disable the default through configuration. Saved settings, including an explicitly empty order, always take precedence.",
-                "references": [
-                    {
-                        "type": "issue",
-                        "number": 1363,
-                        "url": "https://github.com/McNamara84/ernie/issues/1363"
-                    }
-                ]
-            },
             {
                 "title": "Readable Datacenter Filters in Both Portals",
                 "description": "The Data and IGSN portal filters now show datacenter options in smaller text and wrap long names and selected values across lines, including names with long unbroken parts. Checkboxes, result counts, and remove controls remain visible in desktop sidebars and mobile filter drawers.",

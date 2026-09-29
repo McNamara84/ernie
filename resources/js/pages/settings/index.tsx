@@ -155,6 +155,7 @@ export default function EditorSettings({
     const [isAddingDomain, setIsAddingDomain] = useState(false);
     const [expandedIdentifierTypes, setExpandedIdentifierTypes] = useState<Set<number>>(new Set());
     const [openSection, setOpenSection] = useState('');
+    const [savedDownloadUrlSuggestionOrder, setSavedDownloadUrlSuggestionOrder] = useState(downloadUrlSuggestionOrder);
 
     // Datacenter management - managed separately via API
     const [datacenters, setDatacenters] = useState<DatacenterRow[]>(initialDatacenters);
@@ -241,7 +242,7 @@ export default function EditorSettings({
         }
     };
 
-    const { data, setData, post, processing, isDirty, recentlySuccessful, errors } = useForm({
+    const { data, setData, setDefaults, transform, post, processing, isDirty, recentlySuccessful, errors } = useForm({
         downloadUrlSuggestionOrder,
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
@@ -532,7 +533,21 @@ export default function EditorSettings({
     const idTypeElmoState = getSelectAllState(data.identifierTypes.map((it) => it.elmo_active));
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(settings().url);
+        transform(({ downloadUrlSuggestionOrder: order, ...otherSettings }) => {
+            const orderUnchanged =
+                order.length === savedDownloadUrlSuggestionOrder.length &&
+                order.every((prefix, index) => prefix === savedDownloadUrlSuggestionOrder[index]);
+
+            // Preserve the installation default until this section is explicitly changed.
+            return orderUnchanged ? otherSettings : { ...otherSettings, downloadUrlSuggestionOrder: order };
+        });
+        post(settings().url, {
+            onSuccess: () => {
+                setSavedDownloadUrlSuggestionOrder(data.downloadUrlSuggestionOrder);
+                // Keep edits made during the request dirty against the submitted snapshot.
+                setDefaults(data);
+            },
+        });
     };
 
     return (
