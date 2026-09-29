@@ -693,6 +693,42 @@ describe('DataCiteForm', () => {
             expect(payload.descriptions).toEqual(expect.arrayContaining([expect.objectContaining({ description: 'Imported description' })]));
             expect(payload.relatedItems).toEqual([{ relatedItemIdentifier: '10.1000/citation' }]);
         });
+
+        it('saves unknown imported rights as raw metadata and ignores unsupported languages', { timeout: 60000 }, async () => {
+            const right = {
+                rights: 'Local reuse terms',
+                rightsIdentifier: 'LOCAL-2025',
+                rightsIdentifierScheme: 'Institution',
+                rightsUri: 'https://example.test/rights/local',
+            };
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(createJsonResponse({
+                          success: true,
+                          metadata: {
+                              titles: [{ title: 'Imported title', titleType: 'main-title' }],
+                              language: 'xx-UNCONFIGURED',
+                              licenses: ['LOCAL-2025'],
+                              rawRights: [right],
+                          },
+                      }))
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm();
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['json'], 'rights.json')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('rights.json was added'),
+            );
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            const payload = mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1];
+            expect(payload.language).toBe('');
+            expect(payload.licenses).toEqual([]);
+            expect(payload.customLicenses).toEqual([]);
+            expect(payload.rawRights).toEqual([{ ...right, sourceResourceRightId: null }]);
+        });
     });
 
     describe('Floating editor actions (Issue #969)', () => {

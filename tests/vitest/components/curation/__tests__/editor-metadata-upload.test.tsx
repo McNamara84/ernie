@@ -39,7 +39,11 @@ describe('EditorMetadataUpload', () => {
         fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [file] } });
 
         await waitFor(() => expect(onImported).toHaveBeenCalledWith({ titles: [{ title: 'Imported', titleType: 'main-title' }] }));
-        expect(fetchMock).toHaveBeenCalledWith(route, expect.objectContaining({ method: 'POST', credentials: 'same-origin' }));
+        expect(fetchMock).toHaveBeenCalledWith(route, expect.objectContaining({
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: expect.objectContaining({ Accept: 'application/json' }),
+        }));
         expect(onImportingChange).toHaveBeenCalledWith(true);
         expect(onImportingChange).toHaveBeenCalledWith(false);
         expect(screen.getByRole('status')).toHaveTextContent('Existing entries were kept');
@@ -67,6 +71,24 @@ describe('EditorMetadataUpload', () => {
 
         fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['x'], 'invalid.xml')] } });
         await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Invalid DataCite document'));
+        expect(onImported).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [419, 'Your session has expired. Reload the page and try again.'],
+        [500, 'The file could not be imported. Try again.'],
+    ])('shows an actionable error for a non-JSON HTTP %s response', async (status, message) => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            ok: false,
+            status,
+            json: async () => { throw new SyntaxError('Unexpected token <'); },
+        }));
+        render(<EditorMetadataUpload onImported={onImported} onImportingChange={onImportingChange} />);
+
+        fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['x'], 'import.xml')] } });
+
+        await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(message));
+        expect(screen.getByRole('alert')).not.toHaveTextContent('SyntaxError');
         expect(onImported).not.toHaveBeenCalled();
     });
 });

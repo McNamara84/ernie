@@ -43,9 +43,16 @@ export function EditorMetadataUpload({ onImported, onImportingChange }: EditorMe
         try {
             const body = new FormData();
             body.append('file', file);
-            const response = await fetch(route, { method: 'POST', body, credentials: 'same-origin', headers: csrfHeaders });
-            const result = (await response.json()) as { success?: boolean; metadata?: ImportedMetadata; message?: string };
-            if (!response.ok || !result.success || !result.metadata) throw new Error(result.message || 'The file could not be imported.');
+            const response = await fetch(route, {
+                method: 'POST',
+                body,
+                credentials: 'same-origin',
+                headers: { ...csrfHeaders, Accept: 'application/json' },
+            });
+            const result = (await response.json().catch(() => null)) as { success?: boolean; metadata?: ImportedMetadata; message?: string } | null;
+            if (response.status === 419) throw new Error('Your session has expired. Reload the page and try again.');
+            if (!response.ok || !result?.success || !result.metadata)
+                throw new Error(result?.message || 'The file could not be imported. Try again.');
             onImported(result.metadata);
             setStatus({ kind: 'success', message: `${file.name} was added. Existing entries were kept.` });
         } catch (error) {
@@ -60,16 +67,17 @@ export function EditorMetadataUpload({ onImported, onImportingChange }: EditorMe
     return (
         <section className="w-full border-b" data-testid="editor-metadata-upload">
             <h3>
-                <button
+                <Button
                     type="button"
-                    className="flex w-full items-center justify-between rounded-md py-4 text-left font-medium"
+                    variant="ghost"
+                    className="h-auto w-full justify-between px-0 py-4 text-left font-medium"
                     aria-expanded={open}
                     aria-controls="editor-upload-content"
                     onClick={() => setOpen((value) => !value)}
                 >
                     <span>Upload DataCite metadata</span>
                     <span className="text-sm text-muted-foreground">{open ? 'Minimize' : 'Expand'}</span>
-                </button>
+                </Button>
             </h3>
             {open && (
                 <div id="editor-upload-content" className="space-y-3 pb-5">

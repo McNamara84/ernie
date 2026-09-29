@@ -235,12 +235,17 @@ function hasDescriptionPayloadValue(description: DescriptionEntry): boolean {
     return description.value.trim() !== '';
 }
 
-function isRawRightsOnlyLicenseEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
-    return entry.mode === 'custom' && entry.rawRight !== undefined && entry.uri.trim() === '' && entry.name.trim() !== '';
+function isRawRightsPayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
+    return (
+        entry.mode === 'custom' &&
+        entry.rawRight !== undefined &&
+        entry.name.trim() !== '' &&
+        (entry.uri.trim() === '' || Boolean(entry.rawRight.rightsIdentifier?.trim()))
+    );
 }
 
 function isCustomLicensePayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
-    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsOnlyLicenseEntry(entry);
+    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsPayloadEntry(entry);
 }
 
 function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<LicenseEntry, { mode: 'catalog' }> {
@@ -248,18 +253,18 @@ function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<Lic
 }
 
 function hasLicenseEntryEvidence(entry: LicenseEntry | undefined): boolean {
-    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsOnlyLicenseEntry(entry));
+    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsPayloadEntry(entry));
 }
 
 function canAddLicenseEntry(licenseEntries: LicenseEntry[]): boolean {
     return licenseEntries.length > 0 && hasLicenseEntryEvidence(licenseEntries[licenseEntries.length - 1]);
 }
 
-function serializeRawRightsOnlyLicenseEntry(entry: CustomLicenseEntry): RawRightsInput {
+function serializeRawRightsPayloadEntry(entry: CustomLicenseEntry): RawRightsInput {
     return {
         ...entry.rawRight,
         rights: entry.name.trim(),
-        rightsUri: null,
+        rightsUri: entry.uri.trim() || null,
         sourceResourceRightId: entry.sourceResourceRightId ?? entry.rawRight?.sourceResourceRightId ?? null,
     };
 }
@@ -2416,7 +2421,7 @@ export default function DataCiteForm({
                 uri: entry.uri.trim(),
                 ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
             })),
-            rawRights: licenseEntries.filter(isRawRightsOnlyLicenseEntry).map(serializeRawRightsOnlyLicenseEntry),
+            rawRights: licenseEntries.filter(isRawRightsPayloadEntry).map(serializeRawRightsPayloadEntry),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -3711,7 +3716,7 @@ export default function DataCiteForm({
                                         canAdd={canAddLicenseEntry(licenseEntries)}
                                         required={index === 0}
                                         customNameRequired={index === 0}
-                                        customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
+                                        customUriRequired={index === 0 && !isRawRightsPayloadEntry(entry)}
                                         validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
                                         touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                         onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}

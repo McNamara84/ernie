@@ -32,18 +32,17 @@ export interface ImportedFormParts {
 }
 
 export function toImportedFormParts(metadata: ImportedMetadata, languages: Language[], catalogLicenses: License[]): ImportedFormParts {
-    const language = metadata.language
-        ? (languages.find((item) => identityPart(item.code) === identityPart(metadata.language))?.code ?? metadata.language)
-        : '';
+    const language = metadata.language ? (languages.find((item) => identityPart(item.code) === identityPart(metadata.language))?.code ?? '') : '';
     const knownLicenses = new Map(catalogLicenses.map((item) => [item.identifier, item]));
-    const licenseEntries: LicenseEntry[] = (metadata.licenses ?? []).map((identifier) => {
-        const known = knownLicenses.get(identifier);
-        if (known && (known.scheme_uri === null || identifier.startsWith('CUSTOM-'))) {
+    const knownImportedLicenses = (metadata.licenses ?? []).filter((identifier) => knownLicenses.has(identifier));
+    const licenseEntries: LicenseEntry[] = knownImportedLicenses.map((identifier) => {
+        const known = knownLicenses.get(identifier)!;
+        if (known.scheme_uri === null || identifier.startsWith('CUSTOM-')) {
             return { id: crypto.randomUUID(), mode: 'custom', name: known.name, uri: known.uri ?? '' };
         }
         return { id: crypto.randomUUID(), mode: 'catalog', license: identifier };
     });
-    const importedIdentifiers = new Set((metadata.licenses ?? []).map(identityPart));
+    const importedIdentifiers = new Set(knownImportedLicenses.map(identityPart));
     for (const right of metadata.rawRights ?? []) {
         if (right.rightsIdentifier && importedIdentifiers.has(identityPart(right.rightsIdentifier))) continue;
         const name = (right.rights ?? right.rightsIdentifier ?? '').trim();

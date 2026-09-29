@@ -20,6 +20,7 @@ use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
 use App\Services\TemporalCoverageValueService;
 use App\Services\UploadLogService;
+use App\Services\Uploads\DataCiteRelatedItemNormalizerService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\LanguageTag;
@@ -82,6 +83,7 @@ class UploadJsonController extends Controller
         private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
         private readonly RelatedIdentifierCitationLabelService $citationLabelService,
         private readonly UploadedResourceDraftService $uploadedResourceDraftService,
+        private readonly DataCiteRelatedItemNormalizerService $relatedItemNormalizer,
         private readonly MslLaboratoryService $mslLaboratoryService,
         private readonly RorLookupService $rorLookupService,
         private readonly SubjectImportNormalizer $subjectImportNormalizer,
@@ -217,6 +219,7 @@ class UploadJsonController extends Controller
             $instruments = $relatedResult['instruments'];
 
             $fundingReferences = $this->extractFundingReferences($attributes['fundingReferences'] ?? []);
+            $relatedItems = $this->relatedItemNormalizer->normalize($attributes['relatedItems'] ?? []);
         } catch (\Throwable $e) {
             $error = UploadError::withMessage(
                 UploadErrorCode::UNEXPECTED_ERROR,
@@ -249,6 +252,7 @@ class UploadJsonController extends Controller
             'dates' => $dates,
             'coverages' => $coverages,
             'relatedWorks' => $relatedWorks,
+            'relatedItems' => $relatedItems,
             'instruments' => $instruments,
             'controlledKeywords' => $subjects->controlledKeywords,
             'freeKeywords' => $subjects->freeKeywords,

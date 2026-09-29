@@ -107,4 +107,28 @@ describe('DataCite metadata merge', () => {
         expect(imported.mslLaboratories).toHaveLength(1);
         expect(imported.instruments).toHaveLength(1);
     });
+
+    it('leaves unsupported language tags empty so the existing editor value survives the merge', () => {
+        const imported = toImportedFormParts({ language: 'xx-UNCONFIGURED' }, languages, licenses);
+
+        expect(imported.scalar.language).toBe('');
+    });
+
+    it('keeps unknown license identifiers as raw rights instead of invalid catalog entries', () => {
+        const right = {
+            rights: 'Institutional reuse terms',
+            rightsIdentifier: 'UNLISTED-LICENSE',
+            rightsIdentifierScheme: 'Local',
+            rightsUri: 'https://example.test/terms',
+        };
+        const imported = toImportedFormParts({
+            licenses: ['MIT', 'UNLISTED-LICENSE'],
+            rawRights: [{ rights: 'MIT License', rightsIdentifier: 'MIT' }, right],
+        }, languages, licenses);
+
+        expect(imported.licenses).toHaveLength(2);
+        expect(imported.licenses[0]).toMatchObject({ mode: 'catalog', license: 'MIT' });
+        expect(imported.licenses[1]).toMatchObject({ mode: 'custom', rawRight: right });
+        expect(imported.licenses).not.toContainEqual(expect.objectContaining({ mode: 'catalog', license: 'UNLISTED-LICENSE' }));
+    });
 });
