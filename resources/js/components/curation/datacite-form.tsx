@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
+import { EditorMetadataUpload } from '@/components/curation/editor-metadata-upload';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { DoiRegistrationSuccessDialog } from '@/components/curation/modals/doi-registration-success-dialog';
 import {
@@ -47,6 +48,8 @@ import {
     validateEditorDate,
 } from '@/lib/editor-date';
 import { feedback } from '@/lib/feedback';
+import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
+import { toImportedFormParts } from '@/lib/imported-metadata-form';
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
@@ -339,11 +342,11 @@ export default function DataCiteForm({
     const accordionPreferenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [form, setForm] = useState<DataCiteFormData>({
-        doi: initialDoi,
-        year: initialYear,
-        resourceType: initialResourceType,
-        version: initialVersion,
-        language: resolveInitialLanguageCode(languages, initialLanguage),
+        doi: initialDoi ?? '',
+        year: initialYear ?? '',
+        resourceType: initialResourceType ?? '',
+        version: initialVersion ?? '',
+        language: resolveInitialLanguageCode(languages, initialLanguage ?? ''),
         accessLevel: initialAccessLevel,
     });
 
@@ -566,6 +569,7 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const [relatedItems, setRelatedItems] = useState<Array<Record<string, unknown>>>(initialRelatedItems);
     const [fundingReferences, setFundingReferences] = useState<FundingReferenceEntry[]>(() => {
         if (initialFundingReferences && initialFundingReferences.length > 0) {
             return initialFundingReferences;
@@ -584,6 +588,113 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const importInFlightRef = useRef(false);
+
+    const handleImportedMetadata = useCallback(
+        (metadata: ImportedMetadata) => {
+            const imported = toImportedFormParts(metadata, languages, licenses);
+            setForm((current) => ({
+                ...current,
+                doi: current.doi.trim() || imported.scalar.doi?.trim() || '',
+                year: current.year.trim() || imported.scalar.year?.trim() || '',
+                resourceType: current.resourceType.trim() || imported.scalar.resourceType?.trim() || '',
+                version: current.version.trim() || imported.scalar.version?.trim() || '',
+                language: current.language.trim() || imported.scalar.language.trim(),
+            }));
+            setTitles((current) => {
+                const merged = mergeImportedEntries(
+                    current,
+                    imported.titles,
+                    (item) =>
+                        item.titleType === MAIN_TITLE_SLUG
+                            ? MAIN_TITLE_SLUG
+                            : [identityPart(item.titleType), identityPart(item.title), identityPart(item.language)].join('|'),
+                    (item) => item.title.trim() === '',
+                );
+                if (merged.some((item) => item.titleType === MAIN_TITLE_SLUG)) return merged;
+                const placeholder = current.find((item) => item.titleType === MAIN_TITLE_SLUG && item.title.trim() === '');
+                return [placeholder ?? { id: crypto.randomUUID(), title: '', titleType: MAIN_TITLE_SLUG }, ...merged];
+            });
+            setLicenseEntries((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.licenses,
+                    (item) => (item.mode === 'catalog' ? `catalog:${identityPart(item.license)}` : `custom:${identityPart(item.uri || item.name)}`),
+                    (item) => (item.mode === 'catalog' ? item.license.trim() === '' : item.name.trim() === '' && item.uri.trim() === ''),
+                ),
+            );
+            setAuthors((current) =>
+                mergeImportedEntries(current, imported.authors, (item) =>
+                    item.type === 'institution'
+                        ? `institution:${identityPart(item.institutionName)}`
+                        : `person:${identityPart(item.orcid || `${item.lastName}|${item.firstName}`)}`,
+                ),
+            );
+            setContributors((current) =>
+                mergeImportedEntries(current, imported.contributors, (item) =>
+                    item.type === 'institution'
+                        ? `institution:${identityPart(item.institutionName)}`
+                        : `person:${identityPart(item.orcid || `${item.lastName}|${item.firstName}`)}`,
+                ),
+            );
+            setDescriptions((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.descriptions,
+                    (item) => [identityPart(item.type), identityPart(item.value), identityPart(item.language)].join('|'),
+                    (item) => item.value.trim() === '',
+                ),
+            );
+            setDates((current) =>
+                mergeImportedEntries(current, imported.dates, (item) =>
+                    [identityPart(item.dateType), item.startDate, item.endDate, item.startTime, item.endTime].join('|'),
+                ),
+            );
+            setGcmdKeywords((current) =>
+                mergeImportedEntries(current, imported.keywords, (item) => `${identityPart(item.scheme)}|${identityPart(item.id || item.path)}`),
+            );
+            setFreeKeywords((current) => mergeImportedEntries(current, imported.freeKeywords, (item) => identityPart(item.value)));
+            setSpatialTemporalCoverages((current) =>
+                mergeImportedEntries(current, imported.coverages, (item) =>
+                    JSON.stringify([
+                        item.type,
+                        item.latMin,
+                        item.lonMin,
+                        item.latMax,
+                        item.lonMax,
+                        item.polygonPoints,
+                        item.startDate,
+                        item.endDate,
+                        item.temporalMode,
+                        item.startTime,
+                        item.endTime,
+                        item.timezone,
+                    ]),
+                ),
+            );
+            setRelatedWorks((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.relatedWorks,
+                    (item) => [identityPart(item.identifier), identityPart(item.identifier_type), identityPart(item.relation_type)].join('|'),
+                    (item) => item.identifier.trim() === '',
+                ),
+            );
+            setRelatedItems((current) => mergeImportedEntries(current, imported.relatedItems, (item) => JSON.stringify(item)));
+            setFundingReferences((current) =>
+                mergeImportedEntries(current, imported.fundingReferences, (item) =>
+                    [identityPart(item.funderIdentifier || item.funderName), identityPart(item.awardNumber || item.awardUri || item.awardTitle)].join(
+                        '|',
+                    ),
+                ),
+            );
+            setMslLaboratories((current) =>
+                mergeImportedEntries(current, imported.mslLaboratories, (item) => identityPart(item.identifier || item.name)),
+            );
+            setInstruments((current) => mergeImportedEntries(current, imported.instruments, (item) => identityPart(item.pid)));
+        },
+        [languages, licenses],
+    );
     const [selectedDatacenterId, setSelectedDatacenterId] = useState<number | null>(initialDatacenterId);
     const [datacenterTouched, setDatacenterTouched] = useState(false);
     const [openAccordionItems, setOpenAccordionItems] = useState<CurationAccordionItemValue[]>(() =>
@@ -2379,7 +2490,7 @@ export default function DataCiteForm({
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
             // CitationManagerModal owns the data.
-            ...(initialRelatedItems && initialRelatedItems.length > 0 ? { relatedItems: initialRelatedItems } : {}),
+            ...(relatedItems.length > 0 ? { relatedItems } : {}),
             fundingReferences: fundingReferences.map((funding) => ({
                 funderName: funding.funderName,
                 funderIdentifier: funding.funderIdentifier,
@@ -2416,7 +2527,7 @@ export default function DataCiteForm({
         freeKeywords,
         fundingReferences,
         gcmdKeywords,
-        initialRelatedItems,
+        relatedItems,
         instruments,
         licenseEntries,
         mslLaboratories,
@@ -2487,6 +2598,7 @@ export default function DataCiteForm({
             isDataCiteConfirmationOpen ||
             isLandingPageSetupOpen ||
             isSubmittingDataCite ||
+            importInFlightRef.current ||
             registrationSuccess !== null ||
             draftAutosaveInFlightRef.current
         ) {
@@ -3382,6 +3494,14 @@ export default function DataCiteForm({
                     focusable
                     className="p-4"
                     data-testid="global-validation-alert"
+                />
+            )}
+            {!initialResourceId && (
+                <EditorMetadataUpload
+                    onImported={handleImportedMetadata}
+                    onImportingChange={(importing) => {
+                        importInFlightRef.current = importing;
+                    }}
                 />
             )}
             <section

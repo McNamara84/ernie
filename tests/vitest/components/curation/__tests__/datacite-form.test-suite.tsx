@@ -593,6 +593,108 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('metadata upload when creating a resource', () => {
+        it('shows the upload group only for a new editor session', () => {
+            const { rerender } = renderDataCiteForm();
+            expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+            rerender(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialResourceId="42"
+                />,
+            );
+            expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+        });
+
+        it('normalizes nullable server defaults before merging an uploaded file', async () => {
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(
+                          createJsonResponse({ success: true, metadata: { year: '2024', titles: [{ title: 'Imported', titleType: 'main-title' }] } }),
+                      )
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm({
+                initialDoi: null as unknown as string,
+                initialYear: null as unknown as string,
+                initialResourceType: null as unknown as string,
+                initialVersion: null as unknown as string,
+                initialLanguage: null as unknown as string,
+            });
+
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'metadata.xml')] } });
+
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('metadata.xml was added'),
+            );
+            expect(screen.getByTestId('main-title-input')).toHaveValue('Imported');
+            expect(document.querySelector('#year')).toHaveValue(2024);
+        });
+
+        it('preserves typed values, fills empty values, and saves unique imported collections', { timeout: 60000 }, async () => {
+            const metadata = {
+                doi: '10.5880/imported',
+                year: '2025',
+                resourceType: '99',
+                version: '1.0',
+                titles: [
+                    { title: 'Imported main', titleType: 'main-title' },
+                    { title: 'Imported subtitle', titleType: 'subtitle' },
+                ],
+                authors: [
+                    { type: 'person', orcid: '0000-0001', firstName: 'Jane', lastName: 'From XML', email: 'jane@example.test', isContact: true },
+                ],
+                descriptions: [{ type: 'Abstract', description: 'Imported description' }],
+                freeKeywords: ['existing', 'new keyword'],
+                relatedItems: [{ relatedItemIdentifier: '10.1000/citation' }],
+            };
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(createJsonResponse({ success: true, metadata }))
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm({
+                initialDoi: '10.5880/typed',
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Typed main', titleType: 'main-title' }],
+                initialAuthors: [{ type: 'person', orcid: '0000-0001', firstName: 'Jane', lastName: 'Typed', email: '', isContact: true }],
+                initialFreeKeywords: ['existing'],
+            });
+
+            const upload = screen.getByTestId('editor-metadata-file-input');
+            fireEvent.change(upload, { target: { files: [new File(['xml'], 'first.xml')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('first.xml was added'),
+            );
+            fireEvent.change(upload, { target: { files: [new File(['json'], 'second.json')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('second.json was added'),
+            );
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            const payload = mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1];
+            expect(payload).toMatchObject({ doi: '10.5880/typed', year: 2024, resourceType: 1, version: '1.0' });
+            expect(payload.titles).toEqual([
+                { title: 'Typed main', titleType: 'main-title', language: null },
+                { title: 'Imported subtitle', titleType: 'subtitle', language: null },
+            ]);
+            expect(payload.authors).toHaveLength(1);
+            expect(payload.authors[0]).toMatchObject({ lastName: 'Typed', email: 'jane@example.test' });
+            expect(payload.freeKeywords).toEqual(['existing', 'new keyword']);
+            expect(payload.descriptions).toEqual(expect.arrayContaining([expect.objectContaining({ description: 'Imported description' })]));
+            expect(payload.relatedItems).toEqual([{ relatedItemIdentifier: '10.1000/citation' }]);
+        });
+    });
+
     describe('Floating editor actions (Issue #969)', () => {
         it('keeps the editor action buttons in a fixed bottom-right action cluster', () => {
             renderDataCiteForm();

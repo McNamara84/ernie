@@ -1,7 +1,7 @@
 // organize-imports-ignore
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, Copy, ExternalLink, GripVertical, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Copy, ExternalLink, GripVertical, RotateCcw, Upload } from 'lucide-react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -37,6 +37,7 @@ import { type ValidationError, ValidationErrorModal } from '@/components/ui/vali
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import { handleXmlFiles } from '@/lib/datacite-upload';
 import { openDetachedTab } from '@/lib/detached-tab';
 import { validateDOIFormat } from '@/lib/doi-validation';
 import {
@@ -147,6 +148,7 @@ interface ResourcesProps {
     sort: ResourceSortState;
     filters?: ResourceFilterState;
     canImportFromDataCite?: boolean;
+    canCreateResource?: boolean;
     canUpdateDataCiteLandingPageUrls?: boolean;
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
 }
@@ -771,6 +773,7 @@ function ResourcesPage({
     sort: initialSort,
     filters: initialFilters,
     canImportFromDataCite,
+    canCreateResource,
     canUpdateDataCiteLandingPageUrls,
     dataCiteUrlUpdateRun,
 }: ResourcesProps) {
@@ -791,6 +794,8 @@ function ResourcesPage({
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [isUploadingXml, setIsUploadingXml] = useState(false);
+    const xmlUploadInputRef = useRef<HTMLInputElement>(null);
     const [showDatacenterImportModal, setShowDatacenterImportModal] = useState(false);
     const [showSingleImportModal, setShowSingleImportModal] = useState(false);
     const [showDataCiteUrlUpdateModal, setShowDataCiteUrlUpdateModal] = useState(false);
@@ -1146,6 +1151,22 @@ function ResourcesPage({
     const handleImportSuccess = useCallback(() => {
         // Refresh the resources list to show imported resources
         router.reload({ only: ['resources', 'pagination'] });
+    }, []);
+
+    const handleXmlUpload = useCallback(async (file: File) => {
+        setIsUploadingXml(true);
+        try {
+            const result = await handleXmlFiles([file]);
+            if (!result?.resourceId || !result.editorUrl) {
+                throw new Error('The XML upload did not return a draft resource.');
+            }
+            router.visit(result.editorUrl);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'The XML upload failed.');
+        } finally {
+            setIsUploadingXml(false);
+            if (xmlUploadInputRef.current) xmlUploadInputRef.current.value = '';
+        }
     }, []);
 
     // Drop selections that no longer correspond to a loaded resource (e.g. after
@@ -2349,8 +2370,35 @@ function ResourcesPage({
                                 onAction={handleResourceAction}
                                 onUnavailableAction={handleUnavailableAction}
                             />
-                            {(canImportFromDataCite || canUpdateDataCiteLandingPageUrls) && (
+                            {(canCreateResource || canImportFromDataCite || canUpdateDataCiteLandingPageUrls) && (
                                 <div className="ml-auto flex flex-wrap items-center gap-2">
+                                    {canCreateResource && (
+                                        <>
+                                            <input
+                                                ref={xmlUploadInputRef}
+                                                type="file"
+                                                accept=".xml,text/xml,application/xml"
+                                                hidden
+                                                aria-label="Select DataCite XML file"
+                                                data-testid="resources-xml-upload-input"
+                                                onChange={(event) => {
+                                                    const file = event.target.files?.[0];
+                                                    if (file) void handleXmlUpload(file);
+                                                }}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                disabled={isUploadingXml}
+                                                aria-busy={isUploadingXml}
+                                                data-testid="resources-xml-upload"
+                                                onClick={() => xmlUploadInputRef.current?.click()}
+                                            >
+                                                <Upload className="size-4" aria-hidden="true" />
+                                                {isUploadingXml ? 'Uploading XML…' : 'Upload XML'}
+                                            </Button>
+                                        </>
+                                    )}
                                     {canUpdateDataCiteLandingPageUrls && (
                                         <Button
                                             variant="outline"

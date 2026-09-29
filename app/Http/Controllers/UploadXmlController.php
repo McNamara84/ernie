@@ -81,6 +81,13 @@ class UploadXmlController extends Controller
 
         $sessionPayload = $result->toSessionPayload();
 
+        if ($request->routeIs('editor.upload-xml.preview')) {
+            return response()->json([
+                'success' => true,
+                'metadata' => $sessionPayload,
+            ]);
+        }
+
         try {
             $resource = $this->uploadedResourceDraftService->storeFromPayload(
                 $sessionPayload,

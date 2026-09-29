@@ -257,6 +257,13 @@ class UploadJsonController extends Controller
             'mslLaboratories' => $mslLaboratories,
         ];
 
+        if ($request->routeIs('editor.upload-json.preview')) {
+            return response()->json([
+                'success' => true,
+                'metadata' => $sessionPayload,
+            ]);
+        }
+
         try {
             $resource = $this->uploadedResourceDraftService->storeFromPayload(
                 $sessionPayload,
