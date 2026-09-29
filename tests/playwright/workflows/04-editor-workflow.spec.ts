@@ -80,7 +80,18 @@ test.describe('Editor Form', () => {
         const title = `Issue 1370 draft ${Date.now()}`;
         await expect(titleInput).toBeVisible({ timeout: 30_000 });
         await titleInput.fill(title);
+        const originalTitleInput = await titleInput.elementHandle();
         const initialTabCount = page.context().pages().length;
+        const resourceEditorGets: string[] = [];
+        page.on('request', (request) => {
+            if (
+                request.method() === 'GET' &&
+                new URL(request.url()).pathname === '/editor' &&
+                new URL(request.url()).searchParams.has('resourceId')
+            ) {
+                resourceEditorGets.push(request.url());
+            }
+        });
 
         const firstSavePromise = page.waitForResponse(
             (response) => response.url().endsWith('/editor/resources/draft') && response.request().method() === 'POST',
@@ -91,6 +102,8 @@ test.describe('Editor Form', () => {
         const saved = (await firstSave.json()) as { resource: { id: number } };
         await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
         await expect(titleInput).toHaveValue(title);
+        expect(await originalTitleInput?.evaluate((element) => element.isConnected)).toBe(true);
+        expect(resourceEditorGets).toEqual([]);
         expect(page.context().pages()).toHaveLength(initialTabCount);
 
         await titleInput.fill(`${title} revised`);
@@ -102,6 +115,7 @@ test.describe('Editor Form', () => {
         expect(secondSave.status()).toBe(200);
         expect(secondSave.request().postDataJSON().resourceId).toBe(saved.resource.id);
         await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        expect(resourceEditorGets).toEqual([]);
 
         await page.getByRole('link', { name: 'Resources List' }).click();
         await expect(page).toHaveURL(/\/resources$/);

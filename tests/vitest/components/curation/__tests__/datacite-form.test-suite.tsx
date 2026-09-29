@@ -55,6 +55,7 @@ vi.mock('@inertiajs/react', () => ({
         reload: vi.fn(),
     },
     usePage: () => ({
+        url: window.location.pathname + window.location.search,
         props: mockUsePageProps(),
     }),
 }));
@@ -7721,7 +7722,12 @@ describe('DataCiteForm', () => {
                 );
             });
             const replaceOptions = mockRouterReplace.mock.calls[0][0];
-            expect(replaceOptions.props({ titles: [] })).toEqual({ titles: [], resourceId: '42', refreshSavedDraftOnRestore: true });
+            expect(replaceOptions.props({ titles: [] })).toEqual({
+                titles: [],
+                resourceId: '42',
+                refreshSavedDraftOnRestore: true,
+                draftSaveTransition: { fromUrl: '/editor?xmlSession=staged-upload', resourceId: '42' },
+            });
             expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
             expect(mainTitleInput).toHaveValue('Draft Dataset');
             expect(mockRouterVisit).not.toHaveBeenCalled();
@@ -7745,6 +7751,7 @@ describe('DataCiteForm', () => {
             expect(mockRouterReplace).toHaveBeenCalledWith(
                 expect.objectContaining({ url: '/editor?resourceId=42', preserveState: true, preserveScroll: true }),
             );
+            expect(mockRouterReplace.mock.calls[0][0].props({})).not.toHaveProperty('draftSaveTransition');
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 

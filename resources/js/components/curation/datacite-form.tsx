@@ -320,7 +320,10 @@ export default function DataCiteForm({
     activeRelationTypes,
     activeIdentifierTypes,
 }: DataCiteFormProps) {
-    const { auth, curationAccordionOpenItems, curationAccordionRevision } = usePage<SharedData>().props;
+    const {
+        url: currentPageUrl,
+        props: { auth, curationAccordionOpenItems, curationAccordionRevision },
+    } = usePage<SharedData>();
     // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
     const dateTypeOptions = useMemo(
@@ -3081,7 +3084,15 @@ export default function DataCiteForm({
                 router.replace({
                     url: editorUrl,
                     // History props predate the save. A restored editor must fetch its saved values.
-                    props: (props) => ({ ...props, resourceId: String(resourceIdForUrl), refreshSavedDraftOnRestore: true }),
+                    props: (props) => ({
+                        ...props,
+                        resourceId: String(resourceIdForUrl),
+                        refreshSavedDraftOnRestore: true,
+                        // Only the first save of a new draft may retain the previous transition key.
+                        ...(!new URLSearchParams(currentPageUrl.split('?')[1]).has('resourceId') && currentPageUrl !== editorUrl
+                            ? { draftSaveTransition: { fromUrl: currentPageUrl, resourceId: String(resourceIdForUrl) } }
+                            : {}),
+                    }),
                     preserveState: true,
                     preserveScroll: true,
                 });

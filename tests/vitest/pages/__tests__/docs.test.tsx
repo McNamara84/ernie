@@ -1429,6 +1429,16 @@ describe('Docs page', () => {
         expect(screen.getByText('Award Title:')).toBeInTheDocument();
     });
 
+    it('documents the Save Draft editor URL in the dataset workflow', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const saveDraft = screen.getByText('"Save Draft"', { selector: 'strong' }).closest('li');
+        expect(saveDraft).toHaveTextContent('The editor stays open');
+        expect(saveDraft).toHaveTextContent('/editor?resourceId=...');
+        expect(saveDraft).toHaveTextContent('bookmark or share it');
+    });
+
     it('documents how to manage description language versions', async () => {
         const { user } = renderDocsPage('beginner');
 
