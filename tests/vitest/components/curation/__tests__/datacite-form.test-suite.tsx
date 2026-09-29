@@ -647,6 +647,107 @@ describe('DataCiteForm', () => {
             }
         });
 
+        it('sends imported inline citations only when creating the draft', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
+            renderDataCiteForm({
+                initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
+                initialRelatedItems: relatedItems,
+            });
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            await waitFor(() => expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument());
+            expect(mockedAxios.post.mock.calls[0][1].relatedItems).toEqual(relatedItems);
+
+            fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Updated dataset' } });
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
+            expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ resourceId: 42 });
+            expect(mockedAxios.post.mock.calls[1][1]).not.toHaveProperty('relatedItems');
+        });
+
+        it('leaves REST-managed citations out of later autosaves without an extra unchanged save', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
+            const view = renderDataCiteForm({
+                initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
+                initialRelatedItems: relatedItems,
+            });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1].relatedItems).toEqual(relatedItems);
+
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Updated dataset' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'autosave', resourceId: 42 });
+                expect(mockedAxios.post.mock.calls[1][1]).not.toHaveProperty('relatedItems');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('disables persistence actions until an upload has finished merging', async () => {
+            const uploadResponse = createDeferred<Response>();
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-') ? uploadResponse.promise : createDefaultFetchResponse(input.toString()),
+            );
+            mockUsePageProps.mockReturnValue({
+                auth: { user: { can_register_doi: true } },
+                curationAccordionOpenItems: null,
+                curationAccordionRevision: null,
+            });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({ initialTitles: [{ title: 'Entered title', titleType: 'main-title' }] });
+
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
+            await waitFor(() => {
+                expect(screen.getByTestId('save-draft-button')).toBeDisabled();
+                expect(screen.getByTestId('save-resource-button')).toBeDisabled();
+                expect(screen.getByTestId('datacite-action-button')).toBeDisabled();
+                expect(screen.getByTestId('show-lp-preview-button')).toBeDisabled();
+            });
+            fireEvent.submit(screen.getByTestId('save-resource-button').closest('form')!);
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+
+            await act(async () => {
+                uploadResponse.resolve(createJsonResponse({ success: true, metadata: { year: '2025' } }));
+            });
+            await waitFor(() => expect(screen.getByTestId('save-draft-button')).toBeEnabled());
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'save-draft', year: 2025 });
+        });
+
         it('normalizes nullable server defaults before merging an uploaded file', async () => {
             global.fetch = vi.fn((input: RequestInfo | URL) =>
                 input.toString().includes('/editor/upload-')

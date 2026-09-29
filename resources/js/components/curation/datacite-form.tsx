@@ -594,6 +594,7 @@ export default function DataCiteForm({
         return [];
     });
     const importInFlightRef = useRef(false);
+    const [isImportingMetadata, setIsImportingMetadata] = useState(false);
 
     const handleImportedMetadata = useCallback(
         (metadata: ImportedMetadata) => {
@@ -2402,6 +2403,7 @@ export default function DataCiteForm({
             }[];
             datacenter_id: number | null;
             resourceId?: number;
+            relatedItems?: Array<Record<string, unknown>>;
             rawRights: DataCiteFormProps['initialRawRights'];
         } = {
             doi: form.doi?.trim() || null,
@@ -2495,7 +2497,7 @@ export default function DataCiteForm({
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
             // CitationManagerModal owns the data.
-            ...(relatedItems.length > 0 ? { relatedItems } : {}),
+            ...(resolvedResourceId === null && relatedItems.length > 0 ? { relatedItems } : {}),
             fundingReferences: fundingReferences.map((funding) => ({
                 funderName: funding.funderName,
                 funderIdentifier: funding.funderIdentifier,
@@ -2561,6 +2563,7 @@ export default function DataCiteForm({
 
     const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
         const savedPayload = resourceId ? { ...payload, resourceId } : payload;
+        if (resourceId) delete savedPayload.relatedItems;
 
         try {
             lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
@@ -2775,6 +2778,7 @@ export default function DataCiteForm({
     );
 
     const prepareValidatedPayload = async (): Promise<ReturnType<typeof buildPayload> | null> => {
+        if (importInFlightRef.current) return null;
         setHasAttemptedSubmit(true);
         setErrorMessage(null);
         setMappedValidationErrors([]);
@@ -2803,10 +2807,12 @@ export default function DataCiteForm({
             }
         }
 
+        if (importInFlightRef.current) return null;
         return buildPayload();
     };
 
     const persistValidatedResource = async (payload: ReturnType<typeof buildPayload>): Promise<ValidatedSaveResponse | null> => {
+        if (importInFlightRef.current) return null;
         try {
             const response = await axios.post(saveUrl, payload, {
                 headers: {
@@ -2872,6 +2878,7 @@ export default function DataCiteForm({
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (importInFlightRef.current) return;
         setIsSaving(true);
 
         try {
@@ -2900,6 +2907,7 @@ export default function DataCiteForm({
     };
 
     const handleRequestDataCiteAction = async () => {
+        if (importInFlightRef.current) return;
         setIsSaving(true);
 
         try {
@@ -2924,6 +2932,7 @@ export default function DataCiteForm({
         force: boolean,
         submittingAction: Exclude<EditorDataCiteSubmittingAction, null>,
     ) => {
+        if (importInFlightRef.current) return;
         setIsSubmittingDataCite(true);
         setDataCiteSubmittingAction(submittingAction);
         setDataCiteError(null);
@@ -2977,6 +2986,7 @@ export default function DataCiteForm({
     };
 
     const handleConfirmDataCiteAction = async (submission: EditorDataCiteSubmission) => {
+        if (importInFlightRef.current) return;
         setPendingDataCiteSubmission(submission);
 
         let resourceId = pendingDataCiteResourceId;
@@ -3014,7 +3024,7 @@ export default function DataCiteForm({
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
-        if (!isDraftSaveable) return;
+        if (!isDraftSaveable || importInFlightRef.current) return;
 
         setIsSavingDraft(true);
         setErrorMessage(null);
@@ -3100,7 +3110,7 @@ export default function DataCiteForm({
     };
 
     const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
-        if (!isDraftSaveable) return null;
+        if (!isDraftSaveable || importInFlightRef.current) return null;
 
         setIsPreparingLandingPagePreview(true);
         setErrorMessage(null);
@@ -3341,7 +3351,7 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
-    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite;
+    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
     const isPublishedResource = currentPublicStatus === 'published';
     const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
@@ -3506,6 +3516,7 @@ export default function DataCiteForm({
                     onImported={handleImportedMetadata}
                     onImportingChange={(importing) => {
                         importInFlightRef.current = importing;
+                        setIsImportingMetadata(importing);
                     }}
                 />
             )}
