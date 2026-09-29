@@ -118,8 +118,8 @@ interface BuildLandingPagePayloadOptions {
     primaryDownloadLabel?: string;
     ftpFormatId?: number | null;
     ftpSizeId?: number | null;
-    supportsDownloadsUnavailable?: boolean;
-    downloadsUnavailable?: boolean;
+    supportsDownloadActivation?: boolean;
+    activateDownloads?: boolean;
     supportsLinks: boolean;
     links?: LandingPageLink[];
     files?: Array<{ id: number; label?: string | null; format_id?: number | null; size_id?: number | null }>;
@@ -160,8 +160,8 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
         payload.ftp_size_id = options.ftpUrl ? (options.ftpSizeId ?? null) : null;
     }
 
-    if (options.supportsDownloadsUnavailable) {
-        payload.downloads_unavailable = options.downloadsUnavailable === true;
+    if (options.supportsDownloadActivation) {
+        payload.activate_downloads = options.activateDownloads === true;
     }
 
     if (options.isExternal) {

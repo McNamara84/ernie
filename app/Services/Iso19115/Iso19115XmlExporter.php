@@ -12,6 +12,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\Creators\ResourceCreatorNameResolverService;
+use App\Services\LandingPageDownloadAvailabilityService;
 use App\Services\TemporalCoverageValueService;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
@@ -129,6 +130,7 @@ class Iso19115XmlExporter
     public function __construct(
         private readonly Iso19115ResourceProfileService $profile,
         private readonly ResourceCreatorNameResolverService $creatorNameResolver,
+        private readonly LandingPageDownloadAvailabilityService $downloadAvailability,
     ) {}
 
     #[\NoDiscard('Exported XML string must be used')]
@@ -1019,11 +1021,22 @@ class Iso19115XmlExporter
             ];
         }
 
-        if (! $landingPage->downloads_unavailable) {
-            foreach ($landingPage->files as $file) {
+        if ($this->downloadAvailability->isAvailable($landingPage)) {
+            $files = $this->downloadAvailability->usableFiles($landingPage);
+            foreach ($files as $file) {
                 $onlineResources[] = [
                     'url' => $file->url,
                     'name' => $this->downloadName($file->url, 'Resource file'),
+                    'function' => 'download',
+                ];
+            }
+            if ($files->isEmpty() && $this->downloadAvailability->isUsableUrl($landingPage->ftp_url)) {
+                $primaryUrl = trim((string) $landingPage->ftp_url);
+                $onlineResources[] = [
+                    'url' => $primaryUrl,
+                    'name' => trim((string) $landingPage->primary_download_label) !== ''
+                        ? trim((string) $landingPage->primary_download_label)
+                        : $this->downloadName($primaryUrl, 'Resource file'),
                     'function' => 'download',
                 ];
             }

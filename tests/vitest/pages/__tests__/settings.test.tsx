@@ -161,7 +161,7 @@ describe('EditorSettings page', () => {
         expect(screen.getByText('Date Types')).toBeInTheDocument();
         expect(screen.queryByText('Limits')).not.toBeInTheDocument();
         expect(screen.getByText('Thesauri')).toBeInTheDocument();
-        expect(screen.getAllByRole('button', { expanded: false })).toHaveLength(15);
+        expect(screen.getAllByRole('button', { expanded: false })).toHaveLength(16);
     });
 
     it('updates ERNIE active when toggled', () => {

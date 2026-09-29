@@ -7,6 +7,8 @@ namespace App\Http\Requests\Settings;
 use App\Enums\ContributorCategory;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
+use App\Rules\SafeUrl;
+use App\Services\LandingPageDownloadUrlSuggestionService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,19 @@ use Illuminate\Validation\Validator;
 
 class UpdateSettingsRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $order = $this->input('downloadUrlSuggestionOrder');
+        if (is_array($order)) {
+            $this->merge(['downloadUrlSuggestionOrder' => array_map(
+                static fn (mixed $value): mixed => is_string($value)
+                    ? (LandingPageDownloadUrlSuggestionService::normalizePrefix($value) ?? trim($value))
+                    : $value,
+                $order,
+            )]);
+        }
+    }
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -23,6 +38,12 @@ class UpdateSettingsRequest extends FormRequest
         $categoryValues = array_column(ContributorCategory::cases(), 'value');
 
         return [
+            'downloadUrlSuggestionOrder' => ['sometimes', 'array', 'max:500', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (is_array($value) && strlen(json_encode($value, JSON_THROW_ON_ERROR)) > 60000) {
+                    $fail('The download URL suggestions are too large. Remove some entries.');
+                }
+            }],
+            'downloadUrlSuggestionOrder.*' => ['required', 'string', 'max:2048', 'distinct:strict', new SafeUrl],
             'resourceTypes' => ['required', 'array'],
             'resourceTypes.*.id' => ['required', 'integer', 'exists:resource_types,id'],
             'resourceTypes.*.name' => ['required', 'string'],

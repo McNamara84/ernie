@@ -5,6 +5,7 @@ import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type ContributorRoleRow, ContributorRolesCard } from '@/components/settings/contributor-roles-card';
+import { DownloadUrlSuggestions } from '@/components/settings/download-url-suggestions';
 import { EditorSettingsSaveBar } from '@/components/settings/editor-settings-save-bar';
 import { EditorSettingsAccordion, EditorSettingsSection } from '@/components/settings/editor-settings-section';
 import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
@@ -21,6 +22,7 @@ import AppLayout from '@/layouts/app-layout';
 import { getSelectAllState } from '@/lib/select-all';
 import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
+import type { LandingPageDownloadUrlSuggestionItem } from '@/types/landing-page';
 
 interface ResourceTypeRow {
     id: number;
@@ -107,6 +109,8 @@ interface IdentifierTypeRow {
 }
 
 interface EditorSettingsProps {
+    downloadUrlSuggestions?: LandingPageDownloadUrlSuggestionItem[];
+    downloadUrlSuggestionOrder?: string[];
     resourceTypes: ResourceTypeRow[];
     titleTypes: TitleTypeRow[];
     licenses: LicenseRow[];
@@ -127,6 +131,8 @@ interface EditorSettingsProps {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
 export default function EditorSettings({
+    downloadUrlSuggestions = [],
+    downloadUrlSuggestionOrder = [],
     resourceTypes,
     titleTypes,
     licenses,
@@ -149,6 +155,7 @@ export default function EditorSettings({
     const [isAddingDomain, setIsAddingDomain] = useState(false);
     const [expandedIdentifierTypes, setExpandedIdentifierTypes] = useState<Set<number>>(new Set());
     const [openSection, setOpenSection] = useState('');
+    const [savedDownloadUrlSuggestionOrder, setSavedDownloadUrlSuggestionOrder] = useState(downloadUrlSuggestionOrder);
 
     // Datacenter management - managed separately via API
     const [datacenters, setDatacenters] = useState<DatacenterRow[]>(initialDatacenters);
@@ -235,7 +242,8 @@ export default function EditorSettings({
         }
     };
 
-    const { data, setData, post, processing, isDirty, recentlySuccessful } = useForm({
+    const { data, setData, setDefaults, transform, post, processing, isDirty, recentlySuccessful, errors } = useForm({
+        downloadUrlSuggestionOrder,
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
             name: r.name,
@@ -525,7 +533,21 @@ export default function EditorSettings({
     const idTypeElmoState = getSelectAllState(data.identifierTypes.map((it) => it.elmo_active));
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(settings().url);
+        transform(({ downloadUrlSuggestionOrder: order, ...otherSettings }) => {
+            const orderUnchanged =
+                order.length === savedDownloadUrlSuggestionOrder.length &&
+                order.every((prefix, index) => prefix === savedDownloadUrlSuggestionOrder[index]);
+
+            // Preserve the installation default until this section is explicitly changed.
+            return orderUnchanged ? otherSettings : { ...otherSettings, downloadUrlSuggestionOrder: order };
+        });
+        post(settings().url, {
+            onSuccess: () => {
+                setSavedDownloadUrlSuggestionOrder(data.downloadUrlSuggestionOrder);
+                // Keep edits made during the request dirty against the submitted snapshot.
+                setDefaults(data);
+            },
+        });
     };
 
     return (
@@ -535,6 +557,18 @@ export default function EditorSettings({
                 <EditorSettingsSaveBar isDirty={isDirty} processing={processing} recentlySuccessful={recentlySuccessful} />
 
                 <EditorSettingsAccordion value={openSection} onValueChange={setOpenSection}>
+                    <EditorSettingsSection
+                        value="download-url-suggestions"
+                        title="Download URL suggestions"
+                        summary={<span className="text-sm font-normal text-muted-foreground">{downloadUrlSuggestions.length} suggestions</span>}
+                    >
+                        <DownloadUrlSuggestions
+                            order={data.downloadUrlSuggestionOrder}
+                            suggestions={downloadUrlSuggestions}
+                            onChange={(order) => setData('downloadUrlSuggestionOrder', order)}
+                            errors={errors}
+                        />
+                    </EditorSettingsSection>
                     {/* Licenses */}
                     <EditorSettingsSection
                         value="licenses"

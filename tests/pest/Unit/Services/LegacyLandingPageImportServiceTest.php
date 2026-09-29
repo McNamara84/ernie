@@ -147,7 +147,7 @@ describe('LegacyLandingPageImportService', function () {
 
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBeNull()
-            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->downloads_unavailable)->toBeFalse()
             ->and($landingPage->is_published)->toBeFalse()
             ->and($resource->fresh(['landingPage'])->publicStatus())->toBe('review');
     });
@@ -164,7 +164,7 @@ describe('LegacyLandingPageImportService', function () {
 
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBeNull()
-            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->downloads_unavailable)->toBeFalse()
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull();
     });

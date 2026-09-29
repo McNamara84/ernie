@@ -11,6 +11,7 @@ import EditorSettings from '@/pages/settings/index';
 const formHarness = vi.hoisted(() => ({
     initialData: null as Record<string, unknown> | null,
     replaceData: null as ((data: Record<string, unknown>) => void) | null,
+    succeed: null as (() => void) | null,
     post: vi.fn(),
 }));
 
@@ -32,7 +33,11 @@ vi.mock('@inertiajs/react', async () => {
         Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
         useForm: (initial: Record<string, unknown>) => {
             const [data, setDataState] = ReactModule.useState(initial);
-            const [defaults] = ReactModule.useState(initial);
+            const [defaults, setDefaults] = ReactModule.useState(initial);
+            const transform = ReactModule.useRef((values: Record<string, unknown>) => values);
+            const currentData = ReactModule.useRef(data);
+            currentData.current = data;
+            const defaultsSetInSuccess = ReactModule.useRef(false);
             formHarness.initialData = initial;
 
             const setData = (keyOrData: string | Record<string, unknown>, value?: unknown) => {
@@ -48,7 +53,23 @@ vi.mock('@inertiajs/react', async () => {
             return {
                 data,
                 setData,
-                post: (url: string) => formHarness.post(url, data),
+                setDefaults: (values: Record<string, unknown>) => {
+                    defaultsSetInSuccess.current = true;
+                    setDefaults(values);
+                },
+                transform: (callback: (values: Record<string, unknown>) => Record<string, unknown>) => {
+                    transform.current = callback;
+                },
+                post: (url: string, options?: { onSuccess?: () => void }) => {
+                    formHarness.post(url, transform.current(data));
+                    formHarness.succeed = () => {
+                        defaultsSetInSuccess.current = false;
+                        options?.onSuccess?.();
+                        if (!defaultsSetInSuccess.current) {
+                            setDefaults(currentData.current);
+                        }
+                    };
+                },
                 processing: false,
                 isDirty: !isDeepStrictEqual(data, defaults),
                 recentlySuccessful: false,
@@ -176,6 +197,7 @@ describe('EditorSettings accordion page', () => {
     beforeEach(() => {
         formHarness.initialData = null;
         formHarness.replaceData = null;
+        formHarness.succeed = null;
         formHarness.post.mockReset();
         axiosMocks.post.mockReset();
         axiosMocks.delete.mockReset();
@@ -300,6 +322,105 @@ describe('EditorSettings accordion page', () => {
                 resourceTypes: expect.arrayContaining([expect.objectContaining({ name: 'Updated Dataset' })]),
             }),
         );
+    });
+
+    it.each([false, true])('omits the unchanged installation order when saving other settings (section opened: %s)', async (openSuggestions) => {
+        const user = userEvent.setup();
+        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+
+        if (openSuggestions) {
+            await user.click(sectionTrigger(/^Download URL suggestions/));
+            expect(screen.getByLabelText('Download URL suggestion 1')).toHaveValue('https://datapub.gfz.de/download');
+            expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+        }
+        await user.click(sectionTrigger(/^Resource Types/));
+        await user.type(within(section('resource-types')).getAllByLabelText('Name')[0], ' updated');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        const payload = formHarness.post.mock.calls[0][1];
+        expect(payload).not.toHaveProperty('downloadUrlSuggestionOrder');
+        expect(payload.resourceTypes[0].name).toBe('Dataset updated');
+    });
+
+    it('submits reordered download suggestions with the other settings', async () => {
+        const user = userEvent.setup();
+        renderSettings({
+            downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'],
+            downloadUrlSuggestions: [{ value: 'https://example.org/', usage_count: 5 }],
+        });
+        await user.click(sectionTrigger(/^Download URL suggestions/));
+        await user.click(screen.getByRole('button', { name: 'Move suggestion 2 up' }));
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        expect(formHarness.post).toHaveBeenLastCalledWith(
+            '/settings',
+            expect.objectContaining({
+                downloadUrlSuggestionOrder: ['https://example.org/', 'https://datapub.gfz.de/download'],
+                resourceTypes: defaultProps.resourceTypes,
+            }),
+        );
+    });
+
+    it('submits an explicitly empty order after the last prefix is removed', async () => {
+        const user = userEvent.setup();
+        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await user.click(sectionTrigger(/^Download URL suggestions/));
+        await user.click(screen.getByRole('button', { name: 'Remove suggestion 1' }));
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        expect(formHarness.post.mock.calls[0][1]).toHaveProperty('downloadUrlSuggestionOrder', []);
+    });
+
+    it('omits the order when prefix edits are reverted before saving another section', async () => {
+        const user = userEvent.setup();
+        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await user.click(sectionTrigger(/^Download URL suggestions/));
+        const prefix = screen.getByLabelText('Download URL suggestion 1');
+        await user.type(prefix, 's');
+        await user.keyboard('[Backspace]');
+        await user.click(sectionTrigger(/^Resource Types/));
+        await user.type(within(section('resource-types')).getAllByLabelText('Name')[0], ' updated');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        expect(formHarness.post.mock.calls[0][1]).not.toHaveProperty('downloadUrlSuggestionOrder');
+    });
+
+    it('retries changed prefixes and omits them from unrelated saves only after success', async () => {
+        const user = userEvent.setup();
+        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await user.click(sectionTrigger(/^Download URL suggestions/));
+        await user.type(screen.getByLabelText('Download URL suggestion 1'), '/data');
+        const save = screen.getByRole('button', { name: 'Save changes' });
+        await user.click(save);
+        // A failed request must leave the baseline unchanged so the retry includes the order.
+        await user.click(save);
+        expect(formHarness.post.mock.calls[1][1]).toHaveProperty('downloadUrlSuggestionOrder', ['https://datapub.gfz.de/download/data']);
+
+        act(() => formHarness.succeed?.());
+        expect(save).toBeDisabled();
+        await user.click(sectionTrigger(/^Resource Types/));
+        await user.type(within(section('resource-types')).getAllByLabelText('Name')[0], ' updated');
+        await user.click(save);
+        expect(formHarness.post.mock.calls[2][1]).not.toHaveProperty('downloadUrlSuggestionOrder');
+
+        await user.click(sectionTrigger(/^Download URL suggestions/));
+        await user.click(screen.getByRole('button', { name: 'Remove suggestion 1' }));
+        await user.click(save);
+        expect(formHarness.post.mock.calls[3][1]).toHaveProperty('downloadUrlSuggestionOrder', []);
+    });
+
+    it('retains edits made while a previous prefix change is being saved', async () => {
+        const user = userEvent.setup();
+        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await user.click(sectionTrigger(/^Download URL suggestions/));
+        const prefix = screen.getByLabelText('Download URL suggestion 1');
+        await user.type(prefix, '/first');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        await user.type(prefix, '/second');
+        act(() => formHarness.succeed?.());
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        expect(formHarness.post.mock.calls[1][1]).toHaveProperty('downloadUrlSuggestionOrder', ['https://datapub.gfz.de/download/first/second']);
     });
 
     it('does not mark semantically equal data as dirty when object keys are reordered', () => {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use Illuminate\Support\Facades\DB;
@@ -55,7 +54,7 @@ class LegacyLandingPageImportService
         });
 
         if ($created) {
-            CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
+            LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
         }
 
         return $landingPage;
@@ -124,6 +123,7 @@ class LegacyLandingPageImportService
             }
 
             $landingPage->loadMissing('links');
+            app(LandingPageDownloadAvailabilityService::class)->normalizeEmptySuppression($landingPage);
 
             $ftpUrlAdded = false;
             $downloadsUnavailableCleared = false;
@@ -133,15 +133,14 @@ class LegacyLandingPageImportService
             if ($this->isBlank($landingPage->ftp_url)) {
                 $landingPage->forceFill([
                     'ftp_url' => $primaryFile['url'],
-                    'downloads_unavailable' => false,
+                    'downloads_unavailable' => $landingPage->downloads_unavailable,
                 ])->save();
                 $ftpUrlAdded = $landingPage->wasChanged('ftp_url');
                 $downloadsUnavailableCleared = $landingPage->wasChanged('downloads_unavailable');
                 $landingPage->refresh()->load('links');
-            } elseif ($landingPage->downloads_unavailable) {
-                $landingPage->forceFill(['downloads_unavailable' => false])->save();
-                $downloadsUnavailableCleared = $landingPage->wasChanged('downloads_unavailable');
-                $landingPage->refresh()->load('links');
+            } elseif ($landingPage->isDirty('downloads_unavailable')) {
+                $landingPage->save();
+                $downloadsUnavailableCleared = true;
             }
 
             if ($this->sameUrl($landingPage->ftp_url, $primaryFile['url'])
@@ -205,7 +204,7 @@ class LegacyLandingPageImportService
         });
 
         if ($result['changed']) {
-            CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
+            LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
         }
 
         return $result;
@@ -226,7 +225,7 @@ class LegacyLandingPageImportService
             'template' => 'default_gfz',
             'ftp_url' => $primaryFile['url'] ?? null,
             'primary_download_label' => $primaryFile['label'] ?? null,
-            'downloads_unavailable' => $primaryFile === null,
+            'downloads_unavailable' => false,
             'is_published' => $shouldPublish,
             'published_at' => $shouldPublish ? now() : null,
         ]);

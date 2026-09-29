@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
+use App\Models\LandingPageLink;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -121,6 +122,37 @@ test('GetRecord returns ISO for eligible resources and cannotDisseminateFormat f
     expect($datasetContent)->toContain('<mdb:MD_Metadata')
         ->and((string) $projectXml->error['code'])->toBe('cannotDisseminateFormat');
 });
+
+test('ISO harvesting follows effective availability and preserves hidden downloads until activation', function (string $verb) {
+    $resource = createIsoOaiResource('10.5880/iso.download.availability');
+    $landingPage = $resource->landingPage;
+    $landingPage->update(['ftp_url' => null, 'downloads_unavailable' => false]);
+    $landingPage->links()->create([
+        'url' => 'https://example.org/additional.zip',
+        'label' => 'Additional download',
+        'kind' => LandingPageLink::KIND_DOWNLOAD,
+        'position' => 0,
+    ]);
+    $url = '/oai-pmh?verb='.$verb.'&metadataPrefix=iso19115_3';
+    if ($verb === 'GetRecord') {
+        $url .= '&identifier='.isoOaiIdentifier($resource->doi);
+    }
+
+    $this->get($url)->assertOk()->assertSee('<mdb:MD_Metadata', escape: false)
+        ->assertDontSee('https://example.org/additional.zip', escape: false);
+
+    $landingPage->files()->create(['url' => 'https://example.org/imported.zip', 'position' => 0]);
+    $landingPage->update(['downloads_unavailable' => true]);
+    $this->get($url)->assertOk()
+        ->assertDontSee('https://example.org/imported.zip', escape: false)
+        ->assertDontSee('https://example.org/additional.zip', escape: false);
+    expect($landingPage->fresh()->downloads_unavailable)->toBeTrue();
+
+    $landingPage->update(['downloads_unavailable' => false]);
+    $this->get($url)->assertOk()
+        ->assertSee('https://example.org/imported.zip', escape: false)
+        ->assertSee('https://example.org/additional.zip', escape: false);
+})->with(['GetRecord', 'ListRecords']);
 
 test('ISO list verbs exclude unsupported live resource types before counting', function () {
     $dataset = createIsoOaiResource('10.5880/iso.filter.dataset');

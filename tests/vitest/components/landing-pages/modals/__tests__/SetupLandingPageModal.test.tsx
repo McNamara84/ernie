@@ -166,6 +166,86 @@ describe('SetupLandingPageModal', () => {
         });
     };
 
+    const openDownloadInput = async () => {
+        await waitFor(() =>
+            expect(screen.queryByLabelText(/^Download URL$/i) ?? screen.queryByRole('button', { name: 'Add Download URL' })).not.toBeNull(),
+        );
+        const addButton = screen.queryByRole('button', { name: 'Add Download URL' });
+        if (addButton) await userEvent.click(addButton);
+        return screen.findByLabelText(/^Download URL$/i);
+    };
+
+    describe('Automatic download workflow', () => {
+        it('starts empty and opening the input alone does not create an unsaved configuration', async () => {
+            mockModalGetRequests();
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            expect(await screen.findByRole('button', { name: 'Add Download URL' })).toBeInTheDocument();
+            expect(screen.queryByRole('checkbox', { name: /no data available/i })).not.toBeInTheDocument();
+            const input = await openDownloadInput();
+            await waitFor(() => expect(input).toHaveFocus());
+            expect(screen.queryByText(/You have unsaved changes/)).not.toBeInTheDocument();
+            expect(window.sessionStorage.getItem('setup-landing-page-modal:draft:123')).toBeNull();
+        });
+
+        it('removes the primary URL and descriptors and restores the empty state and focus', async () => {
+            const user = userEvent.setup();
+            const config = { ...mockExistingConfig, primary_download_label: 'Archive', ftp_format_id: 5, ftp_size_id: 6 };
+            mockModalGetRequests({ landingPage: config });
+            mockedAxiosPut.mockResolvedValue({ data: { landing_page: { ...config, ftp_url: null } } });
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            await user.click(await screen.findByRole('button', { name: 'Remove download URL' }));
+            await waitFor(() => expect(screen.getByRole('button', { name: 'Add Download URL' })).toHaveFocus());
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+            await waitFor(() =>
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.any(String),
+                    expect.objectContaining({
+                        ftp_url: null,
+                        primary_download_label: null,
+                        ftp_format_id: null,
+                        ftp_size_id: null,
+                        activate_downloads: false,
+                    }),
+                ),
+            );
+        });
+
+        it('does not activate protected downloads when a legacy draft contains an unchecked flag', async () => {
+            const user = userEvent.setup();
+            const config = { ...mockExistingConfig, download_activation_required: true, downloads_unavailable: true };
+            mockModalGetRequests({ landingPage: config });
+            mockedAxiosPut.mockResolvedValue({ data: { landing_page: config } });
+            window.sessionStorage.setItem(
+                'setup-landing-page-modal:draft:123',
+                JSON.stringify({
+                    template: 'default_gfz',
+                    ftpUrl: 'https://example.org/edited.zip',
+                    downloadsUnavailable: false,
+                    activateDownloads: true,
+                }),
+            );
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            expect(await screen.findByRole('button', { name: 'Activate downloads' })).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+            await waitFor(() =>
+                expect(mockedAxiosPut).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ activate_downloads: false })),
+            );
+            expect(mockedAxiosPut.mock.calls[0][1]).not.toHaveProperty('downloads_unavailable');
+        });
+
+        it('reloads suggestion ordering after the modal is reopened', async () => {
+            mockModalGetRequests();
+            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            await openDownloadInput();
+            await waitFor(() => expect(mockedAxiosGet).toHaveBeenCalledWith('/api/landing-page-download-url-suggestions'));
+            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            mockModalGetRequests({ downloadSuggestions: { domains: [{ value: 'https://datapub.gfz.de/download', usage_count: 0 }], urls: [] } });
+            rerender(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            await openDownloadInput();
+            expect(await screen.findByRole('option', { name: /https:\/\/datapub.gfz.de\/download/ })).toBeInTheDocument();
+        });
+    });
+
     describe('Rendering', () => {
         it('renders modal when open', async () => {
             // Mock 404 response (no landing page exists yet)
@@ -219,7 +299,7 @@ describe('SetupLandingPageModal', () => {
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/Landing Page Template/i)).toBeInTheDocument();
-                expect(screen.getByLabelText(/^Download URL$/i)).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: 'Add Download URL' })).toBeInTheDocument();
                 expect(screen.getByLabelText(/Publish Landing Page/i)).toBeInTheDocument();
             });
         });
@@ -290,30 +370,31 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByTestId('primary-download-size')).toHaveTextContent('2 MiB');
         });
 
-        it('hydrates the downloads unavailable checkbox from existing configuration', async () => {
+        it('offers explicit activation for protected existing downloads', async () => {
             mockedAxiosGet.mockResolvedValue({
                 data: {
                     landing_page: {
                         ...mockExistingConfig,
                         downloads_unavailable: true,
+                        download_activation_required: true,
                     },
                 },
             });
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            expect(await screen.findByRole('checkbox', { name: /no data available for automatic download/i })).toBeChecked();
+            expect(await screen.findByRole('button', { name: 'Activate downloads' })).toBeInTheDocument();
         });
 
-        it('keeps the download URL value when downloads unavailable is toggled', async () => {
-            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+        it('keeps the download URL value when protected downloads are activated', async () => {
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: { ...mockExistingConfig, download_activation_required: true } } });
 
             const user = userEvent.setup();
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
-            await user.click(screen.getByRole('checkbox', { name: /no data available for automatic download/i }));
+            const ftpInput = await openDownloadInput();
+            await user.click(screen.getByRole('button', { name: 'Activate downloads' }));
 
             expect(ftpInput).toHaveValue(mockExistingConfig.ftp_url);
         });
@@ -325,7 +406,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
             await user.click(ftpInput);
 
             await waitFor(() => {
@@ -343,7 +424,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
 
             expect(ftpInput).toHaveAttribute('role', 'combobox');
             expect(ftpInput).toHaveAttribute('aria-autocomplete', 'list');
@@ -356,7 +437,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
 
             await user.click(ftpInput);
             await user.type(ftpInput, 'archive');
@@ -381,7 +462,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
 
             await user.click(ftpInput);
             await user.click(screen.getByText('https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW'));
@@ -396,7 +477,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
 
             await user.click(ftpInput);
 
@@ -414,7 +495,16 @@ describe('SetupLandingPageModal', () => {
             expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
         });
 
-        it('does not fetch suggestions when imported files disable the ftp field', async () => {
+        it('allows adding a primary URL when imported files contain only historical placeholders', async () => {
+            const config = { ...mockExistingConfig, ftp_url: null, files: [{ id: 1, url: '#', position: 0 }] };
+            mockModalGetRequests({ landingPage: config });
+            render(<SetupLandingPageModal resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />);
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            await openDownloadInput();
+            expect(screen.getByRole('combobox', { name: /^Download URL$/ })).toBeEnabled();
+        });
+
+        it('does not fetch suggestions when imported files replace the primary URL editor', async () => {
             mockModalGetRequests({
                 landingPage: {
                     ...mockExistingConfig,
@@ -427,8 +517,6 @@ describe('SetupLandingPageModal', () => {
                     ],
                 },
             });
-
-            const user = userEvent.setup();
 
             render(
                 <SetupLandingPageModal
@@ -448,18 +536,18 @@ describe('SetupLandingPageModal', () => {
                 />,
             );
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
-            expect(ftpInput).toBeDisabled();
-
-            await user.click(ftpInput);
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            expect(screen.queryByLabelText(/^Download URL$/i)).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Add Download URL' })).not.toBeInTheDocument();
 
             expect(axios.get).not.toHaveBeenCalledWith('/api/landing-page-download-url-suggestions');
         });
 
-        it('warns when downloads unavailable will hide imported download files', async () => {
+        it('explains protected imported files before explicit activation', async () => {
             mockModalGetRequests({
                 landingPage: {
                     ...mockExistingConfig,
+                    download_activation_required: true,
                     files: [
                         {
                             id: 1,
@@ -470,13 +558,12 @@ describe('SetupLandingPageModal', () => {
                 },
             });
 
-            const user = userEvent.setup();
-
             render(
                 <SetupLandingPageModal
                     resource={mockResource}
                     existingConfig={{
                         ...mockExistingConfig,
+                        download_activation_required: true,
                         files: [
                             {
                                 id: 1,
@@ -490,9 +577,8 @@ describe('SetupLandingPageModal', () => {
                 />,
             );
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
-
-            expect(screen.getByText(/Imported download files will not be offered automatically/i)).toBeInTheDocument();
+            expect(await screen.findByText('Existing downloads are currently hidden')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Activate downloads' })).toBeInTheDocument();
         });
 
         it('keeps the modal usable when loading download url suggestions fails', async () => {
@@ -504,7 +590,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
             await user.click(ftpInput);
 
             await waitFor(() => {
@@ -805,7 +891,7 @@ describe('SetupLandingPageModal', () => {
             });
 
             // Fill FTP URL (use full label text)
-            const ftpInput = screen.getByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
             await user.clear(ftpInput);
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/new-data');
 
@@ -971,7 +1057,7 @@ describe('SetupLandingPageModal', () => {
             vi.unstubAllGlobals();
         });
 
-        it('sends downloads unavailable while preserving the entered download URL', async () => {
+        it('creates automatic downloads without an explicit activation', async () => {
             mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
@@ -980,7 +1066,7 @@ describe('SetupLandingPageModal', () => {
                 data: {
                     landing_page: {
                         ...mockExistingConfig,
-                        downloads_unavailable: true,
+                        activate_downloads: false,
                         status: 'draft',
                     },
                 },
@@ -990,9 +1076,8 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/no-data-record.zip');
-            await user.click(screen.getByRole('checkbox', { name: /no data available for automatic download/i }));
             await user.click(screen.getByRole('button', { name: /Create Preview/i }));
 
             await waitFor(() => {
@@ -1001,7 +1086,7 @@ describe('SetupLandingPageModal', () => {
                     expect.objectContaining({
                         template: 'default_gfz',
                         ftp_url: 'https://datapub.gfz-potsdam.de/download/no-data-record.zip',
-                        downloads_unavailable: true,
+                        activate_downloads: false,
                     }),
                 );
             });
@@ -1078,11 +1163,12 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
-        it('updates downloads unavailable while preserving the saved download URL', async () => {
+        it('explicitly activates downloads while preserving the saved download URL', async () => {
             const draftConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 status: 'draft',
-                downloads_unavailable: false,
+                downloads_unavailable: true,
+                download_activation_required: true,
             };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
             mockedAxiosPut.mockResolvedValue({
@@ -1098,7 +1184,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
+            await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /Update/i }));
 
             await waitFor(() => {
@@ -1107,7 +1193,7 @@ describe('SetupLandingPageModal', () => {
                     expect.objectContaining({
                         template: 'default_gfz',
                         ftp_url: draftConfig.ftp_url,
-                        downloads_unavailable: true,
+                        activate_downloads: true,
                         status: 'draft',
                     }),
                 );
@@ -1320,11 +1406,12 @@ describe('SetupLandingPageModal', () => {
             vi.unstubAllGlobals();
         });
 
-        it('sends downloads unavailable in the session preview payload for unsaved changes', async () => {
+        it('sends explicit activation in the session preview payload for unsaved changes', async () => {
             const draftConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 status: 'draft',
-                downloads_unavailable: false,
+                downloads_unavailable: true,
+                download_activation_required: true,
             };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
             mockedAxiosPost.mockResolvedValue({
@@ -1339,7 +1426,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
+            await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
@@ -1350,7 +1437,7 @@ describe('SetupLandingPageModal', () => {
                     expect.objectContaining({
                         template: 'default_gfz',
                         ftp_url: draftConfig.ftp_url,
-                        downloads_unavailable: true,
+                        activate_downloads: true,
                     }),
                 );
             });
@@ -1367,7 +1454,8 @@ describe('SetupLandingPageModal', () => {
             const draftConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 status: 'draft',
-                downloads_unavailable: false,
+                downloads_unavailable: true,
+                download_activation_required: true,
             };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
 
@@ -1378,7 +1466,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
+            await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
@@ -1392,7 +1480,8 @@ describe('SetupLandingPageModal', () => {
             const draftConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 status: 'draft',
-                downloads_unavailable: false,
+                downloads_unavailable: true,
+                download_activation_required: true,
             };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
             mockedAxiosPost.mockRejectedValue({
@@ -1409,7 +1498,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
+            await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
@@ -1654,10 +1743,9 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
             const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
             await user.clear(ftpInput);
             await user.type(ftpInput, 'https://downloads.example.org/draft-file.zip');
-            await user.click(screen.getByRole('checkbox', { name: /no data available for automatic download/i }));
 
             await user.click(screen.getByRole('button', { name: /add link/i }));
             await user.type(screen.getByPlaceholderText(/display text/i), 'Project Website');
@@ -1668,7 +1756,7 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 const persistedDraft = JSON.parse(window.sessionStorage.getItem('setup-landing-page-modal:draft:123') ?? '{}');
 
-                expect(persistedDraft.downloadsUnavailable).toBe(true);
+                expect(persistedDraft.activateDownloads).toBe(false);
                 expect(persistedDraft.links).toEqual([expect.objectContaining({ kind: 'repository' })]);
             });
 
@@ -1676,10 +1764,10 @@ describe('SetupLandingPageModal', () => {
 
             rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const reopenedFtpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const reopenedFtpInput = (await openDownloadInput()) as HTMLInputElement;
 
             expect(reopenedFtpInput.value).toBe('https://downloads.example.org/draft-file.zip');
-            expect(screen.getByRole('checkbox', { name: /no data available for automatic download/i })).toBeChecked();
+            expect(screen.queryByRole('button', { name: 'Activate downloads' })).not.toBeInTheDocument();
             expect(screen.getByDisplayValue('Project Website')).toBeInTheDocument();
             expect(screen.getByDisplayValue('https://example.org/project')).toBeInTheDocument();
             expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Source repository');
@@ -1790,7 +1878,7 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
             const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+            const ftpInput = await openDownloadInput();
             await user.clear(ftpInput);
             await user.type(ftpInput, 'https://downloads.example.org/unsaved-file.zip');
 
@@ -1814,7 +1902,7 @@ describe('SetupLandingPageModal', () => {
 
             rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const reopenedFtpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const reopenedFtpInput = (await openDownloadInput()) as HTMLInputElement;
 
             expect(reopenedFtpInput.value).toBe('https://saved.example.org/final-file.zip');
             expect(screen.queryByDisplayValue('Temporary Link')).not.toBeInTheDocument();
@@ -1826,7 +1914,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
             expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
 
@@ -1845,7 +1933,7 @@ describe('SetupLandingPageModal', () => {
 
                 render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-                const ftpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+                const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
                 expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
             } finally {
@@ -1864,7 +1952,7 @@ describe('SetupLandingPageModal', () => {
                 const user = userEvent.setup();
                 render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-                const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+                const ftpInput = await openDownloadInput();
                 await user.clear(ftpInput);
                 await user.type(ftpInput, 'https://downloads.example.org/storage-safe.zip');
 
@@ -1900,7 +1988,7 @@ describe('SetupLandingPageModal', () => {
                 const user = userEvent.setup();
                 render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-                const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+                const ftpInput = await openDownloadInput();
                 await user.clear(ftpInput);
                 await user.type(ftpInput, savedConfig.ftp_url ?? '');
                 await user.click(screen.getByRole('button', { name: /create preview/i }));
@@ -1921,7 +2009,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
             expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
         });
@@ -1938,7 +2026,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
             expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
             expect(screen.queryByDisplayValue('Invalid persisted link')).not.toBeInTheDocument();
@@ -2027,7 +2115,7 @@ describe('SetupLandingPageModal', () => {
 
             rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const reopenedFtpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const reopenedFtpInput = (await openDownloadInput()) as HTMLInputElement;
 
             expect(reopenedFtpInput.value).toBe('');
             expect(screen.queryByDisplayValue('Stale link')).not.toBeInTheDocument();
@@ -2686,10 +2774,10 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            const ftpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
             expect(ftpInput.value).toBe('https://downloads.example.org/persisted.zip');
-            expect(screen.getByRole('checkbox', { name: /no data available for automatic download/i })).toBeChecked();
+            expect(screen.queryByRole('button', { name: 'Activate downloads' })).not.toBeInTheDocument();
             expect(screen.getByDisplayValue('Persisted link')).toBeInTheDocument();
             expect(screen.getByDisplayValue('https://example.org/persisted')).toBeInTheDocument();
             expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
@@ -2742,7 +2830,7 @@ describe('SetupLandingPageModal', () => {
             rerender(<SetupLandingPageModal resource={secondResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByLabelText(/^Download URL$/i)).toHaveValue('');
+                expect(screen.getByRole('button', { name: 'Add Download URL' })).toBeInTheDocument();
             });
             expect(screen.queryByDisplayValue('First resource link')).not.toBeInTheDocument();
             expect(mockedToastError).toHaveBeenCalledWith('Failed to load landing page configuration');

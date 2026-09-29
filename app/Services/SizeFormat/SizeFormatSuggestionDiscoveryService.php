@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\SizeFormat;
 
 use App\Models\AssistantSuggestion;
-use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Services\SizeFormatFileProbeService;
 use App\Support\SizeFormatFileRoleClassifier;
@@ -47,6 +46,7 @@ final class SizeFormatSuggestionDiscoveryService
                 'formats:id,resource_id,value',
                 'sizes:id,resource_id,numeric_value,unit,type',
                 'landingPage.links' => fn ($query) => $query->orderBy('position'),
+                'landingPage.files',
             ])
             ->orderBy('id')
             ->chunkById(self::CHUNK_SIZE, function ($resources) use (
@@ -114,7 +114,7 @@ final class SizeFormatSuggestionDiscoveryService
         $primarySourceCount = 0;
 
         foreach ($sources as $source) {
-            if ($source['kind'] === 'additional_download_link') {
+            if ($source['kind'] !== 'ftp_url') {
                 $sourceRole = $this->roleClassifier->classify($source['url'], $source['label']);
 
                 if ($sourceRole['role'] !== SizeFormatFileRoleClassifier::PRIMARY_DATA) {
@@ -313,9 +313,7 @@ final class SizeFormatSuggestionDiscoveryService
                             ->where(function (Builder $query): void {
                                 $query->whereNotNull('ftp_url')->where('ftp_url', '!=', '');
                             })
-                            ->orWhereHas('links', fn (Builder $query): Builder => $query
-                                ->where('kind', LandingPageLink::KIND_DOWNLOAD)
-                                ->where('url', '!=', ''));
+                            ->orWhereHas('files', fn (Builder $query): Builder => $query->where('url', '!=', ''));
                     });
             });
     }
