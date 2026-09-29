@@ -3078,14 +3078,13 @@ export default function DataCiteForm({
             const resourceIdForUrl = savedResourceId ?? resolvedResourceId;
             if (resourceIdForUrl && Number.isSafeInteger(resourceIdForUrl)) {
                 const editorUrl = editor.url({ query: { resourceId: resourceIdForUrl } });
-                if (`${window.location.pathname}${window.location.search}` !== editorUrl) {
-                    router.replace({
-                        url: editorUrl,
-                        props: (props) => ({ ...props, resourceId: String(resourceIdForUrl) }),
-                        preserveState: true,
-                        preserveScroll: true,
-                    });
-                }
+                router.replace({
+                    url: editorUrl,
+                    // History props predate the save. A restored editor must fetch its saved values.
+                    props: (props) => ({ ...props, resourceId: String(resourceIdForUrl), refreshSavedDraftOnRestore: true }),
+                    preserveState: true,
+                    preserveScroll: true,
+                });
             }
         } catch (error) {
             if (axios.isAxiosError(error)) {

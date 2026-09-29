@@ -7721,7 +7721,7 @@ describe('DataCiteForm', () => {
                 );
             });
             const replaceOptions = mockRouterReplace.mock.calls[0][0];
-            expect(replaceOptions.props({ titles: [] })).toEqual({ titles: [], resourceId: '42' });
+            expect(replaceOptions.props({ titles: [] })).toEqual({ titles: [], resourceId: '42', refreshSavedDraftOnRestore: true });
             expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
             expect(mainTitleInput).toHaveValue('Draft Dataset');
             expect(mockRouterVisit).not.toHaveBeenCalled();
@@ -7742,7 +7742,9 @@ describe('DataCiteForm', () => {
             expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ resourceId: 42, intent: 'save-draft' });
             expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
             expect(screen.getByTestId('main-title-input')).toHaveValue('Existing draft');
-            expect(mockRouterReplace).not.toHaveBeenCalled();
+            expect(mockRouterReplace).toHaveBeenCalledWith(
+                expect.objectContaining({ url: '/editor?resourceId=42', preserveState: true, preserveScroll: true }),
+            );
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
@@ -8154,7 +8156,7 @@ describe('DataCiteForm', () => {
             // The second draft save payload should include the resource ID from the first save
             const secondPayload = mockPost.mock.calls[0][1];
             expect(secondPayload.resourceId).toBe(99);
-            expect(mockRouterReplace).toHaveBeenCalledTimes(1);
+            expect(mockRouterReplace).toHaveBeenCalledTimes(2);
         });
 
         it('does not redirect on client-side validation failure', { timeout: 60000 }, async () => {

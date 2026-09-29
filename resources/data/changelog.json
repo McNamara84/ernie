@@ -104,6 +104,11 @@
                         "type": "issue",
                         "number": 1370,
                         "url": "https://github.com/McNamara84/ernie/issues/1370"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1373,
+                        "url": "https://github.com/McNamara84/ernie/pull/1373"
                     }
                 ]
             },

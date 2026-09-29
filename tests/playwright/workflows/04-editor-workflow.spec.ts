@@ -67,6 +67,7 @@ test.describe('Editor Form', () => {
     });
 
     test('keeps a saved draft in the editor and reloads the same resource', async ({ page }) => {
+        test.setTimeout(150_000);
         await gotoWithLocalTlsRetry(page, '/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
@@ -101,6 +102,20 @@ test.describe('Editor Form', () => {
         expect(secondSave.status()).toBe(200);
         expect(secondSave.request().postDataJSON().resourceId).toBe(saved.resource.id);
         await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+
+        await page.getByRole('link', { name: 'Resources List' }).click();
+        await expect(page).toHaveURL(/\/resources$/);
+        const restoredEditorLoad = page.waitForRequest(
+            (request) =>
+                request.method() === 'GET' &&
+                request.isNavigationRequest() &&
+                new URL(request.url()).pathname === '/editor' &&
+                new URL(request.url()).searchParams.get('resourceId') === String(saved.resource.id),
+        );
+        await page.goBack();
+        await restoredEditorLoad;
+        await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        await expect(titleInput).toHaveValue(`${title} revised`, { timeout: 60_000 });
 
         await page.reload();
         await expect(page.getByTestId('main-title-input')).toHaveValue(`${title} revised`, { timeout: 60_000 });
