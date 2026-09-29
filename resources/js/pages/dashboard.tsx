@@ -10,107 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { EmptyState } from '@/components/ui/empty-state';
 import { type DataCiteUploadResult, UnifiedDropzone } from '@/components/unified-dropzone';
 import AppLayout from '@/layouts/app-layout';
-import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { handleJsonFiles, handleXmlFiles } from '@/lib/datacite-upload';
 import { type GuidedTourAutostartPayload } from '@/lib/tours/definitions';
 import { cn } from '@/lib/utils';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
-import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import type { UploadErrorResponse } from '@/types/upload';
-
-type UploadSessionResponse = {
-    resourceId?: number | string | null;
-    sessionKey?: string | null;
-};
-
-/**
- * Shared helper for file uploads (XML, JSON, JSON-LD).
- * New uploads return the persisted draft target so the dashboard can stay in place.
- */
-async function uploadSessionFile(file: File, route: { url: () => string }, sessionQueryKey: string): Promise<DataCiteUploadResult> {
-    const csrfHeaders = buildCsrfHeaders();
-
-    if (!csrfHeaders['X-CSRF-TOKEN'] && !csrfHeaders['X-XSRF-TOKEN']) {
-        throw new Error('CSRF token not found. Please reload the page (Ctrl+F5) and try again.');
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    const filename = file.name;
-
-    try {
-        const response = await fetch(route.url(), {
-            method: 'POST',
-            body: formData,
-            headers: csrfHeaders,
-            credentials: 'same-origin',
-        });
-
-        if (!response.ok) {
-            if (response.status === 419) {
-                console.warn('CSRF token expired, reloading page...');
-                window.location.reload();
-                throw new Error('Session expired. Reloading page...');
-            }
-
-            let message = `Failed to upload ${filename}`;
-            try {
-                const errorData: UploadErrorResponse = await response.json();
-                if (errorData.message) {
-                    message = errorData.message;
-                }
-            } catch {
-                // Response body is not valid JSON (e.g. HTML error page) - use generic message
-            }
-            throw new Error(message);
-        }
-
-        const data: UploadSessionResponse = await response.json();
-        const resourceId = data.resourceId !== undefined && data.resourceId !== null ? String(data.resourceId).trim() : '';
-        const sessionKey = data.sessionKey ? String(data.sessionKey).trim() : '';
-
-        if (resourceId !== '') {
-            return {
-                success: true,
-                uploadKind: 'datacite',
-                filename,
-                resourceId,
-                sessionKey: sessionKey || null,
-                editorUrl: editorRoute({ query: { resourceId } }).url,
-            };
-        }
-
-        if (sessionKey !== '') {
-            return {
-                success: true,
-                uploadKind: 'datacite',
-                filename,
-                resourceId: null,
-                sessionKey,
-                editorUrl: editorRoute({ query: { [sessionQueryKey]: sessionKey } }).url,
-            };
-        }
-
-        throw new Error('Upload completed but no editor target was returned for ' + filename + '.');
-    } catch (error) {
-        console.error(`${sessionQueryKey} upload failed`, error);
-        if (error instanceof Error) {
-            throw error;
-        }
-        throw new Error(`Failed to upload ${filename}`, { cause: error });
-    }
-}
-
-export const handleXmlFiles = async (files: File[]): Promise<DataCiteUploadResult | undefined> => {
-    if (!files.length) return undefined;
-    return uploadSessionFile(files[0], uploadXmlRoute, 'xmlSession');
-};
-
-export const handleJsonFiles = async (files: File[]): Promise<DataCiteUploadResult | undefined> => {
-    if (!files.length) return undefined;
-    return uploadSessionFile(files[0], uploadJsonRoute, 'jsonSession');
-};
+export { handleJsonFiles, handleXmlFiles } from '@/lib/datacite-upload';
 
 type DashboardProps = {
     onXmlFiles?: (files: File[]) => Promise<DataCiteUploadResult | undefined>;

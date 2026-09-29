@@ -575,6 +575,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/upload-json', UploadJsonController::class)
         ->name('dashboard.upload-json');
 
+    Route::post('editor/upload-xml/preview', UploadXmlController::class)
+        ->name('editor.upload-xml.preview');
+
+    Route::post('editor/upload-json/preview', UploadJsonController::class)
+        ->name('editor.upload-json.preview');
+
     Route::post('dashboard/upload-igsn-csv', UploadIgsnCsvController::class)
         ->name('dashboard.upload-igsn-csv');
 

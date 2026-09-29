@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
+import { EditorMetadataUpload } from '@/components/curation/editor-metadata-upload';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { DoiRegistrationSuccessDialog } from '@/components/curation/modals/doi-registration-success-dialog';
 import {
@@ -47,6 +48,8 @@ import {
     validateEditorDate,
 } from '@/lib/editor-date';
 import { feedback } from '@/lib/feedback';
+import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
+import { toImportedFormParts } from '@/lib/imported-metadata-form';
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
@@ -232,12 +235,17 @@ function hasDescriptionPayloadValue(description: DescriptionEntry): boolean {
     return description.value.trim() !== '';
 }
 
-function isRawRightsOnlyLicenseEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
-    return entry.mode === 'custom' && entry.rawRight !== undefined && entry.uri.trim() === '' && entry.name.trim() !== '';
+function isRawRightsPayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
+    return (
+        entry.mode === 'custom' &&
+        entry.rawRight !== undefined &&
+        entry.name.trim() !== '' &&
+        (entry.uri.trim() === '' || Boolean(entry.rawRight.rightsIdentifier?.trim()))
+    );
 }
 
 function isCustomLicensePayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
-    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsOnlyLicenseEntry(entry);
+    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsPayloadEntry(entry);
 }
 
 function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<LicenseEntry, { mode: 'catalog' }> {
@@ -245,18 +253,18 @@ function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<Lic
 }
 
 function hasLicenseEntryEvidence(entry: LicenseEntry | undefined): boolean {
-    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsOnlyLicenseEntry(entry));
+    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsPayloadEntry(entry));
 }
 
 function canAddLicenseEntry(licenseEntries: LicenseEntry[]): boolean {
     return licenseEntries.length > 0 && hasLicenseEntryEvidence(licenseEntries[licenseEntries.length - 1]);
 }
 
-function serializeRawRightsOnlyLicenseEntry(entry: CustomLicenseEntry): RawRightsInput {
+function serializeRawRightsPayloadEntry(entry: CustomLicenseEntry): RawRightsInput {
     return {
         ...entry.rawRight,
         rights: entry.name.trim(),
-        rightsUri: null,
+        rightsUri: entry.uri.trim() || null,
         sourceResourceRightId: entry.sourceResourceRightId ?? entry.rawRight?.sourceResourceRightId ?? null,
     };
 }
@@ -339,11 +347,11 @@ export default function DataCiteForm({
     const accordionPreferenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [form, setForm] = useState<DataCiteFormData>({
-        doi: initialDoi,
-        year: initialYear,
-        resourceType: initialResourceType,
-        version: initialVersion,
-        language: resolveInitialLanguageCode(languages, initialLanguage),
+        doi: initialDoi ?? '',
+        year: initialYear ?? '',
+        resourceType: initialResourceType ?? '',
+        version: initialVersion ?? '',
+        language: resolveInitialLanguageCode(languages, initialLanguage ?? ''),
         accessLevel: initialAccessLevel,
     });
 
@@ -566,6 +574,7 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const [relatedItems, setRelatedItems] = useState<Array<Record<string, unknown>>>(initialRelatedItems);
     const [fundingReferences, setFundingReferences] = useState<FundingReferenceEntry[]>(() => {
         if (initialFundingReferences && initialFundingReferences.length > 0) {
             return initialFundingReferences;
@@ -584,6 +593,114 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const importInFlightRef = useRef(false);
+    const [isImportingMetadata, setIsImportingMetadata] = useState(false);
+
+    const handleImportedMetadata = useCallback(
+        (metadata: ImportedMetadata) => {
+            const imported = toImportedFormParts(metadata, languages, licenses);
+            setForm((current) => ({
+                ...current,
+                doi: current.doi.trim() || imported.scalar.doi?.trim() || '',
+                year: current.year.trim() || imported.scalar.year?.trim() || '',
+                resourceType: current.resourceType.trim() || imported.scalar.resourceType?.trim() || '',
+                version: current.version.trim() || imported.scalar.version?.trim() || '',
+                language: current.language.trim() || imported.scalar.language.trim(),
+            }));
+            setTitles((current) => {
+                const merged = mergeImportedEntries(
+                    current,
+                    imported.titles,
+                    (item) =>
+                        item.titleType === MAIN_TITLE_SLUG
+                            ? MAIN_TITLE_SLUG
+                            : [identityPart(item.titleType), identityPart(item.title), identityPart(item.language)].join('|'),
+                    (item) => item.title.trim() === '',
+                );
+                if (merged.some((item) => item.titleType === MAIN_TITLE_SLUG)) return merged;
+                const placeholder = current.find((item) => item.titleType === MAIN_TITLE_SLUG && item.title.trim() === '');
+                return [placeholder ?? { id: crypto.randomUUID(), title: '', titleType: MAIN_TITLE_SLUG }, ...merged];
+            });
+            setLicenseEntries((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.licenses,
+                    (item) => (item.mode === 'catalog' ? `catalog:${identityPart(item.license)}` : `custom:${identityPart(item.uri || item.name)}`),
+                    (item) => (item.mode === 'catalog' ? item.license.trim() === '' : item.name.trim() === '' && item.uri.trim() === ''),
+                ),
+            );
+            setAuthors((current) =>
+                mergeImportedEntries(current, imported.authors, (item) =>
+                    item.type === 'institution'
+                        ? `institution:${identityPart(item.institutionName)}`
+                        : `person:${identityPart(item.orcid || `${item.lastName}|${item.firstName}`)}`,
+                ),
+            );
+            setContributors((current) =>
+                mergeImportedEntries(current, imported.contributors, (item) =>
+                    item.type === 'institution'
+                        ? `institution:${identityPart(item.institutionName)}`
+                        : `person:${identityPart(item.orcid || `${item.lastName}|${item.firstName}`)}`,
+                ),
+            );
+            setDescriptions((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.descriptions,
+                    (item) => [identityPart(item.type), identityPart(item.value), identityPart(item.language)].join('|'),
+                    (item) => item.value.trim() === '',
+                ),
+            );
+            setDates((current) =>
+                mergeImportedEntries(current, imported.dates, (item) =>
+                    [identityPart(item.dateType), item.startDate, item.endDate, item.startTime, item.endTime].join('|'),
+                ),
+            );
+            setGcmdKeywords((current) =>
+                mergeImportedEntries(current, imported.keywords, (item) => `${identityPart(item.scheme)}|${identityPart(item.id || item.path)}`),
+            );
+            setFreeKeywords((current) => mergeImportedEntries(current, imported.freeKeywords, (item) => identityPart(item.value)));
+            setSpatialTemporalCoverages((current) =>
+                mergeImportedEntries(current, imported.coverages, (item) =>
+                    JSON.stringify([
+                        item.type,
+                        item.latMin,
+                        item.lonMin,
+                        item.latMax,
+                        item.lonMax,
+                        item.polygonPoints,
+                        item.startDate,
+                        item.endDate,
+                        item.temporalMode,
+                        item.startTime,
+                        item.endTime,
+                        item.timezone,
+                    ]),
+                ),
+            );
+            setRelatedWorks((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.relatedWorks,
+                    (item) => [identityPart(item.identifier), identityPart(item.identifier_type), identityPart(item.relation_type)].join('|'),
+                    (item) => item.identifier.trim() === '',
+                ),
+            );
+            setRelatedItems((current) => mergeImportedEntries(current, imported.relatedItems, (item) => JSON.stringify(item)));
+            setFundingReferences((current) =>
+                mergeImportedEntries(current, imported.fundingReferences, (item) =>
+                    [identityPart(item.funderIdentifier || item.funderName), identityPart(item.awardNumber || item.awardUri || item.awardTitle)].join(
+                        '|',
+                    ),
+                ),
+            );
+            setMslLaboratories((current) =>
+                mergeImportedEntries(current, imported.mslLaboratories, (item) => identityPart(item.identifier || item.name)),
+            );
+            setInstruments((current) => mergeImportedEntries(current, imported.instruments, (item) => identityPart(item.pid)));
+        },
+        [languages, licenses],
+    );
     const [selectedDatacenterId, setSelectedDatacenterId] = useState<number | null>(initialDatacenterId);
     const [datacenterTouched, setDatacenterTouched] = useState(false);
     const [openAccordionItems, setOpenAccordionItems] = useState<CurationAccordionItemValue[]>(() =>
@@ -1341,6 +1458,7 @@ export default function DataCiteForm({
     const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
     const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
     const draftAutosaveInFlightRef = useRef(false);
+    const [isDraftAutosaveInFlight, setIsDraftAutosaveInFlight] = useState(false);
     const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
@@ -2286,6 +2404,7 @@ export default function DataCiteForm({
             }[];
             datacenter_id: number | null;
             resourceId?: number;
+            relatedItems?: Array<Record<string, unknown>>;
             rawRights: DataCiteFormProps['initialRawRights'];
         } = {
             doi: form.doi?.trim() || null,
@@ -2305,7 +2424,7 @@ export default function DataCiteForm({
                 uri: entry.uri.trim(),
                 ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
             })),
-            rawRights: licenseEntries.filter(isRawRightsOnlyLicenseEntry).map(serializeRawRightsOnlyLicenseEntry),
+            rawRights: licenseEntries.filter(isRawRightsPayloadEntry).map(serializeRawRightsPayloadEntry),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -2379,7 +2498,7 @@ export default function DataCiteForm({
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
             // CitationManagerModal owns the data.
-            ...(initialRelatedItems && initialRelatedItems.length > 0 ? { relatedItems: initialRelatedItems } : {}),
+            ...(resolvedResourceId === null && relatedItems.length > 0 ? { relatedItems } : {}),
             fundingReferences: fundingReferences.map((funding) => ({
                 funderName: funding.funderName,
                 funderIdentifier: funding.funderIdentifier,
@@ -2416,7 +2535,7 @@ export default function DataCiteForm({
         freeKeywords,
         fundingReferences,
         gcmdKeywords,
-        initialRelatedItems,
+        relatedItems,
         instruments,
         licenseEntries,
         mslLaboratories,
@@ -2445,6 +2564,7 @@ export default function DataCiteForm({
 
     const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
         const savedPayload = resourceId ? { ...payload, resourceId } : payload;
+        if (resourceId) delete savedPayload.relatedItems;
 
         try {
             lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
@@ -2487,6 +2607,7 @@ export default function DataCiteForm({
             isDataCiteConfirmationOpen ||
             isLandingPageSetupOpen ||
             isSubmittingDataCite ||
+            importInFlightRef.current ||
             registrationSuccess !== null ||
             draftAutosaveInFlightRef.current
         ) {
@@ -2510,6 +2631,7 @@ export default function DataCiteForm({
         }
 
         draftAutosaveInFlightRef.current = true;
+        setIsDraftAutosaveInFlight(true);
         setDraftAutosaveStatus('saving');
 
         try {
@@ -2543,6 +2665,7 @@ export default function DataCiteForm({
             setDraftAutosaveStatus('error');
         } finally {
             draftAutosaveInFlightRef.current = false;
+            setIsDraftAutosaveInFlight(false);
         }
     }, [
         activeDateInputId,
@@ -2658,6 +2781,7 @@ export default function DataCiteForm({
     );
 
     const prepareValidatedPayload = async (): Promise<ReturnType<typeof buildPayload> | null> => {
+        if (importInFlightRef.current) return null;
         setHasAttemptedSubmit(true);
         setErrorMessage(null);
         setMappedValidationErrors([]);
@@ -2686,10 +2810,12 @@ export default function DataCiteForm({
             }
         }
 
+        if (importInFlightRef.current) return null;
         return buildPayload();
     };
 
     const persistValidatedResource = async (payload: ReturnType<typeof buildPayload>): Promise<ValidatedSaveResponse | null> => {
+        if (importInFlightRef.current) return null;
         try {
             const response = await axios.post(saveUrl, payload, {
                 headers: {
@@ -2755,6 +2881,7 @@ export default function DataCiteForm({
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (importInFlightRef.current) return;
         setIsSaving(true);
 
         try {
@@ -2783,6 +2910,7 @@ export default function DataCiteForm({
     };
 
     const handleRequestDataCiteAction = async () => {
+        if (importInFlightRef.current) return;
         setIsSaving(true);
 
         try {
@@ -2807,6 +2935,7 @@ export default function DataCiteForm({
         force: boolean,
         submittingAction: Exclude<EditorDataCiteSubmittingAction, null>,
     ) => {
+        if (importInFlightRef.current) return;
         setIsSubmittingDataCite(true);
         setDataCiteSubmittingAction(submittingAction);
         setDataCiteError(null);
@@ -2860,6 +2989,7 @@ export default function DataCiteForm({
     };
 
     const handleConfirmDataCiteAction = async (submission: EditorDataCiteSubmission) => {
+        if (importInFlightRef.current) return;
         setPendingDataCiteSubmission(submission);
 
         let resourceId = pendingDataCiteResourceId;
@@ -2897,7 +3027,7 @@ export default function DataCiteForm({
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
-        if (!isDraftSaveable) return;
+        if (!isDraftSaveable || importInFlightRef.current) return;
 
         setIsSavingDraft(true);
         setErrorMessage(null);
@@ -2983,7 +3113,7 @@ export default function DataCiteForm({
     };
 
     const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
-        if (!isDraftSaveable) return null;
+        if (!isDraftSaveable || importInFlightRef.current) return null;
 
         setIsPreparingLandingPagePreview(true);
         setErrorMessage(null);
@@ -3224,7 +3354,7 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
-    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite;
+    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
     const isPublishedResource = currentPublicStatus === 'published';
     const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
@@ -3382,6 +3512,17 @@ export default function DataCiteForm({
                     focusable
                     className="p-4"
                     data-testid="global-validation-alert"
+                />
+            )}
+            {resolvedResourceId === null && (
+                <EditorMetadataUpload
+                    onImported={handleImportedMetadata}
+                    disabled={isDraftAutosaveInFlight || isEditorActionInFlight}
+                    canStartImport={() => !draftAutosaveInFlightRef.current && !importInFlightRef.current && !isEditorActionInFlight}
+                    onImportingChange={(importing) => {
+                        importInFlightRef.current = importing;
+                        setIsImportingMetadata(importing);
+                    }}
                 />
             )}
             <section
@@ -3591,7 +3732,7 @@ export default function DataCiteForm({
                                         canAdd={canAddLicenseEntry(licenseEntries)}
                                         required={index === 0}
                                         customNameRequired={index === 0}
-                                        customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
+                                        customUriRequired={index === 0 && !isRawRightsPayloadEntry(entry)}
                                         validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
                                         touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                         onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}

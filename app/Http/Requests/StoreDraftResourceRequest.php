@@ -8,6 +8,7 @@ use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Concerns\AuthorizesResourceDoiChanges;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
+use App\Http\Requests\Concerns\ValidatesRelatedItems;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\RelatedIdentifier;
 use App\Models\ResourceCreator;
@@ -36,6 +37,7 @@ class StoreDraftResourceRequest extends FormRequest
 {
     use AuthorizesResourceDoiChanges;
     use ValidatesEditorDates;
+    use ValidatesRelatedItems;
     use ValidatesTemporalCoverages;
 
     /**
@@ -203,6 +205,7 @@ class StoreDraftResourceRequest extends FormRequest
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
             'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in(RelatedIdentifier::INTERNAL_SOURCES)],
+            ...$this->relatedItemRules(),
             'fundingReferences' => ['nullable', 'array', 'max:'.self::MAX_REPEATABLE_METADATA_ITEMS],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],

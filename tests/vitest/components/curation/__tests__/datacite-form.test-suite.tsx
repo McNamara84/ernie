@@ -593,6 +593,353 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('metadata upload when creating a resource', () => {
+        it('shows the upload group only for a new editor session', () => {
+            const { unmount } = renderDataCiteForm();
+            expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+            unmount();
+            renderDataCiteForm({ initialResourceId: '42' });
+            expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+        });
+
+        it('hides the upload group after saving the first draft', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument());
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                '/editor/resources/draft',
+                expect.objectContaining({ intent: 'save-draft' }),
+                expect.any(Object),
+            );
+        });
+
+        it('hides the upload group when autosave creates the first draft', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+
+            try {
+                expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('blocks metadata upload while the first draft autosave is in flight', async () => {
+            vi.useFakeTimers();
+            const autosaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValue(autosaveResponse.promise);
+            const fetchMock = vi.fn((input: RequestInfo | URL) => createDefaultFetchResponse(input.toString()));
+            global.fetch = fetchMock;
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                const upload = screen.getByTestId('editor-metadata-file-input');
+                expect(upload).toBeDisabled();
+                fireEvent.change(upload, { target: { files: [new File(['xml'], 'import.xml')] } });
+                expect(fetchMock.mock.calls.some(([url]) => url.toString().includes('/editor/upload-'))).toBe(false);
+
+                await act(async () => {
+                    autosaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+                expect(fetchMock.mock.calls.some(([url]) => url.toString().includes('/editor/upload-'))).toBe(false);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('keeps imported citations in the first autosave when upload starts first', async () => {
+            vi.useFakeTimers();
+            const uploadResponse = createDeferred<Response>();
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-') ? uploadResponse.promise : createDefaultFetchResponse(input.toString()),
+            );
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Imported citation' }] }];
+
+            try {
+                fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).not.toHaveBeenCalled();
+
+                await act(async () => {
+                    uploadResponse.resolve(createJsonResponse({ success: true, metadata: { relatedItems } }));
+                });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave', relatedItems }),
+                    expect.any(Object),
+                );
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('sends imported inline citations only when creating the draft', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
+            renderDataCiteForm({
+                initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
+                initialRelatedItems: relatedItems,
+            });
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            await waitFor(() => expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument());
+            expect(mockedAxios.post.mock.calls[0][1].relatedItems).toEqual(relatedItems);
+
+            fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Updated dataset' } });
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
+            expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ resourceId: 42 });
+            expect(mockedAxios.post.mock.calls[1][1]).not.toHaveProperty('relatedItems');
+        });
+
+        it('leaves REST-managed citations out of later autosaves without an extra unchanged save', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
+            const view = renderDataCiteForm({
+                initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
+                initialRelatedItems: relatedItems,
+            });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1].relatedItems).toEqual(relatedItems);
+
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Updated dataset' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'autosave', resourceId: 42 });
+                expect(mockedAxios.post.mock.calls[1][1]).not.toHaveProperty('relatedItems');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('disables persistence actions until an upload has finished merging', async () => {
+            const uploadResponse = createDeferred<Response>();
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-') ? uploadResponse.promise : createDefaultFetchResponse(input.toString()),
+            );
+            mockUsePageProps.mockReturnValue({
+                auth: { user: { can_register_doi: true } },
+                curationAccordionOpenItems: null,
+                curationAccordionRevision: null,
+            });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({ initialTitles: [{ title: 'Entered title', titleType: 'main-title' }] });
+
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
+            await waitFor(() => {
+                expect(screen.getByTestId('save-draft-button')).toBeDisabled();
+                expect(screen.getByTestId('save-resource-button')).toBeDisabled();
+                expect(screen.getByTestId('datacite-action-button')).toBeDisabled();
+                expect(screen.getByTestId('show-lp-preview-button')).toBeDisabled();
+            });
+            fireEvent.submit(screen.getByTestId('save-resource-button').closest('form')!);
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+
+            await act(async () => {
+                uploadResponse.resolve(createJsonResponse({ success: true, metadata: { year: '2025' } }));
+            });
+            await waitFor(() => expect(screen.getByTestId('save-draft-button')).toBeEnabled());
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'save-draft', year: 2025 });
+        });
+
+        it('normalizes nullable server defaults before merging an uploaded file', async () => {
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(
+                          createJsonResponse({ success: true, metadata: { year: '2024', titles: [{ title: 'Imported', titleType: 'main-title' }] } }),
+                      )
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm({
+                initialDoi: null as unknown as string,
+                initialYear: null as unknown as string,
+                initialResourceType: null as unknown as string,
+                initialVersion: null as unknown as string,
+                initialLanguage: null as unknown as string,
+            });
+
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'metadata.xml')] } });
+
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('metadata.xml was added'),
+            );
+            expect(screen.getByTestId('main-title-input')).toHaveValue('Imported');
+            expect(document.querySelector('#year')).toHaveValue(2024);
+        });
+
+        it('preserves typed values, fills empty values, and saves unique imported collections', { timeout: 60000 }, async () => {
+            const metadata = {
+                doi: '10.5880/imported',
+                year: '2025',
+                resourceType: '99',
+                version: '1.0',
+                titles: [
+                    { title: 'Imported main', titleType: 'main-title' },
+                    { title: 'Imported subtitle', titleType: 'subtitle' },
+                ],
+                authors: [
+                    { type: 'person', orcid: '0000-0001', firstName: 'Jane', lastName: 'From XML', email: 'jane@example.test', isContact: true },
+                ],
+                descriptions: [{ type: 'Abstract', description: 'Imported description' }],
+                freeKeywords: ['existing', 'new keyword'],
+                relatedItems: [{ relatedItemIdentifier: '10.1000/citation' }],
+            };
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(createJsonResponse({ success: true, metadata }))
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm({
+                initialDoi: '10.5880/typed',
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Typed main', titleType: 'main-title' }],
+                initialAuthors: [{ type: 'person', orcid: '0000-0001', firstName: 'Jane', lastName: 'Typed', email: '', isContact: true }],
+                initialFreeKeywords: ['existing'],
+            });
+
+            const upload = screen.getByTestId('editor-metadata-file-input');
+            fireEvent.change(upload, { target: { files: [new File(['xml'], 'first.xml')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('first.xml was added'),
+            );
+            fireEvent.change(upload, { target: { files: [new File(['json'], 'second.json')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('second.json was added'),
+            );
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            const payload = mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1];
+            expect(payload).toMatchObject({ doi: '10.5880/typed', year: 2024, resourceType: 1, version: '1.0' });
+            expect(payload.titles).toEqual([
+                { title: 'Typed main', titleType: 'main-title', language: null },
+                { title: 'Imported subtitle', titleType: 'subtitle', language: null },
+            ]);
+            expect(payload.authors).toHaveLength(1);
+            expect(payload.authors[0]).toMatchObject({ lastName: 'Typed', email: 'jane@example.test' });
+            expect(payload.freeKeywords).toEqual(['existing', 'new keyword']);
+            expect(payload.descriptions).toEqual(expect.arrayContaining([expect.objectContaining({ description: 'Imported description' })]));
+            expect(payload.relatedItems).toEqual([{ relatedItemIdentifier: '10.1000/citation' }]);
+        });
+
+        it('saves unknown imported rights as raw metadata and ignores unsupported languages', { timeout: 60000 }, async () => {
+            const right = {
+                rights: 'Local reuse terms',
+                rightsIdentifier: 'LOCAL-2025',
+                rightsIdentifierScheme: 'Institution',
+                rightsUri: 'https://example.test/rights/local',
+            };
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(createJsonResponse({
+                          success: true,
+                          metadata: {
+                              titles: [{ title: 'Imported title', titleType: 'main-title' }],
+                              language: 'xx-UNCONFIGURED',
+                              licenses: ['LOCAL-2025'],
+                              rawRights: [right],
+                          },
+                      }))
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm();
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['json'], 'rights.json')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('rights.json was added'),
+            );
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            const payload = mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1];
+            expect(payload.language).toBe('');
+            expect(payload.licenses).toEqual([]);
+            expect(payload.customLicenses).toEqual([]);
+            expect(payload.rawRights).toEqual([{ ...right, sourceResourceRightId: null }]);
+        });
+    });
+
     describe('Floating editor actions (Issue #969)', () => {
         it('keeps the editor action buttons in a fixed bottom-right action cluster', () => {
             renderDataCiteForm();
