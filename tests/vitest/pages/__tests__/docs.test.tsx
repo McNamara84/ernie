@@ -1437,6 +1437,7 @@ describe('Docs page', () => {
         expect(saveDraft).toHaveTextContent('The editor stays open');
         expect(saveDraft).toHaveTextContent('/editor?resourceId=...');
         expect(saveDraft).toHaveTextContent('bookmark or share it');
+        expect(saveDraft).toHaveTextContent('Save Draft becomes available again after');
     });
 
     it('documents how to manage description language versions', async () => {

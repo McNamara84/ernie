@@ -7786,6 +7786,77 @@ describe('DataCiteForm', () => {
             }
         });
 
+        it('waits for an in-flight autosave before allowing the first manual draft save', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const autosaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post
+                .mockReturnValueOnce(autosaveResponse.promise)
+                .mockResolvedValueOnce({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+
+            try {
+                const draftButton = screen.getByTestId('save-draft-button');
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    // Click before React commits the disabled state, too.
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'autosave' });
+                expect(mockedAxios.post.mock.calls[0][1]).not.toHaveProperty('resourceId');
+                expect(draftButton).toBeDisabled();
+                fireEvent.click(draftButton);
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+                await act(async () => {
+                    autosaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(draftButton).toBeEnabled();
+
+                await act(async () => {
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'save-draft', resourceId: 42 });
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('does not start autosave while the first manual draft save is in flight', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const manualSaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValueOnce(manualSaveResponse.promise);
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    fireEvent.click(screen.getByTestId('save-draft-button'));
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'save-draft' });
+                expect(mockedAxios.post.mock.calls[0][1]).not.toHaveProperty('resourceId');
+
+                await act(async () => {
+                    manualSaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
         it('updates the autosave signature without showing autosave status after manual draft save', { timeout: 60000 }, async () => {
             vi.useFakeTimers();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };

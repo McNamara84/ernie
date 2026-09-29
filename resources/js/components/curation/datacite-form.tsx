@@ -1461,6 +1461,7 @@ export default function DataCiteForm({
     const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
     const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
     const draftAutosaveInFlightRef = useRef(false);
+    const manualDraftSaveInFlightRef = useRef(false);
     const [isDraftAutosaveInFlight, setIsDraftAutosaveInFlight] = useState(false);
     const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -2612,6 +2613,7 @@ export default function DataCiteForm({
             isSubmittingDataCite ||
             importInFlightRef.current ||
             registrationSuccess !== null ||
+            manualDraftSaveInFlightRef.current ||
             draftAutosaveInFlightRef.current
         ) {
             return;
@@ -3030,7 +3032,14 @@ export default function DataCiteForm({
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
-        if (!isDraftSaveable || importInFlightRef.current) return;
+        if (
+            !isDraftSaveable ||
+            importInFlightRef.current ||
+            isDraftAutosaveInFlight ||
+            draftAutosaveInFlightRef.current ||
+            manualDraftSaveInFlightRef.current
+        )
+            return;
 
         setIsSavingDraft(true);
         setErrorMessage(null);
@@ -3045,6 +3054,7 @@ export default function DataCiteForm({
         }
 
         const payload = buildPayload();
+        manualDraftSaveInFlightRef.current = true;
 
         try {
             const response = await axios.post(
@@ -3123,6 +3133,7 @@ export default function DataCiteForm({
             console.error('Failed to save draft', error);
             setErrorMessage('A network error prevented saving the draft. Please try again.');
         } finally {
+            manualDraftSaveInFlightRef.current = false;
             setIsSavingDraft(false);
         }
     };
@@ -3369,7 +3380,8 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
-    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
+    const isEditorActionInFlight =
+        isSaving || isSavingDraft || isDraftAutosaveInFlight || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
     const isPublishedResource = currentPublicStatus === 'published';
     const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
