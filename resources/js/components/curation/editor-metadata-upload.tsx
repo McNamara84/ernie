@@ -8,11 +8,13 @@ import type { ImportedMetadata } from '@/lib/imported-metadata';
 interface EditorMetadataUploadProps {
     onImported: (metadata: ImportedMetadata) => void;
     onImportingChange: (importing: boolean) => void;
+    disabled?: boolean;
+    canStartImport?: () => boolean;
 }
 
 type UploadStatus = { kind: 'error' | 'success'; message: string } | null;
 
-export function EditorMetadataUpload({ onImported, onImportingChange }: EditorMetadataUploadProps) {
+export function EditorMetadataUpload({ onImported, onImportingChange, disabled = false, canStartImport = () => true }: EditorMetadataUploadProps) {
     const [open, setOpen] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [dragging, setDragging] = useState(false);
@@ -20,6 +22,12 @@ export function EditorMetadataUpload({ onImported, onImportingChange }: EditorMe
     const inputRef = useRef<HTMLInputElement>(null);
 
     async function importFile(file: File) {
+        if (uploading) return;
+        if (disabled || !canStartImport()) {
+            setStatus({ kind: 'error', message: 'Wait for the current save to finish before uploading metadata.' });
+            return;
+        }
+
         const name = file.name.toLowerCase();
         const route = name.endsWith('.xml')
             ? '/editor/upload-xml/preview'
@@ -106,6 +114,7 @@ export function EditorMetadataUpload({ onImported, onImportingChange }: EditorMe
                             ref={inputRef}
                             type="file"
                             accept=".xml,.json,.jsonld"
+                            disabled={disabled || uploading}
                             hidden
                             data-testid="editor-metadata-file-input"
                             onChange={(event) => {
@@ -113,7 +122,13 @@ export function EditorMetadataUpload({ onImported, onImportingChange }: EditorMe
                                 if (file) void importFile(file);
                             }}
                         />
-                        <Button type="button" variant="outline" disabled={uploading} aria-busy={uploading} onClick={() => inputRef.current?.click()}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={disabled || uploading}
+                            aria-busy={uploading}
+                            onClick={() => inputRef.current?.click()}
+                        >
                             {uploading ? 'Importing…' : 'Choose file'}
                         </Button>
                     </div>

@@ -647,6 +647,79 @@ describe('DataCiteForm', () => {
             }
         });
 
+        it('blocks metadata upload while the first draft autosave is in flight', async () => {
+            vi.useFakeTimers();
+            const autosaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValue(autosaveResponse.promise);
+            const fetchMock = vi.fn((input: RequestInfo | URL) => createDefaultFetchResponse(input.toString()));
+            global.fetch = fetchMock;
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                const upload = screen.getByTestId('editor-metadata-file-input');
+                expect(upload).toBeDisabled();
+                fireEvent.change(upload, { target: { files: [new File(['xml'], 'import.xml')] } });
+                expect(fetchMock.mock.calls.some(([url]) => url.toString().includes('/editor/upload-'))).toBe(false);
+
+                await act(async () => {
+                    autosaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+                expect(fetchMock.mock.calls.some(([url]) => url.toString().includes('/editor/upload-'))).toBe(false);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('keeps imported citations in the first autosave when upload starts first', async () => {
+            vi.useFakeTimers();
+            const uploadResponse = createDeferred<Response>();
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-') ? uploadResponse.promise : createDefaultFetchResponse(input.toString()),
+            );
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Imported citation' }] }];
+
+            try {
+                fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).not.toHaveBeenCalled();
+
+                await act(async () => {
+                    uploadResponse.resolve(createJsonResponse({ success: true, metadata: { relatedItems } }));
+                });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave', relatedItems }),
+                    expect.any(Object),
+                );
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
         it('sends imported inline citations only when creating the draft', async () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });

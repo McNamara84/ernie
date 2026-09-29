@@ -1458,6 +1458,7 @@ export default function DataCiteForm({
     const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
     const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
     const draftAutosaveInFlightRef = useRef(false);
+    const [isDraftAutosaveInFlight, setIsDraftAutosaveInFlight] = useState(false);
     const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
@@ -2630,6 +2631,7 @@ export default function DataCiteForm({
         }
 
         draftAutosaveInFlightRef.current = true;
+        setIsDraftAutosaveInFlight(true);
         setDraftAutosaveStatus('saving');
 
         try {
@@ -2663,6 +2665,7 @@ export default function DataCiteForm({
             setDraftAutosaveStatus('error');
         } finally {
             draftAutosaveInFlightRef.current = false;
+            setIsDraftAutosaveInFlight(false);
         }
     }, [
         activeDateInputId,
@@ -3514,6 +3517,8 @@ export default function DataCiteForm({
             {resolvedResourceId === null && (
                 <EditorMetadataUpload
                     onImported={handleImportedMetadata}
+                    disabled={isDraftAutosaveInFlight || isEditorActionInFlight}
+                    canStartImport={() => !draftAutosaveInFlightRef.current && !importInFlightRef.current && !isEditorActionInFlight}
                     onImportingChange={(importing) => {
                         importInFlightRef.current = importing;
                         setIsImportingMetadata(importing);

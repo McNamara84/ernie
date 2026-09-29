@@ -60,6 +60,32 @@ describe('EditorMetadataUpload', () => {
         expect(screen.getByTestId('editor-metadata-file-input')).toBeInTheDocument();
     });
 
+    it('checks a pending save before starting an upload even if the control has not rerendered yet', () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        render(<EditorMetadataUpload onImported={onImported} onImportingChange={onImportingChange} canStartImport={() => false} />);
+
+        fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Wait for the current save to finish');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(onImportingChange).not.toHaveBeenCalled();
+    });
+
+    it('rejects a dropped file while saving and shows why it was not imported', () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        render(<EditorMetadataUpload onImported={onImported} onImportingChange={onImportingChange} disabled />);
+
+        fireEvent.drop(screen.getByText('Drop a DataCite file here or choose one').parentElement!, {
+            dataTransfer: { files: [new File(['xml'], 'import.xml')] },
+        });
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Wait for the current save to finish');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(onImportingChange).not.toHaveBeenCalled();
+    });
+
     it('keeps the form unchanged after an invalid or rejected file', async () => {
         const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ success: false, message: 'Invalid DataCite document' }) });
         vi.stubGlobal('fetch', fetchMock);
