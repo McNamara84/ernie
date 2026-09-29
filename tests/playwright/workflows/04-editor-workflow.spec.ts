@@ -66,6 +66,75 @@ test.describe('Editor Form', () => {
         await expect(page).toHaveURL(/\/editor/);
     });
 
+    test('keeps a saved draft in the editor and reloads the same resource', async ({ page }) => {
+        test.setTimeout(150_000);
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        const draftButton = page.getByTestId('save-draft-button');
+        const title = `Issue 1370 draft ${Date.now()}`;
+        await expect(titleInput).toBeVisible({ timeout: 30_000 });
+        await titleInput.fill(title);
+        const originalTitleInput = await titleInput.elementHandle();
+        const initialTabCount = page.context().pages().length;
+        const resourceEditorGets: string[] = [];
+        page.on('request', (request) => {
+            if (
+                request.method() === 'GET' &&
+                new URL(request.url()).pathname === '/editor' &&
+                new URL(request.url()).searchParams.has('resourceId')
+            ) {
+                resourceEditorGets.push(request.url());
+            }
+        });
+
+        const firstSavePromise = page.waitForResponse(
+            (response) => response.url().endsWith('/editor/resources/draft') && response.request().method() === 'POST',
+        );
+        await draftButton.click();
+        const firstSave = await firstSavePromise;
+        expect(firstSave.status()).toBe(201);
+        const saved = (await firstSave.json()) as { resource: { id: number } };
+        await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        await expect(titleInput).toHaveValue(title);
+        expect(await originalTitleInput?.evaluate((element) => element.isConnected)).toBe(true);
+        expect(resourceEditorGets).toEqual([]);
+        expect(page.context().pages()).toHaveLength(initialTabCount);
+
+        await titleInput.fill(`${title} revised`);
+        const secondSavePromise = page.waitForResponse(
+            (response) => response.url().endsWith('/editor/resources/draft') && response.request().method() === 'POST',
+        );
+        await draftButton.click();
+        const secondSave = await secondSavePromise;
+        expect(secondSave.status()).toBe(200);
+        expect(secondSave.request().postDataJSON().resourceId).toBe(saved.resource.id);
+        await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        expect(resourceEditorGets).toEqual([]);
+
+        await page.getByRole('link', { name: 'Resources List' }).click();
+        await expect(page).toHaveURL(/\/resources$/);
+        const restoredEditorLoad = page.waitForRequest(
+            (request) =>
+                request.method() === 'GET' &&
+                request.isNavigationRequest() &&
+                new URL(request.url()).pathname === '/editor' &&
+                new URL(request.url()).searchParams.get('resourceId') === String(saved.resource.id),
+        );
+        await page.goBack();
+        await restoredEditorLoad;
+        await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        await expect(titleInput).toHaveValue(`${title} revised`, { timeout: 60_000 });
+
+        await page.reload();
+        await expect(page.getByTestId('main-title-input')).toHaveValue(`${title} revised`, { timeout: 60_000 });
+    });
+
     test('opens action guidance separately and preserves unsaved editor input', async ({ page }) => {
         await gotoWithLocalTlsRetry(page, '/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);

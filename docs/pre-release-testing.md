@@ -403,6 +403,12 @@ Run as curator using a new test resource.
 - [ ] A draft with incomplete data can be saved and reopened later when the UI
       offers that action.
 
+- [ ] `Save Draft` keeps the current resource in the editor. A newly saved
+      draft gets an `/editor?resourceId=...` URL that reopens the same draft
+      after a page reload; saving it again updates that resource. Navigating
+      to the Resources List and using Back reloads the saved metadata before
+      the editor becomes usable again.
+
 - [ ] An unpublished record shows exactly `Save Draft`, `Validate`, `Register`,
       and `Preview LP`; a published record shows exactly `Update Metadata` and
       `Show LP`.

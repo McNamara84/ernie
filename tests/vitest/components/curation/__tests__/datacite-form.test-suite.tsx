@@ -32,11 +32,12 @@ type MockSetupLandingPageModalProps = {
     openPreviewOnSuccess?: boolean;
 };
 
-const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
+const { mockRouterPut, mockRouterVisit, mockRouterReplace, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
     mockRouterPut: vi.fn(),
     mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.();
     }),
+    mockRouterReplace: vi.fn(),
     mockSetupLandingPageModal: vi.fn(),
     mockUsePageProps: vi.fn((): Record<string, unknown> => ({
         curationAccordionOpenItems: null as string[] | null,
@@ -47,12 +48,14 @@ const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePagePr
 vi.mock('@inertiajs/react', () => ({
     router: {
         visit: mockRouterVisit,
+        replace: mockRouterReplace,
         get: vi.fn(),
         post: vi.fn(),
         put: mockRouterPut,
         reload: vi.fn(),
     },
     usePage: () => ({
+        url: window.location.pathname + window.location.search,
         props: mockUsePageProps(),
     }),
 }));
@@ -454,6 +457,11 @@ describe('DataCiteForm', () => {
         // Reset router mock for each test
         mockRouterPut.mockClear();
         mockRouterVisit.mockClear();
+        mockRouterReplace.mockClear();
+        mockRouterReplace.mockImplementation((options: { url: string }) => {
+            window.history.replaceState(window.history.state, '', options.url);
+        });
+        window.history.replaceState(window.history.state, '', '/editor');
         mockSetupLandingPageModal.mockClear();
         mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
             options?.onSuccess?.();
@@ -7440,6 +7448,8 @@ describe('DataCiteForm', () => {
                 expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
                 expect(within(datacenterSelect.parentElement!).getByText('The selected datacenter is invalid.')).toBeInTheDocument();
             });
+            expect(window.location.pathname + window.location.search).toBe('/editor');
+            expect(mockRouterReplace).not.toHaveBeenCalled();
         });
 
         it('focuses the submitted date row named by a backend error after empty rows are omitted', { timeout: 60000 }, async () => {
@@ -7662,7 +7672,8 @@ describe('DataCiteForm', () => {
             expect(screen.getByText('Please resolve the date validation issues before saving your draft.')).toBeInTheDocument();
         });
 
-        it('redirects to resources after draft save (Issue #624)', { timeout: 60000 }, async () => {
+        it('keeps a new draft in the editor and makes its URL reloadable (Issue #1370)', { timeout: 60000 }, async () => {
+            window.history.replaceState(window.history.state, '', '/editor?xmlSession=staged-upload');
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
@@ -7701,18 +7712,149 @@ describe('DataCiteForm', () => {
                 expect(mockedAxios.post).toHaveBeenCalledTimes(1);
             });
 
-            // Should redirect to resources list (Issue #624)
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/resources',
+                expect(mockRouterReplace).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        onError: expect.any(Function),
+                        url: '/editor?resourceId=42',
+                        preserveState: true,
+                        preserveScroll: true,
                     }),
                 );
             });
+            const replaceOptions = mockRouterReplace.mock.calls[0][0];
+            expect(replaceOptions.props({ titles: [] })).toEqual({
+                titles: [],
+                resourceId: '42',
+                refreshSavedDraftOnRestore: true,
+                draftSaveTransition: { fromUrl: '/editor?xmlSession=staged-upload', resourceId: '42' },
+            });
+            expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            expect(mainTitleInput).toHaveValue('Draft Dataset');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
 
             const { toast } = await import('sonner');
             expect(toast.success).toHaveBeenCalledWith('Draft saved.');
+        });
+
+        it('keeps an existing draft on its resource URL after saving', { timeout: 60000 }, async () => {
+            window.history.replaceState(window.history.state, '', '/editor?resourceId=42');
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft updated.', resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Existing draft', titleType: 'main-title' }] });
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Draft updated.'));
+
+            expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ resourceId: 42, intent: 'save-draft' });
+            expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            expect(screen.getByTestId('main-title-input')).toHaveValue('Existing draft');
+            expect(mockRouterReplace).toHaveBeenCalledWith(
+                expect.objectContaining({ url: '/editor?resourceId=42', preserveState: true, preserveScroll: true }),
+            );
+            expect(mockRouterReplace.mock.calls[0][0].props({})).not.toHaveProperty('draftSaveTransition');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('adds the resource URL after manual save when autosave created the draft first', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Autosaved draft', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1].intent).toBe('autosave');
+                expect(window.location.pathname + window.location.search).toBe('/editor');
+
+                await act(async () => {
+                    fireEvent.click(screen.getByTestId('save-draft-button'));
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'save-draft', resourceId: 42 });
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+                expect(mockRouterReplace).toHaveBeenCalledTimes(1);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('waits for an in-flight autosave before allowing the first manual draft save', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const autosaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post
+                .mockReturnValueOnce(autosaveResponse.promise)
+                .mockResolvedValueOnce({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+
+            try {
+                const draftButton = screen.getByTestId('save-draft-button');
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    // Click before React commits the disabled state, too.
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'autosave' });
+                expect(mockedAxios.post.mock.calls[0][1]).not.toHaveProperty('resourceId');
+                expect(draftButton).toBeDisabled();
+                fireEvent.click(draftButton);
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+                await act(async () => {
+                    autosaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(draftButton).toBeEnabled();
+
+                await act(async () => {
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'save-draft', resourceId: 42 });
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('does not start autosave while the first manual draft save is in flight', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const manualSaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValueOnce(manualSaveResponse.promise);
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    fireEvent.click(screen.getByTestId('save-draft-button'));
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'save-draft' });
+                expect(mockedAxios.post.mock.calls[0][1]).not.toHaveProperty('resourceId');
+
+                await act(async () => {
+                    manualSaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
         });
 
         it('updates the autosave signature without showing autosave status after manual draft save', { timeout: 60000 }, async () => {
@@ -7743,12 +7885,10 @@ describe('DataCiteForm', () => {
 
                 expect(mockedAxios.post).toHaveBeenCalledTimes(1);
                 expect(screen.queryByTestId('draft-autosave-status')).not.toBeInTheDocument();
-                expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/resources',
-                    expect.objectContaining({
-                        onError: expect.any(Function),
-                    }),
+                expect(mockRouterReplace).toHaveBeenCalledWith(
+                    expect.objectContaining({ url: '/editor?resourceId=42' }),
                 );
+                expect(mockRouterVisit).not.toHaveBeenCalled();
 
                 await act(async () => {
                     vi.advanceTimersByTime(60_000);
@@ -8042,13 +8182,8 @@ describe('DataCiteForm', () => {
             expect(secondPayload.resourceId).toBe(42);
         });
 
-        it('persists resource ID after draft save when navigation fails', { timeout: 60000 }, async () => {
+        it('uses the saved resource ID on subsequent draft saves without leaving the editor', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-
-            // Navigation fails
-            mockRouterVisit.mockImplementation((_url: string, options?: { onError?: () => void }) => {
-                options?.onError?.();
-            });
 
             const mockPost = (axios as unknown as { post: ReturnType<typeof vi.fn> }).post;
             mockPost.mockResolvedValue({
@@ -8079,8 +8214,9 @@ describe('DataCiteForm', () => {
             await user.click(draftButton);
 
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalled();
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=99');
             });
+            expect(mockRouterVisit).not.toHaveBeenCalled();
 
             // Reset mocks for second draft save
             mockPost.mockClear();
@@ -8088,8 +8224,6 @@ describe('DataCiteForm', () => {
                 data: { message: 'Draft updated!' },
                 status: 200,
             });
-            mockRouterVisit.mockClear();
-
             // Second draft save
             await user.click(draftButton);
 
@@ -8100,6 +8234,7 @@ describe('DataCiteForm', () => {
             // The second draft save payload should include the resource ID from the first save
             const secondPayload = mockPost.mock.calls[0][1];
             expect(secondPayload.resourceId).toBe(99);
+            expect(mockRouterReplace).toHaveBeenCalledTimes(2);
         });
 
         it('does not redirect on client-side validation failure', { timeout: 60000 }, async () => {
@@ -8643,15 +8778,11 @@ describe('DataCiteForm', () => {
             const draftButton = screen.getByTestId('save-draft-button');
             await user.click(draftButton);
 
-            // Should redirect to resources after draft save (Issue #624)
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/resources',
-                    expect.objectContaining({
-                        onError: expect.any(Function),
-                    }),
-                );
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=99');
             });
+            expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue('Draft Dataset');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
         it('keeps an empty Related Work card when the section is collapsed and reopened', { timeout: 30000 }, async () => {

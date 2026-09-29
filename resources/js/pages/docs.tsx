@@ -1509,8 +1509,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                                 <ul>
                                     <li>
-                                        <strong>"Save Draft"</strong> – Save an incomplete dataset with just a Main Title. You can return later to
-                                        complete it. Drafts are shown with an amber badge in the resource list and on the dashboard.
+                                        <strong>"Save Draft"</strong> – Save an incomplete dataset with just a Main Title. The editor stays open so
+                                        you can keep working. The URL changes to <code>/editor?resourceId=...</code>; you can bookmark or share it to
+                                        return to the same draft later. If an automatic save is in progress, Save Draft becomes available again after
+                                        it finishes. Drafts are shown with an amber badge in the resource list and on the dashboard.
                                     </li>
                                     <li>
                                         <strong>"Validate"</strong> – Validate and save the complete dataset locally without contacting DataCite or
