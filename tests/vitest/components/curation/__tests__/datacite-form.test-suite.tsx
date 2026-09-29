@@ -595,21 +595,56 @@ describe('DataCiteForm', () => {
 
     describe('metadata upload when creating a resource', () => {
         it('shows the upload group only for a new editor session', () => {
-            const { rerender } = renderDataCiteForm();
+            const { unmount } = renderDataCiteForm();
             expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
-            rerender(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    descriptionTypes={descriptionTypes}
-                    googleMapsApiKey="test-api-key"
-                    initialResourceId="42"
-                />,
-            );
+            unmount();
+            renderDataCiteForm({ initialResourceId: '42' });
             expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+        });
+
+        it('hides the upload group after saving the first draft', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument());
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                '/editor/resources/draft',
+                expect.objectContaining({ intent: 'save-draft' }),
+                expect.any(Object),
+            );
+        });
+
+        it('hides the upload group when autosave creates the first draft', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+
+            try {
+                expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
         });
 
         it('normalizes nullable server defaults before merging an uploaded file', async () => {

@@ -3501,7 +3501,7 @@ export default function DataCiteForm({
                     data-testid="global-validation-alert"
                 />
             )}
-            {!initialResourceId && (
+            {resolvedResourceId === null && (
                 <EditorMetadataUpload
                     onImported={handleImportedMetadata}
                     onImportingChange={(importing) => {
