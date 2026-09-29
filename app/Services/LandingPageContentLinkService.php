@@ -14,6 +14,8 @@ use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 
 final class LandingPageContentLinkService
 {
+    public function __construct(private readonly LandingPageDownloadAvailabilityService $availability) {}
+
     /**
      * @return array{
      *     mimeType: string|null,
@@ -35,7 +37,7 @@ final class LandingPageContentLinkService
 
         $repositories = $this->repositoryUrls($landingPage);
 
-        if ($landingPage->downloads_unavailable) {
+        if (! $this->availability->isAvailable($landingPage)) {
             return [
                 'mimeType' => null,
                 'contentLinks' => [],
@@ -45,9 +47,7 @@ final class LandingPageContentLinkService
 
         $contentLinks = [];
         $fallbackMimeType = $this->fallbackMimeType($resource);
-        $files = $landingPage->files
-            ->sortBy([['position', 'asc'], ['id', 'asc']])
-            ->values();
+        $files = $this->availability->usableFiles($landingPage);
 
         if ($files->isNotEmpty()) {
             foreach ($files as $file) {

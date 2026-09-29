@@ -30,7 +30,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class MetadataAccessContentBackfillService
 {
-    public function __construct(private readonly DigitalContentSizeService $sizeService) {}
+    public function __construct(
+        private readonly DigitalContentSizeService $sizeService,
+        private readonly LandingPageDownloadAvailabilityService $availability,
+    ) {}
 
     /**
      * @return array{
@@ -92,7 +95,10 @@ final class MetadataAccessContentBackfillService
                 $this->review($result, $resource, 'access_unknown_igsn', $rawValue, 'Unknown or empty IGSN sample_access value.');
             }
         } elseif ($resource->access_level === null) {
-            $candidate = $resource->landingPage?->downloads_unavailable
+            $landingPage = $resource->landingPage;
+            $candidate = $landingPage instanceof LandingPage
+                && ! $landingPage->isExternal()
+                && ! $this->availability->isAvailable($landingPage)
                 ? AccessLevel::METADATA_ONLY
                 : AccessLevel::OPEN;
         }
@@ -193,13 +199,18 @@ final class MetadataAccessContentBackfillService
      */
     private function contentTargets(LandingPage $landingPage): array
     {
-        $targets = [];
+        if ($landingPage->isExternal() || ! $this->availability->isAvailable($landingPage)) {
+            return [];
+        }
 
-        if ($landingPage->files->isNotEmpty()) {
-            foreach ($landingPage->files->sortBy([['position', 'asc'], ['id', 'asc']]) as $file) {
+        $targets = [];
+        $files = $this->availability->usableFiles($landingPage);
+
+        if ($files->isNotEmpty()) {
+            foreach ($files as $file) {
                 $targets[] = ['model' => $file, 'format_id' => $file->format_id, 'size_id' => $file->size_id];
             }
-        } elseif (trim((string) $landingPage->ftp_url) !== '') {
+        } elseif ($this->availability->isUsableUrl($landingPage->ftp_url)) {
             $targets[] = [
                 'model' => $landingPage,
                 'format_id' => $landingPage->ftp_format_id,
@@ -209,6 +220,7 @@ final class MetadataAccessContentBackfillService
 
         foreach ($landingPage->links
             ->where('kind', LandingPageLink::KIND_DOWNLOAD)
+            ->filter(fn (LandingPageLink $link): bool => $this->availability->isUsableUrl($link->url))
             ->sortBy([['position', 'asc'], ['id', 'asc']]) as $link) {
             $targets[] = ['model' => $link, 'format_id' => $link->format_id, 'size_id' => $link->size_id];
         }

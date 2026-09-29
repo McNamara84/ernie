@@ -7,26 +7,42 @@ namespace App\Services\SizeFormat;
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
+use App\Services\LandingPageDownloadAvailabilityService;
 
+/** @phpstan-type DownloadSource array{kind: 'ftp_url'|'imported_file'|'additional_download_link', url: string, landing_page_id: int, link_id: int|null, file_id?: int, label: string|null} */
 final class SizeFormatSourceResolverService
 {
+    public function __construct(private readonly LandingPageDownloadAvailabilityService $availability) {}
+
     /**
-     * @return list<array{kind: 'ftp_url'|'additional_download_link', url: string, landing_page_id: int, link_id: int|null, label: string|null}>
+     * @return list<DownloadSource>
      */
     public function resolve(Resource $resource): array
     {
-        $resource->loadMissing('landingPage.links');
+        $resource->loadMissing(['landingPage.links', 'landingPage.files']);
         $landingPage = $resource->landingPage;
 
-        if (! $landingPage instanceof LandingPage || $landingPage->isExternal() || $landingPage->downloads_unavailable) {
+        if (! $landingPage instanceof LandingPage || $landingPage->isExternal() || ! $this->availability->isAvailable($landingPage)) {
             return [];
         }
 
         $sources = [];
         $seen = [];
         $ftpUrl = trim((string) $landingPage->ftp_url);
+        $files = $this->availability->usableFiles($landingPage);
 
-        if ($ftpUrl !== '') {
+        if ($files->isNotEmpty()) {
+            foreach ($files as $file) {
+                $this->append($sources, $seen, [
+                    'kind' => 'imported_file',
+                    'url' => trim($file->url),
+                    'landing_page_id' => $landingPage->id,
+                    'link_id' => null,
+                    'file_id' => $file->id,
+                    'label' => $file->label,
+                ]);
+            }
+        } elseif ($this->availability->isUsableUrl($ftpUrl)) {
             $this->append($sources, $seen, [
                 'kind' => 'ftp_url',
                 'url' => $ftpUrl,
@@ -43,7 +59,7 @@ final class SizeFormatSourceResolverService
 
             $url = trim((string) $link->url);
 
-            if ($url === '') {
+            if (! $this->availability->isUsableUrl($url)) {
                 continue;
             }
 
@@ -60,9 +76,9 @@ final class SizeFormatSourceResolverService
     }
 
     /**
-     * @param  list<array{kind: 'ftp_url'|'additional_download_link', url: string, landing_page_id: int, link_id: int|null, label: string|null}>  $sources
+     * @param  list<DownloadSource>  $sources
      * @param  array<string, true>  $seen
-     * @param  array{kind: 'ftp_url'|'additional_download_link', url: string, landing_page_id: int, link_id: int|null, label: string|null}  $source
+     * @param  DownloadSource  $source
      */
     private function append(array &$sources, array &$seen, array $source): void
     {

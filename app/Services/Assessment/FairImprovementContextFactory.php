@@ -63,8 +63,7 @@ final class FairImprovementContextFactory
 
         $availability = new LandingPageDownloadAvailabilityService;
         $hasConfiguredDownloads = $landingPage !== null
-            && ! $landingPage->downloads_unavailable
-            && $availability->hasSources($landingPage->ftp_url, $files);
+            && $availability->isAvailable($landingPage);
 
         return new FairImprovementContext(
             hasDoi: $this->filled($resource->doi),

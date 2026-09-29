@@ -827,7 +827,7 @@ class LandingPageController extends Controller
         $payload['download_activation_required'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
             && $availability->requiresActivation($landingPage);
         $payload['downloads_unavailable'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
-            && ($payload['download_activation_required'] || ! $availability->hasSources($landingPage->ftp_url, $landingPage->files));
+            && ! $availability->isAvailable($landingPage);
         $payload['files'] = self::templateSupportsFtpUrl($effectiveTemplate)
             ? $landingPage->files->values()->toArray()
             : [];

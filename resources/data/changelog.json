@@ -122,6 +122,17 @@
         ],
         "fixes": [
             {
+                "title": "Consistent Download Availability in Metadata and Assistants",
+                "description": "Machine-readable metadata, Signposting, access backfill and size/format discovery now use the same download availability rules as landing pages. Pages without a usable primary URL or imported file no longer expose additional links as downloadable content or become open through access backfill. Imported placeholders no longer hide a usable primary URL, and explicitly hidden legacy downloads remain protected.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1363,
+                        "url": "https://github.com/McNamara84/ernie/issues/1363"
+                    }
+                ]
+            },
+            {
                 "title": "GFZ Download URL Default on Fresh Installations",
                 "description": "Fresh installations and upgrades without a saved suggestion order now offer https://datapub.gfz.de/download first automatically. Other installations can replace or disable the default through configuration. Saved settings, including an explicitly empty order, always take precedence.",
                 "references": [

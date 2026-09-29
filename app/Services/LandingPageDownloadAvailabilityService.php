@@ -8,6 +8,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Support\UriHelper;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Separate historical suppression from the absence of download sources.
@@ -15,6 +16,26 @@ use App\Support\UriHelper;
  */
 final class LandingPageDownloadAvailabilityService
 {
+    /** Effective source availability; publication, template and embargo policies remain with callers. */
+    public function isAvailable(LandingPage $landingPage): bool
+    {
+        $landingPage->loadMissing(['files', 'links']);
+
+        return ! $this->requiresActivation($landingPage)
+            && $this->hasSources($landingPage->ftp_url, $landingPage->files);
+    }
+
+    /** @return Collection<int, LandingPageFile> */
+    public function usableFiles(LandingPage $landingPage): Collection
+    {
+        $landingPage->loadMissing('files');
+
+        return $landingPage->files
+            ->filter(fn (LandingPageFile $file): bool => $this->isUsableUrl($file->url))
+            ->sortBy([['position', 'asc'], ['id', 'asc']])
+            ->values();
+    }
+
     public function requiresActivation(LandingPage $landingPage): bool
     {
         return $landingPage->downloads_unavailable && $this->hasRetainedValues($landingPage);

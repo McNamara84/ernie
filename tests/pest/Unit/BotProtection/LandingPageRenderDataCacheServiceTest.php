@@ -51,10 +51,10 @@ it('caches published landing page render data', function (): void {
         ->and($calls)->toBe(1);
 });
 
-it('ignores an unversioned legacy entry and leaves it untouched', function (): void {
+it('ignores legacy render entries and leaves them untouched', function (string $legacyPrefix): void {
     $service = new LandingPageRenderDataCacheService;
     $landingPage = botProtectionRenderCacheLandingPage();
-    $legacyCacheKey = "landing_pages:render_data:{$landingPage->id}";
+    $legacyCacheKey = "{$legacyPrefix}:{$landingPage->id}";
     $versionedCacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
     $legacyPayload = ['template' => 'default_gfz', 'props' => ['legacy' => true]];
     $calls = 0;
@@ -76,7 +76,7 @@ it('ignores an unversioned legacy entry and leaves it untouched', function (): v
         ->and($calls)->toBe(1)
         ->and($cache->get($legacyCacheKey))->toBe($legacyPayload)
         ->and($cache->has($versionedCacheKey))->toBeTrue();
-});
+})->with(['landing_pages:render_data', 'landing_pages:render_data:v10']);
 
 it('does not cache draft landing page render data', function (): void {
     $service = new LandingPageRenderDataCacheService;

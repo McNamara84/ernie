@@ -241,6 +241,46 @@ test('downloads unavailable suppresses JSON-LD and Signposting content links', f
         ->and($response->headers->get('Link'))->not->toContain('rel="item"');
 });
 
+test('request-only pages omit machine downloads even with additional download links', function (string $resourceType, bool $withLink) {
+    [$resource, $landingPage] = machineMetadataLandingPage($resourceType, [
+        'ftp_url' => null,
+        'downloads_unavailable' => false,
+    ]);
+    $resource->formats()->create(['value' => 'application/zip']);
+    $landingPage->files()->create(['url' => '#', 'position' => 0]);
+    if ($withLink) {
+        $landingPage->links()->create([
+            'url' => 'https://downloads.example.org/extra.zip',
+            'label' => 'Additional download',
+            'kind' => LandingPageLink::KIND_DOWNLOAD,
+            'position' => 0,
+        ]);
+    }
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('landingPage.downloads_unavailable', true));
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+
+    expect($jsonLd)->not->toHaveKeys(['distribution', 'downloadUrl', 'associatedMedia'])
+        ->and($response->headers->get('Link'))->not->toContain('rel="item"');
+    $this->head($landingPage->getPublicPath())->assertOk()
+        ->assertHeader('Link', $response->headers->get('Link'));
+})->with(['dataset', 'software'])->with([false, true]);
+
+test('placeholder files do not hide the primary URL in machine metadata', function () {
+    [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
+        'ftp_url' => 'https://downloads.example.org/data.zip',
+    ]);
+    $resource->formats()->create(['value' => 'application/zip']);
+    $landingPage->files()->create(['url' => '#', 'position' => 0]);
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+
+    expect($jsonLd['distribution'][0]['contentUrl'])->toBe('https://downloads.example.org/data.zip')
+        ->and($response->headers->get('Link'))->toContain('<https://downloads.example.org/data.zip>; rel="item"');
+});
+
 test('JSON-LD encoding cannot be terminated by metadata containing script markup', function () {
     [$resource, $landingPage] = machineMetadataLandingPage();
     $dangerousTitle = 'Danger </script><script>alert(1)</script> — safe data';
