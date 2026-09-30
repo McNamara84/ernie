@@ -16,7 +16,7 @@ function destinationKey(url: URL | string, base: string): string {
 }
 
 export function shouldWarnForEditorVisit(currentHref: string, visit: EditorVisit): boolean {
-    if (visit.prefetch || visit.method.toLowerCase() !== 'get') return false;
+    if (visit.prefetch) return false;
 
     const current = new URL(currentHref, 'http://localhost');
     const destination = new URL(visit.url.toString(), current);

@@ -1440,6 +1440,25 @@ describe('Docs page', () => {
         expect(saveDraft).toHaveTextContent('Save Draft becomes available again after');
     });
 
+    it.each(['beginner', 'curator', 'group_leader', 'admin'] as const)(
+        'documents unsaved editor changes and autosave recovery for %s',
+        async (role) => {
+            const { user } = renderDocsPage(role);
+            await openDatasetsTab(user);
+
+            expect(screen.getByRole('heading', { name: 'Unsaved Changes and Automatic Drafts' })).toBeInTheDocument();
+            const autosave = screen.getByText(/After you enter a Main Title, the editor attempts to save/).closest('p');
+            expect(autosave).toHaveTextContent('about every minute');
+            expect(autosave).toHaveTextContent('/editor?resourceId=...');
+            expect(autosave).toHaveTextContent('first successful automatic save');
+
+            const warning = screen.getByText(/If metadata or landing-page setup changes are still unsaved/).closest('p');
+            expect(warning).toHaveTextContent('log out');
+            expect(warning).toHaveTextContent('Closing the tab or reloading');
+            expect(warning).toHaveTextContent('failed saves');
+        },
+    );
+
     it('documents how to manage description language versions', async () => {
         const { user } = renderDocsPage('beginner');
 

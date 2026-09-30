@@ -12,8 +12,8 @@ const { mockRouterOn, mockRemoveListener } = vi.hoisted(() => ({
 
 vi.mock('@inertiajs/react', () => ({ router: { on: mockRouterOn } }));
 
-const visitEvent = (url: string): GuardEvent => ({
-    detail: { visit: { url: new URL(url, window.location.href), method: 'get' } },
+const visitEvent = (url: string, method = 'get'): GuardEvent => ({
+    detail: { visit: { url: new URL(url, window.location.href), method } },
 });
 
 describe('editor leave guard', () => {
@@ -54,6 +54,18 @@ describe('editor leave guard', () => {
         confirm.mockRestore();
     });
 
+    it('keeps a dirty editor and its session when POST logout is declined', () => {
+        const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+        renderHook(() => useEditorLeaveGuard(true));
+        const beforeVisit = mockRouterOn.mock.calls.at(-1)?.[1];
+
+        expect(beforeVisit?.(visitEvent('/logout', 'post'))).toBe(false);
+        expect(confirm).toHaveBeenCalledWith('You have unsaved changes. Leave the editor?');
+        expect(beforeVisit?.(visitEvent('/logout', 'post'))).toBeUndefined();
+        expect(confirm).toHaveBeenCalledTimes(2);
+        confirm.mockRestore();
+    });
+
     it('permits one explicitly approved post-save visit without asking again', () => {
         const confirm = vi.spyOn(window, 'confirm');
         const { result } = renderHook(() => useEditorLeaveGuard(true));
@@ -71,7 +83,9 @@ describe('editor leave guard', () => {
         ['/editor?resourceId=42#authors', 'get', false],
         ['/editor?resourceId=99', 'get', true],
         ['/resources', 'get', true],
-        ['/resources', 'post', false],
+        ['/resources', 'post', true],
+        ['/logout', 'post', true],
+        ['/editor?resourceId=42#authors', 'post', false],
         ['https://example.org/', 'get', false],
     ])('classifies navigation to %s with %s as guard=%s', (url, method, expected) => {
         expect(shouldWarnForEditorVisit('http://localhost/editor?resourceId=42', { url, method })).toBe(expected);
@@ -88,6 +102,11 @@ describe('editor leave guard', () => {
             method: 'get',
             only: ['resourceTypes'],
         })).toBe(true);
+        expect(shouldWarnForEditorVisit('http://localhost/editor?resourceId=42', {
+            url: '/editor?resourceId=42&fresh=1',
+            method: 'post',
+            only: ['resourceTypes'],
+        })).toBe(false);
     });
 
     it('ignores link prefetch visits without showing a confirmation', () => {

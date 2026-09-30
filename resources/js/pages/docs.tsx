@@ -1538,6 +1538,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
+                        <h4>Unsaved Changes and Automatic Drafts</h4>
+                        <p>
+                            After you enter a Main Title, the editor attempts to save changed draft metadata automatically about every minute. The
+                            first successful automatic save adds <code>/editor?resourceId=...</code> to the URL, so reloading or bookmarking the page
+                            opens that same draft. A successful <strong>Save Draft</strong>, <strong>Validate</strong>, or <strong>Preview LP</strong>{' '}
+                            save also makes a newly created resource available at that URL.
+                        </p>
+                        <p>
+                            If metadata or landing-page setup changes are still unsaved, the editor asks before you follow an ERNIE link or log out.
+                            Closing the tab or reloading shows your browser&apos;s own leave-page warning. Imported metadata is also protected until
+                            it has been saved. A successful save clears the warning for the values it saved; edits made while a save is running,
+                            failed saves, and unfinished inputs remain protected. You can stay in the editor to finish or save your work.
+                        </p>
+
                         <h4>Embargo and Manual Release</h4>
                         <p>
                             Choose <strong>Embargoed access</strong> and enter exactly one full calendar <strong>Available</strong> date. Keep an
