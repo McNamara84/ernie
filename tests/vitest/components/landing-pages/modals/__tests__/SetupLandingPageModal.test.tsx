@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -174,6 +174,103 @@ describe('SetupLandingPageModal', () => {
         if (addButton) await userEvent.click(addButton);
         return screen.findByLabelText(/^Download URL$/i);
     };
+
+    describe('editor leave protection', () => {
+        it('reports edits to a new landing page and clears the signal after reverting them', async () => {
+            const onDirtyChange = vi.fn();
+            mockModalGetRequests();
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+
+            const input = await openDownloadInput();
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+            await userEvent.type(input, 'https://example.org/file.zip');
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+            await userEvent.clear(input);
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+        });
+
+        it('keeps an edited existing configuration dirty until the save succeeds', async () => {
+            const onDirtyChange = vi.fn();
+            mockModalGetRequests({ landingPage: mockExistingConfig });
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Saved', landing_page: mockExistingConfig } });
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+
+            const input = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+            await userEvent.clear(input);
+            await userEvent.type(input, 'https://example.org/changed.zip');
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+            await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+        });
+
+        it('blocks edits while saving and unlocks the saved configuration afterward', async () => {
+            const onDirtyChange = vi.fn();
+            const savedUrl = 'https://example.org/changed.zip';
+            let resolveSave!: (response: { data: { message: string; landing_page: LandingPageConfig } }) => void;
+            mockedAxiosPut.mockReturnValue(
+                new Promise((resolve) => {
+                    resolveSave = resolve;
+                }),
+            );
+            mockModalGetRequests({ landingPage: mockExistingConfig });
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+
+            const input = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            await userEvent.clear(input);
+            await userEvent.type(input, savedUrl);
+            await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+            await waitFor(() => expect(mockedAxiosPut).toHaveBeenCalledTimes(1));
+
+            const fields = screen.getByTestId('setup-lp-modal-editable-fields');
+            expect(fields).toBeDisabled();
+            expect(fields).toHaveAttribute('inert');
+            expect(fields).toHaveAttribute('aria-busy', 'true');
+            expect(input).toBeDisabled();
+            await userEvent.type(input, '/later');
+            expect(input).toHaveValue(savedUrl);
+            expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+            await act(async () => {
+                resolveSave({ data: { message: 'Saved', landing_page: { ...mockExistingConfig, ftp_url: savedUrl } } });
+            });
+            await waitFor(() => expect(fields).not.toBeDisabled());
+            expect(fields).not.toHaveAttribute('inert');
+            expect(fields).toHaveAttribute('aria-busy', 'false');
+            expect(input).toHaveValue(savedUrl);
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+        });
+
+        it('restores editing and keeps unsaved changes after a failed save', async () => {
+            const onDirtyChange = vi.fn();
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            let rejectSave!: (error: Error) => void;
+            mockedAxiosPut.mockReturnValue(
+                new Promise((_resolve, reject) => {
+                    rejectSave = reject;
+                }),
+            );
+            mockModalGetRequests({ landingPage: mockExistingConfig });
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+
+            const input = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            const editedUrl = 'https://example.org/changed.zip';
+            await userEvent.clear(input);
+            await userEvent.type(input, editedUrl);
+            await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+            await waitFor(() => expect(mockedAxiosPut).toHaveBeenCalledTimes(1));
+            expect(input).toBeDisabled();
+
+            await act(async () => {
+                rejectSave(new Error('Save failed'));
+            });
+            await waitFor(() => expect(mockedToastError).toHaveBeenCalledWith('Failed to save landing page configuration'));
+            expect(input).not.toBeDisabled();
+            expect(input).toHaveValue(editedUrl);
+            expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+            consoleError.mockRestore();
+        });
+    });
 
     describe('Automatic download workflow', () => {
         it('starts empty and opening the input alone does not create an unsaved configuration', async () => {

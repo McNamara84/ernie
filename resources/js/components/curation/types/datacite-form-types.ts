@@ -236,6 +236,8 @@ export interface DataCiteFormProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     initialResourceId?: string;
+    /** Imported or query-provided values that have not been saved as a resource. */
+    hasUnpersistedPrefill?: boolean;
     initialPublicStatus?: ResourcePublicStatus;
     initialLandingPage?: EditorLandingPageSummary | null;
     initialAuthors?: InitialAuthor[];

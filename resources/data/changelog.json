@@ -4,6 +4,17 @@
         "date": "2026-09-28",
         "features": [
             {
+                "title": "Warnings for Unsaved Editor Changes",
+                "description": "The resource editor now warns before a tab is closed, a page is reloaded or an internal link is followed when metadata or landing page setup changes have not been saved. Successful draft saves and autosaves clear the warning for the saved version, while edits made during a save remain protected. The first autosave of a new resource also updates the editor URL so the saved draft can be reopened after a reload.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1371,
+                        "url": "https://github.com/McNamara84/ernie/issues/1371"
+                    }
+                ]
+            },
+            {
                 "title": "Direct ROR Entry for Affiliations and Funders",
                 "description": "Authors, contributors and funding references now accept a ROR ID, ROR URL or Name (ROR ID). Curators confirm the matching local directory record by mouse or keyboard; supplied names and institutional details are preserved alongside the canonical identifier in saved metadata and DataCite JSON/XML. Unknown IDs remain editable and can be explicitly replaced with an unlinked name. Unfinished inputs pause autosave and are highlighted before saving, previewing or sending metadata to DataCite.",
                 "references": [

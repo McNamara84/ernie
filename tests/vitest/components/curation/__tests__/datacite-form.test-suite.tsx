@@ -29,15 +29,17 @@ type MockSetupLandingPageModalProps = {
     };
     onClose?: () => void;
     onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
+    onDirtyChange?: (dirty: boolean) => void;
     openPreviewOnSuccess?: boolean;
 };
 
-const { mockRouterPut, mockRouterVisit, mockRouterReplace, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
+const { mockRouterPut, mockRouterVisit, mockRouterReplace, mockRouterOn, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
     mockRouterPut: vi.fn(),
     mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.();
     }),
     mockRouterReplace: vi.fn(),
+    mockRouterOn: vi.fn(() => vi.fn()),
     mockSetupLandingPageModal: vi.fn(),
     mockUsePageProps: vi.fn((): Record<string, unknown> => ({
         curationAccordionOpenItems: null as string[] | null,
@@ -49,6 +51,7 @@ vi.mock('@inertiajs/react', () => ({
     router: {
         visit: mockRouterVisit,
         replace: mockRouterReplace,
+        on: mockRouterOn,
         get: vi.fn(),
         post: vi.fn(),
         put: mockRouterPut,
@@ -63,6 +66,7 @@ vi.mock('@inertiajs/react', () => ({
 vi.mock('axios');
 vi.mock('@/hooks/use-ror-affiliations');
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    hasStoredLandingPageDraft: (resourceId: number) => window.sessionStorage.getItem(`setup-landing-page-modal:draft:${resourceId}`) !== null,
     default: (props: MockSetupLandingPageModalProps) => {
         mockSetupLandingPageModal(props);
 
@@ -458,10 +462,12 @@ describe('DataCiteForm', () => {
         mockRouterPut.mockClear();
         mockRouterVisit.mockClear();
         mockRouterReplace.mockClear();
+        mockRouterOn.mockClear();
         mockRouterReplace.mockImplementation((options: { url: string }) => {
             window.history.replaceState(window.history.state, '', options.url);
         });
         window.history.replaceState(window.history.state, '', '/editor');
+        window.sessionStorage.clear();
         mockSetupLandingPageModal.mockClear();
         mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
             options?.onSuccess?.();
@@ -600,6 +606,193 @@ describe('DataCiteForm', () => {
                 {...props}
             />,
         );
+
+    describe('unsaved editor changes', () => {
+        const unloadIsBlocked = () => {
+            const event = new Event('beforeunload', { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+        };
+
+        it('warns only while a metadata edit differs from the last saved state', async () => {
+            renderDataCiteForm();
+            expect(unloadIsBlocked()).toBe(false);
+
+            fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(true));
+            fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: '' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(false));
+        });
+
+        it('treats imported initial metadata as unsaved until the first successful draft save', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Imported title', titleType: 'main-title' }],
+                hasUnpersistedPrefill: true,
+            });
+
+            expect(unloadIsBlocked()).toBe(true);
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(unloadIsBlocked()).toBe(false));
+            expect(window.location.search).toBe('?resourceId=42');
+        });
+
+        it('keeps changes made during autosave dirty after the older request succeeds', async () => {
+            vi.useFakeTimers();
+            const response = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValue(response.promise);
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'First title' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave', titles: [expect.objectContaining({ title: 'First title' })] }),
+                    expect.any(Object),
+                );
+                expect(unloadIsBlocked()).toBe(true);
+
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Newer title' } });
+                await act(async () => {
+                    response.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(window.location.search).toBe('?resourceId=42');
+                expect(unloadIsBlocked()).toBe(true);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('clears the warning after a successful autosave and makes the first draft reloadable', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Autosaved title' } });
+                expect(unloadIsBlocked()).toBe(true);
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(window.location.search).toBe('?resourceId=42');
+                expect(unloadIsBlocked()).toBe(false);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('keeps the warning after autosave fails', async () => {
+            vi.useFakeTimers();
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue(new Error('Network error'));
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent('Autosave failed');
+                expect(unloadIsBlocked()).toBe(true);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+                consoleError.mockRestore();
+            }
+        });
+
+        it('does not treat a new draft as saved if autosave omits its resource ID', async () => {
+            vi.useFakeTimers();
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.' }, status: 201 });
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(window.location.search).toBe('');
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent('Autosave failed');
+                expect(unloadIsBlocked()).toBe(true);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+                consoleError.mockRestore();
+            }
+        });
+
+        it('warns while Tagify contains uncommitted text and clears after discarding it', async () => {
+            const user = userEvent.setup();
+            renderDataCiteForm();
+            await ensureFreeKeywordsOpen(user);
+            const keywordInput = screen.getByTestId('free-keywords-input') as TagifyEnabledInput;
+            const pendingInput = keywordInput.parentElement?.querySelector<HTMLInputElement>('.tagify__input');
+            expect(pendingInput).toBeTruthy();
+
+            expect(unloadIsBlocked()).toBe(false);
+            fireEvent.input(pendingInput!, { target: { value: 'unfinished keyword' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(true));
+            fireEvent.input(pendingInput!, { target: { value: '' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(false));
+        });
+
+        it('protects a retained landing-page draft even when the setup modal is closed', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
+            expect(unloadIsBlocked()).toBe(false);
+
+            await userEvent.click(screen.getByTestId('show-lp-preview-button'));
+            await waitFor(() => expect(mockSetupLandingPageModal).toHaveBeenCalledWith(expect.objectContaining({ isOpen: true })));
+            const modal = mockSetupLandingPageModal.mock.calls.at(-1)?.[0] as MockSetupLandingPageModalProps;
+            act(() => modal.onDirtyChange?.(true));
+            expect(unloadIsBlocked()).toBe(true);
+            act(() => modal.onClose?.());
+            expect(unloadIsBlocked()).toBe(true);
+        });
+
+        it('clears the landing-page warning after the setup is saved', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
+
+            await userEvent.click(screen.getByTestId('show-lp-preview-button'));
+            const modal = mockSetupLandingPageModal.mock.calls.at(-1)?.[0] as MockSetupLandingPageModalProps;
+            act(() => modal.onDirtyChange?.(true));
+            expect(unloadIsBlocked()).toBe(true);
+            await act(async () => modal.onSuccess?.(null));
+            expect(unloadIsBlocked()).toBe(false);
+        });
+
+        it('restores the landing-page warning from session storage for an existing resource', () => {
+            window.sessionStorage.setItem('setup-landing-page-modal:draft:42', '{"template":"default_gfz"}');
+            renderDataCiteForm({ initialResourceId: '42' });
+            expect(unloadIsBlocked()).toBe(true);
+        });
+    });
 
     describe('ROR input save guards', () => {
         const rorInitialValues = {
@@ -6750,6 +6943,8 @@ describe('DataCiteForm', () => {
                 }),
             );
             expect(modalProps.openPreviewOnSuccess).toBe(true);
+            expect(window.location.search).toBe('?resourceId=99');
+            expect(mockRouterReplace).toHaveBeenCalledWith(expect.objectContaining({ url: '/editor?resourceId=99' }));
             expect(openSpy).not.toHaveBeenCalled();
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
@@ -7804,7 +7999,7 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('adds the resource URL after manual save when autosave created the draft first', { timeout: 60000 }, async () => {
+        it('keeps the resource URL after manual save when autosave created the draft first', { timeout: 60000 }, async () => {
             vi.useFakeTimers();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
@@ -7818,7 +8013,8 @@ describe('DataCiteForm', () => {
                 });
                 expect(mockedAxios.post).toHaveBeenCalledTimes(1);
                 expect(mockedAxios.post.mock.calls[0][1].intent).toBe('autosave');
-                expect(window.location.pathname + window.location.search).toBe('/editor');
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+                expect(mockRouterReplace).toHaveBeenCalledTimes(1);
 
                 await act(async () => {
                     fireEvent.click(screen.getByTestId('save-draft-button'));
@@ -7828,7 +8024,7 @@ describe('DataCiteForm', () => {
 
                 expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'save-draft', resourceId: 42 });
                 expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
-                expect(mockRouterReplace).toHaveBeenCalledTimes(1);
+                expect(mockRouterReplace).toHaveBeenCalledTimes(2);
             } finally {
                 view.unmount();
                 vi.useRealTimers();
@@ -8092,6 +8288,8 @@ describe('DataCiteForm', () => {
 
             await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource saved!'));
 
+            expect(window.location.search).toBe('?resourceId=1');
+            expect(mockRouterReplace).toHaveBeenCalledWith(expect.objectContaining({ url: '/editor?resourceId=1' }));
             expect(mockRouterVisit).not.toHaveBeenCalled();
             expect(toast.success).not.toHaveBeenCalledWith('DataCite metadata synchronized', expect.anything());
         });
