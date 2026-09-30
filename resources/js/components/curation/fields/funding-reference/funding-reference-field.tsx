@@ -32,8 +32,8 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
     }, [localFunders, localLoading, retryFallback]);
     const effectiveCatalog = catalog && (catalog.isLoading || hasSharedCatalog) ? catalog : localCatalog;
     const rorFunders = useMemo(
-        () => effectiveCatalog.suggestions.map((item) => ({ prefLabel: item.value, rorId: item.rorId ?? '', otherLabel: item.searchTerms })),
-        [effectiveCatalog.suggestions],
+        () => Array.from(effectiveCatalog.index, ([rorId, item]) => ({ prefLabel: item.value, rorId, otherLabel: item.searchTerms })),
+        [effectiveCatalog.index],
     );
     const isLoadingRor = effectiveCatalog.isLoading;
 

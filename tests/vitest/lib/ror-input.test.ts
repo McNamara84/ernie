@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { canonicalRorId, indexRorSuggestions, parseRorInput, resolveRorInput } from '@/lib/ror-input';
+import type { AffiliationSuggestion } from '@/types/affiliations';
 
 const url = 'https://ror.org/04z8jg394';
 const index = indexRorSuggestions([{ value: 'GFZ', rorId: url, searchTerms: ['Potsdam'] }]);
@@ -52,5 +53,10 @@ describe('ROR entry parsing and exact resolution', () => {
                 { value: 'Bad', rorId: '12345', searchTerms: [] },
             ]).size,
         ).toBe(0);
+    });
+    it('ignores non-string identifiers in cached records while retaining valid organizations', () => {
+        const valid = { value: 'GFZ', rorId: url, searchTerms: ['Potsdam'] };
+        const rawSuggestions = [...[undefined, 12345, true, {}, []].map((rorId) => ({ value: 'Bad', rorId, searchTerms: [] })), valid];
+        expect(indexRorSuggestions(rawSuggestions as AffiliationSuggestion[])).toEqual(new Map([[url, valid]]));
     });
 });

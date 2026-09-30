@@ -7,6 +7,7 @@ import { loadRorFunders } from '@/components/curation/fields/funding-reference/r
 import type { FundingReferenceEntry, RorFunder } from '@/components/curation/fields/funding-reference/types';
 import { RorCatalogContext } from '@/components/curation/fields/ror-input-feedback';
 import { indexRorSuggestions } from '@/lib/ror-input';
+import type { AffiliationSuggestion } from '@/types/affiliations';
 
 vi.mock('@/components/curation/fields/funding-reference/ror-search', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@/components/curation/fields/funding-reference/ror-search')>()),
@@ -72,6 +73,41 @@ describe('Funding reference ROR catalog fallback', () => {
         expect(onChange).toHaveBeenLastCalledWith([
             { ...initial, funderName: 'Fallback funder', funderIdentifier: rorId, funderIdentifierType: 'ROR' },
         ]);
+    });
+
+    it.each([
+        { source: 'shared', query: 'funder', method: 'click' },
+        { source: 'shared', query: 'Catalog lookup', method: 'keyboard' },
+        { source: 'fallback', query: 'funder', method: 'click' },
+        { source: 'fallback', query: 'Catalog lookup', method: 'keyboard' },
+    ])('selects only canonical ROR records from $source data when searching for $query', async ({ source, query, method }) => {
+        const rawFunders = [
+            { prefLabel: 'Valid funder', rorId: '  HTTP://WWW.ROR.ORG/018MEJW64/  ', otherLabel: ['Catalog lookup'] },
+            ...[undefined, null, '', '   ', 'invalid', 'https://ror.org/bad', 'https://example.org/018mejw64', `${rorId}?query=yes`].map(
+                (rorId, index) => ({ prefLabel: `Invalid funder ${index}`, rorId, otherLabel: ['Catalog lookup'] }),
+            ),
+        ];
+        // Simulate malformed cached records that bypass the API response's static types.
+        vi.mocked(loadRorFunders).mockResolvedValue(rawFunders as RorFunder[]);
+        const suggestions = rawFunders.map((item) => ({
+            value: item.prefLabel,
+            rorId: item.rorId,
+            searchTerms: item.otherLabel,
+        })) as AffiliationSuggestion[];
+        const catalog = source === 'shared' ? { ...healthyCatalog, suggestions, index: indexRorSuggestions(suggestions) } : failedCatalog;
+        const onChange = vi.fn();
+        render(<Harness catalog={catalog} onChange={onChange} />);
+        const input = enter(query);
+        const option = await screen.findByRole('option', { name: /Valid funder/ });
+        expect(screen.getAllByRole('option')).toHaveLength(1);
+        expect(option).toHaveTextContent(rorId);
+        expect(onChange).not.toHaveBeenCalled();
+        if (method === 'keyboard') fireEvent.keyDown(input, { key: 'Enter' });
+        else fireEvent.click(option);
+        expect(onChange).toHaveBeenCalledExactlyOnceWith([
+            { ...initial, funderName: 'Valid funder', funderIdentifier: rorId, funderIdentifierType: 'ROR' },
+        ]);
+        expect(loadRorFunders).toHaveBeenCalledTimes(source === 'shared' ? 0 : 1);
     });
 
     it.each([
@@ -145,6 +181,7 @@ describe('Funding reference ROR catalog fallback', () => {
     });
 
     it('fills a missing name from fallback data for an existing ROR identifier', async () => {
+        vi.mocked(loadRorFunders).mockResolvedValue([{ ...fallbackFunders[0], rorId: 'HTTP://WWW.ROR.ORG/018MEJW64/' }]);
         const onChange = vi.fn();
         const existing = { ...initial, funderIdentifier: rorId, funderIdentifierType: 'ROR' };
         render(

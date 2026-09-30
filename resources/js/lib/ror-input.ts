@@ -29,7 +29,7 @@ export function parseRorInput(text: string): RorInput {
 export function indexRorSuggestions(suggestions: AffiliationSuggestion[]): Map<string, AffiliationSuggestion> {
     const index = new Map<string, AffiliationSuggestion>();
     for (const suggestion of suggestions) {
-        const id = canonicalRorId(suggestion.rorId ?? '');
+        const id = typeof suggestion.rorId === 'string' ? canonicalRorId(suggestion.rorId) : null;
         if (id) index.set(id, suggestion);
     }
     return index;
