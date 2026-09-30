@@ -4,6 +4,17 @@
         "date": "2026-09-28",
         "features": [
             {
+                "title": "Direct ROR Entry for Affiliations and Funders",
+                "description": "Authors, contributors and funding references now accept a ROR ID, ROR URL or Name (ROR ID). Curators confirm the matching local directory record by mouse or keyboard; supplied names and institutional details are preserved alongside the canonical identifier in saved metadata and DataCite JSON/XML. Unknown IDs remain editable and can be explicitly replaced with an unlinked name. Unfinished inputs pause autosave and are highlighted before saving, previewing or sending metadata to DataCite.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1367,
+                        "url": "https://github.com/McNamara84/ernie/issues/1367"
+                    }
+                ]
+            },
+            {
                 "title": "Public Data Centres and Descriptions",
                 "description": "The Data Centres overview at /data-centres now presents the projects, networks and services represented in the DOI Data Portal, with reviewed English descriptions and local logos. Each hexagon opens /doi-search with the exact datacenter filter selected. The descriptions at /data-centres/description support independent accordion panels, keyboard navigation and shareable links that open and focus the relevant centre. Find → Data Centres is available on desktop and mobile, and the homepage and Find overview now link to the new pages. The catalogue follows published DOI datacenters and provides a text fallback for newly added centres."
             },

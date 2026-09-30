@@ -2,11 +2,12 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Banknote, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 
+import { RorCatalogContext } from '../ror-input-feedback';
 import { getFunderByRorId, loadRorFunders } from './ror-search';
 import { SortableFundingReferenceItem } from './sortable-funding-reference-item';
 import type { FundingReferenceEntry, RorFunder } from './types';
@@ -17,8 +18,17 @@ interface FundingReferenceFieldProps {
 }
 
 export function FundingReferenceField({ value = [], onChange }: FundingReferenceFieldProps) {
-    const [rorFunders, setRorFunders] = useState<RorFunder[]>([]);
-    const [isLoadingRor, setIsLoadingRor] = useState(true);
+    const catalog = useContext(RorCatalogContext);
+    const [localFunders, setRorFunders] = useState<RorFunder[]>([]);
+    const [localLoading, setIsLoadingRor] = useState(true);
+    const rorFunders = useMemo(
+        () =>
+            catalog
+                ? catalog.suggestions.map((item) => ({ prefLabel: item.value, rorId: item.rorId ?? '', otherLabel: item.searchTerms }))
+                : localFunders,
+        [catalog, localFunders],
+    );
+    const isLoadingRor = catalog ? catalog.isLoading : localLoading;
 
     // Sensors for drag and drop
     const sensors = useSensors(
@@ -30,6 +40,7 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
 
     // Load ROR data on mount
     useEffect(() => {
+        if (catalog) return;
         const loadData = async () => {
             try {
                 const funders = await loadRorFunders();
@@ -41,7 +52,7 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
             }
         };
         loadData();
-    }, []);
+    }, [catalog]);
 
     // Auto-fill funder names from ROR IDs when ROR data is loaded
     useEffect(() => {

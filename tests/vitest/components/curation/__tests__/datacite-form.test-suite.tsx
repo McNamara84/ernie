@@ -601,6 +601,55 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('ROR input save guards', () => {
+        const rorInitialValues = {
+            initialTitles: [{ title: 'ROR draft', titleType: 'main-title' }],
+            initialFundingReferences: [{ id: 'ror-funder', funderName: 'Existing Funder', funderIdentifier: '', funderIdentifierType: null, awardNumber: '', awardUri: '', awardTitle: '', isExpanded: false }],
+        };
+        for (const action of ['save-draft-button', 'save-resource-button', 'show-lp-preview-button', 'datacite-action-button']) {
+            it(`blocks ${action} while a ROR input is unconfirmed`, async () => {
+                mockUsePageProps.mockReturnValue({ auth: { user: { can_register_doi: true } } });
+                renderDataCiteForm(rorInitialValues);
+                const trigger = getAccordionTrigger(/Funding References/i);
+                if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+                fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: 'Unknown (012345678)' } });
+                fireEvent.click(screen.getByTestId(action));
+                expect(await screen.findByText('Please finish the institution or funder input before saving.')).toBeInTheDocument();
+                expect(axios.post).not.toHaveBeenCalled();
+                expect(mockSetupLandingPageModal).not.toHaveBeenCalledWith(expect.objectContaining({ isOpen: true }));
+            });
+        }
+        it('pauses autosave for a pending ROR and resumes after explicitly choosing an unlinked name', async () => {
+            vi.useFakeTimers();
+            const view = renderDataCiteForm(rorInitialValues);
+            try {
+                const trigger = getAccordionTrigger(/Funding References/i);
+                if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+                fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: 'Unknown (012345678)' } });
+                await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+                expect(axios.post).not.toHaveBeenCalled();
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent('Autosave paused');
+                fireEvent.click(screen.getByText('Use name without ROR ID'));
+                await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+                expect(axios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.objectContaining({
+                    intent: 'autosave', fundingReferences: [expect.objectContaining({ funderName: 'Unknown', funderIdentifier: '', funderIdentifierType: null })],
+                }), expect.anything());
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+        it('removes a pending ROR guard when its funding entry is deleted', async () => {
+            renderDataCiteForm(rorInitialValues);
+            const trigger = getAccordionTrigger(/Funding References/i);
+            if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+            fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: '012345678' } });
+            fireEvent.click(screen.getByRole('button', { name: 'Remove funding 1' }));
+            fireEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.objectContaining({ fundingReferences: [] }), expect.anything()));
+        });
+    });
+
     describe('metadata upload when creating a resource', () => {
         it('shows the upload group only for a new editor session', () => {
             const { unmount } = renderDataCiteForm();

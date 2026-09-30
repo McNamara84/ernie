@@ -13,8 +13,80 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteXmlExporter;
+use App\Services\Editor\EditorDataTransformer;
+use Illuminate\Support\Facades\Storage;
 
 covers(ResourceController::class);
+
+it('round trips confirmed ROR entries and explicit unlinked names through storage and both exports', function (bool $draft) {
+    $this->artisan('db:seed', ['--class' => 'FunderIdentifierTypeSeeder']);
+    $this->artisan('db:seed', ['--class' => 'ContributorTypeSeeder']);
+    // An unavailable catalogue must not invalidate previously confirmed/imported identifiers.
+    Storage::fake('local');
+    $rorId = 'https://ror.org/04z8jg394';
+    $name = 'My Institute (Unit A), Potsdam';
+    $affiliations = [['value' => $name, 'rorId' => $rorId], ['value' => 'Unlinked Institute', 'rorId' => null]];
+    $payload = getValidPayload([
+        'intent' => 'save-draft',
+        'authors' => [[
+            'type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0,
+            'affiliations' => $affiliations,
+        ]],
+        'contributors' => [[
+            'type' => 'person', 'firstName' => 'John', 'lastName' => 'Smith', 'position' => 0,
+            'roles' => ['Researcher'], 'affiliations' => $affiliations,
+        ]],
+        'fundingReferences' => [
+            ['funderName' => $name, 'funderIdentifier' => $rorId, 'funderIdentifierType' => 'ROR', 'awardNumber' => 'A-1', 'awardTitle' => 'Award'],
+            ['funderName' => 'Unlinked Funder', 'funderIdentifier' => '', 'funderIdentifierType' => null],
+        ],
+    ]);
+    $response = $this->actingAs($this->user)->postJson($draft ? '/editor/resources/draft' : route('editor.resources.store'), $payload);
+    $response->assertCreated();
+    $resource = Resource::findOrFail($response->json('resource.id'));
+
+    foreach ([$resource->creators->first(), $resource->contributors->first()] as $party) {
+        expect($party->affiliations->first()->name)->toBe($name)
+            ->and($party->affiliations->first()->identifier)->toBe($rorId)
+            ->and($party->affiliations->first()->identifier_scheme)->toBe('ROR')
+            ->and($party->affiliations->first()->scheme_uri)->toBe('https://ror.org/');
+    }
+
+    $editor = app(EditorDataTransformer::class)->transformResource($resource);
+    expect($editor['authors'][0]['affiliations'])->toBe($affiliations)
+        ->and($editor['contributors'][0]['affiliations'])->toBe($affiliations);
+
+    $attributes = app(DataCiteJsonExporter::class)->export($resource)['data']['attributes'];
+    foreach (['creators', 'contributors'] as $key) {
+        expect($attributes[$key][0]['affiliation'])->toBe([
+            ['name' => $name, 'affiliationIdentifier' => $rorId, 'affiliationIdentifierScheme' => 'ROR', 'schemeUri' => 'https://ror.org/'],
+            ['name' => 'Unlinked Institute'],
+        ]);
+    }
+    expect($attributes['fundingReferences'][0])->toMatchArray([
+        'funderName' => $name, 'funderIdentifier' => $rorId, 'funderIdentifierType' => 'ROR', 'schemeUri' => 'https://ror.org/', 'awardNumber' => 'A-1', 'awardTitle' => 'Award',
+    ])->and($attributes['fundingReferences'][1])->toBe(['funderName' => 'Unlinked Funder']);
+
+    $xml = simplexml_load_string(app(DataCiteXmlExporter::class)->export($resource));
+    expect($xml)->not->toBeFalse();
+    $xml->registerXPathNamespace('d', 'http://datacite.org/schema/kernel-4');
+    foreach (['creators/creator', 'contributors/contributor'] as $path) {
+        $nodes = $xml->xpath('/d:resource/d:'.str_replace('/', '/d:', $path).'/d:affiliation');
+        expect((string) $nodes[0])->toBe($name)
+            ->and((string) $nodes[0]['affiliationIdentifier'])->toBe($rorId)
+            ->and((string) $nodes[0]['affiliationIdentifierScheme'])->toBe('ROR')
+            ->and((string) $nodes[0]['schemeURI'])->toBe('https://ror.org/')
+            ->and(isset($nodes[1]['affiliationIdentifier']))->toBeFalse();
+    }
+    $funding = $xml->xpath('/d:resource/d:fundingReferences/d:fundingReference');
+    expect((string) $funding[0]->funderName)->toBe($name)
+        ->and((string) $funding[0]->funderIdentifier)->toBe($rorId)
+        ->and((string) $funding[0]->funderIdentifier['funderIdentifierType'])->toBe('ROR')
+        ->and((string) $funding[0]->funderIdentifier['schemeURI'])->toBe('https://ror.org/')
+        ->and(isset($funding[1]->funderIdentifier))->toBeFalse();
+})->with(['validated' => [false], 'draft' => [true]]);
 
 /**
  * Helper to build a valid resource payload.
