@@ -20,11 +20,12 @@ import {
     RELATED_ITEMS_SECTION_LABEL,
 } from '@/components/curation/related-items-section-copy';
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
+import { snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curation/utils/editor-content-snapshot';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { hasMslLaboratoryTrigger } from '@/components/curation/utils/msl-laboratories';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
-import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
+import SetupLandingPageModal, { hasStoredLandingPageDraft } from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -32,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ValidationAlert } from '@/components/ui/validation-alert';
 import { docsActionHref } from '@/data/docs-actions';
 import { useDoiValidation } from '@/hooks/use-doi-validation';
+import { useEditorLeaveGuard } from '@/hooks/use-editor-leave-guard';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -301,6 +303,7 @@ export default function DataCiteForm({
     initialLicenses = [],
     initialRawRights = [],
     initialResourceId,
+    hasUnpersistedPrefill = false,
     initialPublicStatus = 'draft',
     initialLandingPage = null,
     initialAuthors = [],
@@ -342,6 +345,7 @@ export default function DataCiteForm({
     );
 
     const errorRef = useRef<HTMLDivElement | null>(null);
+    const editorFormRef = useRef<HTMLFormElement | null>(null);
     const controlledVocabulariesRef = useRef<HTMLDivElement | null>(null);
 
     // Tracking refs for MSL notification
@@ -601,6 +605,15 @@ export default function DataCiteForm({
     });
     const importInFlightRef = useRef(false);
     const [isImportingMetadata, setIsImportingMetadata] = useState(false);
+    const [hasPendingTagInput, setHasPendingTagInput] = useState(false);
+    const updatePendingTagInput = useCallback(() => {
+        queueMicrotask(() => {
+            const inputs = editorFormRef.current?.querySelectorAll<HTMLElement>('.tagify__input');
+            setHasPendingTagInput(
+                Array.from(inputs ?? []).some((input) => Boolean((input instanceof HTMLInputElement ? input.value : input.textContent)?.trim())),
+            );
+        });
+    }, []);
 
     const handleImportedMetadata = useCallback(
         (metadata: ImportedMetadata) => {
@@ -2218,7 +2231,61 @@ export default function DataCiteForm({
     const [pendingLandingPageSetupResource, setPendingLandingPageSetupResource] = useState<LandingPagePreviewSetupResource | null>(null);
     const [isLandingPageSetupOpen, setIsLandingPageSetupOpen] = useState(false);
     const [landingPageSetupPurpose, setLandingPageSetupPurpose] = useState<LandingPageSetupPurpose | null>(null);
+    const [hasLandingPageDraft, setHasLandingPageDraft] = useState(() =>
+        resolvedResourceId === null ? false : hasStoredLandingPageDraft(resolvedResourceId),
+    );
 
+    useEffect(() => {
+        if (resolvedResourceId !== null && hasStoredLandingPageDraft(resolvedResourceId)) setHasLandingPageDraft(true);
+    }, [resolvedResourceId]);
+
+    const editorSnapshot = useMemo(
+        () =>
+            snapshotEditorContent({
+                form,
+                titles,
+                licenseEntries,
+                authors,
+                contributors,
+                descriptions,
+                dates,
+                gcmdKeywords,
+                freeKeywords,
+                spatialTemporalCoverages,
+                relatedWorks,
+                relatedItems,
+                fundingReferences,
+                mslLaboratories,
+                instruments,
+                selectedDatacenterId,
+            }),
+        [
+            form,
+            titles,
+            licenseEntries,
+            authors,
+            contributors,
+            descriptions,
+            dates,
+            gcmdKeywords,
+            freeKeywords,
+            spatialTemporalCoverages,
+            relatedWorks,
+            relatedItems,
+            fundingReferences,
+            mslLaboratories,
+            instruments,
+            selectedDatacenterId,
+        ],
+    );
+    const [savedEditorSnapshot, setSavedEditorSnapshot] = useState(editorSnapshot);
+    const currentEditorSnapshotRef = useRef(editorSnapshot);
+    currentEditorSnapshotRef.current = editorSnapshot;
+    const [hasUnpersistedInitialData, setHasUnpersistedInitialData] = useState(hasUnpersistedPrefill);
+    const markEditorSaved = useCallback((snapshot: string) => {
+        setSavedEditorSnapshot(snapshot);
+        setHasUnpersistedInitialData(false);
+    }, []);
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
     const resourcesUrl = useMemo(() => resources.url(), []);
@@ -2579,6 +2646,7 @@ export default function DataCiteForm({
     const [orcidBlockers, setOrcidBlockers] = useState<OrcidPreflightIssue[]>([]);
     const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
     const [pendingDataCitePayload, setPendingDataCitePayload] = useState<ReturnType<typeof buildPayload> | null>(null);
+    const [pendingDataCiteSnapshot, setPendingDataCiteSnapshot] = useState<string | null>(null);
     const [pendingDataCiteResourceId, setPendingDataCiteResourceId] = useState<number | null>(null);
     const [pendingDataCiteSubmission, setPendingDataCiteSubmission] = useState<EditorDataCiteSubmission>({
         prefix: '',
@@ -2586,6 +2654,19 @@ export default function DataCiteForm({
         submittingAction: 'submit',
     });
     const [registrationSuccess, setRegistrationSuccess] = useState<{ doi: string; counts: PublishedRecordCounts } | null>(null);
+    const hasUnsavedChanges =
+        editorSnapshot !== savedEditorSnapshot ||
+        hasUnpersistedInitialData ||
+        hasRorDrafts ||
+        hasPendingTagInput ||
+        hasLandingPageDraft ||
+        isImportingMetadata ||
+        isSaving ||
+        isSavingDraft ||
+        isDraftAutosaveInFlight ||
+        isPreparingLandingPagePreview ||
+        isSubmittingDataCite;
+    const { allowNextInternalVisit } = useEditorLeaveGuard(hasUnsavedChanges);
 
     const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
         const savedPayload = resourceId ? { ...payload, resourceId } : payload;
@@ -2599,13 +2680,36 @@ export default function DataCiteForm({
         }
     }, []);
 
+    const replaceSavedDraftUrl = useCallback(
+        (resourceId: number) => {
+            if (!Number.isSafeInteger(resourceId)) return;
+            const editorUrl = editor.url({ query: { resourceId } });
+            router.replace({
+                url: editorUrl,
+                // History props predate the save. A restored editor must fetch its saved values.
+                props: (props) => ({
+                    ...props,
+                    resourceId: String(resourceId),
+                    refreshSavedDraftOnRestore: true,
+                    ...(!new URLSearchParams(currentPageUrl.split('?')[1]).has('resourceId') && currentPageUrl !== editorUrl
+                        ? { draftSaveTransition: { fromUrl: currentPageUrl, resourceId: String(resourceId) } }
+                        : {}),
+                }),
+                preserveState: true,
+                preserveScroll: true,
+            });
+        },
+        [currentPageUrl],
+    );
+
     const markDraftAutosaveSaved = useCallback(
-        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+        (payload: ReturnType<typeof buildPayload>, snapshot: string, resourceId?: number) => {
             updateDraftAutosaveSignature(payload, resourceId);
+            markEditorSaved(snapshot);
             setLastDraftAutosaveAt(new Date());
             setDraftAutosaveStatus('saved');
         },
-        [updateDraftAutosaveSignature],
+        [markEditorSaved, updateDraftAutosaveSignature],
     );
 
     useEffect(() => {
@@ -2676,8 +2780,13 @@ export default function DataCiteForm({
             const data = response.data as DraftSaveResponse | null;
             const savedResourceId = data?.resource?.id;
 
+            if (resolvedResourceId === null && !savedResourceId) {
+                throw new Error('Autosave did not return a resource ID for the new draft.');
+            }
+
             if (savedResourceId) {
                 setResolvedResourceId(savedResourceId);
+                if (resolvedResourceId === null) replaceSavedDraftUrl(savedResourceId);
             }
             if (data?.resource?.publicStatus) {
                 setCurrentPublicStatus(data.resource.publicStatus);
@@ -2686,7 +2795,7 @@ export default function DataCiteForm({
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
 
-            markDraftAutosaveSaved(payload, savedResourceId);
+            markDraftAutosaveSaved(payload, editorSnapshot, savedResourceId);
         } catch (error) {
             console.error('Failed to autosave draft', error);
             setDraftAutosaveStatus('error');
@@ -2699,6 +2808,7 @@ export default function DataCiteForm({
         buildPayload,
         dateValidationIssues.length,
         draftSaveUrl,
+        editorSnapshot,
         isDraftSaveable,
         isDataCiteConfirmationOpen,
         isLandingPageSetupOpen,
@@ -2707,7 +2817,9 @@ export default function DataCiteForm({
         isSavingDraft,
         isSubmittingDataCite,
         markDraftAutosaveSaved,
+        replaceSavedDraftUrl,
         registrationSuccess,
+        resolvedResourceId,
         rorDraftsRef,
     ]);
 
@@ -2865,7 +2977,10 @@ export default function DataCiteForm({
         return buildPayload();
     };
 
-    const persistValidatedResource = async (payload: ReturnType<typeof buildPayload>): Promise<ValidatedSaveResponse | null> => {
+    const persistValidatedResource = async (
+        payload: ReturnType<typeof buildPayload>,
+        submittedSnapshot: string,
+    ): Promise<ValidatedSaveResponse | null> => {
         if (importInFlightRef.current) return null;
         try {
             const response = await axios.post(saveUrl, payload, {
@@ -2878,6 +2993,7 @@ export default function DataCiteForm({
 
             if (data?.resource?.id) {
                 setResolvedResourceId(data.resource.id);
+                if (resolvedResourceId === null) replaceSavedDraftUrl(data.resource.id);
             }
             if (data?.resource?.publicStatus) {
                 setCurrentPublicStatus(data.resource.publicStatus);
@@ -2888,6 +3004,7 @@ export default function DataCiteForm({
 
             setHasAttemptedSubmit(false);
             updateDraftAutosaveSignature(payload, data?.resource?.id);
+            markEditorSaved(submittedSnapshot);
 
             return data;
         } catch (error) {
@@ -2933,13 +3050,14 @@ export default function DataCiteForm({
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (importInFlightRef.current) return;
+        const submittedSnapshot = editorSnapshot;
         setIsSaving(true);
 
         try {
             const payload = await prepareValidatedPayload();
             if (!payload) return;
 
-            const data = await persistValidatedResource(payload);
+            const data = await persistValidatedResource(payload, submittedSnapshot);
             if (!data) return;
 
             toast.success(data.message || 'Resource is valid and has been saved.');
@@ -2956,12 +3074,14 @@ export default function DataCiteForm({
         setOrcidBlockers([]);
         setOrcidWarnings([]);
         setPendingDataCitePayload(null);
+        setPendingDataCiteSnapshot(null);
         setPendingDataCiteResourceId(null);
         setPendingDataCiteSubmission({ prefix: '', force: false, submittingAction: 'submit' });
     };
 
     const handleRequestDataCiteAction = async () => {
         if (importInFlightRef.current) return;
+        const submittedSnapshot = editorSnapshot;
         setIsSaving(true);
 
         try {
@@ -2970,6 +3090,7 @@ export default function DataCiteForm({
 
             setDataCiteAction(form.doi?.trim() ? 'update' : 'register');
             setPendingDataCitePayload(payload);
+            setPendingDataCiteSnapshot(submittedSnapshot);
             setPendingDataCiteResourceId(null);
             setDataCiteError(null);
             setOrcidBlockers([]);
@@ -2999,6 +3120,12 @@ export default function DataCiteForm({
             const { doi, mode, publishedRecordCounts, updated } = response.data;
             const modeLabel = mode === 'test' ? 'Test' : 'Production';
 
+            const savedSnapshotWithDoi = snapshotWithSavedDoi(pendingDataCiteSnapshot ?? editorSnapshot, doi);
+            const currentSnapshotWithDoi = snapshotWithSavedDoi(currentEditorSnapshotRef.current, doi);
+            markEditorSaved(savedSnapshotWithDoi);
+            const canLeaveWithoutWarning =
+                currentSnapshotWithDoi === savedSnapshotWithDoi && !hasRorDrafts && !hasPendingTagInput && !hasLandingPageDraft;
+
             setForm((current) => ({ ...current, doi }));
             setOrcidBlockers([]);
             setOrcidWarnings([]);
@@ -3008,6 +3135,7 @@ export default function DataCiteForm({
                     description: `${modeLabel} DOI: ${doi}`,
                 });
                 resetDataCiteWorkflow();
+                if (canLeaveWithoutWarning) allowNextInternalVisit(resourcesUrl);
                 router.visit(resourcesUrl);
                 return;
             }
@@ -3017,6 +3145,7 @@ export default function DataCiteForm({
                 setRegistrationSuccess({ doi, counts: publishedRecordCounts });
             } else {
                 toast.success('DOI registered successfully', { description: `${modeLabel} DOI: ${doi}` });
+                if (canLeaveWithoutWarning) allowNextInternalVisit(resourcesUrl);
                 router.visit(resourcesUrl);
             }
         } catch (error) {
@@ -3052,7 +3181,7 @@ export default function DataCiteForm({
 
             setIsSubmittingDataCite(true);
             setDataCiteSubmittingAction(submission.submittingAction);
-            const saved = await persistValidatedResource(pendingDataCitePayload);
+            const saved = await persistValidatedResource(pendingDataCitePayload, pendingDataCiteSnapshot ?? editorSnapshot);
             setIsSubmittingDataCite(false);
             setDataCiteSubmittingAction(null);
 
@@ -3079,6 +3208,7 @@ export default function DataCiteForm({
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
         if (!checkRorInputs()) return;
+        const submittedSnapshot = editorSnapshot;
         if (
             !isDraftSaveable ||
             importInFlightRef.current ||
@@ -3130,30 +3260,14 @@ export default function DataCiteForm({
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
             updateDraftAutosaveSignature(payload, savedResourceId);
+            markEditorSaved(submittedSnapshot);
 
             setHasAttemptedSubmit(false);
             toast.success(successMsg);
 
             // Keep the current form mounted while making a newly saved draft reloadable.
             const resourceIdForUrl = savedResourceId ?? resolvedResourceId;
-            if (resourceIdForUrl && Number.isSafeInteger(resourceIdForUrl)) {
-                const editorUrl = editor.url({ query: { resourceId: resourceIdForUrl } });
-                router.replace({
-                    url: editorUrl,
-                    // History props predate the save. A restored editor must fetch its saved values.
-                    props: (props) => ({
-                        ...props,
-                        resourceId: String(resourceIdForUrl),
-                        refreshSavedDraftOnRestore: true,
-                        // Only the first save of a new draft may retain the previous transition key.
-                        ...(!new URLSearchParams(currentPageUrl.split('?')[1]).has('resourceId') && currentPageUrl !== editorUrl
-                            ? { draftSaveTransition: { fromUrl: currentPageUrl, resourceId: String(resourceIdForUrl) } }
-                            : {}),
-                    }),
-                    preserveState: true,
-                    preserveScroll: true,
-                });
-            }
+            if (resourceIdForUrl) replaceSavedDraftUrl(resourceIdForUrl);
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
@@ -3188,6 +3302,7 @@ export default function DataCiteForm({
     const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
         if (!checkRorInputs()) return null;
         if (!isDraftSaveable || importInFlightRef.current) return null;
+        const submittedSnapshot = editorSnapshot;
 
         setIsPreparingLandingPagePreview(true);
         setErrorMessage(null);
@@ -3227,6 +3342,7 @@ export default function DataCiteForm({
             }
 
             setResolvedResourceId(savedResourceId);
+            if (resolvedResourceId === null) replaceSavedDraftUrl(savedResourceId);
             if (data?.resource?.publicStatus) {
                 setCurrentPublicStatus(data.resource.publicStatus);
             }
@@ -3234,6 +3350,7 @@ export default function DataCiteForm({
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
             updateDraftAutosaveSignature(payload, savedResourceId);
+            markEditorSaved(submittedSnapshot);
             setHasAttemptedSubmit(false);
 
             return { resourceId: savedResourceId };
@@ -3272,8 +3389,11 @@ export default function DataCiteForm({
         clearBackendErrors,
         dateValidationIssues,
         draftSaveUrl,
+        editorSnapshot,
         checkRorInputs,
         isDraftSaveable,
+        markEditorSaved,
+        replaceSavedDraftUrl,
         resolvedResourceId,
         revealValidationErrors,
         updateDraftAutosaveSignature,
@@ -3336,6 +3456,7 @@ export default function DataCiteForm({
     const handleLandingPageSetupSuccess = async (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => {
         const summary = landingPage ? toEditorLandingPageSummary(landingPage) : null;
         setLandingPageForPreview(summary);
+        setHasLandingPageDraft(resolvedResourceId !== null && hasStoredLandingPageDraft(resolvedResourceId));
         if (summary?.is_published && form.doi?.trim()) {
             setCurrentPublicStatus('published');
         }
@@ -3568,7 +3689,14 @@ export default function DataCiteForm({
     );
 
     const editorForm = (
-        <form onSubmit={handleSubmit} noValidate className="space-y-6 pb-36 sm:pb-28 lg:pb-24">
+        <form
+            ref={editorFormRef}
+            onSubmit={handleSubmit}
+            onInputCapture={updatePendingTagInput}
+            onBlurCapture={updatePendingTagInput}
+            noValidate
+            className="space-y-6 pb-36 sm:pb-28 lg:pb-24"
+        >
             {mappedValidationErrors.length > 0 ? (
                 <ClickableValidationAlert
                     ref={errorRef}
@@ -4217,6 +4345,7 @@ export default function DataCiteForm({
                     isOpen={isLandingPageSetupOpen}
                     onClose={handleCloseLandingPageSetup}
                     onSuccess={handleLandingPageSetupSuccess}
+                    onDirtyChange={setHasLandingPageDraft}
                     openPreviewOnSuccess={landingPageSetupPurpose === 'preview'}
                 />
             )}

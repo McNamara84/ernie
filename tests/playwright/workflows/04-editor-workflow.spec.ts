@@ -66,6 +66,100 @@ test.describe('Editor Form', () => {
         await expect(page).toHaveURL(/\/editor/);
     });
 
+    test('warns before reloading or closing unsaved editor changes', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved title before reload');
+
+        const dialogPromise = page.waitForEvent('dialog');
+        const reloadPromise = page.evaluate(() => window.location.reload());
+        const dialog = await dialogPromise;
+        expect(dialog.type()).toBe('beforeunload');
+        await dialog.dismiss();
+        await reloadPromise;
+
+        await expect(page).toHaveURL(/\/editor$/);
+        await expect(titleInput).toHaveValue('Unsaved title before reload');
+
+        const closeDialogPromise = page.waitForEvent('dialog');
+        const closePromise = page.close({ runBeforeUnload: true });
+        const closeDialog = await closeDialogPromise;
+        expect(closeDialog.type()).toBe('beforeunload');
+        await closeDialog.dismiss();
+        await closePromise;
+        expect(page.isClosed()).toBe(false);
+    });
+
+    test('requires confirmation before following an internal link with unsaved changes', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved title before leaving');
+        const resourcesLink = page.getByRole('link', { name: 'Resources List' });
+
+        const cancelDialogPromise = page.waitForEvent('dialog');
+        const cancelClickPromise = resourcesLink.click();
+        const cancelDialog = await cancelDialogPromise;
+        expect(cancelDialog.type()).toBe('confirm');
+        expect(cancelDialog.message()).toContain('unsaved changes');
+        await cancelDialog.dismiss();
+        await cancelClickPromise;
+        await expect(page).toHaveURL(/\/editor$/);
+        await expect(titleInput).toHaveValue('Unsaved title before leaving');
+
+        const acceptedDialogTypes: string[] = [];
+        page.on('dialog', async (dialog) => {
+            acceptedDialogTypes.push(dialog.type());
+            await dialog.accept();
+        });
+        await resourcesLink.click();
+        await expect(page).toHaveURL(/\/resources$/);
+        expect(acceptedDialogTypes).toEqual(['confirm']);
+    });
+
+    test('cancels POST logout when unsaved editor changes are kept', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved title before logout');
+        const userMenu = page.getByRole('button', { name: /Test User/ });
+        const logoutItem = page.getByRole('menuitem', { name: 'Log out' });
+        const logoutRequests: string[] = [];
+        page.on('request', (request) => {
+            if (request.method() === 'POST' && new URL(request.url()).pathname === '/logout') logoutRequests.push(request.url());
+        });
+
+        await userMenu.click();
+        const cancelDialogPromise = page.waitForEvent('dialog');
+        const cancelClickPromise = logoutItem.click();
+        const cancelDialog = await cancelDialogPromise;
+        expect(cancelDialog.type()).toBe('confirm');
+        await cancelDialog.dismiss();
+        await cancelClickPromise;
+        await expect(page).toHaveURL(/\/editor$/);
+        await expect(titleInput).toHaveValue('Unsaved title before logout');
+        expect(logoutRequests).toHaveLength(0);
+    });
+
     test('keeps a saved draft in the editor and reloads the same resource', async ({ page }) => {
         test.setTimeout(150_000);
         await gotoWithLocalTlsRetry(page, '/login');
