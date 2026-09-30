@@ -35,6 +35,7 @@ import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import { RorInputDraftContext, useRorInputDrafts } from '@/hooks/use-ror-input-drafts';
 import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS, isCurationAccordionItemValue } from '@/lib/curation-accordion';
 import { type DoiRegistrationResponse, isOrcidPreflightPayload, type OrcidPreflightIssue } from '@/lib/datacite-registration';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
@@ -50,6 +51,7 @@ import {
 import { feedback } from '@/lib/feedback';
 import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
 import { toImportedFormParts } from '@/lib/imported-metadata-form';
+import { indexRorSuggestions } from '@/lib/ror-input';
 import { editor, resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
@@ -79,6 +81,7 @@ import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import MSLLaboratoriesField from './fields/msl-laboratories-field';
 import { RelatedWorkField } from './fields/related-work';
+import { RorCatalogContext } from './fields/ror-input-feedback';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
@@ -1454,7 +1457,24 @@ export default function DataCiteForm({
         return `${allButLast}, and ${last}`;
     }, [authorRoleNames]);
     const authorRolesDescriptionId = authorRoleNames.length > 0 ? 'author-roles-description' : undefined;
-    const { suggestions: affiliationSuggestions } = useRorAffiliations();
+    const rorCatalog = useRorAffiliations();
+    const affiliationSuggestions = rorCatalog.suggestions;
+    const rorCatalogValue = useMemo(
+        () => ({ ...rorCatalog, index: indexRorSuggestions(affiliationSuggestions) }),
+        [rorCatalog, affiliationSuggestions],
+    );
+    const rorDrafts = useRorInputDrafts();
+    const { current: rorDraftsRef, retain: retainRorDrafts } = rorDrafts;
+    useEffect(() => {
+        retainRorDrafts(
+            new Set([
+                ...authors.map((author) => `${author.id}-affiliations`),
+                ...contributors.map((contributor) => `${contributor.id}-affiliations`),
+                ...fundingReferences.map((funding) => `${funding.id}-funder-name`),
+            ]),
+        );
+    }, [authors, contributors, fundingReferences, retainRorDrafts]);
+    const hasRorDrafts = Object.keys(rorDrafts.drafts).length > 0;
 
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -2238,6 +2258,7 @@ export default function DataCiteForm({
         }
     }, []);
     const draftAutosaveMessage = useMemo(() => {
+        if (hasRorDrafts) return 'Autosave paused: finish the institution or funder input.';
         if (draftAutosaveStatus === 'idle') {
             return null;
         }
@@ -2252,7 +2273,7 @@ export default function DataCiteForm({
 
         const savedAt = lastDraftAutosaveAt?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return savedAt ? 'Draft autosaved at ' + savedAt : 'Draft autosaved';
-    }, [draftAutosaveStatus, lastDraftAutosaveAt]);
+    }, [draftAutosaveStatus, lastDraftAutosaveAt, hasRorDrafts]);
 
     // Shared payload builder for both Save & Validate and Save Draft (Issue #548)
     const buildPayload = useCallback(() => {
@@ -2601,6 +2622,7 @@ export default function DataCiteForm({
     }, [buildPayload, dateValidationIssues.length, resolvedResourceId]);
 
     const saveDraftSilently = useCallback(async () => {
+        if (Object.keys(rorDraftsRef.current).length > 0) return;
         if (
             !isDraftSaveable ||
             dateValidationIssues.length > 0 ||
@@ -2686,6 +2708,7 @@ export default function DataCiteForm({
         isSubmittingDataCite,
         markDraftAutosaveSaved,
         registrationSuccess,
+        rorDraftsRef,
     ]);
 
     useEffect(() => {
@@ -2697,7 +2720,12 @@ export default function DataCiteForm({
     }, [saveDraftSilently]);
 
     const revealValidationErrors = useCallback(
-        (errors: Record<string, string[]>, headerMessage: string, descriptionIds = descriptionEntryIds) => {
+        (
+            errors: Record<string, string[]>,
+            headerMessage: string,
+            descriptionIds = descriptionEntryIds,
+            fieldSelectors: Record<string, string> = {},
+        ) => {
             const mapped = mapBackendErrors(errors, {
                 descriptionIds,
                 dateEntries: dates.filter(hasValidDateValue).map((entry) => ({
@@ -2705,6 +2733,9 @@ export default function DataCiteForm({
                     isRange: isDateRangeCapable(entry.dateType) && entry.dateMode === 'range',
                 })),
             });
+            for (const error of mapped) {
+                error.fieldSelector = fieldSelectors[error.backendKey] ?? error.fieldSelector;
+            }
             setMappedValidationErrors(mapped);
             setValidationAlertHeader(headerMessage);
 
@@ -2785,8 +2816,23 @@ export default function DataCiteForm({
         [revealValidationErrors, submittedDescriptionIds],
     );
 
+    const checkRorInputs = useCallback(() => {
+        const drafts = Object.entries(rorDraftsRef.current);
+        if (!drafts.length) return true;
+        const errors: Record<string, string[]> = {};
+        const fieldSelectors: Record<string, string> = {};
+        for (const [id, draft] of drafts) {
+            errors[draft.section] = ['Confirm the ROR suggestion, use a name without an ID, or discard the unfinished input.'];
+            fieldSelectors[draft.section] ??= draft.section === 'fundingReferences' ? `[id="${id}"]` : `[data-testid="${id}-tagify"] .tagify__input`;
+        }
+        setHasAttemptedSubmit(true);
+        revealValidationErrors(errors, 'Please finish the institution or funder input before saving.', undefined, fieldSelectors);
+        return false;
+    }, [revealValidationErrors, rorDraftsRef]);
+
     const prepareValidatedPayload = async (): Promise<ReturnType<typeof buildPayload> | null> => {
         if (importInFlightRef.current) return null;
+        if (!checkRorInputs()) return null;
         setHasAttemptedSubmit(true);
         setErrorMessage(null);
         setMappedValidationErrors([]);
@@ -3032,6 +3078,7 @@ export default function DataCiteForm({
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
+        if (!checkRorInputs()) return;
         if (
             !isDraftSaveable ||
             importInFlightRef.current ||
@@ -3139,6 +3186,7 @@ export default function DataCiteForm({
     };
 
     const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
+        if (!checkRorInputs()) return null;
         if (!isDraftSaveable || importInFlightRef.current) return null;
 
         setIsPreparingLandingPagePreview(true);
@@ -3224,6 +3272,7 @@ export default function DataCiteForm({
         clearBackendErrors,
         dateValidationIssues,
         draftSaveUrl,
+        checkRorInputs,
         isDraftSaveable,
         resolvedResourceId,
         revealValidationErrors,
@@ -3518,7 +3567,7 @@ export default function DataCiteForm({
         [updateOpenAccordionItems],
     );
 
-    return (
+    const editorForm = (
         <form onSubmit={handleSubmit} noValidate className="space-y-6 pb-36 sm:pb-28 lg:pb-24">
             {mappedValidationErrors.length > 0 ? (
                 <ClickableValidationAlert
@@ -4212,5 +4261,10 @@ export default function DataCiteForm({
                 />
             )}
         </form>
+    );
+    return (
+        <RorInputDraftContext.Provider value={rorDrafts}>
+            <RorCatalogContext.Provider value={rorCatalogValue}>{editorForm}</RorCatalogContext.Provider>
+        </RorInputDraftContext.Provider>
     );
 }

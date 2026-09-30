@@ -1750,8 +1750,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>ROR Affiliations</h4>
                         <p>Institution affiliations use the Research Organization Registry (ROR):</p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Search institutions by name</li>
-                            <li>Auto-complete with official ROR data</li>
+                            <li>Search author and contributor affiliations by name, ROR ID, ROR URL, or Name (ROR ID).</li>
+                            <li>Confirm the matching local ROR record by clicking the suggestion or selecting it with the keyboard.</li>
+                            <li>
+                                Names supplied together with an ID are preserved, including department and location details. The directory name is
+                                shown for comparison.
+                            </li>
+                            <li>
+                                Unknown IDs must be corrected, discarded, or explicitly replaced with a name without a ROR ID. No external ROR lookup
+                                is performed.
+                            </li>
+                            <li>
+                                Finish pending institution and funder inputs before saving, previewing or registering metadata. Autosave pauses until
+                                the input is resolved.
+                            </li>
                             <li>Multiple affiliations per author supported</li>
                         </ul>
 
@@ -2280,7 +2292,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Editor Fields</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Funder Name:</strong> Official name of the funding organization. Start typing to search matching ROR funders.
+                                <strong>Funder Name:</strong> Search by organization name, ROR ID, ROR URL, or Name (ROR ID). Select a matching local
+                                directory record to confirm the identifier. A supplied name is preserved; entering only an ID uses the directory name.
                             </li>
                             <li>
                                 <strong>Funder Identifier:</strong> ROR, Crossref Funder ID, ISNI, GRID, or Other identifier shown as a badge after a
@@ -2301,7 +2314,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
 
                         <h4>Common Funders</h4>
-                        <p>Search for your funder by name - the system will suggest matching organizations with their official identifiers.</p>
+                        <p>
+                            Search for your funder by name or ROR identifier. Review the organization and ID, then confirm the suggestion by mouse or
+                            keyboard. If an ID is not in the local directory, correct it or explicitly use the institution name without an identifier.
+                        </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">

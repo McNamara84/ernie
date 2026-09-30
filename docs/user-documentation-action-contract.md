@@ -22,6 +22,8 @@ The English action descriptions rendered at /docs are maintained in [docs-action
 
 The documentation's capability flags come from [DocsController](../app/Http/Controllers/DocsController.php) using the same gates and import policy as the product pages. Record-specific prerequisites are explained within the visible action. Backend authorization still decides whether a request may run. Documentation settings are read for each request so disabled editor features disappear immediately.
 
+Editor saves, validation, registration, metadata updates and preview creation require pending affiliation and funder inputs to be resolved. ROR IDs, URLs and `Name (ROR ID)` entries require an explicit suggestion selection from the local directory. Unknown IDs can be corrected, discarded or explicitly replaced with the supplied name without an identifier. Supplied names are preserved after confirmation. Autosave pauses while an input is unfinished; existing saved or imported identifiers remain usable when the local directory is unavailable.
+
 ## Verification and accessibility
 
 - [Backend documentation tests](../tests/pest/Feature/DocsTest.php) cover gates and setting changes. [Frontend documentation tests](../tests/vitest/pages/__tests__/docs.test.tsx) cover action effects, filtering, search, and deep links. [Editor tests](../tests/vitest/components/curation/__tests__/datacite-form.test-suite.tsx), [resources tests](../tests/vitest/pages/__tests__/resources.test.tsx), and [browser tests](../tests/playwright/critical/docs.spec.ts) cover action behavior and navigation.

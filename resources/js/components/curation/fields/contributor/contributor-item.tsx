@@ -478,6 +478,7 @@ export default function ContributorItem({
                         }}
                         data-testid={`contributor-${index}-affiliations-input`}
                         tagifySettings={affiliationTagifySettings}
+                        ror={{ suggestions: affiliationSuggestions, section: 'contributors' }}
                         aria-describedby={affiliationsDescriptionId}
                     />
 

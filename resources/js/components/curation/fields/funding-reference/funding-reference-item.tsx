@@ -1,14 +1,18 @@
 import { AlertCircle, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFundingReferenceValidation } from '@/hooks/use-funding-reference-validation';
+import { useRorInputDraft } from '@/hooks/use-ror-input-drafts';
+import { indexRorSuggestions, parseRorInput, resolveRorInput } from '@/lib/ror-input';
 import { cn } from '@/lib/utils';
+import type { AffiliationTag } from '@/types/affiliations';
 
 import InputField from '../input-field';
+import { RorCatalogContext, RorInputFeedback } from '../ror-input-feedback';
 import { searchRorFunders } from './ror-search';
 import type { FundingReferenceEntry, RorFunder } from './types';
 
@@ -43,6 +47,18 @@ export function FundingReferenceItem({
     const [filteredSuggestions, setFilteredSuggestions] = useState<RorFunder[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
     const suggestionsRef = useRef<HTMLDivElement>(null);
+    const inputId = `${funding.id}-funder-name`;
+    const draft = useRorInputDraft(inputId);
+    const catalog = useContext(RorCatalogContext);
+    const rorIndex = useMemo(
+        () =>
+            catalog?.index ??
+            indexRorSuggestions(rorFunders.map((item) => ({ value: item.prefLabel, rorId: item.rorId, searchTerms: item.otherLabel }))),
+        [catalog?.index, rorFunders],
+    );
+    const funderName = draft.draft?.text ?? funding.funderName;
+    const rorInput = parseRorInput(draft.draft?.text ?? '');
+    const [activeSuggestion, setActiveSuggestion] = useState(0);
 
     // Validation
     const validation = useFundingReferenceValidation(funding);
@@ -50,25 +66,24 @@ export function FundingReferenceItem({
     // Debounced search
     useEffect(() => {
         // Don't show suggestions if a ROR ID is already selected
-        if (funding.funderIdentifier) {
+        if ((funding.funderIdentifier && !draft.draft) || parseRorInput(funderName).kind !== 'name') {
             setFilteredSuggestions([]);
-            setShowSuggestions(false);
             return;
         }
 
-        if (!funding.funderName || funding.funderName.length < 2) {
+        if (!funderName || funderName.length < 2) {
             setFilteredSuggestions([]);
             return;
         }
 
         const timeoutId = setTimeout(() => {
-            const results = searchRorFunders(rorFunders, funding.funderName, 20);
+            const results = searchRorFunders(rorFunders, funderName, 20);
             setFilteredSuggestions(results);
             setShowSuggestions(results.length > 0);
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [funding.funderName, funding.funderIdentifier, rorFunders]);
+    }, [funderName, funding.funderIdentifier, rorFunders, draft.draft]);
 
     // Click outside handler
     useEffect(() => {
@@ -89,6 +104,7 @@ export function FundingReferenceItem({
 
     const handleSelectSuggestion = useCallback(
         (suggestion: RorFunder) => {
+            draft.set(null);
             // Atomic update of both fields to prevent race condition
             onFieldsChange({
                 funderName: suggestion.prefLabel,
@@ -102,7 +118,7 @@ export function FundingReferenceItem({
                 inputRef.current.blur();
             }
         },
-        [onFieldsChange],
+        [onFieldsChange, draft],
     );
 
     const handleFunderNameChange = useCallback(
@@ -120,6 +136,22 @@ export function FundingReferenceItem({
         },
         [funding.funderIdentifier, onFieldsChange, onFunderNameChange],
     );
+
+    const selectRor = (selected: AffiliationTag) => {
+        draft.set(null);
+        onFieldsChange({ funderName: selected.value, funderIdentifier: selected.rorId ?? '', funderIdentifierType: selected.rorId ? 'ROR' : null });
+        setShowSuggestions(false);
+        setFilteredSuggestions([]);
+    };
+    const commitName = () => {
+        const pending = draft.get();
+        if (pending && parseRorInput(pending.text).kind === 'name') {
+            handleFunderNameChange(pending.text);
+            draft.set(null);
+        }
+    };
+    const rorMatch = resolveRorInput(rorInput, rorIndex);
+    const hasRorOption = !!rorMatch && !catalog?.isLoading && !catalog?.error;
 
     return (
         <section
@@ -153,8 +185,47 @@ export function FundingReferenceItem({
                     <Input
                         ref={inputRef}
                         id={`${funding.id}-funder-name`}
-                        value={funding.funderName}
-                        onChange={(e) => handleFunderNameChange(e.target.value)}
+                        value={funderName}
+                        onChange={(event) => {
+                            draft.set({ text: event.target.value, section: 'fundingReferences' });
+                            setShowSuggestions(true);
+                            setActiveSuggestion(0);
+                        }}
+                        onBlur={commitName}
+                        role="combobox"
+                        aria-expanded={showSuggestions && (hasRorOption || filteredSuggestions.length > 0)}
+                        aria-controls={rorInput.kind !== 'name' ? `${inputId}-ror-options` : `${inputId}-options`}
+                        aria-activedescendant={
+                            showSuggestions
+                                ? hasRorOption
+                                    ? `${inputId}-ror-option`
+                                    : filteredSuggestions.length
+                                      ? `${inputId}-option-${activeSuggestion}`
+                                      : undefined
+                                : undefined
+                        }
+                        onKeyDown={(event) => {
+                            if (event.nativeEvent.isComposing) return;
+                            if (event.key === 'Escape') {
+                                setShowSuggestions(false);
+                                event.preventDefault();
+                                return;
+                            }
+                            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                                event.preventDefault();
+                                setShowSuggestions(true);
+                                setActiveSuggestion((current) =>
+                                    Math.max(0, Math.min(filteredSuggestions.length - 1, current + (event.key === 'ArrowDown' ? 1 : -1))),
+                                );
+                            }
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                if (showSuggestions && hasRorOption && rorMatch) selectRor(rorMatch);
+                                else if (showSuggestions && filteredSuggestions[activeSuggestion])
+                                    handleSelectSuggestion(filteredSuggestions[activeSuggestion]);
+                                else commitName();
+                            }
+                        }}
                         onFocus={() => {
                             if (filteredSuggestions.length > 0) {
                                 setShowSuggestions(true);
@@ -165,7 +236,28 @@ export function FundingReferenceItem({
                         className={cn('mt-2', validation.errors.funderName && 'border-destructive focus-visible:ring-destructive')}
                         autoComplete="off"
                         aria-invalid={!!validation.errors.funderName}
-                        aria-describedby={validation.errors.funderName ? `${funding.id}-funder-name-error` : undefined}
+                        aria-describedby={[
+                            validation.errors.funderName ? `${funding.id}-funder-name-error` : '',
+                            `${inputId}-help`,
+                            rorInput.kind !== 'name' ? `${inputId}-ror-feedback` : '',
+                        ]
+                            .filter(Boolean)
+                            .join(' ')}
+                    />
+                    <p id={`${inputId}-help`} className="mt-1 text-xs text-muted-foreground">
+                        Search by name, ROR ID, URL or Name (ROR ID), then select a match.
+                    </p>
+                    <RorInputFeedback
+                        {...catalog}
+                        id={inputId}
+                        text={draft.draft?.text ?? ''}
+                        index={rorIndex}
+                        open={showSuggestions}
+                        onSelect={selectRor}
+                        onDiscard={() => {
+                            draft.set(null);
+                            setShowSuggestions(false);
+                        }}
                     />
 
                     {/* Validation Error */}
@@ -182,11 +274,14 @@ export function FundingReferenceItem({
                             ref={suggestionsRef}
                             className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md"
                             role="listbox"
+                            id={`${inputId}-options`}
                         >
-                            {filteredSuggestions.map((suggestion) => (
+                            {filteredSuggestions.map((suggestion, suggestionIndex) => (
                                 <button
                                     key={suggestion.rorId}
                                     type="button"
+                                    id={`${inputId}-option-${suggestionIndex}`}
+                                    onMouseDown={(event) => event.preventDefault()}
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -194,7 +289,7 @@ export function FundingReferenceItem({
                                     }}
                                     className="flex w-full cursor-pointer flex-col gap-1 border-b border-border px-4 py-3 text-left transition last:border-b-0 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
                                     role="option"
-                                    aria-selected={false}
+                                    aria-selected={activeSuggestion === suggestionIndex}
                                     tabIndex={0}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {

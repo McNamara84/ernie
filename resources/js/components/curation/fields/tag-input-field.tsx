@@ -1,10 +1,15 @@
 import type { TagData, TagifySettings } from '@yaireo/tagify';
 import Tagify from '@yaireo/tagify';
 import type { HTMLAttributes, InputHTMLAttributes } from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Label } from '@/components/ui/label';
+import { type RorInputDraft, useRorInputDraft } from '@/hooks/use-ror-input-drafts';
+import { indexRorSuggestions, parseRorInput, resolveRorInput } from '@/lib/ror-input';
 import { cn } from '@/lib/utils';
+import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
+
+import { RorCatalogContext, RorInputFeedback } from './ror-input-feedback';
 
 export interface TagInputItem {
     value: string;
@@ -25,6 +30,7 @@ interface TagInputFieldProps<T extends TagInputItem = TagInputItem> extends Omit
     className?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     tagifySettings?: Partial<TagifySettings<TagData>>;
+    ror?: { suggestions: AffiliationSuggestion[]; section: RorInputDraft['section'] };
     'data-testid'?: string;
 }
 
@@ -37,6 +43,7 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
     className,
     containerProps,
     tagifySettings,
+    ror,
     required,
     disabled,
     placeholder,
@@ -54,6 +61,92 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
     const dropdownWasSuspendedRef = useRef(false);
     const originalAutoCompleteEnabledRef = useRef(true);
     const autoCompleteWasSuspendedRef = useRef(false);
+    const rorDraft = useRorInputDraft(id);
+    const catalog = useContext(RorCatalogContext);
+    const rorIndex = useMemo(() => catalog?.index ?? indexRorSuggestions(ror?.suggestions ?? []), [catalog?.index, ror?.suggestions]);
+    const [rorOpen, setRorOpen] = useState(true);
+    const rorActions = useRef({
+        input: (_text: string, _editingIndex?: number) => {},
+        key: (_event: KeyboardEvent) => {},
+        clear: () => {},
+        names: () => {},
+    });
+
+    const clearRorInput = () => {
+        const tagify = tagifyRef.current;
+        rorDraft.set(null);
+        const editable = tagify?.DOM.scope.querySelector<HTMLElement>('.tagify__tag [contenteditable="true"]');
+        editable?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (tagify) {
+            tagify.DOM.input.textContent = '';
+            tagify.DOM.input.dispatchEvent(new Event('input', { bubbles: true }));
+            tagify.dropdown.hide(true);
+        }
+    };
+    const selectRor = (selected: AffiliationTag) => {
+        const editingIndex = rorDraft.get()?.editingIndex;
+        const affiliation = { value: selected.value, rorId: selected.rorId };
+        const next = value.map((tag, index) => (index === editingIndex ? affiliation : tag));
+        if (editingIndex === undefined && !next.some((tag) => tag.value === selected.value && tag.rorId === selected.rorId)) next.push(affiliation);
+        clearRorInput();
+        changeHandlerRef.current({ raw: next.map((tag) => tag.value).join(', '), tags: next as T[] });
+    };
+    const commitPlainNames = () => {
+        const draft = rorDraft.get();
+        if (!draft || draft.editingIndex !== undefined || parseRorInput(draft.text).kind !== 'name') return;
+        const next = [...value];
+        for (const name of draft.text
+            .split(',')
+            .map((part) => part.trim())
+            .filter(Boolean)) {
+            if (!next.some((tag) => tag.value === name && !tag.rorId)) next.push({ value: name, rorId: null } as unknown as T);
+        }
+        clearRorInput();
+        changeHandlerRef.current({ raw: next.map((tag) => tag.value).join(', '), tags: next });
+    };
+    rorActions.current = {
+        input: (text, editingIndex) => {
+            if (!ror) return;
+            editingIndex ??= rorDraft.get()?.editingIndex;
+            const parsed = parseRorInput(text);
+            // Inline edits of an existing label use Tagify's established edit path.
+            rorDraft.set(text.trim() && (editingIndex === undefined || parsed.kind !== 'name') ? { text, editingIndex, section: ror.section } : null);
+            setRorOpen(true);
+            const tagify = tagifyRef.current;
+            if (tagify) {
+                tagify.settings.addTagOnBlur = parsed.kind === 'name';
+                if (parsed.kind !== 'name') tagify.dropdown.hide(true);
+            }
+        },
+        key: (event) => {
+            const draft = rorDraft.get();
+            if (!ror || !draft || event.isComposing) return;
+            if (parseRorInput(draft.text).kind === 'name') {
+                if (event.key === 'Enter' && draft.text.includes(',') && draft.editingIndex === undefined) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    commitPlainNames();
+                }
+                return;
+            }
+            if (['Enter', 'ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                if (event.key === 'Escape') {
+                    setRorOpen(false);
+                    return;
+                }
+                if (event.key !== 'Enter') {
+                    setRorOpen(true);
+                    return;
+                }
+                const match = resolveRorInput(parseRorInput(draft.text), rorIndex);
+                if (rorOpen && match && !catalog?.isLoading && !catalog?.error) selectRor(match);
+            }
+        },
+        clear: () => rorDraft.set(null),
+        names: commitPlainNames,
+    };
 
     useEffect(() => {
         changeHandlerRef.current = onChange;
@@ -93,6 +186,20 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
                 return tagData;
             },
             ...tagifySettings,
+            ...(ror
+                ? {
+                      delimiters: /(?!)/,
+                      duplicates: true,
+                      pasteAsTags: false,
+                      autoComplete: { enabled: false },
+                      editTags: { clicks: 1 as const, keepInvalid: true },
+                      createInvalidTags: false,
+                      validate: (tag: TagData) =>
+                          typeof tag.rorId === 'string' ||
+                          parseRorInput(tag.value).kind === 'name' ||
+                          'Select the organization to confirm its ROR ID.',
+                  }
+                : {}),
         };
 
         const tagify = new Tagify(inputElement, settings);
@@ -133,7 +240,11 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
                 })
                 .filter((item): item is T => Boolean(item));
 
-            changeHandlerRef.current({ raw: rawValue, tags });
+            const uniqueTags = ror
+                ? tags.filter((tag, index) => tags.findIndex((other) => other.value === tag.value && other.rorId === tag.rorId) === index)
+                : tags;
+            changeHandlerRef.current({ raw: rawValue, tags: uniqueTags });
+            if (ror && !tagify.DOM.input.textContent?.trim() && rorDraft.get()?.editingIndex === undefined) rorActions.current.clear();
         };
 
         const suspendAffiliationEditFormatting = () => {
@@ -205,6 +316,7 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             const keyboardEvent = (event.detail as { event?: KeyboardEvent })?.event;
             if (keyboardEvent?.key === 'Escape') {
                 restoreAffiliationEditFormatting();
+                if (ror) rorActions.current.clear();
             }
         };
 
@@ -214,12 +326,47 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
         tagify.on('edit:updated', handleEditUpdated);
         tagify.on('edit:keydown', handleEditKeydown);
 
+        // Capture draft text synchronously, before Tagify handles blur, paste or Enter.
+        const handleRorInput = (event: Event) => {
+            const target = event.target as HTMLElement;
+            const tag = target.closest('.tagify__tag');
+            const index = tag ? Array.from(tagify.DOM.scope.querySelectorAll('.tagify__tag')).indexOf(tag) : undefined;
+            rorActions.current.input(target.textContent ?? '', index);
+        };
+        const handleRorKey = (event: KeyboardEvent) => rorActions.current.key(event);
+        const hideRorDropdown = () => {
+            if (parseRorInput(tagify.DOM.input.textContent ?? '').kind !== 'name') tagify.dropdown.hide(true);
+        };
+        const handleRorPaste = () => rorActions.current.input(tagify.DOM.input.textContent ?? '');
+        const handleRorBlur = (event: FocusEvent) => {
+            if (event.target === tagify.DOM.input && tagify.DOM.input.textContent?.includes(',')) rorActions.current.names();
+        };
+        if (ror) {
+            tagify.DOM.scope.addEventListener('input', handleRorInput, true);
+            tagify.DOM.scope.addEventListener('keydown', handleRorKey, true);
+            tagify.DOM.scope.addEventListener('paste', handleRorInput);
+            tagify.DOM.scope.addEventListener('blur', handleRorBlur, true);
+            tagify.on('input', hideRorDropdown);
+            tagify.on('paste', handleRorPaste);
+            const draft = rorDraft.get();
+            if (draft) {
+                tagify.DOM.input.textContent = draft.text;
+                tagify.settings.addTagOnBlur = parseRorInput(draft.text).kind === 'name';
+            }
+        }
+
         return () => {
             tagify.off('change', handleChange);
             tagifyChangeHandlerRef.current = null;
             tagify.off('edit:start', handleEditStart);
             tagify.off('edit:updated', handleEditUpdated);
             tagify.off('edit:keydown', handleEditKeydown);
+            tagify.DOM.scope.removeEventListener('input', handleRorInput, true);
+            tagify.DOM.scope.removeEventListener('keydown', handleRorKey, true);
+            tagify.DOM.scope.removeEventListener('paste', handleRorInput);
+            tagify.DOM.scope.removeEventListener('blur', handleRorBlur, true);
+            tagify.off('input', hideRorDropdown);
+            tagify.off('paste', handleRorPaste);
             tagify.destroy();
             tagifyRef.current = null;
         };
@@ -278,6 +425,23 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             }
         }
     }, [tagifySettings]);
+
+    useEffect(() => {
+        const input = tagifyRef.current?.DOM.input;
+        if (!ror || !input) return;
+        const isRor = !!rorDraft.draft && parseRorInput(rorDraft.draft.text).kind !== 'name';
+        const hasOption =
+            isRor && rorOpen && !!resolveRorInput(parseRorInput(rorDraft.draft?.text ?? ''), rorIndex) && !catalog?.isLoading && !catalog?.error;
+        input.setAttribute('role', 'combobox');
+        input.setAttribute('aria-expanded', String(hasOption));
+        input.setAttribute('aria-controls', `${id}-ror-options`);
+        input.setAttribute(
+            'aria-describedby',
+            [inputProps['aria-describedby'], `${id}-ror-help`, isRor ? `${id}-ror-feedback` : ''].filter(Boolean).join(' '),
+        );
+        if (hasOption) input.setAttribute('aria-activedescendant', `${id}-ror-option`);
+        else input.removeAttribute('aria-activedescendant');
+    }, [ror, rorDraft.draft, rorIndex, rorOpen, catalog, id, inputProps]);
 
     useEffect(() => {
         const tagify = tagifyRef.current;
@@ -364,6 +528,22 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
                 )}
             </Label>
             <input ref={inputRef} id={id} placeholder={placeholder} data-testid={dataTestId} {...ariaProps} {...inputProps} />
+            {ror && (
+                <>
+                    <p id={`${id}-ror-help`} className="text-xs text-muted-foreground">
+                        Enter an institution name, ROR ID, URL or Name (ROR ID), then select a match. Use Enter to add names.
+                    </p>
+                    <RorInputFeedback
+                        {...catalog}
+                        id={id}
+                        text={rorDraft.draft?.text ?? ''}
+                        index={rorIndex}
+                        open={rorOpen}
+                        onSelect={selectRor}
+                        onDiscard={clearRorInput}
+                    />
+                </>
+            )}
         </div>
     );
 }
