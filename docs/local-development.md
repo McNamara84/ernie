@@ -743,9 +743,11 @@ To update the editorial content:
 1. Compare the Datacenters facet at <https://dataservices.gfz.de/doi-search> with
    `tests/fixtures/data-centres-production.json`. Update the dated snapshot when
    the production selection changes; do not copy resource counts.
-2. Keep `datacenterName` exactly as supplied by the portal. Use `displayName` and
-   `shortName` for updated public names without changing the DOI filter value.
-   Preserve existing `slug` values so shared description links continue to work.
+2. Keep `datacenterName` as the original portal name used to attach reviewed
+   editorial content. The catalogue resolves that historical name to the current
+   Datacenter ID, and links use the current name as their DOI filter value. Use
+   `displayName` and `shortName` for curated public labels. Preserve existing
+   `slug` values so shared description links continue to work.
    The `datacenter-` slug prefix is reserved for automatic fallbacks.
 3. Write English plain-text description paragraphs and HTTPS links using official
    project or institution sources. Record `sources`, `reviewedAt`, and `logoSource`
@@ -769,9 +771,8 @@ backend integration tests cover publication visibility, exact filters, and facet
 cache invalidation.
 
 A later administration interface can replace the repository content source
-behind the service. Keep its public `DataCentre` contract, exact datacenter name
-matching, stable slugs, and publication-based selection unchanged. No database
-migration, administration UI, or legacy TYPO3 redirects are part of this change.
+behind the service. Keep its public `DataCentre` contract, stable name resolution,
+stable slugs, and publication-based selection unchanged.
 
 ## MySQL-Sensitive Pest Slice
 

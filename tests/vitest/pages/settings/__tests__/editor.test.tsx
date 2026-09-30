@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { act, render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,12 +17,13 @@ const formHarness = vi.hoisted(() => ({
 
 const axiosMocks = vi.hoisted(() => ({
     post: vi.fn(),
+    patch: vi.fn(),
     delete: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
     default: axiosMocks,
-    isAxiosError: () => false,
+    isAxiosError: (error: unknown) => typeof error === 'object' && error !== null && 'response' in error,
 }));
 
 vi.mock('@inertiajs/react', async () => {
@@ -200,6 +201,7 @@ describe('EditorSettings accordion page', () => {
         formHarness.succeed = null;
         formHarness.post.mockReset();
         axiosMocks.post.mockReset();
+        axiosMocks.patch.mockReset();
         axiosMocks.delete.mockReset();
     });
 
@@ -480,6 +482,74 @@ describe('EditorSettings accordion page', () => {
         await waitFor(() => expect(within(section('landing-page-domains')).getByText('1 domain')).toBeInTheDocument());
         expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
         expect(screen.getByTestId('settings-save-status')).toHaveTextContent('No unsaved changes');
+    });
+
+    it('renames an assigned datacenter immediately and retains its count and global save state', async () => {
+        const user = userEvent.setup();
+        axiosMocks.patch.mockResolvedValue({
+            data: { datacenter: { id: 8, name: 'Alpha renamed', resources_count: 3 }, message: 'Datacenter renamed successfully.' },
+        });
+        renderSettings({ datacenters: [{ id: 8, name: 'Zulu', resources_count: 3 }, { id: 9, name: 'Beta', resources_count: 0 }] });
+        await user.click(sectionTrigger(/^Datacenters/));
+
+        const rename = within(section('datacenters')).getByRole('button', { name: 'Rename Zulu' });
+        expect(rename).toBeEnabled();
+        await user.click(rename);
+        const input = screen.getByRole('textbox', { name: 'Datacenter name for Zulu' });
+        await user.clear(input);
+        await user.type(input, ' Alpha renamed ');
+        await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(axiosMocks.patch).toHaveBeenCalledWith('/api/datacenters/8', { name: 'Alpha renamed' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Alpha renamed' })).toBeInTheDocument());
+        const rows = within(section('datacenters')).getAllByRole('row');
+        expect(rows[1]).toHaveTextContent('Alpha renamed3');
+        expect(rows[2]).toHaveTextContent('Beta');
+        expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    });
+
+    it('cancels a datacenter rename without sending a request', async () => {
+        const user = userEvent.setup();
+        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await user.click(sectionTrigger(/^Datacenters/));
+        await user.click(screen.getByRole('button', { name: 'Rename Original' }));
+        await user.type(screen.getByRole('textbox', { name: 'Datacenter name for Original' }), ' changed');
+        await user.click(within(section('datacenters')).getByRole('button', { name: 'Cancel' }));
+
+        expect(screen.getByRole('button', { name: 'Rename Original' })).toBeInTheDocument();
+        expect(axiosMocks.patch).not.toHaveBeenCalled();
+    });
+
+    it('keeps the rename draft and shows a name conflict returned by the API', async () => {
+        const user = userEvent.setup();
+        axiosMocks.patch.mockRejectedValue({ response: { data: { errors: { name: ['This datacenter name is already in use.'] } } } });
+        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await user.click(sectionTrigger(/^Datacenters/));
+        await user.click(screen.getByRole('button', { name: 'Rename Original' }));
+        const input = screen.getByRole('textbox', { name: 'Datacenter name for Original' });
+        await user.clear(input);
+        await user.type(input, 'Reserved');
+        await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
+
+        expect(await screen.findByText('This datacenter name is already in use.')).toBeVisible();
+        expect(input).toHaveValue('Reserved');
+        expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    });
+
+    it('rejects an empty rename before calling the API', async () => {
+        const user = userEvent.setup();
+        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await user.click(sectionTrigger(/^Datacenters/));
+        await user.click(screen.getByRole('button', { name: 'Rename Original' }));
+        const input = screen.getByRole('textbox', { name: 'Datacenter name for Original' });
+        await user.clear(input);
+        await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
+
+        expect(screen.getByText('Enter a datacenter name.')).toBeVisible();
+        fireEvent.change(input, { target: { value: 'x'.repeat(256) } });
+        await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
+        expect(screen.getByText('Datacenter names must be at most 255 characters.')).toBeVisible();
+        expect(axiosMocks.patch).not.toHaveBeenCalled();
     });
 
     it('initializes the form with complete backend values and enforces Abstract as active', () => {

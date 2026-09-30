@@ -6,11 +6,11 @@ namespace App\Jobs;
 
 use App\Exceptions\IgsnParentRelationshipException;
 use App\Exceptions\LegacyIgsnPortalException;
-use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\AutomaticIgsnLandingPageService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteToIgsnTransformer;
 use App\Services\Igsn\IgsnSampleImageStorageService;
 use App\Services\IgsnChildDiscoveryService;
@@ -364,9 +364,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         $total = count($targetDois);
 
         // The complete legacy target set is loaded before the first database write.
-        $datacenter = Datacenter::query()->firstOrCreate([
-            'name' => $selection['datacenter']['name'],
-        ]);
+        $datacenter = app(DatacenterNameService::class)->findOrCreate($selection['datacenter']['name']);
 
         $this->updateProgress([
             'status' => 'running',
@@ -1319,7 +1317,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
         $idsByName = [];
         foreach (array_values(array_unique($assignments)) as $name) {
-            $idsByName[$name] = Datacenter::query()->firstOrCreate(['name' => $name])->id;
+            $idsByName[$name] = app(DatacenterNameService::class)->findOrCreate($name)->id;
         }
 
         $idsByDoi = [];
