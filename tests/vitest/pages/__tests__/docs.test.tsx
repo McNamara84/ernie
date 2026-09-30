@@ -1547,11 +1547,18 @@ describe('Docs page', () => {
         expect(screen.getByRole('link', { name: 'Find overview' })).toHaveAttribute('href', '/find');
         expect(screen.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
         expect(screen.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
+        expect(screen.getByRole('heading', { name: 'Exploring Data Centres', level: 4 })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Data Centres overview' })).toHaveAttribute('href', '/data-centres');
+        expect(screen.getByRole('link', { name: 'Data Centre Descriptions' })).toHaveAttribute('href', '/data-centres/description');
         const heading = screen.getByRole('heading', { name: 'Starting with a Science Topic', level: 4 });
         expect(screen.getByRole('link', { name: 'GFZ Data Services homepage' })).toHaveAttribute('href', '/');
         expect(screen.getByRole('link', { name: 'Volcanism' })).toHaveAttribute('href', '/doi-search?topic=volcanism');
         const content = heading.parentElement?.textContent?.replace(/\s+/g, ' ');
         expect(content).toContain('open Find and select Overview');
+        expect(content).toContain('Data Portal, Data Centres, and IGSN Portal');
+        expect(content).toContain('Each hexagon opens the Data Portal with that data centre selected');
+        expect(content).toContain('several descriptions can stay open together');
+        expect(content).toContain('opens and focuses the corresponding heading automatically');
         expect(content).toContain('On smaller screens, open the menu and select Overview in the Find group');
         expect(content).toContain('Science topic panel below the search field');
         expect(content).toContain('open the Filters drawer to find this panel');

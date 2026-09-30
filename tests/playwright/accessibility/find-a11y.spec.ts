@@ -84,7 +84,7 @@ test.describe('Find accessibility', () => {
         const trigger = page.getByRole('button', { name: 'Find', exact: true });
         await trigger.focus();
         await page.keyboard.press('Enter');
-        for (const label of ['Overview', 'Data Portal', 'IGSN Portal']) {
+        for (const label of ['Overview', 'Data Portal', 'Data Centres', 'IGSN Portal']) {
             await expect(page.getByRole('menuitem', { name: label, exact: true })).toBeFocused();
             await page.keyboard.press('ArrowDown');
         }

@@ -2335,8 +2335,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             On the public homepage and in either portal, open <strong>Find</strong> and select <strong>Overview</strong>. Overview is
-                            the first entry, followed by Data Portal and IGSN Portal. On smaller screens, open the menu and select Overview in the
-                            Find group. You can return to the overview from either portal using the same navigation.
+                            the first entry, followed by Data Portal, Data Centres, and IGSN Portal. On smaller screens, open the menu and select
+                            Overview in the Find group. You can return to the overview from either portal using the same navigation.
+                        </p>
+
+                        <h4>Exploring Data Centres</h4>
+                        <p>
+                            Select <strong>Find → Data Centres</strong> to open the <a href="/data-centres">Data Centres overview</a>. Each hexagon
+                            opens the Data Portal with that data centre selected in the Datacenters filter. You can refine the search while keeping
+                            the selection, share its URL, or use Clear to reset the filters. The overview includes centres with published DOI
+                            resources.
+                        </p>
+                        <p>
+                            Follow About this data centre or open the <a href="/data-centres/description">Data Centre Descriptions</a> to learn about
+                            the participating communities. Select a heading to open or close its description; several descriptions can stay open
+                            together. Use Direct link to bookmark or share an individual description. Following that link opens and focuses the
+                            corresponding heading automatically. These pages are public and require no sign-in.
                         </p>
 
                         <h4>Starting with a Science Topic</h4>

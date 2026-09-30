@@ -1,10 +1,10 @@
 import { Link } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 
-import { PortalHeader } from '@/components/portal/PortalHeader';
+import { PortalHeader, type PublicContentPage } from '@/components/portal/PortalHeader';
 import { useNProgress } from '@/hooks/use-nprogress';
 
-export default function HomeLayout({ children, page = 'home' }: PropsWithChildren<{ page?: 'home' | 'find' }>) {
+export default function HomeLayout({ children, page = 'home' }: PropsWithChildren<{ page?: PublicContentPage }>) {
     useNProgress();
     const contentId = `${page}-content`;
 

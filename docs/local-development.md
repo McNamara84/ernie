@@ -729,6 +729,50 @@ npm run artisan -- rights:update-usage-count
 
 Restarting the scheduler also performs this refresh before `schedule:work` starts. A failed startup refresh leaves the previous complete counter snapshot in place and causes the scheduler container to restart instead of silently serving a partially updated ranking.
 
+## Maintaining the Public Data Centres Catalogue
+
+The public `/data-centres` and `/data-centres/description` pages use
+`DataCentreCatalogService` to join the local DOI portal's published datacenter
+facets with `resources/data/data-centres.json`. Only centres with published DOI
+resources appear; IGSN-only, unpublished, or empty centres are omitted. New names
+automatically receive a neutral text tile and description. There are no runtime
+requests to the production portal or TYPO3.
+
+To update the editorial content:
+
+1. Compare the Datacenters facet at <https://dataservices.gfz.de/doi-search> with
+   `tests/fixtures/data-centres-production.json`. Update the dated snapshot when
+   the production selection changes; do not copy resource counts.
+2. Keep `datacenterName` exactly as supplied by the portal. Use `displayName` and
+   `shortName` for updated public names without changing the DOI filter value.
+   Preserve existing `slug` values so shared description links continue to work.
+   The `datacenter-` slug prefix is reserved for automatic fallbacks.
+3. Write English plain-text description paragraphs and HTTPS links using official
+   project or institution sources. Record `sources`, `reviewedAt`, and `logoSource`
+   for review. These provenance fields are not sent to the browser. Use a null
+   logo and a `logoNote` if no suitable official asset is available.
+4. Store original logo assets in `public/images/data-centres/`, preserving their
+   proportions, and record their real pixel dimensions. Refresh the Find preview
+   at `public/images/find/data-centres.png` when the page appearance changes.
+5. Run the focused checks below, then the normal frontend/backend validation.
+
+```bash
+npm run test:php -- tests/pest/Feature/DataCentresTest.php
+npm run test:run -- tests/vitest/pages/__tests__/data-centres.test.tsx
+npm run test:e2e:devstack -- critical/data-centres.spec.ts accessibility/data-centres-a11y.spec.ts
+```
+
+Browser layout and accessibility tests inject the repository catalogue into the
+real page response, so all reviewed entries are exercised even on a small local
+database. Separate browser tests use the live local catalogue and DOI portal;
+backend integration tests cover publication visibility, exact filters, and facet
+cache invalidation.
+
+A later administration interface can replace the repository content source
+behind the service. Keep its public `DataCentre` contract, exact datacenter name
+matching, stable slugs, and publication-based selection unchanged. No database
+migration, administration UI, or legacy TYPO3 redirects are part of this change.
+
 ## MySQL-Sensitive Pest Slice
 
 The default local Pest loop remains SQLite-backed.

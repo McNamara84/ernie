@@ -3,6 +3,7 @@
 @import '@yaireo/tagify/dist/tagify.css';
 @import 'nprogress/nprogress.css';
 @import './home.css';
+@import './data-centres.css';
 
 @plugin 'tailwindcss-animate';
 

@@ -8,6 +8,23 @@ function appendArrayParams(params: URLSearchParams, key: string, values: string[
     });
 }
 
+/** Start a fresh DOI search with exactly this stored datacenter name. */
+export function buildDataCentreSearchUrl(datacenterName: string): string {
+    return buildPortalFilterUrl({
+        query: null,
+        type: [],
+        keywords: [],
+        sampleTypes: [],
+        materials: [],
+        classifications: [],
+        geologicalAges: [],
+        geologicalUnits: [],
+        datacenter: [datacenterName],
+        bounds: null,
+        temporal: null,
+    });
+}
+
 function buildPortalMapParams(filters: PortalFilters, viewport: PortalMapViewport, basePath: PortalBasePath): URLSearchParams {
     const filterUrl = buildPortalFilterUrl(filters, basePath);
     const queryString = filterUrl.includes('?') ? filterUrl.slice(filterUrl.indexOf('?') + 1) : '';
