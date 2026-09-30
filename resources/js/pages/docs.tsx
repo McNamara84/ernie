@@ -1549,7 +1549,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             If metadata or landing-page setup changes are still unsaved, the editor asks before you follow an ERNIE link or log out.
                             Closing the tab or reloading shows your browser&apos;s own leave-page warning. Imported metadata is also protected until
                             it has been saved. A successful save clears the warning for the values it saved; edits made while a save is running,
-                            failed saves, and unfinished inputs remain protected. You can stay in the editor to finish or save your work.
+                            failed saves, and unfinished inputs remain protected. You can stay in the editor to finish or save your work. While
+                            landing-page setup is saving, its fields are temporarily locked. If the save fails, your entries remain and you can edit
+                            them again.
                         </p>
 
                         <h4>Embargo and Manual Release</h4>

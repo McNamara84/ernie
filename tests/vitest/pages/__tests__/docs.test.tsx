@@ -1456,6 +1456,8 @@ describe('Docs page', () => {
             expect(warning).toHaveTextContent('log out');
             expect(warning).toHaveTextContent('Closing the tab or reloading');
             expect(warning).toHaveTextContent('failed saves');
+            expect(warning).toHaveTextContent('landing-page setup is saving, its fields are temporarily locked');
+            expect(warning).toHaveTextContent('If the save fails, your entries remain');
         },
     );
 

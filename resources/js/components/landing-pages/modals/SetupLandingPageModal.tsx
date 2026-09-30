@@ -1126,7 +1126,13 @@ export default function SetupLandingPageModal({
                     </div>
                 ) : (
                     <div data-testid="setup-lp-modal-scroll-area" className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-                        <div className="space-y-6">
+                        <fieldset
+                            data-testid="setup-lp-modal-editable-fields"
+                            disabled={isSaving}
+                            inert={isSaving}
+                            aria-busy={isSaving}
+                            className="min-w-0 space-y-6 border-0 p-0"
+                        >
                             {/* Template Selection */}
                             <div className="space-y-2">
                                 <Label htmlFor="template">Landing Page Template</Label>
@@ -1645,7 +1651,7 @@ export default function SetupLandingPageModal({
                                     <p className="text-xs text-green-700 dark:text-green-300">This landing page is publicly accessible</p>
                                 </div>
                             )}
-                        </div>
+                        </fieldset>
                     </div>
                 )}
 
