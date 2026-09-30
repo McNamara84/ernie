@@ -190,6 +190,7 @@ test.describe('GFZ Data Services homepage', () => {
         const menu = page.getByTestId('mobile-menu');
         await expect(menu.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
         await expect(menu.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
+        await expect(menu.getByRole('link', { name: 'Data Centres', exact: true })).toHaveAttribute('href', '/data-centres');
         await expect(menu.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         await page.getByRole('button', { name: 'Close menu' }).click();
     });
