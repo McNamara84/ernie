@@ -1,15 +1,66 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
 
 import { openDataCentres, useDataCentreCatalogue } from '../helpers/data-centres';
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
+
+async function expectCaptionInsideHexagon(link: Locator) {
+    const fits = await link.locator('.data-centre-overlay > span').evaluate((caption) => {
+        const box = caption.closest('.data-centre-hexagon')!.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(caption);
+        return [...range.getClientRects()].every((rect) =>
+            [rect.left + 1, rect.right - 1].every((x) =>
+                [rect.top + 1, rect.bottom - 1].every((y) => {
+                    const dx = Math.abs(x - box.x - box.width / 2) / box.width;
+                    const dy = Math.abs(y - box.y - box.height / 2) / box.height;
+                    return dx <= 0.5 && dy <= 0.5 && 2 * dx + dy <= 1.01;
+                }),
+            ),
+        );
+    });
+    expect(fits, 'The hover/focus caption must fit inside the visible hexagon').toBe(true);
+}
 
 test.describe('Data Centres accessibility', () => {
     test.beforeEach(async ({ page }) => {
         await useDataCentreCatalogue(page);
         await page.emulateMedia({ reducedMotion: 'reduce' });
     });
+
+    for (const colorScheme of ['light', 'dark'] as const) {
+        test(`reveals the hexagon only on hover or keyboard focus in ${colorScheme}`, async ({ page }) => {
+            await page.emulateMedia({ colorScheme });
+            await openDataCentres(page);
+            await page.getByRole('heading', { level: 1 }).hover();
+            const links = page.locator('.data-centre-link');
+            for (const link of await links.all()) {
+                await expect(link.locator('.data-centre-hexagon')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+                await expect(link.locator('.data-centre-overlay')).toHaveCSS('opacity', '0');
+                await expect(link.locator('.data-centre-label')).toBeVisible();
+            }
+            const link = links.first();
+            const overlay = link.locator('.data-centre-overlay');
+            await link.hover();
+            await expect(overlay).toHaveCSS('opacity', '1');
+            await expect(overlay).toHaveCSS('color', 'rgb(255, 255, 255)');
+            await expect(overlay).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+            await expectCaptionInsideHexagon(link);
+            await page.getByRole('heading', { level: 1 }).hover();
+            await expect(overlay).toHaveCSS('opacity', '0');
+            await page.keyboard.press('Tab');
+            await link.focus();
+            await expect(link).toBeFocused();
+            await expect(overlay).toHaveCSS('opacity', '1');
+            // The shared reduced-motion rule uses a near-zero duration so
+            // transition completion events still fire.
+            expect(await overlay.evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration))).toBeLessThanOrEqual(0.001);
+            expect(await link.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
+            await page.keyboard.press('Tab');
+            await expect(overlay).toHaveCSS('opacity', '0');
+        });
+    }
 
     for (const width of [320, 768, 1440]) {
         for (const colorScheme of ['light', 'dark'] as const) {
@@ -70,6 +121,9 @@ test.describe('Data Centres accessibility', () => {
                     for (const rect of rects) {
                         expect(rect.left).toBeGreaterThanOrEqual(0);
                         expect(rect.right).toBeLessThanOrEqual(width + 1);
+                    }
+                    if (await link.evaluate((element) => element.classList.contains('data-centre-link'))) {
+                        await expectCaptionInsideHexagon(link);
                     }
                 }
                 expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

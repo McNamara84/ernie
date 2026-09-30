@@ -26,6 +26,9 @@ export function DataCentreGrid({ dataCentres }: { dataCentres: DataCentre[] }) {
                             ) : (
                                 <span className="data-centre-monogram">{centre.shortName}</span>
                             )}
+                            <span className="data-centre-overlay">
+                                <span>{centre.shortName}</span>
+                            </span>
                         </span>
                         <span className="data-centre-label">{centre.shortName}</span>
                     </Link>

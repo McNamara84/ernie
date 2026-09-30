@@ -82,6 +82,31 @@ test.describe('Data Centres', () => {
         await expect(fid).toBeFocused();
     });
 
+    test('opens a data centre search with one tap on a touch screen', async ({ browser, baseURL }) => {
+        const context = await browser.newContext({
+            baseURL,
+            viewport: { width: 390, height: 844 },
+            hasTouch: true,
+            ignoreHTTPSErrors: true,
+            extraHTTPHeaders: { 'X-ERNIE-Playwright-Test': '1' },
+        });
+        try {
+            const page = await context.newPage();
+            await useDataCentreCatalogue(page);
+            await openDataCentres(page);
+            const link = page.locator('.data-centre-link').first();
+            await expect(link.locator('.data-centre-label')).toBeVisible();
+            await expect(link.locator('.data-centre-overlay')).toHaveCSS('opacity', '0');
+            await link.tap();
+            await expect(page).toHaveURL(/\/doi-search\?/);
+            expect([...new URL(page.url()).searchParams.entries()]).toEqual([
+                [expect.stringMatching(/^datacenter\[(?:0)?\]$/), dataCentres[0].datacenterName],
+            ]);
+        } finally {
+            await context.close();
+        }
+    });
+
     for (const width of [390, 1440]) {
         test(`navigates through the live catalogue into the filtered DOI portal at ${width}px`, async ({ page }) => {
             await page.setViewportSize({ width, height: 900 });
