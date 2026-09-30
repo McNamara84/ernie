@@ -87,6 +87,9 @@ Route::get('/', [StaticPageController::class, 'home'])->name('home');
 
 Route::get('/find', [StaticPageController::class, 'find'])->name('find');
 
+Route::get('/data-centres', [StaticPageController::class, 'dataCentres'])->name('data-centres.index');
+Route::get('/data-centres/description', [StaticPageController::class, 'dataCentreDescription'])->name('data-centres.description');
+
 Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
 Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');

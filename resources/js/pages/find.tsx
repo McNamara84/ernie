@@ -57,22 +57,22 @@ export default function Find() {
                 </section>
 
                 <section aria-labelledby="find-data-centres" className="grid items-center gap-8 py-9 sm:py-12 lg:grid-cols-2 lg:gap-10">
-                    <a href="https://dataservices.gfz-potsdam.de/web/find/data-centres" className="block min-w-0 lg:order-last">
+                    <Link href="/data-centres" className="block min-w-0 lg:order-last">
                         <img
                             src="/images/find/data-centres.png"
                             alt="Data Centres overview with logos of participating projects and networks"
-                            width={620}
-                            height={321}
+                            width={1440}
+                            height={900}
                             className="h-auto w-full"
                             loading="lazy"
                             decoding="async"
                         />
-                    </a>
+                    </Link>
                     <div className="min-w-0 space-y-5">
                         <h2 id="find-data-centres" className="text-2xl font-semibold tracking-tight">
-                            <a href="https://dataservices.gfz-potsdam.de/web/find/data-centres" className="underline-offset-4 hover:underline">
+                            <Link href="/data-centres" className="underline-offset-4 hover:underline">
                                 Data Centres
-                            </a>
+                            </Link>
                         </h2>
                         <p className="max-w-5xl text-base leading-8 text-muted-foreground [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4">
                             During the past years we have developed several{' '}

@@ -198,6 +198,11 @@ test.describe('Homepage accessibility', () => {
         await page.keyboard.press('ArrowDown');
         await expect(page.getByRole('menuitem', { name: 'Data Portal', exact: true })).toBeFocused();
         await page.keyboard.press('ArrowDown');
+        const dataCentres = page.getByRole('menuitem', { name: 'Data Centres', exact: true });
+        await expect(dataCentres).toBeFocused();
+        await expect(dataCentres).toHaveAttribute('href', '/data-centres');
+        await expectContrastingFocus(dataCentres);
+        await page.keyboard.press('ArrowDown');
         await expect(page.getByRole('menuitem', { name: 'IGSN Portal', exact: true })).toBeFocused();
         await expectContrastingFocus(page.getByRole('menuitem', { name: 'IGSN Portal', exact: true }));
         await page.keyboard.press('Escape');

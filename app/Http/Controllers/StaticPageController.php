@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\ScienceTopic;
+use App\Services\DataCentreCatalogService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,6 +21,16 @@ final class StaticPageController extends Controller
     public function find(): Response
     {
         return Inertia::render('find');
+    }
+
+    public function dataCentres(DataCentreCatalogService $catalog): Response
+    {
+        return Inertia::render('data-centres/index', ['dataCentres' => $catalog->published()]);
+    }
+
+    public function dataCentreDescription(DataCentreCatalogService $catalog): Response
+    {
+        return Inertia::render('data-centres/description', ['dataCentres' => $catalog->published()]);
     }
 
     public function about(): Response

@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import type { FormEvent } from 'react';
 
@@ -117,12 +117,21 @@ export default function Home({ topics }: { topics: ScienceTopic[] }) {
                             <ul className="space-y-3 text-sm leading-6">
                                 {group.links.map((link) => (
                                     <li key={link.href}>
-                                        <a
-                                            href={link.href}
-                                            className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                                        >
-                                            {link.label}
-                                        </a>
+                                        {link.href.startsWith('/') ? (
+                                            <Link
+                                                href={link.href}
+                                                className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                                            >
+                                                {link.label}
+                                            </Link>
+                                        ) : (
+                                            <a
+                                                href={link.href}
+                                                className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                                            >
+                                                {link.label}
+                                            </a>
+                                        )}
                                     </li>
                                 ))}
                             </ul>

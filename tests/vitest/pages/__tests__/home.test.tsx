@@ -87,6 +87,7 @@ describe('GFZ Data Services homepage', () => {
     it('includes all three legacy link groups and the public footer', () => {
         render(<Home topics={topics} />);
         expect(within(screen.getByRole('region', { name: 'Services' })).getAllByRole('link')).toHaveLength(5);
+        expect(within(screen.getByRole('region', { name: 'Services' })).getByRole('link', { name: 'Data Centres' })).toHaveAttribute('href', '/data-centres');
         expect(within(screen.getByRole('region', { name: 'Guides' })).getAllByRole('link')).toHaveLength(6);
         expect(within(screen.getByRole('region', { name: 'External Links to our data' })).getAllByRole('link')).toHaveLength(5);
         expect(screen.getByRole('link', { name: 'Publication Instructions' })).toHaveAttribute(

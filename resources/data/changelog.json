@@ -4,6 +4,10 @@
         "date": "2026-09-28",
         "features": [
             {
+                "title": "Public Data Centres and Descriptions",
+                "description": "The Data Centres overview at /data-centres now presents the projects, networks and services represented in the DOI Data Portal, with reviewed English descriptions and local logos. Each hexagon opens /doi-search with the exact datacenter filter selected. The descriptions at /data-centres/description support independent accordion panels, keyboard navigation and shareable links that open and focus the relevant centre. Find → Data Centres is available on desktop and mobile, and the homepage and Find overview now link to the new pages. The catalogue follows published DOI datacenters and provides a text fallback for newly added centres."
+            },
+            {
                 "title": "Metadata File Uploads While Creating Resources",
                 "description": "Curators can upload DataCite XML from the resource list and open the resulting draft directly in the editor. New resources also have a collapsible XML, JSON and JSON-LD upload area in the editor. Imported metadata fills empty fields and adds unique entries while preserving values already entered; the editor upload does not create a draft until the normal save or autosave runs.",
                 "references": [

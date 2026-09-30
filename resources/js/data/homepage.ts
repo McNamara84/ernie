@@ -14,7 +14,7 @@ export const homepageLinkGroups = [
         title: 'Services',
         links: [
             { label: 'Portal / Data Catalogue', href: 'https://dataservices.gfz.de/portal/' },
-            { label: 'Data Centres', href: 'https://dataservices.gfz-potsdam.de/web/find/data-centres' },
+            { label: 'Data Centres', href: '/data-centres' },
             { label: 'ELMO - GFZ Metadata Editor 2.0', href: elmoUrl },
             { label: 'ELMO-MSL - GFZ Metadata Editor for the EPOS Multi-scale laboratories', href: 'https://dataservices.gfz.de/elmo-msl' },
             { label: 'GFZ IGSN Service', href: 'https://dataservices.gfz-potsdam.de/web/samples/introduction' },

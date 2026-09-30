@@ -32,6 +32,8 @@ describe('PortalHeader', () => {
     it.each([
         ['home', 'Home'],
         ['find', 'Overview'],
+        ['data-centres', 'Data Centres'],
+        ['data-centres-description', null],
         ['doi', 'Data Portal'],
         ['igsn', 'IGSN Portal'],
     ] as const)('keeps Overview first and marks only the current link for %s on desktop and mobile', async (portalKind, currentLabel) => {
@@ -40,6 +42,7 @@ describe('PortalHeader', () => {
         const entries = [
             ['Overview', '/find'],
             ['Data Portal', '/doi-search'],
+            ['Data Centres', '/data-centres'],
             ['IGSN Portal', '/igsn-search'],
         ];
 
@@ -58,7 +61,7 @@ describe('PortalHeader', () => {
         expect(
             mobile
                 .getAllByRole('link')
-                .slice(1, 4)
+                .slice(1, 5)
                 .map((link) => link.textContent),
         ).toEqual(entries.map(([label]) => label));
         for (const [label, href] of [['Home', '/'], ...entries]) {
@@ -71,14 +74,28 @@ describe('PortalHeader', () => {
         expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('keeps the Find page wordmark visible without adding a second main heading', () => {
-        render(<PortalHeader portalKind="find" />);
+    it.each(['find', 'data-centres', 'data-centres-description'] as const)('keeps the %s wordmark visible without adding a second main heading', (kind) => {
+        render(<PortalHeader portalKind={kind} />);
         expect(screen.getByTestId('portal-wordmark').tagName).toBe('P');
         expect(screen.getByTestId('portal-wordmark')).toHaveTextContent('GFZ Data Services');
         expect(screen.getByTestId('portal-wordmark')).not.toHaveClass('sr-only');
         expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
         expect(screen.getByRole('button', { name: 'Find' })).toHaveClass('bg-portal-nav-active');
+    });
+
+    it('highlights the Data Centres section on its description page without marking the overview as the current page', async () => {
+        const user = userEvent.setup();
+        render(<PortalHeader portalKind="data-centres-description" />);
+        await user.click(screen.getByRole('button', { name: 'Find' }));
+        const desktop = await screen.findByRole('menuitem', { name: 'Data Centres' });
+        expect(desktop).toHaveClass('bg-portal-nav-active');
+        expect(desktop).not.toHaveAttribute('aria-current');
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: 'Open menu' }));
+        const mobile = within(screen.getByTestId('mobile-menu')).getByRole('link', { name: 'Data Centres' });
+        expect(mobile).toHaveClass('bg-portal-nav-active');
+        expect(mobile).not.toHaveAttribute('aria-current');
     });
 
     it('marks Home instead of Find on the homepage in desktop and mobile navigation', async () => {
