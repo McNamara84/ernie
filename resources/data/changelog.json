@@ -169,6 +169,17 @@
         ],
         "fixes": [
             {
+                "title": "Funding ROR Lookup Fallback",
+                "description": "Funding references automatically retry loading the local ROR directory when the shared catalog fails or contains no usable entries. Recovered records support both name suggestions and explicit ROR ID confirmation; failed fallback requests can be retried without losing existing funding metadata.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1367,
+                        "url": "https://github.com/McNamara84/ernie/issues/1367"
+                    }
+                ]
+            },
+            {
                 "title": "Readable Datacenter Filters in Both Portals",
                 "description": "The Data and IGSN portal filters now show datacenter options in smaller text and wrap long names and selected values across lines, including names with long unbroken parts. Checkboxes, result counts, and remove controls remain visible in desktop sidebars and mobile filter drawers.",
                 "references": [

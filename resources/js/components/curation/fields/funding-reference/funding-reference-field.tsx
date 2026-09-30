@@ -2,10 +2,11 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Banknote, Plus } from 'lucide-react';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { indexRorSuggestions } from '@/lib/ror-input';
 
 import { RorCatalogContext } from '../ror-input-feedback';
 import { getFunderByRorId, loadRorFunders } from './ror-search';
@@ -21,14 +22,20 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
     const catalog = useContext(RorCatalogContext);
     const [localFunders, setRorFunders] = useState<RorFunder[]>([]);
     const [localLoading, setIsLoadingRor] = useState(true);
+    const [fallbackAttempt, setFallbackAttempt] = useState(0);
+    const retryFallback = useCallback(() => setFallbackAttempt((attempt) => attempt + 1), []);
+    const hasSharedCatalog = !!catalog && !catalog.isLoading && !catalog.error && catalog.index.size > 0;
+    const shouldLoadFallback = !catalog?.isLoading && !hasSharedCatalog;
+    const localCatalog = useMemo(() => {
+        const suggestions = localFunders.map((item) => ({ value: item.prefLabel, rorId: item.rorId, searchTerms: item.otherLabel }));
+        return { suggestions, index: indexRorSuggestions(suggestions), isLoading: localLoading, error: null, retry: retryFallback };
+    }, [localFunders, localLoading, retryFallback]);
+    const effectiveCatalog = catalog && (catalog.isLoading || hasSharedCatalog) ? catalog : localCatalog;
     const rorFunders = useMemo(
-        () =>
-            catalog
-                ? catalog.suggestions.map((item) => ({ prefLabel: item.value, rorId: item.rorId ?? '', otherLabel: item.searchTerms }))
-                : localFunders,
-        [catalog, localFunders],
+        () => effectiveCatalog.suggestions.map((item) => ({ prefLabel: item.value, rorId: item.rorId ?? '', otherLabel: item.searchTerms })),
+        [effectiveCatalog.suggestions],
     );
-    const isLoadingRor = catalog ? catalog.isLoading : localLoading;
+    const isLoadingRor = effectiveCatalog.isLoading;
 
     // Sensors for drag and drop
     const sensors = useSensors(
@@ -38,21 +45,27 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
         }),
     );
 
-    // Load ROR data on mount
+    // Wait for the shared request, then fall back if it has no usable catalog.
     useEffect(() => {
-        if (catalog) return;
+        if (!shouldLoadFallback) return;
+        let active = true;
+        setIsLoadingRor(true);
+        setRorFunders([]);
         const loadData = async () => {
             try {
                 const funders = await loadRorFunders();
-                setRorFunders(funders);
+                if (active) setRorFunders(funders);
             } catch (error) {
                 console.error('Failed to load ROR funders:', error);
             } finally {
-                setIsLoadingRor(false);
+                if (active) setIsLoadingRor(false);
             }
         };
-        loadData();
-    }, [catalog]);
+        void loadData();
+        return () => {
+            active = false;
+        };
+    }, [shouldLoadFallback, fallbackAttempt]);
 
     // Auto-fill funder names from ROR IDs when ROR data is loaded
     useEffect(() => {
@@ -131,7 +144,7 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
 
     const canRemove = value.length > 0;
 
-    return (
+    const fundingFields = (
         <div className="space-y-6">
             {isLoadingRor && <p className="text-right text-xs text-muted-foreground">Loading ROR data...</p>}
 
@@ -181,4 +194,7 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
             )}
         </div>
     );
+
+    // Funding items need the same effective catalog for name search and exact-ID confirmation.
+    return <RorCatalogContext.Provider value={effectiveCatalog}>{fundingFields}</RorCatalogContext.Provider>;
 }
