@@ -51,7 +51,7 @@ test.describe('Find overview', () => {
             await page.getByRole('navigation', { name: 'Footer navigation' }).scrollIntoViewIfNeeded();
             await expect(page.getByRole('link', { name: 'Data Centres', exact: true })).toHaveAttribute(
                 'href',
-                'https://dataservices.gfz-potsdam.de/web/find/data-centres',
+                '/data-centres',
             );
             await expect(page.getByRole('link', { name: 'MESI', exact: true })).toHaveAttribute(
                 'href',

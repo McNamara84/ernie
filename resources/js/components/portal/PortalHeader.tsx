@@ -8,11 +8,14 @@ import { cn } from '@/lib/utils';
 import { legalNotice } from '@/routes';
 import type { PortalKind } from '@/types/portal';
 
+export type PublicContentPage = 'home' | 'find' | 'data-centres' | 'data-centres-description';
+
 interface NavItem {
     label: string;
     href: string;
     external: boolean;
     active?: boolean;
+    current?: boolean;
     icon?: React.ReactNode;
 }
 
@@ -26,9 +29,10 @@ const NAV_ITEMS: NavItem[] = [
     { label: 'Data Protection', href: 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection', external: true },
 ];
 
-const FIND_ITEMS: Array<NavItem & { kind: PortalKind | 'find' }> = [
+const FIND_ITEMS: Array<NavItem & { kind: PortalKind | 'find' | 'data-centres' }> = [
     { kind: 'find', label: 'Overview', href: '/find', external: false },
     { kind: 'doi', label: 'Data Portal', href: '/doi-search', external: false },
+    { kind: 'data-centres', label: 'Data Centres', href: '/data-centres', external: false },
     { kind: 'igsn', label: 'IGSN Portal', href: '/igsn-search', external: false },
 ];
 
@@ -59,7 +63,7 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
     const baseClasses = 'block w-full px-4 py-3 text-sm font-medium transition-colors hover:bg-portal-nav-active';
     const activeClasses = item.active ? 'bg-portal-nav-active font-semibold' : '';
     const className = `${baseClasses} ${activeClasses}`.trim();
-    const ariaCurrent = item.active ? ('page' as const) : undefined;
+    const ariaCurrent = (item.current ?? item.active) ? ('page' as const) : undefined;
 
     if (item.external) {
         return (
@@ -88,15 +92,17 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
     );
 }
 
-export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind | 'home' | 'find' }) {
+export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind | PublicContentPage }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [menuContainer, setMenuContainer] = useState<HTMLElement | null>(null);
     const mobileMenuId = useId();
     const mobileMenuTrigger = useRef<HTMLButtonElement>(null);
     const isHome = portalKind === 'home';
-    const isContentPage = isHome || portalKind === 'find';
-    const Wordmark = portalKind === 'find' ? 'p' : 'h1';
+    const isContentPage = portalKind !== 'doi' && portalKind !== 'igsn';
+    const Wordmark = isContentPage && !isHome ? 'p' : 'h1';
     const homeItem = { ...NAV_ITEMS[0], active: isHome };
+    const isFindItemActive = (kind: (typeof FIND_ITEMS)[number]['kind']) =>
+        portalKind === kind || (kind === 'data-centres' && portalKind === 'data-centres-description');
 
     return (
         <header data-slot="portal-header">
@@ -154,7 +160,13 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
                                 <DropdownMenuContent portalContainer={menuContainer} align="start" className="min-w-44">
                                     {FIND_ITEMS.map((item) => (
                                         <DropdownMenuItem key={item.kind} asChild>
-                                            <Link href={item.href} aria-current={portalKind === item.kind ? 'page' : undefined}>
+                                            <Link
+                                                href={item.href}
+                                                aria-current={portalKind === item.kind ? 'page' : undefined}
+                                                className={cn(
+                                                    isFindItemActive(item.kind) && 'bg-portal-nav-active font-semibold text-portal-nav-foreground',
+                                                )}
+                                            >
                                                 {item.label}
                                             </Link>
                                         </DropdownMenuItem>
@@ -203,7 +215,7 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
                                     {FIND_ITEMS.map((item) => (
                                         <li key={item.kind}>
                                             <MobileNavLink
-                                                item={{ ...item, active: portalKind === item.kind }}
+                                                item={{ ...item, active: isFindItemActive(item.kind), current: portalKind === item.kind }}
                                                 onClick={() => setMobileMenuOpen(false)}
                                             />
                                         </li>

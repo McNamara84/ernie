@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    buildDataCentreSearchUrl,
     buildPortalCountUrl,
     buildPortalFilterUrl,
     buildPortalMapClusterMembersUrl,
@@ -27,6 +28,12 @@ const filters: PortalFilters = {
 };
 
 describe('portal filter URL builders', () => {
+    it.each(['FID GEO', 'GFZ German Research Centre for Geosciences', 'A+B & <rocks> / 地球', 'Centre?query=#1'])('starts a clean DOI search for the exact datacenter %s', (name) => {
+        const url = new URL(buildDataCentreSearchUrl(name), 'https://ernie.test');
+        expect(url.pathname).toBe('/doi-search');
+        expect([...url.searchParams.entries()]).toEqual([['datacenter[]', name]]);
+        expect(url.hash).toBe('');
+    });
     it('retains the science topic for pagination, counts, maps and cluster members', () => {
         const selected = { ...filters, topic: { slug: 'scientific-drilling', label: 'Scientific Drilling' } };
         const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };

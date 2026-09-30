@@ -584,6 +584,18 @@ verify them after reopening:
 
 ### 3.10 Portal and Public Discovery
 
+- [ ] `Find → Data Centres` opens `/data-centres` on desktop and mobile. The
+      homepage and Find overview link to the same local page. Every tile opens
+      `/doi-search` with exactly its datacenter selected; GEOFON Events and
+      GEOFON Networks remain separate. Compare the catalogue with the portal's
+      published DOI datacenter facet.
+
+- [ ] `/data-centres/description` starts with collapsed descriptions. Keyboard
+      users can open several panels independently. An individual Direct link
+      opens and focuses its heading after reload and browser Back/Forward. Check
+      logos, visible labels, focus indicators, and text at narrow widths, enlarged
+      font sizes, and in both light and dark themes.
+
 - [ ] The portal opens without login and shows result count, result list, and map
       or an understandable empty state.
 

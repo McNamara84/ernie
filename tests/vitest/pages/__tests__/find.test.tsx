@@ -47,7 +47,7 @@ describe('Find overview', () => {
         expect(section.getByText(filters)).toBeVisible();
     });
 
-    it('preserves the complete Data Centres paragraph and its original link destinations', () => {
+    it('preserves the Data Centres introduction and links to the local overview', () => {
         render(<Find />);
         const region = screen.getByRole('region', { name: 'Data Centres' });
         // Source: https://dataservices.gfz-potsdam.de/web/find, captured 2026-09-28.
@@ -56,7 +56,7 @@ describe('Find overview', () => {
         );
         expect(within(region).getByRole('link', { name: 'Data Centres' })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/find/data-centres',
+            '/data-centres',
         );
         expect(within(region).getByRole('link', { name: 'DOI' })).toHaveAttribute('href', 'https://dataservices.gfz-potsdam.de/web/support/glossary');
     });
@@ -117,9 +117,9 @@ describe('Find overview', () => {
             [
                 'Data Centres',
                 'data-centres.png',
-                'https://dataservices.gfz-potsdam.de/web/find/data-centres',
-                620,
-                321,
+                '/data-centres',
+                1440,
+                900,
                 /logos of participating projects/,
             ],
             [

@@ -1,0 +1,84 @@
+.data-centre-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+    gap: 2rem 1.5rem;
+    list-style: none;
+}
+
+.data-centre-cell {
+    min-width: 0;
+    text-align: center;
+}
+
+.data-centre-link {
+    display: flex;
+    height: calc(100% - 2.75rem);
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+}
+
+.data-centre-hexagon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: min(100%, 13rem);
+    aspect-ratio: 1.1547;
+    flex-shrink: 0;
+    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+    background: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-page [data-slot='accordion-content'] {
+        animation: none;
+    }
+
+    .home-page [data-slot='accordion-trigger'] svg {
+        transition: none;
+    }
+}
+
+.data-centre-hexagon img {
+    width: 75%;
+    height: 85%;
+    object-fit: contain;
+}
+
+.data-centre-monogram {
+    max-width: 65%;
+    color: var(--foreground);
+    font-size: 1rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.data-centre-label {
+    overflow-wrap: anywhere;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.data-centre-link:hover .data-centre-label {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.data-centre-description-link {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    font-size: 0.875rem;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+@media (width >= 768px) {
+    .data-centre-cell:nth-child(even) .data-centre-hexagon {
+        /* A gentle stagger preserves the familiar honeycomb motif without
+           overlapping long labels or changing keyboard/reading order. */
+        transform: translateY(0.75rem);
+    }
+}
