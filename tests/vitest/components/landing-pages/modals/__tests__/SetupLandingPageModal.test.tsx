@@ -175,6 +175,36 @@ describe('SetupLandingPageModal', () => {
         return screen.findByLabelText(/^Download URL$/i);
     };
 
+    describe('editor leave protection', () => {
+        it('reports edits to a new landing page and clears the signal after reverting them', async () => {
+            const onDirtyChange = vi.fn();
+            mockModalGetRequests();
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+
+            const input = await openDownloadInput();
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+            await userEvent.type(input, 'https://example.org/file.zip');
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+            await userEvent.clear(input);
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+        });
+
+        it('keeps an edited existing configuration dirty until the save succeeds', async () => {
+            const onDirtyChange = vi.fn();
+            mockModalGetRequests({ landingPage: mockExistingConfig });
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Saved', landing_page: mockExistingConfig } });
+            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+
+            const input = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+            await userEvent.clear(input);
+            await userEvent.type(input, 'https://example.org/changed.zip');
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+            await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+            await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+        });
+    });
+
     describe('Automatic download workflow', () => {
         it('starts empty and opening the input alone does not create an unsaved configuration', async () => {
             mockModalGetRequests();

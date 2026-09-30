@@ -58,6 +58,7 @@ interface SetupLandingPageModalProps {
     onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
     existingConfig?: LandingPageConfig | null;
     openPreviewOnSuccess?: boolean;
+    onDirtyChange?: (dirty: boolean) => void;
 }
 
 const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
@@ -66,6 +67,10 @@ const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
 };
 
 const LANDING_PAGE_DRAFT_STORAGE_PREFIX = 'setup-landing-page-modal:draft';
+
+export function hasStoredLandingPageDraft(resourceId: number): boolean {
+    return readSessionStorageItem(`${LANDING_PAGE_DRAFT_STORAGE_PREFIX}:${resourceId}`) !== null;
+}
 
 type DownloadUrlSuggestionEntry = {
     id: string;
@@ -360,6 +365,7 @@ export default function SetupLandingPageModal({
     onSuccess,
     existingConfig,
     openPreviewOnSuccess = false,
+    onDirtyChange,
 }: SetupLandingPageModalProps) {
     const { auth } = usePage<{ auth: { user: AuthUser | null } }>().props;
     const canDeleteLandingPages = auth.user?.can_delete_landing_pages ?? false;
@@ -830,72 +836,11 @@ export default function SetupLandingPageModal({
      * Track whether the user has made unsaved changes to the configuration.
      * Used to determine if session-based preview should be used and to show visual feedback.
      */
-    const hasUnsavedChanges = useMemo(() => {
-        if (!currentConfig) return false;
-        const isExternalTemplate = template === 'external';
-        const currentTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, currentConfig.template);
-        const currentLandingPageTemplateId = getHydratedLandingPageTemplateId(currentTemplate, currentConfig);
-        const baseChanges =
-            template !== currentTemplate ||
-            // ftpUrl is irrelevant for external and IGSN templates.
-            (supportsFtpUrl && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
-            (supportsFtpUrl && primaryDownloadLabel !== (currentConfig.primary_download_label ?? '')) ||
-            (supportsFtpUrl && ftpFormatId !== (currentConfig.ftp_format_id ?? null)) ||
-            (supportsFtpUrl && ftpSizeId !== (currentConfig.ftp_size_id ?? null)) ||
-            (supportsDownloadActivation && activateDownloads) ||
-            isPublished !== (currentConfig.status === 'published') ||
-            landingPageTemplateId !== currentLandingPageTemplateId;
+    const hasUnsavedChanges = hasHydratedDraftState && !arePersistedLandingPageDraftStatesEqual(currentDraftState, baselineDraftState);
 
-        // Check if links have changed
-        const currentLinks = currentConfig.links ?? [];
-        const linksChanged =
-            links.length !== currentLinks.length ||
-            links.some((link, i) => {
-                const original = currentLinks[i];
-                return (
-                    !original ||
-                    link.url !== original.url ||
-                    link.label !== original.label ||
-                    link.kind !== original.kind ||
-                    link.format_id !== original.format_id ||
-                    link.size_id !== original.size_id ||
-                    link.position !== original.position
-                );
-            });
-        const currentFiles = currentConfig.files ?? [];
-        const filesChanged =
-            files.length !== currentFiles.length ||
-            files.some((file, index) => {
-                const original = currentFiles[index];
-                return !original || file.label !== original.label || file.format_id !== original.format_id || file.size_id !== original.size_id;
-            });
-
-        if (isExternalTemplate) {
-            return (
-                baseChanges ||
-                externalDomainId !== String(currentConfig.external_domain_id ?? '') ||
-                externalPath !== (currentConfig.external_path ?? '')
-            );
-        }
-        return baseChanges || linksChanged || filesChanged;
-    }, [
-        currentConfig,
-        template,
-        ftpUrl,
-        primaryDownloadLabel,
-        ftpFormatId,
-        ftpSizeId,
-        activateDownloads,
-        isPublished,
-        externalDomainId,
-        externalPath,
-        links,
-        files,
-        landingPageTemplateId,
-        resource.resourcetypegeneral,
-        supportsFtpUrl,
-        supportsDownloadActivation,
-    ]);
+    useEffect(() => {
+        if (isOpen && hasHydratedDraftState) onDirtyChange?.(hasUnsavedChanges || isSaving);
+    }, [hasHydratedDraftState, hasUnsavedChanges, isOpen, isSaving, onDirtyChange]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {

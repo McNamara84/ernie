@@ -68,6 +68,7 @@ interface EditorProps {
     availableDatacenters?: { id: number; name: string }[];
     editorLoad?: EditorLoadContext;
     refreshSavedDraftOnRestore?: boolean;
+    hasUnpersistedPrefill?: boolean;
 }
 
 const CLIENT_VOCABULARY_COUNT = 8;
@@ -118,6 +119,7 @@ export default function Editor({
     availableDatacenters = [],
     editorLoad,
     refreshSavedDraftOnRestore = false,
+    hasUnpersistedPrefill = false,
 }: EditorProps) {
     // Keep the live form mounted after Save Draft. A later history restoration
     // mounts a new Editor instance and must load the saved resource from the server.
@@ -335,6 +337,7 @@ export default function Editor({
                         initialLicenses={initialLicenses}
                         initialRawRights={initialRawRights}
                         initialResourceId={resourceId}
+                        hasUnpersistedPrefill={hasUnpersistedPrefill}
                         initialPublicStatus={publicStatus}
                         canEditDoi={canEditDoi}
                         initialLandingPage={landingPage}

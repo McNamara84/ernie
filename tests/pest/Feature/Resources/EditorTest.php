@@ -24,9 +24,22 @@ test('authenticated users can view editor page', function () {
     $response = $this->get(route('editor'))->assertOk();
 
     $response->assertInertia(fn (Assert $page) => $page->component('editor')
+        ->where('hasUnpersistedPrefill', false)
         ->where('titles', [])
         ->where('initialLicenses', [])
     );
+});
+
+test('prefilled new editor data is marked as unsaved', function () {
+    $this->actingAs(User::factory()->create());
+    withoutVite();
+
+    $this->get(route('editor', ['year' => '2026', 'titles' => [['title' => 'Imported title', 'titleType' => 'main-title']]]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('editor')
+            ->where('hasUnpersistedPrefill', true)
+        );
 });
 
 test('editor exposes DOI edit permission for an unpublished resource', function (UserRole $role, bool $expected) {
