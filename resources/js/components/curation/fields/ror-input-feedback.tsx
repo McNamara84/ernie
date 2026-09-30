@@ -45,19 +45,20 @@ export function RorInputFeedback({ id, text, index, open, isLoading, error, retr
             </p>
             {open && match && !isLoading && !error && (
                 <div id={`${id}-ror-options`} role="listbox" aria-label="ROR organization">
-                    <button
+                    <Button
                         type="button"
+                        variant="outline"
                         role="option"
                         aria-selected="true"
                         id={`${id}-ror-option`}
-                        className="flex w-full flex-col rounded-md border bg-popover p-3 text-left hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                        className="h-auto w-full flex-col items-start gap-1 bg-popover p-3 text-left whitespace-normal"
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => onSelect(match)}
                     >
                         <span>Use name: {match.value}</span>
                         <span className="text-muted-foreground">ROR record: {input.kind === 'ror' && index.get(input.rorId)?.value}</span>
                         <span className="font-mono text-xs">{match.rorId}</span>
-                    </button>
+                    </Button>
                 </div>
             )}
             {!isLoading && (!match || error) && input.name && (
