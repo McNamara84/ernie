@@ -90,8 +90,9 @@ final class LandingPageMachineMetadataService
         $this->appendTag($tags, 'DC.publisher', $publisher['name'] ?? null);
         $this->appendTag($tags, 'DC.date', $jsonLd['datePublished'] ?? $attributes['publicationYear'] ?? null);
         $this->appendTag($tags, 'DC.rights', $license);
-        $this->appendTag($tags, 'DC.accessRights', $resource->access_level?->label());
-        $this->appendTag($tags, 'DC.accessRights', $resource->access_level?->coarUri());
+        $accessLevel = app(ResourceAccessLevelResolverService::class)->resolve($resource, $landingPage);
+        $this->appendTag($tags, 'DC.accessRights', $accessLevel?->label());
+        $this->appendTag($tags, 'DC.accessRights', $accessLevel?->coarUri());
 
         $types = is_array($attributes['types'] ?? null) ? $attributes['types'] : [];
         $this->appendTag($tags, 'DC.type', $types['resourceTypeGeneral'] ?? null);

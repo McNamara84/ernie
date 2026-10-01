@@ -15,8 +15,9 @@ covers(MetadataAccessContentBackfillService::class);
 
 test('audits without writes and applies only unambiguous access mappings', function (): void {
     $open = Resource::factory()->create(['access_level' => null]);
+    LandingPage::factory()->create(['resource_id' => $open->id, 'ftp_url' => 'https://downloads.example.org/data.zip']);
     $metadataOnly = Resource::factory()->create(['access_level' => null]);
-    LandingPage::factory()->downloadsUnavailable()->create(['resource_id' => $metadataOnly->id]);
+    LandingPage::factory()->downloadsUnavailable()->create(['resource_id' => $metadataOnly->id, 'ftp_url' => null]);
 
     $physicalObject = ResourceType::firstOrCreate(
         ['slug' => 'physical-object'],
@@ -53,6 +54,27 @@ test('audits without writes and applies only unambiguous access mappings', funct
         ->and($igsnOpen->fresh()->access_level)->toBe(AccessLevel::OPEN)
         ->and($igsnUnknown->fresh()->access_level)->toBeNull()
         ->and($service->run(apply: true)['access_changes'])->toBe(0);
+});
+
+test('leaves external and missing landing-page access unresolved while hidden downloads are metadata only', function (): void {
+    $external = Resource::factory()->create(['access_level' => null]);
+    LandingPage::factory()->external()->create(['resource_id' => $external->id, 'ftp_url' => 'https://downloads.example.org/data.zip']);
+    $missing = Resource::factory()->create(['access_level' => null]);
+    $suppressed = Resource::factory()->create(['access_level' => null]);
+    LandingPage::factory()->create([
+        'resource_id' => $suppressed->id,
+        'ftp_url' => 'https://downloads.example.org/hidden.zip',
+        'downloads_unavailable' => true,
+    ]);
+
+    $result = app(MetadataAccessContentBackfillService::class)->run(apply: true);
+
+    expect($result['access_changes'])->toBe(1)
+        ->and(collect($result['review'])->where('category', 'access_unknown_resource')->pluck('resource_id')->all())
+        ->toEqualCanonicalizing([$external->id, $missing->id])
+        ->and($external->fresh()->access_level)->toBeNull()
+        ->and($missing->fresh()->access_level)->toBeNull()
+        ->and($suppressed->fresh()->access_level)->toBe(AccessLevel::METADATA_ONLY);
 });
 
 test('reports an embargoed IGSN without an Available date', function (): void {

@@ -793,6 +793,14 @@ This command:
 
 It does not reuse the regular development schema. For broader testing guidance, see [testing.md](testing.md).
 
+### Digital resource access metadata
+
+Resource landing pages and the DataCite JSON/XML exports resolve access from the curated `access_level` first. When it is empty, an internal digital-resource landing page with an active usable primary Download URL or imported file URL implies Open access. An internal page without automatic downloads exposes Metadata only access, including pages whose saved download links are still hidden. External landing pages and resources without a landing page remain unresolved unless a curator provides a reliable access level. This inference does not apply to Physical Objects or resources with IGSN metadata.
+
+The effective level appears in Schema.org `conditionsOfAccess`, Dublin Core `DC.accessRights`, and DataCite `rightsList` with the COAR Access Rights URI. Digital Metadata only access omits `isAccessibleForFree`: emitting `false` would let F-UJI infer Restricted access even though the absence of a download does not establish that restriction. Download availability and the resource license remain separate metadata. The inference is computed from current configuration without persisting it during public requests, so adding or removing downloads updates the output immediately.
+
+`npm run artisan -- metadata:backfill-access-content` audits missing stored access levels without writes; `--apply` persists unambiguous candidates and reports unresolved resources for review. Existing curated levels are preserved. Earlier versions initialized digital resources to Open even without internal download evidence; those stored values cannot be distinguished from curated Open values and need review when the actual access is unknown.
+
 ### Embargo workflow (issue #1350)
 
 ERNIE uses `Embargo` only as an internal workflow status. DataCite 4.7 metadata keeps `dateType=Available` and the COAR `Embargoed access` right. A valid embargo needs exactly one day-precision `Available` date (`YYYY-MM-DD`). The configured `APP_TIMEZONE` determines when that date becomes due at 00:00. The status remains Embargo until a curator manually registers the DOI or IGSN; successful registration changes the access right to Open and publishes the internal landing page. The dashboard lists due resources for every curator. Unpublished preview URLs require their token and omit stored download destinations. The XML schema snapshot under `resources/data/scheme/datacite-4.7/` comes from the official DataCite 4.7 schema and is used by the schema regression test.

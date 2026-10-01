@@ -109,15 +109,17 @@ test('access backfill preserves an explicitly assigned access level on request-o
         ->and($resource->fresh()->access_level)->toBe($accessLevel);
 })->with(AccessLevel::cases());
 
-test('access backfill preserves the existing fallback for resources without an internal landing page', function (bool $external): void {
+test('access backfill leaves resources without an internal landing page unresolved', function (bool $external): void {
     $resource = Resource::factory()->create(['access_level' => null]);
     if ($external) {
         LandingPage::factory()->for($resource)->external()->create();
     }
 
-    app(MetadataAccessContentBackfillService::class)->run(apply: true);
+    $result = app(MetadataAccessContentBackfillService::class)->run(apply: true);
 
-    expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+    expect($result['access_changes'])->toBe(0)
+        ->and(collect($result['review'])->pluck('category'))->toContain('access_unknown_resource')
+        ->and($resource->fresh()->access_level)->toBeNull()
         ->and(app(SizeFormatSourceResolverService::class)->resolve($resource->fresh()))->toBe([]);
 })->with([true, false]);
 
