@@ -2,9 +2,10 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
+import { navigateWithTlsRetry } from '../helpers/navigation';
 import { LandingPage } from '../helpers/page-objects/LandingPage';
 
-// Seed PlaywrightTestSeeder and TombstonePlaywrightSeeder before running this slice.
+// Seed PlaywrightTestSeeder before running this slice; it includes the tombstone fixture.
 // The fixture represents a completed sync; these tests never call DataCite.
 test('public tombstone keeps citation, metadata and contact without offering data access', async ({ page }) => {
     const landingPage = new LandingPage(page);
@@ -45,7 +46,7 @@ test('Dead filtering opens saved tombstone settings and previews an unsaved expl
         maxRedirects: 0,
     });
     expect(signIn.status()).toBe(302);
-    await page.goto('/resources?status=dead&search=playwright-tombstone', { waitUntil: 'commit' });
+    await navigateWithTlsRetry(page, '/resources?status=dead&search=playwright-tombstone', { waitUntil: 'commit' });
     const row = page.getByTestId('resources-table').getByRole('row').filter({ hasText: 'Playwright: Tombstone Resource' });
     await expect(row).toBeVisible({ timeout: 90_000 });
     await expect(row.getByText('Dead', { exact: true })).toBeVisible();

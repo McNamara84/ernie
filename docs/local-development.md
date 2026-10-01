@@ -807,7 +807,7 @@ Run migrations before using this feature. Keep the `queue` worker (including the
 
 Restoration requires confirmation and restores the saved landing page configuration and previous DOI state/URL. If no landing page existed, choose explicitly whether to publish the restored default page. Revisions prevent stale modal saves and queued changes from replacing newer lifecycle decisions. Audit records retain the actor, public explanation and configuration snapshot. Metadata corrections remain possible while a tombstone is active.
 
-Seed `PlaywrightTestSeeder` and `TombstonePlaywrightSeeder` before the browser slice. The tombstone fixture represents a completed synchronization and sends no DataCite requests.
+Seed `PlaywrightTestSeeder` before the browser slice, as in CI. It automatically calls `TombstonePlaywrightSeeder`; the tombstone fixture represents a completed synchronization and sends no DataCite requests.
 
 Focused regression checks:
 

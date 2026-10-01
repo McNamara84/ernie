@@ -188,6 +188,10 @@
         ],
         "fixes": [
             {
+                "title": "Complete Tombstone Browser Test Fixtures",
+                "description": "The shared Playwright test seeder now includes the completed tombstone resource in local and CI environments. Browser tests for the public tombstone, Dead filtering and previews receive the same fixture without sending requests to DataCite. Regression tests verify availability and repeated seeding."
+            },
+            {
                 "title": "Validated ROR Funder Suggestions",
                 "description": "Funding autocomplete excludes catalog records with missing or malformed ROR identifiers, including fallback data. Selecting a valid record by name or alias stores its canonical ROR URL. Malformed identifier types in cached records no longer interrupt ROR lookup.",
                 "references": [

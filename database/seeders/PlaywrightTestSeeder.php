@@ -177,6 +177,9 @@ class PlaywrightTestSeeder extends Seeder
         // - Files with/without download URLs, contact persons
         $this->call(ResourceTestDataSeeder::class);
 
+        // Include the completed tombstone fixture in the shared local/CI setup.
+        $this->call(TombstonePlaywrightSeeder::class);
+
         $this->command->info('Playwright test users created successfully!');
     }
 
