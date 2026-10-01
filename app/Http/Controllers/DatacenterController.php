@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Datacenter\StoreDatacenterRequest;
+use App\Http\Requests\Datacenter\UpdateDatacenterRequest;
 use App\Models\Datacenter;
+use App\Services\DatacenterNameService;
 use Illuminate\Http\JsonResponse;
 
 class DatacenterController extends Controller
@@ -25,9 +27,9 @@ class DatacenterController extends Controller
     /**
      * Store a new datacenter (Settings management).
      */
-    public function store(StoreDatacenterRequest $request): JsonResponse
+    public function store(StoreDatacenterRequest $request, DatacenterNameService $names): JsonResponse
     {
-        $datacenter = Datacenter::create($request->validated());
+        $datacenter = $names->create($request->validated('name'));
 
         return response()->json([
             'datacenter' => [
@@ -37,6 +39,20 @@ class DatacenterController extends Controller
             ],
             'message' => 'Datacenter created successfully.',
         ], 201);
+    }
+
+    public function update(UpdateDatacenterRequest $request, Datacenter $datacenter, DatacenterNameService $names): JsonResponse
+    {
+        $datacenter = $names->rename($datacenter, $request->validated('name'));
+
+        return response()->json([
+            'datacenter' => [
+                'id' => $datacenter->id,
+                'name' => $datacenter->name,
+                'resources_count' => $datacenter->resources()->count(),
+            ],
+            'message' => 'Datacenter renamed successfully.',
+        ]);
     }
 
     /**

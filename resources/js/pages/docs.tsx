@@ -554,6 +554,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         <ul className="list-inside list-disc space-y-1">
                             <li>Add new datacenters by entering a name and clicking &quot;Add&quot;</li>
                             <li>View how many resources are assigned to each datacenter</li>
+                            <li>Rename any datacenter, including one already assigned to resources or IGSNs. The assignments stay with it.</li>
                             <li>Delete datacenters that have no assigned resources (the delete button is disabled otherwise)</li>
                         </ul>
 

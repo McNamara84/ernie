@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ChevronDown, ChevronRight, Database, Globe, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, Globe, Pencil, Trash2 } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { getSelectAllState } from '@/lib/select-all';
@@ -161,6 +162,10 @@ export default function EditorSettings({
     const [datacenters, setDatacenters] = useState<DatacenterRow[]>(initialDatacenters);
     const [newDatacenter, setNewDatacenter] = useState('');
     const [isAddingDatacenter, setIsAddingDatacenter] = useState(false);
+    const [editingDatacenterId, setEditingDatacenterId] = useState<number | null>(null);
+    const [datacenterNameDraft, setDatacenterNameDraft] = useState('');
+    const [datacenterRenameError, setDatacenterRenameError] = useState('');
+    const [isRenamingDatacenter, setIsRenamingDatacenter] = useState(false);
 
     const handleAddDomain = async () => {
         if (!newDomain.trim()) return;
@@ -239,6 +244,42 @@ export default function EditorSettings({
             } else {
                 toast.error('Failed to delete datacenter');
             }
+        }
+    };
+
+    const cancelDatacenterRename = () => {
+        setEditingDatacenterId(null);
+        setDatacenterNameDraft('');
+        setDatacenterRenameError('');
+    };
+
+    const handleRenameDatacenter = async (datacenter: DatacenterRow) => {
+        const name = datacenterNameDraft.trim();
+        if (name === datacenter.name) {
+            cancelDatacenterRename();
+            return;
+        }
+        if (!name || Array.from(name).length > 255) {
+            setDatacenterRenameError(name ? 'Datacenter names must be at most 255 characters.' : 'Enter a datacenter name.');
+            return;
+        }
+
+        setIsRenamingDatacenter(true);
+        setDatacenterRenameError('');
+        try {
+            const response = await axios.patch<{ datacenter: DatacenterRow; message: string }>(`/api/datacenters/${datacenter.id}`, { name });
+            setDatacenters((previous) =>
+                previous.map((item) => (item.id === datacenter.id ? response.data.datacenter : item)).sort((a, b) => a.name.localeCompare(b.name)),
+            );
+            cancelDatacenterRename();
+            toast.success(response.data.message);
+        } catch (error) {
+            const message = isAxiosError(error)
+                ? (error.response?.data?.errors?.name?.[0] ?? error.response?.data?.message ?? 'Failed to rename datacenter')
+                : 'Failed to rename datacenter';
+            setDatacenterRenameError(message);
+        } finally {
+            setIsRenamingDatacenter(false);
         }
     };
 
@@ -790,30 +831,106 @@ export default function EditorSettings({
                                             <TableRow>
                                                 <TableHead>Name</TableHead>
                                                 <TableHead className="w-24 text-center">Resources</TableHead>
-                                                <TableHead className="w-16 text-center">Actions</TableHead>
+                                                <TableHead className="w-44 text-center">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {datacenters.map((dc) => (
                                                 <TableRow key={dc.id}>
-                                                    <TableCell>{dc.name}</TableCell>
+                                                    <TableCell>
+                                                        {editingDatacenterId === dc.id ? (
+                                                            <div className="space-y-1">
+                                                                <Input
+                                                                    aria-label={`Datacenter name for ${dc.name}`}
+                                                                    aria-invalid={Boolean(datacenterRenameError)}
+                                                                    aria-describedby={
+                                                                        datacenterRenameError ? `datacenter-rename-error-${dc.id}` : undefined
+                                                                    }
+                                                                    value={datacenterNameDraft}
+                                                                    onChange={(event) => {
+                                                                        setDatacenterNameDraft(event.target.value);
+                                                                        setDatacenterRenameError('');
+                                                                    }}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === 'Enter') {
+                                                                            event.preventDefault();
+                                                                            void handleRenameDatacenter(dc);
+                                                                        } else if (event.key === 'Escape' && !isRenamingDatacenter) {
+                                                                            cancelDatacenterRename();
+                                                                        }
+                                                                    }}
+                                                                    disabled={isRenamingDatacenter}
+                                                                />
+                                                                {datacenterRenameError ? (
+                                                                    <p
+                                                                        id={`datacenter-rename-error-${dc.id}`}
+                                                                        role="alert"
+                                                                        className="text-sm text-destructive"
+                                                                    >
+                                                                        {datacenterRenameError}
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                        ) : (
+                                                            dc.name
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="text-center">{dc.resources_count}</TableCell>
                                                     <TableCell className="text-center">
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleDeleteDatacenter(dc.id)}
-                                                            disabled={dc.resources_count > 0}
-                                                            title={
-                                                                dc.resources_count > 0
-                                                                    ? 'Cannot delete: datacenter is assigned to resources'
-                                                                    : 'Delete datacenter'
-                                                            }
-                                                            aria-label="Delete datacenter"
-                                                        >
-                                                            <Trash2 className="size-4 text-destructive" aria-hidden="true" />
-                                                        </Button>
+                                                        {editingDatacenterId === dc.id ? (
+                                                            <div className="flex justify-center gap-1">
+                                                                <LoadingButton
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    onClick={() => void handleRenameDatacenter(dc)}
+                                                                    loading={isRenamingDatacenter}
+                                                                >
+                                                                    Save
+                                                                </LoadingButton>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={cancelDatacenterRename}
+                                                                    disabled={isRenamingDatacenter}
+                                                                >
+                                                                    Cancel
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex justify-center gap-1">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => {
+                                                                        setEditingDatacenterId(dc.id);
+                                                                        setDatacenterNameDraft(dc.name);
+                                                                        setDatacenterRenameError('');
+                                                                    }}
+                                                                    disabled={isRenamingDatacenter}
+                                                                    title="Rename datacenter"
+                                                                    aria-label={`Rename ${dc.name}`}
+                                                                >
+                                                                    <Pencil className="size-4" aria-hidden="true" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDeleteDatacenter(dc.id)}
+                                                                    disabled={isRenamingDatacenter || dc.resources_count > 0}
+                                                                    title={
+                                                                        dc.resources_count > 0
+                                                                            ? 'Cannot delete: datacenter is assigned to resources'
+                                                                            : 'Delete datacenter'
+                                                                    }
+                                                                    aria-label="Delete datacenter"
+                                                                >
+                                                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}

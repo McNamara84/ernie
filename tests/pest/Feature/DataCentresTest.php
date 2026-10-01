@@ -10,6 +10,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\DatacenterNameService;
 use App\Services\DataCentreCatalogService;
 use App\Services\PortalSearchService;
 use Illuminate\Support\Facades\Cache;
@@ -95,6 +96,36 @@ it('keeps the two GEOFON searches separate', function () {
         $this->get('/doi-search?'.http_build_query(['datacenter' => [$name]]))
             ->assertInertia(fn (Assert $page) => $page->has('resources', 1)->where('resources.0.id', $resource->id));
     }
+});
+
+it('keeps editorial data and existing portal links after a datacenter rename', function (): void {
+    $resource = ($this->publishCentre)('FID GEO');
+    $datacenter = $resource->datacenter;
+    app(DatacenterNameService::class)->rename($datacenter, 'FID GEO Renamed');
+
+    $entry = collect(app(DataCentreCatalogService::class)->published())->firstWhere('slug', 'fid-geo');
+    expect($entry)->not->toBeNull()
+        ->and($entry['datacenterName'])->toBe('FID GEO Renamed')
+        ->and($entry['description'])->not->toBeEmpty();
+
+    foreach (['FID GEO', 'FID GEO Renamed'] as $filterName) {
+        $this->get('/doi-search?'.http_build_query(['datacenter' => [$filterName]]))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('resources', 1)
+            ->where('resources.0.id', $resource->id));
+    }
+});
+
+it('keeps generated data centre links stable after a datacenter rename', function (): void {
+    $resource = ($this->publishCentre)('Unlisted centre');
+    $catalog = app(DataCentreCatalogService::class);
+    $slug = $catalog->published()[0]['slug'];
+    app(DatacenterNameService::class)->rename($resource->datacenter, 'Renamed unlisted centre');
+
+    $entry = $catalog->published()[0];
+    expect($entry['slug'])->toBe($slug)
+        ->and($entry['datacenterName'])->toBe('Renamed unlisted centre')
+        ->and($entry['displayName'])->toBe('Renamed unlisted centre');
 });
 
 it('provides stable distinct text fallbacks for new names including punctuation and non-Latin scripts', function () {

@@ -8,6 +8,7 @@ use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteToIgsnTransformer;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
@@ -30,6 +31,8 @@ afterEach(function (): void {
 
 it('assigns matched imports, reports unmatched imports, and never changes existing resources', function (): void {
     $oldDatacenter = Datacenter::factory()->create();
+    $gfz = app(DatacenterNameService::class)->findOrCreate(Datacenter::GFZ_NAME);
+    app(DatacenterNameService::class)->rename($gfz, 'Renamed GFZ Centre');
     $existing = Resource::factory()->create([
         'doi' => '10.60510/existing001',
         'datacenter_id' => $oldDatacenter->id,
@@ -59,8 +62,8 @@ it('assigns matched imports, reports unmatched imports, and never changes existi
         $this->portal,
     );
 
-    $gfz = Datacenter::query()->where('name', Datacenter::GFZ_NAME)->firstOrFail();
     expect(Resource::query()->where('doi', '10.60510/gfnew001')->value('datacenter_id'))->toBe($gfz->id)
+        ->and($gfz->fresh()->name)->toBe('Renamed GFZ Centre')
         ->and(Resource::query()->where('doi', '10.60510/unmatched001')->value('datacenter_id'))->toBeNull()
         ->and($existing->fresh()->datacenter_id)->toBe($oldDatacenter->id);
 
@@ -98,6 +101,8 @@ it('aborts before the first database write when the legacy portal fails', functi
 
 it('imports a selected datacenter efficiently and assigns only newly created resources', function (): void {
     $oldDatacenter = Datacenter::factory()->create();
+    $icdp = app(DatacenterNameService::class)->findOrCreate('ICDP');
+    app(DatacenterNameService::class)->rename($icdp, 'ICDP Editorial Name');
     Resource::factory()->create([
         'doi' => '10.60510/icdpexisting',
         'datacenter_id' => $oldDatacenter->id,
@@ -149,8 +154,8 @@ it('imports a selected datacenter efficiently and assigns only newly created res
         $this->portal,
     );
 
-    $icdp = Datacenter::query()->where('name', 'ICDP')->firstOrFail();
     expect(Resource::query()->where('doi', '10.60510/icdpall')->value('datacenter_id'))->toBe($icdp->id)
+        ->and($icdp->fresh()->name)->toBe('ICDP Editorial Name')
         ->and(Resource::query()->where('doi', '10.60510/icdpsingle')->value('datacenter_id'))->toBe($icdp->id)
         ->and(Resource::query()->where('doi', '10.60510/icdpexisting')->value('datacenter_id'))->toBe($oldDatacenter->id);
 

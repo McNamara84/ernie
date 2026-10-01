@@ -24,6 +24,7 @@ Route::middleware('auth')->group(function () {
 
         // Datacenters API (Issue: Datacenter categorization)
         Route::post('api/datacenters', [DatacenterController::class, 'store'])->name('datacenters.store');
+        Route::patch('api/datacenters/{datacenter}', [DatacenterController::class, 'update'])->name('datacenters.update');
         Route::delete('api/datacenters/{datacenter}', [DatacenterController::class, 'destroy'])->name('datacenters.destroy');
     });
 

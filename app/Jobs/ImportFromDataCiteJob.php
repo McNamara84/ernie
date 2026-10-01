@@ -7,9 +7,9 @@ namespace App\Jobs;
 use App\Enums\AccessLevel;
 use App\Enums\CitationLabelResolutionMode;
 use App\Exceptions\AmbiguousLegacyResourceException;
-use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Services\Crc806LegacyRightsService;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteCreatorNameMergeService;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteLandingPageImportService;
@@ -1410,14 +1410,14 @@ class ImportFromDataCiteJob implements ShouldQueue
                 return $this->emptyDataCiteLandingPageSyncResult();
             }
 
-            $assignedDatacenterName = $resource->datacenter()->value('name');
-
-            if (! is_string($assignedDatacenterName)
-                || ! $decisionService->shouldImportDataCiteUrlAsExternal(
-                    $doi,
-                    $attributes,
-                    [$assignedDatacenterName],
-                )) {
+            if (! app(DatacenterNameService::class)->matches(
+                $resource->datacenter,
+                LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+            ) || ! $decisionService->shouldImportDataCiteUrlAsExternal(
+                $doi,
+                $attributes,
+                [LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER],
+            )) {
                 return $this->emptyDataCiteLandingPageSyncResult();
             }
         }
@@ -1587,7 +1587,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         if (isset($this->portalDatacenterIds[$selectedName])) {
             $datacenterId = $this->portalDatacenterIds[$selectedName];
         } else {
-            $datacenterId = (int) Datacenter::firstOrCreate(['name' => $selectedName])->id;
+            $datacenterId = (int) app(DatacenterNameService::class)->findOrCreate($selectedName)->id;
             $this->portalDatacenterIds[$selectedName] = $datacenterId;
         }
 
@@ -1615,9 +1615,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             return;
         }
 
-        foreach (Datacenter::query()->whereIn('name', $names)->get(['id', 'name']) as $datacenter) {
-            $this->portalDatacenterIds[$datacenter->name] = (int) $datacenter->id;
-        }
+        $this->portalDatacenterIds = app(DatacenterNameService::class)->idsForNames($names);
     }
 
     /**

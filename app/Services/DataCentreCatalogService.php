@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PortalScope;
+use App\Models\Datacenter;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Joins repository-managed editorial content to the DOI portal's public selection.
@@ -29,10 +31,40 @@ final class DataCentreCatalogService
     {
         /** @var list<DataCentre> $entries */
         $entries = $this->files->json(resource_path('data/data-centres.json'), JSON_THROW_ON_ERROR);
-        $byName = array_column($entries, null, 'datacenterName');
+        $facets = array_values($this->search->getDatacenterFacets(PortalScope::DOI));
+        $idByCurrentName = Datacenter::query()
+            ->whereIn('name', array_column($facets, 'name'))
+            ->pluck('id', 'name')
+            ->all();
+        $keys = array_map(
+            static fn (array $entry): string => mb_strtolower(trim($entry['datacenterName']), 'UTF-8'),
+            $entries,
+        );
+        $idByAlias = DB::table('datacenter_name_aliases')
+            ->whereIn('name_key', $keys)
+            ->pluck('datacenter_id', 'name_key')
+            ->all();
+        $originalNameById = [];
+        foreach (DB::table('datacenter_name_aliases')
+            ->whereIn('datacenter_id', array_values($idByCurrentName))
+            ->orderBy('id')
+            ->get(['datacenter_id', 'name']) as $alias) {
+            $originalNameById[(int) $alias->datacenter_id] ??= (string) $alias->name;
+        }
+        $byId = [];
+        foreach ($entries as $entry) {
+            $key = mb_strtolower(trim($entry['datacenterName']), 'UTF-8');
+            $id = $idByAlias[$key] ?? $idByCurrentName[$entry['datacenterName']] ?? null;
+            if ($id !== null) {
+                $byId[(int) $id] = $entry;
+            }
+        }
 
-        return array_map(function (array $facet) use ($byName): array {
-            $entry = $byName[$facet['name']] ?? $this->fallback($facet['name']);
+        return array_map(function (array $facet) use ($byId, $idByCurrentName, $originalNameById): array {
+            $id = $idByCurrentName[$facet['name']] ?? null;
+            $entry = $id === null
+                ? $this->fallback($facet['name'])
+                : ($byId[(int) $id] ?? $this->fallback($facet['name'], $originalNameById[(int) $id] ?? $facet['name']));
 
             // Keep editorial provenance private and the Inertia contract explicit.
             return [
@@ -44,16 +76,16 @@ final class DataCentreCatalogService
                 'description' => $entry['description'],
                 'links' => $entry['links'],
             ];
-        }, array_values($this->search->getDatacenterFacets(PortalScope::DOI)));
+        }, $facets);
     }
 
     /** @return DataCentre */
-    private function fallback(string $name): array
+    private function fallback(string $name, ?string $originalName = null): array
     {
         return [
             // Reserve this namespace in the editorial catalogue. Unlike slugifying
             // names, hashing also distinguishes punctuation and non-Latin names.
-            'slug' => 'datacenter-'.hash('sha256', $name),
+            'slug' => 'datacenter-'.hash('sha256', $originalName ?? $name),
             'datacenterName' => $name,
             'displayName' => $name,
             'shortName' => $name,

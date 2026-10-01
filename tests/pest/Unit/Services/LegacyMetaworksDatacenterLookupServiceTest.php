@@ -360,7 +360,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             ->toBe(1);
     });
 
-    it('reuses and canonicalises an existing mixed-case GEOFON datacenter', function (
+    it('reuses an existing mixed-case GEOFON datacenter without changing its display name', function (
         string $doi,
         string $canonicalName,
         string $mixedCaseName,
@@ -377,7 +377,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             ->resolveDatacenterIds($doi);
 
         expect($datacenterIds)->toBe([$existingDatacenter->id])
-            ->and($existingDatacenter->refresh()->name)->toBe($canonicalName)
+            ->and($existingDatacenter->refresh()->name)->toBe($mixedCaseName)
             ->and(Datacenter::query()
                 ->whereRaw('LOWER(name) = LOWER(?)', [$canonicalName])
                 ->count())

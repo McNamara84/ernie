@@ -9,6 +9,7 @@ use App\Models\IgsnMetadata;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\DatacenterNameService;
 use App\Services\IgsnDifXmlParser;
 use App\Services\LegacyIgsnPortalService;
 use App\Support\DataCiteDateNormalizer;
@@ -72,6 +73,13 @@ final class IgsnLegacyDifBackfillService
         $cursor = max(0, $afterId);
         $doiFilter = $this->normalizeDoiFilter($dois);
         $datacenterNames = $this->normalizeDatacenterFilter($datacenters);
+        $datacenterIds = [];
+        foreach ($datacenterNames as $name) {
+            $datacenter = app(DatacenterNameService::class)->find($name);
+            if ($datacenter !== null) {
+                $datacenterIds[] = $datacenter->id;
+            }
+        }
         /** @var array{
          *     scanned: int, changed: int, unchanged: int, manual_review: int, privacy_conflict: int,
          *     missing_dif: int, invalid_dif: int, unknown_paths: int, portal_errors: int, database_errors: int,
@@ -130,10 +138,7 @@ final class IgsnLegacyDifBackfillService
                 ->when($doiFilter !== [], fn (Builder $query): Builder => $query->whereIn('doi', $doiFilter))
                 ->when(
                     $datacenterNames !== [],
-                    fn (Builder $query): Builder => $query->whereHas(
-                        'datacenter',
-                        fn (Builder $datacenter): Builder => $datacenter->whereIn('name', $datacenterNames),
-                    ),
+                    fn (Builder $query): Builder => $query->whereIn('datacenter_id', $datacenterIds),
                 )
                 ->orderBy('id')
                 ->limit($batchSize)

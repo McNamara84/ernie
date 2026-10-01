@@ -926,6 +926,13 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+
+    datacenter_name_aliases {
+        bigint id PK
+        bigint datacenter_id FK
+        varchar name
+        varchar name_key UK
+    }
     %% =========================================================================
     %% LARAVEL FRAMEWORK TABLES
     %% =========================================================================
@@ -1433,6 +1440,7 @@ erDiagram
 
     %% Datacenter relationships
     resources }o--o| datacenters : "assigned to"
+    datacenters ||--o{ datacenter_name_aliases : "has names"
     datacenters }o--o| landing_page_templates : "inherits resource template"
     datacenters }o--o| landing_page_templates : "inherits IGSN template"
 
