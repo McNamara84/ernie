@@ -1002,6 +1002,14 @@ entity "datacenters" as datacenters {
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+
+entity "datacenter_name_aliases" as datacenter_name_aliases {
+    * **id** : BIGINT <<PK>>
+    --
+    * datacenter_id : BIGINT <<FK>>
+    * name : VARCHAR
+    * name_key : VARCHAR <<UK>>
+}
 ' ==========================================================================
 ' LARAVEL FRAMEWORK TABLES
 ' ==========================================================================
@@ -1481,6 +1489,7 @@ resources ||--o| landing_pages
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments
 resources }o--o| datacenters
+datacenters ||--o{ datacenter_name_aliases : "has names"
 datacenters }o--o| landing_page_templates : "inherits resource template"
 datacenters }o--o| landing_page_templates : "inherits IGSN template"
 

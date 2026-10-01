@@ -470,9 +470,9 @@ class PortalSearchService
             return;
         }
 
-        $query->whereHas('datacenter', function (Builder $q) use ($datacenterNames): void {
-            $q->whereIn('name', $datacenterNames);
-        });
+        $ids = app(DatacenterNameService::class)->idsForNames($datacenterNames);
+
+        $query->whereIn('resources.datacenter_id', array_values(array_unique($ids)));
     }
 
     /**

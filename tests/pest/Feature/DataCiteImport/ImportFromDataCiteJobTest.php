@@ -15,6 +15,7 @@ use App\Models\Resource;
 use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\User;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
@@ -1256,6 +1257,9 @@ describe('ImportFromDataCiteJob', function () {
 
     it('prefers a specialized portal datacenter during a single DOI import', function () {
         $doi = '10.5880/icdp.5069.001';
+        $renamedDatacenter = app(DatacenterNameService::class)
+            ->findOrCreate(LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER);
+        app(DatacenterNameService::class)->rename($renamedDatacenter, 'Scientific Drilling Centre');
         $doiRecord = [
             'id' => $doi,
             'attributes' => [
@@ -1303,8 +1307,9 @@ describe('ImportFromDataCiteJob', function () {
                 'imported' => 1,
                 'failed' => 0,
             ])
-            ->and($resource->fresh()->datacenter?->name)
-            ->toBe(LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER);
+            ->and($resource->fresh()->datacenter_id)->toBe($renamedDatacenter->id)
+            ->and($resource->fresh()->datacenter?->name)->toBe('Scientific Drilling Centre')
+            ->and(Datacenter::query()->count())->toBe(1);
     });
 
     it('keeps a new DataCite import successful when coverage enrichment unexpectedly fails', function () {

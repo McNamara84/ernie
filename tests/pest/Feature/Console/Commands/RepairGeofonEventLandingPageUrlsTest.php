@@ -7,6 +7,7 @@ use App\Models\Datacenter;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\Resource;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteMemberApiClient;
 use App\Services\GeofonEventLandingPageUrlRepairService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
@@ -155,6 +156,7 @@ function fakeGeofonRepairApi(array &$remoteUrls): void
 it('performs a complete read-only dry run for stale local and DataCite URLs', function (): void {
     $doi = '10.1594/gfz.geofon.gfz2011axdw';
     $resource = geofonRepairResource($doi, 'db/eqpage.php?id=gfz2011axdw');
+    app(DatacenterNameService::class)->rename($resource->datacenter, 'Renamed GEOFON Events');
     $remoteUrls = [$doi => 'http://geofon.gfz.de/db/eqpage.php?id=gfz2011axdw'];
     fakeGeofonRepairApi($remoteUrls);
 

@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Enums\CitationLabelResolutionMode;
 use App\Enums\ResourceWorkflowStatus;
-use App\Models\Datacenter;
 use App\Models\OldDataset;
 use App\Models\Resource;
 use App\Support\LanguageTag;
@@ -576,9 +575,8 @@ class SumarioPendingResourceImportService
             return $ids[0];
         }
 
-        return (int) Datacenter::query()->firstOrCreate([
-            'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
-        ])->id;
+        return (int) app(DatacenterNameService::class)
+            ->findOrCreate(LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER)->id;
     }
 
     private function resolveLegacyResourceTypeId(?string $legacyResourceType): int

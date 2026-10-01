@@ -16,6 +16,7 @@ use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\DatacenterNameService;
 use App\Services\Igsn\IgsnLegacyDifBackfillService;
 use Illuminate\Bus\PendingBatch;
 use Illuminate\Http\Client\Request;
@@ -89,6 +90,7 @@ function fakeLegacyDifDocuments(array $documents, int $externalImageStatus = 206
 
 it('is dry-run first then applies all datacenter metadata additively and idempotently', function (): void {
     $resource = legacyDifBackfillResource('ICDP5052ECZI101');
+    app(DatacenterNameService::class)->rename($resource->datacenter, 'Renamed ICDP');
     fakeLegacyDifDocuments([
         'ICDP5052ECZI101' => <<<'XML'
         <resource xmlns="http://pmd.gfz-potsdam.de/igsn/schemas/description/1.3">

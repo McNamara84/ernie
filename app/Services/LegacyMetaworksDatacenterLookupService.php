@@ -271,28 +271,7 @@ class LegacyMetaworksDatacenterLookupService
 
     private function resolveCanonicalDatacenter(string $canonicalName): Datacenter
     {
-        $datacenter = Datacenter::query()
-            ->where('name', $canonicalName)
-            ->first();
-
-        if ($datacenter === null) {
-            $datacenter = Datacenter::query()
-                ->whereRaw('LOWER(name) = LOWER(?)', [$canonicalName])
-                ->orderBy('id')
-                ->first();
-        }
-
-        if ($datacenter === null) {
-            return Datacenter::query()->firstOrCreate([
-                'name' => $canonicalName,
-            ]);
-        }
-
-        if ($datacenter->name !== $canonicalName) {
-            $datacenter->forceFill(['name' => $canonicalName])->save();
-        }
-
-        return $datacenter;
+        return app(DatacenterNameService::class)->findOrCreate($canonicalName);
     }
 
     /**
