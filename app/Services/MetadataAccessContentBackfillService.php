@@ -33,6 +33,7 @@ final class MetadataAccessContentBackfillService
     public function __construct(
         private readonly DigitalContentSizeService $sizeService,
         private readonly LandingPageDownloadAvailabilityService $availability,
+        private readonly ResourceAccessLevelResolverService $accessLevelResolver,
     ) {}
 
     /**
@@ -96,11 +97,10 @@ final class MetadataAccessContentBackfillService
             }
         } elseif ($resource->access_level === null) {
             $landingPage = $resource->landingPage;
-            $candidate = $landingPage instanceof LandingPage
-                && ! $landingPage->isExternal()
-                && ! $this->availability->isAvailable($landingPage)
-                ? AccessLevel::METADATA_ONLY
-                : AccessLevel::OPEN;
+            $candidate = $this->accessLevelResolver->inferFromLandingPage($resource, $landingPage);
+            if ($candidate === null) {
+                $this->review($result, $resource, 'access_unknown_resource', '', 'No reliable digital access level can be inferred from the landing page.');
+            }
         }
 
         if ($resource->access_level === null && $candidate !== null) {

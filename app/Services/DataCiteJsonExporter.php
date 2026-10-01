@@ -826,8 +826,9 @@ class DataCiteJsonExporter
             $rightsList[] = $rightsData;
         }
 
-        if ($resource->access_level !== null) {
-            $accessUri = $resource->access_level->coarUri();
+        $accessLevel = app(ResourceAccessLevelResolverService::class)->resolve($resource);
+        if ($accessLevel !== null) {
+            $accessUri = $accessLevel->coarUri();
             $alreadyPresent = collect($rightsList)->contains(
                 static fn (array $rights): bool => isset($rights['rightsUri'])
                     && strcasecmp(
@@ -838,9 +839,9 @@ class DataCiteJsonExporter
 
             if (! $alreadyPresent) {
                 $rightsList[] = [
-                    'rights' => $resource->access_level->label(),
+                    'rights' => $accessLevel->label(),
                     'rightsUri' => $accessUri,
-                    'rightsIdentifier' => $resource->access_level->coarIdentifier(),
+                    'rightsIdentifier' => $accessLevel->coarIdentifier(),
                     'rightsIdentifierScheme' => AccessLevel::coarScheme(),
                     'schemeUri' => AccessLevel::coarSchemeUri(),
                 ];

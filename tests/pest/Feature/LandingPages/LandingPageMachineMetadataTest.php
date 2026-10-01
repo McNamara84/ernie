@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\AccessLevel;
 use App\Http\Controllers\LandingPagePublicController;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
 use App\Models\Person;
@@ -12,10 +13,13 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
+use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteXmlExporter;
 use App\Services\LandingPageMachineMetadataService;
+use App\Services\ResourceAccessLevelResolverService;
 use App\Services\SchemaOrgJsonLdExporter;
 
-covers(LandingPagePublicController::class, LandingPageMachineMetadataService::class);
+covers(LandingPagePublicController::class, LandingPageMachineMetadataService::class, ResourceAccessLevelResolverService::class);
 
 /** @return array{0: Resource, 1: LandingPage} */
 function machineMetadataLandingPage(string $resourceTypeSlug = 'dataset', array $landingPageAttributes = []): array
@@ -162,6 +166,130 @@ test('raw dataset HTML and GET HEAD responses expose complete machine metadata',
         ->assertOk()
         ->assertHeader('Link', $linkHeader);
 });
+
+test('unresolved digital access is derived consistently in public HTML and metadata exports', function (
+    ?string $downloadUrl,
+    bool $unavailable,
+    bool $withFile,
+    ?AccessLevel $curatedLevel,
+    ?AccessLevel $expectedLevel,
+) {
+    [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
+        'ftp_url' => $downloadUrl,
+        'downloads_unavailable' => $unavailable,
+    ]);
+    $resource->update(['access_level' => $curatedLevel]);
+    if ($withFile) {
+        $landingPage->files()->create(['url' => 'https://downloads.example.org/data.zip', 'position' => 0]);
+        // Creating a new download clears empty suppression; restore the historical state after import.
+        $landingPage->refresh()->update(['downloads_unavailable' => $unavailable]);
+    }
+
+    $html = $this->get($landingPage->getPublicPath())->assertOk()->getContent();
+    $jsonLd = decodedEmbeddedSchemaOrg($html);
+    $rights = $this->get($landingPage->getPublicPath().'/metadata/datacite.json')
+        ->assertOk()->json('data.attributes.rightsList') ?? [];
+    $xml = $this->get($landingPage->getPublicPath().'/metadata/datacite.xml')->assertOk()->getContent();
+
+    if ($expectedLevel === null) {
+        expect($jsonLd)->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+            ->and($html)->not->toContain('name="DC.accessRights"')
+            ->and($rights)->toBeEmpty()
+            ->and($xml)->not->toContain('http://purl.org/coar/access_right/');
+    } else {
+        expect($jsonLd['conditionsOfAccess'])->toBe($expectedLevel->label())
+            ->and($html)->toContain('name="DC.accessRights" content="'.$expectedLevel->coarUri().'"')
+            ->and($rights)->toBe([[
+                'rights' => $expectedLevel->label(),
+                'rightsUri' => $expectedLevel->coarUri(),
+                'rightsIdentifier' => $expectedLevel->coarIdentifier(),
+                'rightsIdentifierScheme' => AccessLevel::coarScheme(),
+                'schemeUri' => AccessLevel::coarSchemeUri(),
+            ]])
+            ->and($xml)->toContain('rightsURI="'.$expectedLevel->coarUri().'"');
+        if ($expectedLevel === AccessLevel::METADATA_ONLY) {
+            expect($jsonLd)->not->toHaveKey('isAccessibleForFree');
+        } else {
+            expect($jsonLd['isAccessibleForFree'])->toBe($expectedLevel->isAccessibleForFree());
+        }
+    }
+
+    expect($resource->fresh()->access_level)->toBe($curatedLevel);
+})->with([
+    'direct download' => ['https://downloads.example.org/data.zip', false, false, null, AccessLevel::OPEN],
+    'imported file' => [null, false, true, null, AccessLevel::OPEN],
+    'explicit no download' => [null, true, false, null, AccessLevel::METADATA_ONLY],
+    'no automatic download' => [null, false, false, null, AccessLevel::METADATA_ONLY],
+    'placeholder download' => ['#', false, false, null, AccessLevel::METADATA_ONLY],
+    'hidden historical download' => ['https://downloads.example.org/data.zip', true, false, null, AccessLevel::METADATA_ONLY],
+    'hidden imported file' => [null, true, true, null, AccessLevel::METADATA_ONLY],
+    'curated restriction' => ['https://downloads.example.org/data.zip', false, false, AccessLevel::RESTRICTED, AccessLevel::RESTRICTED],
+]);
+
+test('inferred access follows download configuration changes without storing a stale level', function () {
+    [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: ['ftp_url' => null]);
+    $resource->update(['access_level' => null]);
+
+    expect(decodedEmbeddedSchemaOrg($this->get($landingPage->getPublicPath())->assertOk()->getContent())['conditionsOfAccess'])
+        ->toBe(AccessLevel::METADATA_ONLY->label());
+
+    $landingPage->update(['ftp_url' => 'https://downloads.example.org/data.zip']);
+    $jsonLd = decodedEmbeddedSchemaOrg($this->get($landingPage->getPublicPath())->assertOk()->getContent());
+    expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::OPEN->label())
+        ->and($jsonLd['isAccessibleForFree'])->toBeTrue();
+
+    $landingPage->update(['ftp_url' => null]);
+    $jsonLd = decodedEmbeddedSchemaOrg($this->get($landingPage->getPublicPath())->assertOk()->getContent());
+    expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::METADATA_ONLY->label())
+        ->and($jsonLd)->not->toHaveKey('isAccessibleForFree')
+        ->and($resource->fresh()->access_level)->toBeNull();
+});
+
+test('external landing pages do not imply open or restricted access', function (?AccessLevel $curatedLevel) {
+    $resource = Resource::factory()->create(['access_level' => $curatedLevel]);
+    $landingPage = LandingPage::factory()->external()->published()->create([
+        'resource_id' => $resource->id,
+        'ftp_url' => 'https://downloads.example.org/retained.zip',
+    ]);
+
+    $jsonLd = app(SchemaOrgJsonLdExporter::class)->export($resource, $landingPage);
+    $rights = app(DataCiteJsonExporter::class)->export($resource)['data']['attributes']['rightsList'] ?? [];
+    $xml = app(DataCiteXmlExporter::class)->export($resource);
+
+    if ($curatedLevel === null) {
+        expect($jsonLd)->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+            ->and($rights)->toBeEmpty()
+            ->and($xml)->not->toContain('http://purl.org/coar/access_right/');
+    } else {
+        expect($jsonLd['conditionsOfAccess'])->toBe($curatedLevel->label())
+            ->and($jsonLd['isAccessibleForFree'])->toBe($curatedLevel->isAccessibleForFree())
+            ->and($rights[0]['rightsUri'])->toBe($curatedLevel->coarUri())
+            ->and($xml)->toContain('rightsURI="'.$curatedLevel->coarUri().'"');
+    }
+})->with([null, AccessLevel::OPEN, AccessLevel::RESTRICTED]);
+
+test('digital access inference does not affect physical objects or IGSN metadata', function (bool $physicalObject) {
+    [$resource, $landingPage] = machineMetadataLandingPage($physicalObject ? 'physical-object' : 'dataset', [
+        'ftp_url' => 'https://downloads.example.org/sample.zip',
+    ]);
+    $resource->update(['access_level' => null]);
+    if (! $physicalObject) {
+        IgsnMetadata::create(['resource_id' => $resource->id, 'sample_access' => 'open']);
+    }
+    $resource->refresh();
+
+    expect(app(SchemaOrgJsonLdExporter::class)->export($resource, $landingPage))
+        ->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+        ->and(app(DataCiteJsonExporter::class)->export($resource)['data']['attributes'])
+        ->not->toHaveKey('rightsList')
+        ->and(app(DataCiteXmlExporter::class)->export($resource))
+        ->not->toContain('http://purl.org/coar/access_right/');
+
+    $resource->update(['access_level' => AccessLevel::METADATA_ONLY]);
+    $jsonLd = app(SchemaOrgJsonLdExporter::class)->export($resource, $landingPage);
+    expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::METADATA_ONLY->label())
+        ->and($jsonLd['isAccessibleForFree'])->toBeFalse();
+})->with([true, false]);
 
 test('software JSON-LD exposes software types repository and direct downloads', function () {
     [$resource, $landingPage] = machineMetadataLandingPage('software', [

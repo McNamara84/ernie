@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccessLevel;
 use App\Enums\UserRole;
 use App\Jobs\SyncResourceTombstoneWithDataCiteJob;
 use App\Models\ContactMessage;
@@ -149,6 +150,31 @@ test('public tombstone retains metadata but removes downloads and portal discove
     expect(Resource::published()->whereKey($this->resource->id)->exists())->toBeFalse();
     $this->get(route('landing-page.metadata.datacite-json', ['doiPrefix' => $this->page->doi_prefix, 'slug' => $this->page->slug]))->assertOk();
 });
+
+test('resolved access metadata does not expose downloads on a tombstone', function (?AccessLevel $curatedLevel, AccessLevel $exportedLevel) {
+    $this->resource->update(['access_level' => $curatedLevel]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+
+    $metadata = app(LandingPageMachineMetadataService::class)->for($this->resource->fresh(), $this->page->fresh());
+    $jsonLd = json_decode($metadata['jsonLdJson'], true, flags: JSON_THROW_ON_ERROR);
+    expect($jsonLd['conditionsOfAccess'])->toBe('This resource is no longer available.')
+        ->and($jsonLd['isAccessibleForFree'])->toBeFalse()
+        ->and($jsonLd)->not->toHaveKey('distribution')
+        ->and(collect($metadata['signpostingLinks'])->pluck('rel'))->not->toContain('item')
+        ->and(collect($metadata['dublinCore'])->where('name', 'DC.accessRights')->pluck('content')->all())
+        ->toBe([$exportedLevel->label(), $exportedLevel->coarUri()]);
+
+    $this->get($this->page->public_url.'/metadata/datacite.json')->assertOk()
+        ->assertJsonPath('data.attributes.rightsList.0.rightsUri', $exportedLevel->coarUri());
+    $this->get($this->page->public_url.'/metadata/datacite.xml')->assertOk()
+        ->assertSee('rightsURI="'.$exportedLevel->coarUri().'"', escape: false);
+
+    expect($this->resource->fresh()->access_level)->toBe($curatedLevel);
+    Http::assertSentCount(1);
+})->with([
+    'inferred metadata only' => [null, AccessLevel::METADATA_ONLY],
+    'preserved curated access' => [AccessLevel::OPEN, AccessLevel::OPEN],
+]);
 
 test('sync hides findable DOIs and confirms both state and target URL', function () {
     $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();

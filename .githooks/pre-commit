@@ -7,5 +7,21 @@ cd "$(git rev-parse --show-toplevel)"
 # resolve Windows' bash.exe (WSL), so use the native npm launcher on Windows.
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) exec npm.cmd run precommit:check ;;
-    *) exec npm run precommit:check ;;
+    *)
+        # Desktop Git clients may omit Volta's shims from their inherited PATH.
+        if ! command -v npm >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
+            ernie_volta_bin="${VOLTA_HOME:-${HOME:-}/.volta}/bin"
+            if [ -x "$ernie_volta_bin/npm" ] && [ -x "$ernie_volta_bin/node" ]; then
+                PATH="$ernie_volta_bin:$PATH"
+                export PATH
+            fi
+        fi
+
+        if ! command -v npm >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
+            printf '%s\n' '[pre-commit] Node.js and npm are not available to this Git client. Add their bin directory to PATH and restart the Git client.' >&2
+            exit 1
+        fi
+
+        exec npm run precommit:check
+        ;;
 esac
