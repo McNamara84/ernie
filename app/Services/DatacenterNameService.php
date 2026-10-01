@@ -54,12 +54,12 @@ final class DatacenterNameService
             ->whereIn('name_key', array_values($keysByName))
             ->pluck('datacenter_id', 'name_key')
             ->all();
-        $unresolved = array_keys(array_filter(
+        $unresolved = array_values(array_unique(array_filter(
             $keysByName,
             static fn (string $key): bool => ! isset($idsByKey[$key]),
-        ));
+        )));
         if ($unresolved !== []) {
-            foreach (Datacenter::query()->whereIn('name', $unresolved)->get(['id', 'name']) as $datacenter) {
+            foreach (Datacenter::query()->whereIn(DB::raw('LOWER(name)'), $unresolved)->orderBy('id')->get(['id', 'name']) as $datacenter) {
                 $idsByKey[self::key($datacenter->name)] = $datacenter->id;
             }
         }

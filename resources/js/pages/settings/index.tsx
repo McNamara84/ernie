@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { getSelectAllState } from '@/lib/select-all';
@@ -842,6 +843,9 @@ export default function EditorSettings({
                                                                 <Input
                                                                     aria-label={`Datacenter name for ${dc.name}`}
                                                                     aria-invalid={Boolean(datacenterRenameError)}
+                                                                    aria-describedby={
+                                                                        datacenterRenameError ? `datacenter-rename-error-${dc.id}` : undefined
+                                                                    }
                                                                     value={datacenterNameDraft}
                                                                     onChange={(event) => {
                                                                         setDatacenterNameDraft(event.target.value);
@@ -858,7 +862,13 @@ export default function EditorSettings({
                                                                     disabled={isRenamingDatacenter}
                                                                 />
                                                                 {datacenterRenameError ? (
-                                                                    <p className="text-sm text-destructive">{datacenterRenameError}</p>
+                                                                    <p
+                                                                        id={`datacenter-rename-error-${dc.id}`}
+                                                                        role="alert"
+                                                                        className="text-sm text-destructive"
+                                                                    >
+                                                                        {datacenterRenameError}
+                                                                    </p>
                                                                 ) : null}
                                                             </div>
                                                         ) : (
@@ -869,14 +879,14 @@ export default function EditorSettings({
                                                     <TableCell className="text-center">
                                                         {editingDatacenterId === dc.id ? (
                                                             <div className="flex justify-center gap-1">
-                                                                <Button
+                                                                <LoadingButton
                                                                     type="button"
                                                                     size="sm"
                                                                     onClick={() => void handleRenameDatacenter(dc)}
-                                                                    disabled={isRenamingDatacenter}
+                                                                    loading={isRenamingDatacenter}
                                                                 >
-                                                                    {isRenamingDatacenter ? 'Saving...' : 'Save'}
-                                                                </Button>
+                                                                    Save
+                                                                </LoadingButton>
                                                                 <Button
                                                                     type="button"
                                                                     size="sm"

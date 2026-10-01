@@ -470,14 +470,7 @@ class PortalSearchService
             return;
         }
 
-        $names = app(DatacenterNameService::class);
-        $ids = [];
-        foreach ($datacenterNames as $name) {
-            $datacenter = $names->find($name);
-            if ($datacenter !== null) {
-                $ids[] = $datacenter->id;
-            }
-        }
+        $ids = app(DatacenterNameService::class)->idsForNames($datacenterNames);
 
         $query->whereIn('resources.datacenter_id', array_values(array_unique($ids)));
     }

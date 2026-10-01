@@ -19,12 +19,14 @@ use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\DatacenterNameService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Resources\ResourcePartySearchNormalizerService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 covers(PortalSearchService::class);
 
@@ -1436,6 +1438,41 @@ describe('datacenter filtering', function () {
         $results = $this->service->search(['datacenter' => ['GFZ Data Services', 'GEOFON']]);
 
         expect($results->total())->toBe(2);
+    });
+
+    it('resolves historical, current and case-insensitive names with a fixed number of lookup queries', function () {
+        $renamed = Datacenter::create(['name' => 'Original Centre']);
+        app(DatacenterNameService::class)->rename($renamed, 'Renamed Centre');
+        $direct = Datacenter::create(['name' => 'Second Centre']);
+
+        $first = createPublishedResourceForSearch('First Centre Paper', $this->titleType);
+        $first->update(['datacenter_id' => $renamed->id]);
+        $second = createPublishedResourceForSearch('Second Centre Paper', $this->titleType);
+        $second->update(['datacenter_id' => $direct->id]);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        try {
+            $results = $this->service->search([
+                'datacenter' => [
+                    'ORIGINAL CENTRE',
+                    'Renamed Centre',
+                    'second centre',
+                    ...array_map(static fn (int $number): string => "Missing Centre {$number}", range(1, 100)),
+                ],
+            ]);
+            $lookupQueries = array_filter(
+                DB::getQueryLog(),
+                static fn (array $entry): bool => str_contains($entry['query'], 'datacenter_name_aliases')
+                    || preg_match('/from\s+[`"]?datacenters[`"]?/i', $entry['query']) === 1,
+            );
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        expect($results->total())->toBe(2)
+            ->and(count($lookupQueries))->toBe(2);
     });
 
     it('returns all resources when datacenter filter is empty', function () {

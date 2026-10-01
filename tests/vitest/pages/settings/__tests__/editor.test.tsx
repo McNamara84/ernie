@@ -532,6 +532,9 @@ describe('EditorSettings accordion page', () => {
         await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
 
         expect(await screen.findByText('This datacenter name is already in use.')).toBeVisible();
+        expect(screen.getByRole('alert')).toHaveTextContent('This datacenter name is already in use.');
+        expect(input).toHaveAttribute('aria-invalid', 'true');
+        expect(input).toHaveAccessibleDescription('This datacenter name is already in use.');
         expect(input).toHaveValue('Reserved');
         expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     });
@@ -546,10 +549,37 @@ describe('EditorSettings accordion page', () => {
         await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
 
         expect(screen.getByText('Enter a datacenter name.')).toBeVisible();
+        expect(screen.getByRole('alert')).toHaveTextContent('Enter a datacenter name.');
+        expect(input).toHaveAccessibleDescription('Enter a datacenter name.');
         fireEvent.change(input, { target: { value: 'x'.repeat(256) } });
         await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
         expect(screen.getByText('Datacenter names must be at most 255 characters.')).toBeVisible();
+        expect(input).toHaveAccessibleDescription('Datacenter names must be at most 255 characters.');
         expect(axiosMocks.patch).not.toHaveBeenCalled();
+    });
+
+    it('uses the loading button state while a datacenter rename is pending', async () => {
+        const user = userEvent.setup();
+        let resolveRename: (value: { data: { datacenter: { id: number; name: string; resources_count: number }; message: string } }) => void = () => {};
+        axiosMocks.patch.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveRename = resolve;
+                }),
+        );
+        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await user.click(sectionTrigger(/^Datacenters/));
+        await user.click(screen.getByRole('button', { name: 'Rename Original' }));
+        await user.type(screen.getByRole('textbox', { name: 'Datacenter name for Original' }), ' renamed');
+        await user.click(within(section('datacenters')).getByRole('button', { name: 'Save' }));
+
+        const save = within(section('datacenters')).getByRole('button', { name: 'Save' });
+        expect(save).toHaveAttribute('aria-busy', 'true');
+        expect(save).toBeDisabled();
+        expect(save).toHaveAttribute('data-slot', 'loading-button');
+
+        resolveRename({ data: { datacenter: { id: 8, name: 'Original renamed', resources_count: 1 }, message: 'Datacenter renamed successfully.' } });
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Original renamed' })).toBeInTheDocument());
     });
 
     it('initializes the form with complete backend values and enforces Abstract as active', () => {
