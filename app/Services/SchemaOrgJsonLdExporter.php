@@ -81,6 +81,12 @@ class SchemaOrgJsonLdExporter
             $jsonLd['description'] = $description;
         }
 
+        if ($landingPage?->is_tombstone) {
+            $jsonLd['conditionsOfAccess'] = 'This resource is no longer available.';
+            $jsonLd['isAccessibleForFree'] = false;
+            $jsonLd['description'] = trim('This resource is no longer available. '.($landingPage->tombstone_statement ?? '').' '.($description ?? ''));
+        }
+
         // Creators with @list for order preservation
         if (! empty($attributes['creators'])) {
             $jsonLd['creator'] = ['@list' => $this->transformCreators($attributes['creators'])];

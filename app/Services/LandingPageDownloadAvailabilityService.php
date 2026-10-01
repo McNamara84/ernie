@@ -19,6 +19,10 @@ final class LandingPageDownloadAvailabilityService
     /** Effective source availability; publication, template and embargo policies remain with callers. */
     public function isAvailable(LandingPage $landingPage): bool
     {
+        if ($landingPage->is_tombstone) {
+            return false;
+        }
+
         $landingPage->loadMissing(['files', 'links']);
 
         return ! $this->requiresActivation($landingPage)

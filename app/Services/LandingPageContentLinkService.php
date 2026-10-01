@@ -25,6 +25,10 @@ final class LandingPageContentLinkService
      */
     public function resolve(Resource $resource, LandingPage $landingPage): array
     {
+        if ($landingPage->is_tombstone) {
+            return ['mimeType' => null, 'contentLinks' => [], 'repositories' => []];
+        }
+
         $resource->loadMissing(['resourceType', 'formats']);
         $landingPage->loadMissing([
             'ftpFormat',

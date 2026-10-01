@@ -103,7 +103,7 @@ class LegacyLandingPageImportService
                 );
             }
 
-            if ($landingPage->isExternal()) {
+            if ($landingPage->is_tombstone || $landingPage->isExternal()) {
                 return $this->syncResult(landingPage: $landingPage);
             }
 

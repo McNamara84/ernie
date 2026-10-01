@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\LandingPage;
+use App\Models\ResourceTombstoneTransition;
 use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -148,18 +150,18 @@ class DataCiteMemberApiClient
     /** @param array<string, mixed> $payload */
     public function updateDoi(string $identifier, array $payload): Response
     {
-        return $this->send(
+        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send(
             'PUT',
             $this->doiUrl($identifier),
-            $payload,
+            $this->protectTombstonePayload($identifier, $payload),
             $this->transientAttempts(),
             credentialIdentifier: $identifier,
-        );
+        ));
     }
 
     public function updateLandingPageUrl(string $identifier, string $targetUrl, bool $deferWhenLimited = false): Response
     {
-        return $this->send('PUT', $this->doiUrl($identifier), [
+        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send('PUT', $this->doiUrl($identifier), $this->protectTombstonePayload($identifier, [
             'data' => [
                 'id' => $identifier,
                 'type' => 'dois',
@@ -167,7 +169,39 @@ class DataCiteMemberApiClient
                     'url' => $targetUrl,
                 ],
             ],
-        ], 1, $deferWhenLimited, $identifier);
+        ]), 1, $deferWhenLimited, $identifier));
+    }
+
+    /**
+     * Applies the latest lifecycle state inside the DOI lock, even for stale queued payloads.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function protectTombstonePayload(string $identifier, array $payload): array
+    {
+        $transition = ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->first();
+        if ($transition === null) {
+            return $payload;
+        }
+        if ($transition->test_mode !== $this->testMode) {
+            throw new \RuntimeException('The DOI lifecycle belongs to a different DataCite environment.');
+        }
+        $page = LandingPage::where('resource_id', $transition->resource_id)->first();
+        if ($page?->is_tombstone || $transition->status !== 'succeeded') {
+            $payload['data']['attributes']['url'] = $transition->target_url;
+        }
+        if ($transition->target_state === 'registered' && ($payload['data']['attributes']['event'] ?? null) === 'publish') {
+            $response = $this->getDoi($identifier);
+            $response->throw();
+            if ($response->json('data.attributes.state') === 'findable') {
+                $payload['data']['attributes']['event'] = 'hide';
+            } else {
+                unset($payload['data']['attributes']['event']);
+            }
+        }
+
+        return $payload;
     }
 
     /**

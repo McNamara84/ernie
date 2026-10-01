@@ -276,7 +276,7 @@ class KeywordSuggestionService
             ->whereHas('resource', function (Builder $query) use ($scope): void {
                 /** @var Builder<Resource> $query */
                 $query->whereHas('landingPage', function ($q): void {
-                    $q->where('is_published', true);
+                    $q->where('is_published', true)->where('is_tombstone', false);
                 });
                 $this->applyPortalScope($query, $scope);
             })
@@ -407,7 +407,7 @@ class KeywordSuggestionService
             ->whereHas('resource', function (Builder $query) use ($scope): void {
                 /** @var Builder<Resource> $query */
                 $query->whereHas('landingPage', function ($q): void {
-                    $q->where('is_published', true);
+                    $q->where('is_published', true)->where('is_tombstone', false);
                 });
                 $this->applyPortalScope($query, $scope);
             })

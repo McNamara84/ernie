@@ -115,11 +115,15 @@ export const DOCS_ACTIONS: DocsAction[] = [
         capability: 'manageLandingPages',
         requirements: 'Select exactly one resource.',
         onClick: 'Opens landing-page setup.',
-        afterConfirmation: 'Saving the setup stores landing-page settings in ERNIE.',
+        afterConfirmation:
+            'Saving normal setup stores landing-page settings in ERNIE. Curators and higher roles can separately activate a tombstone with a public reason and explanation, or confirm restoration.',
         localEffect: 'Updates the landing-page configuration for the selected resource.',
-        externalEffect: 'The setup action itself does not register a DOI.',
-        publicEffect: 'Public visibility depends on the saved landing-page and resource status.',
-        failure: 'A failed setup must be corrected before DOI registration can continue.',
+        externalEffect:
+            'Normal setup does not register a DOI. Tombstone activation automatically sets the existing DataCite DOI to Registered and updates its URL; restoration returns its previous state and URL.',
+        publicEffect:
+            'A tombstone remains publicly accessible with its DOI, citation and metadata, but has no data access, is marked Dead and is hidden from the portal.',
+        failure:
+            'A failed setup must be corrected before DOI registration can continue. A failed DataCite tombstone sync leaves the local change active, displays the pending or failed status and supports retry.',
     },
     {
         id: 'resources-related-items',

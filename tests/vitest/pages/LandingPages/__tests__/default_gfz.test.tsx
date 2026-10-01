@@ -63,6 +63,45 @@ describe('DefaultGfzTemplate', () => {
         document.title = '';
     });
 
+    it('renders a tombstone with metadata and no data access even when URLs are retained', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: { ...mockResource, doi: '10.5880/lost' },
+                landingPage: {
+                    ...mockLandingPage,
+                    is_tombstone: true,
+                    tombstone_reason: 'data_lost',
+                    tombstone_statement: '<script>lost files</script>',
+                    tombstoned_at: '2026-10-01T12:00:00Z',
+                    downloads_unavailable: true,
+                },
+                isPreview: false,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+        render(<DefaultGfzTemplate />);
+        expect(screen.getByRole('heading', { name: 'This resource is no longer available' })).toBeInTheDocument();
+        expect(screen.getByText('Dead')).toBeInTheDocument();
+        expect(screen.getByText('<script>lost files</script>')).toBeInTheDocument();
+        expect(document.querySelector('script')).toBeNull();
+        expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
+        expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('data-request-section')).not.toBeInTheDocument();
+    });
+
+    it('identifies a tombstone preview while keeping data access disabled', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                landingPage: { ...mockLandingPage, is_tombstone: true, tombstone_reason: 'retracted', tombstone_statement: 'Retraction explained.' },
+                isPreview: true,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+        render(<DefaultGfzTemplate />);
+        expect(screen.getByText(/Tombstone preview/)).toBeInTheDocument();
+        expect(screen.getByText('Dead')).toBeInTheDocument();
+        expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+    });
+
     it('shows an embargo date without a data request or file action in preview', () => {
         mockUsePage.mockReturnValue({
             props: {

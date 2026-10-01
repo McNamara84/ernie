@@ -798,3 +798,22 @@ It does not reuse the regular development schema. For broader testing guidance, 
 ERNIE uses `Embargo` only as an internal workflow status. DataCite 4.7 metadata keeps `dateType=Available` and the COAR `Embargoed access` right. A valid embargo needs exactly one day-precision `Available` date (`YYYY-MM-DD`). The configured `APP_TIMEZONE` determines when that date becomes due at 00:00. The status remains Embargo until a curator manually registers the DOI or IGSN; successful registration changes the access right to Open and publishes the internal landing page. The dashboard lists due resources for every curator. Unpublished preview URLs require their token and omit stored download destinations. The XML schema snapshot under `resources/data/scheme/datacite-4.7/` comes from the official DataCite 4.7 schema and is used by the schema regression test.
 
 An uncertain DataCite create response leaves a durable registration attempt on the resource. A retry first reads DataCite by the stable `/datasets/{id}` target (or by the known IGSN) and completes the local release only when the remote record is Findable and has the expected Open access right. It never sends a second POST while the attempt is pending; editor saves are blocked until reconciliation. If the retry reports that no matching record exists, an operator must inspect the correct DataCite environment and prefix before clearing `embargo_registration_started_at` and `embargo_registration_prefix` for that resource in MySQL. Keep the marker when the remote outcome is uncertain or when multiple records match.
+
+### Tombstone landing pages
+
+Curators, Group Leaders and Admins can activate, edit and restore resource tombstones in **Setup Landing Page**. Activation verifies a registered or findable DOI through the authenticated DataCite Member API and requires a reason, a public explanation and confirmation. The default resource template retains bibliographic metadata and contact information while disabling data downloads and requests. Internal listings show **Dead**; public portal discovery excludes these resources. The workflow follows [DataCite's tombstone guidance](https://support.datacite.org/docs/tombstone-pages).
+
+Run migrations before using this feature. Keep the `queue` worker (including the configured DataCite queue) and `scheduler` services running: each lifecycle change stores a durable `resource_tombstone_transitions` record before queue dispatch. The scheduler recovers due work every minute, including jobs interrupted for more than six minutes. Transient failures retry up to five times with increasing delays; the setup modal shows progress and permits an explicit retry after failure. A failed DataCite write leaves the local tombstone publicly accessible. Only the desired DOI URL and the Registered/Findable transition are sent by these jobs; they use the DataCite environment recorded at activation.
+
+Restoration requires confirmation and restores the saved landing page configuration and previous DOI state/URL. If no landing page existed, choose explicitly whether to publish the restored default page. Revisions prevent stale modal saves and queued changes from replacing newer lifecycle decisions. Audit records retain the actor, public explanation and configuration snapshot. Metadata corrections remain possible while a tombstone is active.
+
+Seed `PlaywrightTestSeeder` and `TombstonePlaywrightSeeder` before the browser slice. The tombstone fixture represents a completed synchronization and sends no DataCite requests.
+
+Focused regression checks:
+
+```bash
+npm run test:php -- tests/pest/Feature/LandingPages/ResourceTombstoneTest.php tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php
+npm run test:php:mysql-sensitive:tombstones
+npm run test:run -- tests/vitest/components/landing-pages/modals/__tests__/TombstoneLandingPageControls.test.tsx tests/vitest/pages/LandingPages/__tests__/default_gfz.test.tsx
+npm run test:e2e:devstack -- critical/tombstone-pages.spec.ts --project=chromium
+```

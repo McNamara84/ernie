@@ -1,8 +1,12 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-09-28",
+        "date": "2026-10-01",
         "features": [
+            {
+                "title": "Tombstone Landing Pages for Unavailable Resources",
+                "description": "Curators, Group Leaders and Admins can activate a tombstone in Setup Landing Page for a resource with an existing registered DOI. The public page keeps its citation, DOI, metadata and contact details, explains why the data is unavailable, and disables downloads and data requests. Resources automatically become Dead and can be filtered in the internal Resources list while disappearing from public portal discovery. DataCite synchronization changes the DOI to Registered and points it to the tombstone, with visible progress and retries. Confirmed restoration recovers the previous landing page configuration and DOI state."
+            },
             {
                 "title": "Rename Datacenters Without Losing Assignments",
                 "description": "Admins and Group Leaders can rename any Datacenter in Editor Settings, including one assigned to Resources or IGSNs. Existing assignments and landing page template selections stay with the same Datacenter. Earlier names remain linked to it for later DOI and IGSN imports, and public portal filters continue to accept existing links."
