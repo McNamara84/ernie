@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\AccessLevel;
 use App\Enums\UserRole;
+use App\Http\Controllers\EditorController;
 use App\Jobs\SyncResourceTombstoneWithDataCiteJob;
 use App\Models\ContactMessage;
 use App\Models\LandingPage;
@@ -20,7 +23,10 @@ use App\Services\LandingPageMachineMetadataService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalSearchService;
 use App\Services\ResourceTombstoneSyncService;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -309,6 +315,45 @@ test('multiple activation cycles preserve independent configuration snapshots', 
         ->and($activations[1]->snapshot['configuration']['ftp_url'])->toBe('https://example.org/recovered.zip');
 });
 
+test('completed restoration of a registered DOI allows later intentional publication', function (string $status) {
+    Http::swap(new Factory);
+    Http::fake(['*datacite.org/*' => Http::response(($this->remote)('registered'))]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $this->deleteJson($this->endpoint, ['revision' => 1, 'confirmed' => true])->assertOk();
+    $transition = ResourceTombstoneTransition::latest('id')->first();
+    app(ResourceTombstoneSyncService::class)->sync($transition->id);
+    expect($transition->fresh()->status)->toBe('succeeded')
+        ->and($this->page->fresh()->is_tombstone)->toBeFalse();
+    $transition->update(['status' => $status]);
+
+    Http::swap(new Factory);
+    Http::fake(['*datacite.org/*' => Http::response(($this->remote)('findable'))]);
+    app(DataCiteMemberApiClient::class)->updateDoi($this->resource->doi, [
+        'data' => ['type' => 'dois', 'id' => $this->resource->doi, 'attributes' => ['url' => 'https://example.org/published', 'event' => 'publish']],
+    ]);
+    Http::assertSentCount(1);
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && $request['data']['attributes']['event'] === 'publish'
+        && $request['data']['attributes']['url'] === 'https://example.org/published');
+})->with(['succeeded', 'superseded']);
+
+test('unfinished restoration still protects the desired registered state and URL', function (string $status) {
+    Http::swap(new Factory);
+    Http::fake(['*datacite.org/*' => Http::response(($this->remote)('registered'))]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $this->deleteJson($this->endpoint, ['revision' => 1, 'confirmed' => true])->assertOk();
+    $transition = ResourceTombstoneTransition::latest('id')->first();
+    $transition->update(['status' => $status]);
+    Http::swap(new Factory);
+    Http::fake(['*datacite.org/*' => Http::response(($this->remote)('findable'))]);
+    app(DataCiteMemberApiClient::class)->updateDoi($this->resource->doi, [
+        'data' => ['type' => 'dois', 'id' => $this->resource->doi, 'attributes' => ['url' => 'https://example.org/stale', 'event' => 'publish']],
+    ]);
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && $request['data']['attributes']['event'] === 'hide'
+        && $request['data']['attributes']['url'] === $transition->target_url);
+})->with(['pending', 'running', 'failed']);
+
 test('normal model updates cannot turn a tombstone into an external redirect', function () {
     $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
     expect(fn () => $this->page->fresh()->update(['template' => 'external']))->toThrow(ValidationException::class);
@@ -329,11 +374,73 @@ test('recover dispatches due and expired jobs and leaves successful and failed w
     Queue::assertNothingPushed();
 });
 
+test('repeated recovery ticks enqueue only one job per pending transition', function () {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $sync = app(ResourceTombstoneSyncService::class);
+    for ($tick = 0; $tick < 15; $tick++) {
+        $this->travel(1)->minutes();
+        $sync->recover();
+    }
+    Queue::assertPushed(SyncResourceTombstoneWithDataCiteJob::class, 1);
+    expect(ResourceTombstoneTransition::first()->status)->toBe('pending');
+});
+
+test('recovery releases an abandoned worker lock once and keeps the recovered job unique', function () {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::first();
+    $transition->forceFill(['status' => 'running', 'updated_at' => now()->subMinutes(10)])->save();
+    Queue::fake([SyncResourceTombstoneWithDataCiteJob::class]);
+    $sync = app(ResourceTombstoneSyncService::class);
+    $sync->recover();
+    $sync->recover();
+    expect($transition->fresh()->status)->toBe('pending');
+    Queue::assertPushed(SyncResourceTombstoneWithDataCiteJob::class, 1);
+});
+
+test('a failed queue push releases its unique lock so recovery can dispatch again', function () {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $job = Queue::pushed(SyncResourceTombstoneWithDataCiteJob::class)->first();
+    (new UniqueLock(app(Repository::class)))->release($job);
+    Queue::fake([SyncResourceTombstoneWithDataCiteJob::class]);
+    $dispatcher = Bus::getFacadeRoot();
+    Bus::partialMock()->shouldReceive('dispatch')->once()->andThrow(new RuntimeException('Queue unavailable'));
+    $sync = app(ResourceTombstoneSyncService::class);
+    try {
+        $sync->recover();
+    } finally {
+        Bus::swap($dispatcher);
+    }
+    $sync->recover();
+    Queue::assertPushed(SyncResourceTombstoneWithDataCiteJob::class, 1);
+});
+
+test('completion of a queued attempt permits the same transition to be retried', function () {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::first();
+    $job = Queue::pushed(SyncResourceTombstoneWithDataCiteJob::class)->first();
+    $transition->update(['status' => 'failed']);
+    // The queue worker releases this owned lock when the attempt finishes.
+    (new UniqueLock(app(Repository::class)))->release($job);
+    $this->postJson($this->endpoint.'/retry-sync', ['revision' => 1])->assertOk();
+    Queue::assertPushed(SyncResourceTombstoneWithDataCiteJob::class, 2);
+});
+
 test('IGSNs cannot activate resource tombstones', function () {
     $type = ResourceType::firstOrCreate(['slug' => 'physical-object'], ['name' => 'Physical Object', 'is_active' => true]);
     $this->resource->update(['identifier_type' => 'IGSN', 'resource_type_id' => $type->id]);
     $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertUnprocessable();
     Http::assertNothingSent();
+});
+
+test('the editor exposes the Dead status and public tombstone while preventing DOI edits', function () {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $url = '/editor?resourceId='.$this->resource->id;
+    $token = $this->get($url)->assertOk()->inertiaProps('editorLoad.token');
+    $this->withHeader(EditorController::RESOURCE_LOAD_TOKEN_HEADER, $token)
+        ->get($url)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('editor')->where('publicStatus', 'dead')->where('canEditDoi', false)
+        ->where('landingPage.is_tombstone', true)->where('landingPage.is_published', true)
+        ->where('landingPage.public_url', $this->page->public_url));
 });
 
 test('beginners can read tombstone state but cannot mutate it', function () {

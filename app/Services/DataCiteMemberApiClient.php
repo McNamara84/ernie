@@ -184,13 +184,14 @@ class DataCiteMemberApiClient
         if ($transition === null) {
             return $payload;
         }
+        $page = LandingPage::where('resource_id', $transition->resource_id)->first();
+        if (! $page?->is_tombstone && in_array($transition->status, ['succeeded', 'superseded'], true)) {
+            return $payload;
+        }
         if ($transition->test_mode !== $this->testMode) {
             throw new \RuntimeException('The DOI lifecycle belongs to a different DataCite environment.');
         }
-        $page = LandingPage::where('resource_id', $transition->resource_id)->first();
-        if ($page?->is_tombstone || $transition->status !== 'succeeded') {
-            $payload['data']['attributes']['url'] = $transition->target_url;
-        }
+        $payload['data']['attributes']['url'] = $transition->target_url;
         if ($transition->target_state === 'registered' && ($payload['data']['attributes']['event'] ?? null) === 'publish') {
             $response = $this->getDoi($identifier);
             $response->throw();

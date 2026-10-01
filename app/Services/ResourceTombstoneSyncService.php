@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Jobs\SyncResourceTombstoneWithDataCiteJob;
 use App\Models\ResourceTombstoneTransition;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,9 +22,17 @@ final class ResourceTombstoneSyncService
 
     private function enqueue(int $id): void
     {
+        $job = new SyncResourceTombstoneWithDataCiteJob($id);
         try {
-            SyncResourceTombstoneWithDataCiteJob::dispatch($id)->onQueue(app(DataCiteQueueService::class)->queue());
+            dispatch($job)->onQueue(app(DataCiteQueueService::class)->queue());
         } catch (Throwable) {
+            if ($job->uniqueLockOwner !== '') {
+                try {
+                    (new UniqueLock(app(Repository::class)))->release($job);
+                } catch (Throwable) {
+                    // Cache failures must not invalidate the already committed lifecycle change.
+                }
+            }
             // The durable outbox is recovered by the scheduler, even if dispatch fails.
             Log::warning('Tombstone sync dispatch deferred', ['transition_id' => $id]);
         }
@@ -37,7 +47,19 @@ final class ResourceTombstoneSyncService
                 })->orWhere(function ($running): void {
                     $running->where('status', 'running')->where('updated_at', '<=', now()->subMinutes(6));
                 });
-            })->eachById(fn (ResourceTombstoneTransition $transition) => $this->enqueue($transition->id), 100);
+            })->eachById(function (ResourceTombstoneTransition $transition): void {
+                if ($transition->status === 'running') {
+                    // A timed-out worker may leave a unique lock behind. Claim this recovery once.
+                    $claimed = ResourceTombstoneTransition::whereKey($transition->id)
+                        ->where('status', 'running')->where('updated_at', '<=', now()->subMinutes(6))
+                        ->update(['status' => 'pending', 'available_at' => now(), 'updated_at' => now()]);
+                    if ($claimed === 0) {
+                        return;
+                    }
+                    (new UniqueLock(app(Repository::class)))->release(new SyncResourceTombstoneWithDataCiteJob($transition->id));
+                }
+                $this->enqueue($transition->id);
+            }, 100);
     }
 
     public function sync(int $id): void

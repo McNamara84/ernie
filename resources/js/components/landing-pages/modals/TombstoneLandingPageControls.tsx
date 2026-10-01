@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
 import { getLandingPageRequestErrorMessage } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { LandingPageConfig } from '@/types/landing-page';
 
@@ -124,17 +126,19 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                             action === 'retry' ? `${endpoint}/retry-sync` : endpoint,
                             payload,
                         );
-            try {
-                sessionStorage.removeItem(storageKey);
-            } catch {
-                /* The server result remains authoritative. */
-            }
             setState(response.data.tombstone);
-            setReason(response.data.tombstone.reason ?? 'data_lost');
-            setStatement(response.data.tombstone.statement ?? '');
-            setConfirmed(false);
-            setRestoreConfirmed(false);
-            if (response.data.landing_page) onSaved(response.data.landing_page);
+            if (action !== 'retry') {
+                try {
+                    sessionStorage.removeItem(storageKey);
+                } catch {
+                    /* The server result remains authoritative. */
+                }
+                setReason(response.data.tombstone.reason ?? 'data_lost');
+                setStatement(response.data.tombstone.statement ?? '');
+                setConfirmed(false);
+                setRestoreConfirmed(false);
+                if (response.data.landing_page) onSaved(response.data.landing_page);
+            }
         } catch (requestError) {
             setError(
                 getLandingPageRequestErrorMessage(requestError, 'The tombstone change could not be saved. Reload the modal if the page has changed.'),
@@ -197,18 +201,18 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                     <fieldset disabled={busy || !state.can_manage} className="space-y-3">
                         <div className="space-y-1">
                             <Label htmlFor="tombstone-reason">Reason</Label>
-                            <select
-                                id="tombstone-reason"
-                                value={reason}
-                                onChange={(event) => setReason(event.target.value)}
-                                className="w-full rounded-md border bg-background p-2 text-sm"
-                            >
-                                {state.reasons.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
+                            <Select value={reason} onValueChange={setReason} disabled={busy || !state.can_manage}>
+                                <SelectTrigger id="tombstone-reason" className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {state.reasons.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="tombstone-statement">Public explanation</Label>
@@ -241,34 +245,47 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                                             The original DataCite state will be restored.
                                         </p>
                                         {!state.restore?.has_configuration && (
-                                            <label className="flex items-center gap-2 text-sm">
-                                                <input
-                                                    type="checkbox"
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                    id="tombstone-restore-published"
                                                     checked={restorePublished}
-                                                    onChange={(event) => setRestorePublished(event.target.checked)}
+                                                    onCheckedChange={(checked) => setRestorePublished(checked === true)}
+                                                    disabled={busy || !state.can_manage}
                                                 />
-                                                Publish the restored default landing page
-                                            </label>
+                                                <Label htmlFor="tombstone-restore-published">Publish the restored default landing page</Label>
+                                            </div>
                                         )}
-                                        <label className="flex items-start gap-2 text-sm">
-                                            <input
-                                                type="checkbox"
+                                        <div className="flex items-start gap-2">
+                                            <Checkbox
+                                                id="tombstone-restore-confirmed"
+                                                className="mt-0.5"
                                                 checked={restoreConfirmed}
-                                                onChange={(event) => setRestoreConfirmed(event.target.checked)}
+                                                onCheckedChange={(checked) => setRestoreConfirmed(checked === true)}
+                                                disabled={busy || !state.can_manage}
                                             />
-                                            I confirm that this resource is available again and want to restore its landing page.
-                                        </label>
+                                            <Label htmlFor="tombstone-restore-confirmed" className="leading-normal">
+                                                I confirm that this resource is available again and want to restore its landing page.
+                                            </Label>
+                                        </div>
                                         <Button type="button" disabled={!restoreConfirmed} onClick={() => void mutate('restore')}>
                                             Restore landing page
                                         </Button>
                                     </>
                                 ) : (
                                     <>
-                                        <label className="flex items-start gap-2 text-sm">
-                                            <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I
-                                            confirm that this resource is unavailable. Its status will become Dead, data access will be disabled, it
-                                            will be hidden from the portal, and DataCite will be updated.
-                                        </label>
+                                        <div className="flex items-start gap-2">
+                                            <Checkbox
+                                                id="tombstone-activation-confirmed"
+                                                className="mt-0.5"
+                                                checked={confirmed}
+                                                onCheckedChange={(checked) => setConfirmed(checked === true)}
+                                                disabled={busy || !state.can_manage}
+                                            />
+                                            <Label htmlFor="tombstone-activation-confirmed" className="leading-normal">
+                                                I confirm that this resource is unavailable. Its status will become Dead, data access will be
+                                                disabled, it will be hidden from the portal, and DataCite will be updated.
+                                            </Label>
+                                        </div>
                                         <Button
                                             type="button"
                                             variant="destructive"

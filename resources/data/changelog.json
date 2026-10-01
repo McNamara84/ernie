@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Tombstone Landing Pages for Unavailable Resources",
-                "description": "Curators, Group Leaders and Admins can activate a tombstone in Setup Landing Page for a resource with an existing registered DOI. The public page keeps its citation, DOI, metadata and contact details, explains why the data is unavailable, and disables downloads and data requests. Resources automatically become Dead and can be filtered in the internal Resources list while disappearing from public portal discovery. DataCite synchronization changes the DOI to Registered and points it to the tombstone, with visible progress and retries. Confirmed restoration recovers the previous landing page configuration and DOI state."
+                "description": "Curators, Group Leaders and Admins can activate a tombstone in Setup Landing Page for a resource with an existing registered DOI. The public page keeps its citation, DOI, metadata and contact details, explains why the data is unavailable, and disables downloads and data requests. Resources automatically become Dead and can be filtered in the internal Resources list while disappearing from public portal discovery. The editor opens their public tombstone directly. DataCite synchronization changes the DOI to Registered and points it to the tombstone, with visible progress and retries that preserve unsaved explanations and reasons. Recovery avoids duplicate jobs while recovering interrupted work. Confirmed restoration recovers the previous landing page configuration and DOI state and permits intentional publication again after synchronization completes."
             },
             {
                 "title": "Automatic Access Conditions in Resource Metadata",
@@ -198,10 +198,6 @@
             }
         ],
         "fixes": [
-            {
-                "title": "Complete Tombstone Browser Test Fixtures",
-                "description": "The shared Playwright test seeder now includes the completed tombstone resource in local and CI environments. Browser tests for the public tombstone, Dead filtering and previews receive the same fixture without sending requests to DataCite. Regression tests verify availability and repeated seeding."
-            },
             {
                 "title": "Volta Support for Desktop Git Commit Checks",
                 "description": "On Linux and macOS, the pre-commit hook now finds an existing Volta installation when a desktop Git client's PATH omits Node or npm. An already usable Node/npm installation keeps priority, Windows continues to use npm.cmd, and missing tools produce an actionable error instead of silently skipping commit checks.",

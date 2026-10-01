@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -75,6 +76,7 @@ describe('Tombstone controls', () => {
     it('makes tombstone settings read-only for users without permission', async () => {
         setup({ ...active, can_manage: false });
         expect(await screen.findByLabelText('Public explanation')).toBeDisabled();
+        expect(screen.getByRole('combobox', { name: 'Reason' })).toBeDisabled();
         expect(screen.queryByRole('button', { name: 'Restore landing page' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Retry DataCite sync' })).not.toBeInTheDocument();
     });
@@ -150,6 +152,39 @@ describe('Tombstone controls', () => {
 });
 
 describe('Tombstone recovery and polling', () => {
+    it('keeps unsaved reason and explanation drafts when retrying the saved synchronization', async () => {
+        const user = userEvent.setup();
+        const callbacks = setup({ ...active, sync: { status: 'failed', attempts: 5, last_error: 'HTTP 503' } });
+        await user.click(await screen.findByRole('combobox', { name: 'Reason' }));
+        await user.click(screen.getByRole('option', { name: 'Resource retracted' }));
+        fireEvent.change(screen.getByLabelText('Public explanation'), { target: { value: 'Unsaved correction.' } });
+        const key = 'setup-landing-page-modal:tombstone:42:1';
+        const draft = sessionStorage.getItem(key);
+        vi.mocked(axios.post).mockResolvedValue({ data: { tombstone: active } });
+        fireEvent.click(screen.getByRole('button', { name: 'Retry DataCite sync' }));
+        await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('DataCite sync: pending.'));
+        expect(screen.getByRole('combobox', { name: 'Reason' })).toHaveTextContent('Resource retracted');
+        expect(screen.getByLabelText('Public explanation')).toHaveValue('Unsaved correction.');
+        expect(sessionStorage.getItem(key)).toBe(draft);
+        expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(true);
+        expect(callbacks.onSaved).not.toHaveBeenCalled();
+    });
+
+    it('restores without publishing when that choice is unchecked', async () => {
+        setup({ ...active, restore: { has_configuration: false, template: null, is_published: null, datacite_state: 'registered' } });
+        const publish = await screen.findByRole('checkbox', { name: 'Publish the restored default landing page' });
+        expect(publish).toBeChecked();
+        fireEvent.click(publish);
+        fireEvent.click(screen.getByRole('checkbox', { name: /I confirm that this resource is available again/ }));
+        vi.mocked(axios.delete).mockResolvedValue({ data: { tombstone: initial } });
+        fireEvent.click(screen.getByRole('button', { name: 'Restore landing page' }));
+        await waitFor(() =>
+            expect(axios.delete).toHaveBeenCalledWith('/resources/42/landing-page/tombstone', {
+                data: expect.objectContaining({ revision: 1, confirmed: true, restore_published: false }),
+            }),
+        );
+    });
+
     it('updates completed synchronization without overwriting an unsaved explanation', async () => {
         vi.useFakeTimers();
         try {
@@ -175,7 +210,7 @@ describe('Tombstone recovery and polling', () => {
         sessionStorage.setItem('setup-landing-page-modal:tombstone:42:1', JSON.stringify({ reason: 42, statement: {} }));
         setup(active);
         expect(await screen.findByLabelText('Public explanation')).toHaveValue(active.statement);
-        expect(screen.getByLabelText('Reason')).toHaveValue(active.reason);
+        expect(screen.getByRole('combobox', { name: 'Reason' })).toHaveTextContent('Data lost');
     });
 
     it('keeps a successful server change successful when browser storage is unavailable', async () => {

@@ -749,11 +749,42 @@ erDiagram
         boolean is_published
         varchar preview_token UK
         timestamp published_at
+        boolean is_tombstone "default false, indexed"
+        varchar tombstone_reason "40, nullable"
+        text tombstone_statement "nullable"
+        timestamp tombstoned_at "nullable"
+        bigint tombstoned_by_user_id FK "nullable, null on user deletion"
+        int tombstone_revision "unsigned, default 0"
         int view_count
         timestamp last_viewed_at
         timestamp created_at
         timestamp updated_at
     }
+
+    resource_tombstone_transitions {
+        bigint id PK
+        bigint resource_id FK "cascade delete"
+        bigint user_id FK "nullable, null on user deletion"
+        int revision "unsigned"
+        varchar action "30"
+        varchar reason "40, nullable"
+        text statement "nullable"
+        json snapshot "nullable"
+        varchar doi
+        boolean test_mode
+        varchar previous_state "20, nullable"
+        text previous_url "nullable"
+        varchar target_state "20"
+        text target_url
+        varchar status "20, default pending"
+        smallint attempts "unsigned, default 0"
+        timestamp available_at "nullable"
+        timestamp completed_at "nullable"
+        text last_error "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+    %% resource_tombstone_transitions unique(resource_id, revision), index(status, available_at)
 
     landing_page_files {
         bigint id PK
@@ -1382,6 +1413,9 @@ erDiagram
     resources ||--o| resource_assessments : "has latest assessment"
     resources ||--o| resource_assessment_refreshes : "has publication refresh"
     resources ||--o| landing_pages : "has"
+    resources ||--o{ resource_tombstone_transitions : "records tombstone lifecycle"
+    users |o--o{ resource_tombstone_transitions : "performs lifecycle change"
+    users |o--o{ landing_pages : "activates tombstone"
     resources ||--o{ alternate_identifiers : "has"
 
     %% Lookup table relationships

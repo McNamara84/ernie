@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import type { ResourcePublicStatus } from '@/types/resources';
 export { handleJsonFiles, handleXmlFiles } from '@/lib/datacite-upload';
 
 type DashboardProps = {
@@ -40,7 +41,7 @@ type DashboardPageProps = SharedData & {
         id: number;
         title: string;
         updated_at: string | null;
-        status?: 'draft' | 'curation' | 'review' | 'embargo' | 'published';
+        status?: ResourcePublicStatus;
     }>;
     dueEmbargos?: Array<{ id: number; title: string; availableDate: string }>;
     dueEmbargoCount?: number;
@@ -143,6 +144,8 @@ function formatResourceStatus(status?: RecentResource['status']) {
             return 'Review';
         case 'published':
             return 'Published';
+        case 'dead':
+            return 'Dead';
         default:
             return null;
     }
