@@ -1175,7 +1175,8 @@ class DataCiteXmlExporter
             ->sortBy('id')
             ->values();
 
-        if ($resourceRights->isEmpty() && $resource->access_level === null) {
+        $accessLevel = app(ResourceAccessLevelResolverService::class)->resolve($resource);
+        if ($resourceRights->isEmpty() && $accessLevel === null) {
             return;
         }
 
@@ -1238,8 +1239,8 @@ class DataCiteXmlExporter
             $rightsList->appendChild($rightsElement);
         }
 
-        if ($resource->access_level !== null) {
-            $accessUri = $resource->access_level->coarUri();
+        if ($accessLevel !== null) {
+            $accessUri = $accessLevel->coarUri();
             $alreadyPresent = $resourceRights->contains(function ($resourceRight) use ($accessUri): bool {
                 $uri = $resourceRight->right->uri ?? $resourceRight->rights_uri;
 
@@ -1250,10 +1251,10 @@ class DataCiteXmlExporter
             if (! $alreadyPresent) {
                 $accessElement = $this->dom->createElement(
                     'rights',
-                    htmlspecialchars($resource->access_level->label()),
+                    htmlspecialchars($accessLevel->label()),
                 );
                 $accessElement->setAttribute('rightsURI', $accessUri);
-                $accessElement->setAttribute('rightsIdentifier', $resource->access_level->coarIdentifier());
+                $accessElement->setAttribute('rightsIdentifier', $accessLevel->coarIdentifier());
                 $accessElement->setAttribute('rightsIdentifierScheme', AccessLevel::coarScheme());
                 $accessElement->setAttribute('schemeURI', AccessLevel::coarSchemeUri());
                 $rightsList->appendChild($accessElement);
