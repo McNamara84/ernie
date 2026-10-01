@@ -90,7 +90,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     The hook checks staged whitespace, PHP style with Pint, frontend lint and formatting, and OpenAPI changes when applicable. PHP checks start the Docker backend. It rejects partially staged files that need checking because the tools read the worktree. Full tests remain in the validation commands and CI.
 
-    On Windows, the hook uses `npm.cmd` so commits from GitHub Desktop do not depend on Bash or WSL. If an older hook reports `WSL ... execvpe(/bin/bash) failed`, update `.githooks/pre-commit` to the current version. Node and npm must be available on the Git client's `PATH`; use the Node version pinned in `.node-version` and restart GitHub Desktop after changing your Node installation or `PATH`.
+    On Windows, the hook uses `npm.cmd` so commits from GitHub Desktop do not depend on Bash or WSL. If an older hook reports `WSL ... execvpe(/bin/bash) failed`, update `.githooks/pre-commit` to the current version. On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
