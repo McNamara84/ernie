@@ -7024,52 +7024,57 @@ describe('DataCiteForm', () => {
             expect(previewWindow.location.href).toBe('https://example.test/draft-new-lp?preview=token');
         });
 
-        it('locks a curator DOI immediately when landing page setup publishes the resource', { timeout: 30000 }, async () => {
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const { previewWindow } = createPreopenedPreviewWindow();
-            const mockedAxios = axios as unknown as { post: Mock };
-            mockedAxios.post.mockResolvedValue({
-                data: { message: 'Draft saved.', resource: { id: 42, publicStatus: 'review', canEditDoi: true } },
-                status: 200,
-                statusText: 'OK',
-                headers: {},
-                config: {},
-            });
+        it.each([false, true])(
+            'locks a curator DOI immediately when setup publishes the resource (tombstone: %s)',
+            { timeout: 30000 },
+            async (isTombstone) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                const { previewWindow } = createPreopenedPreviewWindow();
+                const mockedAxios = axios as unknown as { post: Mock };
+                mockedAxios.post.mockResolvedValue({
+                    data: { message: 'Draft saved.', resource: { id: 42, publicStatus: 'review', canEditDoi: true } },
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {},
+                    config: {},
+                });
 
-            renderDataCiteForm({
-                initialResourceId: '42',
-                initialDoi: '10.5880/publish-transition.001',
-                initialPublicStatus: 'review',
-                initialTitles: [{ title: 'Publish transition', titleType: 'main-title' }],
-                canEditDoi: true,
-                isUserAdmin: false,
-            });
+                renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialDoi: '10.5880/publish-transition.001',
+                    initialPublicStatus: 'review',
+                    initialTitles: [{ title: 'Publish transition', titleType: 'main-title' }],
+                    canEditDoi: true,
+                    isUserAdmin: false,
+                });
 
-            expect(screen.getByLabelText('DOI')).not.toHaveAttribute('readonly');
-            await user.click(screen.getByTestId('show-lp-preview-button'));
-            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+                expect(screen.getByLabelText('DOI')).not.toHaveAttribute('readonly');
+                await user.click(screen.getByTestId('show-lp-preview-button'));
+                expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
 
-            const modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
-            await act(async () => {
-                await modalProps.onSuccess?.(
-                    {
-                        id: 17,
-                        resource_id: 42,
-                        template: 'default_gfz',
-                        status: 'published',
-                        public_url: 'https://example.test/published-transition',
-                        preview_url: 'https://example.test/published-transition?preview=token',
-                        external_url: null,
-                        view_count: 0,
-                        created_at: '2026-09-14T00:00:00Z',
-                        updated_at: '2026-09-14T00:00:00Z',
-                    },
-                    previewWindow,
-                );
-            });
+                const modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
+                await act(async () => {
+                    await modalProps.onSuccess?.(
+                        {
+                            id: 17,
+                            resource_id: 42,
+                            template: 'default_gfz',
+                            is_tombstone: isTombstone,
+                            status: 'published',
+                            public_url: 'https://example.test/published-transition',
+                            preview_url: 'https://example.test/published-transition?preview=token',
+                            external_url: null,
+                            view_count: 0,
+                            created_at: '2026-09-14T00:00:00Z',
+                            updated_at: '2026-09-14T00:00:00Z',
+                        },
+                        previewWindow,
+                    );
+                });
 
-            expect(screen.getByLabelText('DOI')).toHaveAttribute('readonly');
-        });
+                expect(screen.getByLabelText('DOI')).toHaveAttribute('readonly');
+            },
+        );
 
         it('shows the preparing state while the preview draft save is in progress', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -8734,10 +8739,10 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('shows only Update Metadata and Show LP for a published record', () => {
+        it.each(['published', 'dead'] as const)('shows only Update Metadata and Show LP for a %s record', (publicStatus) => {
             renderDataCiteForm({
                 initialDoi: '10.5880/example',
-                initialPublicStatus: 'published',
+                initialPublicStatus: publicStatus,
                 initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 7,
@@ -8802,7 +8807,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => expect(screen.getByRole('button', { name: 'Update metadata' })).toBeEnabled());
         });
 
-        it('opens a published landing page without saving invalid editor changes', async () => {
+        it.each(['published', 'dead'] as const)('opens a %s landing page without saving invalid editor changes', async (publicStatus) => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
@@ -8810,7 +8815,7 @@ describe('DataCiteForm', () => {
             renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/example',
-                initialPublicStatus: 'published',
+                initialPublicStatus: publicStatus,
                 initialTitles: [{ title: '', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 7,

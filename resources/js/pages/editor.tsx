@@ -34,6 +34,7 @@ import {
     type TitleType,
 } from '@/types';
 import type { EditorClientLoadStage, EditorLoadContext } from '@/types/editor-load';
+import type { ResourcePublicStatus } from '@/types/resources';
 
 interface EditorProps {
     googleMapsApiKey: string;
@@ -46,7 +47,7 @@ interface EditorProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     resourceId?: string;
-    publicStatus?: 'draft' | 'curation' | 'review' | 'embargo' | 'published';
+    publicStatus?: ResourcePublicStatus;
     canEditDoi?: boolean;
     landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];

@@ -5,6 +5,8 @@
 
 import type { PartySearchMatch, PartySearchRole } from '@/types/party-search';
 
+export type ResourcePublicStatus = 'draft' | 'curation' | 'review' | 'embargo' | 'published' | 'dead';
+
 export type ResourceSortKey =
     | 'id'
     | 'doi'
@@ -98,5 +100,7 @@ export interface ResourceDoiActionItem extends Pick<ResourceListItem, 'id' | 'do
 export function shouldUseUpdateMetadataLabel(resource: Pick<ResourceListItem, 'doi' | 'publicstatus' | 'landingPage'>): boolean {
     const hasExistingDoi = Boolean(resource.doi);
 
-    return hasExistingDoi && (resource.publicstatus === 'published' || resource.landingPage?.is_published === true);
+    return (
+        hasExistingDoi && (resource.publicstatus === 'published' || resource.publicstatus === 'dead' || resource.landingPage?.is_published === true)
+    );
 }

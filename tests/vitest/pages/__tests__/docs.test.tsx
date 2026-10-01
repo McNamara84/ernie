@@ -861,6 +861,9 @@ describe('Docs page', () => {
         // Beginners can set up landing pages as part of the training workflow
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
         expect(screen.getByText(/Beginner users can create, edit, preview, and publish landing pages/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Tombstone Landing Pages', level: 3 })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Activating a Tombstone', level: 4 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Restoring a Resource', level: 4 })).not.toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Expanding Citation Authors', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/keyboard focus stays on the control in both states/i)).toBeInTheDocument();
         expect(screen.getByText(/copy action uses whichever compact or expanded citation is currently visible/i)).toBeInTheDocument();
@@ -899,15 +902,17 @@ describe('Docs page', () => {
         expect(sectionContent).toMatch(/same control consistently reads Show less/i);
     });
 
-    it('shows landing pages documentation for curator', async () => {
+    it.each(['curator', 'group_leader', 'admin'] as const)('shows landing page and tombstone workflows for %s', async (userRole) => {
         const user = userEvent.setup();
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        render(<Docs userRole={userRole} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Switch to Datasets tab
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched and curator sees Landing Pages
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Activating a Tombstone', level: 4 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Restoring a Resource', level: 4 })).toBeInTheDocument();
     });
 
     it('documents the landing page preview action in the Data Editor', async () => {

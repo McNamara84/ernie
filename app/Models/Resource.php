@@ -110,7 +110,7 @@ class Resource extends Model
         return $query
             ->whereNotNull('doi')
             ->where('doi', '!=', '')
-            ->whereHas('landingPage', fn (Builder $landingPageQuery): Builder => $landingPageQuery->where('is_published', true));
+            ->whereHas('landingPage', fn (Builder $landingPageQuery): Builder => $landingPageQuery->where('is_published', true)->where('is_tombstone', false));
     }
 
     /**
@@ -616,7 +616,8 @@ class Resource extends Model
      * Determine the publication status of this resource (Issue #548).
      *
      * Status precedence:
-     * 1. A DOI with a published landing page is published, regardless of completeness.
+     * 1. An active tombstone is dead, regardless of completeness or workflow overrides.
+     *    Other DOIs with a published landing page are published.
      * 2. Explicit legacy workflow overrides select review or draft
      *    (force_review_status remains a compatibility alias for review).
      * 3. A resource missing any mandatory field is draft.
@@ -625,6 +626,10 @@ class Resource extends Model
      */
     public function publicStatus(): string
     {
+        if ($this->landingPage?->is_tombstone) {
+            return 'dead';
+        }
+
         if ($this->doi && $this->landingPage?->is_published) {
             return 'published';
         }

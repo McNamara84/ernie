@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\TombstoneReason;
 use App\Services\SlugGeneratorService;
 use Database\Factories\LandingPageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -15,6 +16,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Landing page configuration for a research dataset.
@@ -32,6 +34,12 @@ use Illuminate\Support\Str;
  * @property int|null $external_domain_id FK to landing_page_domains (only for external landing pages)
  * @property string|null $external_path URL path appended to domain (only for external landing pages)
  * @property bool $is_published
+ * @property bool $is_tombstone
+ * @property TombstoneReason|null $tombstone_reason
+ * @property string|null $tombstone_statement
+ * @property Carbon|null $tombstoned_at
+ * @property int|null $tombstoned_by_user_id
+ * @property int $tombstone_revision
  * @property string|null $preview_token
  * @property Carbon|null $published_at
  * @property int $view_count
@@ -104,6 +112,10 @@ class LandingPage extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'is_tombstone' => 'boolean',
+        'tombstone_reason' => TombstoneReason::class,
+        'tombstoned_at' => 'datetime',
+        'tombstone_revision' => 'integer',
         'is_published' => 'boolean',
         'downloads_unavailable' => 'boolean',
         'published_at' => 'datetime',
@@ -160,6 +172,10 @@ class LandingPage extends Model
         // to ensure citation stability and SEO consistency.
         // See class docblock for rationale on slug immutability.
         static::updating(function (LandingPage $landingPage): void {
+            if ($landingPage->getOriginal('is_tombstone') && ! $landingPage->isDirty('is_tombstone') && $landingPage->isDirty(['template', 'landing_page_template_id', 'external_domain_id', 'external_path', 'is_published', 'ftp_url', 'downloads_unavailable', 'doi_prefix'])) {
+                throw ValidationException::withMessages(['landing_page' => 'Restore the tombstone before changing its landing page configuration.']);
+            }
+
             if ($landingPage->isDirty('slug')) {
                 throw new \RuntimeException(
                     'Cannot modify landing page slug after creation. '.

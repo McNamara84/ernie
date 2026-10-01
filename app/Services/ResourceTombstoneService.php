@@ -1,0 +1,187 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Enums\TombstoneReason;
+use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
+use App\Models\Resource;
+use App\Models\ResourceTombstoneTransition;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+final class ResourceTombstoneService
+{
+    /** @var list<string> */
+    private const CONFIG_FIELDS = ['template', 'landing_page_template_id', 'ftp_url', 'primary_download_label', 'ftp_format_id', 'ftp_size_id', 'downloads_unavailable', 'external_domain_id', 'external_path', 'is_published', 'published_at'];
+
+    public function __construct(private readonly ResourceTombstoneSyncService $sync) {}
+
+    /** @return array<string, mixed> */
+    public function state(Resource $resource, User $user): array
+    {
+        $page = $resource->landingPage;
+        $latest = ResourceTombstoneTransition::where('resource_id', $resource->id)->latest('revision')->first();
+        $activation = ResourceTombstoneTransition::where('resource_id', $resource->id)->where('action', 'activate')->latest('revision')->first();
+
+        return [
+            'can_manage' => $user->can('manageTombstone', LandingPage::class),
+            'can_activate' => (bool) $resource->doi && ! $resource->isIgsn(),
+            'is_tombstone' => (bool) $page?->is_tombstone,
+            'revision' => (int) $page?->tombstone_revision,
+            'reason' => $page?->tombstone_reason?->value,
+            'statement' => $page?->tombstone_statement,
+            'reasons' => array_map(fn (TombstoneReason $reason): array => ['value' => $reason->value, 'label' => $reason->label()], TombstoneReason::cases()),
+            'sync' => $latest?->only(['status', 'attempts', 'last_error', 'completed_at']),
+            'restore' => $page?->is_tombstone ? [
+                'has_configuration' => $activation?->snapshot !== null,
+                'template' => $activation?->snapshot['configuration']['template'] ?? null,
+                'is_published' => $activation?->snapshot['configuration']['is_published'] ?? null,
+                'datacite_state' => $activation?->previous_state,
+            ] : null,
+        ];
+    }
+
+    /** @param array<string, mixed> $data */
+    public function activate(Resource $resource, User $user, array $data): LandingPage
+    {
+        if (! $resource->doi || $resource->isIgsn()) {
+            throw ValidationException::withMessages(['doi' => 'Tombstone pages require an existing resource DOI.']);
+        }
+        $client = app(DataCiteMemberApiClient::class);
+
+        return DataCiteDoiWriteLockService::run($resource->doi, $client->isTestMode(), function () use ($resource, $user, $data, $client): LandingPage {
+            try {
+                $response = $client->getDoi((string) $resource->doi);
+                $response->throw();
+            } catch (\Throwable) {
+                throw ValidationException::withMessages(['doi' => 'The registered DOI could not be verified with DataCite. Please retry.']);
+            }
+            $remoteState = $response->json('data.attributes.state');
+            $remoteUrl = $response->json('data.attributes.url');
+            $owner = $response->json('data.relationships.client.data.id');
+            if (! in_array($remoteState, ['registered', 'findable'], true) || ! is_string($remoteUrl) || trim($remoteUrl) === '') {
+                throw ValidationException::withMessages(['doi' => 'The DOI must already be registered with DataCite and have a target URL.']);
+            }
+            if (! is_string($owner) || strtolower($owner) !== $client->repositoryClientId()) {
+                throw ValidationException::withMessages(['doi' => 'The DOI does not belong to the configured DataCite repository.']);
+            }
+
+            return DB::transaction(function () use ($resource, $user, $data, $client, $remoteState, $remoteUrl): LandingPage {
+                $locked = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
+                abort_if($locked->doi !== $resource->doi, 409, 'The resource DOI changed. Reload the setup modal.');
+                $locked->load(['titles.titleType', 'creators', 'publisher', 'resourceType']);
+                if (! $locked->main_title || $locked->creators->isEmpty() || ! $locked->publication_year || $locked->publisher === null) {
+                    throw ValidationException::withMessages(['resource' => 'A title, creators, publication year and publisher are required for the tombstone citation.']);
+                }
+                $page = LandingPage::where('resource_id', $locked->id)->lockForUpdate()->first();
+                $this->assertRevision($page, (int) $data['revision']);
+                abort_if((bool) $page?->is_tombstone, 409, 'A tombstone page is already active.');
+                $snapshot = $page === null ? null : [
+                    'version' => 1,
+                    'configuration' => $page->only(self::CONFIG_FIELDS),
+                    'files' => $page->files->toArray(),
+                    'links' => $page->links->toArray(),
+                ];
+                $page ??= new LandingPage(['resource_id' => $locked->id, 'template' => LandingPageTemplate::DEFAULT_TEMPLATE_SLUG]);
+                $page->forceFill([
+                    'doi_prefix' => $locked->doi,
+                    'is_tombstone' => true,
+                    'tombstone_reason' => $data['reason'],
+                    'tombstone_statement' => trim((string) $data['statement']),
+                    'tombstoned_at' => now(),
+                    'tombstoned_by_user_id' => $user->id,
+                    'tombstone_revision' => ($page->tombstone_revision ?? 0) + 1,
+                    'template' => LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
+                    'landing_page_template_id' => LandingPageTemplate::defaultForType(LandingPageTemplate::TEMPLATE_TYPE_RESOURCE)->id,
+                    'external_domain_id' => null,
+                    'external_path' => null,
+                    'is_published' => true,
+                    'published_at' => $page->published_at ?? now(),
+                ])->save();
+                $locked->touch();
+                $transition = ResourceTombstoneTransition::create([
+                    'resource_id' => $locked->id, 'user_id' => $user->id, 'revision' => $page->tombstone_revision,
+                    'action' => 'activate', 'reason' => $data['reason'], 'statement' => $page->tombstone_statement,
+                    'snapshot' => $snapshot, 'doi' => $locked->doi, 'test_mode' => $client->isTestMode(),
+                    'previous_state' => $remoteState, 'previous_url' => $remoteUrl,
+                    'target_state' => 'registered', 'target_url' => $page->public_url, 'available_at' => now(),
+                ]);
+                $this->sync->dispatch($transition);
+
+                return $page;
+            });
+        });
+    }
+
+    /** @param array<string, mixed> $data */
+    public function change(Resource $resource, User $user, array $data, bool $restore = false): LandingPage
+    {
+        $previous = ResourceTombstoneTransition::where('resource_id', $resource->id)->latest('revision')->firstOrFail();
+
+        return DataCiteDoiWriteLockService::run($previous->doi, $previous->test_mode, fn (): LandingPage => DB::transaction(function () use ($resource, $user, $data, $restore): LandingPage {
+            $locked = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
+            $page = LandingPage::where('resource_id', $locked->id)->lockForUpdate()->firstOrFail();
+            $this->assertRevision($page, (int) $data['revision']);
+            abort_unless($page->is_tombstone, 409, 'The resource is no longer a tombstone.');
+            $previous = ResourceTombstoneTransition::where('resource_id', $locked->id)->latest('revision')->firstOrFail();
+            $targetState = $previous->target_state;
+            $targetUrl = $previous->target_url;
+            if ($restore) {
+                $activation = ResourceTombstoneTransition::where('resource_id', $locked->id)->where('action', 'activate')->latest('revision')->firstOrFail();
+                $configuration = $activation->snapshot['configuration'] ?? null;
+                if (! is_array($configuration)) {
+                    if (! array_key_exists('restore_published', $data)) {
+                        throw ValidationException::withMessages(['restore_published' => 'Choose whether the restored default landing page should be published.']);
+                    }
+                    $configuration = ['template' => LandingPageTemplate::DEFAULT_TEMPLATE_SLUG, 'landing_page_template_id' => null, 'is_published' => $data['restore_published'], 'published_at' => $data['restore_published'] ? now() : null];
+                }
+                $page->forceFill($configuration);
+                $page->forceFill(['is_tombstone' => false, 'tombstone_reason' => null, 'tombstone_statement' => null, 'tombstoned_at' => null, 'tombstoned_by_user_id' => null]);
+                $targetState = (string) $activation->previous_state;
+                $targetUrl = $activation->snapshot === null && $page->is_published ? $page->public_url : (string) $activation->previous_url;
+            } else {
+                $page->tombstone_reason = TombstoneReason::from((string) $data['reason']);
+                $page->tombstone_statement = trim((string) $data['statement']);
+            }
+            $page->tombstone_revision++;
+            $page->save();
+            $locked->touch();
+            $transition = ResourceTombstoneTransition::create([
+                'resource_id' => $locked->id, 'user_id' => $user->id, 'revision' => $page->tombstone_revision,
+                'action' => $restore ? 'restore' : 'update_statement', 'reason' => $page->tombstone_reason?->value, 'statement' => $page->tombstone_statement,
+                'doi' => $previous->doi, 'test_mode' => $previous->test_mode,
+                'target_state' => $targetState, 'target_url' => $targetUrl, 'available_at' => now(),
+            ]);
+            $this->sync->dispatch($transition);
+
+            return $page;
+        }));
+    }
+
+    public function retry(Resource $resource, int $revision): void
+    {
+        $transition = ResourceTombstoneTransition::where('resource_id', $resource->id)->latest('revision')->firstOrFail();
+        DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($resource, $revision): void {
+            DB::transaction(function () use ($resource, $revision): void {
+                $locked = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
+                $page = LandingPage::where('resource_id', $locked->id)->lockForUpdate()->firstOrFail();
+                $this->assertRevision($page, $revision);
+                $transition = ResourceTombstoneTransition::where('resource_id', $locked->id)->latest('revision')->firstOrFail();
+                abort_if($transition->status === 'running', 409, 'DataCite synchronization is already running.');
+                if ($transition->status !== 'succeeded') {
+                    $transition->update(['status' => 'pending', 'attempts' => 0, 'available_at' => now(), 'last_error' => null]);
+                    $this->sync->dispatch($transition);
+                }
+            });
+        });
+    }
+
+    private function assertRevision(?LandingPage $page, int $revision): void
+    {
+        abort_if((int) $page?->tombstone_revision !== $revision, 409, 'The landing page changed. Reload the setup modal before saving.');
+    }
+}

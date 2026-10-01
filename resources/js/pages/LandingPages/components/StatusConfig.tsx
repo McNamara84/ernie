@@ -9,6 +9,12 @@ interface StatusConfig {
 }
 
 const STATUS_CONFIGS: Record<string, StatusConfig> = {
+    dead: {
+        icon: FileEdit,
+        color: 'text-red-600',
+        textColor: 'text-red-700',
+        label: 'Dead',
+    },
     published: {
         icon: CheckCircle,
         color: 'text-green-600',

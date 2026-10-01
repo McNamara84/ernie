@@ -821,10 +821,44 @@ entity "landing_pages" as landing_pages {
     * is_published : BOOLEAN = false
     preview_token : VARCHAR(64) <<UK>>
     published_at : TIMESTAMP
+    * is_tombstone : BOOLEAN = false //indexed//
+    tombstone_reason : VARCHAR(40) <<nullable>>
+    tombstone_statement : TEXT <<nullable>>
+    tombstoned_at : TIMESTAMP <<nullable>>
+    tombstoned_by_user_id : BIGINT <<FK>> <<nullable>> //null on user deletion//
+    * tombstone_revision : INT UNSIGNED = 0
     * view_count : INT = 0
     last_viewed_at : TIMESTAMP
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
+}
+
+entity "resource_tombstone_transitions" as resource_tombstone_transitions {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>> //cascade delete//
+    user_id : BIGINT <<FK>> <<nullable>> //null on user deletion//
+    * revision : INT UNSIGNED
+    * action : VARCHAR(30)
+    reason : VARCHAR(40) <<nullable>>
+    statement : TEXT <<nullable>>
+    snapshot : JSON <<nullable>>
+    * doi : VARCHAR
+    * test_mode : BOOLEAN
+    previous_state : VARCHAR(20) <<nullable>>
+    previous_url : TEXT <<nullable>>
+    * target_state : VARCHAR(20)
+    * target_url : TEXT
+    * status : VARCHAR(20) = 'pending'
+    * attempts : SMALLINT UNSIGNED = 0
+    available_at : TIMESTAMP <<nullable>>
+    completed_at : TIMESTAMP <<nullable>>
+    last_error : TEXT <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+    --
+    UNIQUE(resource_id, revision)
+    INDEX(status, available_at)
 }
 
 entity "landing_page_files" as landing_page_files {
@@ -1486,6 +1520,9 @@ resources ||--o{ formats
 resources ||--o| resource_assessments
 resources ||--o| resource_assessment_refreshes
 resources ||--o| landing_pages
+resources ||--o{ resource_tombstone_transitions
+users |o--o{ resource_tombstone_transitions : "user_id"
+users |o--o{ landing_pages : "tombstoned_by_user_id"
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments
 resources }o--o| datacenters
