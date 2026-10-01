@@ -44,6 +44,15 @@ class LandingPagePreviewController extends Controller
         $this->authorize('create', LandingPage::class);
 
         $validated = $request->validated();
+        $resource->loadMissing('landingPage');
+        $previewIsTombstone = ($validated['is_tombstone'] ?? false) || $resource->landingPage?->is_tombstone;
+        if (($validated['is_tombstone'] ?? false) === true) {
+            $this->authorize('manageTombstone', LandingPage::class);
+        }
+        if ($previewIsTombstone) {
+            $validated['template'] = LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+            $validated['landing_page_template_id'] = LandingPageTemplate::defaultForType(LandingPageTemplate::TEMPLATE_TYPE_RESOURCE)->id;
+        }
 
         // External templates don't have a renderable preview — the frontend opens the external URL directly
         if ($validated['template'] === 'external') {
@@ -99,6 +108,9 @@ class LandingPagePreviewController extends Controller
             : $resource->landingPage?->primary_download_label;
 
         Session::put($sessionKey, [
+            'is_tombstone' => (bool) $previewIsTombstone,
+            'tombstone_reason' => $validated['tombstone_reason'] ?? $resource->landingPage?->tombstone_reason?->value,
+            'tombstone_statement' => $validated['tombstone_statement'] ?? $resource->landingPage?->tombstone_statement,
             'download_workflow_version' => 2,
             'activate_downloads' => $validated['activate_downloads'] ?? false,
             'template' => $validated['template'],
@@ -151,6 +163,11 @@ class LandingPagePreviewController extends Controller
             abort(404, 'Preview session is invalid. Please open preview again from the setup modal.');
         }
 
+        $resource->loadMissing('landingPage');
+        if ($resource->landingPage?->is_tombstone) {
+            $previewData['template'] = LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+            $previewData['landing_page_template_id'] = LandingPageTemplate::defaultForType(LandingPageTemplate::TEMPLATE_TYPE_RESOURCE)->id;
+        }
         $rawTemplate = is_string($previewData['template'] ?? null) ? $previewData['template'] : LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
         if ($rawTemplate === 'external') {
             abort(404, 'External landing pages do not support session-based previews. Please open the external URL directly from the setup modal.');
@@ -211,9 +228,10 @@ class LandingPagePreviewController extends Controller
             is_array($previewData['files'] ?? null) ? $previewData['files'] : [],
             fn (mixed $file): bool => is_array($file) && $availability->isUsableUrl($file['url'] ?? null),
         ));
-        $embargoPending = app(EmbargoService::class)->isEmbargoed($resource);
+        $isTombstone = ($previewData['is_tombstone'] ?? false) === true || $resource->landingPage?->is_tombstone === true;
+        $embargoPending = ! $isTombstone && app(EmbargoService::class)->isEmbargoed($resource);
         $downloadsUnavailable = LandingPageController::templateSupportsDownloadsUnavailable($template)
-            && ($embargoPending || ($activationRequired && ! $activateDownloads)
+            && ($isTombstone || $embargoPending || ($activationRequired && ! $activateDownloads)
                 || ! $availability->hasSources($previewData['ftp_url'] ?? null, $files));
         $visibleFiles = LandingPageController::templateSupportsFtpUrl($template) && ! $downloadsUnavailable ? $files : [];
         $ftpUrl = LandingPageController::templateSupportsFtpUrl($template) && ! $downloadsUnavailable
@@ -231,6 +249,10 @@ class LandingPagePreviewController extends Controller
         // in the LandingPage model. For previews, the ContactSection uses the resource's
         // contact_persons data directly without needing the contact form URL.
         $tempLandingPage = [
+            'is_tombstone' => $isTombstone,
+            'tombstone_reason' => $previewData['tombstone_reason'] ?? $resource->landingPage?->tombstone_reason?->value,
+            'tombstone_statement' => $previewData['tombstone_statement'] ?? $resource->landingPage?->tombstone_statement,
+            'tombstoned_at' => $resource->landingPage?->tombstoned_at?->toIso8601String(),
             'id' => null,
             'resource_id' => $resource->id,
             'template' => $template,

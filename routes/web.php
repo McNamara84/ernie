@@ -51,6 +51,7 @@ use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
 use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
+use App\Http\Controllers\ResourceTombstoneController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\StaticPageController;
@@ -511,6 +512,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('datacite.import.retry-sync');
 
     // Landing Page Management (Admin)
+    Route::get('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'show'])->name('landing-page.tombstone.show');
+    Route::post('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'activate'])->name('landing-page.tombstone.activate');
+    Route::patch('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'update'])->name('landing-page.tombstone.update');
+    Route::delete('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'restore'])->name('landing-page.tombstone.restore');
+    Route::post('resources/{resource}/landing-page/tombstone/retry-sync', [ResourceTombstoneController::class, 'retry'])->name('landing-page.tombstone.retry');
+
     Route::post('resources/{resource}/landing-page', [LandingPageController::class, 'store'])
         ->name('landing-page.store');
 

@@ -24,6 +24,7 @@ import { LocationSection } from './components/LocationSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
 import { ResourceRelationHighlightSections } from './components/ResourceRelationHighlightSections';
+import { TombstoneNotice } from './components/TombstoneNotice';
 import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
@@ -135,6 +136,7 @@ export default function DefaultGfzTemplate() {
               right: RIGHT_COLUMN_SECTIONS as ResourceSection[],
           };
     const downloadsUnavailable = landingPage?.downloads_unavailable === true;
+    const isTombstone = landingPage?.is_tombstone === true;
     const leftMetadataOrder = metadataOrderForColumn(orders.left);
     const rightMetadataOrder = metadataOrderForColumn(orders.right);
     const partitionedRelatedWork = useMemo(
@@ -171,26 +173,27 @@ export default function DefaultGfzTemplate() {
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {
-            files: embargoPending ? null : downloadsUnavailable ? (
-                <DataRequestSection
-                    key="files"
-                    contactPersons={resource.contact_persons || []}
-                    datasetTitle={mainTitle}
-                    hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
-                />
-            ) : (
-                <FilesSection
-                    key="files"
-                    downloadUrl={landingPage?.ftp_url}
-                    trackedDownloadUrl={landingPage?.tracked_ftp_url}
-                    downloadLabel={landingPage?.primary_download_label}
-                    downloadFiles={landingPage?.files}
-                    contactPersons={resource.contact_persons || []}
-                    datasetTitle={mainTitle}
-                    hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
-                    additionalLinks={landingPage?.links}
-                />
-            ),
+            files:
+                isTombstone || embargoPending ? null : downloadsUnavailable ? (
+                    <DataRequestSection
+                        key="files"
+                        contactPersons={resource.contact_persons || []}
+                        datasetTitle={mainTitle}
+                        hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
+                    />
+                ) : (
+                    <FilesSection
+                        key="files"
+                        downloadUrl={landingPage?.ftp_url}
+                        trackedDownloadUrl={landingPage?.tracked_ftp_url}
+                        downloadLabel={landingPage?.primary_download_label}
+                        downloadFiles={landingPage?.files}
+                        contactPersons={resource.contact_persons || []}
+                        datasetTitle={mainTitle}
+                        hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
+                        additionalLinks={landingPage?.links}
+                    />
+                ),
             licenses: (
                 <Fragment key="licenses">
                     <LicenseAndRightsSection licenses={resource.licenses || []} />
@@ -227,6 +230,7 @@ export default function DefaultGfzTemplate() {
         landingPage,
         mainTitle,
         downloadsUnavailable,
+        isTombstone,
         embargoPending,
         citationStyles,
         peopleDisplayLimits.citationAuthors,
@@ -250,7 +254,7 @@ export default function DefaultGfzTemplate() {
                 hero={
                     <ResourceHero
                         resourceType={resourceType}
-                        status={embargoPending && embargoDate ? 'embargo' : status}
+                        status={isTombstone ? 'dead' : embargoPending && embargoDate ? 'embargo' : status}
                         mainTitle={mainTitle}
                         subtitle={subtitle}
                         citation={citation}
@@ -259,6 +263,7 @@ export default function DefaultGfzTemplate() {
                 }
                 notice={
                     <>
+                        {isTombstone && landingPage && <TombstoneNotice landingPage={landingPage} isPreview={isPreview} />}
                         {embargoPending && (
                             <div
                                 role="status"

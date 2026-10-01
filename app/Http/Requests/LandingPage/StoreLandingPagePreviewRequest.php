@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\LandingPage;
 
+use App\Enums\TombstoneReason;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Requests\LandingPage\Concerns\ValidatesLandingPageContentDescriptors;
 use App\Models\LandingPageLink;
@@ -51,6 +52,9 @@ class StoreLandingPagePreviewRequest extends FormRequest
             'primary_download_label' => ['nullable', 'string', 'max:255'],
             'ftp_format_id' => ['nullable', 'integer', new ResourceMimeType($resource)],
             'ftp_size_id' => ['nullable', 'integer', new ResourceDigitalSize($resource)],
+            'is_tombstone' => ['sometimes', 'boolean'],
+            'tombstone_reason' => ['required_if:is_tombstone,true', Rule::enum(TombstoneReason::class)],
+            'tombstone_statement' => ['required_if:is_tombstone,true', 'string', 'max:5000'],
             'downloads_unavailable' => ['missing'],
             'download_activation_required' => ['missing'],
             'activate_downloads' => ['sometimes', 'boolean'],

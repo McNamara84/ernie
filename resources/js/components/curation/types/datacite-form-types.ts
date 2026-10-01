@@ -18,6 +18,7 @@ import type {
     Role,
     TitleType,
 } from '@/types';
+import type { ResourcePublicStatus } from '@/types/resources';
 
 import type { FundingReferenceEntry } from '../fields/funding-reference';
 import type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
@@ -30,6 +31,7 @@ export type { DescriptionEntry } from '../fields/description-field';
 export type { FundingReferenceEntry } from '../fields/funding-reference';
 export type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
 export type { AffiliationTag } from '@/types/affiliations';
+export type { ResourcePublicStatus } from '@/types/resources';
 
 // ============================================================================
 // Form Data Types
@@ -209,6 +211,7 @@ export type InitialContributor =
 export interface EditorLandingPageSummary {
     id: number;
     is_published: boolean;
+    is_tombstone?: boolean;
     status: 'draft' | 'published';
     public_url: string;
     preview_url?: string | null;
@@ -288,8 +291,6 @@ export interface DataCiteFormProps {
     /** Active identifier type slugs from the backend (only these are shown in the editor) */
     activeIdentifierTypes?: string[];
 }
-
-export type ResourcePublicStatus = 'draft' | 'curation' | 'review' | 'embargo' | 'published';
 
 export type EditorDraftSaveIntent = 'save-draft' | 'autosave' | 'landing-page-preview';
 

@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
+import { navigateWithTlsRetry } from '../navigation';
+
 /**
  * Page Object Model for the public Landing Page
  *
@@ -62,17 +64,7 @@ export class LandingPage {
   readonly mapContainer: Locator;
 
   private async navigate(url: string, timeout = 90_000): Promise<void> {
-    const attempt = () => this.page.goto(url, { timeout });
-
-    await attempt().catch((error: unknown) => {
-      if (!(error instanceof Error) || !error.message.includes('SSL connect error')) {
-        throw error;
-      }
-
-      // WebKit on Windows can reject the local Traefik certificate on the
-      // first handshake even with ignoreHTTPSErrors enabled.
-      return attempt();
-    });
+    await navigateWithTlsRetry(this.page, url, { timeout });
   }
 
   // Subjects/Keywords section

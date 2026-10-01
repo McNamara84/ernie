@@ -246,7 +246,7 @@ class PortalSearchService
     {
         $query = Resource::query()
             ->whereHas('landingPage', function (Builder $q): void {
-                $q->where('is_published', true);
+                $q->where('is_published', true)->where('is_tombstone', false);
             });
 
         $scope = isset($filters['portal_scope'])
@@ -496,6 +496,7 @@ class PortalSearchService
                 ->join('resources', 'resources.resource_type_id', '=', 'resource_types.id')
                 ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                 ->where('landing_pages.is_published', true)
+                ->where('landing_pages.is_tombstone', false)
                 ->when(
                     $scope === PortalScope::DOI,
                     fn (Builder $query): Builder => $query->where('resource_types.slug', '!=', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
@@ -537,6 +538,7 @@ class PortalSearchService
                 ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                 ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id')
                 ->where('landing_pages.is_published', true)
+                ->where('landing_pages.is_tombstone', false)
                 ->when($scope === PortalScope::DOI, function (Builder $query): void {
                     $query->where(function (Builder $typeQuery): void {
                         $typeQuery
@@ -1216,6 +1218,7 @@ class PortalSearchService
                 ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                 ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id')
                 ->where('landing_pages.is_published', true)
+                ->where('landing_pages.is_tombstone', false)
                 ->when($scope === PortalScope::DOI, function ($query): void {
                     $query->where(function ($typeQuery): void {
                         $typeQuery

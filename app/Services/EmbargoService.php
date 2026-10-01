@@ -14,7 +14,8 @@ final class EmbargoService
 {
     public function isEmbargoed(Resource $resource): bool
     {
-        return $resource->access_level === AccessLevel::EMBARGOED;
+        return $resource->access_level === AccessLevel::EMBARGOED
+            && ! $resource->landingPage?->is_tombstone;
     }
 
     public function availableDate(Resource $resource): ?string

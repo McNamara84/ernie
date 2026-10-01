@@ -7,6 +7,7 @@ use App\Models\AssessmentRun;
 use App\Models\User;
 use App\Services\Assessment\AssessmentRunService;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
+use App\Services\ResourceTombstoneSyncService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -37,6 +38,9 @@ Artisan::command('add-user {name} {email} {password}', function (string $name, s
         $this->info("User {$user->email} created as BEGINNER.");
     }
 })->purpose('Add a new user to the database');
+
+Schedule::call(fn () => app(ResourceTombstoneSyncService::class)->recover())
+    ->everyMinute()->name('recover-resource-tombstones')->withoutOverlapping(2);
 
 // Extend vocabulary cache TTLs every 12 hours without re-fetching data
 Schedule::call(function () {
