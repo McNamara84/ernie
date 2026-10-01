@@ -177,14 +177,15 @@ describe('handle', function (): void {
             ->and($json['data'][0]['text'])->toBe('Cambrian');
     });
 
-    it('handles orphaned concepts as root nodes', function (): void {
+    it('rejects an incomplete hierarchy and preserves the previous cache', function (): void {
         Storage::fake('local');
+        Storage::put('chronostrat-timescale.json', '{"data":[],"lastUpdated":"previous"}');
 
         $items = [
             [
                 '_about' => 'http://resource.geosciml.org/classifier/ics/ischart/Triassic',
                 'prefLabel' => ['_value' => 'Triassic', '_lang' => 'en'],
-                // Parent not in dataset → should become root
+                // A missing source parent cannot establish a complete hierarchy.
                 'broader' => 'http://resource.geosciml.org/classifier/ics/ischart/NotInDataset',
             ],
             [
@@ -200,15 +201,8 @@ describe('handle', function (): void {
             ], 200),
         ]);
 
-        $this->artisan('get-chronostrat-timescale')
-            ->assertExitCode(0);
-
-        $json = json_decode(Storage::get('chronostrat-timescale.json'), true);
-
-        // Both should be root nodes
-        expect($json['data'])->toHaveCount(2);
-        $texts = array_column($json['data'], 'text');
-        expect($texts)->toContain('Triassic')
-            ->and($texts)->toContain('Cretaceous');
+        $this->artisan('get-chronostrat-timescale')->assertExitCode(1);
+        expect(Storage::get('chronostrat-timescale.json'))->toBe('{"data":[],"lastUpdated":"previous"}')
+            ->and(Storage::exists('subject-hierarchies/chronostrat-timescale.json'))->toBeFalse();
     });
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
 use App\Support\EuroSciVocParser;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -58,6 +59,7 @@ class GetEuroSciVoc extends Command
             }
 
             // Step 3: Build hierarchy
+            (new SubjectHierarchyCacheService)->validateFlat($concepts, $schemeName, $conceptSchemeUri);
             $this->info('Building hierarchical structure...');
             $hierarchicalData = $parser->buildHierarchy($concepts, $schemeName, $conceptSchemeUri);
 
@@ -74,7 +76,7 @@ class GetEuroSciVoc extends Command
                 return Command::FAILURE;
             }
 
-            Storage::put(self::OUTPUT_FILE, $json);
+            (new SubjectHierarchyCacheService)->publishFlat(self::OUTPUT_FILE, $json, $concepts, $schemeName, $conceptSchemeUri);
 
             // Invalidate vocabulary caches
             $this->call('cache:clear-app', ['category' => 'vocabularies']);

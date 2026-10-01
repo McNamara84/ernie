@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
 use App\Support\GcmdVocabularyParser;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
@@ -87,6 +88,9 @@ abstract class BaseGcmdCommand extends Command
 
                 // Parse concepts from this page
                 $concepts = $parser->extractConcepts($rdfContent);
+                if ($concepts === [] && count($allConcepts) < $totalHits) {
+                    throw new \RuntimeException('NASA KMS returned an incomplete page. The previous vocabulary was preserved.');
+                }
                 $allConcepts = array_merge($allConcepts, $concepts);
 
                 $this->info('Fetched '.count($concepts).' concepts (total: '.count($allConcepts).')');
@@ -96,6 +100,10 @@ abstract class BaseGcmdCommand extends Command
             } while (count($allConcepts) < $totalHits);
 
             $this->info('Successfully fetched all RDF data');
+            if ($totalHits > 0 && count(array_unique(array_column($allConcepts, 'id'))) !== $totalHits) {
+                throw new \RuntimeException('NASA KMS returned duplicate or incomplete concepts. The previous vocabulary was preserved.');
+            }
+            (new SubjectHierarchyCacheService)->validateFlat($allConcepts, $this->getSchemeTitle(), $this->getSchemeURI());
 
             // Build hierarchical structure
             $this->info('Building hierarchical structure...');
@@ -120,7 +128,7 @@ abstract class BaseGcmdCommand extends Command
                 return Command::FAILURE;
             }
 
-            Storage::put($outputFile, $json);
+            (new SubjectHierarchyCacheService)->publishFlat($outputFile, $json, $allConcepts, $this->getSchemeTitle(), $this->getSchemeURI());
 
             // Invalidate vocabulary caches after successful update
             $this->call('cache:clear-app', ['category' => 'vocabularies']);

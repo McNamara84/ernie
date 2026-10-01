@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -59,7 +60,7 @@ class MslVocabularyService
                 return false;
             }
 
-            Storage::put(self::STORAGE_PATH, $jsonEncoded);
+            (new SubjectHierarchyCacheService)->publishTree(self::STORAGE_PATH, $jsonEncoded, $transformedData);
 
             $totalConcepts = $this->countConcepts($transformedData);
 

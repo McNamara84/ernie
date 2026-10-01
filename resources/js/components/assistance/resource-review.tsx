@@ -5,6 +5,7 @@ import { AlertTriangle, Check, ChevronsDown, ChevronsUp, RefreshCw, X } from 'lu
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { DeclineReasonDialog } from '@/components/assistance/decline-reason-dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssistanceRequestError, assistanceReviewQueryOptions } from '@/hooks/use-assistance-review';
+import { isSubjectHierarchyReady } from '@/lib/subject-hierarchy';
 import { editor as editorRoute } from '@/routes';
 import {
     type AssistanceResourceGroup,
@@ -276,6 +278,7 @@ export function ResourceReview({
     const [collapsedAssistantIds, setCollapsedAssistantIds] = useState<string[]>(savedCollapsedAssistantIds);
     const preferenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const [pendingHierarchyDecline, setPendingHierarchyDecline] = useState<AssistanceResourceGroup | null>(null);
     const [processingResources, setProcessingResources] = useState<Set<number>>(() => new Set());
     const [allPage, setAllPage] = useState(1);
     const [assistantPages, setAssistantPages] = useState<Record<string, number>>({});
@@ -443,15 +446,24 @@ export function ResourceReview({
         });
     };
 
-    const runBatch = async (action: 'accept' | 'decline', group: AssistanceResourceGroup) => {
+    const runBatch = async (action: 'accept' | 'decline', group: AssistanceResourceGroup, reason?: string) => {
         const items = group.suggestions.filter((item) => selected.has(identity(item)));
         if (items.length === 0) return;
+        if (
+            action === 'decline' &&
+            !reason &&
+            items.some((item) => (item.review?.assistant_id ?? item.assistant_id) === 'subject-hierarchy-correction')
+        ) {
+            setPendingHierarchyDecline(group);
+            return;
+        }
 
         setProcessingResources((current) => new Set(current).add(group.resource_id));
 
         try {
             const { data } = await axios.post<BatchSuggestionResponse>(`/assistance/suggestions/batch/${action}`, {
                 resource_id: group.resource_id,
+                ...(reason ? { reason } : {}),
                 suggestions: items.map((item) => {
                     const acceptanceInput = action === 'accept' ? acceptanceInputs[identity(item)] : undefined;
 
@@ -502,6 +514,11 @@ export function ResourceReview({
         const processing = processingResources.has(group.resource_id);
         const declineOnlySelected = selectedItems.some((item) => item.review?.can_accept !== true);
         const unresolvedSizeConflict = selectedItems.some((item) => isUnresolvedSizeConflict(item, acceptanceInputs[identity(item)]));
+        const unresolvedHierarchy = selectedItems.some(
+            (item) =>
+                (item.review?.assistant_id ?? item.assistant_id) === 'subject-hierarchy-correction' &&
+                !isSubjectHierarchyReady(item, acceptanceInputs[identity(item)]),
+        );
         const selectedTargetCounts = new Map<string, number>();
 
         for (const item of selectedItems) {
@@ -513,10 +530,14 @@ export function ResourceReview({
         const acceptExplanation = declineOnlySelected
             ? 'The selection contains a hint that can only be declined.'
             : conflictingAlternatives
-              ? 'Select at most one ORCID or ROR alternative per target before accepting.'
+              ? selectedItems.some((item) => (item.review?.assistant_id ?? item.assistant_id) === 'subject-hierarchy-correction')
+                  ? 'Select at most one hierarchy correction per subject vocabulary before accepting.'
+                  : 'Select at most one ORCID or ROR alternative per target before accepting.'
               : unresolvedSizeConflict
                 ? 'Confirm replacement of the listed existing digital size before accepting.'
-                : null;
+                : unresolvedHierarchy
+                  ? 'Choose at least one narrower term for each selected hierarchy correction before accepting.'
+                  : null;
         const resourceLabel = group.resource_doi.trim() || `Resource #${group.resource_id}`;
         const resourceTitle = group.resource_title.trim() || 'Untitled';
 
@@ -761,6 +782,14 @@ export function ResourceReview({
 
     return (
         <Tabs value={activeView} onValueChange={changeView}>
+            <DeclineReasonDialog
+                open={pendingHierarchyDecline !== null}
+                onClose={() => setPendingHierarchyDecline(null)}
+                onConfirm={(reason) => {
+                    if (pendingHierarchyDecline) void runBatch('decline', pendingHierarchyDecline, reason);
+                    setPendingHierarchyDecline(null);
+                }}
+            />
             <TabsList aria-label="Assistance view">
                 <TabsTrigger value="all">All assistants</TabsTrigger>
                 <TabsTrigger value="assistant">By assistant</TabsTrigger>

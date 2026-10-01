@@ -117,6 +117,13 @@ final class SubjectVocabularyLookupService
     /** @var array<string, array<string, SubjectVocabularyConcept>> */
     private array $globalExactLabel = [];
 
+    public function localCacheFile(string $scheme): ?string
+    {
+        $scheme = $this->normalizeSupportedScheme($scheme) ?? $scheme;
+
+        return self::SOURCES[$scheme]['file'] ?? null;
+    }
+
     public function normalizeSupportedScheme(?string $scheme): ?string
     {
         $normalizedScheme = PortalSubjectNormalizer::normalizeScheme($scheme);

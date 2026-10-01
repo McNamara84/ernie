@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
+
 /**
  * Parser for the ARDC Linked Data API response of the "Analytical Methods
  * for Geochemistry and Cosmochemistry" vocabulary (EarthChem/GEOROC).
@@ -21,7 +23,7 @@ class AnalyticalMethodsVocabularyParser
      * Parse ARDC Linked Data API response items into flat concept array.
      *
      * @param  array<int, array<string, mixed>>  $items  Raw items from ARDC API response
-     * @return array<int, array{id: string, text: string, notation: string, language: string, broaderId: string|null, definition: string}>
+     * @return array<int, array{id: string, text: string, notation: string, language: string, broaderId: string|null, broaderIds?: list<string>, definition: string}>
      */
     public function extractConcepts(array $items): array
     {
@@ -50,6 +52,7 @@ class AnalyticalMethodsVocabularyParser
                 'notation' => $notation,
                 'language' => 'en',
                 'broaderId' => $broaderId,
+                'broaderIds' => (new SubjectHierarchyCacheService)->uris($item['broader'] ?? []),
                 'definition' => $definition,
             ];
         }
@@ -60,7 +63,7 @@ class AnalyticalMethodsVocabularyParser
     /**
      * Build hierarchical structure from flat concept array.
      *
-     * @param  array<int, array{id: string, text: string, notation: string, language: string, broaderId: string|null, definition: string}>  $concepts
+     * @param  array<int, array{id: string, text: string, notation: string, language: string, broaderId: string|null, broaderIds?: list<string>, definition: string}>  $concepts
      * @return array{lastUpdated: string, data: array<int, array<string, mixed>>}
      */
     public function buildHierarchy(array $concepts): array

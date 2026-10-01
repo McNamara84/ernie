@@ -4,6 +4,11 @@
         "date": "2026-10-01",
         "features": [
             {
+                "title": "Subject Hierarchy Correction Assistant",
+                "description": "Admins and Group Leaders can review broad subject tags across all nine supported hierarchical vocabularies. The assistant shows the complete descendant tree and lets curators choose applicable terminal concepts, with existing assignments protected and a preview of the changes. Selecting all offered terms retains the broader concept; choosing a subset removes it. A reasoned decline preserves the current tagging and suppresses the unchanged case. Single and resource batch actions reject stale proposals, preserve trusted vocabulary metadata and use the existing DataCite synchronization and retry workflow. GEMET uses actual concept relations rather than navigation groups; missing local hierarchy data is reported for vocabulary updates.",
+                "references": [{ "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" }]
+            },
+            {
                 "title": "Automatic Access Conditions in Resource Metadata",
                 "description": "Digital resource landing pages now infer missing access levels from their current download configuration: active Download URLs or imported files indicate Open access, while pages without automatic downloads expose Metadata only access. Stored access levels take priority, and external landing pages remain unresolved without a reliable stored value. Access conditions appear consistently in Schema.org JSON-LD, Dublin Core and DataCite JSON/XML with COAR Access Rights. Metadata-only pages omit isAccessibleForFree instead of implying Restricted access. Access backfill reports unresolved resources for review rather than defaulting to Open access. IGSN and Physical Object access behavior is preserved.",
                 "references": [

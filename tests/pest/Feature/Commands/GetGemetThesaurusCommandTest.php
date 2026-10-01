@@ -51,6 +51,9 @@ function fakeGemetApiResponses(): void
 
     Http::fake(function (Request $request) use ($superGroups, $groups, $broaderConcept, $groupMembers) {
         $url = $request->url();
+        if (str_contains($url, 'gemet-skoscore.rdf')) {
+            return Http::response('<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xml:base="http://www.eionet.europa.eu/gemet/"><skos:Concept rdf:about="concept/100"><skos:narrower rdf:resource="concept/101" /></skos:Concept><skos:Concept rdf:about="concept/101"><skos:broader rdf:resource="concept/100" /></skos:Concept></rdf:RDF>');
+        }
         $thesaurusUri = $request->data()['thesaurus_uri'] ?? '';
         $relationUri = $request->data()['relation_uri'] ?? '';
 
