@@ -814,3 +814,22 @@ The Subject Hierarchy Correction assistant reads version 1 caches under `storage
 GEMET updates additionally download the official EEA SKOS concept relation export. Navigation groups are recorded as non-indexable hints and do not supply concept hierarchy edges. Invalid graphs, missing parents and incomplete exports fail the update before publication. Discovery and acceptance never fetch vocabulary data remotely; unavailable or mismatched caches are reported in the check result and cannot be used for corrections.
 
 Rebuild the assistant manifest and route caches using the deployment's normal cache procedure after adding the module. Vocabulary updates do not change resource subjects. Curators must confirm the terms that describe each resource. Retaining the broader concept when every terminal descendant is chosen is an ERNIE curation rule; it is not a general thesaurus requirement. A reasoned decline supports broader scopes that should remain unchanged. Registered resources use the existing DataCite synchronization and retry flow after a confirmed correction.
+
+### Tombstone landing pages
+
+Curators, Group Leaders and Admins can activate, edit and restore resource tombstones in **Setup Landing Page**. Activation verifies a registered or findable DOI through the authenticated DataCite Member API and requires a reason, a public explanation and confirmation. The default resource template retains bibliographic metadata and contact information while disabling data downloads and requests. Internal listings show **Dead**; public portal discovery excludes these resources. The workflow follows [DataCite's tombstone guidance](https://support.datacite.org/docs/tombstone-pages).
+
+Run migrations before using this feature. Keep the `queue` worker (including the configured DataCite queue) and `scheduler` services running: each lifecycle change stores a durable `resource_tombstone_transitions` record before queue dispatch. The scheduler recovers due work every minute, including jobs interrupted for more than six minutes. Transient failures retry up to five times with increasing delays; the setup modal shows progress and permits an explicit retry after failure. A failed DataCite write leaves the local tombstone publicly accessible. Only the desired DOI URL and the Registered/Findable transition are sent by these jobs; they use the DataCite environment recorded at activation.
+
+Restoration requires confirmation and restores the saved landing page configuration and previous DOI state/URL. If no landing page existed, choose explicitly whether to publish the restored default page. After synchronization completes, normal metadata updates can intentionally publish a restored DOI again. Revisions prevent stale modal saves and queued changes from replacing newer lifecycle decisions. Audit records retain the actor, public explanation and configuration snapshot. Metadata corrections remain possible while a tombstone is active. Retrying synchronization preserves unsaved reason and explanation drafts. Jobs are unique per transition through the database cache; recovery releases abandoned worker locks and failed queue pushes release their owned locks.
+
+Seed `PlaywrightTestSeeder` before the browser slice, as in CI. It automatically calls `TombstonePlaywrightSeeder`; the tombstone fixture represents a completed synchronization and sends no DataCite requests.
+
+Focused regression checks:
+
+```bash
+npm run test:php -- tests/pest/Feature/LandingPages/ResourceTombstoneTest.php tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php
+npm run test:php:mysql-sensitive:tombstones
+npm run test:run -- tests/vitest/components/landing-pages/modals/__tests__/TombstoneLandingPageControls.test.tsx tests/vitest/pages/LandingPages/__tests__/default_gfz.test.tsx
+npm run test:e2e:devstack -- critical/tombstone-pages.spec.ts --project=chromium
+```

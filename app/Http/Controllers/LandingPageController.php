@@ -490,6 +490,11 @@ class LandingPageController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            abort_if($lockedLandingPage->is_tombstone, 409, 'Restore the tombstone page before changing its landing page configuration.');
+            if (isset($validated['tombstone_revision'])) {
+                abort_if($lockedLandingPage->tombstone_revision !== (int) $validated['tombstone_revision'], 409, 'The landing page changed. Reload the setup modal.');
+            }
+
             if (isset($validated['template'])) {
                 if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $lockedResource->resourceType?->slug)) {
                     return response()->json([

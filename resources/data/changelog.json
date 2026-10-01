@@ -9,6 +9,10 @@
                 "references": [{ "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" }]
             },
             {
+                "title": "Tombstone Landing Pages for Unavailable Resources",
+                "description": "Curators, Group Leaders and Admins can activate a tombstone in Setup Landing Page for a resource with an existing registered DOI. The public page keeps its citation, DOI, metadata and contact details, explains why the data is unavailable, and disables downloads and data requests. Resources automatically become Dead and can be filtered in the internal Resources list while disappearing from public portal discovery. The editor opens their public tombstone directly. DataCite synchronization changes the DOI to Registered and points it to the tombstone, with visible progress and retries that preserve unsaved explanations and reasons. Recovery avoids duplicate jobs while recovering interrupted work. Confirmed restoration recovers the previous landing page configuration and DOI state and permits intentional publication again after synchronization completes."
+            },
+            {
                 "title": "Automatic Access Conditions in Resource Metadata",
                 "description": "Digital resource landing pages now infer missing access levels from their current download configuration: active Download URLs or imported files indicate Open access, while pages without automatic downloads expose Metadata only access. Stored access levels take priority, and external landing pages remain unresolved without a reliable stored value. Access conditions appear consistently in Schema.org JSON-LD, Dublin Core and DataCite JSON/XML with COAR Access Rights. Metadata-only pages omit isAccessibleForFree instead of implying Restricted access. Access backfill reports unresolved resources for review rather than defaulting to Open access. IGSN and Physical Object access behavior is preserved.",
                 "references": [

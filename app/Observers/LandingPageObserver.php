@@ -59,6 +59,11 @@ class LandingPageObserver
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
 
+        if ($landingPage->wasChanged('is_tombstone')) {
+            $this->resourceCacheService->invalidatePublishedResourceCounts();
+            $this->schedulePortalInvalidation($landingPage, PortalCacheArea::all());
+        }
+
         if (! $landingPage->wasChanged('is_published')) {
             if ($landingPage->is_published && $landingPage->wasChanged([
                 'doi_prefix',

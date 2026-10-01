@@ -345,6 +345,11 @@ export interface LandingPageLink {
  * Represents the database model for landing_pages table
  */
 export interface LandingPageConfig {
+    is_tombstone?: boolean;
+    tombstone_reason?: 'data_lost' | 'retracted' | 'legal_restriction' | 'other' | null;
+    tombstone_statement?: string | null;
+    tombstoned_at?: string | null;
+    tombstone_revision?: number;
     /** Primary key */
     id: number;
 

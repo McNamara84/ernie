@@ -35,7 +35,7 @@ trait ResolvesResourceListing
 
     public const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
-    public const ALLOWED_STATUSES = ['draft', 'curation', 'review', 'embargo', 'published'];
+    public const ALLOWED_STATUSES = ['draft', 'curation', 'review', 'embargo', 'published', 'dead'];
 
     public const DEFAULT_PER_PAGE = 50;
 

@@ -119,7 +119,7 @@ final class ResourceListingProjectorService
             'resourceType:id,name,slug',
             'createdBy:id,name',
             'updatedBy:id,name',
-            'landingPage:id,resource_id,is_published,published_at',
+            'landingPage:id,resource_id,is_published,published_at,is_tombstone',
             'titles' => fn ($query) => $query
                 ->select(['id', 'resource_id', 'value', 'title_type_id'])
                 ->with('titleType:id,slug')
@@ -241,6 +241,7 @@ final class ResourceListingProjectorService
                 ResourceWorkflowStatus::REVIEW->value => 2,
                 'embargo' => 3,
                 'published' => 4,
+                'dead' => 5,
                 default => 0,
             },
             'is_dashboard_draft' => $status === ResourceWorkflowStatus::DRAFT->value,

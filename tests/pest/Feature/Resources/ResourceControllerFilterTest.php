@@ -758,7 +758,7 @@ describe('Curator Filter', function (): void {
             ->assertOk()
             ->assertJson([
                 'resource_types' => [],
-                'statuses' => ['draft', 'curation', 'review', 'embargo', 'published'],
+                'statuses' => ['draft', 'curation', 'review', 'embargo', 'published', 'dead'],
                 'curators' => [
                     'Bob Editor',    // From updatedBy
                     'Charlie Creator', // From createdBy (fallback)

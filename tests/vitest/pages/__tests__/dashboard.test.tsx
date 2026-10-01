@@ -221,7 +221,7 @@ describe('Dashboard', () => {
         expect(screen.getByText(/updated/i)).toBeInTheDocument();
     });
 
-    it('renders review and published status labels while skipping unknown status labels', () => {
+    it('renders review, published and dead status labels while skipping unknown status labels', () => {
         usePageMock.mockReturnValueOnce({
             props: {
                 auth: { user: { name: 'Jane' } },
@@ -233,7 +233,8 @@ describe('Dashboard', () => {
                 recentResources: [
                     { id: 21, title: 'Review resource', updated_at: null, status: 'review' },
                     { id: 22, title: 'Published resource', updated_at: null, status: 'published' },
-                    { id: 23, title: 'Resource without status', updated_at: null },
+                    { id: 23, title: 'Tombstone resource', updated_at: null, status: 'dead' },
+                    { id: 24, title: 'Resource without status', updated_at: null },
                 ],
             },
         });
@@ -242,8 +243,9 @@ describe('Dashboard', () => {
 
         expect(screen.getByText('Review')).toBeInTheDocument();
         expect(screen.getByText('Published')).toBeInTheDocument();
+        expect(screen.getByText('Dead')).toBeInTheDocument();
         expect(screen.getByText('Resource without status')).toBeInTheDocument();
-        expect(screen.getAllByText('Resource available to resume')).toHaveLength(3);
+        expect(screen.getAllByText('Resource available to resume')).toHaveLength(4);
     });
 
     it('keeps the page container overflow-safe and surfaces the import hub in the side column', () => {

@@ -22,6 +22,7 @@ import {
     getPreviewableExternalUrl,
     isLandingPageNotFoundError,
 } from '@/components/landing-pages/modals/landing-page-modal-helpers';
+import TombstoneLandingPageControls from '@/components/landing-pages/modals/TombstoneLandingPageControls';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -80,6 +81,7 @@ type DownloadUrlSuggestionEntry = {
 
 type PersistedLandingPageDraftState = {
     downloadWorkflowVersion?: number;
+    tombstoneRevision?: number;
     template: string;
     ftpUrl: string;
     primaryDownloadLabel: string;
@@ -137,6 +139,7 @@ function cloneLandingPageFiles(files: LandingPageFile[] = []): LandingPageFile[]
 
 function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPageDraftState) {
     return {
+        tombstoneRevision: draftState.tombstoneRevision ?? 0,
         template: draftState.template,
         ftpUrl: draftState.ftpUrl,
         primaryDownloadLabel: draftState.primaryDownloadLabel,
@@ -234,6 +237,7 @@ function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFi
             : cloneLandingPageFiles(fallbackFiles);
 
         return {
+            tombstoneRevision: typeof parsed.tombstoneRevision === 'number' ? parsed.tombstoneRevision : 0,
             template: parsed.template,
             ftpUrl: typeof parsed.ftpUrl === 'string' ? parsed.ftpUrl : '',
             primaryDownloadLabel: typeof parsed.primaryDownloadLabel === 'string' ? parsed.primaryDownloadLabel : '',
@@ -435,6 +439,7 @@ export default function SetupLandingPageModal({
             const preferredTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, config?.template);
 
             return {
+                tombstoneRevision: config?.tombstone_revision ?? 0,
                 template: preferredTemplate,
                 ftpUrl: config?.ftp_url ?? '',
                 primaryDownloadLabel: config?.primary_download_label ?? '',
@@ -481,6 +486,8 @@ export default function SetupLandingPageModal({
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [tombstoneDirty, setTombstoneDirty] = useState(false);
+    const [tombstoneBusy, setTombstoneBusy] = useState(false);
     const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(existingConfig ?? null);
 
     // External landing page state
@@ -555,6 +562,7 @@ export default function SetupLandingPageModal({
     const availableSizes = currentConfig?.available_sizes ?? templateOptions?.available_sizes ?? [];
     const currentDraftState = useMemo<PersistedLandingPageDraftState>(
         () => ({
+            tombstoneRevision: currentConfig?.tombstone_revision ?? 0,
             template,
             ftpUrl,
             primaryDownloadLabel,
@@ -569,6 +577,7 @@ export default function SetupLandingPageModal({
             files: cloneLandingPageFiles(files),
         }),
         [
+            currentConfig?.tombstone_revision,
             activateDownloads,
             externalDomainId,
             externalPath,
@@ -593,7 +602,11 @@ export default function SetupLandingPageModal({
             hydratedDraftStateKeyRef.current = storageKey;
             setCurrentConfig(config);
             setPreviewUrl(config?.preview_url ?? '');
-            applyDraftState(persistedDraftState ?? baseDraftState);
+            const usableDraft =
+                !config?.is_tombstone && (persistedDraftState?.tombstoneRevision ?? 0) === (config?.tombstone_revision ?? 0)
+                    ? persistedDraftState
+                    : null;
+            applyDraftState(usableDraft ?? baseDraftState);
             setHasHydratedDraftState(true);
         },
         [applyDraftState, buildDraftStateFromConfig, readPersistedDraftState, storageKey],
@@ -751,6 +764,7 @@ export default function SetupLandingPageModal({
                 externalPath,
             });
 
+            payload.tombstone_revision = currentConfig?.tombstone_revision ?? 0;
             const url = `/resources/${resource.id}/landing-page`;
             const shouldUpdate = currentConfig !== null;
 
@@ -839,8 +853,8 @@ export default function SetupLandingPageModal({
     const hasUnsavedChanges = hasHydratedDraftState && !arePersistedLandingPageDraftStatesEqual(currentDraftState, baselineDraftState);
 
     useEffect(() => {
-        if (isOpen && hasHydratedDraftState) onDirtyChange?.(hasUnsavedChanges || isSaving);
-    }, [hasHydratedDraftState, hasUnsavedChanges, isOpen, isSaving, onDirtyChange]);
+        if (isOpen && hasHydratedDraftState) onDirtyChange?.(hasUnsavedChanges || isSaving || tombstoneDirty || tombstoneBusy);
+    }, [hasHydratedDraftState, hasUnsavedChanges, isOpen, isSaving, onDirtyChange, tombstoneDirty, tombstoneBusy]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -1126,10 +1140,26 @@ export default function SetupLandingPageModal({
                     </div>
                 ) : (
                     <div data-testid="setup-lp-modal-scroll-area" className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                        {!isPhysicalObject &&
+                            (resource.doi || currentConfig?.is_tombstone) &&
+                            auth.user?.role &&
+                            (auth.user.role !== 'beginner' || currentConfig?.is_tombstone) && (
+                                <TombstoneLandingPageControls
+                                    resourceId={resource.id}
+                                    revision={currentConfig?.tombstone_revision ?? 0}
+                                    onDirtyChange={setTombstoneDirty}
+                                    onBusyChange={setTombstoneBusy}
+                                    onSaved={(page) => {
+                                        clearPersistedDraftState();
+                                        applyConfigState(page);
+                                        onSuccess?.(page);
+                                    }}
+                                />
+                            )}
                         <fieldset
                             data-testid="setup-lp-modal-editable-fields"
-                            disabled={isSaving}
-                            inert={isSaving}
+                            disabled={isSaving || tombstoneBusy || currentConfig?.is_tombstone === true}
+                            inert={isSaving || tombstoneBusy || currentConfig?.is_tombstone === true}
                             aria-busy={isSaving}
                             className="min-w-0 space-y-6 border-0 p-0"
                         >
@@ -1664,16 +1694,20 @@ export default function SetupLandingPageModal({
                         </Button>
                     )}
 
-                    <Button type="button" variant="outline" onClick={openPreview} disabled={isLoading}>
+                    <Button type="button" variant="outline" onClick={openPreview} disabled={isLoading || tombstoneBusy}>
                         <Eye className="mr-2 size-4" />
                         Preview
                     </Button>
 
-                    <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving}>
+                    <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving || tombstoneBusy}>
                         Cancel
                     </Button>
 
-                    <Button type="button" onClick={handleSave} disabled={isSaving || isLoading}>
+                    <Button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isSaving || isLoading || tombstoneBusy || currentConfig?.is_tombstone === true}
+                    >
                         {isSaving
                             ? 'Saving...'
                             : currentConfig

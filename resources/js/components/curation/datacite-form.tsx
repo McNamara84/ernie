@@ -200,6 +200,7 @@ function toEditorLandingPageSummary(landingPage: LandingPageConfig): EditorLandi
     return {
         id: landingPage.id,
         is_published: landingPage.status === 'published',
+        is_tombstone: landingPage.is_tombstone,
         status: landingPage.status,
         public_url: landingPage.public_url,
         preview_url: landingPage.preview_url,
@@ -2224,7 +2225,9 @@ export default function DataCiteForm({
     });
     const [currentPublicStatus, setCurrentPublicStatus] = useState<ResourcePublicStatus>(initialPublicStatus);
     const [currentCanEditDoi, setCurrentCanEditDoi] = useState(canEditDoi ?? isAdmin);
-    const isDoiReadonly = Boolean(resolvedResourceId !== null && (!currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)));
+    const isDoiReadonly = Boolean(
+        resolvedResourceId !== null && (currentPublicStatus === 'dead' || !currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)),
+    );
 
     const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
     const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);
@@ -3429,7 +3432,7 @@ export default function DataCiteForm({
     }, [buildLandingPageSetupResource, landingPageForPreview, openLandingPagePreview, saveDraftForLandingPagePreview]);
 
     const handleLandingPageAction = useCallback(() => {
-        if (currentPublicStatus === 'published') {
+        if (currentPublicStatus === 'published' || currentPublicStatus === 'dead') {
             if (!landingPageForPreview) {
                 toast.error('Unable to open landing page. No published landing page is configured.');
                 return;
@@ -3458,7 +3461,7 @@ export default function DataCiteForm({
         setLandingPageForPreview(summary);
         setHasLandingPageDraft(resolvedResourceId !== null && hasStoredLandingPageDraft(resolvedResourceId));
         if (summary?.is_published && form.doi?.trim()) {
-            setCurrentPublicStatus('published');
+            setCurrentPublicStatus(summary.is_tombstone ? 'dead' : 'published');
         }
         setIsLandingPageSetupOpen(false);
         setPendingLandingPageSetupResource(null);
@@ -3552,7 +3555,7 @@ export default function DataCiteForm({
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
     const isEditorActionInFlight =
         isSaving || isSavingDraft || isDraftAutosaveInFlight || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
-    const isPublishedResource = currentPublicStatus === 'published';
+    const isPublishedResource = currentPublicStatus === 'published' || currentPublicStatus === 'dead';
     const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
     const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
@@ -3771,9 +3774,11 @@ export default function DataCiteForm({
                             placeholder="10.xxxx/xxxxx"
                             labelTooltip={
                                 isDoiReadonly
-                                    ? currentPublicStatus === 'published'
-                                        ? 'Published DOIs can only be changed by administrators.'
-                                        : 'You do not have permission to change this saved DOI.'
+                                    ? currentPublicStatus === 'dead'
+                                        ? 'Restore the tombstone before changing its DOI.'
+                                        : currentPublicStatus === 'published'
+                                          ? 'Published DOIs can only be changed by administrators.'
+                                          : 'You do not have permission to change this saved DOI.'
                                     : initialResourceId && initialDoi
                                       ? currentPublicStatus === 'published'
                                           ? 'As an administrator, you can edit this published DOI. Changing it can break existing links.'
