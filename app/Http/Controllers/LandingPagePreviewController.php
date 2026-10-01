@@ -215,6 +215,7 @@ class LandingPagePreviewController extends Controller
         $downloadsUnavailable = LandingPageController::templateSupportsDownloadsUnavailable($template)
             && ($embargoPending || ($activationRequired && ! $activateDownloads)
                 || ! $availability->hasSources($previewData['ftp_url'] ?? null, $files));
+        $visibleFiles = LandingPageController::templateSupportsFtpUrl($template) && ! $downloadsUnavailable ? $files : [];
         $ftpUrl = LandingPageController::templateSupportsFtpUrl($template) && ! $downloadsUnavailable
             && $availability->isUsableUrl($previewData['ftp_url'] ?? null)
             ? ($previewData['ftp_url'] ?? null)
@@ -241,7 +242,7 @@ class LandingPagePreviewController extends Controller
             'ftp_format_id' => $previewData['ftp_format_id'] ?? null,
             'ftp_size_id' => $previewData['ftp_size_id'] ?? null,
             'downloads_unavailable' => $downloadsUnavailable,
-            'files' => ! $downloadsUnavailable && LandingPageController::templateSupportsFtpUrl($template) ? $files : [],
+            'files' => $visibleFiles,
             'links' => $links,
             'status' => 'preview',
             'preview_token' => null,

@@ -1,8 +1,19 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-09-28",
+        "date": "2026-10-01",
         "features": [
+            {
+                "title": "Automatic Access Conditions in Resource Metadata",
+                "description": "Digital resource landing pages now infer missing access levels from their current download configuration: active Download URLs or imported files indicate Open access, while pages without automatic downloads expose Metadata only access. Stored access levels take priority, and external landing pages remain unresolved without a reliable stored value. Access conditions appear consistently in Schema.org JSON-LD, Dublin Core and DataCite JSON/XML with COAR Access Rights. Metadata-only pages omit isAccessibleForFree instead of implying Restricted access. Access backfill reports unresolved resources for review rather than defaulting to Open access. IGSN and Physical Object access behavior is preserved.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1383,
+                        "url": "https://github.com/McNamara84/ernie/pull/1383"
+                    }
+                ]
+            },
             {
                 "title": "Rename Datacenters Without Losing Assignments",
                 "description": "Admins and Group Leaders can rename any Datacenter in Editor Settings, including one assigned to Resources or IGSNs. Existing assignments and landing page template selections stay with the same Datacenter. Earlier names remain linked to it for later DOI and IGSN imports, and public portal filters continue to accept existing links."
@@ -183,6 +194,17 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Volta Support for Desktop Git Commit Checks",
+                "description": "On Linux and macOS, the pre-commit hook now finds an existing Volta installation when a desktop Git client's PATH omits Node or npm. An already usable Node/npm installation keeps priority, Windows continues to use npm.cmd, and missing tools produce an actionable error instead of silently skipping commit checks.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1383,
+                        "url": "https://github.com/McNamara84/ernie/pull/1383"
+                    }
+                ]
+            },
             {
                 "title": "Validated ROR Funder Suggestions",
                 "description": "Funding autocomplete excludes catalog records with missing or malformed ROR identifiers, including fallback data. Selecting a valid record by name or alias stores its canonical ROR URL. Malformed identifier types in cached records no longer interrupt ROR lookup.",

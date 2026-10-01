@@ -62,20 +62,24 @@ describe('export basics', function () {
     it('maps access levels to conditionsOfAccess and isAccessibleForFree', function (
         AccessLevel $level,
         string $label,
-        bool $free,
+        ?bool $free,
     ) {
         $resource = createSchemaOrgResource();
         $resource->update(['access_level' => $level]);
 
         $result = $this->exporter->export($resource->fresh());
 
-        expect($result['conditionsOfAccess'])->toBe($label)
-            ->and($result['isAccessibleForFree'])->toBe($free);
+        expect($result['conditionsOfAccess'])->toBe($label);
+        if ($free === null) {
+            expect($result)->not->toHaveKey('isAccessibleForFree');
+        } else {
+            expect($result['isAccessibleForFree'])->toBe($free);
+        }
     })->with([
         [AccessLevel::OPEN, 'Open access', true],
         [AccessLevel::RESTRICTED, 'Restricted access', false],
         [AccessLevel::EMBARGOED, 'Embargoed access', false],
-        [AccessLevel::METADATA_ONLY, 'Metadata only access', false],
+        [AccessLevel::METADATA_ONLY, 'Metadata only access', null],
     ]);
 
     it('includes @id and url from DOI', function () {

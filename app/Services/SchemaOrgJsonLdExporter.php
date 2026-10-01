@@ -55,9 +55,13 @@ class SchemaOrgJsonLdExporter
             '@type' => $isSoftware ? ['SoftwareSourceCode', 'SoftwareApplication'] : 'Dataset',
         ];
 
-        if ($resource->access_level !== null) {
-            $jsonLd['conditionsOfAccess'] = $resource->access_level->label();
-            $jsonLd['isAccessibleForFree'] = $resource->access_level->isAccessibleForFree();
+        $accessLevel = app(ResourceAccessLevelResolverService::class)->resolve($resource, $landingPage);
+        if ($accessLevel !== null) {
+            $jsonLd['conditionsOfAccess'] = $accessLevel->label();
+            // No download does not establish a restriction on the digital data.
+            if ($accessLevel !== AccessLevel::METADATA_ONLY || $resource->isIgsn() || $resource->igsnMetadata !== null) {
+                $jsonLd['isAccessibleForFree'] = $accessLevel->isAccessibleForFree();
+            }
         }
 
         // @id and url from DOI
