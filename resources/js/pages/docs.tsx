@@ -2580,9 +2580,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <strong>Show less</strong>; activate it again to return to the shortened list.
                         </p>
                         <p>
-                            Choose <strong>Add Download URL</strong> to enter the primary download address. Without a primary URL or imported download
-                            files, the landing page automatically offers the data request section. Adding a URL switches to automatic downloads;
-                            removing the last primary URL switches back. Additional Links alone do not replace the request section.
+                            Choose <strong>Add Download URL</strong> to enter the primary download address. On a normal landing page, without a
+                            primary URL or imported download files, the landing page automatically offers the data request section. Adding a URL
+                            switches to automatic downloads; removing the last primary URL switches back. Additional Links alone do not replace the
+                            request section. An active tombstone disables both downloads and data requests.
                         </p>
                         <p>
                             The URL field suggests domains and full URLs from existing downloads. Admins and Group Leaders can add URL prefixes and
@@ -2648,9 +2649,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             From an unpublished record in the Data Editor, click <strong>Preview LP</strong> in the bottom-right action bar to save
-                            the current metadata while preserving its workflow state and open the landing-page flow. Published records use{' '}
-                            <strong>Show LP</strong> to open the public or external page. If an unpublished resource has no landing page, ERNIE opens
-                            the setup modal and automatically opens the preview after you create it.
+                            the current metadata while preserving its workflow state and open the landing-page flow. Published and Dead records use{' '}
+                            <strong>Show LP</strong> to open the existing public landing page or external page directly. If an unpublished resource
+                            has no landing page, ERNIE opens the setup modal and automatically opens the preview after you create it.
                         </p>
 
                         <WorkflowSteps>
@@ -2680,10 +2681,72 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
                             <p className="text-sm text-red-900 dark:text-red-100">
-                                <strong>Important:</strong> Once published, landing pages cannot be unpublished. DOIs are persistent identifiers that
-                                must always resolve.
+                                <strong>Important:</strong> A registered DOI should continue to resolve to a landing page. If its data becomes
+                                permanently unavailable, activate a tombstone page to keep a public explanation, citation, and metadata available.
                             </p>
                         </div>
+
+                        <h3>Tombstone Landing Pages</h3>
+                        <p>
+                            Use a tombstone when a Resource is permanently unavailable, for example because its data was lost, retracted, or removed
+                            for legal reasons. Curators, Group Leaders, and Admins can activate and restore tombstones. Activation requires an
+                            existing Resource DOI that is already Registered or Findable in the configured DataCite repository, plus a title,
+                            creators, publication year, and publisher for the citation. Tombstones are not available for IGSNs.
+                        </p>
+                        <p>
+                            The public tombstone uses the default Resource landing page design and retains the DOI, citation, metadata, and contact
+                            information. It shows the reason, public explanation, and activation date. All data access is disabled, including primary
+                            download URLs, imported files, additional download links, and data requests. The Resource automatically becomes{' '}
+                            <strong>Dead</strong> and is hidden from public portal discovery, while its tombstone remains publicly accessible.
+                        </p>
+                        <p>
+                            On <code>/resources</code>, choose <strong>Dead</strong> in the <strong>Status</strong> filter to find Resources with an
+                            active tombstone. In the Data Editor, <strong>Show LP</strong> opens the public tombstone directly. Its DOI remains
+                            read-only while the tombstone is active; metadata corrections remain possible.
+                        </p>
+                        {userRole !== 'beginner' && permissions.manageLandingPages && (
+                            <>
+                                <h4>Activating a Tombstone</h4>
+                                <WorkflowSteps>
+                                    <WorkflowSteps.Step number={1} title="Open Tombstone Settings">
+                                        <p>
+                                            Select exactly one Resource on <code>/resources</code>, click <strong>Set up landing page</strong>, and
+                                            open the <strong>Tombstone page</strong> section of the <strong>Setup Landing Page</strong> modal.
+                                        </p>
+                                    </WorkflowSteps.Step>
+                                    <WorkflowSteps.Step number={2} title="Explain the Unavailability">
+                                        <p>
+                                            Choose a <strong>Reason</strong> and enter the required <strong>Public explanation</strong>. Use{' '}
+                                            <strong>Preview tombstone page</strong> to review the explanation before publishing it.
+                                        </p>
+                                    </WorkflowSteps.Step>
+                                    <WorkflowSteps.Step number={3} title="Confirm Activation">
+                                        <p>
+                                            Check the confirmation describing the change to Dead, disabled data access, portal removal, and DataCite
+                                            update. Then click <strong>Activate tombstone page</strong>.
+                                        </p>
+                                    </WorkflowSteps.Step>
+                                </WorkflowSteps>
+                                <p>
+                                    DataCite synchronization runs in the background, sets the DOI to <strong>Registered</strong>, and points it to the
+                                    tombstone URL. The modal shows its progress and any failure. A failed synchronization does not undo the saved
+                                    landing page change. Use <strong>Retry DataCite sync</strong> to retry the saved change; unsaved reason and
+                                    explanation edits are preserved. Use <strong>Save tombstone explanation</strong> to save those edits separately.
+                                </p>
+                                <h4>Restoring a Resource</h4>
+                                <p>
+                                    When the Resource is available again, reopen the same setup modal, confirm that it is available, and click{' '}
+                                    <strong>Restore landing page</strong>. ERNIE restores the previous landing page configuration, including its
+                                    published or draft status, and synchronizes the previous DOI state and target URL with DataCite. The Resource
+                                    leaves Dead and returns to the status determined by its restored configuration.
+                                </p>
+                                <p>
+                                    If no landing page existed before activation, choose whether to{' '}
+                                    <strong>Publish the restored default landing page</strong> before confirming restoration. After restoration
+                                    synchronization completes, normal DOI publication becomes available again.
+                                </p>
+                            </>
+                        )}
 
                         <h3>Additional Download Links</h3>
                         <p>
