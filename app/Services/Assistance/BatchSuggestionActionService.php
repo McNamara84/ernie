@@ -39,6 +39,8 @@ final class BatchSuggestionActionService
         }
 
         $resolved = $this->resolveSelection($action, $resourceId, $selections, $reason);
+        $hasHierarchyDecline = $action === 'decline' && array_any($resolved,
+            static fn (array $selection): bool => $selection['assistant']->getId() === 'subject-hierarchy-correction');
         $results = [];
         $syncedDois = [];
         $deferredSyncResourceIds = [];
@@ -56,9 +58,10 @@ final class BatchSuggestionActionService
             }
 
             try {
+                $declineReason = $hasHierarchyDecline && $assistant->getId() !== 'subject-hierarchy-correction' ? null : $reason;
                 $result = $action === 'accept'
                     ? $assistant->acceptSuggestion($suggestionId, $acceptanceInput)
-                    : $assistant->declineSuggestion($suggestionId, $user, $reason);
+                    : $assistant->declineSuggestion($suggestionId, $user, $declineReason);
             } catch (Throwable $exception) {
                 report($exception);
                 $result = [

@@ -274,6 +274,23 @@ describe('Docs page', () => {
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
     });
 
+    it.each(['group_leader', 'admin'] as const)('documents subject hierarchy review for %s', (userRole) => {
+        render(<Docs userRole={userRole} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        expect(screen.getByRole('heading', { name: 'Subject Hierarchy Correction' })).toBeInTheDocument();
+        expect(screen.getByText('Choose narrower terms')).toBeInTheDocument();
+        expect(screen.getByText('Review the preview and confirm')).toBeInTheDocument();
+        expect(screen.getByText('Keep broader tagging with a reason')).toBeInTheDocument();
+        expect(screen.getByText(/selects the entire subtree even while search hides some terms/)).toBeInTheDocument();
+        expect(screen.getByText(/Selecting every offered terminal term retains the broader term/)).toBeInTheDocument();
+        expect(screen.getByText(/this reason is recorded only for hierarchy suggestions/)).toBeInTheDocument();
+    });
+
+    it.each(['beginner', 'curator'] as const)('hides subject hierarchy review documentation for %s', (userRole) => {
+        render(<Docs userRole={userRole} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        expect(screen.queryByRole('heading', { name: 'Subject Hierarchy Correction' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Keep broader tagging with a reason')).not.toBeInTheDocument();
+    });
+
     it('documents DOI, Datacenter, and indirect Assistance filtering for group leaders', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 

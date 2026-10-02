@@ -6,6 +6,7 @@ namespace App\Services\SubjectHierarchy;
 
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectHierarchyGraph;
+use Closure;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -13,6 +14,23 @@ use RuntimeException;
 /** @phpstan-import-type Concept from SubjectHierarchyGraph */
 final class SubjectHierarchyCacheService
 {
+    /** @return array{hierarchy: string, source: string} */
+    public function readSnapshot(string $file): array
+    {
+        return $this->withSnapshotLock($file, LOCK_SH, function () use ($file): array {
+            if (! Storage::exists($file) || ! Storage::exists('subject-hierarchies/'.$file)) {
+                throw new RuntimeException('The local hierarchy is missing. Update this vocabulary in Editor Settings.');
+            }
+            $hierarchy = Storage::get('subject-hierarchies/'.$file);
+            $source = Storage::get($file);
+            if (! is_string($hierarchy) || ! is_string($source)) {
+                throw new RuntimeException('Could not read the vocabulary snapshot.');
+            }
+
+            return ['hierarchy' => $hierarchy, 'source' => $source];
+        });
+    }
+
     /**
      * Preserve all source relations alongside the unchanged editor payload.
      *
@@ -148,8 +166,40 @@ final class SubjectHierarchyCacheService
             'complete' => true,
             'concepts' => array_values($indexed),
         ];
-        $this->replace('subject-hierarchies/'.$file, json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
-        $this->replace($file, $json);
+        $hierarchy = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $this->withSnapshotLock($file, LOCK_EX, function () use ($file, $json, $hierarchy): void {
+            $this->replace('subject-hierarchies/'.$file, $hierarchy);
+            $this->replace($file, $json);
+        });
+    }
+
+    /**
+     * Readers and publishers use the same persistent lock file. Do not unlink it:
+     * another process may already hold an open handle to its inode.
+     *
+     * @template T
+     *
+     * @param  int-mask<LOCK_SH, LOCK_EX>  $mode
+     * @param  Closure(): T  $operation
+     * @return T
+     */
+    private function withSnapshotLock(string $file, int $mode, Closure $operation): mixed
+    {
+        Storage::makeDirectory('subject-hierarchies/locks');
+        $handle = fopen(Storage::path('subject-hierarchies/locks/'.hash('sha256', $file).'.lock'), 'c');
+        if ($handle === false) {
+            throw new RuntimeException('Could not open the vocabulary snapshot lock.');
+        }
+        try {
+            if (! flock($handle, $mode)) {
+                throw new RuntimeException('Could not acquire the vocabulary snapshot lock.');
+            }
+
+            return $operation();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     private function replace(string $file, string $json): void

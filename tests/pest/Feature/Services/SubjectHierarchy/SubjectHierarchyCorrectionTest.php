@@ -7,6 +7,7 @@ use App\Models\AssistantDismissed;
 use App\Models\AssistantSuggestion;
 use App\Models\Resource;
 use App\Models\Subject;
+use App\Models\Title;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\DataCiteSyncResult;
@@ -25,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Modules\Assistants\SubjectHierarchyCorrection\Assistant;
 
-covers(Assistant::class, SubjectHierarchyAcceptanceService::class, SubjectHierarchyDiscoveryService::class, SubjectHierarchyVocabularyService::class);
+covers(SubjectHierarchyAcceptanceService::class, SubjectHierarchyDiscoveryService::class, SubjectHierarchyVocabularyService::class);
 
 function hierarchyConcepts(): array
 {
@@ -350,6 +351,30 @@ it('rejects missing batch input, reasons and mismatched resources before mutatio
     ])->assertUnprocessable();
     expect($resource->subjects()->count())->toBe(1)->and(AssistantSuggestion::whereKey($proposal->id)->exists())->toBeTrue();
 })->with(['input', 'reason', 'resource']);
+
+it('records a mixed batch decline reason only for hierarchy suggestions', function (bool $hierarchyFirst): void {
+    $resource = Resource::factory()->create();
+    hierarchySubject($resource);
+    $hierarchy = hierarchyProposal($resource);
+    $title = Title::factory()->for($resource)->create(['language' => null]);
+    $other = AssistantSuggestion::create([
+        'assistant_id' => 'title-language-suggestion', 'resource_id' => $resource->id,
+        'target_type' => 'title', 'target_id' => $title->id, 'suggested_value' => 'en',
+        'suggested_label' => 'English', 'metadata' => [], 'discovered_at' => now(),
+    ]);
+    $items = array_map(static fn (AssistantSuggestion $proposal): array => [
+        'assistant_id' => $proposal->assistant_id, 'suggestion_id' => $proposal->id,
+    ], $hierarchyFirst ? [$hierarchy, $other] : [$other, $hierarchy]);
+    $this->actingAs(User::factory()->admin()->create())->postJson('/assistance/suggestions/batch/decline', [
+        'resource_id' => $resource->id, 'suggestions' => $items, 'reason' => 'The broader scope describes the resource.',
+    ])->assertOk()->assertJsonPath('success_count', 2);
+    expect(AssistantDismissed::where('assistant_id', 'subject-hierarchy-correction')->sole()->reason)
+        ->toBe('The broader scope describes the resource.')
+        ->and(AssistantDismissed::where('assistant_id', 'title-language-suggestion')->sole()->reason)->toBeNull()
+        ->and(AssistantSuggestion::count())->toBe(0)
+        ->and($resource->subjects()->sole()->value)->toBe('Root')
+        ->and($title->fresh()->language)->toBeNull();
+})->with([true, false]);
 
 it('keeps local changes when DataCite fails and exposes the existing retry action', function (): void {
     $resource = Resource::factory()->withDoi('10.5880/hierarchy-failure')->create();

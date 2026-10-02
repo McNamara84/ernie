@@ -42,6 +42,83 @@ it('preserves all parent edges and deduplicates shared terminal concepts', funct
         ->and($graph->conceptPath('https://example.org/leaf'))->toBe('Root > Left > Leaf');
 });
 
+it('keeps competing readers and publishers excluded during both cache replacements', function (): void {
+    unitHierarchyGraph([rawHierarchyNode('root'), rawHierarchyNode('old', ['root'])]);
+    $file = 'gcmd-platforms.json';
+    $disk = Storage::disk('local');
+    $manager = Storage::getFacadeRoot();
+    $competitor = fopen($disk->path('subject-hierarchies/locks/'.hash('sha256', $file).'.lock'), 'c');
+    $otherVocabulary = fopen($disk->path('subject-hierarchies/locks/'.hash('sha256', 'gcmd-instruments.json').'.lock'), 'c');
+    $proxy = Mockery::mock($manager)->shouldAllowMockingProtectedMethods();
+    $proxy->shouldReceive('move')->twice()->andReturnUsing(function (string $source, string $target) use ($disk, $competitor, $otherVocabulary): bool {
+        expect(flock($competitor, LOCK_SH | LOCK_NB))->toBeFalse()
+            ->and(flock($competitor, LOCK_EX | LOCK_NB))->toBeFalse()
+            ->and(flock($otherVocabulary, LOCK_EX | LOCK_NB))->toBeTrue();
+        flock($otherVocabulary, LOCK_UN);
+
+        return $disk->move($source, $target);
+    });
+    Storage::swap($proxy);
+    try {
+        (new SubjectHierarchyCacheService)->publishFlat($file, 'new editor snapshot',
+            [rawHierarchyNode('root'), rawHierarchyNode('new', ['root'])], 'Platforms', 'https://example.org/scheme');
+        expect(flock($competitor, LOCK_EX | LOCK_NB))->toBeTrue();
+        flock($competitor, LOCK_UN);
+    } finally {
+        Storage::swap($manager);
+        fclose($competitor);
+        fclose($otherVocabulary);
+    }
+    $snapshot = (new SubjectHierarchyCacheService)->readSnapshot($file);
+    expect($snapshot['source'])->toBe('new editor snapshot')
+        ->and(json_decode($snapshot['hierarchy'], true)['source_hash'])->toBe(hash('sha256', $snapshot['source']));
+});
+
+it('holds the shared vocabulary lock across both snapshot reads', function (): void {
+    unitHierarchyGraph([rawHierarchyNode('root')]);
+    $file = 'gcmd-platforms.json';
+    $disk = Storage::disk('local');
+    $manager = Storage::getFacadeRoot();
+    $competitor = fopen($disk->path('subject-hierarchies/locks/'.hash('sha256', $file).'.lock'), 'c');
+    $proxy = Mockery::mock($manager)->shouldAllowMockingProtectedMethods();
+    $proxy->shouldReceive('get')->twice()->andReturnUsing(function (string $path) use ($disk, $competitor): string {
+        expect(flock($competitor, LOCK_EX | LOCK_NB))->toBeFalse()
+            ->and(flock($competitor, LOCK_SH | LOCK_NB))->toBeTrue();
+        flock($competitor, LOCK_UN);
+
+        return $disk->get($path);
+    });
+    Storage::swap($proxy);
+    try {
+        $snapshot = (new SubjectHierarchyCacheService)->readSnapshot($file);
+        expect(flock($competitor, LOCK_EX | LOCK_NB))->toBeTrue();
+        flock($competitor, LOCK_UN);
+        expect(json_decode($snapshot['hierarchy'], true)['source_hash'])->toBe(hash('sha256', $snapshot['source']));
+    } finally {
+        Storage::swap($manager);
+        fclose($competitor);
+    }
+});
+
+it('releases the snapshot lock when reading fails', function (): void {
+    unitHierarchyGraph([rawHierarchyNode('root')]);
+    $file = 'gcmd-platforms.json';
+    $disk = Storage::disk('local');
+    $manager = Storage::getFacadeRoot();
+    $competitor = fopen($disk->path('subject-hierarchies/locks/'.hash('sha256', $file).'.lock'), 'c');
+    $proxy = Mockery::mock($manager)->shouldAllowMockingProtectedMethods();
+    $proxy->shouldReceive('get')->once()->andThrow(new RuntimeException('Read failed.'));
+    Storage::swap($proxy);
+    try {
+        expect(fn () => (new SubjectHierarchyCacheService)->readSnapshot($file))->toThrow(RuntimeException::class, 'Read failed.');
+        expect(flock($competitor, LOCK_EX | LOCK_NB))->toBeTrue();
+        flock($competitor, LOCK_UN);
+    } finally {
+        Storage::swap($manager);
+        fclose($competitor);
+    }
+});
+
 it('rejects cycles, missing references, excessive depth and invalid identities before replacing valid caches', function (string $invalid): void {
     unitHierarchyGraph([rawHierarchyNode('root'), rawHierarchyNode('leaf', ['root'])]);
     $before = Storage::get('subject-hierarchies/gcmd-platforms.json');

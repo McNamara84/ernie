@@ -9,7 +9,6 @@ use App\Services\SubjectEnrichment\SubjectVocabularyLookupService;
 use App\Support\GcmdUriHelper;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectHierarchyGraph;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -26,7 +25,7 @@ final class SubjectHierarchyVocabularyService
     /** @var array<string, string|null> */
     private array $resolutions = [];
 
-    public function __construct(private readonly SubjectVocabularyLookupService $lookup) {}
+    public function __construct(private readonly SubjectVocabularyLookupService $lookup, private readonly SubjectHierarchyCacheService $cache) {}
 
     public function reset(): void
     {
@@ -46,14 +45,14 @@ final class SubjectHierarchyVocabularyService
             return $this->graphs[$scheme];
         }
         $file = $this->lookup->localCacheFile($scheme);
-        if ($file === null || ! Storage::exists($file) || ! Storage::exists('subject-hierarchies/'.$file)) {
+        if ($file === null) {
             throw new RuntimeException('The local hierarchy is missing. Update this vocabulary in Editor Settings.');
         }
-        $json = Storage::get('subject-hierarchies/'.$file);
-        $source = Storage::get($file);
-        $payload = json_decode($json ?? '', true, 512, JSON_THROW_ON_ERROR);
+        $snapshot = $this->cache->readSnapshot($file);
+        $source = $snapshot['source'];
+        $payload = json_decode($snapshot['hierarchy'], true, 512, JSON_THROW_ON_ERROR);
         if (! is_array($payload) || ($payload['schema_version'] ?? null) !== 1 || ($payload['complete'] ?? false) !== true
-            || ($payload['source_file'] ?? null) !== $file || ! is_string($source)
+            || ($payload['source_file'] ?? null) !== $file
             || ($payload['source_hash'] ?? null) !== hash('sha256', $source) || ! is_array($payload['concepts'] ?? null)) {
             throw new RuntimeException('The local hierarchy is incomplete or does not match the current vocabulary. Update this vocabulary.');
         }
