@@ -204,6 +204,14 @@
         ],
         "fixes": [
             {
+                "title": "Preserve Vocabulary Caches When Updates Fail",
+                "description": "Failed vocabulary updates restore the previous editor data and subject hierarchy together, keeping existing hierarchy checks and corrections usable. Incomplete files from a failed initial update are removed. Recovery backups remain available if restoration also fails.",
+                "references": [
+                    { "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" },
+                    { "type": "pull_request", "number": 1387, "url": "https://github.com/McNamara84/ernie/pull/1387" }
+                ]
+            },
+            {
                 "title": "Volta Support for Desktop Git Commit Checks",
                 "description": "On Linux and macOS, the pre-commit hook now finds an existing Volta installation when a desktop Git client's PATH omits Node or npm. An already usable Node/npm installation keeps priority, Windows continues to use npm.cmd, and missing tools produce an actionable error instead of silently skipping commit checks.",
                 "references": [

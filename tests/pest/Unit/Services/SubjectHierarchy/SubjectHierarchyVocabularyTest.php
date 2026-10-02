@@ -71,7 +71,8 @@ it('keeps competing readers and publishers excluded during both cache replacemen
     }
     $snapshot = (new SubjectHierarchyCacheService)->readSnapshot($file);
     expect($snapshot['source'])->toBe('new editor snapshot')
-        ->and(json_decode($snapshot['hierarchy'], true)['source_hash'])->toBe(hash('sha256', $snapshot['source']));
+        ->and(json_decode($snapshot['hierarchy'], true)['source_hash'])->toBe(hash('sha256', $snapshot['source']))
+        ->and(array_filter(Storage::allFiles(), fn (string $path): bool => str_ends_with($path, '.tmp') || str_ends_with($path, '.bak')))->toBe([]);
 });
 
 it('holds the shared vocabulary lock across both snapshot reads', function (): void {
@@ -118,6 +119,181 @@ it('releases the snapshot lock when reading fails', function (): void {
         fclose($competitor);
     }
 });
+
+it('preserves the complete previous snapshot when publishing either cache fails', function (string $failedCache, string $operation, bool $throws): void {
+    unitHierarchyGraph([rawHierarchyNode('root'), rawHierarchyNode('old', ['root'])]);
+    $file = 'gcmd-platforms.json';
+    $cache = new SubjectHierarchyCacheService;
+    $before = $cache->readSnapshot($file);
+    $disk = Storage::disk('local');
+    $manager = Storage::getFacadeRoot();
+    $competitor = fopen($disk->path('subject-hierarchies/locks/'.hash('sha256', $file).'.lock'), 'c');
+    $failedFile = $failedCache === 'hierarchy' ? 'subject-hierarchies/'.$file : $file;
+    $proxy = Mockery::mock($manager);
+    $proxy->shouldReceive('put')->andReturnUsing(function (string $path, string $contents) use ($disk, $failedFile, $operation, $throws): bool {
+        if ($operation === 'put' && str_starts_with($path, $failedFile.'.')) {
+            if ($throws) {
+                throw new RuntimeException('Cache write failed.');
+            }
+
+            return false;
+        }
+
+        return $disk->put($path, $contents);
+    });
+    $proxy->shouldReceive('move')->andReturnUsing(function (string $source, string $target) use ($disk, $failedFile, $operation, $throws, $competitor): bool {
+        expect(flock($competitor, LOCK_SH | LOCK_NB))->toBeFalse()
+            ->and(flock($competitor, LOCK_EX | LOCK_NB))->toBeFalse();
+        if ($operation === 'move' && $target === $failedFile && str_ends_with($source, '.tmp')) {
+            if ($throws) {
+                throw new RuntimeException('Cache move failed.');
+            }
+
+            return false;
+        }
+
+        return $disk->move($source, $target);
+    });
+    Storage::swap($proxy);
+    try {
+        expect(fn () => $cache->publishFlat($file, 'new editor snapshot',
+            [rawHierarchyNode('root'), rawHierarchyNode('new', ['root'])], 'Platforms', 'https://example.org/scheme'))
+            ->toThrow(RuntimeException::class, $throws ? 'Cache '.($operation === 'put' ? 'write' : 'move').' failed.' : 'Could not publish the vocabulary cache.');
+        expect(flock($competitor, LOCK_EX | LOCK_NB))->toBeTrue();
+        flock($competitor, LOCK_UN);
+    } finally {
+        Storage::swap($manager);
+        fclose($competitor);
+    }
+    expect($cache->readSnapshot($file))->toBe($before);
+    $vocabulary = app(SubjectHierarchyVocabularyService::class);
+    $vocabulary->reset();
+    expect($vocabulary->graph('Platforms')->subtree('https://example.org/root')['leaf_ids'])->toBe(['https://example.org/old'])
+        ->and(array_filter(Storage::allFiles(), fn (string $path): bool => str_ends_with($path, '.tmp') || str_ends_with($path, '.bak')))->toBe([]);
+})->with([
+    'editor write returns false' => ['editor', 'put', false],
+    'editor write throws' => ['editor', 'put', true],
+    'editor move returns false' => ['editor', 'move', false],
+    'editor move throws' => ['editor', 'move', true],
+    'hierarchy write returns false' => ['hierarchy', 'put', false],
+    'hierarchy write throws' => ['hierarchy', 'put', true],
+    'hierarchy move returns false' => ['hierarchy', 'move', false],
+    'hierarchy move throws' => ['hierarchy', 'move', true],
+]);
+
+it('removes a newly published hierarchy when the first editor cache publication fails', function (bool $hasLegacyCache): void {
+    $file = 'gcmd-platforms.json';
+    if ($hasLegacyCache) {
+        Storage::put($file, 'legacy editor snapshot');
+    }
+    $disk = Storage::disk('local');
+    $manager = Storage::getFacadeRoot();
+    $proxy = Mockery::mock($manager);
+    $proxy->shouldReceive('move')->andReturnUsing(fn (string $source, string $target): bool => $target === $file && str_ends_with($source, '.tmp') ? false : $disk->move($source, $target));
+    Storage::swap($proxy);
+    try {
+        expect(fn () => (new SubjectHierarchyCacheService)->publishFlat($file, 'new editor snapshot',
+            [rawHierarchyNode('root')], 'Platforms', 'https://example.org/scheme'))
+            ->toThrow(RuntimeException::class, 'Could not publish the vocabulary cache.');
+    } finally {
+        Storage::swap($manager);
+    }
+    expect(Storage::exists('subject-hierarchies/'.$file))->toBeFalse()
+        ->and(Storage::exists($file))->toBe($hasLegacyCache)
+        ->and(Storage::get($file))->toBe($hasLegacyCache ? 'legacy editor snapshot' : null)
+        ->and(array_filter(Storage::allFiles(), fn (string $path): bool => str_ends_with($path, '.tmp') || str_ends_with($path, '.bak')))->toBe([]);
+})->with([true, false]);
+
+it('aborts before replacing either cache when preparing a backup fails', function (string $failedCache, bool $throws): void {
+    unitHierarchyGraph([rawHierarchyNode('root'), rawHierarchyNode('old', ['root'])]);
+    $file = 'gcmd-platforms.json';
+    $cache = new SubjectHierarchyCacheService;
+    $before = $cache->readSnapshot($file);
+    $disk = Storage::disk('local');
+    $manager = Storage::getFacadeRoot();
+    $failedFile = $failedCache === 'hierarchy' ? 'subject-hierarchies/'.$file : $file;
+    $proxy = Mockery::mock($manager);
+    $proxy->shouldReceive('copy')->andReturnUsing(function (string $source, string $target) use ($disk, $failedFile, $throws): bool {
+        if ($source === $failedFile) {
+            $disk->put($target, 'partial backup');
+            if ($throws) {
+                throw new RuntimeException('Backup copy failed.');
+            }
+
+            return false;
+        }
+
+        return $disk->copy($source, $target);
+    });
+    $proxy->shouldReceive('move')->never();
+    Storage::swap($proxy);
+    try {
+        expect(fn () => $cache->publishFlat($file, 'new editor snapshot',
+            [rawHierarchyNode('root'), rawHierarchyNode('new', ['root'])], 'Platforms', 'https://example.org/scheme'))
+            ->toThrow(RuntimeException::class, $throws ? 'Backup copy failed.' : 'Could not back up the vocabulary cache.');
+    } finally {
+        Storage::swap($manager);
+    }
+    expect($cache->readSnapshot($file))->toBe($before)
+        ->and(array_filter(Storage::allFiles(), fn (string $path): bool => str_ends_with($path, '.tmp') || str_ends_with($path, '.bak')))->toBe([]);
+})->with([
+    'hierarchy backup returns false' => ['hierarchy', false],
+    'hierarchy backup throws' => ['hierarchy', true],
+    'editor backup returns false' => ['editor', false],
+    'editor backup throws' => ['editor', true],
+]);
+
+it('retains the previous files and original error when rollback also fails', function (bool $throws): void {
+    unitHierarchyGraph([rawHierarchyNode('root'), rawHierarchyNode('old', ['root'])]);
+    $file = 'gcmd-platforms.json';
+    $cache = new SubjectHierarchyCacheService;
+    $before = $cache->readSnapshot($file);
+    $disk = Storage::disk('local');
+    $manager = Storage::getFacadeRoot();
+    $competitor = fopen($disk->path('subject-hierarchies/locks/'.hash('sha256', $file).'.lock'), 'c');
+    $publicationFailure = new RuntimeException('Editor cache write failed.');
+    $proxy = Mockery::mock($manager);
+    $proxy->shouldReceive('put')->andReturnUsing(function (string $path, string $contents) use ($disk, $file, $publicationFailure): bool {
+        if (str_starts_with($path, $file.'.')) {
+            throw $publicationFailure;
+        }
+
+        return $disk->put($path, $contents);
+    });
+    $proxy->shouldReceive('move')->andReturnUsing(function (string $source, string $target) use ($disk, $throws, $competitor): bool {
+        expect(flock($competitor, LOCK_SH | LOCK_NB))->toBeFalse()
+            ->and(flock($competitor, LOCK_EX | LOCK_NB))->toBeFalse();
+        if (str_ends_with($source, '.bak')) {
+            if ($throws) {
+                throw new RuntimeException('Backup move failed.');
+            }
+
+            return false;
+        }
+
+        return $disk->move($source, $target);
+    });
+    Storage::swap($proxy);
+    try {
+        try {
+            $cache->publishFlat($file, 'new editor snapshot',
+                [rawHierarchyNode('root'), rawHierarchyNode('new', ['root'])], 'Platforms', 'https://example.org/scheme');
+            $this->fail('Publication should fail when the editor cache cannot be written.');
+        } catch (RuntimeException $exception) {
+            expect($exception->getMessage())->toContain('Could not restore the previous vocabulary snapshot. Backup files are retained for recovery:')
+                ->and($exception->getPrevious())->toBe($publicationFailure);
+        }
+        expect(flock($competitor, LOCK_EX | LOCK_NB))->toBeTrue();
+        flock($competitor, LOCK_UN);
+    } finally {
+        Storage::swap($manager);
+        fclose($competitor);
+    }
+    $backups = array_filter(Storage::allFiles(), fn (string $path): bool => str_ends_with($path, '.bak'));
+    expect($backups)->toHaveCount(2)
+        ->and(array_map(fn (string $path): ?string => Storage::get($path), $backups))->toContain($before['hierarchy'], $before['source'])
+        ->and(array_filter(Storage::allFiles(), fn (string $path): bool => str_ends_with($path, '.tmp')))->toBe([]);
+})->with([true, false]);
 
 it('rejects cycles, missing references, excessive depth and invalid identities before replacing valid caches', function (string $invalid): void {
     unitHierarchyGraph([rawHierarchyNode('root'), rawHierarchyNode('leaf', ['root'])]);

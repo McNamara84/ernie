@@ -10,6 +10,7 @@ use Closure;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /** @phpstan-import-type Concept from SubjectHierarchyGraph */
 final class SubjectHierarchyCacheService
@@ -168,9 +169,52 @@ final class SubjectHierarchyCacheService
         ];
         $hierarchy = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         $this->withSnapshotLock($file, LOCK_EX, function () use ($file, $json, $hierarchy): void {
-            $this->replace('subject-hierarchies/'.$file, $hierarchy);
-            $this->replace($file, $json);
+            $this->replaceSnapshot(['subject-hierarchies/'.$file => $hierarchy, $file => $json]);
         });
+    }
+
+    /** @param array<string, string> $files */
+    private function replaceSnapshot(array $files): void
+    {
+        $backups = [];
+        $rollbackFailed = false;
+        try {
+            // Prepare every backup before changing either published file.
+            foreach (array_keys($files) as $file) {
+                $backup = Storage::exists($file) ? $file.'.'.Str::uuid().'.bak' : null;
+                $backups[$file] = $backup;
+                if ($backup !== null && ! Storage::copy($file, $backup)) {
+                    throw new RuntimeException('Could not back up the vocabulary cache.');
+                }
+            }
+            try {
+                foreach ($files as $file => $json) {
+                    $this->replace($file, $json);
+                }
+            } catch (Throwable $exception) {
+                try {
+                    foreach ($backups as $file => $backup) {
+                        // Rename existing backups so rollback also works after a failed write.
+                        $restored = $backup === null ? Storage::delete($file) : Storage::move($backup, $file);
+                        if (! $restored) {
+                            throw new RuntimeException('Could not restore '.$file.'.');
+                        }
+                    }
+                } catch (Throwable $rollbackException) {
+                    $rollbackFailed = true;
+                    throw new RuntimeException('Could not restore the previous vocabulary snapshot. Backup files are retained for recovery: '.$rollbackException->getMessage(), 0, $exception);
+                }
+                throw $exception;
+            }
+        } finally {
+            if (! $rollbackFailed) {
+                foreach ($backups as $backup) {
+                    if ($backup !== null) {
+                        Storage::delete($backup);
+                    }
+                }
+            }
+        }
     }
 
     /**
