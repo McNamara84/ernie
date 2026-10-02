@@ -1049,6 +1049,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 caches while preserving imported subject text
                             </li>
                             <li>
+                                <strong>Subject Hierarchy Correction</strong> - Reviews explicitly assigned broader subject terms and offers more
+                                specific terminal concepts from the nine supported hierarchical vocabularies
+                            </li>
+                            <li>
                                 <strong>Description Segmentation Suggestions</strong> - Reviews long legacy Abstract descriptions and proposes
                                 curator-approved splits into DataCite Methods, Technical Information, Table of Contents, or Series Information
                                 descriptions
@@ -1116,6 +1120,47 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field and
                                     removes the pending suggestion. Description language suggestions follow the same review workflow and never
                                     overwrite an existing language.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <h4>Subject Hierarchy Correction</h4>
+                        <p>
+                            Admins and Group Leaders can review broader subject tags using the Subject Hierarchy Correction assistant. Run its{' '}
+                            <strong>Check</strong> or <strong>Check all</strong> to find resources with an explicitly assigned broader term whose
+                            terminal descendants are not all assigned. If a vocabulary is reported as unavailable, update that vocabulary in{' '}
+                            <strong>Editor Settings</strong> and run the check again.
+                        </p>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Choose narrower terms">
+                                <p>
+                                    Expand branches to inspect the complete descendant tree. Only terminal concepts can be selected; already assigned
+                                    terms are checked and cannot be removed here. Search helps locate terms, and concept links identify their source.
+                                    <strong> Select all narrower terms</strong> selects the entire subtree even while search hides some terms. Choose
+                                    only terms that accurately describe the resource.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Review the preview and confirm">
+                                <p>
+                                    The preview lists additions and shows whether the broader term will remain. Selecting every offered terminal term
+                                    retains the broader term; selecting a subset removes the explicitly assigned broader term. This is an ERNIE
+                                    curation rule. Accept saves the reviewed selection and synchronizes a registered DOI with DataCite; a failed
+                                    remote synchronization offers a retry after the local changes are saved.
+                                </p>
+                                <p className="mt-2">
+                                    In resource review, select the hierarchy suggestion explicitly: <strong>Select all compatible</strong> does not
+                                    select it automatically. A batch can accept at most one hierarchy correction per resource and vocabulary. If
+                                    relevant subjects or vocabulary terms change, refresh the suggestions and review the new selection before
+                                    accepting.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Keep broader tagging with a reason">
+                                <p>
+                                    If the broader scope describes the resource correctly, click <strong>Decline</strong>, enter a nonblank reason of
+                                    up to 255 characters, and confirm <strong>Keep with reason</strong>. The current subjects remain unchanged. The
+                                    same case stays dismissed until relevant assignments or hierarchy terms change. In a mixed resource batch, this
+                                    reason is recorded only for hierarchy suggestions. Navigation-group hints cannot be accepted; follow their link to
+                                    review the resource in the editor.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>

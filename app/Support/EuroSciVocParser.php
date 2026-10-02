@@ -29,7 +29,7 @@ class EuroSciVocParser
      * Parses SKOS concepts from the EuroSciVoc RDF file, extracting their
      * URIs, English labels, and broader concept relationships.
      *
-     * @return array<int, array{id: string, text: string, language: string, broaderId: string|null, isTopConcept: bool}>
+     * @return array<int, array{id: string, text: string, language: string, broaderId: string|null, broaderIds?: list<string>, isTopConcept: bool}>
      *
      * @throws RuntimeException If the RDF content cannot be parsed
      */
@@ -96,6 +96,7 @@ class EuroSciVocParser
                 'text' => $text,
                 'language' => 'en',
                 'broaderId' => $broaderId,
+                'broaderIds' => $this->getBroaderConceptUris($concept),
                 'isTopConcept' => $isTopConcept,
             ];
         }
@@ -106,7 +107,7 @@ class EuroSciVocParser
     /**
      * Build hierarchical structure from flat concept array.
      *
-     * @param  array<int, array{id: string, text: string, language: string, broaderId: string|null, isTopConcept: bool}>  $concepts
+     * @param  array<int, array{id: string, text: string, language: string, broaderId: string|null, broaderIds?: list<string>, isTopConcept: bool}>  $concepts
      * @return array{lastUpdated: string, data: array<int, array<string, mixed>>}
      */
     public function buildHierarchy(array $concepts, string $schemeName, string $schemeUri): array
@@ -387,6 +388,21 @@ class EuroSciVocParser
     /**
      * Get the broader concept URI from a concept element.
      */
+    /** @return list<string> */
+    private function getBroaderConceptUris(\SimpleXMLElement $concept): array
+    {
+        $parents = [];
+        foreach ($concept->children(self::SKOS_NS)->broader as $broader) {
+            $attributes = $broader->attributes(self::RDF_NS);
+            $uri = (string) ($attributes['resource'] ?? '');
+            if ($uri !== '') {
+                $parents[] = $uri;
+            }
+        }
+
+        return array_values(array_unique($parents));
+    }
+
     private function getBroaderConceptUri(\SimpleXMLElement $concept): ?string
     {
         $skosNs = $concept->children(self::SKOS_NS);

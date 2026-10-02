@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
 use App\Support\CgiSimpleLithologyVocabularyParser;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use RuntimeException;
-use Throwable;
 
 final class CgiSimpleLithologyVocabularyService
 {
@@ -110,19 +109,7 @@ SPARQL;
             );
 
             $file = (string) config('simple_lithology.output_file');
-            $temporaryFile = $file.'.'.Str::uuid().'.tmp';
-            Storage::disk('local')->put($temporaryFile, $json);
-
-            try {
-                $temporaryPath = Storage::disk('local')->path($temporaryFile);
-                $destinationPath = Storage::disk('local')->path($file);
-                if (! rename($temporaryPath, $destinationPath)) {
-                    throw new RuntimeException('Failed to atomically replace the CGI Simple Lithology vocabulary.');
-                }
-            } catch (Throwable $exception) {
-                Storage::disk('local')->delete($temporaryFile);
-                throw $exception;
-            }
+            (new SubjectHierarchyCacheService)->publishTree($file, $json, $payload['data']);
 
             return $payload;
         });

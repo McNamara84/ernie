@@ -28,6 +28,9 @@ final class AcceptSuggestionRequest extends FormRequest
                     fn (Builder $query): Builder => $query->where('is_active', true),
                 ),
             ],
+            'selected_leaf_ids' => ['sometimes', 'array', 'min:1', 'max:50000'],
+            'selected_leaf_ids.*' => ['string', 'max:1000', 'distinct'],
+            'subject_hierarchy_fingerprint' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'size_conflict_resolution' => ['sometimes', 'string', Rule::in(['replace'])],
         ];
     }

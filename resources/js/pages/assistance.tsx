@@ -5,8 +5,10 @@ import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucid
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { DeclineReasonDialog } from '@/components/assistance/decline-reason-dialog';
 import { RelationTypeSelect } from '@/components/assistance/relation-type-select';
 import { ResourceReview } from '@/components/assistance/resource-review';
+import { SubjectHierarchyCorrectionCard } from '@/components/assistance/subject-hierarchy-correction-card';
 import { ResourceImpactFilters } from '@/components/resource-impact-filters';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +20,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { AssistanceRequestError, useAssistanceSummary } from '@/hooks/use-assistance-review';
 import AppLayout from '@/layouts/app-layout';
 import { queryKeys } from '@/lib/query-keys';
+import { isSubjectHierarchyReady } from '@/lib/subject-hierarchy';
 import { isSafeHttpUrl, resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -79,9 +82,12 @@ export function completionFeedback(manifest: AssistantManifest, status: CheckSta
     }
 
     const details = isRecord(status.details) ? status.details : null;
-    const diagnosticSummary = details
-        ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.resources_with_suggestions ?? 0)} with suggestions; ${Number(details.stale_suggestions_removed ?? 0)} stale removed; ${Number(details.incomplete_or_failed_resources ?? 0)} incomplete or failed.`
-        : '';
+    const diagnosticSummary =
+        details && manifest.id === 'subject-hierarchy-correction'
+            ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.subjects_unresolved ?? 0)} unresolved subject(s).${details.unavailable_vocabularies ? ` Unavailable vocabularies: ${String(details.unavailable_vocabularies)}` : ''}`
+            : details
+              ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.resources_with_suggestions ?? 0)} with suggestions; ${Number(details.stale_suggestions_removed ?? 0)} stale removed; ${Number(details.incomplete_or_failed_resources ?? 0)} incomplete or failed.`
+              : '';
 
     return {
         message: label.replace('{count}', String(created)).replace('{updated}', String(updated)) + diagnosticSummary,
@@ -1614,6 +1620,7 @@ export default function AssistancePage({
     const datacenterOptions = initialDatacenterOptions ?? summaryQuery.data?.datacenterOptions ?? [];
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
     const [acceptanceInputs, setAcceptanceInputs] = useState<Record<string, SuggestionAcceptanceInput>>({});
+    const [pendingHierarchyDecline, setPendingHierarchyDecline] = useState<{ manifest: AssistantManifest; id: number } | null>(null);
 
     useEffect(() => {
         const available = new Set<string>();
@@ -1948,11 +1955,16 @@ export default function AssistancePage({
     }, [isAcceptingRorBulkMatch, reloadAssistanceSections, rorBulkMatchQueue.length]);
 
     const handleDecline = useCallback(
-        async (manifest: AssistantManifest, suggestionId: number) => {
+        async (manifest: AssistantManifest, suggestionId: number, reason?: string) => {
+            if (manifest.id === 'subject-hierarchy-correction' && !reason) {
+                setPendingHierarchyDecline({ manifest, id: suggestionId });
+                return;
+            }
             addProcessingId(manifest.id, suggestionId);
 
             try {
-                const { data } = await axios.post<DeclineResponse>(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
+                const url = `/assistance/${manifest.routePrefix}/${suggestionId}/decline`;
+                const { data } = reason ? await axios.post<DeclineResponse>(url, { reason }) : await axios.post<DeclineResponse>(url);
 
                 if (data.success) {
                     toast.info(data.message);
@@ -1977,6 +1989,7 @@ export default function AssistancePage({
         const descriptionSegmentationTestId = manifest.id === 'description-segmentation' ? 'description-segmentation' : null;
         const suggestionIdentity = `${item.review?.assistant_id ?? item.assistant_id ?? manifest.id}:${item.id}`;
         const acceptanceInput = acceptanceInputs[suggestionIdentity] ?? {};
+        const unresolvedHierarchy = manifest.id === 'subject-hierarchy-correction' && !isSubjectHierarchyReady(item, acceptanceInput);
         const unresolvedSizeConflict =
             manifest.id === 'size-format-suggestion' &&
             isRecord(item.metadata) &&
@@ -1995,11 +2008,17 @@ export default function AssistancePage({
                     <X className="mr-1 h-4 w-4" />
                     {isDateTypeHint ? 'Dismiss' : 'Decline'}
                 </Button>
-                {!isDateTypeHint && (
+                {!isDateTypeHint && item.review?.can_accept !== false && (
                     <Button
                         size="sm"
-                        disabled={isProcessing || unresolvedSizeConflict}
-                        title={unresolvedSizeConflict ? 'Confirm replacement of the existing digital size first.' : undefined}
+                        disabled={isProcessing || unresolvedSizeConflict || unresolvedHierarchy}
+                        title={
+                            unresolvedHierarchy
+                                ? 'Choose at least one narrower term first.'
+                                : unresolvedSizeConflict
+                                  ? 'Confirm replacement of the existing digital size first.'
+                                  : undefined
+                        }
                         data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-accept-${item.id}` : undefined}
                         onClick={() => handleAccept(manifest, item.id, acceptanceInput)}
                     >
@@ -2019,6 +2038,15 @@ export default function AssistancePage({
         const onAcceptanceInputChange = (input: SuggestionAcceptanceInput) => changeAcceptanceInput(suggestionIdentity, input);
 
         switch (manifest.id) {
+            case 'subject-hierarchy-correction':
+                return (
+                    <SubjectHierarchyCorrectionCard
+                        suggestion={item}
+                        acceptanceInput={acceptanceInput}
+                        onAcceptanceInputChange={onAcceptanceInputChange}
+                        isProcessing={isProcessing}
+                    />
+                );
             case 'relation-suggestion':
                 return (
                     <SuggestionCard
@@ -2370,6 +2398,14 @@ export default function AssistancePage({
                     })}
             </div>
 
+            <DeclineReasonDialog
+                open={pendingHierarchyDecline !== null}
+                onClose={() => setPendingHierarchyDecline(null)}
+                onConfirm={(reason) => {
+                    if (pendingHierarchyDecline) void handleDecline(pendingHierarchyDecline.manifest, pendingHierarchyDecline.id, reason);
+                    setPendingHierarchyDecline(null);
+                }}
+            />
             <Dialog
                 open={pendingRorBulkMatch !== null}
                 onOpenChange={(open) => {

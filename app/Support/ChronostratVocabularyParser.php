@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
+
 /**
  * Parser for the ARDC Linked Data API response of the International Chronostratigraphic Chart.
  *
@@ -20,7 +22,7 @@ class ChronostratVocabularyParser
      * Parse ARDC Linked Data API response items into flat concept array.
      *
      * @param  array<int, array<string, mixed>>  $items  Raw items from ARDC API response
-     * @return array<int, array{id: string, text: string, language: string, broaderId: string|null}>
+     * @return array<int, array{id: string, text: string, language: string, broaderId: string|null, broaderIds?: list<string>}>
      */
     public function extractConcepts(array $items): array
     {
@@ -53,6 +55,7 @@ class ChronostratVocabularyParser
                 'text' => $englishLabel,
                 'language' => 'en',
                 'broaderId' => $broaderId,
+                'broaderIds' => (new SubjectHierarchyCacheService)->uris($item['broader'] ?? []),
             ];
         }
 
@@ -62,7 +65,7 @@ class ChronostratVocabularyParser
     /**
      * Build hierarchical structure from flat concept array.
      *
-     * @param  array<int, array{id: string, text: string, language: string, broaderId: string|null}>  $concepts
+     * @param  array<int, array{id: string, text: string, language: string, broaderId: string|null, broaderIds?: list<string>}>  $concepts
      * @return array{lastUpdated: string, data: array<int, array<string, mixed>>}
      */
     public function buildHierarchy(array $concepts): array
