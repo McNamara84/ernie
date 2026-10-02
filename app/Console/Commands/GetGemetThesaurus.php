@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\GemetApiService;
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
+use App\Support\GemetConceptHierarchyParser;
 use App\Support\GemetVocabularyParser;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -77,7 +80,15 @@ class GetGemetThesaurus extends Command
                 return Command::FAILURE;
             }
 
-            Storage::put(self::OUTPUT_FILE, $json);
+            $relations = Http::timeout(60)->get('https://www.eionet.europa.eu/gemet/exports/latest/gemet-skoscore.rdf');
+            $relations->throw();
+            $concepts = (new GemetConceptHierarchyParser)->concepts($relations->body(), $conceptsByGroup);
+            foreach ([...$superGroups, ...$groups] as $group) {
+                $concepts[] = ['id' => $group['uri'], 'text' => $group['label'], 'description' => $group['definition'], 'broaderIds' => [], 'selectable' => false];
+            }
+            (new SubjectHierarchyCacheService)->publishFlat(
+                self::OUTPUT_FILE, $json, $concepts, GemetVocabularyParser::SCHEME_TITLE, 'http://www.eionet.europa.eu/gemet/concept/',
+            );
 
             // Invalidate vocabulary caches
             $this->call('cache:clear-app', ['category' => 'vocabularies']);

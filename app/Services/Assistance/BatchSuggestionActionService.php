@@ -24,7 +24,7 @@ final class BatchSuggestionActionService
     ) {}
 
     /**
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string}>  $selections
      * @return array<string, mixed>
      */
     public function execute(
@@ -38,7 +38,9 @@ final class BatchSuggestionActionService
             throw new BatchSuggestionValidationException('Unknown batch action.');
         }
 
-        $resolved = $this->resolveSelection($action, $resourceId, $selections);
+        $resolved = $this->resolveSelection($action, $resourceId, $selections, $reason);
+        $hasHierarchyDecline = $action === 'decline' && array_any($resolved,
+            static fn (array $selection): bool => $selection['assistant']->getId() === 'subject-hierarchy-correction');
         $results = [];
         $syncedDois = [];
         $deferredSyncResourceIds = [];
@@ -56,9 +58,10 @@ final class BatchSuggestionActionService
             }
 
             try {
+                $declineReason = $hasHierarchyDecline && $assistant->getId() !== 'subject-hierarchy-correction' ? null : $reason;
                 $result = $action === 'accept'
                     ? $assistant->acceptSuggestion($suggestionId, $acceptanceInput)
-                    : $assistant->declineSuggestion($suggestionId, $user, $reason);
+                    : $assistant->declineSuggestion($suggestionId, $user, $declineReason);
             } catch (Throwable $exception) {
                 report($exception);
                 $result = [
@@ -167,10 +170,10 @@ final class BatchSuggestionActionService
      * leave a partially processed selection behind.
      *
      * @param  'accept'|'decline'  $action
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string}>  $selections
      * @return list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int, acceptance_input: array<string, mixed>}>
      */
-    private function resolveSelection(string $action, int $resourceId, array $selections): array
+    private function resolveSelection(string $action, int $resourceId, array $selections, ?string $reason): array
     {
         $resolved = [];
         $identities = [];
@@ -223,11 +226,22 @@ final class BatchSuggestionActionService
                 $exclusiveTargets[$targetKey] = true;
             }
 
+            if ($assistantId === 'subject-hierarchy-correction') {
+                if ($action === 'decline' && (trim($reason ?? '') === '' || mb_strlen($reason) > 255)) {
+                    throw new BatchSuggestionValidationException('Explain why the current broader terms should be retained.');
+                }
+                if ($action === 'accept' && (empty($selection['selected_leaf_ids']) || empty($selection['subject_hierarchy_fingerprint']))) {
+                    throw new BatchSuggestionValidationException('Choose narrower terms before accepting a hierarchy suggestion.');
+                }
+            }
+
             $resolved[] = [
                 'assistant' => $assistant,
                 'suggestion' => $suggestion,
                 'suggestion_id' => $suggestionId,
                 'acceptance_input' => array_filter([
+                    'selected_leaf_ids' => $selection['selected_leaf_ids'] ?? null,
+                    'subject_hierarchy_fingerprint' => $selection['subject_hierarchy_fingerprint'] ?? null,
                     'relation_type_id' => $selection['relation_type_id'] ?? null,
                     'size_conflict_resolution' => $selection['size_conflict_resolution'] ?? null,
                 ], static fn (mixed $value): bool => $value !== null),

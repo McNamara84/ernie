@@ -30,6 +30,28 @@ export interface AssistanceRelationTypeOption {
 export interface SuggestionAcceptanceInput {
     relation_type_id?: number;
     size_conflict_resolution?: 'replace';
+    selected_leaf_ids?: string[];
+    subject_hierarchy_fingerprint?: string;
+}
+
+export interface SubjectHierarchyNode {
+    id: string;
+    label: string;
+    path: string;
+    description: string;
+    children: string[];
+    selectable: boolean;
+}
+
+export interface SubjectHierarchyMetadata {
+    suggestion_kind?: 'hint';
+    scheme: string;
+    broader_id: string;
+    broader_label: string;
+    fingerprint: string;
+    nodes: SubjectHierarchyNode[];
+    leaf_ids: string[];
+    existing_leaf_ids: string[];
 }
 
 export interface PaginatedData<T> {

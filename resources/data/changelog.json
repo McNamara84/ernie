@@ -4,6 +4,11 @@
         "date": "2026-10-01",
         "features": [
             {
+                "title": "Subject Hierarchy Correction Assistant",
+                "description": "Admins and Group Leaders can review broad subject tags across all nine supported hierarchical vocabularies. The assistant shows the complete descendant tree and lets reviewers choose applicable terminal concepts, with existing assignments protected and a preview of the changes. Selecting all offered terms retains the broader concept; choosing a subset removes it. A reasoned decline preserves the current tagging and suppresses the unchanged case. Single and resource batch actions reject stale proposals, preserve trusted vocabulary metadata and use the existing DataCite synchronization and retry workflow. GEMET uses actual concept relations rather than navigation groups; missing local hierarchy data is reported for vocabulary updates.",
+                "references": [{ "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" }]
+            },
+            {
                 "title": "Tombstone Landing Pages for Unavailable Resources",
                 "description": "Curators, Group Leaders and Admins can activate a tombstone in Setup Landing Page for a resource with an existing registered DOI. The public page keeps its citation, DOI, metadata and contact details, explains why the data is unavailable, and disables downloads and data requests. Resources automatically become Dead and can be filtered in the internal Resources list while disappearing from public portal discovery. The editor opens their public tombstone directly. DataCite synchronization changes the DOI to Registered and points it to the tombstone, with visible progress and retries that preserve unsaved explanations and reasons. Recovery avoids duplicate jobs while recovering interrupted work. Confirmed restoration recovers the previous landing page configuration and DOI state and permits intentional publication again after synchronization completes."
             },
@@ -198,6 +203,14 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Preserve Vocabulary Caches When Updates Fail",
+                "description": "Failed vocabulary updates restore the previous editor data and subject hierarchy together, keeping existing hierarchy checks and corrections usable. Incomplete files from a failed initial update are removed. Recovery backups remain available if restoration also fails.",
+                "references": [
+                    { "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" },
+                    { "type": "pull_request", "number": 1387, "url": "https://github.com/McNamara84/ernie/pull/1387" }
+                ]
+            },
             {
                 "title": "Volta Support for Desktop Git Commit Checks",
                 "description": "On Linux and macOS, the pre-commit hook now finds an existing Volta installation when a desktop Git client's PATH omits Node or npm. An already usable Node/npm installation keeps priority, Windows continues to use npm.cmd, and missing tools produce an actionable error instead of silently skipping commit checks.",

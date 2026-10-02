@@ -32,6 +32,9 @@ final class BatchSuggestionsRequest extends FormRequest
                     fn (Builder $query): Builder => $query->where('is_active', true),
                 ),
             ],
+            'suggestions.*.selected_leaf_ids' => ['sometimes', 'array', 'min:1', 'max:50000'],
+            'suggestions.*.selected_leaf_ids.*' => ['string', 'max:1000'],
+            'suggestions.*.subject_hierarchy_fingerprint' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'suggestions.*.size_conflict_resolution' => ['sometimes', 'string', Rule::in(['replace'])],
             'reason' => ['nullable', 'string', 'max:255'],
         ];
