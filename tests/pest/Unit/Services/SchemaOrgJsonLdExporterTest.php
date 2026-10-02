@@ -14,6 +14,9 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Services\SchemaOrgJsonLdExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Fixtures\SchemaOrgExampleMetadata;
+use Tests\Fixtures\SchemaOrgResourceTypes;
+use Tests\Fixtures\SchemaOrgVocabulary;
 
 uses(RefreshDatabase::class);
 
@@ -28,7 +31,7 @@ beforeEach(function () {
     $this->artisan('db:seed', ['--class' => 'LanguageSeeder']);
     $this->artisan('db:seed', ['--class' => 'PublisherSeeder']);
 
-    $this->exporter = new SchemaOrgJsonLdExporter;
+    $this->exporter = app(SchemaOrgJsonLdExporter::class);
 });
 
 covers(SchemaOrgJsonLdExporter::class);
@@ -579,7 +582,98 @@ describe('landing page content', function () {
     });
 });
 
-// --- Helper ---
+it('exports every reviewed type with the correct content property and no guessed software role', function (string $slug, string $type, string $profile, bool $fallback): void {
+    $resource = createSchemaOrgResource();
+    $resource->update(['resource_type_id' => ResourceType::where('slug', $slug)->sole()->id]);
+    SchemaOrgExampleMetadata::addTo($resource);
+    $content = [
+        'mimeType' => 'application/zip',
+        'contentLinks' => [
+            ['url' => 'https://example.org/archive.zip', 'mimeType' => 'application/zip', 'contentSize' => '2048'],
+            ['url' => 'https://example.org/document.pdf', 'mimeType' => 'application/pdf', 'contentSize' => null],
+        ],
+        'repositories' => ['https://example.org/source'],
+    ];
+    $result = $this->exporter->export($resource->fresh(), content: $content);
+    $target = $profile === 'described-object' ? collect($result['subjectOf'])->firstWhere('@type', 'CreativeWork') : $result;
+    $property = match ($profile) {
+        'dataset' => 'distribution',
+        'media' => 'encoding',
+        default => 'associatedMedia',
+    };
+
+    expect($result['@type'])->toBe($slug === 'software' ? ['SoftwareSourceCode', 'SoftwareApplication'] : $type)
+        ->and(SchemaOrgVocabulary::violations($result))->toBe([])
+        ->and($target[$property][0]['contentUrl'])->toBe('https://example.org/archive.zip')
+        ->and($target[$property][0]['encodingFormat'])->toBe('application/zip')
+        ->and($target[$property][0]['contentSize'])->toBe('2048')
+        ->and($target[$property][1]['encodingFormat'])->toBe('application/pdf')
+        ->and($target[$property][1])->not->toHaveKey('contentSize')
+        ->and(array_column($target['creator']['@list'], 'name'))->toBe(['Lovelace, Ada', 'Example Observatory'])
+        ->and($target['publisher']['@type'])->toBe('Organization')
+        ->and($target['datePublished'])->toBe('2025-06-01')
+        ->and($target['dateCreated'])->toBe('2024-01-01')
+        ->and($target['dateModified'])->toBe('2025-05-01')
+        ->and($target['temporalCoverage'])->toBe('2024-01-01/..')
+        ->and($target['keywords'][1]['@type'])->toBe('DefinedTerm')
+        ->and($target['license'])->toContain('https://spdx.org/licenses/CC-BY-4.0')
+        ->and($target['spatialCoverage']['geo']['latitude'])->toBe(52.4)
+        ->and($target['funding'][0]['identifier'])->toBe('EXAMPLE-1')
+        ->and($target['citation'][0]['name'])->toBe('Related research');
+    if ($profile !== 'dataset') {
+        expect($result)->not->toHaveKey('distribution');
+    }
+    if ($profile !== 'software') {
+        expect($result)->not->toHaveKeys(['codeRepository', 'downloadUrl']);
+    }
+    if ($profile === 'described-object') {
+        expect($target['@id'])->toBe('https://doi.org/'.$resource->doi.'#resource-description')
+            ->and($target['about'])->toBe(['@id' => $result['@id']])
+            ->and($result)->not->toHaveKey('associatedMedia');
+    }
+})->with(SchemaOrgResourceTypes::cases());
+
+it('exports safe descriptions when the type or DOI is missing', function (bool $withDoi): void {
+    $resource = createSchemaOrgResource($withDoi ? '10.60510/fallback' : null);
+    $resource->update(['resource_type_id' => null]);
+    $result = $this->exporter->export($resource->fresh());
+    $description = collect($result['subjectOf'])->firstWhere('@type', 'CreativeWork');
+    expect($result['@type'])->toBe('Thing')
+        ->and($result)->not->toHaveKey('additionalType')
+        ->and($description['name'])->toBe('Metadata description of Schema.org Test Title')
+        ->and($description['datePublished'])->toBe('2025');
+    if (! $withDoi) {
+        expect($result)->not->toHaveKey('@id')
+            ->and($description)->not->toHaveKeys(['@id', 'about']);
+    }
+})->with([true, false]);
+
+it('never exports caller supplied downloads or repositories for a tombstone', function (string $slug): void {
+    $resource = createSchemaOrgResource();
+    $resource->update(['resource_type_id' => ResourceType::where('slug', $slug)->sole()->id]);
+    $page = LandingPage::factory()->published()->create([
+        'resource_id' => $resource->id,
+        'doi_prefix' => $resource->doi,
+        'is_tombstone' => true,
+        'tombstone_statement' => 'The content was lost.',
+    ]);
+    $result = $this->exporter->export($resource->fresh(), $page, [
+        'mimeType' => 'application/zip',
+        'contentLinks' => [['url' => 'https://example.org/private-content.zip', 'mimeType' => 'application/zip', 'contentSize' => null]],
+        'repositories' => ['https://example.org/private-repository'],
+    ]);
+    expect($result['description'])->toContain('The content was lost.')
+        ->and(SchemaOrgVocabulary::violations($result))->toBe([])
+        ->and(json_encode($result))->not->toContain('private-content')->not->toContain('private-repository');
+    if ($slug === 'physical-object') {
+        $description = collect($result['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($result['@type'])->toBe('Thing')
+            ->and($description['conditionsOfAccess'])->toContain('This resource is no longer available.')
+            ->and($description)->not->toHaveKey('isAccessibleForFree');
+    } else {
+        expect($result['isAccessibleForFree'])->toBeFalse();
+    }
+})->with(['dataset', 'software', 'physical-object', 'image', 'report']);
 
 function createSchemaOrgResource(?string $doi = '10.5880/test.2025.001'): Resource
 {

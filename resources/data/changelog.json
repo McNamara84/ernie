@@ -1,7 +1,7 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-10-01",
+        "date": "2026-10-02",
         "features": [
             {
                 "title": "Subject Hierarchy Correction Assistant",
@@ -146,6 +146,11 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Resource-specific Schema.org Metadata",
+                "description": "Public landing pages now describe all 34 DataCite resource types with appropriate Schema.org types and matching Signposting links. Publications, images, audio, events, projects and services no longer appear as datasets. Physical objects and other non-publication resources retain their bibliographic metadata in a linked description. Dataset and software metadata remain supported, and unknown resource types use a safe generic fallback.",
+                "references": [{ "type": "issue", "number": 1065, "url": "https://github.com/McNamara84/ernie/issues/1065" }]
+            },
             {
                 "title": "Stay in the Editor After Saving a Draft",
                 "description": "Saving a draft now keeps the current resource open in the editor. Newly saved drafts receive a reusable editor URL, so curators can continue editing, reload the page, or return to the same draft without accumulating resources-list tabs.",

@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\AccessLevel;
+use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPagePublicController;
+use App\Models\DateType;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
@@ -18,6 +20,9 @@ use App\Services\DataCiteXmlExporter;
 use App\Services\LandingPageMachineMetadataService;
 use App\Services\ResourceAccessLevelResolverService;
 use App\Services\SchemaOrgJsonLdExporter;
+use Illuminate\Support\Facades\Cache;
+use Tests\Fixtures\SchemaOrgResourceTypes;
+use Tests\Fixtures\SchemaOrgVocabulary;
 
 covers(LandingPagePublicController::class, LandingPageMachineMetadataService::class, ResourceAccessLevelResolverService::class);
 
@@ -26,7 +31,7 @@ function machineMetadataLandingPage(string $resourceTypeSlug = 'dataset', array 
 {
     $resourceType = ResourceType::firstOrCreate(
         ['slug' => $resourceTypeSlug],
-        ['name' => $resourceTypeSlug === 'software' ? 'Software' : 'Dataset', 'is_active' => true],
+        ['name' => ucwords(str_replace('-', ' ', $resourceTypeSlug)), 'is_active' => true],
     );
     $resource = Resource::factory()->create([
         'doi' => '10.5880/test.machine.001',
@@ -287,8 +292,15 @@ test('digital access inference does not affect physical objects or IGSN metadata
 
     $resource->update(['access_level' => AccessLevel::METADATA_ONLY]);
     $jsonLd = app(SchemaOrgJsonLdExporter::class)->export($resource, $landingPage);
-    expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::METADATA_ONLY->label())
-        ->and($jsonLd['isAccessibleForFree'])->toBeFalse();
+    if ($physicalObject) {
+        $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($jsonLd)->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+            ->and($description['conditionsOfAccess'])->toBe('Access to the described resource: Metadata only access')
+            ->and($description)->not->toHaveKey('isAccessibleForFree');
+    } else {
+        expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::METADATA_ONLY->label())
+            ->and($jsonLd['isAccessibleForFree'])->toBeFalse();
+    }
 })->with([true, false]);
 
 test('software JSON-LD exposes software types repository and direct downloads', function () {
@@ -439,4 +451,110 @@ test('invalid UTF-8 metadata is substituted instead of failing public rendering'
     $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
 
     expect($jsonLd['name'])->toBe("Invalid \u{FFFD} title");
+});
+
+test('all reviewed resource types agree in JSON-LD HTML and GET HEAD Signposting', function (string $slug, string $type, string $profile, bool $fallback): void {
+    [$resource, $landingPage] = machineMetadataLandingPage($slug);
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $html = $response->getContent();
+    $jsonLd = decodedEmbeddedSchemaOrg($html);
+    $expectedTypes = $slug === 'software' ? ['SoftwareSourceCode', 'SoftwareApplication'] : $type;
+    preg_match_all('/<([^>]+)>; rel="type"/', $response->headers->get('Link'), $httpTypes);
+    preg_match_all('/<link\s+rel="type"\s+href="([^"]+)"/', $html, $htmlTypes);
+
+    expect($jsonLd['@type'])->toBe($expectedTypes)
+        ->and(SchemaOrgVocabulary::violations($jsonLd))->toBe([])
+        ->and($jsonLd['@id'])->toBe('https://doi.org/'.$resource->doi)
+        ->and($httpTypes[1])->toBe(['https://schema.org/'.$type, 'https://schema.org/AboutPage'])
+        ->and($htmlTypes[1])->toBe($httpTypes[1]);
+    if ($fallback) {
+        expect($jsonLd['additionalType'])->toBe(ResourceType::slugToDataciteResourceTypeGeneral($slug));
+    } else {
+        expect($jsonLd)->not->toHaveKey('additionalType');
+    }
+
+    if ($profile === 'described-object') {
+        $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($description['@id'])->toBe(url($landingPage->getPublicPath()).'#resource-description')
+            ->and($description['about'])->toBe(['@id' => $jsonLd['@id']])
+            ->and($description['creator']['@list'][0]['name'])->toBe('Lovelace, Ada')
+            ->and($description['publisher']['@type'])->toBe('Organization')
+            ->and($description['datePublished'])->toBe('2026')
+            ->and($description)->not->toHaveKeys(['identifier', 'isAccessibleForFree'])
+            ->and(count($jsonLd['subjectOf']))->toBe(3);
+        foreach (['creator', 'publisher', 'datePublished', 'provider', 'conditionsOfAccess', 'isAccessibleForFree', 'version'] as $property) {
+            expect($jsonLd)->not->toHaveKey($property);
+        }
+    } else {
+        expect($jsonLd['creator']['@list'][0]['name'])->toBe('Lovelace, Ada')
+            ->and($jsonLd['publisher']['@type'])->toBe('Organization');
+    }
+
+    $this->head($landingPage->getPublicPath())->assertOk()->assertHeader('Link', $response->headers->get('Link'));
+})->with(SchemaOrgResourceTypes::cases());
+
+test('published pages retain type and Dublin Core semantics after renaming and disabling a type', function (string $slug, string $expected): void {
+    [$resource, $landingPage] = machineMetadataLandingPage($slug);
+    $type = $resource->resourceType;
+    $type->update(['name' => 'A curator renamed this', 'is_active' => false]);
+    $issued = DateType::firstOrCreate(['slug' => 'Issued'], ['name' => 'Issued']);
+    $resource->dates()->create(['date_type_id' => $issued->id, 'date_value' => '2025-12-03']);
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+    expect($jsonLd['@type'])->toBe($expected)
+        ->and($response->headers->get('Link'))->toContain('<https://schema.org/'.$expected.'>; rel="type"')
+        ->and($response->getContent())->toContain('name="DC.type" content="'.ResourceType::slugToDataciteResourceTypeGeneral($slug).'"')
+        ->toContain('name="DC.date" content="2025-12-03"');
+    if ($slug === 'physical-object') {
+        $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($jsonLd['additionalType'])->toBe('PhysicalObject')
+            ->and($description['datePublished'])->toBe('2025-12-03');
+    }
+})->with([['journal-article', 'ScholarlyArticle'], ['physical-object', 'Thing']]);
+
+test('JSON-LD and Signposting both follow the configured mapping', function (): void {
+    config(['schemaorg.resource_types.model' => [
+        'primary_type' => 'https://schema.org/3DModel',
+        'additional_types' => [],
+        'profile' => 'media',
+        'fallback_reason' => null,
+    ]]);
+    [, $landingPage] = machineMetadataLandingPage('model');
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    expect(decodedEmbeddedSchemaOrg($response->getContent())['@type'])->toBe('3DModel')
+        ->and($response->headers->get('Link'))->toContain('<https://schema.org/3DModel>; rel="type"');
+});
+
+test('published unknown or missing resource types use Thing with preserved metadata', function (bool $missing): void {
+    [$resource, $landingPage] = machineMetadataLandingPage('custom-material');
+    if ($missing) {
+        $resource->update(['resource_type_id' => null]);
+    }
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+    $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+    expect($jsonLd['@type'])->toBe('Thing')
+        ->and($jsonLd)->not->toHaveKey('additionalType')
+        ->and($description['creator']['@list'][0]['name'])->toBe('Lovelace, Ada')
+        ->and($response->headers->get('Link'))->toContain('<https://schema.org/Thing>; rel="type"')
+        ->not->toContain('<https://schema.org/Dataset>; rel="type"');
+})->with([false, true]);
+
+test('old cached Dataset metadata is ignored and new machine metadata is cached consistently', function (): void {
+    config(['bot_protection.enabled' => true, 'bot_protection.landing_cache_ttl' => 600]);
+    [$resource, $landingPage] = machineMetadataLandingPage('service');
+    $cache = Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+    $legacy = 'landing_pages:render_data:v11:'.$landingPage->id;
+    $cache->put($legacy, ['template' => 'default_gfz', 'props' => [], 'viewData' => [
+        'landingPageMachineMetadata' => ['jsonLdJson' => '{"@type":"Dataset"}'],
+    ]], 600);
+
+    $first = $this->get($landingPage->getPublicPath())->assertOk();
+    $warm = $this->get($landingPage->getPublicPath())->assertOk();
+    expect(decodedEmbeddedSchemaOrg($first->getContent())['@type'])->toBe('Service')
+        ->and(decodedEmbeddedSchemaOrg($warm->getContent()))->toBe(decodedEmbeddedSchemaOrg($first->getContent()))
+        ->and($warm->headers->get('Link'))->toBe($first->headers->get('Link'))
+        ->and($cache->has(CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id)))->toBeTrue()
+        ->and($cache->has($legacy))->toBeTrue();
 });

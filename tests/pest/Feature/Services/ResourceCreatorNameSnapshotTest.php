@@ -85,7 +85,7 @@ it('keeps two resource spellings for one ORCID consistent across human and machi
         ->and((new DublinCoreMapper)->map($landingResource)['creator'][0])
         ->toBe('Sommer, Philipp S.');
 
-    $schemaOrg = (new SchemaOrgJsonLdExporter)->export($landingResource);
+    $schemaOrg = app(SchemaOrgJsonLdExporter::class)->export($landingResource);
     expect($schemaOrg['creator']['@list'][0])->toMatchArray([
         'familyName' => 'Sommer',
         'givenName' => 'Philipp S.',

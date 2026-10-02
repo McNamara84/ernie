@@ -98,7 +98,7 @@ enum CacheKey: string
     case FUJI_ASSESSMENT_LIMITER_LOCK = 'fuji:assessment:request-limiter-lock';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v11';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v12';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions:v2';

@@ -275,7 +275,7 @@ describe('DataCiteLinkedDataExporter — relatedItems', function () {
 describe('SchemaOrgJsonLdExporter — citations', function () {
     test('emits schema:citation CreativeWork for relatedItems', function () {
         $resource = makeResourceWithRelatedItem();
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         expect($schema)->toHaveKey('citation');
         $citation = $schema['citation'][0];
@@ -340,7 +340,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'identifier' => 'https://example.org/paper',
             'identifier_type' => 'URL',
         ]);
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['url'])->toBe('https://example.org/paper');
@@ -352,7 +352,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'identifier' => 'urn:isbn:9781234567890',
             'identifier_type' => 'ISBN',
         ]);
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['identifier'])->toMatchArray([
@@ -375,7 +375,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'family_name' => null,
             'position' => 0,
         ]);
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource->fresh());
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource->fresh());
 
         $citation = $schema['citation'][0];
         expect($citation['author'])->toMatchArray([
@@ -405,7 +405,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'family_name' => 'Beta',
             'position' => 1,
         ]);
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource->fresh());
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource->fresh());
 
         $authors = $schema['citation'][0]['author'];
         expect($authors)->toBeArray()->toHaveCount(2);
@@ -415,7 +415,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
 
     test('omits publisher when not set', function () {
         $resource = makeMinimalRelatedItemResource();
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation)->not->toHaveKey('publisher');
@@ -423,7 +423,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
 
     test('omits datePublished when publicationYear is null', function () {
         $resource = makeMinimalRelatedItemResource();
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation)->not->toHaveKey('datePublished');
@@ -434,7 +434,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'first_page' => '42',
             'last_page' => null,
         ]);
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['description'])->toBe('pp. 42');
@@ -443,7 +443,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
 
     test('omits citation key entirely when no relatedItems exist', function () {
         $resource = Resource::factory()->create();
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         expect($schema)->not->toHaveKey('citation');
     });
@@ -453,7 +453,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'title' => 'Only Subtitle',
             'title_type' => 'Subtitle',
         ]);
-        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
+        $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['name'])->toBe('Only Subtitle');
