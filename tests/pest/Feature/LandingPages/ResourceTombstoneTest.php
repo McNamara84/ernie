@@ -268,6 +268,36 @@ test('machine metadata retains the DOI and explanation without data access links
     expect(array_filter($machine['signpostingLinks'], fn (array $link) => $link['rel'] === 'item'))->toBe([]);
 });
 
+test('physical objects and software retain their type on public tombstones without content links', function (string $slug, string $expected): void {
+    $type = ResourceType::firstOrCreate(['slug' => $slug], ['name' => ucwords(str_replace('-', ' ', $slug))]);
+    $this->resource->update(['resource_type_id' => $type->id]);
+    $this->page->links()->create(['url' => 'https://example.org/repository', 'kind' => 'repository', 'label' => 'Source', 'position' => 0]);
+    $this->page->forceFill([
+        'is_tombstone' => true,
+        'tombstone_reason' => $this->payload['reason'],
+        'tombstone_statement' => $this->payload['statement'],
+        'tombstoned_at' => now(),
+    ])->save();
+    $response = $this->get($this->page->public_url)->assertOk();
+    $machine = app(LandingPageMachineMetadataService::class)->for($this->resource->fresh(), $this->page->fresh());
+    $jsonLd = json_decode($machine['jsonLdJson'], true, flags: JSON_THROW_ON_ERROR);
+
+    expect(is_array($jsonLd['@type']) ? $jsonLd['@type'][0] : $jsonLd['@type'])->toBe($expected)
+        ->and($jsonLd['@id'])->toBe('https://doi.org/'.$this->resource->doi)
+        ->and($jsonLd['description'])->toContain($this->payload['statement'])
+        ->and($response->headers->get('Link'))->toContain('<https://schema.org/'.$expected.'>; rel="type"')
+        ->not->toContain('rel="item"')
+        ->and($machine['jsonLdJson'])->not->toContain('https://example.org/repository')
+        ->and($jsonLd)->not->toHaveKeys(['distribution', 'downloadUrl', 'associatedMedia']);
+    if ($slug === 'physical-object') {
+        $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($description['conditionsOfAccess'])->toContain('This resource is no longer available.')
+            ->and($description)->not->toHaveKey('isAccessibleForFree');
+    } else {
+        expect($jsonLd['isAccessibleForFree'])->toBeFalse();
+    }
+})->with([['physical-object', 'Thing'], ['software', 'SoftwareSourceCode']]);
+
 test('Dead is projected and can be filtered separately from Published', function () {
     $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
     $this->get('/resources?status[]=dead')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page

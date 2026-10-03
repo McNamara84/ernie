@@ -15,6 +15,7 @@ class LandingPageMetadataLinkService
 {
     public function __construct(
         private readonly Iso19115ResourceProfileService $isoProfile,
+        private readonly SchemaOrgResourceTypeMappingService $typeMapping,
     ) {}
 
     /**
@@ -70,9 +71,7 @@ class LandingPageMetadataLinkService
             return [];
         }
 
-        $primaryType = $resource->resourceType?->slug === 'software'
-            ? 'https://schema.org/SoftwareSourceCode'
-            : 'https://schema.org/Dataset';
+        $primaryType = $this->typeMapping->resolve($resource)->primaryType;
 
         $links = [
             $this->signpostingLink('cite-as', 'https://doi.org/'.$landingPage->doi_prefix),

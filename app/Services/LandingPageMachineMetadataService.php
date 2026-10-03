@@ -56,7 +56,7 @@ final class LandingPageMachineMetadataService
 
         return [
             'jsonLdJson' => json_encode($jsonLd, self::JSON_FLAGS),
-            'dublinCore' => $this->dublinCore($attributes, $jsonLd, $license, $landingPage, $resource),
+            'dublinCore' => $this->dublinCore($attributes, $license, $landingPage, $resource),
             'signpostingLinks' => $signpostingLinks,
             'metadataLinks' => $metadataLinks,
         ];
@@ -64,12 +64,10 @@ final class LandingPageMachineMetadataService
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  array<string, mixed>  $jsonLd
      * @return list<array{name: string, content: string}>
      */
     private function dublinCore(
         array $attributes,
-        array $jsonLd,
         ?string $license,
         LandingPage $landingPage,
         Resource $resource,
@@ -88,16 +86,29 @@ final class LandingPageMachineMetadataService
 
         $publisher = is_array($attributes['publisher'] ?? null) ? $attributes['publisher'] : [];
         $this->appendTag($tags, 'DC.publisher', $publisher['name'] ?? null);
-        $this->appendTag($tags, 'DC.date', $jsonLd['datePublished'] ?? $attributes['publicationYear'] ?? null);
+        $this->appendTag($tags, 'DC.date', $this->publicationDate($attributes));
         $this->appendTag($tags, 'DC.rights', $license);
         $accessLevel = app(ResourceAccessLevelResolverService::class)->resolve($resource, $landingPage);
         $this->appendTag($tags, 'DC.accessRights', $accessLevel?->label());
         $this->appendTag($tags, 'DC.accessRights', $accessLevel?->coarUri());
 
         $types = is_array($attributes['types'] ?? null) ? $attributes['types'] : [];
-        $this->appendTag($tags, 'DC.type', $types['resourceTypeGeneral'] ?? null);
+        $this->appendTag($tags, 'DC.type', $resource->resourceType?->dataciteResourceTypeGeneral() ?? $types['resourceTypeGeneral'] ?? null);
 
         return $tags;
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function publicationDate(array $attributes): ?string
+    {
+        $date = $attributes['publicationYear'] ?? null;
+        foreach ($attributes['dates'] ?? [] as $entry) {
+            if (is_array($entry) && ($entry['dateType'] ?? null) === 'Issued') {
+                $date = $entry['date'] ?? $date;
+            }
+        }
+
+        return is_string($date) && $date !== '' ? $date : null;
     }
 
     /** @param array<int, mixed> $titles */
