@@ -220,6 +220,11 @@
         ],
         "fixes": [
             {
+                "title": "Preserve Rapid Keyboard Input in the Metadata Editor",
+                "description": "Typing quickly in metadata fields preserves every character while the editor continues to warn about uncommitted keyword text and unsaved changes.",
+                "references": [{ "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }]
+            },
+            {
                 "title": "Reliable Relation Correction Batch Review",
                 "description": "Single relation type corrections are included by Select all compatible without appearing as competing alternatives. Incomplete previews cannot be selected, accepted or declined in resource batches, and malformed citation labels show the incomplete-proposal state instead of crashing the card.",
                 "references": [
