@@ -28,6 +28,7 @@ export interface AssistanceRelationTypeOption {
 }
 
 export interface SuggestionAcceptanceInput {
+    relation_type_correction_fingerprint?: string;
     relation_type_id?: number;
     size_conflict_resolution?: 'replace';
     selected_leaf_ids?: string[];

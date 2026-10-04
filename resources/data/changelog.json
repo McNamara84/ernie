@@ -1,8 +1,18 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-10-02",
+        "date": "2026-10-04",
         "features": [
+            {
+                "title": "Related Identifier Relation Type Correction Assistant",
+                "description": "Admins and Group Leaders can review existing DOI relation types against explicit, directed DataCite and Crossref metadata. The assistant offers conservative corrections for reversed version, part/whole, derivation and further structural roles, with before/after previews, rationale and source provenance. Single and resource batch actions reject stale previews, preserve related identifier fields, record durable acceptance and decline audits and use the existing DataCite sync and retry workflow. Linked local resources are reviewed independently. Declined cases remain suppressed until material context changes; ambiguous or unavailable evidence does not trigger a correction.",
+                "references": [
+                    { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
+                    { "type": "issue", "number": 790, "url": "https://github.com/McNamara84/ernie/issues/790" },
+                    { "type": "issue", "number": 791, "url": "https://github.com/McNamara84/ernie/issues/791" },
+                    { "type": "issue", "number": 792, "url": "https://github.com/McNamara84/ernie/issues/792" }
+                ]
+            },
             {
                 "title": "Subject Hierarchy Correction Assistant",
                 "description": "Admins and Group Leaders can review broad subject tags across all nine supported hierarchical vocabularies. The assistant shows the complete descendant tree and lets reviewers choose applicable terminal concepts, with existing assignments protected and a preview of the changes. Selecting all offered terms retains the broader concept; choosing a subset removes it. A reasoned decline preserves the current tagging and suppresses the unchanged case. Single and resource batch actions reject stale proposals, preserve trusted vocabulary metadata and use the existing DataCite synchronization and retry workflow. GEMET uses actual concept relations rather than navigation groups; missing local hierarchy data is reported for vocabulary updates.",

@@ -81,6 +81,9 @@ describe('Services', function () {
             'App\Services\Assistance\AbstractAssistant',
             'App\Services\Assistance\GenericTableAssistant',
             'App\Services\Assistance\AssistantRegistrar',
+            // Immutable evidence DTO and pure DataCite vocabulary/rule catalog.
+            'App\Services\RelationTypeCorrection\RelationEvidence',
+            'App\Services\RelationTypeCorrection\RelationTypeRules',
             'App\Services\Orcid\OrcidPreflightIssue',
             'App\Services\Orcid\OrcidPreflightResult',
             'App\Services\Orcid\OrcidPreflightValidator',

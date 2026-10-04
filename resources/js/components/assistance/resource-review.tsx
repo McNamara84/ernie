@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssistanceRequestError, assistanceReviewQueryOptions } from '@/hooks/use-assistance-review';
+import { relationCorrectionInput } from '@/lib/relation-type-correction';
 import { isSubjectHierarchyReady } from '@/lib/subject-hierarchy';
 import { editor as editorRoute } from '@/routes';
 import {
@@ -471,6 +472,7 @@ export function ResourceReview({
                         assistant_id: item.review?.assistant_id ?? item.assistant_id,
                         suggestion_id: item.id,
                         ...(acceptanceInput ?? {}),
+                        ...relationCorrectionInput(item),
                     };
                 }),
             });

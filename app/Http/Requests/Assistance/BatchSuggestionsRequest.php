@@ -21,6 +21,7 @@ final class BatchSuggestionsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'suggestions.*.relation_type_correction_fingerprint' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'resource_id' => ['required', 'integer', 'min:1'],
             'suggestions' => ['required', 'array', 'min:1', 'max:250'],
             'suggestions.*.assistant_id' => ['required', 'string', 'max:64'],
