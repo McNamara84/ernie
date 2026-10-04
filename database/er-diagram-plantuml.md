@@ -1464,6 +1464,21 @@ entity assistant_dismissed {
     updated_at : TIMESTAMP
 }
 
+entity relation_type_correction_reviews {
+    * id : BIGINT <<PK>>
+    --
+    resource_id : BIGINT <<FK>> <<nullable>> //ON DELETE SET NULL//
+    related_identifier_id : BIGINT <<FK>> <<nullable>> //ON DELETE SET NULL//
+    actor_id : BIGINT <<FK>> <<nullable>> //ON DELETE SET NULL//
+    * suggestion_id : BIGINT UNSIGNED <<UK>> //snapshot ID, no FK//
+    * decision : VARCHAR(16)
+    reason : VARCHAR(255) <<nullable>>
+    * context_fingerprint : CHAR(64)
+    * review_fingerprint : CHAR(64)
+    * snapshot : JSON
+    * reviewed_at : TIMESTAMP
+}
+
 ' ==========================================================================
 ' RELATIONSHIPS
 ' ==========================================================================
@@ -1471,6 +1486,9 @@ entity assistant_dismissed {
 ' Assistant module relationships
 resources ||--o{ assistant_suggestions
 users ||--o{ assistant_dismissed
+resources |o--o{ relation_type_correction_reviews : "resource_id"
+related_identifiers |o--o{ relation_type_correction_reviews : "related_identifier_id"
+users |o--o{ relation_type_correction_reviews : "actor_id"
 
 ' Guided tour relationships
 users ||--o{ guided_tours : "created_by"

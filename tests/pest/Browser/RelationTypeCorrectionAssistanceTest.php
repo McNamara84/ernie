@@ -27,7 +27,7 @@ it('shows the directed preview and accepts the exact correction with an audit re
     F::registerAssistant();
     visit('/assistance')->assertNoSmoke()->assertSee('Relation Type Correction')
         ->assertSee('Current relation type')->assertSee('Proposed relation type')->assertSee('High confidence')
-        ->click('[aria-label="Select Relation Type Correction: Is Part Of"]')->click('Accept')->assertSee('1 suggestion(s) accepted.');
+        ->assertDontSee('Either/or')->click('Select all compatible')->click('Accept')->assertSee('1 suggestion(s) accepted.');
     expect($target->fresh()->relationType->slug)->toBe('IsPartOf')->and(RelationTypeCorrectionReview::count())->toBe(1)
         ->and(AssistantSuggestion::find($suggestion->id))->toBeNull();
 });
@@ -38,7 +38,7 @@ it('declines the preview and suppresses the same context on the next discovery',
     $this->actingAs(F::actor());
     F::registerAssistant();
     visit('/assistance')->assertNoSmoke()
-        ->click('[aria-label="Select Relation Type Correction: Is Part Of"]')->click('Decline')->assertSee('1 suggestion(s) declined.');
+        ->click('Select all compatible')->click('Decline')->assertSee('1 suggestion(s) declined.');
     expect($target->fresh()->relationType->slug)->toBe('HasPart')->and(RelationTypeCorrectionReview::first()->decision)->toBe('declined');
     app(Assistant::class)->runDiscovery(fn () => null);
     expect(AssistantSuggestion::where('assistant_id', 'relation-type-correction')->count())->toBe(0);

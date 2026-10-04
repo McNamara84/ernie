@@ -124,7 +124,7 @@ final class Assistant extends GenericTableAssistant implements AcceptsDeclineInp
     protected function reviewMetadata(Model $suggestion, array $item): array
     {
         return ['can_accept' => true, 'can_decline' => true,
-            'exclusive_target_key' => $this->getId().':related_identifier:'.$suggestion->getAttribute('target_id'),
+            'exclusive_target_key' => null,
             'label' => (string) ($item['suggested_label'] ?? 'Review relation type')];
     }
 }

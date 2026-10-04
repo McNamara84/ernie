@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\RelationTypeCorrection;
 
+use App\Enums\CacheKey;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
@@ -51,7 +52,7 @@ class RelationMetadataClientService
     /** @return array{status: string, metadata: array<string, mixed>, fetched_at: string} */
     public function record(string $provider, string $doi): array
     {
-        $key = 'relation-correction:raw:v1:'.$provider.':'.hash('sha256', $doi);
+        $key = CacheKey::RELATION_CORRECTION_RAW->key($provider.':'.hash('sha256', $doi));
         /** @var array{status: string, metadata: array<string, mixed>, fetched_at: string}|null $cached */
         $cached = Cache::get($key);
         if ($cached !== null) {
@@ -87,7 +88,7 @@ class RelationMetadataClientService
         } catch (Throwable $exception) {
             report($exception);
         }
-        Cache::put($key, $result, $result['status'] === 'ok' || $result['status'] === 'not_found' ? 86400 : 300);
+        Cache::put($key, $result, $result['status'] === 'ok' || $result['status'] === 'not_found' ? CacheKey::RELATION_CORRECTION_RAW->ttl() : 300);
 
         return $result;
     }

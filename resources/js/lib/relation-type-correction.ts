@@ -28,6 +28,7 @@ export function relationCorrectionMetadata(item: BaseSuggestionItem): RelationCo
         typeof metadata.current.identifier !== 'string' ||
         typeof metadata.current.relation_type !== 'string' ||
         typeof metadata.current.relation_type_name !== 'string' ||
+        (metadata.current.citation_label !== null && typeof metadata.current.citation_label !== 'string') ||
         !metadata.proposed ||
         typeof metadata.proposed.id !== 'number' ||
         typeof metadata.proposed.slug !== 'string' ||
@@ -52,6 +53,10 @@ export function relationCorrectionMetadata(item: BaseSuggestionItem): RelationCo
     )
         return null;
     return metadata as RelationCorrectionMetadata;
+}
+
+export function isRelationCorrectionReady(item: BaseSuggestionItem): boolean {
+    return (item.review?.assistant_id ?? item.assistant_id) !== 'relation-type-correction' || relationCorrectionMetadata(item) !== null;
 }
 
 export function relationCorrectionInput(item: BaseSuggestionItem): SuggestionAcceptanceInput {

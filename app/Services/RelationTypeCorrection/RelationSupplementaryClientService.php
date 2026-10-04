@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\RelationTypeCorrection;
 
+use App\Enums\CacheKey;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -17,12 +18,12 @@ final class RelationSupplementaryClientService
         $evidence = [];
         $sources = [];
         foreach (['datacite_event_data', 'scholexplorer'] as $provider) {
-            $key = 'relation-correction:support:v1:'.$provider.':'.hash('sha256', $own);
+            $key = CacheKey::RELATION_CORRECTION_SUPPORT->key($provider.':'.hash('sha256', $own));
             /** @var array{rows: list<array<string, mixed>>, status: string, fetched_at: string, url: string}|null $record */
             $record = Cache::get($key);
             if ($record === null) {
                 $record = $this->fetch($provider, $own);
-                Cache::put($key, $record, $record['status'] === 'ok' ? 86400 : 300);
+                Cache::put($key, $record, $record['status'] === 'ok' ? CacheKey::RELATION_CORRECTION_SUPPORT->ttl() : 300);
             }
             $sources[] = ['provider' => $provider, 'doi' => $own, 'status' => $record['status'], 'fetched_at' => $record['fetched_at']];
             foreach ($record['rows'] as $index => $row) {

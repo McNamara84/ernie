@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssistanceRequestError, assistanceReviewQueryOptions } from '@/hooks/use-assistance-review';
-import { relationCorrectionInput } from '@/lib/relation-type-correction';
+import { isRelationCorrectionReady, relationCorrectionInput } from '@/lib/relation-type-correction';
 import { isSubjectHierarchyReady } from '@/lib/subject-hierarchy';
 import { editor as editorRoute } from '@/routes';
 import {
@@ -427,6 +427,8 @@ export function ResourceReview({
     };
 
     const toggleSuggestion = (item: BaseSuggestionItem, checked: boolean) => {
+        if (checked && !isRelationCorrectionReady(item)) return;
+
         setSelected((current) => {
             const next = new Set(current);
             const key = identity(item);
@@ -441,7 +443,9 @@ export function ResourceReview({
             const next = new Set(current);
             for (const item of group.suggestions) next.delete(identity(item));
             for (const item of group.suggestions) {
-                if (item.review?.can_accept === true && item.review.exclusive_target_key === null) next.add(identity(item));
+                if (item.review?.can_accept === true && item.review.exclusive_target_key === null && isRelationCorrectionReady(item)) {
+                    next.add(identity(item));
+                }
             }
             return next;
         });
@@ -449,7 +453,7 @@ export function ResourceReview({
 
     const runBatch = async (action: 'accept' | 'decline', group: AssistanceResourceGroup, reason?: string) => {
         const items = group.suggestions.filter((item) => selected.has(identity(item)));
-        if (items.length === 0) return;
+        if (items.length === 0 || items.some((item) => !isRelationCorrectionReady(item))) return;
         if (
             action === 'decline' &&
             !reason &&
@@ -514,6 +518,10 @@ export function ResourceReview({
     const renderResource = (group: AssistanceResourceGroup, sectionKey: string, sectionManifest?: AssistantManifest) => {
         const selectedItems = group.suggestions.filter((item) => selected.has(identity(item)));
         const processing = processingResources.has(group.resource_id);
+        const hasCompatibleSuggestions = group.suggestions.some(
+            (item) => item.review?.can_accept === true && item.review.exclusive_target_key === null && isRelationCorrectionReady(item),
+        );
+        const unresolvedRelationCorrection = selectedItems.some((item) => !isRelationCorrectionReady(item));
         const declineOnlySelected = selectedItems.some((item) => item.review?.can_accept !== true);
         const unresolvedSizeConflict = selectedItems.some((item) => isUnresolvedSizeConflict(item, acceptanceInputs[identity(item)]));
         const unresolvedHierarchy = selectedItems.some(
@@ -529,17 +537,19 @@ export function ResourceReview({
         }
 
         const conflictingAlternatives = [...selectedTargetCounts.values()].some((count) => count > 1);
-        const acceptExplanation = declineOnlySelected
-            ? 'The selection contains a hint that can only be declined.'
-            : conflictingAlternatives
-              ? selectedItems.some((item) => (item.review?.assistant_id ?? item.assistant_id) === 'subject-hierarchy-correction')
-                  ? 'Select at most one hierarchy correction per subject vocabulary before accepting.'
-                  : 'Select at most one ORCID or ROR alternative per target before accepting.'
-              : unresolvedSizeConflict
-                ? 'Confirm replacement of the listed existing digital size before accepting.'
-                : unresolvedHierarchy
-                  ? 'Choose at least one narrower term for each selected hierarchy correction before accepting.'
-                  : null;
+        const acceptExplanation = unresolvedRelationCorrection
+            ? 'A selected relation type proposal is incomplete. Run the relation type check again before reviewing it.'
+            : declineOnlySelected
+              ? 'The selection contains a hint that can only be declined.'
+              : conflictingAlternatives
+                ? selectedItems.some((item) => (item.review?.assistant_id ?? item.assistant_id) === 'subject-hierarchy-correction')
+                    ? 'Select at most one hierarchy correction per subject vocabulary before accepting.'
+                    : 'Select at most one ORCID or ROR alternative per target before accepting.'
+                : unresolvedSizeConflict
+                  ? 'Confirm replacement of the listed existing digital size before accepting.'
+                  : unresolvedHierarchy
+                    ? 'Choose at least one narrower term for each selected hierarchy correction before accepting.'
+                    : null;
         const resourceLabel = group.resource_doi.trim() || `Resource #${group.resource_id}`;
         const resourceTitle = group.resource_title.trim() || 'Untitled';
 
@@ -562,13 +572,18 @@ export function ResourceReview({
                         <Badge variant="secondary" className="text-xs">
                             {group.suggestion_count} suggestion(s)
                         </Badge>
-                        <Button variant="ghost" size="sm" disabled={processing} onClick={() => selectAllCompatible(group)}>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={processing || !hasCompatibleSuggestions}
+                            onClick={() => selectAllCompatible(group)}
+                        >
                             Select all compatible
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={processing || selectedItems.length === 0}
+                            disabled={processing || selectedItems.length === 0 || unresolvedRelationCorrection}
                             onClick={() => runBatch('decline', group)}
                         >
                             <X className="mr-1 h-4 w-4" /> Decline
@@ -618,7 +633,7 @@ export function ResourceReview({
                                                 <Checkbox
                                                     className="mt-4"
                                                     checked={selected.has(identity(item))}
-                                                    disabled={processing || !review.can_decline}
+                                                    disabled={processing || !review.can_decline || !isRelationCorrectionReady(item)}
                                                     aria-label={`Select ${review.assistant_name}: ${review.label}`}
                                                     onCheckedChange={(checked) => toggleSuggestion(item, checked === true)}
                                                 />

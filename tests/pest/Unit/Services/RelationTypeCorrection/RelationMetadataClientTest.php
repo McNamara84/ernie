@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Services\DataCiteEventDataService;
 use App\Services\RelationTypeCorrection\RelationMetadataClientService;
 use App\Services\RelationTypeCorrection\RelationSupplementaryClientService;
 use App\Services\RelationTypeCorrection\RelationTypeRules;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 it('retains DataCite directed assertions and source pointers while ignoring malformed claims', function (): void {
@@ -69,6 +71,39 @@ it('uses short error caches and refreshes successful records after 24 hours', fu
     $this->travel(2)->hours();
     $client->record('crossref', '10.5880/a');
     Http::assertSentCount(2);
+});
+
+it('isolates raw metadata caches by provider and DOI using the centralized keys', function (): void {
+    Http::fake(function ($request) {
+        $doi = str_contains($request->url(), 'cache.b') ? '10.5880/cache.b' : '10.5880/cache.a';
+
+        return Http::response(['data' => ['attributes' => ['doi' => $doi]], 'message' => ['DOI' => $doi]]);
+    });
+    $client = app(RelationMetadataClientService::class);
+    foreach (['datacite', 'crossref'] as $provider) {
+        foreach (['10.5880/cache.a', '10.5880/cache.b'] as $doi) {
+            $record = $client->record($provider, $doi);
+            expect($record['status'])->toBe('ok')
+                ->and(Cache::get(CacheKey::RELATION_CORRECTION_RAW->key($provider.':'.hash('sha256', $doi))))->toBe($record)
+                ->and($client->record($provider, $doi))->toBe($record);
+        }
+    }
+    Http::assertSentCount(4);
+});
+
+it('reuses supplementary caches across pairs while isolating providers and source DOIs', function (): void {
+    Http::fake(['*events*' => Http::response(['data' => [], 'links' => ['next' => null]]),
+        '*Links*' => Http::response(['result' => [], 'totalPages' => 1])]);
+    $client = app(RelationSupplementaryClientService::class);
+    foreach (['10.5880/cache.a', '10.5880/cache.b'] as $doi) {
+        $result = $client->forPair($doi, '10.5880/other.a');
+        foreach (['datacite_event_data', 'scholexplorer'] as $provider) {
+            $cached = Cache::get(CacheKey::RELATION_CORRECTION_SUPPORT->key($provider.':'.hash('sha256', $doi)));
+            expect($cached)->not->toBeNull()->and($cached['status'])->toBe('ok');
+        }
+        expect($client->forPair($doi, '10.5880/other.b'))->toBe($result);
+    }
+    Http::assertSentCount(4);
 });
 
 it('keeps supplementary assertion direction and excludes unsupported inverses', function (): void {

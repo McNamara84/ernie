@@ -24,6 +24,17 @@ it('registers the correction module and exposes its preview to authorized curato
         ->where('manifests', fn ($manifests): bool => collect($manifests)->contains('id', 'relation-type-correction')));
 });
 
+it('presents its single correction per target as a compatible proposal', function (): void {
+    F::target();
+    F::discover();
+    F::registerAssistant();
+    $this->actingAs(F::actor())->getJson('/assistance/data/relation-type-correction')->assertOk()
+        ->assertJsonPath('data.0.suggestion_count', 1)
+        ->assertJsonPath('data.0.suggestions.0.review.exclusive_target_key', null)
+        ->assertJsonPath('data.0.suggestions.0.review.can_accept', true)
+        ->assertJsonPath('data.0.suggestions.0.review.can_decline', true);
+});
+
 it('accepts and declines through the generic single-action routes', function (string $action): void {
     $target = F::target();
     $suggestion = F::discover();

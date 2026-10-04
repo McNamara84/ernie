@@ -71,20 +71,31 @@ function suggestion(): BaseSuggestionItem {
             route_prefix: manifest.routePrefix,
             can_accept: true,
             can_decline: true,
-            exclusive_target_key: `${manifest.id}:related_identifier:1`,
+            exclusive_target_key: null,
             label: 'Is Part Of',
         },
     };
 }
-function renderPage(grouped = false) {
-    const item = suggestion();
+function pageElement(grouped: boolean, items: BaseSuggestionItem[]) {
+    const item = items[0];
     const paging = { current_page: 1, last_page: 1, per_page: 25, total: 1, from: 1, to: 1, links: [] };
-    if (!grouped) return render(<AssistancePage manifests={[manifest]} sections={{ [manifest.id]: { ...paging, data: [item] } }} />);
+    if (!grouped) return <AssistancePage manifests={[manifest]} sections={{ [manifest.id]: { ...paging, data: items } }} />;
     const group = {
         ...paging,
-        data: [{ resource_id: 10, resource_doi: item.resource_doi, resource_title: item.resource_title, suggestion_count: 1, suggestions: [item] }],
+        data: [
+            {
+                resource_id: 10,
+                resource_doi: item.resource_doi,
+                resource_title: item.resource_title,
+                suggestion_count: items.length,
+                suggestions: items,
+            },
+        ],
     };
-    return render(<AssistancePage manifests={[manifest]} sections={{ [manifest.id]: group }} allAssistantResources={group} />);
+    return <AssistancePage manifests={[manifest]} sections={{ [manifest.id]: group }} allAssistantResources={group} />;
+}
+function renderPage(grouped = false, items = [suggestion()]) {
+    return render(pageElement(grouped, items));
 }
 beforeEach(() => {
     vi.clearAllMocks();
@@ -120,6 +131,76 @@ describe('relation correction review', () => {
         expect(screen.getByText(/proposal is incomplete/)).toBeInTheDocument();
         expect(relationCorrectionInput(item)).toEqual({});
         expect(relationCorrectionInput({ ...suggestion(), assistant_id: 'other', review: undefined })).toEqual({});
+    });
+    it.each([{ text: 'Malformed label' }, ['Malformed label'], 42, false, undefined])(
+        'treats a malformed citation label (%j) as an incomplete proposal',
+        (label) => {
+            const item = suggestion();
+            const metadata = relationCorrectionMetadata(item)!;
+            item.metadata = { ...metadata, current: { ...metadata.current, citation_label: label } };
+            expect(relationCorrectionMetadata(item)).toBeNull();
+            expect(relationCorrectionInput(item)).toEqual({});
+            render(<RelationTypeCorrectionCard suggestion={item} />);
+            expect(screen.getByText(/proposal is incomplete/)).toBeInTheDocument();
+        },
+    );
+    it.each([null, '', 'A valid citation.'])('allows nullable and textual citation labels (%j)', (label) => {
+        const item = suggestion();
+        relationCorrectionMetadata(item)!.current.citation_label = label;
+        expect(relationCorrectionInput(item)).toEqual({ relation_type_correction_fingerprint: fingerprint });
+        render(<RelationTypeCorrectionCard suggestion={item} />);
+        expect(screen.queryByText(/proposal is incomplete/)).not.toBeInTheDocument();
+    });
+    it('selects a correction as compatible without labeling it as an alternative', async () => {
+        const user = userEvent.setup();
+        renderPage(true);
+        expect(screen.queryByText(/Either\/or/)).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Select all compatible' }));
+        expect(screen.getByRole('checkbox', { name: 'Select Relation Type Correction: Is Part Of' })).toBeChecked();
+        expect(screen.getByRole('button', { name: 'Accept' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Decline' })).toBeEnabled();
+    });
+    it('disables resource selection and every batch action for an incomplete correction', async () => {
+        const user = userEvent.setup();
+        renderPage(true, [{ ...suggestion(), metadata: {} }]);
+        const checkbox = screen.getByRole('checkbox', { name: 'Select Relation Type Correction: Is Part Of' });
+        expect(checkbox).toBeDisabled();
+        for (const name of ['Select all compatible', 'Accept', 'Decline']) {
+            const button = screen.getByRole('button', { name });
+            expect(button).toBeDisabled();
+            await user.click(button);
+        }
+        await user.click(checkbox);
+        expect(checkbox).not.toBeChecked();
+        expect(axios.post).not.toHaveBeenCalled();
+    });
+    it('blocks both batch actions if an already selected correction becomes incomplete', async () => {
+        const user = userEvent.setup();
+        const { rerender } = renderPage(true);
+        await user.click(screen.getByRole('checkbox', { name: 'Select Relation Type Correction: Is Part Of' }));
+        rerender(pageElement(true, [{ ...suggestion(), metadata: {} }]));
+        for (const name of ['Accept', 'Decline']) {
+            const button = screen.getByRole('button', { name });
+            expect(button).toBeDisabled();
+            await user.click(button);
+        }
+        expect(axios.post).not.toHaveBeenCalled();
+    });
+    it.each(['Accept', 'Decline'])('excludes incomplete corrections from select-all and the batch %s payload', async (action) => {
+        const user = userEvent.setup();
+        const incomplete = { ...suggestion(), id: 12, metadata: {} };
+        incomplete.review = { ...incomplete.review!, label: 'Incomplete correction' };
+        renderPage(true, [suggestion(), incomplete]);
+        await user.click(screen.getByRole('button', { name: 'Select all compatible' }));
+        expect(screen.getByRole('checkbox', { name: 'Select Relation Type Correction: Is Part Of' })).toBeChecked();
+        expect(screen.getByRole('checkbox', { name: 'Select Relation Type Correction: Incomplete correction' })).not.toBeChecked();
+        await user.click(screen.getByRole('button', { name: action }));
+        await waitFor(() =>
+            expect(axios.post).toHaveBeenCalledWith(`/assistance/suggestions/batch/${action.toLowerCase()}`, {
+                resource_id: 10,
+                suggestions: [{ assistant_id: manifest.id, suggestion_id: 11, relation_type_correction_fingerprint: fingerprint }],
+            }),
+        );
     });
     it.each(['Accept', 'Decline'])('sends the displayed fingerprint for the individual %s action', async (action) => {
         const user = userEvent.setup();
