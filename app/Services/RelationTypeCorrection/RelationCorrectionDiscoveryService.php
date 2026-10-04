@@ -9,7 +9,6 @@ use App\Models\AssistantSuggestion;
 use App\Models\RelatedIdentifier;
 use App\Models\Resource;
 use Closure;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 final class RelationCorrectionDiscoveryService
@@ -80,8 +79,8 @@ final class RelationCorrectionDiscoveryService
             $progress('Checked '.$this->details['checked_identifiers'].' related identifiers.');
         });
         if ($created > 0 || $this->details['stale_suggestions_removed'] > 0) {
-            Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
-            Cache::forget(CacheKey::ASSISTANCE_DATACENTER_OPTIONS->key());
+            CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
+            CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
         }
 
         return $created;

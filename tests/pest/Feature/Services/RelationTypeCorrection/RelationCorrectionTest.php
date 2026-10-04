@@ -157,11 +157,12 @@ it('keeps existing proposals when primary sources fail and exposes partial scan 
 it('removes obsolete and orphaned proposals and invalidates counts even without new proposals', function (): void {
     $target = F::target();
     F::discover();
-    Cache::put(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key(), 1, 120);
+    $countCache = Cache::tags(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->tags());
+    $countCache->put(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key(), 1, 120);
     $target->update(['relation_type_id' => RelationType::where('slug', 'IsPartOf')->value('id')]);
     $assistant = app(Assistant::class);
     expect($assistant->runDiscovery(fn () => null))->toBe(0)->and(AssistantSuggestion::count())->toBe(0)
-        ->and(Cache::get(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key()))->toBeNull()
+        ->and($countCache->get(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key()))->toBeNull()
         ->and($assistant->discoveryDetails()['stale_suggestions_removed'])->toBe(1);
     $target->update(['relation_type_id' => RelationType::where('slug', 'HasPart')->value('id')]);
     F::discover();

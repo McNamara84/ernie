@@ -13,7 +13,6 @@ use App\Models\RelationTypeCorrectionReview;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteSyncService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 final readonly class RelationCorrectionReviewService
@@ -105,8 +104,8 @@ final readonly class RelationCorrectionReviewService
         if ($result['success'] !== true) {
             return $result;
         }
-        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
-        Cache::forget(CacheKey::ASSISTANCE_DATACENTER_OPTIONS->key());
+        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
+        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
         if ($decision !== 'accepted') {
             return $result;
         }

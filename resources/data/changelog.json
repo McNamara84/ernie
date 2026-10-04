@@ -220,6 +220,14 @@
         ],
         "fixes": [
             {
+                "title": "Update Assistance Counts and Filters After Relation Corrections",
+                "description": "The pending-count badge and datacenter filter update after relation correction discovery creates or removes proposals and after accepting or declining a correction, without waiting for cached summaries to expire.",
+                "references": [
+                    { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
+                    { "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }
+                ]
+            },
+            {
                 "title": "Refresh Relation Correction Sources When Assistance Caches Are Cleared",
                 "description": "Clearing the assistance cache now refreshes DataCite, Crossref, Event Data and ScholExplorer metadata used for relation type corrections, preventing old source records from surviving a cache reset.",
                 "references": [
