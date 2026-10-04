@@ -220,6 +220,14 @@
         ],
         "fixes": [
             {
+                "title": "Refresh Relation Correction Sources When Assistance Caches Are Cleared",
+                "description": "Clearing the assistance cache now refreshes DataCite, Crossref, Event Data and ScholExplorer metadata used for relation type corrections, preventing old source records from surviving a cache reset.",
+                "references": [
+                    { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
+                    { "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }
+                ]
+            },
+            {
                 "title": "Preserve Rapid Keyboard Input in the Metadata Editor",
                 "description": "Typing quickly in metadata fields preserves every character while the editor continues to warn about uncommitted keyword text and unsaved changes.",
                 "references": [{ "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }]

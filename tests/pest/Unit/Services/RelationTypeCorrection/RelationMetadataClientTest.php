@@ -84,7 +84,7 @@ it('isolates raw metadata caches by provider and DOI using the centralized keys'
         foreach (['10.5880/cache.a', '10.5880/cache.b'] as $doi) {
             $record = $client->record($provider, $doi);
             expect($record['status'])->toBe('ok')
-                ->and(Cache::get(CacheKey::RELATION_CORRECTION_RAW->key($provider.':'.hash('sha256', $doi))))->toBe($record)
+                ->and(Cache::tags(CacheKey::RELATION_CORRECTION_RAW->tags())->get(CacheKey::RELATION_CORRECTION_RAW->key($provider.':'.hash('sha256', $doi))))->toBe($record)
                 ->and($client->record($provider, $doi))->toBe($record);
         }
     }
@@ -98,7 +98,7 @@ it('reuses supplementary caches across pairs while isolating providers and sourc
     foreach (['10.5880/cache.a', '10.5880/cache.b'] as $doi) {
         $result = $client->forPair($doi, '10.5880/other.a');
         foreach (['datacite_event_data', 'scholexplorer'] as $provider) {
-            $cached = Cache::get(CacheKey::RELATION_CORRECTION_SUPPORT->key($provider.':'.hash('sha256', $doi)));
+            $cached = Cache::tags(CacheKey::RELATION_CORRECTION_SUPPORT->tags())->get(CacheKey::RELATION_CORRECTION_SUPPORT->key($provider.':'.hash('sha256', $doi)));
             expect($cached)->not->toBeNull()->and($cached['status'])->toBe('ok');
         }
         expect($client->forPair($doi, '10.5880/other.b'))->toBe($result);

@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace App\Services\RelationTypeCorrection;
 
 use App\Enums\CacheKey;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /** Reads registration metadata without the lossy citation transformers. */
 class RelationMetadataClientService
 {
+    use ChecksCacheTagging;
+
     public function __construct(private readonly RelationSupplementaryClientService $supplementary) {}
 
     /** @return array{evidence: list<RelationEvidence>, complete: bool, sources: list<array<string, mixed>>} */
@@ -52,9 +54,11 @@ class RelationMetadataClientService
     /** @return array{status: string, metadata: array<string, mixed>, fetched_at: string} */
     public function record(string $provider, string $doi): array
     {
-        $key = CacheKey::RELATION_CORRECTION_RAW->key($provider.':'.hash('sha256', $doi));
+        $cacheKey = CacheKey::RELATION_CORRECTION_RAW;
+        $cache = $this->getCacheInstance($cacheKey->tags());
+        $key = $cacheKey->key($provider.':'.hash('sha256', $doi));
         /** @var array{status: string, metadata: array<string, mixed>, fetched_at: string}|null $cached */
-        $cached = Cache::get($key);
+        $cached = $cache->get($key);
         if ($cached !== null) {
             return $cached;
         }
@@ -88,7 +92,7 @@ class RelationMetadataClientService
         } catch (Throwable $exception) {
             report($exception);
         }
-        Cache::put($key, $result, $result['status'] === 'ok' || $result['status'] === 'not_found' ? CacheKey::RELATION_CORRECTION_RAW->ttl() : 300);
+        $cache->put($key, $result, $result['status'] === 'ok' || $result['status'] === 'not_found' ? $cacheKey->ttl() : 300);
 
         return $result;
     }

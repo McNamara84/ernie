@@ -5,25 +5,29 @@ declare(strict_types=1);
 namespace App\Services\RelationTypeCorrection;
 
 use App\Enums\CacheKey;
-use Illuminate\Support\Facades\Cache;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /** Bounded Scholix/Event Data reads; they never justify a correction alone. */
 final class RelationSupplementaryClientService
 {
+    use ChecksCacheTagging;
+
     /** @return array{evidence: list<RelationEvidence>, sources: list<array<string, mixed>>} */
     public function forPair(string $own, string $other): array
     {
         $evidence = [];
         $sources = [];
+        $cacheKey = CacheKey::RELATION_CORRECTION_SUPPORT;
+        $cache = $this->getCacheInstance($cacheKey->tags());
         foreach (['datacite_event_data', 'scholexplorer'] as $provider) {
-            $key = CacheKey::RELATION_CORRECTION_SUPPORT->key($provider.':'.hash('sha256', $own));
+            $key = $cacheKey->key($provider.':'.hash('sha256', $own));
             /** @var array{rows: list<array<string, mixed>>, status: string, fetched_at: string, url: string}|null $record */
-            $record = Cache::get($key);
+            $record = $cache->get($key);
             if ($record === null) {
                 $record = $this->fetch($provider, $own);
-                Cache::put($key, $record, $record['status'] === 'ok' ? CacheKey::RELATION_CORRECTION_SUPPORT->ttl() : 300);
+                $cache->put($key, $record, $record['status'] === 'ok' ? $cacheKey->ttl() : 300);
             }
             $sources[] = ['provider' => $provider, 'doi' => $own, 'status' => $record['status'], 'fetched_at' => $record['fetched_at']];
             foreach ($record['rows'] as $index => $row) {
