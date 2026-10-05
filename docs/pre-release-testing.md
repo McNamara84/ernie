@@ -213,8 +213,17 @@ Stop immediately if:
       topic labels, and touch devices show them without requiring a first tap.
 
 - [ ] On Production, `/` no longer redirects to TYPO3 after the updated Traefik
-      labels are deployed. `/web/`, `/portal/`, `/igsn-new/`, and ELMO still reach
-      their existing applications.
+      labels are deployed. `/web/` and ELMO still reach their existing applications.
+
+- [ ] On Production, GET requests for `/portal`, `/portal/` and all their
+      subpaths return HTTP 301 with exactly
+      `Location: https://dataservices.gfz.de/doi-search`. `/igsn-new`,
+      `/igsn-new/` and all their subpaths similarly redirect to
+      `https://dataservices.gfz.de/igsn-search`. Old query parameters and
+      subpaths are discarded, including `/portal/index.php?q=granite` and
+      `/igsn-new/portal/results?page=2`. The targets return HTTP 200 without a
+      redirect loop. Similar paths such as `/portals` and `/igsn-newer` are not
+      captured. Use GET with `curl -D - -o /dev/null` rather than HEAD (`curl -I`).
 
 - [ ] <https://ernie.rz-vm182.gfz.de/> opens without certificate, gateway, server,
       or blank-page errors.
