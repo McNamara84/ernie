@@ -5,13 +5,14 @@ declare(strict_types=1);
 use App\Enums\PortalCacheArea;
 use App\Models\Subject;
 use App\Observers\SubjectObserver;
+use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\PortalCacheInvalidationService;
 
 covers(SubjectObserver::class);
 
 beforeEach(function () {
     $this->cacheInvalidationService = Mockery::mock(PortalCacheInvalidationService::class); // @phpstan-ignore variable.undefined
-    $this->observer = new SubjectObserver($this->cacheInvalidationService);
+    $this->observer = new SubjectObserver($this->cacheInvalidationService, new OaiPmhDatestampService);
 });
 
 describe('saved', function () {

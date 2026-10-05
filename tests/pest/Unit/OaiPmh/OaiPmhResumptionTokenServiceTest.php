@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\OaiPmhHarvest;
 use App\Models\OaiPmhResumptionToken;
 use App\Services\OaiPmh\OaiPmhResumptionTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +33,18 @@ describe('create', function () {
             ->and($token->token)->toHaveLength(64)
             ->and($token->expires_at)->toBeInstanceOf(Carbon::class);
     });
+});
+
+it('rejects a token with an expired harvest and purges snapshot identities', function () {
+    $service = app(OaiPmhResumptionTokenService::class);
+    $harvest = OaiPmhHarvest::create(['items' => [], 'expires_at' => now()->addDay()]);
+    $first = $service->create('ListRecords', 'oai_dc', 'epos-msl', null, null, 1, 5, $harvest);
+    $second = $service->create('ListRecords', 'oai_dc', 'epos-msl', null, null, 2, 5, $harvest);
+    $harvest->update(['expires_at' => now()->subHour()]);
+    expect($service->resolve($first->token))->toBeNull();
+    $service->purgeExpired();
+    expect(OaiPmhHarvest::find($harvest->id))->toBeNull()
+        ->and(OaiPmhResumptionToken::find($second->id))->toBeNull();
 });
 
 describe('resolve', function () {

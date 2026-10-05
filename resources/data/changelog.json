@@ -4,6 +4,10 @@
         "date": "2026-10-05",
         "features": [
             {
+                "title": "EPOS-MSL OAI-PMH Project Set",
+                "description": "Harvesters can select the epos-msl set to retrieve published resources with the complete free keyword EPOS or MSL, ignoring letter case and surrounding whitespace. Resources with both keywords appear once; controlled vocabulary subjects are excluded. Project membership is included in record headers and retained when resources are deleted or depublished. Subject edits update harvesting timestamps, and paginated harvests preserve the identifier order when records change. The OAI-PMH documentation includes project requests and guidance for incremental updates with regular complete identifier reconciliation."
+            },
+            {
                 "title": "ELMO-MSL API and Independent Editor Settings",
                 "description": "ERNIE API 1.1 adds 27 API-key-protected ELMO-MSL endpoints for metadata types, languages, licenses, roles, vocabularies, persistent identifiers and availability. Editor Settings now independently control ERNIE, ELMO and ELMO-MSL, including date types, MSL keywords and resource-type license exclusions. Existing ELMO settings are copied to ELMO-MSL once during migration; subsequent changes remain independent. The ERNIE editor filters new license choices by resource type while preserving saved and imported rights. The API documentation uses OpenAPI 3.2.1 and documents both API-key header and Bearer authentication."
             },

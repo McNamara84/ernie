@@ -16,6 +16,7 @@ interface MetadataFormat {
 
 interface Props {
     baseUrl: string;
+    projectSet: { spec: string; name: string; description: string };
     adminEmail: string;
     metadataFormats: Record<string, MetadataFormat>;
     isoEligibleResourceTypeSlugs: string[];
@@ -68,6 +69,7 @@ function ExampleUrl({ url }: { url: string }) {
 
 export default function OaiPmhDocs({
     baseUrl,
+    projectSet,
     adminEmail,
     metadataFormats,
     isoEligibleResourceTypeSlugs,
@@ -258,6 +260,28 @@ export default function OaiPmhDocs({
                         <CardDescription>Records are organized into sets for selective harvesting</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="space-y-2" aria-label="EPOS-MSL project set">
+                            <h4 className="font-medium">{projectSet.name}</h4>
+                            <Badge variant="outline">{projectSet.spec}</Badge>
+                            <p className="text-sm text-muted-foreground">{projectSet.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                                One matching free subject is sufficient. Resources with both keywords appear once. Blank subject attributes count as
+                                absent, and the subject language does not affect membership. For example, <code>ePoS</code> and <code> MSL </code>{' '}
+                                match; <code>EPOS-MSL</code> and <code>EPOS project</code> do not. Controlled EPOS-MSL vocabulary terms do not
+                                establish project membership.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                The set remains discoverable even when empty; an empty harvest returns <code>noRecordsMatch</code>. Harvesting
+                                requires a published landing page and an identifier. Use <code>oai_dc</code> or <code>oai_datacite</code> for the
+                                complete project inventory; <code>iso19115_3</code> covers only eligible resources when enabled.
+                            </p>
+                            <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${projectSet.spec}`} />
+                            <ExampleUrl url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=${projectSet.spec}`} />
+                            <p className="text-sm text-muted-foreground">
+                                Membership is included in every record header, including unfiltered requests and <code>GetRecord</code>:{' '}
+                                <code>&lt;setSpec&gt;{projectSet.spec}&lt;/setSpec&gt;</code>
+                            </p>
+                        </div>
                         <div>
                             <h4 className="mb-2 font-medium">Resource Type Sets</h4>
                             <p className="mb-2 text-sm text-muted-foreground">
@@ -371,6 +395,12 @@ export default function OaiPmhDocs({
                             Tokens expire after <strong>{tokenTtlHours} hours</strong>. An empty <code>&lt;resumptionToken&gt;</code> element (with no
                             text content) signals the end of the result set.
                         </p>
+                        <p className="text-muted-foreground">
+                            Paginated harvests keep an ordered inventory of identifiers so changes cannot shift unchanged records past a page.
+                            Metadata remains current and changed records may disappear from a harvest. The expiration applies to the whole harvest;
+                            later pages do not extend it. Reuse the latest valid token after a network failure. If an entire page has disappeared,{' '}
+                            <code>badResumptionToken</code> requests a restart.
+                        </p>
                     </CardContent>
                 </Card>
 
@@ -400,6 +430,70 @@ export default function OaiPmhDocs({
                             <p className="text-muted-foreground">Date and set filters can be combined for targeted harvesting:</p>
                             <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${exampleSetSpec}&from=2024-01-01`} />
                         </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Keeping an EPOS-MSL Harvest in Sync</CardTitle>
+                        <CardDescription>Incremental updates and a complete identifier reconciliation</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                        <p>
+                            Start with a complete project harvest. A suggested schedule is daily incremental updates and a weekly complete identifier
+                            reconciliation; choose intervals that fit your required freshness.
+                        </p>
+                        <ExampleUrl
+                            url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${projectSet.spec}&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z`}
+                        />
+                        <ol className="list-inside list-decimal space-y-2 text-muted-foreground">
+                            <li>
+                                Follow every resumption token. Use inclusive UTC date boundaries with overlap, update records by identifier, and save
+                                the next incremental checkpoint only after every page succeeds. The first response&apos;s <code>responseDate</code> is
+                                a useful checkpoint for the next harvest.
+                            </li>
+                            <li>
+                                Periodically request the complete identifier list below with no <code>from</code> or <code>until</code> filter,
+                                including every page. Only headers without <code>status=&quot;deleted&quot;</code> form the active inventory.
+                            </li>
+                            <li>
+                                Reconcile the complete active inventory against your local project records. Process persistent deleted headers
+                                separately. Never remove local records based on an incomplete or failed harvest.
+                            </li>
+                            <li>
+                                When the repository changes during reconciliation, check missing candidates with <code>GetRecord</code> before
+                                removal. Retain and refresh a record still carrying <code>{projectSet.spec}</code>; a valid record without that
+                                membership confirms a set exit, and a deleted header confirms withdrawal. Technical errors do not confirm removal.
+                            </li>
+                        </ol>
+                        <ExampleUrl url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=${projectSet.spec}`} />
+                        <p>
+                            Removing the last matching free keyword removes a resource from this set while its metadata remains available in ERNIE. An
+                            incremental request restricted to this set cannot report that exit. Keyword removal does not generate a deleted header,
+                            which is why the complete identifier reconciliation is necessary. Earlier permanently deleted records may lack recoverable
+                            project membership; begin with a complete inventory.
+                        </p>
+                        <p className="text-muted-foreground">
+                            These requests use{' '}
+                            <a
+                                href="https://www.openarchives.org/OAI/openarchivesprotocol.html#Set"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary underline"
+                            >
+                                OAI-PMH 2.0 sets
+                            </a>{' '}
+                            and the{' '}
+                            <a
+                                href="https://www.openarchives.org/OAI/2.0/guidelines-harvester.htm"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary underline"
+                            >
+                                official harvesting guidance
+                            </a>
+                            .
+                        </p>
                     </CardContent>
                 </Card>
 
