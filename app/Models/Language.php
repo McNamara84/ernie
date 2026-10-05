@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['code', 'name', 'active', 'elmo_active'])]
+#[Fillable(['code', 'name', 'active', 'elmo_active', 'elmo_msl_active'])]
 class Language extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -20,6 +20,7 @@ class Language extends Model
     protected $casts = [
         'active' => 'boolean',
         'elmo_active' => 'boolean',
+        'elmo_msl_active' => 'boolean',
     ];
 
     /**
@@ -38,6 +39,15 @@ class Language extends Model
     public function scopeElmoActive(Builder $query): Builder
     {
         return $query->where('elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<Language>  $query
+     * @return Builder<Language>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('elmo_msl_active', true);
     }
 
     /**

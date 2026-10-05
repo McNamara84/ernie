@@ -80,7 +80,8 @@ describe('ContributorTypeFactory', function () {
             ->and($type->slug)->toBeString()
             ->and($type->category)->toBeInstanceOf(ContributorCategory::class)
             ->and($type->is_active)->toBeTrue()
-            ->and($type->is_elmo_active)->toBeTrue();
+            ->and($type->is_elmo_active)->toBeTrue()
+            ->and($type->is_elmo_msl_active)->toBeTrue();
     });
 
     it('creates a contact person type', function () {
@@ -121,12 +122,31 @@ describe('ContributorTypeFactory', function () {
         expect($type->is_active)->toBeFalse();
     });
 
-    it('creates an elmo inactive type', function () {
+    it('disables only ELMO while preserving the factory defaults for the other editors', function () {
         /** @var ContributorType $type */
         $type = ContributorTypeFactory::new()->elmoInactive()->create();
 
-        expect($type->is_elmo_active)->toBeFalse();
+        expect($type->is_elmo_active)->toBeFalse()
+            ->and($type->is_active)->toBeTrue()
+            ->and($type->is_elmo_msl_active)->toBeTrue();
     });
+
+    it('preserves explicit ERNIE and ELMO-MSL states when disabling ELMO', function (bool $ernieActive, bool $mslActive): void {
+        /** @var ContributorType $type */
+        $type = ContributorTypeFactory::new()->state([
+            'is_active' => $ernieActive,
+            'is_elmo_msl_active' => $mslActive,
+        ])->elmoInactive()->create();
+
+        expect($type->is_elmo_active)->toBeFalse()
+            ->and($type->is_active)->toBe($ernieActive)
+            ->and($type->is_elmo_msl_active)->toBe($mslActive);
+    })->with([
+        'ERNIE and ELMO-MSL active' => [true, true],
+        'ERNIE inactive and ELMO-MSL active' => [false, true],
+        'ERNIE active and ELMO-MSL inactive' => [true, false],
+        'ERNIE and ELMO-MSL inactive' => [false, false],
+    ]);
 });
 
 // ---------------------------------------------------------------------------

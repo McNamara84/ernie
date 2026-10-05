@@ -19,19 +19,21 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property ContributorCategory $category
  * @property bool $is_active
+ * @property bool $is_elmo_msl_active
  * @property bool $is_elmo_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/contributor/
  */
-#[Fillable(['name', 'slug', 'category', 'is_active', 'is_elmo_active'])]
+#[Fillable(['name', 'slug', 'category', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])]
 class ContributorType extends Model
 {
     protected $casts = [
         'category' => ContributorCategory::class,
         'is_active' => 'boolean',
         'is_elmo_active' => 'boolean',
+        'is_elmo_msl_active' => 'boolean',
     ];
 
     /**
@@ -50,6 +52,15 @@ class ContributorType extends Model
     public function scopeElmoActive(Builder $query): Builder
     {
         return $query->where('is_elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<ContributorType>  $query
+     * @return Builder<ContributorType>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_msl_active', true);
     }
 
     /**

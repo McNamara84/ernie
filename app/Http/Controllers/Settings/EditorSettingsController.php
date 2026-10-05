@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Enums\ContributorCategory;
+use App\Enums\EditorContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\ContributorType;
@@ -49,48 +50,55 @@ class EditorSettingsController extends Controller
         $this->ensurePidSettingsExist();
 
         // Map database fields to frontend expected field names
-        $resourceTypes = ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
+        $resourceTypes = ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])->map(fn ($r) => [
             'id' => $r->id,
             'name' => $r->name,
             'active' => $r->is_active,
             'elmo_active' => $r->is_elmo_active,
+            'elmo_msl_active' => $r->is_elmo_msl_active,
         ]);
 
-        $titleTypes = TitleType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn ($t) => [
+        $titleTypes = TitleType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])->map(fn ($t) => [
             'id' => $t->id,
             'name' => $t->name,
             'slug' => $t->slug,
             'active' => $t->is_active,
             'elmo_active' => $t->is_elmo_active,
+            'elmo_msl_active' => $t->is_elmo_msl_active,
         ]);
 
-        $licenses = Right::with('excludedResourceTypes:id')
+        $licenses = Right::with('allExcludedResourceTypes:id')
             ->orderBy('id')
-            ->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active'])
+            ->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])
             ->map(fn ($r) => [
                 'id' => $r->id,
                 'identifier' => $r->identifier,
                 'name' => $r->name,
                 'active' => $r->is_active,
                 'elmo_active' => $r->is_elmo_active,
-                'excluded_resource_type_ids' => $r->excludedResourceTypes->pluck('id')->toArray(),
+                'elmo_msl_active' => $r->is_elmo_msl_active,
+                'excluded_resource_type_ids' => $r->allExcludedResourceTypes->where('pivot.editor', 'ernie')->pluck('id')->toArray(),
+                'elmo_excluded_resource_type_ids' => $r->allExcludedResourceTypes->where('pivot.editor', 'elmo')->pluck('id')->toArray(),
+                'elmo_msl_excluded_resource_type_ids' => $r->allExcludedResourceTypes->where('pivot.editor', 'elmo-msl')->pluck('id')->toArray(),
             ]);
 
-        $dateTypes = DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active'])->map(fn ($d) => [
+        $dateTypes = DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])->map(fn ($d) => [
             'id' => $d->id,
             'name' => $d->name,
             'slug' => $d->slug,
             'description' => null,
             'active' => $d->is_active,
-            'elmo_active' => false, // DateType doesn't have is_elmo_active
+            'elmo_active' => $d->is_elmo_active,
+            'elmo_msl_active' => $d->is_elmo_msl_active,
         ]);
 
-        $descriptionTypes = DescriptionType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn ($d) => [
+        $descriptionTypes = DescriptionType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])->map(fn ($d) => [
             'id' => $d->id,
             'name' => $d->name,
             'slug' => $d->slug,
             'active' => $d->is_active,
             'elmo_active' => $d->is_elmo_active,
+            'elmo_msl_active' => $d->is_elmo_msl_active,
         ]);
 
         // Get thesaurus settings with local status information
@@ -102,6 +110,7 @@ class EditorSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
+                'isElmoMslActive' => $thesaurus->is_elmo_msl_active,
                 'version' => $thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES
                     ? ($localStatus['version'] ?? $thesaurus->version)
                     : $thesaurus->version,
@@ -122,6 +131,7 @@ class EditorSettingsController extends Controller
                 'displayName' => $pidSetting->display_name,
                 'isActive' => $pidSetting->is_active,
                 'isElmoActive' => $pidSetting->is_elmo_active,
+                'isElmoMslActive' => $pidSetting->is_elmo_msl_active,
                 'exists' => $localStatus['exists'],
                 'itemCount' => $localStatus['itemCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],
@@ -136,6 +146,7 @@ class EditorSettingsController extends Controller
             'category' => $ct->category->value,
             'active' => $ct->is_active,
             'elmo_active' => $ct->is_elmo_active,
+            'elmo_msl_active' => $ct->is_elmo_msl_active,
         ];
 
         $contributorPersonRoles = ContributorType::where('category', ContributorCategory::PERSON)
@@ -147,23 +158,25 @@ class EditorSettingsController extends Controller
         $contributorBothRoles = ContributorType::where('category', ContributorCategory::BOTH)
             ->orderBy('name')->get()->map($contributorTypeMapper);
 
-        $relationTypes = RelationType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
+        $relationTypes = RelationType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])->map(fn ($r) => [
             'id' => $r->id,
             'name' => $r->name,
             'slug' => $r->slug,
             'active' => $r->is_active,
             'elmo_active' => $r->is_elmo_active,
+            'elmo_msl_active' => $r->is_elmo_msl_active,
         ]);
 
         $identifierTypes = IdentifierType::with(['patterns' => fn ($q) => $q->orderByDesc('priority')])
             ->orderBy('id')
-            ->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])
+            ->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])
             ->map(fn ($it) => [
                 'id' => $it->id,
                 'name' => $it->name,
                 'slug' => $it->slug,
                 'active' => $it->is_active,
                 'elmo_active' => $it->is_elmo_active,
+                'elmo_msl_active' => $it->is_elmo_msl_active,
                 'patterns' => $it->patterns->map(fn ($p) => [
                     'id' => $p->id,
                     'type' => $p->type,
@@ -177,7 +190,7 @@ class EditorSettingsController extends Controller
             'resourceTypes' => $resourceTypes,
             'titleTypes' => $titleTypes,
             'licenses' => $licenses,
-            'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
+            'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active', 'elmo_msl_active']),
             'dateTypes' => $dateTypes,
             'descriptionTypes' => $descriptionTypes,
             'thesauri' => $thesauri,
@@ -219,7 +232,7 @@ class EditorSettingsController extends Controller
             }
 
             // Update resource types
-            /** @var array<int, array{id: int, name: string, active: bool, elmo_active: bool}> $resourceTypes */
+            /** @var array<int, array{id: int, name: string, active: bool, elmo_active: bool, elmo_msl_active?: bool}> $resourceTypes */
             $resourceTypes = $validated['resourceTypes'];
             foreach ($resourceTypes as $type) {
                 DB::table('resource_types')
@@ -228,12 +241,13 @@ class EditorSettingsController extends Controller
                         'name' => $type['name'],
                         'is_active' => $type['active'],
                         'is_elmo_active' => $type['elmo_active'],
+                        ...(array_key_exists('elmo_msl_active', $type) ? ['is_elmo_msl_active' => $type['elmo_msl_active']] : []),
                         'updated_at' => $now,
                     ]);
             }
 
             // Update title types
-            /** @var array<int, array{id: int, name: string, slug: string, active: bool, elmo_active: bool}> $titleTypes */
+            /** @var array<int, array{id: int, name: string, slug: string, active: bool, elmo_active: bool, elmo_msl_active?: bool}> $titleTypes */
             $titleTypes = $validated['titleTypes'];
             foreach ($titleTypes as $type) {
                 DB::table('title_types')
@@ -243,12 +257,13 @@ class EditorSettingsController extends Controller
                         'slug' => $type['slug'],
                         'is_active' => $type['active'],
                         'is_elmo_active' => $type['elmo_active'],
+                        ...(array_key_exists('elmo_msl_active', $type) ? ['is_elmo_msl_active' => $type['elmo_msl_active']] : []),
                         'updated_at' => $now,
                     ]);
             }
 
             // Update licenses (rights) with resource type exclusions
-            /** @var array<int, array{id: int, active: bool, elmo_active: bool, excluded_resource_type_ids: array<int>}> $licenses */
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool, elmo_msl_active?: bool, excluded_resource_type_ids: array<int>, elmo_excluded_resource_type_ids?: array<int>, elmo_msl_excluded_resource_type_ids?: array<int>}> $licenses */
             $licenses = $validated['licenses'];
             foreach ($licenses as $license) {
                 DB::table('rights')
@@ -256,33 +271,34 @@ class EditorSettingsController extends Controller
                     ->update([
                         'is_active' => $license['active'],
                         'is_elmo_active' => $license['elmo_active'],
+                        ...(array_key_exists('elmo_msl_active', $license) ? ['is_elmo_msl_active' => $license['elmo_msl_active']] : []),
                         'updated_at' => $now,
                     ]);
 
-                // Sync excluded resource types using a direct query to ensure it works within transaction
-                /** @var int[] $excludedIds */
-                $excludedIds = $license['excluded_resource_type_ids'];
-
-                // Delete existing exclusions
-                DB::table('right_resource_type_exclusions')
-                    ->where('right_id', $license['id'])
-                    ->delete();
-
-                // Insert new exclusions
-                if (count($excludedIds) > 0) {
-                    $insertData = array_map(fn (int $resourceTypeId) => [
+                foreach (EditorContext::cases() as $editor) {
+                    $field = $editor->exclusionField();
+                    if (! array_key_exists($field, $license)) {
+                        continue;
+                    }
+                    DB::table('right_resource_type_exclusions')
+                        ->where('right_id', $license['id'])->where('editor', $editor->value)->delete();
+                    /** @var array<int> $excludedIds */
+                    $excludedIds = $license[$field];
+                    $rows = array_map(fn (int $resourceTypeId): array => [
                         'right_id' => $license['id'],
                         'resource_type_id' => $resourceTypeId,
+                        'editor' => $editor->value,
                         'created_at' => $now,
                         'updated_at' => $now,
-                    ], $excludedIds);
-
-                    DB::table('right_resource_type_exclusions')->insert($insertData);
+                    ], array_unique($excludedIds));
+                    if ($rows !== []) {
+                        DB::table('right_resource_type_exclusions')->insert($rows);
+                    }
                 }
             }
 
             // Update languages
-            /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $languages */
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool, elmo_msl_active?: bool}> $languages */
             $languages = $validated['languages'];
             foreach ($languages as $language) {
                 DB::table('languages')
@@ -290,24 +306,27 @@ class EditorSettingsController extends Controller
                     ->update([
                         'active' => $language['active'],
                         'elmo_active' => $language['elmo_active'],
+                        ...(array_key_exists('elmo_msl_active', $language) ? ['elmo_msl_active' => $language['elmo_msl_active']] : []),
                         'updated_at' => $now,
                     ]);
             }
 
             // Update date types
-            /** @var array<int, array{id: int, active: bool}> $dateTypes */
+            /** @var array<int, array{id: int, active: bool, elmo_active?: bool, elmo_msl_active?: bool}> $dateTypes */
             $dateTypes = $validated['dateTypes'];
             foreach ($dateTypes as $dateType) {
                 DB::table('date_types')
                     ->where('id', $dateType['id'])
                     ->update([
                         'is_active' => $dateType['active'],
+                        ...(array_key_exists('elmo_active', $dateType) ? ['is_elmo_active' => $dateType['elmo_active']] : []),
+                        ...(array_key_exists('elmo_msl_active', $dateType) ? ['is_elmo_msl_active' => $dateType['elmo_msl_active']] : []),
                         'updated_at' => $now,
                     ]);
             }
 
             // Update description types (Abstract is always forced active)
-            /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $descriptionTypes */
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool, elmo_msl_active?: bool}> $descriptionTypes */
             $descriptionTypes = $validated['descriptionTypes'];
             foreach ($descriptionTypes as $descType) {
                 DB::table('description_types')
@@ -315,6 +334,7 @@ class EditorSettingsController extends Controller
                     ->update([
                         'is_active' => $descType['active'],
                         'is_elmo_active' => $descType['elmo_active'],
+                        ...(array_key_exists('elmo_msl_active', $descType) ? ['is_elmo_msl_active' => $descType['elmo_msl_active']] : []),
                         'updated_at' => $now,
                     ]);
             }
@@ -325,12 +345,13 @@ class EditorSettingsController extends Controller
                 ->update([
                     'is_active' => true,
                     'is_elmo_active' => true,
+                    'is_elmo_msl_active' => true,
                     'updated_at' => $now,
                 ]);
 
             // Update thesaurus settings if provided
             if (isset($validated['thesauri'])) {
-                /** @var array<int, array{type: string, isActive: bool, isElmoActive: bool}> $thesauri */
+                /** @var array<int, array{type: string, isActive: bool, isElmoActive: bool, isElmoMslActive?: bool}> $thesauri */
                 $thesauri = $validated['thesauri'];
                 foreach ($thesauri as $thesaurus) {
                     DB::table('thesaurus_settings')
@@ -338,6 +359,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $thesaurus['isActive'],
                             'is_elmo_active' => $thesaurus['isElmoActive'],
+                            ...(array_key_exists('isElmoMslActive', $thesaurus) ? ['is_elmo_msl_active' => $thesaurus['isElmoMslActive']] : []),
                             'updated_at' => $now,
                         ]);
                 }
@@ -345,7 +367,7 @@ class EditorSettingsController extends Controller
 
             // Update PID settings if provided
             if (isset($validated['pidSettings'])) {
-                /** @var array<int, array{type: string, isActive: bool, isElmoActive: bool}> $pidSettings */
+                /** @var array<int, array{type: string, isActive: bool, isElmoActive: bool, isElmoMslActive?: bool}> $pidSettings */
                 $pidSettings = $validated['pidSettings'];
                 foreach ($pidSettings as $pidSetting) {
                     DB::table('pid_settings')
@@ -353,6 +375,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $pidSetting['isActive'],
                             'is_elmo_active' => $pidSetting['isElmoActive'],
+                            ...(array_key_exists('isElmoMslActive', $pidSetting) ? ['is_elmo_msl_active' => $pidSetting['isElmoMslActive']] : []),
                             'updated_at' => $now,
                         ]);
                 }
@@ -366,13 +389,14 @@ class EditorSettingsController extends Controller
             ];
 
             foreach ($contributorRoleArrays as $roles) {
-                /** @var array<int, array{id: int, active: bool, elmo_active: bool, category: string}> $roles */
+                /** @var array<int, array{id: int, active: bool, elmo_active: bool, elmo_msl_active?: bool, category: string}> $roles */
                 foreach ($roles as $role) {
                     DB::table('contributor_types')
                         ->where('id', $role['id'])
                         ->update([
                             'is_active' => $role['active'],
                             'is_elmo_active' => $role['elmo_active'],
+                            ...(array_key_exists('elmo_msl_active', $role) ? ['is_elmo_msl_active' => $role['elmo_msl_active']] : []),
                             'category' => $role['category'],
                             'updated_at' => $now,
                         ]);
@@ -381,7 +405,7 @@ class EditorSettingsController extends Controller
 
             // Update relation types
             if (isset($validated['relationTypes'])) {
-                /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $relationTypes */
+                /** @var array<int, array{id: int, active: bool, elmo_active: bool, elmo_msl_active?: bool}> $relationTypes */
                 $relationTypes = $validated['relationTypes'];
                 foreach ($relationTypes as $type) {
                     DB::table('relation_types')
@@ -389,6 +413,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $type['active'],
                             'is_elmo_active' => $type['elmo_active'],
+                            ...(array_key_exists('elmo_msl_active', $type) ? ['is_elmo_msl_active' => $type['elmo_msl_active']] : []),
                             'updated_at' => $now,
                         ]);
                 }
@@ -396,7 +421,7 @@ class EditorSettingsController extends Controller
 
             // Update identifier types with patterns
             if (isset($validated['identifierTypes'])) {
-                /** @var array<int, array{id: int, active: bool, elmo_active: bool, patterns?: array<int, array{id: int, pattern: string, is_active: bool, priority: int}>}> $identifierTypes */
+                /** @var array<int, array{id: int, active: bool, elmo_active: bool, elmo_msl_active?: bool, patterns?: array<int, array{id: int, pattern: string, is_active: bool, priority: int}>}> $identifierTypes */
                 $identifierTypes = $validated['identifierTypes'];
                 foreach ($identifierTypes as $type) {
                     DB::table('identifier_types')
@@ -404,6 +429,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $type['active'],
                             'is_elmo_active' => $type['elmo_active'],
+                            ...(array_key_exists('elmo_msl_active', $type) ? ['is_elmo_msl_active' => $type['elmo_msl_active']] : []),
                             'updated_at' => $now,
                         ]);
 
@@ -445,6 +471,7 @@ class EditorSettingsController extends Controller
                     'display_name' => $displayName,
                     'is_active' => ThesaurusSetting::isEnabledByDefault($type),
                     'is_elmo_active' => ThesaurusSetting::isEnabledByDefault($type),
+                    'is_elmo_msl_active' => ThesaurusSetting::isEnabledByDefault($type),
                 ]
             );
         }
@@ -463,6 +490,7 @@ class EditorSettingsController extends Controller
                 'display_name' => 'PID4INST (b2inst)',
                 'is_active' => true,
                 'is_elmo_active' => true,
+                'is_elmo_msl_active' => true,
             ]
         );
 
@@ -472,6 +500,7 @@ class EditorSettingsController extends Controller
                 'display_name' => 'ROR (Research Organization Registry)',
                 'is_active' => true,
                 'is_elmo_active' => true,
+                'is_elmo_msl_active' => true,
             ]
         );
 
@@ -481,6 +510,7 @@ class EditorSettingsController extends Controller
                 'display_name' => 'RAiD (Research Activity Identifier)',
                 'is_active' => true,
                 'is_elmo_active' => true,
+                'is_elmo_msl_active' => true,
             ]
         );
     }

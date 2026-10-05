@@ -29,6 +29,7 @@ export interface ThesaurusData {
     displayName: string;
     isActive: boolean;
     isElmoActive: boolean;
+    isElmoMslActive?: boolean;
     version?: string | null;
     supportsVersioning?: boolean;
     exists: boolean;
@@ -63,10 +64,11 @@ interface ThesaurusRowProps {
     thesaurus: ThesaurusData;
     onActiveChange: (type: string, isActive: boolean) => void;
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
+    onElmoMslActiveChange?: (type: string, isElmoMslActive: boolean) => void;
     onUpdateComplete?: (type: string) => void;
 }
 
-function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateComplete }: ThesaurusRowProps) {
+function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onElmoMslActiveChange, onUpdateComplete }: ThesaurusRowProps) {
     const [checkStatus, setCheckStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
     const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
     const [checkError, setCheckError] = useState<string | null>(null);
@@ -344,6 +346,17 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                             ELMO
                         </Label>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id={`thesaurus-elmo-msl-${thesaurus.type}`}
+                            checked={thesaurus.isElmoMslActive ?? false}
+                            onCheckedChange={(checked) => onElmoMslActiveChange?.(thesaurus.type, checked === true)}
+                            aria-label={`${thesaurus.displayName}: ELMO-MSL active`}
+                        />
+                        <Label htmlFor={`thesaurus-elmo-msl-${thesaurus.type}`} className="text-sm font-normal">
+                            ELMO-MSL
+                        </Label>
+                    </div>
                 </div>
             </div>
 
@@ -510,14 +523,25 @@ export interface ThesaurusCardProps {
     thesauri: ThesaurusData[];
     onActiveChange: (type: string, isActive: boolean) => void;
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
+    onElmoMslActiveChange?: (type: string, isElmoMslActive: boolean) => void;
     onBulkActiveChange?: (isActive: boolean) => void;
     onBulkElmoActiveChange?: (isElmoActive: boolean) => void;
+    onBulkElmoMslActiveChange?: (isElmoMslActive: boolean) => void;
 }
 
-export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange, onBulkActiveChange, onBulkElmoActiveChange }: ThesaurusCardProps) {
+export function ThesaurusCard({
+    thesauri,
+    onActiveChange,
+    onElmoActiveChange,
+    onElmoMslActiveChange,
+    onBulkActiveChange,
+    onBulkElmoActiveChange,
+    onBulkElmoMslActiveChange,
+}: ThesaurusCardProps) {
     const queryClient = useQueryClient();
     // Select-all state for ERNIE / ELMO columns
     const ernieState = getSelectAllState(thesauri.map((t) => t.isActive));
+    const elmoMslState = getSelectAllState(thesauri.map((t) => t.isElmoMslActive ?? false));
     const elmoState = getSelectAllState(thesauri.map((t) => t.isElmoActive));
 
     // Reload page data after update to get fresh data from backend
@@ -579,6 +603,25 @@ export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange, on
                             All ELMO
                         </Label>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="thesaurus-all-elmo-msl"
+                            checked={elmoMslState.allChecked}
+                            indeterminate={elmoMslState.indeterminate}
+                            onCheckedChange={(checked) => {
+                                const newValue = checked === true;
+                                if (onBulkElmoMslActiveChange) {
+                                    onBulkElmoMslActiveChange(newValue);
+                                } else {
+                                    thesauri.forEach((t) => onElmoMslActiveChange?.(t.type, newValue));
+                                }
+                            }}
+                            aria-label="Select all ELMO-MSL active for Thesauri"
+                        />
+                        <Label htmlFor="thesaurus-all-elmo-msl" className="text-sm font-medium">
+                            All ELMO-MSL
+                        </Label>
+                    </div>
                 </div>
             )}
 
@@ -588,6 +631,7 @@ export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange, on
                     thesaurus={thesaurus}
                     onActiveChange={onActiveChange}
                     onElmoActiveChange={onElmoActiveChange}
+                    onElmoMslActiveChange={onElmoMslActiveChange}
                     onUpdateComplete={handleUpdateComplete}
                 />
             ))}

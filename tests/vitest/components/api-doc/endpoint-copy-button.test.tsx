@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { SVGProps } from 'react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,8 +12,6 @@ vi.mock('sonner', () => ({
 }));
 
 const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
-const CopyIcon = (props: SVGProps<SVGSVGElement>) => <svg data-testid="swagger-copy-icon" {...props} />;
-const getComponent = vi.fn(() => CopyIcon);
 
 function setClipboard(writeText: ReturnType<typeof vi.fn>) {
     Object.defineProperty(navigator, 'clipboard', {
@@ -24,7 +21,7 @@ function setClipboard(writeText: ReturnType<typeof vi.fn>) {
 }
 
 function renderEndpointCopyButton(textToCopy: string) {
-    return render(<EndpointCopyButton getComponent={getComponent} textToCopy={textToCopy} />);
+    return render(<EndpointCopyButton textToCopy={textToCopy} />);
 }
 
 describe('EndpointCopyButton', () => {
@@ -40,18 +37,18 @@ describe('EndpointCopyButton', () => {
         }
     });
 
-    it('renders an accessible button with Swagger UI style hooks and its visible copy icon', () => {
+    it('renders an accessible copy icon without requiring the Swagger icon registry', () => {
         renderEndpointCopyButton('/api/v1/licenses');
 
         const button = screen.getByRole('button', { name: 'Copy endpoint path to clipboard' });
 
         expect(button).toHaveAttribute('type', 'button');
-        expect(button).toContainElement(screen.getByTestId('swagger-copy-icon'));
-        expect(screen.getByTestId('swagger-copy-icon')).toHaveAttribute('aria-hidden', 'true');
-        expect(screen.getByTestId('swagger-copy-icon')).toHaveAttribute('focusable', 'false');
+        const icon = button.querySelector('svg');
+        expect(icon).toBeInTheDocument();
+        expect(icon).toHaveAttribute('aria-hidden', 'true');
+        expect(icon).toHaveAttribute('focusable', 'false');
         expect(button.parentElement).toHaveClass('view-line-link', 'copy-to-clipboard');
         expect(button.parentElement).toHaveAttribute('title', 'Copy to clipboard');
-        expect(getComponent).toHaveBeenCalledWith('CopyIcon');
     });
 
     it('copies the exact endpoint path and reports success after the write resolves', async () => {

@@ -1,10 +1,10 @@
 {
-    "openapi": "3.2.0",
+    "openapi": "3.2.1",
     "info": {
         "title": "ERNIE API",
         "summary": "Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.",
-        "version": "1.0.0",
-        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems.",
+        "version": "1.1.0",
+        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems. Version 1.1 adds ELMO-MSL editor configuration. ERNIE, ELMO and ELMO-MSL activation and resource-type license exclusions are independent.",
         "termsOfService": "https://ernie.rz-vm182.gfz.de/legal-notice",
         "contact": {
             "name": "Holger Ehrmann",
@@ -109,6 +109,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -157,6 +160,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ]
             }
@@ -196,6 +202,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ]
             }
@@ -208,6 +217,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "parameters": [
@@ -278,10 +290,13 @@
             "get": {
                 "tags": ["Editor Configuration"],
                 "summary": "List date types enabled for ELMO",
-                "description": "Returns all date types that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns date types enabled for ELMO independently of ERNIE and ELMO-MSL.",
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -330,10 +345,13 @@
             "get": {
                 "tags": ["Editor Configuration"],
                 "summary": "List description types enabled for ELMO",
-                "description": "Returns all description types that are enabled for ELMO (both `is_active` and `is_elmo_active` must be true). Provide the API key via the `X-API-Key` header.",
+                "description": "Returns all description types that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -404,6 +422,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ]
             }
@@ -416,6 +437,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -446,6 +470,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -476,6 +503,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -546,10 +576,13 @@
             "get": {
                 "tags": ["Editor Configuration"],
                 "summary": "List relation types enabled for ELMO",
-                "description": "Returns all relation types that are enabled for ELMO (both `is_active` and `is_elmo_active` must be true). Provide the API key via the `X-API-Key` header.",
+                "description": "Returns all relation types that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -620,10 +653,13 @@
             "get": {
                 "tags": ["Editor Configuration"],
                 "summary": "List identifier types enabled for ELMO",
-                "description": "Returns all identifier types that are enabled for ELMO (both `is_active` and `is_elmo_active` must be true) with their active validation and detection regex patterns. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns all identifier types that are enabled for ELMO with their active validation and detection regex patterns. Provide the API key via the `X-API-Key` header.",
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -654,6 +690,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -697,6 +736,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -740,6 +782,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -783,6 +828,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -844,6 +892,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -887,6 +938,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -930,6 +984,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -973,6 +1030,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -1016,6 +1076,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -1059,6 +1122,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -1102,6 +1168,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -1183,6 +1252,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -1226,6 +1298,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -1253,6 +1328,9 @@
                 "security": [
                     {
                         "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
                     }
                 ],
                 "responses": {
@@ -1303,28 +1381,67 @@
                                             "enum": ["crossref", "datacite", "not_found"],
                                             "description": "Origin of the bibliographic data, or `not_found` if neither Crossref nor DataCite returned a record."
                                         },
-                                        "identifier": { "type": "string", "example": "10.1029/2018JB016456" },
-                                        "identifier_type": { "type": "string", "example": "DOI" },
-                                        "related_item_type": { "type": ["string", "null"], "example": "JournalArticle" },
-                                        "title": { "type": ["string", "null"] },
-                                        "subtitle": { "type": ["string", "null"] },
-                                        "publication_year": { "type": ["integer", "null"], "example": 2019 },
-                                        "publisher": { "type": ["string", "null"] },
-                                        "volume": { "type": ["string", "null"] },
-                                        "issue": { "type": ["string", "null"] },
-                                        "first_page": { "type": ["string", "null"] },
-                                        "last_page": { "type": ["string", "null"] },
+                                        "identifier": {
+                                            "type": "string",
+                                            "example": "10.1029/2018JB016456"
+                                        },
+                                        "identifier_type": {
+                                            "type": "string",
+                                            "example": "DOI"
+                                        },
+                                        "related_item_type": {
+                                            "type": ["string", "null"],
+                                            "example": "JournalArticle"
+                                        },
+                                        "title": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "subtitle": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "publication_year": {
+                                            "type": ["integer", "null"],
+                                            "example": 2019
+                                        },
+                                        "publisher": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "volume": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "issue": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "first_page": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "last_page": {
+                                            "type": ["string", "null"]
+                                        },
                                         "creators": {
                                             "type": "array",
                                             "items": {
                                                 "type": "object",
                                                 "properties": {
-                                                    "name_type": { "type": "string", "enum": ["Personal", "Organizational"] },
-                                                    "name": { "type": "string" },
-                                                    "given_name": { "type": ["string", "null"] },
-                                                    "family_name": { "type": ["string", "null"] },
-                                                    "name_identifier": { "type": ["string", "null"] },
-                                                    "name_identifier_scheme": { "type": ["string", "null"] }
+                                                    "name_type": {
+                                                        "type": "string",
+                                                        "enum": ["Personal", "Organizational"]
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "given_name": {
+                                                        "type": ["string", "null"]
+                                                    },
+                                                    "family_name": {
+                                                        "type": ["string", "null"]
+                                                    },
+                                                    "name_identifier": {
+                                                        "type": ["string", "null"]
+                                                    },
+                                                    "name_identifier_scheme": {
+                                                        "type": ["string", "null"]
+                                                    }
                                                 }
                                             }
                                         }
@@ -1350,14 +1467,25 @@
                                     "type": "object",
                                     "required": ["source", "identifier", "identifier_type", "message", "error"],
                                     "properties": {
-                                        "source": { "type": "string", "example": "crossref" },
-                                        "identifier": { "type": "string" },
-                                        "identifier_type": { "type": "string", "example": "DOI" },
+                                        "source": {
+                                            "type": "string",
+                                            "example": "crossref"
+                                        },
+                                        "identifier": {
+                                            "type": "string"
+                                        },
+                                        "identifier_type": {
+                                            "type": "string",
+                                            "example": "DOI"
+                                        },
                                         "message": {
                                             "type": "string",
                                             "example": "Upstream metadata provider is temporarily unavailable. Please try again."
                                         },
-                                        "error": { "type": "string", "example": "HTTP 503" }
+                                        "error": {
+                                            "type": "string",
+                                            "example": "HTTP 503"
+                                        }
                                     }
                                 }
                             }
@@ -1942,14 +2070,21 @@
                         "in": "path",
                         "required": true,
                         "description": "Fixed discovery portal scope.",
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "q",
                         "in": "query",
                         "required": true,
                         "description": "Case-insensitive free-keyword search term.",
-                        "schema": { "type": "string", "minLength": 2, "maxLength": 100 },
+                        "schema": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 100
+                        },
                         "example": "seis"
                     }
                 ],
@@ -1958,11 +2093,21 @@
                         "description": "Ranked free-keyword suggestions used by published records.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/PortalKeywordSuggestionResponse" },
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalKeywordSuggestionResponse"
+                                },
                                 "example": {
                                     "data": [
-                                        { "value": "Seismology", "scheme": null, "count": 12 },
-                                        { "value": "Paleoseismology", "scheme": null, "count": 3 }
+                                        {
+                                            "value": "Seismology",
+                                            "scheme": null,
+                                            "count": 12
+                                        },
+                                        {
+                                            "value": "Paleoseismology",
+                                            "scheme": null,
+                                            "count": 3
+                                        }
                                     ]
                                 }
                             }
@@ -1972,10 +2117,14 @@
                         "description": "The query is missing or is outside the allowed length of 2 to 100 characters.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationErrorResponse"
+                                },
                                 "example": {
                                     "message": "The q field is required.",
-                                    "errors": { "q": ["The q field is required."] }
+                                    "errors": {
+                                        "q": ["The q field is required."]
+                                    }
                                 }
                             }
                         }
@@ -1985,20 +2134,31 @@
                         "headers": {
                             "Retry-After": {
                                 "description": "Seconds until the client may retry.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             },
                             "X-RateLimit-Limit": {
                                 "description": "Configured request limit for the current window.",
-                                "schema": { "type": "integer", "minimum": 1 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                }
                             },
                             "X-RateLimit-Remaining": {
                                 "description": "Requests remaining in the current window.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             }
                         },
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
                             }
                         }
                     }
@@ -2018,28 +2178,44 @@
                         "in": "path",
                         "required": true,
                         "description": "Fixed discovery portal scope. `doi` excludes physical samples; `igsn` returns only physical samples.",
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "q",
                         "in": "query",
                         "required": false,
                         "description": "Portal full-text search term.",
-                        "schema": { "type": "string", "maxLength": 500 }
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 500
+                        }
                     },
                     {
                         "name": "type",
                         "in": "query",
                         "required": false,
                         "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "type[]",
                         "in": "query",
                         "required": false,
                         "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2048,7 +2224,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Selected datacenter names.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2057,7 +2240,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Legacy combined keyword filters.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2066,7 +2256,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact free-keyword filters.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2075,7 +2272,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 2048
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2084,7 +2288,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2093,7 +2304,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2102,7 +2320,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2111,7 +2336,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2120,7 +2352,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2129,56 +2368,85 @@
                         "in": "query",
                         "required": false,
                         "description": "Northern latitude of the optional semantic spatial filter. Supply all four spatial filter bounds together.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "south",
                         "in": "query",
                         "required": false,
                         "description": "Southern latitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "east",
                         "in": "query",
                         "required": false,
                         "description": "Eastern longitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "west",
                         "in": "query",
                         "required": false,
                         "description": "Western longitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "date_type",
                         "in": "query",
                         "required": false,
                         "description": "Date field used by the optional temporal filter.",
-                        "schema": { "type": "string", "enum": ["Created", "Collected", "Coverage"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["Created", "Collected", "Coverage"]
+                        }
                     },
                     {
                         "name": "year_from",
                         "in": "query",
                         "required": false,
                         "description": "Inclusive first year of the optional temporal filter.",
-                        "schema": { "type": "integer", "minimum": 1900, "example": 2000 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2000
+                        }
                     },
                     {
                         "name": "year_to",
                         "in": "query",
                         "required": false,
                         "description": "Inclusive last year of the optional temporal filter.",
-                        "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2026
+                        }
                     },
                     {
                         "name": "topic",
                         "in": "query",
                         "required": false,
                         "description": "Curated science-topic filter from the GFZ Data Services homepage. DOI portal only; the IGSN portal ignores this parameter. Combines with the other active filters. Unknown topic slugs in the DOI portal return HTTP 422.",
-                        "schema": { "$ref": "#/components/schemas/PortalScienceTopic" },
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalScienceTopic"
+                        },
                         "example": "volcanism"
                     }
                 ],
@@ -2187,7 +2455,9 @@
                         "description": "Exact count and pagination metadata for the normalized portal filters.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/PortalCountResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalCountResponse"
+                                }
                             }
                         }
                     },
@@ -2195,7 +2465,9 @@
                         "description": "One or more portal filter parameters are invalid.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/PortalFilterErrorResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalFilterErrorResponse"
+                                }
                             }
                         }
                     },
@@ -2204,20 +2476,31 @@
                         "headers": {
                             "Retry-After": {
                                 "description": "Seconds until the client may retry.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             },
                             "X-RateLimit-Limit": {
                                 "description": "Configured request limit for the current window.",
-                                "schema": { "type": "integer", "minimum": 1 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                }
                             },
                             "X-RateLimit-Remaining": {
                                 "description": "Requests remaining in the current window.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             }
                         },
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
                             }
                         }
                     },
@@ -2225,7 +2508,9 @@
                         "description": "The exact count could not be completed, for example because another count still holds the cache lock.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
                             }
                         }
                     }
@@ -2245,14 +2530,20 @@
                         "in": "path",
                         "required": true,
                         "description": "Fixed discovery portal scope.",
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "resourceId",
                         "in": "path",
                         "required": true,
                         "description": "Internal identifier of the published portal resource.",
-                        "schema": { "type": "integer", "minimum": 1 },
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
                         "example": 42
                     }
                 ],
@@ -2261,7 +2552,9 @@
                         "description": "APA 7 citation and preferred abstract for the scoped published resource.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/PortalResourcePreviewResponse" },
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalResourcePreviewResponse"
+                                },
                                 "example": {
                                     "resourceId": 42,
                                     "citation": {
@@ -2278,8 +2571,12 @@
                         "description": "The resource does not exist, is unpublished, or does not belong to the selected portal scope.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" },
-                                "example": { "message": "Resource not found." }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "Resource not found."
+                                }
                             }
                         }
                     },
@@ -2288,20 +2585,31 @@
                         "headers": {
                             "Retry-After": {
                                 "description": "Seconds until the client may retry.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             },
                             "X-RateLimit-Limit": {
                                 "description": "Configured request limit for the current window.",
-                                "schema": { "type": "integer", "minimum": 1 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                }
                             },
                             "X-RateLimit-Remaining": {
                                 "description": "Requests remaining in the current window.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             }
                         },
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
                             }
                         }
                     },
@@ -2309,8 +2617,12 @@
                         "description": "The citation preview could not be rendered temporarily.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" },
-                                "example": { "message": "The citation preview is temporarily unavailable." }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "The citation preview is temporarily unavailable."
+                                }
                             }
                         }
                     }
@@ -2330,84 +2642,137 @@
                         "in": "path",
                         "required": true,
                         "description": "Fixed discovery portal scope. `doi` excludes physical samples; `igsn` returns only physical samples.",
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "viewport[north]",
                         "in": "query",
                         "required": true,
                         "description": "Northern latitude of the visible technical map viewport.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90, "example": 54 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90,
+                            "example": 54
+                        }
                     },
                     {
                         "name": "viewport[south]",
                         "in": "query",
                         "required": true,
                         "description": "Southern latitude of the visible technical map viewport.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90, "example": 50 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90,
+                            "example": 50
+                        }
                     },
                     {
                         "name": "viewport[east]",
                         "in": "query",
                         "required": true,
                         "description": "Eastern longitude of the visible viewport. A value below west represents an antimeridian-crossing viewport.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180, "example": 16 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180,
+                            "example": 16
+                        }
                     },
                     {
                         "name": "viewport[west]",
                         "in": "query",
                         "required": true,
                         "description": "Western longitude of the visible viewport.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180, "example": 10 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180,
+                            "example": 10
+                        }
                     },
                     {
                         "name": "viewport[width]",
                         "in": "query",
                         "required": true,
                         "description": "Rendered map width in CSS pixels.",
-                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096, "example": 1000 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 4096,
+                            "example": 1000
+                        }
                     },
                     {
                         "name": "viewport[height]",
                         "in": "query",
                         "required": true,
                         "description": "Rendered map height in CSS pixels.",
-                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096, "example": 700 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 4096,
+                            "example": 700
+                        }
                     },
                     {
                         "name": "zoom",
                         "in": "query",
                         "required": true,
                         "description": "Leaflet zoom level requested by the client, up to the deployment's configured portal-map maximum. Legacy zoom 0 requests are accepted and processed at zoom 1.",
-                        "schema": { "type": "integer", "minimum": 0, "example": 8 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "example": 8
+                        }
                     },
                     {
                         "name": "include_extent",
                         "in": "query",
                         "required": false,
                         "description": "Include the total number and overall extent of locations matching the semantic filters. Intended for initial and filtered map loads.",
-                        "schema": { "type": "boolean", "default": false }
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
                     },
                     {
                         "name": "q",
                         "in": "query",
                         "required": false,
                         "description": "Portal full-text search term.",
-                        "schema": { "type": "string", "maxLength": 500 }
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 500
+                        }
                     },
                     {
                         "name": "type",
                         "in": "query",
                         "required": false,
                         "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "type[]",
                         "in": "query",
                         "required": false,
                         "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2416,7 +2781,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Selected datacenter names.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2425,7 +2797,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Legacy combined keyword filters.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2434,7 +2813,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact free-keyword filters.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2443,7 +2829,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 2048
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2452,7 +2845,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2461,7 +2861,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2470,7 +2877,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2479,7 +2893,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2488,7 +2909,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2497,56 +2925,85 @@
                         "in": "query",
                         "required": false,
                         "description": "Northern latitude of the optional semantic spatial filter. Supply all four spatial filter bounds together.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "south",
                         "in": "query",
                         "required": false,
                         "description": "Southern latitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "east",
                         "in": "query",
                         "required": false,
                         "description": "Eastern longitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "west",
                         "in": "query",
                         "required": false,
                         "description": "Western longitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "date_type",
                         "in": "query",
                         "required": false,
                         "description": "Date field used by the optional temporal filter.",
-                        "schema": { "type": "string", "enum": ["Created", "Collected", "Coverage"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["Created", "Collected", "Coverage"]
+                        }
                     },
                     {
                         "name": "year_from",
                         "in": "query",
                         "required": false,
                         "description": "Inclusive first year of the optional temporal filter.",
-                        "schema": { "type": "integer", "minimum": 1900, "example": 2000 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2000
+                        }
                     },
                     {
                         "name": "year_to",
                         "in": "query",
                         "required": false,
                         "description": "Inclusive last year of the optional temporal filter.",
-                        "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2026
+                        }
                     },
                     {
                         "name": "topic",
                         "in": "query",
                         "required": false,
                         "description": "Curated science-topic filter from the GFZ Data Services homepage. DOI portal only; the IGSN portal ignores this parameter. Combines with the other active filters. Unknown topic slugs in the DOI portal return HTTP 422.",
-                        "schema": { "$ref": "#/components/schemas/PortalScienceTopic" },
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalScienceTopic"
+                        },
                         "example": "volcanism"
                     }
                 ],
@@ -2555,7 +3012,9 @@
                         "description": "Bounded map features for the requested viewport.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/PortalMapResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalMapResponse"
+                                }
                             }
                         }
                     },
@@ -2563,7 +3022,9 @@
                         "description": "One or more viewport or filter parameters are invalid.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/PortalFilterErrorResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalFilterErrorResponse"
+                                }
                             }
                         }
                     },
@@ -2572,20 +3033,31 @@
                         "headers": {
                             "Retry-After": {
                                 "description": "Seconds until the client may retry.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             },
                             "X-RateLimit-Limit": {
                                 "description": "Configured request limit for the current window.",
-                                "schema": { "type": "integer", "minimum": 1 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                }
                             },
                             "X-RateLimit-Remaining": {
                                 "description": "Requests remaining in the current window.",
-                                "schema": { "type": "integer", "minimum": 0 }
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
                             }
                         },
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
                             }
                         }
                     },
@@ -2593,7 +3065,9 @@
                         "description": "An unexpected server error prevented map data from being generated.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
                             }
                         }
                     },
@@ -2601,8 +3075,12 @@
                         "description": "The portal map feature is temporarily disabled.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/MessageResponse" },
-                                "example": { "message": "The portal map is temporarily unavailable." }
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "The portal map is temporarily unavailable."
+                                }
                             }
                         }
                     }
@@ -2621,76 +3099,124 @@
                         "name": "portal",
                         "in": "path",
                         "required": true,
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "clusterId",
                         "in": "path",
                         "required": true,
-                        "schema": { "type": "string", "pattern": "^z\\d+(?:-t\\d+)?:-?\\d+:-?\\d+$", "example": "z18:140812:37114" }
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^z\\d+(?:-t\\d+)?:-?\\d+:-?\\d+$",
+                            "example": "z18:140812:37114"
+                        }
                     },
                     {
                         "name": "viewport[north]",
                         "in": "query",
                         "required": true,
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "viewport[south]",
                         "in": "query",
                         "required": true,
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "viewport[east]",
                         "in": "query",
                         "required": true,
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "viewport[west]",
                         "in": "query",
                         "required": true,
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "viewport[width]",
                         "in": "query",
                         "required": true,
-                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 4096
+                        }
                     },
                     {
                         "name": "viewport[height]",
                         "in": "query",
                         "required": true,
-                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 4096
+                        }
                     },
                     {
                         "name": "page",
                         "in": "query",
                         "required": false,
-                        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
                     },
                     {
                         "name": "q",
                         "in": "query",
                         "required": false,
                         "description": "Portal full-text search term.",
-                        "schema": { "type": "string", "maxLength": 500 }
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 500
+                        }
                     },
                     {
                         "name": "type",
                         "in": "query",
                         "required": false,
                         "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
-                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
                     },
                     {
                         "name": "type[]",
                         "in": "query",
                         "required": false,
                         "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2699,7 +3225,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Selected datacenter names.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2708,7 +3241,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Legacy combined keyword filters.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2717,7 +3257,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact free-keyword filters.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2726,7 +3273,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 2048
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2735,7 +3289,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2744,7 +3305,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2753,7 +3321,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2762,7 +3337,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2771,7 +3353,14 @@
                         "in": "query",
                         "required": false,
                         "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
-                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
                         "style": "form",
                         "explode": true
                     },
@@ -2780,56 +3369,85 @@
                         "in": "query",
                         "required": false,
                         "description": "Northern latitude of the optional semantic spatial filter. Supply all four spatial filter bounds together.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "south",
                         "in": "query",
                         "required": false,
                         "description": "Southern latitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        }
                     },
                     {
                         "name": "east",
                         "in": "query",
                         "required": false,
                         "description": "Eastern longitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "west",
                         "in": "query",
                         "required": false,
                         "description": "Western longitude of the optional semantic spatial filter.",
-                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        }
                     },
                     {
                         "name": "date_type",
                         "in": "query",
                         "required": false,
                         "description": "Date field used by the optional temporal filter.",
-                        "schema": { "type": "string", "enum": ["Created", "Collected", "Coverage"] }
+                        "schema": {
+                            "type": "string",
+                            "enum": ["Created", "Collected", "Coverage"]
+                        }
                     },
                     {
                         "name": "year_from",
                         "in": "query",
                         "required": false,
                         "description": "Inclusive first year of the optional temporal filter.",
-                        "schema": { "type": "integer", "minimum": 1900, "example": 2000 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2000
+                        }
                     },
                     {
                         "name": "year_to",
                         "in": "query",
                         "required": false,
                         "description": "Inclusive last year of the optional temporal filter.",
-                        "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2026
+                        }
                     },
                     {
                         "name": "topic",
                         "in": "query",
                         "required": false,
                         "description": "Curated science-topic filter from the GFZ Data Services homepage. DOI portal only; the IGSN portal ignores this parameter. Combines with the other active filters. Unknown topic slugs in the DOI portal return HTTP 422.",
-                        "schema": { "$ref": "#/components/schemas/PortalScienceTopic" },
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalScienceTopic"
+                        },
                         "example": "volcanism"
                     }
                 ],
@@ -2838,35 +3456,1378 @@
                         "description": "A bounded page of individually hydrated cluster members.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/PortalMapClusterMembersResponse" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalMapClusterMembersResponse"
+                                }
                             }
                         }
                     },
                     "404": {
                         "description": "The cluster no longer exists for the supplied viewport and filters.",
                         "content": {
-                            "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } }
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
+                            }
                         }
                     },
                     "422": {
                         "description": "The cluster ID, viewport, pagination, or filter parameters are invalid.",
                         "content": {
-                            "application/json": { "schema": { "$ref": "#/components/schemas/PortalFilterErrorResponse" } }
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortalFilterErrorResponse"
+                                }
+                            }
                         }
                     },
                     "429": {
                         "description": "Public portal map rate limit exceeded.",
                         "content": {
-                            "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } }
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
+                            }
                         }
                     },
                     "503": {
                         "description": "The portal map feature is temporarily disabled.",
                         "content": {
-                            "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } }
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
+                            }
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/resource-types/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List resource types enabled for ELMO-MSL",
+                "description": "Returns all resource types that are enabled for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of resource types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ElmoResourceType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslResourceTypes"
+            }
+        },
+        "/api/v1/title-types/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List title types enabled for ELMO-MSL",
+                "responses": {
+                    "200": {
+                        "description": "List of title types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/TitleType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "description": "Returns all title types that are enabled for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "operationId": "getElmoMslTitleTypes"
+            }
+        },
+        "/api/v1/licenses/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List licenses enabled for ELMO-MSL",
+                "responses": {
+                    "200": {
+                        "description": "List of licenses",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/License"
+                                    }
+                                },
+                                "example": [
+                                    {
+                                        "id": 1,
+                                        "identifier": "CC-BY-4.0",
+                                        "name": "Creative Commons Attribution 4.0 International",
+                                        "uri": "https://creativecommons.org/licenses/by/4.0/",
+                                        "scheme_uri": "https://spdx.org/licenses/"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "description": "Returns all licenses that are enabled for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "operationId": "getElmoMslLicenses"
+            }
+        },
+        "/api/v1/licenses/elmo-msl/{resourceTypeSlug}": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List licenses enabled for ELMO-MSL filtered by resource type",
+                "description": "Returns all licenses that are enabled for ELMO-MSL and available for the specified resource type. Licenses that have the resource type in their exclusion list will not be returned. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "resourceTypeSlug",
+                        "in": "path",
+                        "required": true,
+                        "description": "The slug of the resource type (e.g., 'software', 'dataset', 'book-chapter')",
+                        "schema": {
+                            "type": "string",
+                            "example": "software"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of licenses available for the resource type",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/License"
+                                    }
+                                },
+                                "example": [
+                                    {
+                                        "id": 1,
+                                        "identifier": "MIT",
+                                        "name": "MIT License",
+                                        "uri": "https://spdx.org/licenses/MIT.html",
+                                        "scheme_uri": "https://spdx.org/licenses/"
+                                    },
+                                    {
+                                        "id": 2,
+                                        "identifier": "GPL-3.0-or-later",
+                                        "name": "GNU General Public License v3.0 or later",
+                                        "uri": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+                                        "scheme_uri": "https://spdx.org/licenses/"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Resource type not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Resource type not found."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslLicensesResourcetypeslug"
+            }
+        },
+        "/api/v1/date-types/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List date types enabled for ELMO-MSL",
+                "description": "Returns all date types that are enabled for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of date types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DateType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslDateTypes"
+            }
+        },
+        "/api/v1/description-types/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List description types enabled for ELMO-MSL",
+                "description": "Returns all description types that are enabled for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of description types enabled for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DescriptionType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslDescriptionTypes"
+            }
+        },
+        "/api/v1/languages/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List languages enabled for ELMO-MSL",
+                "responses": {
+                    "200": {
+                        "description": "List of languages",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Language"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "description": "Returns all languages that are enabled for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "operationId": "getElmoMslLanguages"
+            }
+        },
+        "/api/v1/roles/authors/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List author roles active for ELMO-MSL",
+                "description": "Returns all author roles that are active for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of roles",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Role"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslRolesAuthors"
+            }
+        },
+        "/api/v1/roles/contributor-persons/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List contributor person roles active for ELMO-MSL",
+                "description": "Returns all contributor person roles that are active for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of roles",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Role"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslRolesContributorPersons"
+            }
+        },
+        "/api/v1/roles/contributor-institutions/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List contributor institution roles active for ELMO-MSL",
+                "description": "Returns all contributor institution roles that are active for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of roles",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Role"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslRolesContributorInstitutions"
+            }
+        },
+        "/api/v1/relation-types/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List relation types enabled for ELMO-MSL",
+                "description": "Returns all relation types that are enabled for ELMO-MSL. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of relation types enabled for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/RelationType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslRelationTypes"
+            }
+        },
+        "/api/v1/identifier-types/elmo-msl": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List identifier types enabled for ELMO-MSL",
+                "description": "Returns all identifier types that are enabled for ELMO-MSL with their active validation and detection regex patterns. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of identifier types enabled for ELMO with patterns",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/IdentifierType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslIdentifierTypes"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/gcmd-science-keywords": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get GCMD Science Keywords vocabulary",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "GCMD Science Keywords vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GcmdScienceKeywords"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-gcmd-science-keywords"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesGcmdScienceKeywords"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/gcmd-platforms": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get GCMD Platforms vocabulary",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "GCMD Platforms vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GcmdPlatforms"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-gcmd-platforms"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesGcmdPlatforms"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/gcmd-instruments": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get GCMD Instruments vocabulary",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "GCMD Instruments vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GcmdInstruments"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-gcmd-instruments"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesGcmdInstruments"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/msl-laboratories": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get MSL laboratories vocabulary",
+                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "MSL laboratories vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MslLaboratoriesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or the local vocabulary file is missing",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-msl-laboratories"
+                                        }
+                                    },
+                                    "required": ["error"]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "The local vocabulary file is unreadable or corrupted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "The local MSL laboratories vocabulary contains invalid JSON."
+                                        }
+                                    },
+                                    "required": ["error"]
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesMslLaboratories"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/chronostrat-timescale": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get ICS Chronostratigraphic Timescale vocabulary",
+                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ICS Chronostratigraphic Timescale vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChronostratTimescale"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-chronostrat-timescale"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesChronostratTimescale"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/gemet": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get GEMET Thesaurus vocabulary",
+                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "GEMET Thesaurus vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GemetThesaurus"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-gemet-thesaurus"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesGemet"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/analytical-methods": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get Analytical Methods for Geochemistry vocabulary",
+                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analytical Methods vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalyticalMethodsVocabulary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-analytical-methods"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesAnalyticalMethods"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/euroscivoc": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get European Science Vocabulary (EuroSciVoc)",
+                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "EuroSciVoc vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EuroSciVocVocabulary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-euroscivoc"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesEuroscivoc"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/cgi-simple-lithology": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get CGI Simple Lithology vocabulary",
+                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CGI Simple Lithology vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CgiSimpleLithologyVocabulary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or no validated local vocabulary is installed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-cgi-simple-lithology"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesCgiSimpleLithology"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/pid4inst-instruments": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get PID4INST instruments vocabulary",
+                "description": "Returns the complete PID4INST instruments vocabulary from b2inst (EUDAT instrument registry). Each instrument includes a persistent identifier (Handle PID), name, description, and additional metadata such as owners, manufacturers, instrument types, and measured variables. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PID4INST instruments vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Pid4instInstruments"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "PID4INST is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "PID4INST is disabled"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesPid4InstInstruments"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/raid-projects": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get RAiD projects for ELMO-MSL",
+                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RAiD projects with metadata wrapper",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RaidProjects"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "RAiD is disabled or data file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "RAiD is disabled"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesRaidProjects"
+            }
+        },
+        "/api/v1/ror-affiliations/elmo-msl": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get ROR affiliations for ELMO-MSL",
+                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ROR affiliations with metadata wrapper",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RorAffiliations"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "ROR is disabled or data file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "ROR is disabled"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslRorAffiliations"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/thesauri-availability": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Check thesauri availability for ELMO-MSL",
+                "description": "Returns the availability status of all configured thesauri from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Thesauri availability status for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ThesauriAvailability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesThesauriAvailability"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/pid-availability": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Check PID registry availability for ELMO-MSL",
+                "description": "Returns the availability status of all configured PID registries from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead. Activation is independent of ERNIE and ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PID registry availability status for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PidAvailability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                },
+                "operationId": "getElmoMslVocabulariesPidAvailability"
+            }
+        },
+        "/api/v1/licenses/ernie/{resourceTypeSlug}": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List ERNIE licenses available for a resource type",
+                "description": "Returns independently ERNIE-enabled licenses, excluding resource types configured for ERNIE. Sorted by usage count with alphabetical fallback.",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "resourceTypeSlug",
+                        "in": "path",
+                        "required": true,
+                        "description": "The slug of the resource type (e.g., 'software', 'dataset', 'book-chapter')",
+                        "schema": {
+                            "type": "string",
+                            "example": "software"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of licenses available for the resource type",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/License"
+                                    }
+                                },
+                                "example": [
+                                    {
+                                        "id": 1,
+                                        "identifier": "MIT",
+                                        "name": "MIT License",
+                                        "uri": "https://spdx.org/licenses/MIT.html",
+                                        "scheme_uri": "https://spdx.org/licenses/"
+                                    },
+                                    {
+                                        "id": 2,
+                                        "identifier": "GPL-3.0-or-later",
+                                        "name": "GNU General Public License v3.0 or later",
+                                        "uri": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+                                        "scheme_uri": "https://spdx.org/licenses/"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Resource type not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Resource type not found."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getErnieLicensesForResourceType"
+            }
+        },
+        "/api/v1/vocabularies/msl": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get EPOS MSL keywords",
+                "description": "Returns the local MSL keyword tree when independently enabled for ELMO.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "EPOS MSL keyword tree",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MslKeywords"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "MSL keywords disabled or vocabulary file missing",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-gcmd-science-keywords"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslKeywords"
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/msl": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get EPOS MSL keywords for ELMO-MSL",
+                "description": "Returns the local MSL keyword tree when independently enabled for ELMO-MSL.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "EPOS MSL keyword tree",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MslKeywords"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "MSL keywords disabled or vocabulary file missing",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-gcmd-science-keywords"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "operationId": "getElmoMslEditorKeywords"
+            }
+        },
+        "/api/v1/licenses/ernie": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List licenses enabled for ERNIE",
+                "responses": {
+                    "200": {
+                        "description": "List of licenses",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/License"
+                                    }
+                                },
+                                "example": [
+                                    {
+                                        "id": 1,
+                                        "identifier": "CC-BY-4.0",
+                                        "name": "Creative Commons Attribution 4.0 International",
+                                        "uri": "https://creativecommons.org/licenses/by/4.0/",
+                                        "scheme_uri": "https://spdx.org/licenses/"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid resource type ID.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns ERNIE-enabled licenses, ordered by usage with alphabetical fallback. The optional resource type ID applies ERNIE-specific exclusions.",
+                "security": [],
+                "operationId": "getErnieLicenses",
+                "parameters": [
+                    {
+                        "name": "resource_type_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter using the selected resource type and ERNIE-specific exclusions.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ]
             }
         }
     },
@@ -2876,7 +4837,7 @@
                 "type": "apiKey",
                 "in": "header",
                 "name": "X-API-Key",
-                "description": "API key required to access ELMO-specific endpoints. Must be provided in the `X-API-Key` header. Query parameter authentication is not supported for security reasons. Contact the ERNIE team to obtain an API key."
+                "description": "ERNIE_API_KEY used by both ELMO and ELMO-MSL, provided in the X-API-Key header. Query parameter authentication is not supported."
             },
             "LaravelSession": {
                 "type": "apiKey",
@@ -2889,6 +4850,11 @@
                 "in": "header",
                 "name": "X-CSRF-TOKEN",
                 "description": "Laravel CSRF token required for authenticated mutating web requests."
+            },
+            "ErnieBearerKey": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "The same ERNIE_API_KEY may alternatively be sent as an Authorization: Bearer token. It is an API key, not a JWT."
             }
         },
         "responses": {
@@ -3062,9 +5028,20 @@
                 "type": "object",
                 "description": "An uncontrolled keyword used by one or more published records.",
                 "properties": {
-                    "value": { "type": "string", "minLength": 1, "description": "Exact keyword label." },
-                    "scheme": { "type": "null", "description": "Always null because controlled-vocabulary terms are excluded." },
-                    "count": { "type": "integer", "minimum": 1, "description": "Number of published records using the keyword." }
+                    "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Exact keyword label."
+                    },
+                    "scheme": {
+                        "type": "null",
+                        "description": "Always null because controlled-vocabulary terms are excluded."
+                    },
+                    "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Number of published records using the keyword."
+                    }
                 },
                 "required": ["value", "scheme", "count"],
                 "additionalProperties": false
@@ -3076,7 +5053,9 @@
                     "data": {
                         "type": "array",
                         "maxItems": 20,
-                        "items": { "$ref": "#/components/schemas/PortalKeywordSuggestion" }
+                        "items": {
+                            "$ref": "#/components/schemas/PortalKeywordSuggestion"
+                        }
                     }
                 },
                 "required": ["data"],
@@ -3084,7 +5063,14 @@
             },
             "PortalFilterErrorResponse": {
                 "description": "Field validation errors or a message-only filter error, such as an unknown science-topic slug.",
-                "anyOf": [{ "$ref": "#/components/schemas/ValidationErrorResponse" }, { "$ref": "#/components/schemas/MessageResponse" }]
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ValidationErrorResponse"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MessageResponse"
+                    }
+                ]
             },
             "PortalScienceTopic": {
                 "type": "string",
@@ -3126,9 +5112,18 @@
                         "pattern": "^[a-f0-9]{64}$",
                         "description": "SHA-256 fingerprint of the count-relevant normalized filters."
                     },
-                    "total": { "type": "integer", "minimum": 0 },
-                    "last_page": { "type": "integer", "minimum": 1 },
-                    "count_status": { "type": "string", "enum": ["ready"] }
+                    "total": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "last_page": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "count_status": {
+                        "type": "string",
+                        "enum": ["ready"]
+                    }
                 },
                 "required": ["filter_fingerprint", "total", "last_page", "count_status"],
                 "additionalProperties": false
@@ -3137,9 +5132,18 @@
                 "type": "object",
                 "description": "Plain-text citation rendered in the single style supported by portal previews.",
                 "properties": {
-                    "styleId": { "type": "string", "enum": ["apa-7"] },
-                    "label": { "type": "string", "enum": ["APA 7"] },
-                    "text": { "type": "string", "minLength": 1 }
+                    "styleId": {
+                        "type": "string",
+                        "enum": ["apa-7"]
+                    },
+                    "label": {
+                        "type": "string",
+                        "enum": ["APA 7"]
+                    },
+                    "text": {
+                        "type": "string",
+                        "minLength": 1
+                    }
                 },
                 "required": ["styleId", "label", "text"],
                 "additionalProperties": false
@@ -3148,8 +5152,13 @@
                 "type": "object",
                 "description": "On-demand citation and abstract details for one scoped public portal result.",
                 "properties": {
-                    "resourceId": { "type": "integer", "minimum": 1 },
-                    "citation": { "$ref": "#/components/schemas/PortalResourcePreviewCitation" },
+                    "resourceId": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "citation": {
+                        "$ref": "#/components/schemas/PortalResourcePreviewCitation"
+                    },
                     "abstract": {
                         "type": ["string", "null"],
                         "description": "Preferred non-empty abstract, or null when none is available."
@@ -3162,10 +5171,26 @@
                 "type": "object",
                 "description": "Geographic bounds. A west value greater than east denotes an antimeridian-crossing interval.",
                 "properties": {
-                    "north": { "type": "number", "minimum": -90, "maximum": 90 },
-                    "south": { "type": "number", "minimum": -90, "maximum": 90 },
-                    "east": { "type": "number", "minimum": -180, "maximum": 180 },
-                    "west": { "type": "number", "minimum": -180, "maximum": 180 }
+                    "north": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "south": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "east": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "west": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    }
                 },
                 "required": ["north", "south", "east", "west"],
                 "additionalProperties": false
@@ -3173,8 +5198,16 @@
             "PortalMapPosition": {
                 "type": "object",
                 "properties": {
-                    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
-                    "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                    "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    }
                 },
                 "required": ["lat", "lng"],
                 "additionalProperties": false
@@ -3182,8 +5215,16 @@
             "PortalMapPoint": {
                 "type": "object",
                 "properties": {
-                    "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
-                    "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+                    "latitude": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    }
                 },
                 "required": ["latitude", "longitude"],
                 "additionalProperties": false
@@ -3191,9 +5232,20 @@
             "PortalMapPointGeometry": {
                 "type": "object",
                 "properties": {
-                    "type": { "type": "string", "enum": ["point"] },
-                    "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
-                    "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+                    "type": {
+                        "type": "string",
+                        "enum": ["point"]
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    }
                 },
                 "required": ["type", "latitude", "longitude"],
                 "additionalProperties": false
@@ -3201,11 +5253,30 @@
             "PortalMapBoxGeometry": {
                 "type": "object",
                 "properties": {
-                    "type": { "type": "string", "enum": ["box"] },
-                    "north": { "type": "number", "minimum": -90, "maximum": 90 },
-                    "south": { "type": "number", "minimum": -90, "maximum": 90 },
-                    "east": { "type": "number", "minimum": -180, "maximum": 180 },
-                    "west": { "type": "number", "minimum": -180, "maximum": 180 }
+                    "type": {
+                        "type": "string",
+                        "enum": ["box"]
+                    },
+                    "north": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "south": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "east": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "west": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    }
                 },
                 "required": ["type", "north", "south", "east", "west"],
                 "additionalProperties": false
@@ -3213,11 +5284,16 @@
             "PortalMapPathGeometry": {
                 "type": "object",
                 "properties": {
-                    "type": { "type": "string", "enum": ["polygon", "line"] },
+                    "type": {
+                        "type": "string",
+                        "enum": ["polygon", "line"]
+                    },
                     "points": {
                         "type": "array",
                         "minItems": 2,
-                        "items": { "$ref": "#/components/schemas/PortalMapPoint" }
+                        "items": {
+                            "$ref": "#/components/schemas/PortalMapPoint"
+                        }
                     }
                 },
                 "required": ["type", "points"],
@@ -3225,15 +5301,23 @@
             },
             "PortalMapGeometry": {
                 "oneOf": [
-                    { "$ref": "#/components/schemas/PortalMapPointGeometry" },
-                    { "$ref": "#/components/schemas/PortalMapBoxGeometry" },
-                    { "$ref": "#/components/schemas/PortalMapPathGeometry" }
+                    {
+                        "$ref": "#/components/schemas/PortalMapPointGeometry"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PortalMapBoxGeometry"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PortalMapPathGeometry"
+                    }
                 ]
             },
             "PortalMapCreator": {
                 "type": "object",
                 "properties": {
-                    "name": { "type": "string" }
+                    "name": {
+                        "type": "string"
+                    }
                 },
                 "required": ["name"],
                 "additionalProperties": false
@@ -3241,8 +5325,12 @@
             "PortalMapResourceType": {
                 "type": "object",
                 "properties": {
-                    "slug": { "type": "string" },
-                    "name": { "type": "string" }
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
                 },
                 "required": ["slug", "name"],
                 "additionalProperties": false
@@ -3258,10 +5346,20 @@
             "PortalMapPresentation": {
                 "type": "object",
                 "properties": {
-                    "dimension": { "$ref": "#/components/schemas/PortalMapVisualizationDimension" },
-                    "key": { "type": "string", "minLength": 1 },
-                    "label": { "type": "string", "minLength": 1 },
-                    "status": { "$ref": "#/components/schemas/PortalMapCategoryStatus" }
+                    "dimension": {
+                        "$ref": "#/components/schemas/PortalMapVisualizationDimension"
+                    },
+                    "key": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "label": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/PortalMapCategoryStatus"
+                    }
                 },
                 "required": ["dimension", "key", "label", "status"],
                 "additionalProperties": false
@@ -3269,9 +5367,15 @@
             "PortalMapIgsnSummary": {
                 "type": "object",
                 "properties": {
-                    "sampleType": { "type": ["string", "null"] },
-                    "material": { "type": ["string", "null"] },
-                    "materialLabel": { "type": ["string", "null"] }
+                    "sampleType": {
+                        "type": ["string", "null"]
+                    },
+                    "material": {
+                        "type": ["string", "null"]
+                    },
+                    "materialLabel": {
+                        "type": ["string", "null"]
+                    }
                 },
                 "required": ["sampleType", "material", "materialLabel"],
                 "additionalProperties": false
@@ -3279,10 +5383,15 @@
             "PortalMapComposition": {
                 "type": "object",
                 "properties": {
-                    "dimension": { "$ref": "#/components/schemas/PortalMapVisualizationDimension" },
+                    "dimension": {
+                        "$ref": "#/components/schemas/PortalMapVisualizationDimension"
+                    },
                     "counts": {
                         "type": "object",
-                        "additionalProperties": { "type": "integer", "minimum": 1 }
+                        "additionalProperties": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
                     }
                 },
                 "required": ["dimension", "counts"],
@@ -3291,22 +5400,49 @@
             "PortalMapResourceSummary": {
                 "type": "object",
                 "properties": {
-                    "id": { "type": "integer", "minimum": 1 },
-                    "identifier": { "type": ["string", "null"] },
-                    "title": { "type": "string" },
-                    "resourceType": {
-                        "oneOf": [{ "$ref": "#/components/schemas/PortalMapResourceType" }, { "type": "null" }]
+                    "id": {
+                        "type": "integer",
+                        "minimum": 1
                     },
-                    "presentation": { "$ref": "#/components/schemas/PortalMapPresentation" },
+                    "identifier": {
+                        "type": ["string", "null"]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PortalMapResourceType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "presentation": {
+                        "$ref": "#/components/schemas/PortalMapPresentation"
+                    },
                     "igsn": {
-                        "oneOf": [{ "$ref": "#/components/schemas/PortalMapIgsnSummary" }, { "type": "null" }]
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PortalMapIgsnSummary"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "creators": {
                         "type": "array",
                         "maxItems": 3,
-                        "items": { "$ref": "#/components/schemas/PortalMapCreator" }
+                        "items": {
+                            "$ref": "#/components/schemas/PortalMapCreator"
+                        }
                     },
-                    "landingPageUrl": { "type": ["string", "null"] }
+                    "landingPageUrl": {
+                        "type": ["string", "null"]
+                    }
                 },
                 "required": ["id", "identifier", "title", "resourceType", "presentation", "igsn", "creators", "landingPageUrl"],
                 "additionalProperties": false
@@ -3314,17 +5450,36 @@
             "PortalMapClusterFeature": {
                 "type": "object",
                 "properties": {
-                    "kind": { "type": "string", "enum": ["cluster"] },
-                    "id": { "type": "string" },
-                    "position": { "$ref": "#/components/schemas/PortalMapPosition" },
-                    "bounds": { "$ref": "#/components/schemas/PortalMapBounds" },
-                    "navigationBounds": { "$ref": "#/components/schemas/PortalMapBounds" },
-                    "count": { "type": "integer", "minimum": 1 },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["cluster"]
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "position": {
+                        "$ref": "#/components/schemas/PortalMapPosition"
+                    },
+                    "bounds": {
+                        "$ref": "#/components/schemas/PortalMapBounds"
+                    },
+                    "navigationBounds": {
+                        "$ref": "#/components/schemas/PortalMapBounds"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
                     "resourceTypeCounts": {
                         "type": "object",
-                        "additionalProperties": { "type": "integer", "minimum": 1 }
+                        "additionalProperties": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
                     },
-                    "composition": { "$ref": "#/components/schemas/PortalMapComposition" }
+                    "composition": {
+                        "$ref": "#/components/schemas/PortalMapComposition"
+                    }
                 },
                 "required": ["kind", "id", "position", "bounds", "navigationBounds", "count", "resourceTypeCounts", "composition"],
                 "additionalProperties": false
@@ -3332,32 +5487,78 @@
             "PortalMapResourceFeature": {
                 "type": "object",
                 "properties": {
-                    "kind": { "type": "string", "enum": ["resource"] },
-                    "id": { "type": "string" },
-                    "position": { "$ref": "#/components/schemas/PortalMapPosition" },
-                    "bounds": { "$ref": "#/components/schemas/PortalMapBounds" },
-                    "geometry": { "$ref": "#/components/schemas/PortalMapGeometry" },
-                    "resource": { "$ref": "#/components/schemas/PortalMapResourceSummary" }
+                    "kind": {
+                        "type": "string",
+                        "enum": ["resource"]
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "position": {
+                        "$ref": "#/components/schemas/PortalMapPosition"
+                    },
+                    "bounds": {
+                        "$ref": "#/components/schemas/PortalMapBounds"
+                    },
+                    "geometry": {
+                        "$ref": "#/components/schemas/PortalMapGeometry"
+                    },
+                    "resource": {
+                        "$ref": "#/components/schemas/PortalMapResourceSummary"
+                    }
                 },
                 "required": ["kind", "id", "position", "bounds", "geometry", "resource"],
                 "additionalProperties": false
             },
             "PortalMapFeature": {
-                "oneOf": [{ "$ref": "#/components/schemas/PortalMapClusterFeature" }, { "$ref": "#/components/schemas/PortalMapResourceFeature" }]
+                "oneOf": [
+                    {
+                        "$ref": "#/components/schemas/PortalMapClusterFeature"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PortalMapResourceFeature"
+                    }
+                ]
             },
             "PortalMapMeta": {
                 "type": "object",
                 "properties": {
-                    "requestedZoom": { "type": "integer", "minimum": 0 },
-                    "effectiveZoom": { "type": "integer", "minimum": 0 },
-                    "visibleLocations": { "type": "integer", "minimum": 0 },
-                    "returnedFeatures": { "type": "integer", "minimum": 0 },
-                    "totalLocations": { "type": ["integer", "null"], "minimum": 0 },
-                    "extent": {
-                        "oneOf": [{ "$ref": "#/components/schemas/PortalMapBounds" }, { "type": "null" }]
+                    "requestedZoom": {
+                        "type": "integer",
+                        "minimum": 0
                     },
-                    "coarsened": { "type": "boolean" },
-                    "visualizationDimension": { "$ref": "#/components/schemas/PortalMapVisualizationDimension" }
+                    "effectiveZoom": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "visibleLocations": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "returnedFeatures": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "totalLocations": {
+                        "type": ["integer", "null"],
+                        "minimum": 0
+                    },
+                    "extent": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PortalMapBounds"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "coarsened": {
+                        "type": "boolean"
+                    },
+                    "visualizationDimension": {
+                        "$ref": "#/components/schemas/PortalMapVisualizationDimension"
+                    }
                 },
                 "required": [
                     "requestedZoom",
@@ -3374,13 +5575,20 @@
             "PortalMapResponse": {
                 "type": "object",
                 "properties": {
-                    "schemaVersion": { "type": "integer", "enum": [3] },
+                    "schemaVersion": {
+                        "type": "integer",
+                        "enum": [3]
+                    },
                     "features": {
                         "type": "array",
                         "description": "Bounded by the deployment's PORTAL_MAP_MAX_FEATURES setting.",
-                        "items": { "$ref": "#/components/schemas/PortalMapFeature" }
+                        "items": {
+                            "$ref": "#/components/schemas/PortalMapFeature"
+                        }
                     },
-                    "meta": { "$ref": "#/components/schemas/PortalMapMeta" }
+                    "meta": {
+                        "$ref": "#/components/schemas/PortalMapMeta"
+                    }
                 },
                 "required": ["schemaVersion", "features", "meta"],
                 "additionalProperties": false
@@ -3388,9 +5596,19 @@
             "PortalMapClusterMembersPagination": {
                 "type": "object",
                 "properties": {
-                    "currentPage": { "type": "integer", "minimum": 1 },
-                    "lastPage": { "type": "integer", "minimum": 1 },
-                    "perPage": { "type": "integer", "minimum": 1, "maximum": 100 }
+                    "currentPage": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "lastPage": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "perPage": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100
+                    }
                 },
                 "required": ["currentPage", "lastPage", "perPage"],
                 "additionalProperties": false
@@ -3398,15 +5616,27 @@
             "PortalMapClusterMembersResponse": {
                 "type": "object",
                 "properties": {
-                    "schemaVersion": { "type": "integer", "enum": [1] },
-                    "clusterId": { "type": "string" },
-                    "total": { "type": "integer", "minimum": 1 },
+                    "schemaVersion": {
+                        "type": "integer",
+                        "enum": [1]
+                    },
+                    "clusterId": {
+                        "type": "string"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
                     "members": {
                         "type": "array",
                         "maxItems": 100,
-                        "items": { "$ref": "#/components/schemas/PortalMapResourceFeature" }
+                        "items": {
+                            "$ref": "#/components/schemas/PortalMapResourceFeature"
+                        }
                     },
-                    "pagination": { "$ref": "#/components/schemas/PortalMapClusterMembersPagination" }
+                    "pagination": {
+                        "$ref": "#/components/schemas/PortalMapClusterMembersPagination"
+                    }
                 },
                 "required": ["schemaVersion", "clusterId", "total", "members", "pagination"],
                 "additionalProperties": false
@@ -4036,12 +6266,28 @@
                         "type": "object",
                         "required": ["provider", "endpoint", "schemeURI", "collectionURI", "sha256"],
                         "properties": {
-                            "provider": { "type": "string" },
-                            "endpoint": { "type": "string", "format": "uri" },
-                            "schemeURI": { "type": "string", "format": "uri" },
-                            "collectionURI": { "type": "string", "format": "uri" },
-                            "dateModified": { "type": ["string", "null"] },
-                            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+                            "provider": {
+                                "type": "string"
+                            },
+                            "endpoint": {
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            "schemeURI": {
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            "collectionURI": {
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            "dateModified": {
+                                "type": ["string", "null"]
+                            },
+                            "sha256": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                            }
                         }
                     },
                     "data": {
@@ -4061,18 +6307,31 @@
                         "format": "uri",
                         "example": "http://resource.geosciml.org/classifier/cgi/lithology/basalt"
                     },
-                    "text": { "type": "string", "example": "Basalt" },
-                    "language": { "type": "string", "example": "en" },
-                    "scheme": { "type": "string", "example": "CGI Simple Lithology" },
+                    "text": {
+                        "type": "string",
+                        "example": "Basalt"
+                    },
+                    "language": {
+                        "type": "string",
+                        "example": "en"
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "example": "CGI Simple Lithology"
+                    },
                     "schemeURI": {
                         "type": "string",
                         "format": "uri",
                         "example": "http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology"
                     },
-                    "description": { "type": "string" },
+                    "description": {
+                        "type": "string"
+                    },
                     "children": {
                         "type": "array",
-                        "items": { "$ref": "#/components/schemas/CgiSimpleLithologyConcept" }
+                        "items": {
+                            "$ref": "#/components/schemas/CgiSimpleLithologyConcept"
+                        }
                     }
                 }
             },
@@ -4259,6 +6518,10 @@
                     "gemet": {
                         "available": true,
                         "displayName": "GEMET Thesaurus"
+                    },
+                    "msl_keywords": {
+                        "available": true,
+                        "displayName": "EPOS MSL Keywords"
                     }
                 }
             },
@@ -4563,6 +6826,32 @@
                     }
                 },
                 "required": ["pattern", "priority"]
+            },
+            "MslKeywords": {
+                "description": "Hierarchical EPOS MSL keyword tree. Legacy local files may include a data and lastUpdated wrapper, which is preserved in the response.",
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                        }
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "lastUpdated": {
+                                "type": "string"
+                            },
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/GcmdKeywordConcept"
+                                }
+                            }
+                        },
+                        "required": ["data"]
+                    }
+                ]
             }
         }
     }

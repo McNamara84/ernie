@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\EditorContext;
 use App\Models\ResourceType;
 use App\Models\Right;
 
@@ -38,7 +39,7 @@ describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
 
     it('excludes licenses that have the resource type in exclusion list', function () {
         // Exclude MIT from datasets
-        $this->mitLicense->excludedResourceTypes()->attach($this->datasetType->id);
+        $this->mitLicense->excludedResourceTypes(EditorContext::ELMO)->attach($this->datasetType->id);
 
         $this->getJson('/api/v1/licenses/elmo/dataset', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertOk()
@@ -49,7 +50,7 @@ describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
 
     it('returns license when excluded from different resource type', function () {
         // Exclude MIT from datasets only
-        $this->mitLicense->excludedResourceTypes()->attach($this->datasetType->id);
+        $this->mitLicense->excludedResourceTypes(EditorContext::ELMO)->attach($this->datasetType->id);
 
         // Should still return MIT for software
         $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.ernie.api_key')])
@@ -79,14 +80,14 @@ describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
             ->assertJsonMissing(['identifier' => 'CC-BY-4.0']);
     });
 
-    it('respects is_active flag', function () {
+    it('includes ELMO-enabled rights when ERNIE is disabled', function () {
         $this->mitLicense->update(['is_active' => false]);
 
         $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertOk()
-            ->assertJsonCount(1)
+            ->assertJsonCount(2)
             ->assertJsonFragment(['identifier' => 'CC-BY-4.0'])
-            ->assertJsonMissing(['identifier' => 'MIT']);
+            ->assertJsonFragment(['identifier' => 'MIT']);
     });
 });
 

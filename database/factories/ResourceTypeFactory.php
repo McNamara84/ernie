@@ -44,6 +44,7 @@ class ResourceTypeFactory extends Factory
             'description' => $type['description'],
             'is_active' => true,
             'is_elmo_active' => true,
+            'is_elmo_msl_active' => true,
         ];
     }
 }

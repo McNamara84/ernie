@@ -17,18 +17,20 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $slug
  * @property bool $is_active
+ * @property bool $is_elmo_msl_active
  * @property bool $is_elmo_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/description/
  */
-#[Fillable(['name', 'slug', 'is_active', 'is_elmo_active'])]
+#[Fillable(['name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])]
 class DescriptionType extends Model
 {
     protected $casts = [
         'is_active' => 'boolean',
         'is_elmo_active' => 'boolean',
+        'is_elmo_msl_active' => 'boolean',
     ];
 
     /**
@@ -47,6 +49,15 @@ class DescriptionType extends Model
     public function scopeElmoActive(Builder $query): Builder
     {
         return $query->where('is_elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<DescriptionType>  $query
+     * @return Builder<DescriptionType>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_msl_active', true);
     }
 
     /** @return HasMany<Description, static> */

@@ -23,12 +23,22 @@ class DateTypeController extends Controller
 
     /**
      * Return all date types that are active for ELMO.
-     * Note: DateType does not have is_elmo_active field, returns same as ernie().
      */
     public function elmo(): JsonResponse
     {
         $types = DateType::query()
-            ->active()
+            ->elmoActive()
+            ->orderByName()
+            ->get(['id', 'name', 'slug']);
+
+        return response()->json($types);
+    }
+
+    /** Return entries independently enabled for ELMO-MSL. */
+    public function elmoMsl(): JsonResponse
+    {
+        $types = DateType::query()
+            ->elmoMslActive()
             ->orderByName()
             ->get(['id', 'name', 'slug']);
 

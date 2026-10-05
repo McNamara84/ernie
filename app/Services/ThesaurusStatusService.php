@@ -90,10 +90,10 @@ class ThesaurusStatusService
             ];
         }
 
-        /** @var array{lastUpdated?: string, data?: array<int, array<string, mixed>>}|null $data */
+        /** @var array<int|string, mixed>|null $data */
         $data = json_decode($content, true);
 
-        if ($data === null) {
+        if (! is_array($data)) {
             return [
                 'exists' => false,
                 'conceptCount' => 0,
@@ -101,10 +101,16 @@ class ThesaurusStatusService
             ];
         }
 
+        /** @var array<int, array<string, mixed>> $concepts */
+        $concepts = $data['data'] ?? ($thesaurus->type === ThesaurusSetting::TYPE_MSL_KEYWORDS ? $data : []);
+        $lastUpdated = is_string($data['lastUpdated'] ?? null) ? $data['lastUpdated'] : null;
+
         return [
             'exists' => true,
-            'conceptCount' => $this->countConcepts($data['data'] ?? []),
-            'lastUpdated' => $data['lastUpdated'] ?? null,
+            'conceptCount' => $this->countConcepts($concepts),
+            'lastUpdated' => $thesaurus->type === ThesaurusSetting::TYPE_MSL_KEYWORDS
+                ? ($lastUpdated ?? date(DATE_ATOM, Storage::lastModified($filePath)))
+                : $lastUpdated,
         ];
     }
 
@@ -119,6 +125,10 @@ class ThesaurusStatusService
      */
     public function getRemoteConceptCount(ThesaurusSetting $thesaurus): int
     {
+        if ($thesaurus->type === ThesaurusSetting::TYPE_MSL_KEYWORDS) {
+            return app(MslVocabularyService::class)->getRemoteConceptCount();
+        }
+
         if ($thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
             return (int) $this->mslLaboratories()->fetchLatest()['total'];
         }

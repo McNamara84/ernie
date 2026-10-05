@@ -27,8 +27,18 @@ class DescriptionTypeController extends Controller
     public function elmo(): JsonResponse
     {
         $types = DescriptionType::query()
-            ->active()
             ->elmoActive()
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
+
+        return response()->json($types);
+    }
+
+    /** Return entries independently enabled for ELMO-MSL. */
+    public function elmoMsl(): JsonResponse
+    {
+        $types = DescriptionType::query()
+            ->elmoMslActive()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 

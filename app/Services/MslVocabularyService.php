@@ -112,6 +112,19 @@ class MslVocabularyService
         return $data;
     }
 
+    /** Fetch the concept count without changing the locally published vocabulary. */
+    public function getRemoteConceptCount(): int
+    {
+        $response = Http::timeout(30)->get(self::VOCABULARY_URL);
+        $data = $response->json();
+
+        if (! $response->successful() || ! is_array($data)) {
+            throw new \RuntimeException('Unable to retrieve the MSL keyword vocabulary.');
+        }
+
+        return $this->countConcepts($this->transformVocabularyTree($data));
+    }
+
     /**
      * Count total number of concepts in the tree (including all children)
      *

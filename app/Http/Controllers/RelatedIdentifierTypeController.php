@@ -29,8 +29,19 @@ class RelatedIdentifierTypeController extends Controller
     public function elmo(): JsonResponse
     {
         $types = IdentifierType::query()
-            ->active()
             ->elmoActive()
+            ->with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'description']);
+
+        return response()->json($this->formatResponse($types));
+    }
+
+    /** Return entries independently enabled for ELMO-MSL. */
+    public function elmoMsl(): JsonResponse
+    {
+        $types = IdentifierType::query()
+            ->elmoMslActive()
             ->with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);

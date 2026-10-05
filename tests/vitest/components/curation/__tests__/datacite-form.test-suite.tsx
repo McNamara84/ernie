@@ -797,7 +797,18 @@ describe('DataCiteForm', () => {
     describe('ROR input save guards', () => {
         const rorInitialValues = {
             initialTitles: [{ title: 'ROR draft', titleType: 'main-title' }],
-            initialFundingReferences: [{ id: 'ror-funder', funderName: 'Existing Funder', funderIdentifier: '', funderIdentifierType: null, awardNumber: '', awardUri: '', awardTitle: '', isExpanded: false }],
+            initialFundingReferences: [
+                {
+                    id: 'ror-funder',
+                    funderName: 'Existing Funder',
+                    funderIdentifier: '',
+                    funderIdentifierType: null,
+                    awardNumber: '',
+                    awardUri: '',
+                    awardTitle: '',
+                    isExpanded: false,
+                },
+            ],
         };
         for (const action of ['save-draft-button', 'save-resource-button', 'show-lp-preview-button', 'datacite-action-button']) {
             it(`blocks ${action} while a ROR input is unconfirmed`, async () => {
@@ -819,14 +830,23 @@ describe('DataCiteForm', () => {
                 const trigger = getAccordionTrigger(/Funding References/i);
                 if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
                 fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: 'Unknown (012345678)' } });
-                await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(60_000);
+                });
                 expect(axios.post).not.toHaveBeenCalled();
                 expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent('Autosave paused');
                 fireEvent.click(screen.getByText('Use name without ROR ID'));
-                await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-                expect(axios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.objectContaining({
-                    intent: 'autosave', fundingReferences: [expect.objectContaining({ funderName: 'Unknown', funderIdentifier: '', funderIdentifierType: null })],
-                }), expect.anything());
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(60_000);
+                });
+                expect(axios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({
+                        intent: 'autosave',
+                        fundingReferences: [expect.objectContaining({ funderName: 'Unknown', funderIdentifier: '', funderIdentifierType: null })],
+                    }),
+                    expect.anything(),
+                );
             } finally {
                 view.unmount();
                 vi.useRealTimers();
@@ -839,7 +859,13 @@ describe('DataCiteForm', () => {
             fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: '012345678' } });
             fireEvent.click(screen.getByRole('button', { name: 'Remove funding 1' }));
             fireEvent.click(screen.getByTestId('save-draft-button'));
-            await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.objectContaining({ fundingReferences: [] }), expect.anything()));
+            await waitFor(() =>
+                expect(axios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ fundingReferences: [] }),
+                    expect.anything(),
+                ),
+            );
         });
     });
 
@@ -1162,15 +1188,17 @@ describe('DataCiteForm', () => {
             };
             global.fetch = vi.fn((input: RequestInfo | URL) =>
                 input.toString().includes('/editor/upload-')
-                    ? Promise.resolve(createJsonResponse({
-                          success: true,
-                          metadata: {
-                              titles: [{ title: 'Imported title', titleType: 'main-title' }],
-                              language: 'xx-UNCONFIGURED',
-                              licenses: ['LOCAL-2025'],
-                              rawRights: [right],
-                          },
-                      }))
+                    ? Promise.resolve(
+                          createJsonResponse({
+                              success: true,
+                              metadata: {
+                                  titles: [{ title: 'Imported title', titleType: 'main-title' }],
+                                  language: 'xx-UNCONFIGURED',
+                                  licenses: ['LOCAL-2025'],
+                                  rawRights: [right],
+                              },
+                          }),
+                      )
                     : createDefaultFetchResponse(input.toString()),
             );
             renderDataCiteForm();
@@ -8135,9 +8163,7 @@ describe('DataCiteForm', () => {
 
                 expect(mockedAxios.post).toHaveBeenCalledTimes(1);
                 expect(screen.queryByTestId('draft-autosave-status')).not.toBeInTheDocument();
-                expect(mockRouterReplace).toHaveBeenCalledWith(
-                    expect.objectContaining({ url: '/editor?resourceId=42' }),
-                );
+                expect(mockRouterReplace).toHaveBeenCalledWith(expect.objectContaining({ url: '/editor?resourceId=42' }));
                 expect(mockRouterVisit).not.toHaveBeenCalled();
 
                 await act(async () => {
@@ -9184,5 +9210,49 @@ describe('DataCiteForm', () => {
                 },
             ]);
         });
+    });
+    it('offers only resource-specific license choices for a new license entry', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const fetchMock = vi.fn((input: RequestInfo | URL) =>
+            input.toString().includes('/api/v1/licenses/ernie?')
+                ? Promise.resolve(createJsonResponse([licenses[1]]))
+                : createDefaultFetchResponse(input.toString()),
+        );
+        global.fetch = fetchMock;
+        renderDataCiteForm({ initialResourceType: '1' });
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/licenses/ernie?resource_type_id=1', expect.any(Object)));
+        const section = getAccordionTrigger(/Licenses and Rights/i);
+        if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+        await waitFor(() => expect(screen.queryByText('Loading license choices…')).not.toBeInTheDocument());
+        await user.click(screen.getByTestId('license-select-0'));
+        expect(screen.getByRole('option', { name: 'Apache License 2.0' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'MIT License' })).not.toBeInTheDocument();
+    });
+
+    it('preserves saved rights when resource-specific license choices exclude them', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        global.fetch = vi.fn((input: RequestInfo | URL) =>
+            input.toString().includes('/api/v1/licenses/ernie?')
+                ? Promise.resolve(createJsonResponse([licenses[1]]))
+                : createDefaultFetchResponse(input.toString()),
+        );
+        renderDataCiteForm({
+            initialResourceType: '1',
+            initialLicenses: ['MIT'],
+            initialTitles: [{ title: 'Existing licensed resource', titleType: 'main-title' }],
+        });
+        const section = getAccordionTrigger(/Licenses and Rights/i);
+        if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+        await waitFor(() => expect(screen.queryByText('Loading license choices…')).not.toBeInTheDocument());
+        expect(screen.getByTestId('license-select-0')).toHaveTextContent('MIT License');
+        await user.click(screen.getByTestId('save-draft-button'));
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        await waitFor(() =>
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                '/editor/resources/draft',
+                expect.objectContaining({ licenses: ['MIT'] }),
+                expect.any(Object),
+            ),
+        );
     });
 });
