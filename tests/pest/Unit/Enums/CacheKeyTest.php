@@ -164,6 +164,10 @@ it('all cache keys have unique values', function () {
     expect($values)->toHaveCount(count(array_unique($values)));
 });
 
+it('defines successful relation correction cache lifetimes and ownership', function (CacheKey $key) {
+    expect($key->ttl())->toBe(86400)->and($key->tags())->toBe(['assistance', 'relation_correction']);
+})->with([CacheKey::RELATION_CORRECTION_RAW, CacheKey::RELATION_CORRECTION_SUPPORT]);
+
 it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();
 

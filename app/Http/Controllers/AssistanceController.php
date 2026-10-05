@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Contracts\AcceptsDeclineInput;
 use App\Exceptions\BatchSuggestionValidationException;
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\AcceptSuggestionRequest;
@@ -273,7 +274,9 @@ class AssistanceController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $result = $assistant->declineSuggestion($suggestion, $user, $request->input('reason'));
+        $result = $assistant instanceof AcceptsDeclineInput
+            ? $assistant->declineSuggestionWithInput($suggestion, $user, $request->input('reason'), $request->validated())
+            : $assistant->declineSuggestion($suggestion, $user, $request->input('reason'));
 
         return response()->json($result);
     }

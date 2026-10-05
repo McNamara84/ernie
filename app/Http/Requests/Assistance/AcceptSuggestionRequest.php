@@ -21,6 +21,7 @@ final class AcceptSuggestionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'relation_type_correction_fingerprint' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'relation_type_id' => [
                 'sometimes',
                 'integer',

@@ -27,6 +27,7 @@
             <directory suffix=".php">config</directory>
             <directory suffix=".php">database</directory>
             <directory suffix=".php">routes</directory>
+            <directory suffix=".php">modules/assistants/RelationTypeCorrection</directory>
         </include>
         <exclude>
             <!-- Metaworks legacy DB: only reachable from GFZ VPN, cannot be tested in CI -->

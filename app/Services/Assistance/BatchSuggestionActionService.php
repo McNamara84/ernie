@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
+use App\Contracts\AcceptsDeclineInput;
 use App\Exceptions\BatchSuggestionValidationException;
 use App\Models\Resource;
 use App\Models\User;
@@ -24,7 +25,7 @@ final class BatchSuggestionActionService
     ) {}
 
     /**
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string}>  $selections
      * @return array<string, mixed>
      */
     public function execute(
@@ -61,7 +62,9 @@ final class BatchSuggestionActionService
                 $declineReason = $hasHierarchyDecline && $assistant->getId() !== 'subject-hierarchy-correction' ? null : $reason;
                 $result = $action === 'accept'
                     ? $assistant->acceptSuggestion($suggestionId, $acceptanceInput)
-                    : $assistant->declineSuggestion($suggestionId, $user, $declineReason);
+                    : ($assistant instanceof AcceptsDeclineInput
+                        ? $assistant->declineSuggestionWithInput($suggestionId, $user, $declineReason, $acceptanceInput)
+                        : $assistant->declineSuggestion($suggestionId, $user, $declineReason));
             } catch (Throwable $exception) {
                 report($exception);
                 $result = [
@@ -170,7 +173,7 @@ final class BatchSuggestionActionService
      * leave a partially processed selection behind.
      *
      * @param  'accept'|'decline'  $action
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string}>  $selections
      * @return list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int, acceptance_input: array<string, mixed>}>
      */
     private function resolveSelection(string $action, int $resourceId, array $selections, ?string $reason): array
@@ -235,11 +238,20 @@ final class BatchSuggestionActionService
                 }
             }
 
+            if ($assistantId === 'relation-type-correction') {
+                $metadata = is_array($suggestion['metadata'] ?? null) ? $suggestion['metadata'] : [];
+                $fingerprint = $selection['relation_type_correction_fingerprint'] ?? null;
+                if (! is_string($fingerprint) || ($metadata['review_fingerprint'] ?? null) !== $fingerprint) {
+                    throw new BatchSuggestionValidationException('Review the current relation type preview before processing the selection.');
+                }
+            }
+
             $resolved[] = [
                 'assistant' => $assistant,
                 'suggestion' => $suggestion,
                 'suggestion_id' => $suggestionId,
                 'acceptance_input' => array_filter([
+                    'relation_type_correction_fingerprint' => $selection['relation_type_correction_fingerprint'] ?? null,
                     'selected_leaf_ids' => $selection['selected_leaf_ids'] ?? null,
                     'subject_hierarchy_fingerprint' => $selection['subject_hierarchy_fingerprint'] ?? null,
                     'relation_type_id' => $selection['relation_type_id'] ?? null,

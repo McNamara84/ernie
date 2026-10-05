@@ -1357,6 +1357,20 @@ erDiagram
         timestamp updated_at
     }
 
+    relation_type_correction_reviews {
+        bigint id PK
+        bigint resource_id FK "nullable, ON DELETE SET NULL"
+        bigint related_identifier_id FK "nullable, ON DELETE SET NULL"
+        bigint actor_id FK "nullable, ON DELETE SET NULL"
+        bigint_unsigned suggestion_id UK "snapshot ID, no FK"
+        varchar decision "16"
+        varchar reason "255, nullable"
+        char context_fingerprint "64"
+        char review_fingerprint "64"
+        json snapshot
+        timestamp reviewed_at
+    }
+
     %% =========================================================================
     %% RELATIONSHIPS
     %% =========================================================================
@@ -1364,6 +1378,9 @@ erDiagram
     %% Assistant module relationships
     resources ||--o{ assistant_suggestions : "has"
     users ||--o{ assistant_dismissed : "dismissed by"
+    resources |o--o{ relation_type_correction_reviews : "reviewed resource"
+    related_identifiers |o--o{ relation_type_correction_reviews : "reviewed identifier"
+    users |o--o{ relation_type_correction_reviews : "reviewed by"
 
     %% Guided tour relationships
     users ||--o{ guided_tours : "creates"

@@ -482,17 +482,16 @@ test.describe('DataCite Form Validation UX', () => {
         test('form can be navigated with keyboard', async ({ page }) => {
             // Focus main title input directly (more reliable than blind tabbing)
             await formPage.mainTitleInput.focus();
+            await expect(formPage.mainTitleInput).toBeFocused();
 
             // Type in focused field
             await page.keyboard.type('Keyboard Navigation Test');
+            await expect(formPage.mainTitleInput).toHaveValue('Keyboard Navigation Test');
 
             // Blur by tabbing away
             await page.keyboard.press('Tab');
-            await page.waitForTimeout(400);
-
-            // Validation should work
-            const value = await formPage.mainTitleInput.inputValue();
-            expect(value).toContain('Keyboard Navigation Test');
+            await expect(formPage.mainTitleInput).not.toBeFocused();
+            await expect(formPage.mainTitleInput).toHaveValue('Keyboard Navigation Test');
         });
     });
 });
