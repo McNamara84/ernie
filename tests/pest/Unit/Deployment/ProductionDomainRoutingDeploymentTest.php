@@ -216,11 +216,37 @@ it('discards every legacy search subpath and query when redirecting to the fixed
             ->and(preg_replace('~'.$pattern.'~', $replacement, $url))->toBe($targetUrl);
     }
 
-    foreach (['https://example.org'.$source, 'https://ernie.rz-vm499.gfz.de'.$source, 'https://dataservices.gfz-potsdam.de'.$source, 'https://dataservices.gfz.de.example.org'.$source, 'http://dataservices.gfz.de'.$source, 'https://dataservices.gfz.de'.$source.'s?q=test', 'https://dataservices.gfz.de'.$source.'-test/', 'https://dataservices.gfz.de'.$source.'.php', $targetUrl, $targetUrl.'?q=test', $targetUrl.'/map'] as $url) {
+    foreach (['https://example.org'.$source, 'https://ernie.rz-vm499.gfz.de'.$source, 'https://dataservices.gfz-potsdam.de'.$source, 'https://dataservices.gfz.de.example.org'.$source, 'https://DATASERVICES.GFZ.DE.example.org:443'.$source, 'https://sub.dataservices.gfz.de'.$source, 'https://dataservices.gfz.de..'.$source, 'https://dataservices.gfz.de:abc'.$source, 'https://dataservicesXgfzXde'.$source, 'http://dataservices.gfz.de'.$source, 'https://dataservices.gfz.de'.$source.'s?q=test', 'https://dataservices.gfz.de'.$source.'-test/', 'https://dataservices.gfz.de'.$source.'.php', 'https://DATASERVICES.GFZ.DE.:443'.strtoupper($source), $targetUrl, $targetUrl.'?q=test', $targetUrl.'/map'] as $url) {
         expect(preg_match('~'.$pattern.'~', $url))->toBe(0)
             ->and(preg_replace('~'.$pattern.'~', $replacement, $url))->toBe($url);
     }
 })->with('production search redirects');
+
+it('redirects equivalent canonical host spellings to the same search start page', function (string $router, string $middleware, string $source, string $target, string $host): void {
+    $compose = productionDomainCompose();
+    $labels = productionTraefikLabels($compose['services']['webserver']['labels'] ?? []);
+    $prefix = "traefik.http.middlewares.{$middleware}.redirectregex.";
+    $pattern = productionComposeLiteral($labels[$prefix.'regex'] ?? '');
+    $replacement = productionComposeLiteral($labels[$prefix.'replacement'] ?? '');
+
+    expect($pattern)->not->toBe('');
+
+    foreach (['', '/', '?q=granite&page=2', '/index.php?q=test', '/a/b?q=a%2Fb%3Fc%3Dd'] as $suffix) {
+        $url = 'https://'.$host.$source.$suffix;
+
+        expect(preg_match('~'.$pattern.'~', $url))->toBe(1)
+            ->and(preg_replace('~'.$pattern.'~', $replacement, $url))->toBe('https://dataservices.gfz.de'.$target);
+    }
+})->with('production search redirects')->with([
+    'uppercase host' => 'DATASERVICES.GFZ.DE',
+    'mixed-case host' => 'DataServices.GfZ.De',
+    'explicit HTTPS port' => 'dataservices.gfz.de:443',
+    'other numeric port' => 'dataservices.gfz.de:8443',
+    'trailing dot' => 'dataservices.gfz.de.',
+    'uppercase host with trailing dot' => 'DATASERVICES.GFZ.DE.',
+    'mixed-case host with trailing dot and HTTPS port' => 'DataServices.GfZ.De.:443',
+    'trailing dot with other numeric port' => 'dataservices.gfz.de.:8443',
+]);
 
 it('maps former ERNIE portal bookmarks to the DOI portal before applying the canonical redirect', function (): void {
     $compose = productionDomainCompose();

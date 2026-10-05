@@ -176,12 +176,13 @@ services:
       - "traefik.http.routers.ernie-router.service=ernie-service"
       # Retired search URLs, including all subpaths, lead to the corresponding
       # ERNIE search start page. Consume the entire URL to discard old queries.
+      # Match the Host router's case, trailing-dot and port normalization.
       - "traefik.http.routers.ernie-doi-search-redirect-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/portal(/|$$)`)"
       - "traefik.http.routers.ernie-doi-search-redirect-router.entrypoints=https"
       - "traefik.http.routers.ernie-doi-search-redirect-router.service=ernie-service"
       - "traefik.http.routers.ernie-doi-search-redirect-router.middlewares=ernie-doi-search-redirect"
       - "traefik.http.routers.ernie-doi-search-redirect-router.priority=400"
-      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.regex=^https://dataservices[.]gfz[.]de/portal([/?].*)?$$"
+      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/portal([/?].*)?$$"
       - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/doi-search"
       - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.permanent=true"
       - "traefik.http.routers.ernie-igsn-search-redirect-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/igsn-new(/|$$)`)"
@@ -189,7 +190,7 @@ services:
       - "traefik.http.routers.ernie-igsn-search-redirect-router.service=ernie-service"
       - "traefik.http.routers.ernie-igsn-search-redirect-router.middlewares=ernie-igsn-search-redirect"
       - "traefik.http.routers.ernie-igsn-search-redirect-router.priority=400"
-      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.regex=^https://dataservices[.]gfz[.]de/igsn-new([/?].*)?$$"
+      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/igsn-new([/?].*)?$$"
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/igsn-search"
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.permanent=true"
       # ERNIE serves /. Redirect only confirmed first path segments to the retired
