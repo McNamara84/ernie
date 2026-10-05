@@ -117,7 +117,6 @@ class ContributorTypeFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_elmo_active' => false,
-            'is_elmo_msl_active' => false,
         ]);
     }
 }
