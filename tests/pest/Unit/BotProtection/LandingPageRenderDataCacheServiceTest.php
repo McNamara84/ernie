@@ -76,7 +76,7 @@ it('ignores legacy render entries and leaves them untouched', function (string $
         ->and($calls)->toBe(1)
         ->and($cache->get($legacyCacheKey))->toBe($legacyPayload)
         ->and($cache->has($versionedCacheKey))->toBeTrue();
-})->with(['landing_pages:render_data', 'landing_pages:render_data:v10']);
+})->with(['landing_pages:render_data', 'landing_pages:render_data:v10', 'landing_pages:render_data:v11']);
 
 it('does not cache draft landing page render data', function (): void {
     $service = new LandingPageRenderDataCacheService;

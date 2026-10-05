@@ -608,6 +608,8 @@ export default function DataCiteForm({
     const [isImportingMetadata, setIsImportingMetadata] = useState(false);
     const [hasPendingTagInput, setHasPendingTagInput] = useState(false);
     const updatePendingTagInput = useCallback(() => {
+        // Run from bubbling form handlers so field changes are processed before
+        // this microtask can trigger a render of controlled inputs.
         queueMicrotask(() => {
             const inputs = editorFormRef.current?.querySelectorAll<HTMLElement>('.tagify__input');
             setHasPendingTagInput(
@@ -3695,8 +3697,8 @@ export default function DataCiteForm({
         <form
             ref={editorFormRef}
             onSubmit={handleSubmit}
-            onInputCapture={updatePendingTagInput}
-            onBlurCapture={updatePendingTagInput}
+            onInput={updatePendingTagInput}
+            onBlur={updatePendingTagInput}
             noValidate
             className="space-y-6 pb-36 sm:pb-28 lg:pb-24"
         >

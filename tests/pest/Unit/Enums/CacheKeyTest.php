@@ -37,8 +37,8 @@ it('generates correct cache keys with integer suffix', function () {
 });
 
 it('versions landing page render data cache keys', function () {
-    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v11')
-        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v11:123');
+    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v12')
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v12:123');
 });
 
 it('returns correct TTL for resources', function () {
@@ -163,6 +163,10 @@ it('all cache keys have unique values', function () {
 
     expect($values)->toHaveCount(count(array_unique($values)));
 });
+
+it('defines successful relation correction cache lifetimes and ownership', function (CacheKey $key) {
+    expect($key->ttl())->toBe(86400)->and($key->tags())->toBe(['assistance', 'relation_correction']);
+})->with([CacheKey::RELATION_CORRECTION_RAW, CacheKey::RELATION_CORRECTION_SUPPORT]);
 
 it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();

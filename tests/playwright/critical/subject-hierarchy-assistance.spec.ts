@@ -19,6 +19,11 @@ const manifest = {
     cardComponent: 'subject-hierarchy-correction-card',
 };
 
+test.afterEach(async ({ page }) => {
+    // Inertia reloads can still be fetching fixture HTML when assertions finish.
+    await page.unrouteAll({ behavior: 'wait' });
+});
+
 async function openReview(page: Page) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     // Establish the browser's own TLS connection before fulfilling the HTML route.

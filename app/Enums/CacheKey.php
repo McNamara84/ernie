@@ -85,6 +85,10 @@ enum CacheKey: string
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
     case ASSISTANCE_DATACENTER_OPTIONS = 'assistance:datacenter_options';
 
+    // Relation correction source metadata (provider and hashed DOI suffixes)
+    case RELATION_CORRECTION_RAW = 'relation-correction:raw:v1';
+    case RELATION_CORRECTION_SUPPORT = 'relation-correction:support:v1';
+
     // Assessment summary metrics
     case ASSESSMENT_AVERAGE_SUMMARY = 'assessment:average_summary';
 
@@ -98,7 +102,7 @@ enum CacheKey: string
     case FUJI_ASSESSMENT_LIMITER_LOCK = 'fuji:assessment:request-limiter-lock';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v11';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v12';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions:v2';
@@ -206,6 +210,10 @@ enum CacheKey: string
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => 120,
 
+            // Successful source reads - 24 hours; failed reads use a short retry TTL.
+            self::RELATION_CORRECTION_RAW,
+            self::RELATION_CORRECTION_SUPPORT => 86400,
+
             // Assessment average summary - 2 minutes (invalidated on assessment save/delete)
             self::ASSESSMENT_AVERAGE_SUMMARY => 120,
 
@@ -300,6 +308,9 @@ enum CacheKey: string
 
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => ['assistance'],
+
+            self::RELATION_CORRECTION_RAW,
+            self::RELATION_CORRECTION_SUPPORT => ['assistance', 'relation_correction'],
 
             self::ASSESSMENT_AVERAGE_SUMMARY => ['assessments'],
 

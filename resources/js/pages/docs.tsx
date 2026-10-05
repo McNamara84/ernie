@@ -1005,6 +1005,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Available Assistants</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
+                                <strong>Relation Type Correction</strong> – Compares existing DOI relations with current DataCite and Crossref
+                                registration metadata. Review the current and proposed types from the resource&apos;s perspective, the rationale,
+                                confidence, and source evidence. Accept changes only that related identifier&apos;s type; linked local resources are
+                                reviewed independently. Decline suppresses the same material context, while changed metadata may produce a new
+                                proposal. Both actions retain a permanent review record. Changed previews must be checked again before acting.
+                            </li>
+                            <li>
                                 <strong>Suggested Relations</strong> – Discovers missing related identifiers between resources using the ScholExplorer
                                 API
                             </li>

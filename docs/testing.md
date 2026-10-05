@@ -80,6 +80,7 @@ npm run test:php:tia
 npm run test:php:deprecations -- tests/pest/Unit/Enums/UserRoleTest.php
 npm run phpstan:check
 npm run test:php:mysql-sensitive
+npm run test:php:mysql-sensitive:relation-correction
 ```
 
 ### Optimized complete Pest suite
