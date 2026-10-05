@@ -42,6 +42,8 @@ class DateTypeSeeder extends Seeder
                 [
                     'name' => $type['name'],
                     'is_active' => $type['is_active'] ?? true,
+                    'is_elmo_active' => $type['is_active'] ?? true,
+                    'is_elmo_msl_active' => $type['is_active'] ?? true,
                 ]
             );
         }

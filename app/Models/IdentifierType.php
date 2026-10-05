@@ -18,18 +18,20 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string|null $description
  * @property bool $is_active
+ * @property bool $is_elmo_msl_active
  * @property bool $is_elmo_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relatedidentifier/
  */
-#[Fillable(['name', 'slug', 'description', 'is_active', 'is_elmo_active'])]
+#[Fillable(['name', 'slug', 'description', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])]
 class IdentifierType extends Model
 {
     protected $casts = [
         'is_active' => 'boolean',
         'is_elmo_active' => 'boolean',
+        'is_elmo_msl_active' => 'boolean',
     ];
 
     /**
@@ -48,6 +50,15 @@ class IdentifierType extends Model
     public function scopeElmoActive(Builder $query): Builder
     {
         return $query->where('is_elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<IdentifierType>  $query
+     * @return Builder<IdentifierType>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_msl_active', true);
     }
 
     /**

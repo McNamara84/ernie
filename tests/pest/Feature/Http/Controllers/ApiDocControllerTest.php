@@ -16,7 +16,7 @@ describe('JSON response', function () {
 
         $response->assertOk()
             ->assertJsonStructure(['openapi', 'info' => ['title', 'summary'], 'paths', 'servers'])
-            ->assertJsonPath('openapi', '3.2.0')
+            ->assertJsonPath('openapi', '3.2.1')
             ->assertJsonPath('info.summary', 'Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.');
     });
 

@@ -40,6 +40,7 @@ class ContributorTypeFactory extends Factory
             'category' => ContributorCategory::PERSON,
             'is_active' => true,
             'is_elmo_active' => true,
+            'is_elmo_msl_active' => true,
         ];
     }
 
@@ -116,6 +117,7 @@ class ContributorTypeFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_elmo_active' => false,
+            'is_elmo_msl_active' => false,
         ]);
     }
 }

@@ -70,30 +70,62 @@ Route::middleware('throttle:orcid-api')->group(function () {
     Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
     Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
 });
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl-laboratories', [VocabularyController::class, 'mslLaboratories']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/raid-projects', [VocabularyController::class, 'raidProjects']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/analytical-methods', [VocabularyController::class, 'analyticalMethods']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/euroscivoc', [VocabularyController::class, 'euroSciVoc']);
-Route::middleware('ernie.api-key')->get('/v1/vocabularies/cgi-simple-lithology', [VocabularyController::class, 'cgiSimpleLithology']);
-Route::middleware('ernie.api-key')->get('/v1/ror-affiliations/elmo', [VocabularyController::class, 'rorAffiliations']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl-laboratories', [VocabularyController::class, 'mslLaboratories'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/raid-projects', [VocabularyController::class, 'raidProjects'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/analytical-methods', [VocabularyController::class, 'analyticalMethods'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/euroscivoc', [VocabularyController::class, 'euroSciVoc'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/cgi-simple-lithology', [VocabularyController::class, 'cgiSimpleLithology'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/ror-affiliations/elmo', [VocabularyController::class, 'rorAffiliations'])->defaults('editor', 'elmo');
 
 // Thesauri/PID availability - dual routes: without auth for ERNIE frontend, with API key for ELMO
 Route::get('/v1/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
 Route::get('/v1/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability']);
-Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
-Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability']);
+Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability'])->defaults('editor', 'elmo');
+Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])->defaults('editor', 'elmo');
 
 Route::get('/datacite/citation', [DataCiteController::class, 'getCitation']);
 Route::get('/datacite/authors', [DataCiteController::class, 'getAuthors']);
 
 // Thesaurus settings API routes (check, update, update-status) are in web.php
 // because they require session-based authentication via can:manage-thesauri gate
+
+Route::middleware('ernie.api-key')->group(function () {
+    Route::get('/v1/resource-types/elmo-msl', [ResourceTypeController::class, 'elmoMsl']);
+    Route::get('/v1/title-types/elmo-msl', [TitleTypeController::class, 'elmoMsl']);
+    Route::get('/v1/date-types/elmo-msl', [DateTypeController::class, 'elmoMsl']);
+    Route::get('/v1/description-types/elmo-msl', [DescriptionTypeController::class, 'elmoMsl']);
+    Route::get('/v1/languages/elmo-msl', [LanguageController::class, 'elmoMsl']);
+    Route::get('/v1/relation-types/elmo-msl', [RelationTypeController::class, 'elmoMsl']);
+    Route::get('/v1/identifier-types/elmo-msl', [RelatedIdentifierTypeController::class, 'elmoMsl']);
+    Route::get('/v1/licenses/elmo-msl', [LicenseController::class, 'elmoMsl']);
+    Route::get('/v1/licenses/elmo-msl/{resourceTypeSlug}', [LicenseController::class, 'elmoMslForResourceType']);
+    Route::get('/v1/roles/authors/elmo-msl', [RoleController::class, 'authorRolesForElmoMsl']);
+    Route::get('/v1/roles/contributor-persons/elmo-msl', [RoleController::class, 'contributorPersonRolesForElmoMsl']);
+    Route::get('/v1/roles/contributor-institutions/elmo-msl', [RoleController::class, 'contributorInstitutionRolesForElmoMsl']);
+    Route::get('/v1/ror-affiliations/elmo-msl', [VocabularyController::class, 'rorAffiliations'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/msl', [VocabularyController::class, 'mslVocabulary'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/msl-laboratories', [VocabularyController::class, 'mslLaboratories'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/raid-projects', [VocabularyController::class, 'raidProjects'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/analytical-methods', [VocabularyController::class, 'analyticalMethods'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/euroscivoc', [VocabularyController::class, 'euroSciVoc'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/cgi-simple-lithology', [VocabularyController::class, 'cgiSimpleLithology'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/elmo-msl/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])->defaults('editor', 'elmo-msl');
+});
+
+Route::get('/v1/licenses/ernie/{resourceTypeSlug}', [LicenseController::class, 'ernieForResourceType']);
 
 Route::get('/v1/doc', ApiDocController::class);

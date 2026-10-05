@@ -45,7 +45,7 @@ it('returns the OpenAPI documentation as JSON', function () {
     $spec = $response->json();
 
     $response
-        ->assertJsonPath('openapi', '3.2.0')
+        ->assertJsonPath('openapi', '3.2.1')
         ->assertJsonPath('info.summary', 'Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.')
         ->assertJsonPath('servers.0.name', 'Current ERNIE deployment')
         ->assertJsonPath('security', [])
@@ -308,7 +308,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonMissingPath('paths./api/v1/title-types.get')
         ->assertJsonMissingPath('paths./api/v1/title-types/ernie.get')
         ->assertJsonMissingPath('paths./api/v1/licenses.get')
-        ->assertJsonMissingPath('paths./api/v1/licenses/ernie.get')
+        ->assertJsonPath('paths./api/v1/licenses/ernie.get.security', [])
         ->assertJsonMissingPath('paths./api/v1/languages.get')
         ->assertJsonMissingPath('paths./api/v1/languages/ernie.get')
         ->assertJsonMissingPath('paths./api/v1/roles/authors/ernie.get')
@@ -423,7 +423,7 @@ it('serves an OpenAPI 3.2 document without legacy nullable keywords', function (
         ->assertOk()
         ->json();
 
-    expect($spec['openapi'])->toBe('3.2.0')
+    expect($spec['openapi'])->toBe('3.2.1')
         ->and($spec['info']['license'])->not->toHaveKey('url')
         ->and(containsArrayKeyRecursively($spec, 'nullable'))->toBeFalse();
 });

@@ -38,8 +38,18 @@ class RoleController extends Controller
     public function authorRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
-            ->active()
             ->elmoActive()
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
+
+        return response()->json($types);
+    }
+
+    /** Return roles independently enabled for ELMO-MSL. */
+    public function authorRolesForElmoMsl(): JsonResponse
+    {
+        $types = ContributorType::query()
+            ->elmoMslActive()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
@@ -66,8 +76,19 @@ class RoleController extends Controller
     public function contributorPersonRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
-            ->active()
             ->elmoActive()
+            ->forPersons()
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
+
+        return response()->json($types);
+    }
+
+    /** Return roles independently enabled for ELMO-MSL. */
+    public function contributorPersonRolesForElmoMsl(): JsonResponse
+    {
+        $types = ContributorType::query()
+            ->elmoMslActive()
             ->forPersons()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
@@ -95,8 +116,19 @@ class RoleController extends Controller
     public function contributorInstitutionRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
-            ->active()
             ->elmoActive()
+            ->forInstitutions()
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
+
+        return response()->json($types);
+    }
+
+    /** Return roles independently enabled for ELMO-MSL. */
+    public function contributorInstitutionRolesForElmoMsl(): JsonResponse
+    {
+        $types = ContributorType::query()
+            ->elmoMslActive()
             ->forInstitutions()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);

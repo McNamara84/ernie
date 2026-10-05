@@ -37,11 +37,12 @@ test('returns only active title types for Ernie', function () {
     ]);
 });
 
-test('returns only active and elmo-active title types', function () {
+test('returns only ELMO-enabled independently of ERNIE title types', function () {
     $response = $this->getJson('/api/v1/title-types/elmo', ['X-API-Key' => 'test-api-key'])->assertOk();
-    // 1 type: Alpha (is_active=true AND is_elmo_active=true)
-    expect($response->json())->toHaveCount(1);
+    // Alpha and Charlie are enabled for ELMO, independently of ERNIE.
+    expect($response->json())->toHaveCount(2);
     expect(array_column($response->json(), 'name'))->toBe([
         'Alpha',
+        'Charlie',
     ]);
 });

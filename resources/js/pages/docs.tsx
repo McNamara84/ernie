@@ -1373,7 +1373,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>REST API</h3>
-                        <p>ERNIE provides a comprehensive REST API following OpenAPI 3.2 specifications.</p>
+                        <p>ERNIE API 1.1 follows OpenAPI 3.2.1. Existing API URLs remain under /api/v1/.</p>
 
                         <p>The published specification is linted and validated with Redocly during local quality checks and CI runs.</p>
 
@@ -1388,6 +1388,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <BookOpen className="size-4" />
                                 View API Documentation
                             </a>
+                        </p>
+
+                        <h4>Independent Editor Settings</h4>
+                        <p>
+                            Admins and Group Leaders configure ERNIE, ELMO and ELMO-MSL independently under Editor Settings. Each editor has its own
+                            selections for metadata types, dates, languages, contributor roles, thesauri and PID offerings. Licenses also have
+                            separate Resource Type exclusions. Abstract remains enabled for every editor. ELMO-MSL starts with a one-time copy of the
+                            ELMO selections; subsequent changes affect only the selected editor.
+                        </p>
+                        <p>
+                            Use <code>/api/v1/resource-types/elmo</code> for ELMO and <code>/api/v1/resource-types/elmo-msl</code> for ELMO-MSL.
+                            ELMO-MSL vocabularies and availability endpoints use <code>/api/v1/elmo-msl/vocabularies/</code>. Both external editors
+                            accept the existing API key through <code>X-API-Key</code> or <code>Authorization: Bearer</code>. Disabling an entry for
+                            ERNIE no longer disables it for ELMO or ELMO-MSL.
                         </p>
 
                         <h4>Key Endpoints</h4>

@@ -122,7 +122,9 @@ class DocsController extends Controller
         $simpleLithologyActive = $simpleLithologySetting !== null ? $simpleLithologySetting->is_active : false;
 
         // Check if MSL vocabulary file exists (indicates MSL is available)
-        $hasMslVocabulary = Storage::exists('msl-vocabulary.json');
+        $mslKeywordsSetting = $thesauri->get(ThesaurusSetting::TYPE_MSL_KEYWORDS);
+        $hasMslVocabulary = ($mslKeywordsSetting === null || $mslKeywordsSetting->is_active)
+            && Storage::exists('msl-vocabulary.json');
 
         return [
             'thesauri' => [

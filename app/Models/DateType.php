@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'slug', 'is_active'])]
+#[Fillable(['name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])]
 class DateType extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -19,6 +19,8 @@ class DateType extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_elmo_active' => 'boolean',
+        'is_elmo_msl_active' => 'boolean',
     ];
 
     /**
@@ -30,6 +32,24 @@ class DateType extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * @param  Builder<DateType>  $query
+     * @return Builder<DateType>
+     */
+    public function scopeElmoActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<DateType>  $query
+     * @return Builder<DateType>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_msl_active', true);
     }
 
     /**

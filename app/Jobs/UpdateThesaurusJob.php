@@ -164,6 +164,7 @@ class UpdateThesaurusJob implements ShouldQueue
     private function getProgressMessage(): string
     {
         return match ($this->thesaurusType) {
+            ThesaurusSetting::TYPE_MSL_KEYWORDS => 'Fetching EPOS MSL keywords from GitHub...',
             ThesaurusSetting::TYPE_CHRONOSTRAT, ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'Fetching data from ARDC Linked Data API...',
             ThesaurusSetting::TYPE_GEMET => 'Fetching data from GEMET REST API...',
             ThesaurusSetting::TYPE_EUROSCIVOC => 'Fetching data from EU Publications Office SPARQL endpoint...',

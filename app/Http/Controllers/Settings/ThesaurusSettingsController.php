@@ -43,6 +43,7 @@ class ThesaurusSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
+                'isElmoMslActive' => $thesaurus->is_elmo_msl_active,
                 'version' => $thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES
                     ? ($localStatus['version'] ?? $thesaurus->version)
                     : $thesaurus->version,

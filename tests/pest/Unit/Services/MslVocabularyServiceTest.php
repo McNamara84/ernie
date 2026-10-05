@@ -8,6 +8,24 @@ use Illuminate\Support\Facades\Storage;
 
 covers(MslVocabularyService::class);
 
+test('remote MSL checks count the hierarchy without replacing local data', function (): void {
+    Storage::fake();
+    Storage::put('msl-vocabulary.json', 'existing published data');
+    Http::fake(['raw.githubusercontent.com/*' => Http::response([
+        ['text' => 'Materials', 'children' => [['text' => 'Rock'], ['text' => 'Sediment']]],
+        ['text' => 'Methods'],
+    ])]);
+    expect((new MslVocabularyService)->getRemoteConceptCount())->toBe(4);
+    expect(Storage::get('msl-vocabulary.json'))->toBe('existing published data');
+});
+
+test('remote MSL checks report HTTP and invalid JSON failures', function (): void {
+    Http::fake(['*' => Http::response(null, 503)]);
+    expect(fn () => (new MslVocabularyService)->getRemoteConceptCount())->toThrow(RuntimeException::class);
+    Http::fake(['*' => Http::response('invalid JSON')]);
+    expect(fn () => (new MslVocabularyService)->getRemoteConceptCount())->toThrow(RuntimeException::class);
+});
+
 describe('downloadAndTransformVocabulary', function (): void {
     test('downloads and transforms vocabulary', function (): void {
         Storage::fake();
