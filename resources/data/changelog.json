@@ -228,6 +228,10 @@
         ],
         "fixes": [
             {
+                "title": "Swagger UI in Test Environments",
+                "description": "Fixed empty interactive API documentation on test servers by loading Swagger UI assets consistently in every application environment. Endpoint copy buttons now use the project's own icon instead of an unavailable Swagger component, preventing endpoint rendering failures in built assets."
+            },
+            {
                 "title": "Update Assistance Counts and Filters After Relation Corrections",
                 "description": "The pending-count badge and datacenter filter update after relation correction discovery creates or removes proposals and after accepting or declining a correction, without waiting for cached summaries to expire.",
                 "references": [
