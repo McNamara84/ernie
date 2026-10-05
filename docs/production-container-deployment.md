@@ -38,17 +38,38 @@ the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it ne
 
 ## Public homepage routing
 
-The public `/` route on `dataservices.gfz.de` is served by ERNIE. The production
-Compose configuration removes this exact path from the higher-priority legacy
-router; confirmed legacy segments such as `/web/`, `/portal/`, and `/igsn-new/`
-continue to redirect to `dataservices.gfz-potsdam.de`. `/elmo` and `/elmo-msl`
-remain owned by their separate stacks.
+The public `/` route on `dataservices.gfz.de` is served by ERNIE. Production
+Traefik labels permanently redirect GET requests for `/portal` and `/igsn-new`
+to `https://dataservices.gfz.de/doi-search` and
+`https://dataservices.gfz.de/igsn-search`, respectively, with HTTP 301. Both
+redirects include the trailing-slash variants and all subpaths, discarding the
+old subpath and every query parameter to open the corresponding search start
+page. Similar names such as `/portals` and `/igsn-newer` are not captured.
+These search segments are excluded from the legacy router; other confirmed
+legacy segments such as `/web/` continue to redirect temporarily to
+`dataservices.gfz-potsdam.de`. `/elmo` and `/elmo-msl` remain owned by their
+separate stacks.
 
 When releasing the homepage, deploy both the application and the updated
 `webserver` service definition so Traefik receives the new labels. Updating only
 the application image leaves the old root redirect active. Verify `/` returns
 the ERNIE homepage with HTTP 200, local topic images load, `/doi-search` and
 `/igsn-search` remain available, and legacy URLs still redirect correctly.
+
+Verify the search redirects with GET requests, including both base paths,
+trailing slashes, nested paths and query parameters. For example:
+
+```bash
+curl --silent --show-error --dump-header - --output /dev/null 'https://dataservices.gfz.de/portal/index.php?q=granite'
+curl --silent --show-error --dump-header - --output /dev/null 'https://dataservices.gfz.de/igsn-new/portal/results?page=2'
+```
+
+Expect HTTP 301 and the exact absolute search URL in `Location`, without a
+trailing slash, subpath or query. Each redirect must reach its search page in
+one step, and both search pages must return HTTP 200. Use GET rather than
+`curl -I`: Traefik's permanent redirect middleware returns HTTP 308 for HEAD
+and other non-GET methods. Deploy the updated `webserver` definition to apply
+the labels; changing only the application image does not apply routing changes.
 
 The initial news item lives in `resources/js/data/homepage.ts`. Administration
 through `/manage-news` is a separate future feature. Homepage topic definitions
