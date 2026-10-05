@@ -215,7 +215,7 @@ services:
 
   # MySQL Database
   db:
-    image: mysql:9.7.2@sha256:30a0abfa7b502a496e12339b54cd07aaa70363396dc4b8e8a72a92804a505cd6
+    image: mysql:9.7.2@sha256:e2bde46db6563855d7177adb5f0b57b9dc663f5a20927a90f4259d3312068497
     container_name: ernie-db-dev
     restart: unless-stopped
     environment:

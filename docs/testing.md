@@ -53,6 +53,14 @@ The default PHP suite is intentionally optimized for speed.
 - The same bootstrap defaults `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:`.
 - Setting `ERNIE_TEST_DB_CONNECTION` switches the dedicated MySQL-sensitive slice to its isolated Docker test schema instead.
 
+GitHub Actions also runs the complete MySQL-sensitive slice through
+`npm run test:php:mysql-sensitive` in the `MySQL Compatibility Tests` workflow.
+It builds `Dockerfile.dev` and uses the same digest-pinned MySQL 9.7 service from
+`docker-compose.dev.yml` as local development. Each test slice resets only the
+isolated `ernie_test` schema. Its fresh CI data volume uses tmpfs to avoid disk
+flush latency during repeated schema migrations. The general Pest and Playwright
+CI suites retain SQLite for fast feedback.
+
 Whenever a test opts into MySQL, the repository wrapper starts the pinned
 MySQL 9.7 service and waits for a healthcheck that also verifies the `9.7.x`
 server series. The separate MySQL 8.4 `mysqldump` build stage is only a legacy
@@ -89,6 +97,10 @@ npm run test:php:mysql-sensitive:relation-correction
 `npm run test:php` is the only supported entry point for the routine complete
 PHP suite. The wrapper always applies a 2 GB PHP memory limit, including to
 ParaTest workers, and reports the duration of every phase plus the total.
+
+Pest 5.3.0 currently excludes PHPUnit versions newer than 13.3.6. ParaTest 7.26.0
+requires PHPUnit 13.4, so the lockfile keeps PHPUnit 13.3.6 and ParaTest 7.25.0
+until Pest supports that newer PHPUnit release line.
 
 On Docker Desktop, the checked-out source is a Windows/macOS bind mount. Pest
 and Laravel load hundreds of PHP files in every worker, so running directly

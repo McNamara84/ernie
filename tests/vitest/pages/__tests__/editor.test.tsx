@@ -38,6 +38,10 @@ vi.mock('@/layouts/app-layout', () => ({
     ),
 }));
 
+vi.mock('@/lib/session-warmup', () => ({
+    warmupSession: vi.fn(async () => ({ success: false })),
+}));
+
 vi.mock('@/components/curation/datacite-form', () => ({
     default: (props: unknown) => {
         renderForm(props);
@@ -110,32 +114,34 @@ describe('Editor page', () => {
     });
 
     it('shows a retryable error state when bootstrap data loading fails', async () => {
-        const fetchMock = vi
-            .fn()
-            .mockRejectedValueOnce(new Error('network down'))
-            .mockImplementation((url: RequestInfo) =>
-                Promise.resolve({
-                    ok: true,
-                    json: () =>
-                        Promise.resolve(
-                            url.toString().includes('resource-types')
-                                ? resourceTypes
-                                : url.toString().includes('title-types')
-                                  ? titleTypes
-                                  : url.toString().includes('date-types')
-                                    ? dateTypes
-                                    : url.toString().includes('licenses')
-                                      ? licenses
-                                      : languages,
-                        ),
-                }),
-            );
+        let failResourceTypes = true;
+        const fetchMock = vi.fn().mockImplementation((url: RequestInfo) => {
+            if (failResourceTypes && url.toString().includes('resource-types')) {
+                return Promise.reject(new Error('network down'));
+            }
+            return Promise.resolve({
+                ok: true,
+                json: () =>
+                    Promise.resolve(
+                        url.toString().includes('resource-types')
+                            ? resourceTypes
+                            : url.toString().includes('title-types')
+                              ? titleTypes
+                              : url.toString().includes('date-types')
+                                ? dateTypes
+                                : url.toString().includes('licenses')
+                                  ? licenses
+                                  : languages,
+                    ),
+            });
+        });
         vi.stubGlobal('fetch', fetchMock);
 
         render(<Editor googleMapsApiKey="test-api-key" />);
 
         expect(await screen.findByTestId('editor-error-state')).toBeInTheDocument();
 
+        failResourceTypes = false;
         await userEvent.click(screen.getByRole('button', { name: /retry loading editor data/i }));
 
         await waitFor(() => {

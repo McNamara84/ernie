@@ -13,11 +13,11 @@ Stage deployment history. See
 ## Deployment flow
 
 1. Feature and fix branches are reviewed and merged into `main`.
-2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
+2. The Security, Pest, MySQL, Vitest, lint/PHPStan, and Playwright workflows validate
    the merged commit. The security gate builds and scans all three deployable
    runtime images (`app`, `nginx`, and F-UJI with Chromium) for fixable HIGH and
    CRITICAL vulnerabilities. F-UJI also gets a dependency and browser smoke check.
-3. `Publish Stage Images` verifies that all five workflows succeeded for the
+3. `Publish Stage Images` verifies that all six workflows succeeded for the
    exact current `main` commit, then builds and pushes the images under
    traceable `sha-<full-commit-sha>` tags.
 4. The publication job scans the exact pushed application, Nginx, and F-UJI digest
@@ -81,7 +81,7 @@ existing Stage stack. Do not delete the stack or its volumes.
 
 Merge the implementation into `main`. Wait for:
 
-1. `Security Checks`, `Pest PHP Unit Tests`, `Vitest TS integration Tests`,
+1. `Security Checks`, `Pest PHP Unit Tests`, `MySQL Compatibility Tests`, `Vitest TS integration Tests`,
    `Linter Tests`, and `Playwright UI Tests` to succeed;
 2. `Publish Stage Images` to publish the validated commit.
 
@@ -201,7 +201,7 @@ Open any one of the five successful deployment-blocking workflow runs for the
 current `main` commit and choose **Re-run all jobs**. Its successful completion
 triggers the default-branch `Publish Stage Images` workflow again. Do not add a
 manual trigger to the privileged publishing workflow or dispatch it against a
-feature branch. The retry still verifies successful Security, Pest, Vitest,
+feature branch. The retry still verifies successful Security, Pest, MySQL, Vitest,
 lint/PHPStan, and Playwright push workflows for that exact commit.
 
 ## Rollback

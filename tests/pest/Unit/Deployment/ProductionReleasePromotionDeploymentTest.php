@@ -78,6 +78,7 @@ it('accepts only the latest stable semantic release on validated main history', 
         ->toBeString()
         ->toContain("['security.yml', 'Security Checks']")
         ->toContain("['tests.yml', 'Pest PHP Unit Tests']")
+        ->toContain("['mysql.yml', 'MySQL Compatibility Tests']")
         ->toContain("['vitest.yml', 'Vitest TS integration Tests']")
         ->toContain("['lint.yml', 'Linter Tests']")
         ->toContain("['playwright.yml', 'Playwright UI Tests']")
@@ -161,7 +162,7 @@ it('promotes the exact image digests previously deployed to Stage', function ():
         ->and($scan['run'] ?? null)
         ->toBeString()
         ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do')
-        ->toContain('aquasec/trivy:0.74.0@sha256:')
+        ->toContain('aquasec/trivy:0.75.0@sha256:')
         ->toContain('--exit-code 1')
         ->toContain('--severity CRITICAL,HIGH');
 });

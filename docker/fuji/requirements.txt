@@ -1,5 +1,18 @@
 # Compatible runtime updates on top of the digest-pinned F-UJI 4.0.1 image.
 # Recheck upstream pyproject.toml and `pip check` when changing these pins.
-filelock==4.0.5
-platformdirs==4.12.1
+charset-normalizer==3.5.2
+cryptography==50.0.2
+filelock==4.0.11
+MarkupSafe==3.0.4
+platformdirs==4.12.3
+PyJWT==2.15.1
+python-dotenv==1.2.4
+pytz==2026.5
+rpds-py==2026.9.1
+tldextract==5.4.0
+tzdata==2026.5
+urlextract==1.10.0
+uvloop==0.23.0
+w3lib==2.5.0
+websockets==17.2
 Werkzeug==3.1.9

@@ -72,11 +72,11 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.10.0** from `.node-version` and npm **12.1.0** from
+    Use Node **26.10.0** from `.node-version` and npm **12.2.0** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
-    npm install --global npm@12.1.0
+    npm install --global npm@12.2.0
     npm ci
     ```
 

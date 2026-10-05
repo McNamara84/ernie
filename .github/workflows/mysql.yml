@@ -1,0 +1,65 @@
+name: MySQL Compatibility Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  mysql:
+    name: MySQL 9.7 sensitive tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      COMPOSE_PROJECT_NAME: ernie-mysql-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+
+      - name: Setup npm
+        run: npm install --global npm@12.2.0
+
+      - name: Prepare isolated Docker environment
+        run: |
+          cp .env.docker.example .env.docker
+          cp .env.docker.example .env
+          docker volume create \
+            --driver local --opt type=tmpfs --opt device=tmpfs --opt o=size=2g \
+            --label com.docker.compose.project=ernie-mysql-ci \
+            --label com.docker.compose.volume=ernie-db-data-mysql-9-7 \
+            ernie-mysql-ci_ernie-db-data-mysql-9-7
+
+      - name: Build development application image
+        run: docker compose --env-file .env.docker -f docker-compose.dev.yml build app
+
+      - name: Start backend services
+        run: npm run docker:dev:backend:d
+
+      - name: Verify MySQL server series
+        run: |
+          version=$(docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T db mysql -uroot -prootsecret --batch --skip-column-names -e 'SELECT VERSION()')
+          echo "MySQL server: $version"
+          [[ "$version" == 9.7.* ]]
+
+      - name: Run MySQL-sensitive tests
+        run: npm run test:php:mysql-sensitive
+
+      - name: Show backend logs on failure
+        if: failure()
+        run: docker compose --env-file .env.docker -f docker-compose.dev.yml logs --no-color app db
+
+      - name: Stop backend services
+        if: always()
+        run: docker compose --env-file .env.docker -f docker-compose.dev.yml down --volumes --remove-orphans
