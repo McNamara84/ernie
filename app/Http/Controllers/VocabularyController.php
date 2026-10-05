@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
+use App\Enums\EditorContext;
 use App\Exceptions\VocabularyCorruptedException;
 use App\Exceptions\VocabularyNotFoundException;
 use App\Exceptions\VocabularyReadException;
@@ -80,6 +81,10 @@ class VocabularyController extends Controller
      */
     public function mslVocabulary(): JsonResponse
     {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_MSL_KEYWORDS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
         return $this->getCachedVocabulary(
             CacheKey::MSL_KEYWORDS,
             'msl-vocabulary.json',
@@ -165,15 +170,14 @@ class VocabularyController extends Controller
     /**
      * Return thesauri availability status.
      *
-     * Context-aware: returns is_elmo_active for ELMO API requests
-     * and is_active for ERNIE frontend requests.
+     * Returns availability for the editor specified by the route.
      */
     public function thesauriAvailability(): JsonResponse
     {
-        $isElmo = $this->isElmoRequest();
+        $column = $this->editorContext()->activationColumn();
 
-        $thesauri = ThesaurusSetting::all()->mapWithKeys(function (ThesaurusSetting $setting) use ($isElmo): array {
-            $available = $isElmo ? $setting->is_elmo_active : $setting->is_active;
+        $thesauri = ThesaurusSetting::all()->mapWithKeys(function (ThesaurusSetting $setting) use ($column): array {
+            $available = (bool) $setting->getAttribute($column);
 
             if ($available && $setting->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
                 try {
@@ -363,16 +367,15 @@ class VocabularyController extends Controller
     /**
      * Return PID availability status.
      *
-     * Context-aware: returns is_elmo_active for ELMO API requests
-     * and is_active for ERNIE frontend requests.
+     * Returns availability for the editor specified by the route.
      */
     public function pidAvailability(): JsonResponse
     {
-        $isElmo = $this->isElmoRequest();
+        $column = $this->editorContext()->activationColumn();
 
         $pids = PidSetting::all()->mapWithKeys(fn (PidSetting $p) => [
             $p->type => [
-                'available' => $isElmo ? $p->is_elmo_active : $p->is_active,
+                'available' => (bool) $p->getAttribute($column),
                 'displayName' => $p->display_name,
             ],
         ]);
@@ -391,9 +394,7 @@ class VocabularyController extends Controller
             return true; // Default to active if no setting exists
         }
 
-        // For ELMO (API) requests, check is_elmo_active
-        // For ERNIE requests, check is_active
-        return $this->isElmoRequest() ? $setting->is_elmo_active : $setting->is_active;
+        return (bool) $setting->getAttribute($this->editorContext()->activationColumn());
     }
 
     /**
@@ -407,29 +408,14 @@ class VocabularyController extends Controller
             return true; // Default to active if no setting exists
         }
 
-        return $this->isElmoRequest() ? $setting->is_elmo_active : $setting->is_active;
+        return (bool) $setting->getAttribute($this->editorContext()->activationColumn());
     }
 
-    /**
-     * Determine if the current request is an ELMO API request.
-     *
-     * ELMO requests are identified by the presence of the ernie.api-key middleware
-     * on the current route. This is more reliable than URL pattern matching
-     * because some /api/* routes (like thesauri-availability) are used by
-     * the ERNIE frontend and should not be treated as ELMO requests.
-     */
-    private function isElmoRequest(): bool
+    /** Resolve the editor from trusted route defaults, independently of authentication. */
+    private function editorContext(): EditorContext
     {
-        $route = request()->route();
+        $editor = request()->route()?->defaults['editor'] ?? EditorContext::ERNIE->value;
 
-        // Check if the current route has the ernie.api-key middleware applied
-        if ($route !== null) {
-            $middleware = $route->gatherMiddleware();
-
-            return in_array('ernie.api-key', $middleware, true);
-        }
-
-        // Fallback: check for X-API-Key header (for requests outside Laravel routing)
-        return request()->hasHeader('X-API-Key');
+        return EditorContext::from($editor);
     }
 }

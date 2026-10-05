@@ -112,6 +112,7 @@ const defaultThesauri = [
         displayName: 'Science Keywords',
         isActive: true,
         isElmoActive: false,
+        isElmoMslActive: false,
         exists: true,
         conceptCount: 100,
         lastUpdated: null,
@@ -121,6 +122,7 @@ const defaultThesauri = [
         displayName: 'Platforms',
         isActive: false,
         isElmoActive: true,
+        isElmoMslActive: false,
         exists: true,
         conceptCount: 50,
         lastUpdated: null,
@@ -129,10 +131,10 @@ const defaultThesauri = [
 
 const defaultProps: React.ComponentProps<typeof EditorSettings> = {
     resourceTypes: [
-        { id: 1, name: 'Dataset', active: true, elmo_active: false },
-        { id: 2, name: 'Collection', active: false, elmo_active: true },
+        { id: 1, name: 'Dataset', active: true, elmo_active: false, elmo_msl_active: false },
+        { id: 2, name: 'Collection', active: false, elmo_active: true, elmo_msl_active: false },
     ],
-    titleTypes: [{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false }],
+    titleTypes: [{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false, elmo_msl_active: false }],
     licenses: [
         {
             id: 1,
@@ -140,12 +142,15 @@ const defaultProps: React.ComponentProps<typeof EditorSettings> = {
             name: 'Creative Commons Attribution 4.0',
             active: true,
             elmo_active: false,
+            elmo_msl_active: false,
             excluded_resource_type_ids: [],
+            elmo_excluded_resource_type_ids: [],
+            elmo_msl_excluded_resource_type_ids: [],
         },
     ],
-    languages: [{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }],
-    dateTypes: [{ id: 1, name: 'Accepted', slug: 'accepted', description: null, active: true }],
-    descriptionTypes: [{ id: 1, name: 'Abstract', slug: 'Abstract', active: true, elmo_active: true }],
+    languages: [{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false, elmo_msl_active: false }],
+    dateTypes: [{ id: 1, name: 'Accepted', slug: 'accepted', description: null, active: true, elmo_active: false, elmo_msl_active: false }],
+    descriptionTypes: [{ id: 1, name: 'Abstract', slug: 'Abstract', active: true, elmo_active: true, elmo_msl_active: true }],
     thesauri: defaultThesauri,
     pidSettings: [
         {
@@ -153,16 +158,21 @@ const defaultProps: React.ComponentProps<typeof EditorSettings> = {
             displayName: 'ROR',
             isActive: true,
             isElmoActive: false,
+            isElmoMslActive: false,
             exists: true,
             itemCount: 10,
             lastUpdated: null,
         },
     ],
     landingPageDomains: [],
-    contributorPersonRoles: [{ id: 1, name: 'Contact Person', slug: 'ContactPerson', category: 'person', active: true, elmo_active: false }],
-    contributorInstitutionRoles: [{ id: 2, name: 'Distributor', slug: 'Distributor', category: 'institution', active: false, elmo_active: true }],
-    contributorBothRoles: [{ id: 3, name: 'Other', slug: 'Other', category: 'both', active: true, elmo_active: true }],
-    relationTypes: [{ id: 1, name: 'Cites', slug: 'Cites', active: true, elmo_active: false }],
+    contributorPersonRoles: [
+        { id: 1, name: 'Contact Person', slug: 'ContactPerson', category: 'person', active: true, elmo_active: false, elmo_msl_active: false },
+    ],
+    contributorInstitutionRoles: [
+        { id: 2, name: 'Distributor', slug: 'Distributor', category: 'institution', active: false, elmo_active: true, elmo_msl_active: false },
+    ],
+    contributorBothRoles: [{ id: 3, name: 'Other', slug: 'Other', category: 'both', active: true, elmo_active: true, elmo_msl_active: false }],
+    relationTypes: [{ id: 1, name: 'Cites', slug: 'Cites', active: true, elmo_active: false, elmo_msl_active: false }],
     identifierTypes: [
         {
             id: 1,
@@ -170,6 +180,7 @@ const defaultProps: React.ComponentProps<typeof EditorSettings> = {
             slug: 'DOI',
             active: true,
             elmo_active: true,
+            elmo_msl_active: false,
             patterns: [{ id: 1, type: 'validation', pattern: '^10\\.', is_active: true, priority: 10 }],
         },
     ],
@@ -278,8 +289,8 @@ describe('EditorSettings accordion page', () => {
         const user = userEvent.setup();
         renderSettings({
             resourceTypes: [
-                { id: 1, name: 'Dataset', active: false, elmo_active: false },
-                { id: 2, name: 'Collection', active: false, elmo_active: true },
+                { id: 1, name: 'Dataset', active: false, elmo_active: false, elmo_msl_active: false },
+                { id: 2, name: 'Collection', active: false, elmo_active: true, elmo_msl_active: false },
             ],
         });
 
@@ -446,7 +457,10 @@ describe('EditorSettings accordion page', () => {
                     name: 'INTERMAGNET data terms',
                     active: false,
                     elmo_active: false,
+                    elmo_msl_active: false,
                     excluded_resource_type_ids: [],
+                    elmo_excluded_resource_type_ids: [],
+                    elmo_msl_excluded_resource_type_ids: [],
                 },
             ],
         });
@@ -489,7 +503,12 @@ describe('EditorSettings accordion page', () => {
         axiosMocks.patch.mockResolvedValue({
             data: { datacenter: { id: 8, name: 'Alpha renamed', resources_count: 3 }, message: 'Datacenter renamed successfully.' },
         });
-        renderSettings({ datacenters: [{ id: 8, name: 'Zulu', resources_count: 3 }, { id: 9, name: 'Beta', resources_count: 0 }] });
+        renderSettings({
+            datacenters: [
+                { id: 8, name: 'Zulu', resources_count: 3 },
+                { id: 9, name: 'Beta', resources_count: 0 },
+            ],
+        });
         await user.click(sectionTrigger(/^Datacenters/));
 
         const rename = within(section('datacenters')).getByRole('button', { name: 'Rename Zulu' });
@@ -560,7 +579,9 @@ describe('EditorSettings accordion page', () => {
 
     it('uses the loading button state while a datacenter rename is pending', async () => {
         const user = userEvent.setup();
-        let resolveRename: (value: { data: { datacenter: { id: number; name: string; resources_count: number }; message: string } }) => void = () => {};
+        let resolveRename: (value: {
+            data: { datacenter: { id: number; name: string; resources_count: number }; message: string };
+        }) => void = () => {};
         axiosMocks.patch.mockImplementation(
             () =>
                 new Promise((resolve) => {
@@ -585,8 +606,8 @@ describe('EditorSettings accordion page', () => {
     it('initializes the form with complete backend values and enforces Abstract as active', () => {
         renderSettings({
             descriptionTypes: [
-                { id: 1, name: 'Abstract', slug: 'Abstract', active: false, elmo_active: false },
-                { id: 2, name: 'Methods', slug: 'Methods', active: false, elmo_active: true },
+                { id: 1, name: 'Abstract', slug: 'Abstract', active: false, elmo_active: false, elmo_msl_active: false },
+                { id: 2, name: 'Methods', slug: 'Methods', active: false, elmo_active: true, elmo_msl_active: false },
             ],
         });
 
@@ -594,10 +615,15 @@ describe('EditorSettings accordion page', () => {
             expect.objectContaining({
                 resourceTypes: defaultProps.resourceTypes,
                 licenses: defaultProps.licenses,
-                thesauri: defaultThesauri.map(({ type, isActive, isElmoActive }) => ({ type, isActive, isElmoActive })),
+                thesauri: defaultThesauri.map(({ type, isActive, isElmoActive, isElmoMslActive }) => ({
+                    type,
+                    isActive,
+                    isElmoActive,
+                    isElmoMslActive,
+                })),
                 descriptionTypes: [
-                    { id: 1, name: 'Abstract', slug: 'Abstract', active: true, elmo_active: true },
-                    { id: 2, name: 'Methods', slug: 'Methods', active: false, elmo_active: true },
+                    { id: 1, name: 'Abstract', slug: 'Abstract', active: true, elmo_active: true, elmo_msl_active: true },
+                    { id: 2, name: 'Methods', slug: 'Methods', active: false, elmo_active: true, elmo_msl_active: false },
                 ],
             }),
         );

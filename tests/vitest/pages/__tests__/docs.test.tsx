@@ -649,11 +649,11 @@ describe('Docs page', () => {
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
-    it('mentions the OpenAPI 3.2 API documentation', () => {
+    it('mentions API 1.1 and OpenAPI 3.2.1', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
-        expect(screen.getByText(/OpenAPI 3\.2 specifications/i)).toBeInTheDocument();
-        expect(screen.getByText(/validated with Redocly/i)).toBeInTheDocument();
+        expect(screen.getByText(/OpenAPI 3\.2\.1/i)).toBeInTheDocument();
+        expect(screen.getByText(/API 1\.1/i)).toBeInTheDocument();
     });
 
     it('documents personal settings through the user menu and route-specific settings pages', () => {

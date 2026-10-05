@@ -19,17 +19,18 @@ function createElmoDescriptionTypes(): void
     DescriptionType::create(['name' => 'TechnicalInfo', 'slug' => 'TechnicalInfo', 'is_active' => false, 'is_elmo_active' => true]);
 }
 
-it('returns only active and elmo-active description types for ELMO', function () {
+it('returns only ELMO-enabled independently of ERNIE description types for ELMO', function () {
     createElmoDescriptionTypes();
 
     $response = getJson('/api/v1/description-types/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
-        ->assertJsonCount(2);
+        ->assertJsonCount(3);
 
-    // Only Abstract and Methods are both is_active=true AND is_elmo_active=true
+    // ELMO also includes ERNIE-disabled TechnicalInfo.
     expect($response->json('0.name'))->toBe('Abstract');
     expect($response->json('0.slug'))->toBe('Abstract');
     expect($response->json('1.name'))->toBe('Methods');
+    expect($response->json('2.name'))->toBe('TechnicalInfo');
 });
 
 it('rejects requests without an API key when one is configured', function () {

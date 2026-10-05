@@ -10,9 +10,9 @@ uses(RefreshDatabase::class);
 covers(DateTypeController::class);
 
 beforeEach(function () {
-    DateType::factory()->create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    DateType::factory()->create(['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true]);
-    DateType::factory()->create(['name' => 'Withdrawn', 'slug' => 'Withdrawn', 'is_active' => false]);
+    DateType::factory()->create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true, 'is_elmo_active' => true]);
+    DateType::factory()->create(['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true, 'is_elmo_active' => false]);
+    DateType::factory()->create(['name' => 'Withdrawn', 'slug' => 'Withdrawn', 'is_active' => false, 'is_elmo_active' => true]);
 });
 
 describe('index', function () {
@@ -40,13 +40,15 @@ describe('index', function () {
 });
 
 describe('elmo', function () {
-    it('returns only active date types with valid API key', function () {
+    it('returns independently ELMO-active date types with valid API key', function () {
         $response = $this->getJson('/api/v1/date-types/elmo', [
             'X-API-Key' => config('services.ernie.api_key'),
         ]);
 
         $response->assertOk()
             ->assertJsonCount(2);
+
+        expect(collect($response->json())->pluck('slug')->all())->toBe(['Created', 'Withdrawn']);
     });
 
     it('rejects requests without API key', function () {

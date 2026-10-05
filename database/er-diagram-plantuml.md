@@ -24,6 +24,7 @@ entity "resource_types" as resource_types {
     description : TEXT
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -35,6 +36,7 @@ entity "title_types" as title_types {
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -45,6 +47,8 @@ entity "date_types" as date_types {
     * name : VARCHAR
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
+    * is_elmo_active : BOOLEAN = true
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -56,6 +60,7 @@ entity "description_types" as description_types {
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -68,6 +73,7 @@ entity "contributor_types" as contributor_types {
     * category : VARCHAR(20) = 'both'
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -80,6 +86,7 @@ entity "identifier_types" as identifier_types {
     description : TEXT //nullable, official DataCite 4.7 definition//
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -104,6 +111,7 @@ entity "relation_types" as relation_types {
     description : TEXT //nullable, official DataCite 4.7 definition//
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -125,6 +133,7 @@ entity "languages" as languages {
     * name : VARCHAR
     * active : BOOLEAN
     * elmo_active : BOOLEAN
+    * elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -138,6 +147,7 @@ entity "rights" as rights {
     scheme_uri : VARCHAR
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     * usage_count : INT = 0
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -966,6 +976,7 @@ entity "thesaurus_settings" as thesaurus_settings {
     * display_name : VARCHAR
     * is_active : BOOLEAN = true
     * is_elmo_active : BOOLEAN = true
+    * is_elmo_msl_active : BOOLEAN = true
     version : VARCHAR //nullable//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -976,8 +987,11 @@ entity "right_resource_type_exclusions" as right_resource_type_exclusions {
     --
     * right_id : BIGINT <<FK>>
     * resource_type_id : BIGINT <<FK>>
+    * editor : VARCHAR(16) = 'ernie'
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
+    --
+    UNIQUE(right_id, resource_type_id, editor) //unique_editor_exclusion//
 }
 
 ' ==========================================================================
@@ -991,6 +1005,7 @@ entity "pid_settings" as pid_settings {
     * display_name : VARCHAR
     * is_active : BOOLEAN = true
     * is_elmo_active : BOOLEAN = true
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }

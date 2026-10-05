@@ -4,6 +4,10 @@
         "date": "2026-10-05",
         "features": [
             {
+                "title": "ELMO-MSL API and Independent Editor Settings",
+                "description": "ERNIE API 1.1 adds 27 API-key-protected ELMO-MSL endpoints for metadata types, languages, licenses, roles, vocabularies, persistent identifiers and availability. Editor Settings now independently control ERNIE, ELMO and ELMO-MSL, including date types, MSL keywords and resource-type license exclusions. Existing ELMO settings are copied to ELMO-MSL once during migration; subsequent changes remain independent. The ERNIE editor filters new license choices by resource type while preserving saved and imported rights. The API documentation uses OpenAPI 3.2.1 and documents both API-key header and Bearer authentication."
+            },
+            {
                 "title": "Related Identifier Relation Type Correction Assistant",
                 "description": "Admins and Group Leaders can review existing DOI relation types against explicit, directed DataCite and Crossref metadata. The assistant offers conservative corrections for reversed version, part/whole, derivation and further structural roles, with before/after previews, rationale and source provenance. Single and resource batch actions reject stale previews, preserve related identifier fields, record durable acceptance and decline audits and use the existing DataCite sync and retry workflow. Linked local resources are reviewed independently. Declined cases remain suppressed until material context changes; ambiguous or unavailable evidence does not trigger a correction.",
                 "references": [
@@ -223,6 +227,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Swagger UI in Test Environments",
+                "description": "Fixed empty interactive API documentation on test servers by loading Swagger UI assets consistently in every application environment. Endpoint copy buttons now use the project's own icon instead of an unavailable Swagger component, preventing endpoint rendering failures in built assets."
+            },
             {
                 "title": "Update Assistance Counts and Filters After Relation Corrections",
                 "description": "The pending-count badge and datacenter filter update after relation correction discovery creates or removes proposals and after accepting or declining a correction, without waiting for cached summaries to expire.",

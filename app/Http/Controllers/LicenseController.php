@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\EditorContext;
+use App\Http\Requests\ResourceTypeLicensesRequest;
 use App\Models\ResourceType;
 use App\Models\Right;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +36,6 @@ class LicenseController extends Controller
     public function elmo(): JsonResponse
     {
         $rights = Right::query()
-            ->active()
             ->elmoActive()
             ->orderByName()
             ->get(['id', 'identifier', 'name', 'uri', 'scheme_uri']);
@@ -47,6 +48,27 @@ class LicenseController extends Controller
      */
     public function elmoForResourceType(string $resourceTypeSlug): JsonResponse
     {
+        return $this->forResourceType($resourceTypeSlug, EditorContext::ELMO);
+    }
+
+    public function elmoMsl(): JsonResponse
+    {
+        return response()->json(Right::query()->elmoMslActive()->orderByName()
+            ->get(['id', 'identifier', 'name', 'uri', 'scheme_uri']));
+    }
+
+    public function elmoMslForResourceType(string $resourceTypeSlug): JsonResponse
+    {
+        return $this->forResourceType($resourceTypeSlug, EditorContext::ELMO_MSL);
+    }
+
+    public function ernieForResourceType(string $resourceTypeSlug): JsonResponse
+    {
+        return $this->forResourceType($resourceTypeSlug, EditorContext::ERNIE);
+    }
+
+    private function forResourceType(string $resourceTypeSlug, EditorContext $editor): JsonResponse
+    {
         $resourceType = ResourceType::where('slug', $resourceTypeSlug)->first();
 
         if (! $resourceType) {
@@ -56,10 +78,11 @@ class LicenseController extends Controller
         }
 
         $rights = Right::query()
-            ->active()
-            ->elmoActive()
-            ->availableForResourceType($resourceType->id)
-            ->orderByName()
+            ->where($editor->activationColumn(), true)
+            ->availableForResourceType($resourceType->id, $editor)
+            ->when($editor === EditorContext::ERNIE,
+                fn ($query) => $query->orderByUsageCount(),
+                fn ($query) => $query->orderByName())
             ->get(['id', 'identifier', 'name', 'uri', 'scheme_uri']);
 
         return response()->json($rights);
@@ -68,8 +91,15 @@ class LicenseController extends Controller
     /**
      * Return all rights/licenses that are active for Ernie.
      */
-    public function ernie(): JsonResponse
+    public function ernie(ResourceTypeLicensesRequest $request): JsonResponse
     {
+        $validated = $request->validated();
+        if (isset($validated['resource_type_id'])) {
+            $resourceType = ResourceType::findOrFail((int) $validated['resource_type_id']);
+
+            return $this->forResourceType($resourceType->slug, EditorContext::ERNIE);
+        }
+
         $rights = Right::query()
             ->active()
             ->orderByUsageCount()

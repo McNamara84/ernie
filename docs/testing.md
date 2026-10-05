@@ -27,7 +27,7 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 | Pest TIA                   | Host shell via npm wrapper | `npm run test:php:tia`                      | Local-only affected-test loop; records a baseline on first use |
 | Pest deprecation details   | Host shell via npm wrapper | `npm run test:php:deprecations`             | Use this instead of forwarding `--display-*` flags through npm |
 | Pest Agent probe           | Host shell via npm wrapper | `npm run test:php:agent -- '<PHP snippet>'` | One-off verification; not a replacement for a regression test  |
-| Laravel Pint               | Host shell via npm wrapper | `npm run pint:check`                        | Matches the CI PHP style check                                  |
+| Laravel Pint               | Host shell via npm wrapper | `npm run pint:check`                        | Matches the CI PHP style check                                 |
 | PHPStan                    | Host shell via npm wrapper | `npm run phpstan:check`                     | Required before finishing PHP changes                          |
 | Pest type coverage         | Host shell via npm wrapper | `npm run test:php:type-coverage`            | Enforces the measured 92% minimum; expensive on a cold cache   |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
@@ -80,6 +80,7 @@ npm run test:php:tia
 npm run test:php:deprecations -- tests/pest/Unit/Enums/UserRoleTest.php
 npm run phpstan:check
 npm run test:php:mysql-sensitive
+npm run test:php:mysql-sensitive:editor-settings
 npm run test:php:mysql-sensitive:relation-correction
 ```
 

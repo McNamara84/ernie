@@ -19,6 +19,7 @@ describe('ResourceType model attributes', function (): void {
             'description',
             'is_active',
             'is_elmo_active',
+            'is_elmo_msl_active',
         ]);
     });
 

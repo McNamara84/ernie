@@ -46,7 +46,7 @@ describe('renderSwagger', () => {
         document.body.appendChild(el);
         container = el;
         const spec = {
-            openapi: '3.2.0',
+            openapi: '3.2.1',
             info: { title: 'Example API', summary: 'OpenAPI 3.2 test document', version: '1.0.0' },
             security: [],
         };

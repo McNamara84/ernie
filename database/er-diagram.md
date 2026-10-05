@@ -13,6 +13,7 @@ erDiagram
         text description "nullable"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -23,6 +24,7 @@ erDiagram
         varchar slug UK
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -32,6 +34,8 @@ erDiagram
         varchar name
         varchar slug UK
         boolean is_active
+        boolean is_elmo_active "default true"
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -42,6 +46,7 @@ erDiagram
         varchar slug UK
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -53,6 +58,7 @@ erDiagram
         varchar category "20, default: both"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -64,6 +70,7 @@ erDiagram
         text description "nullable, official DataCite 4.7 definition"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -86,6 +93,7 @@ erDiagram
         text description "nullable, official DataCite 4.7 definition"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -105,6 +113,7 @@ erDiagram
         varchar name
         boolean active
         boolean elmo_active
+        boolean elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -117,6 +126,7 @@ erDiagram
         varchar scheme_uri
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         int usage_count
         timestamp created_at
         timestamp updated_at
@@ -875,6 +885,7 @@ erDiagram
         varchar display_name
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         varchar version "nullable"
         timestamp created_at
         timestamp updated_at
@@ -884,9 +895,11 @@ erDiagram
         bigint id PK
         bigint right_id FK
         bigint resource_type_id FK
+        varchar editor "16, default: ernie, UK(right_id, resource_type_id, editor)"
         timestamp created_at
         timestamp updated_at
     }
+    %% unique_editor_exclusion: UNIQUE(right_id, resource_type_id, editor)
 
     landing_page_domains {
         bigint id PK
@@ -915,6 +928,7 @@ erDiagram
         varchar display_name
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }

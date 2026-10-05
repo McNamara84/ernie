@@ -36,6 +36,7 @@ import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useEditorLeaveGuard } from '@/hooks/use-editor-leave-guard';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
+import { useResourceTypeLicenses } from '@/hooks/use-resource-type-licenses';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { RorInputDraftContext, useRorInputDrafts } from '@/hooks/use-ror-input-drafts';
 import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS, isCurationAccordionItemValue } from '@/lib/curation-accordion';
@@ -399,6 +400,8 @@ export default function DataCiteForm({
             };
         });
     });
+
+    const resourceTypeLicenses = useResourceTypeLicenses(licenses, form.resourceType);
 
     const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(() => {
         const entries: LicenseEntry[] = [];
@@ -998,6 +1001,7 @@ export default function DataCiteForm({
         analytical_methods: boolean;
         euroscivoc: boolean;
         msl_laboratories: boolean;
+        msl_keywords: boolean;
         simple_lithology: boolean;
     }>({
         science_keywords: true,
@@ -1008,6 +1012,7 @@ export default function DataCiteForm({
         analytical_methods: true,
         euroscivoc: true,
         msl_laboratories: true,
+        msl_keywords: true,
         simple_lithology: false,
     });
     const [pid4instAvailability, setPid4instAvailability] = useState<'checking' | 'available' | 'unavailable'>('checking');
@@ -1066,6 +1071,7 @@ export default function DataCiteForm({
                     analytical_methods: true,
                     euroscivoc: true,
                     msl_laboratories: true,
+                    msl_keywords: true,
                     simple_lithology: false,
                 };
                 try {
@@ -1081,6 +1087,7 @@ export default function DataCiteForm({
                             analytical_methods: availabilityData.analytical_methods?.available ?? true,
                             euroscivoc: availabilityData.euroscivoc?.available ?? true,
                             msl_laboratories: availabilityData.msl_laboratories?.available ?? true,
+                            msl_keywords: availabilityData.msl_keywords?.available ?? true,
                             simple_lithology: availabilityData.simple_lithology?.available ?? false,
                         };
                         setThesauriAvailability(availability);
@@ -1336,7 +1343,7 @@ export default function DataCiteForm({
 
     // Load the controlled MSL keyword vocabulary when an MSL trigger is present.
     useEffect(() => {
-        if (hasMslTrigger && gcmdVocabularies.msl.length === 0) {
+        if (hasMslTrigger && thesauriAvailability.msl_keywords && gcmdVocabularies.msl.length === 0) {
             const loadMslVocabulary = async () => {
                 try {
                     const response = await fetch('/vocabularies/msl');
@@ -1363,7 +1370,7 @@ export default function DataCiteForm({
 
             void loadMslVocabulary();
         }
-    }, [hasMslTrigger, gcmdVocabularies.msl.length]);
+    }, [hasMslTrigger, gcmdVocabularies.msl.length, thesauriAvailability.msl_keywords]);
 
     // Automatically open MSL section when it becomes visible
     // Also notify user with toast, scroll to section, and switch to MSL tab
@@ -3921,6 +3928,16 @@ export default function DataCiteForm({
                     </AccordionTrigger>
                     <AccordionContent>
                         <div className="space-y-4">
+                            {resourceTypeLicenses.loading && (
+                                <p role="status" className="text-sm text-muted-foreground">
+                                    Loading license choices…
+                                </p>
+                            )}
+                            {resourceTypeLicenses.error && (
+                                <p role="alert" className="text-sm text-destructive">
+                                    License choices could not be loaded. Select the resource type again to retry.
+                                </p>
+                            )}
                             {licenseEntries.map((entry, index) => {
                                 const customLicensePayloadIndex =
                                     entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
@@ -3930,10 +3947,16 @@ export default function DataCiteForm({
                                         key={entry.id}
                                         id={entry.id}
                                         entry={entry}
-                                        options={licenses.map((l) => ({
-                                            value: l.identifier,
-                                            label: l.name,
-                                        }))}
+                                        options={licenses
+                                            .filter(
+                                                (license) =>
+                                                    resourceTypeLicenses.choices.some((choice) => choice.id === license.id) ||
+                                                    (entry.mode === 'catalog' && entry.license === license.identifier),
+                                            )
+                                            .map((l) => ({
+                                                value: l.identifier,
+                                                label: l.name,
+                                            }))}
                                         onModeChange={(mode) => handleLicenseModeChange(index, mode)}
                                         onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
                                         onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
@@ -4066,7 +4089,7 @@ export default function DataCiteForm({
                                 simpleLithologyVocabulary={gcmdVocabularies.simple_lithology}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
-                                showMslTab={hasMslTrigger}
+                                showMslTab={hasMslTrigger && thesauriAvailability.msl_keywords}
                                 showChronostratTab={thesauriAvailability.chronostratigraphy}
                                 showGemetTab={thesauriAvailability.gemet}
                                 showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
