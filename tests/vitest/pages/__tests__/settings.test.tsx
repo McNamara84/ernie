@@ -393,7 +393,7 @@ function isolationRows() {
 describe('independent ELMO-MSL settings controls', () => {
     it.each(editorSections)('changes a single %s MSL flag without changing the other editors', (key, title) => {
         render(<EditorSettings {...independentSettingsProps} {...{ [key]: isolationRows() }} />);
-        fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${title.replace(/[()]/g, '\\$&')}`) }));
+        fireEvent.click(screen.getByRole('button', { name: (name) => name.startsWith(title) }));
         fireEvent.click(screen.getAllByLabelText('ELMO-MSL active')[1]);
         expect(setData).toHaveBeenCalledTimes(1);
         expect(setData).toHaveBeenCalledWith(key, [
@@ -404,7 +404,7 @@ describe('independent ELMO-MSL settings controls', () => {
 
     it.each(editorSections)('selects all %s MSL flags from a mixed state in one update', (key, title) => {
         render(<EditorSettings {...independentSettingsProps} {...{ [key]: isolationRows() }} />);
-        fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${title.replace(/[()]/g, '\\$&')}`) }));
+        fireEvent.click(screen.getByRole('button', { name: (name) => name.startsWith(title) }));
         const selectAll = screen.getByLabelText(`Select all ELMO-MSL active for ${title}`);
         expect(selectAll).toHaveAttribute('data-indeterminate', 'true');
         fireEvent.click(selectAll);
