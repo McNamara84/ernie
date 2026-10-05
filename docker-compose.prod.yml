@@ -170,14 +170,33 @@ services:
       - "traefik.enable=true"
       # Canonical ERNIE router. /elmo and /elmo-msl belong to separate Docker
       # stacks; more specific legacy paths are handled by the higher-priority
-      # router below.
+      # routers below.
       - "traefik.http.routers.ernie-router.rule=Host(`dataservices.gfz.de`) && !PathRegexp(`^/(elmo|elmo-msl)(/|$$)`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.service=ernie-service"
+      # Retired search URLs, including all subpaths, lead to the corresponding
+      # ERNIE search start page. Consume the entire URL to discard old queries.
+      # Match the Host router's case, trailing-dot and port normalization.
+      - "traefik.http.routers.ernie-doi-search-redirect-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/portal(/|$$)`)"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.entrypoints=https"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.service=ernie-service"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.middlewares=ernie-doi-search-redirect"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.priority=400"
+      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/portal([/?].*)?$$"
+      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/doi-search"
+      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.permanent=true"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/igsn-new(/|$$)`)"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.entrypoints=https"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.service=ernie-service"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.middlewares=ernie-igsn-search-redirect"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.priority=400"
+      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/igsn-new([/?].*)?$$"
+      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/igsn-search"
+      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.permanent=true"
       # ERNIE serves /. Redirect only confirmed first path segments to the retired
       # TYPO3 host. The (/|$) boundary is essential: /igsn must not capture
       # /igsns, and /thesaurus must not capture /thesauri.
-      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsn-new|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|portal|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`)"
+      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`)"
       - "traefik.http.routers.dataservices-legacy-router.entrypoints=https"
       - "traefik.http.routers.dataservices-legacy-router.service=ernie-service"
       - "traefik.http.routers.dataservices-legacy-router.middlewares=dataservices-legacy-redirect"
@@ -185,8 +204,7 @@ services:
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.regex=^https://dataservices[.]gfz[.]de/(.*)"
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.replacement=https://dataservices.gfz-potsdam.de/$${1}"
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.permanent=false"
-      # Preserve bookmarks for the ERNIE portal while /portal on the canonical
-      # host remains owned by the retired website.
+      # Preserve paths and queries in bookmarks for the former ERNIE portal.
       - "traefik.http.routers.ernie-old-portal-router.rule=Host(`ernie.rz-vm499.gfz.de`) && PathRegexp(`^/portal(/|$$)`)"
       - "traefik.http.routers.ernie-old-portal-router.entrypoints=https"
       - "traefik.http.routers.ernie-old-portal-router.service=ernie-service"

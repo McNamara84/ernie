@@ -1,7 +1,7 @@
 [
     {
         "version": "1.1.0dev",
-        "date": "2026-10-04",
+        "date": "2026-10-05",
         "features": [
             {
                 "title": "Related Identifier Relation Type Correction Assistant",
@@ -157,6 +157,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Permanent Redirects for Legacy Search URLs",
+                "description": "Existing links to /portal and /igsn-new on dataservices.gfz.de now redirect permanently to the ERNIE DOI Data Portal at /doi-search and IGSN Portal at /igsn-search. Links to subpages also open the corresponding search start page, with old URL parameters discarded."
+            },
             {
                 "title": "Resource-specific Schema.org Metadata",
                 "description": "Public landing pages now describe all 34 DataCite resource types with appropriate Schema.org types and matching Signposting links. Publications, images, audio, events, projects and services no longer appear as datasets. Physical objects and other non-publication resources retain their bibliographic metadata in a linked description. Dataset and software metadata remain supported, and unknown resource types use a safe generic fallback.",
