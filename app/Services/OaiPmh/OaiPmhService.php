@@ -13,7 +13,6 @@ use App\Services\Iso19115\Iso19115XmlExporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Orchestrates all 6 OAI-PMH 2.0 verbs.
@@ -64,6 +63,7 @@ class OaiPmhService
         private readonly DublinCoreMapper $dcMapper,
         private readonly OaiPmhSetService $setService,
         private readonly OaiPmhResumptionTokenService $tokenService,
+        private readonly OaiPmhHarvestService $harvestService,
         private readonly DataCiteXmlExporter $dataCiteExporter,
         private readonly Iso19115ResourceProfileService $isoProfile,
         private readonly Iso19115XmlExporter $isoExporter,
@@ -599,27 +599,11 @@ class OaiPmhService
         bool $resuming,
         int $position,
     ): string {
-        $harvest ??= DB::transaction(function () use ($query, $deletedQuery, $pageSize): OaiPmhHarvest {
-            $deletedIds = (clone $deletedQuery)->orderBy('datestamp')->orderBy('id')->pluck('id');
-            $resourceIds = (clone $query)->pluck('resources.id');
-            $items = [
-                ...$deletedIds->map(fn ($id): array => ['kind' => 'deleted', 'id' => (int) $id])->all(),
-                ...$resourceIds->map(fn ($id): array => ['kind' => 'resource', 'id' => (int) $id])->all(),
-            ];
-            $snapshot = new OaiPmhHarvest([
-                'items' => $items,
-                'expires_at' => now()->addSeconds((int) config('oaipmh.resumption_token_ttl', 86400)),
-            ]);
-            if (count($items) > $pageSize) {
-                $snapshot->save();
-            }
-
-            return $snapshot;
-        });
-
-        $items = $harvest->items;
-        $completeListSize = count($items);
+        $harvest ??= $this->harvestService->create($query, $deletedQuery);
+        $completeListSize = $harvest->item_count;
         if ($completeListSize === 0) {
+            $harvest->delete();
+
             return $this->errorResponse('noRecordsMatch', 'No records match the given criteria', $verb, $requestAttrs);
         }
 
@@ -630,7 +614,7 @@ class OaiPmhService
 
         // Keep page boundaries fixed so a retry always includes unchanged records.
         // The snapshot position can exceed the public cursor when items disappear.
-        $page = array_slice($items, $nextPosition, $pageSize);
+        $page = $this->harvestService->page($harvest, $nextPosition, $pageSize);
         $nextPosition += count($page);
         $resourceIds = array_column(array_filter($page, fn (array $item): bool => $item['kind'] === 'resource'), 'id');
         $deletedIds = array_column(array_filter($page, fn (array $item): bool => $item['kind'] === 'deleted'), 'id');
@@ -672,6 +656,10 @@ class OaiPmhService
         }
 
         if ($emitted === 0) {
+            if (! $resuming) {
+                $harvest->delete();
+            }
+
             return $this->errorResponse(
                 $resuming ? 'badResumptionToken' : 'noRecordsMatch',
                 'This page changed during harvesting; restart the list request', $verb, $requestAttrs,
@@ -688,6 +676,9 @@ class OaiPmhService
             );
         } elseif ($resuming) {
             $builder->addResumptionToken($container, null, $completeListSize, $cursor);
+        } else {
+            // A single-page response has no token that could reuse this inventory.
+            $harvest->delete();
         }
 
         return $builder->toXml();

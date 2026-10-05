@@ -12,17 +12,17 @@ use Illuminate\Support\Carbon;
  * Metadata remains live; changed items may disappear, but never shift other pages.
  *
  * @property int $id
- * @property list<array{kind: 'resource'|'deleted', id: int}> $items
+ * @property int $item_count
  * @property Carbon $expires_at
  */
 class OaiPmhHarvest extends Model
 {
     /** @var list<string> */
-    protected $fillable = ['items', 'expires_at'];
+    protected $fillable = ['item_count', 'expires_at'];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['items' => 'array', 'expires_at' => 'datetime'];
+        return ['item_count' => 'integer', 'expires_at' => 'datetime'];
     }
 }
