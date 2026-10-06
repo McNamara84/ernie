@@ -401,6 +401,12 @@ export default function OaiPmhDocs({
                             later pages do not extend it. Reuse the latest valid token after a network failure. If an entire page has disappeared,{' '}
                             <code>badResumptionToken</code> requests a restart.
                         </p>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            Changing or removing a resource's DOI invalidates every token for harvests containing that resource. These tokens return{' '}
+                            <code>badResumptionToken</code>; restart with the original list parameters. For published resources, the previous OAI
+                            identifier remains available as a deleted header, including its previous sets, and a replacement DOI is harvested as a new
+                            identity.
+                        </p>
                     </CardContent>
                 </Card>
 

@@ -232,6 +232,11 @@
         ],
         "fixes": [
             {
+                "title": "Stable OAI-PMH Identities During DOI Changes",
+                "description": "Changing or removing a resource DOI invalidates all tokens for snapshots containing that resource, so harvesters restart instead of receiving a different identifier on retry. Previous published identifiers remain available as deleted headers with their original metadata sets. Unrelated harvests remain usable, and failed resource transactions restore tokens and deletion records.",
+                "references": [{ "type": "pull_request", "number": 1398, "url": "https://github.com/McNamara84/ernie/pull/1398" }]
+            },
+            {
                 "title": "Swagger UI in Test Environments",
                 "description": "Fixed empty interactive API documentation on test servers by loading Swagger UI assets consistently in every application environment. Endpoint copy buttons now use the project's own icon instead of an unavailable Swagger component, preventing endpoint rendering failures in built assets."
             },

@@ -13,8 +13,10 @@ use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\OaiPmh\OaiPmhResumptionTokenService;
 use App\Services\ResourceStorageService;
 use App\Services\Subjects\SubjectDuplicateCleanupService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -86,8 +88,9 @@ test('project harvesting returns the published union once in every format', func
     createEposMslResource(['EPOS'], published: false);
     $controlled = createEposMslResource([]);
     Subject::factory()->msl()->create(['resource_id' => $controlled->id, 'value' => 'EPOS']);
-    $withoutId = createEposMslResource();
-    $withoutId->update(['doi' => null]);
+    $withoutId = Resource::factory()->create(['doi' => null]);
+    LandingPage::factory()->published()->create(['resource_id' => $withoutId->id]);
+    Subject::factory()->create(['resource_id' => $withoutId->id, 'value' => 'EPOS']);
     $withoutPage = createEposMslResource();
     $withoutPage->landingPage->delete();
 
@@ -289,6 +292,150 @@ test('the docs controller exposes the central project definition', function () {
     $this->get('/oai-pmh/docs')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('oai-pmh/docs')->where('projectSet.spec', 'epos-msl')->where('projectSet.name', 'EPOS-MSL Project')
         ->where('projectSet.description', fn (string $description): bool => str_contains($description, 'EPOS or MSL')));
+});
+
+test('DOI changes invalidate every token for affected identity snapshots', function (string $verb, string $format, int $changedPosition) {
+    config(['oaipmh.page_size' => 1]);
+    $resources = collect(range(1, 4))->map(fn () => createEposMslResource());
+    $request = '/oai-pmh?verb='.$verb.'&metadataPrefix='.$format.'&set=epos-msl';
+    $first = simplexml_load_string($this->get($request)->assertOk()->getContent());
+    $firstToken = (string) $first->{$verb}->resumptionToken;
+    $second = simplexml_load_string($this->get('/oai-pmh?verb='.$verb.'&resumptionToken='.$firstToken)->assertOk()->getContent());
+    $secondToken = (string) $second->{$verb}->resumptionToken;
+    $concurrent = simplexml_load_string($this->get($request)->assertOk()->getContent());
+    $concurrentToken = (string) $concurrent->{$verb}->resumptionToken;
+    $tokens = [$firstToken, $secondToken, $concurrentToken];
+    $harvestIds = OaiPmhResumptionToken::whereIn('token', $tokens)->pluck('harvest_id')->unique()->all();
+    $resource = $resources[$changedPosition];
+    $oldIdentifier = eposMslId($resource);
+    $this->travel(1)->hours();
+    $resource->update(['doi' => '10.5880/epos.changed']);
+
+    expect(OaiPmhHarvest::whereIn('id', $harvestIds)->where('expires_at', '>', now())->exists())->toBeFalse();
+    foreach ($tokens as $token) {
+        $response = $this->get('/oai-pmh?verb='.$verb.'&resumptionToken='.$token)->assertOk()->getContent();
+        expect((string) simplexml_load_string($response)->error['code'])->toBe('badResumptionToken')
+            ->and(eposMslIdentifiers($response))->toBe([]);
+    }
+    expect(OaiPmhResumptionToken::whereIn('token', $tokens)->exists())->toBeFalse();
+    app(OaiPmhResumptionTokenService::class)->purgeExpired();
+    expect(OaiPmhHarvest::whereIn('id', $harvestIds)->exists())->toBeFalse()
+        ->and(DB::table('oai_pmh_harvest_items')->whereIn('harvest_id', $harvestIds)->exists())->toBeFalse();
+
+    config(['oaipmh.page_size' => 100]);
+    $restart = $this->get($request.'&from=2026-10-05T09:00:00Z')->assertOk()->getContent();
+    expect(eposMslIdentifiers($restart))->toBe([$oldIdentifier, eposMslId($resource)])
+        ->and((string) eposMslHeaders($restart)[0]['status'])->toBe('deleted')
+        ->and((string) eposMslHeaders($restart)[1]['status'])->toBe('');
+    $oldRecord = $this->get('/oai-pmh?verb=GetRecord&metadataPrefix='.$format.'&identifier='.urlencode($oldIdentifier))->assertOk()->getContent();
+    expect((string) eposMslHeaders($oldRecord)[0]['status'])->toBe('deleted');
+})->with(['ListRecords', 'ListIdentifiers'])->with(['oai_dc', 'oai_datacite', 'iso19115_3'])->with([0, 1, 2]);
+
+test('DOI changes preserve unrelated snapshots while metadata edits and no-op DOI saves preserve tokens', function () {
+    config(['oaipmh.page_size' => 1]);
+    $resource = createEposMslResource();
+    createEposMslResource();
+    createEposMslResource(['geology'], type: 'software');
+    $software = createEposMslResource(['geology'], type: 'software');
+    $xml = simplexml_load_string($this->get('/oai-pmh?verb=ListIdentifiers&metadataPrefix=oai_dc&set=resourcetype:software')->getContent());
+    $unrelatedToken = (string) $xml->ListIdentifiers->resumptionToken;
+    $xml = simplexml_load_string($this->get('/oai-pmh?verb=ListIdentifiers&metadataPrefix=oai_dc&set=epos-msl')->getContent());
+    $token = (string) $xml->ListIdentifiers->resumptionToken;
+    $this->travel(1)->hours();
+    $resource->update(['doi' => $resource->doi, 'version' => '2']);
+    expect(OaiPmhResumptionToken::where('token', $token)->exists())->toBeTrue()
+        ->and(OaiPmhDeletedRecord::count())->toBe(0);
+    $this->get('/oai-pmh?verb=ListIdentifiers&resumptionToken='.$token)->assertOk()->assertDontSee('badResumptionToken');
+    $resource->update(['doi' => '10.5880/epos.changed']);
+    $response = $this->get('/oai-pmh?verb=ListIdentifiers&resumptionToken='.$unrelatedToken)->assertOk()->getContent();
+    expect(eposMslIdentifiers($response))->toBe([eposMslId($software)]);
+});
+
+test('rolling back a DOI change restores its snapshot tokens and previous identity', function () {
+    config(['oaipmh.page_size' => 1]);
+    createEposMslResource();
+    $resource = createEposMslResource();
+    $oldIdentifier = eposMslId($resource);
+    $xml = simplexml_load_string($this->get('/oai-pmh?verb=ListIdentifiers&metadataPrefix=oai_dc&set=epos-msl')->getContent());
+    $token = (string) $xml->ListIdentifiers->resumptionToken;
+    $this->travel(1)->hours();
+    DB::beginTransaction();
+    try {
+        $resource->update(['doi' => '10.5880/epos.rolled-back']);
+        expect(app(OaiPmhResumptionTokenService::class)->resolve($token))->toBeNull()
+            ->and(OaiPmhDeletedRecord::where('oai_identifier', $oldIdentifier)->exists())->toBeTrue();
+    } finally {
+        DB::rollBack();
+    }
+    $response = $this->get('/oai-pmh?verb=ListIdentifiers&resumptionToken='.$token)->assertOk()->getContent();
+    expect(eposMslIdentifiers($response))->toBe([$oldIdentifier])
+        ->and(OaiPmhDeletedRecord::count())->toBe(0);
+});
+
+test('a DOI change during an in-flight snapshot page cannot substitute its identifier', function (string $verb) {
+    config(['oaipmh.page_size' => 1]);
+    createEposMslResource();
+    $resource = createEposMslResource();
+    $xml = simplexml_load_string($this->get('/oai-pmh?verb='.$verb.'&metadataPrefix=oai_dc&set=epos-msl')->getContent());
+    $token = (string) $xml->{$verb}->resumptionToken;
+    $changed = false;
+    DB::listen(function (QueryExecuted $query) use ($resource, &$changed): void {
+        if (! $changed && str_starts_with(strtolower($query->sql), 'select') && str_contains($query->sql, 'oai_pmh_harvest_items')) {
+            $changed = true;
+            $resource->update(['doi' => '10.5880/epos.concurrent-change']);
+        }
+    });
+    $response = $this->get('/oai-pmh?verb='.$verb.'&resumptionToken='.$token)->assertOk()->getContent();
+    expect($changed)->toBeTrue()
+        ->and((string) simplexml_load_string($response)->error['code'])->toBe('badResumptionToken')
+        ->and(eposMslIdentifiers($response))->toBe([]);
+})->with(['ListRecords', 'ListIdentifiers']);
+
+test('removing a published DOI preserves fresh keywords and the previous metadata sets', function () {
+    $resource = createEposMslResource([]);
+    $resource->load('subjects');
+    Subject::factory()->create(['resource_id' => $resource->id, 'value' => 'EPOS']);
+    $oldIdentifier = eposMslId($resource);
+    $software = ResourceType::firstOrCreate(['slug' => 'software'], ['name' => 'Software', 'is_active' => true]);
+    $this->travel(1)->hours();
+    $resource->update(['doi' => null, 'publication_year' => 2027, 'resource_type_id' => $software->id]);
+    $deleted = OaiPmhDeletedRecord::where('oai_identifier', $oldIdentifier)->first();
+    expect($deleted)->not->toBeNull()
+        ->and($deleted->sets)->toEqualCanonicalizing(['resourcetype:dataset', 'year:2026', 'epos-msl'])
+        ->and($deleted->datestamp->toIso8601ZuluString())->toBe('2026-10-05T09:00:00Z');
+    $response = $this->get('/oai-pmh?verb=ListIdentifiers&metadataPrefix=oai_dc&set=year:2026&from=2026-10-05T09:00:00Z')->assertOk()->getContent();
+    expect(eposMslIdentifiers($response))->toBe([$oldIdentifier])
+        ->and((string) eposMslHeaders($response)[0]['status'])->toBe('deleted');
+});
+
+test('changing back to a published DOI removes its tombstone and retains the replaced identity', function () {
+    $resource = createEposMslResource();
+    $oldDoi = $resource->doi;
+    $oldIdentifier = eposMslId($resource);
+    $resource->update(['doi' => '10.5880/epos.corrected']);
+    $replacedIdentifier = eposMslId($resource);
+    $resource->update(['doi' => $oldDoi]);
+    expect(OaiPmhDeletedRecord::where('oai_identifier', $oldIdentifier)->exists())->toBeFalse()
+        ->and(OaiPmhDeletedRecord::where('oai_identifier', $replacedIdentifier)->exists())->toBeTrue();
+    $response = $this->get('/oai-pmh?verb=GetRecord&metadataPrefix=oai_dc&identifier='.urlencode($oldIdentifier))->assertOk()->getContent();
+    expect(eposMslIdentifiers($response))->toBe([$oldIdentifier])
+        ->and((string) eposMslHeaders($response)[0]['status'])->toBe('');
+});
+
+test('DOI changes on unpublished resources do not reveal draft identities', function () {
+    $resource = createEposMslResource(published: false);
+    $resource->update(['doi' => '10.5880/epos.draft-corrected']);
+    expect(OaiPmhDeletedRecord::count())->toBe(0);
+});
+
+test('assigning the first DOI to a published resource does not retire an unknown identity', function () {
+    $resource = Resource::factory()->create(['doi' => null]);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+    $resource->update(['doi' => '10.5880/epos.first']);
+    expect(OaiPmhDeletedRecord::count())->toBe(0);
+    $response = $this->get('/oai-pmh?verb=GetRecord&metadataPrefix=oai_dc&identifier='.urlencode(eposMslId($resource)))->assertOk()->getContent();
+    expect(eposMslIdentifiers($response))->toBe([eposMslId($resource)])
+        ->and((string) eposMslHeaders($response)[0]['status'])->toBe('');
 });
 
 test('snapshot pages preserve unchanged items on retries after other items change', function () {

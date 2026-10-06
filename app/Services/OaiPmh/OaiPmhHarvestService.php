@@ -46,6 +46,21 @@ final class OaiPmhHarvestService
         });
     }
 
+    /**
+     * A DOI change replaces the public identity, so every token sharing an
+     * inventory containing this resource must require a fresh list request.
+     */
+    public function invalidateResource(int $resourceId): void
+    {
+        OaiPmhHarvest::query()->whereIn('id', DB::table('oai_pmh_harvest_items')
+            ->select('harvest_id')
+            ->where('kind', 'resource')
+            ->where('identity_id', $resourceId))
+            // Expire rather than delete: an in-flight request can still safely
+            // reference the inventory until the normal purge removes it.
+            ->update(['expires_at' => now()]);
+    }
+
     /** @return list<array{kind: 'resource'|'deleted', id: int}> */
     public function page(OaiPmhHarvest $harvest, int $position, int $pageSize): array
     {

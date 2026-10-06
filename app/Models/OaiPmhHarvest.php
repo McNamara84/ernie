@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 /**
  * An ordered identity snapshot shared by all tokens for a paginated harvest.
  * Metadata remains live; changed items may disappear, but never shift other pages.
+ * DOI changes invalidate inventories containing the resource and their tokens.
  *
  * @property int $id
  * @property int $item_count

@@ -624,6 +624,15 @@ class OaiPmhService
             ? ['landingPage', 'resourceType', 'subjects']
             : ['landingPage', 'subjects', ...$this->getRelationsForMetadata($metadataPrefix)]);
 
+        // A DOI edit can retire the inventory after resolving the token or
+        // reading its positions. Check again after loading live resource data.
+        if (! OaiPmhHarvest::whereKey($harvest->id)->where('expires_at', '>', now())->exists()) {
+            return $this->errorResponse(
+                $resuming ? 'badResumptionToken' : 'noRecordsMatch',
+                'Resource identities changed during harvesting; restart the list request', $verb, $requestAttrs,
+            );
+        }
+
         foreach ($page as $item) {
             if ($item['kind'] === 'deleted') {
                 $deleted = $deletedRecords->get($item['id']);

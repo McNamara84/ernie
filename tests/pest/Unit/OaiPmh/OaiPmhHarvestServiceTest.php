@@ -7,6 +7,7 @@ use App\Models\OaiPmhDeletedRecord;
 use App\Models\OaiPmhHarvest;
 use App\Models\Resource;
 use App\Services\OaiPmh\OaiPmhHarvestService;
+use App\Services\OaiPmh\OaiPmhResumptionTokenService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -86,6 +87,26 @@ it('reads only the indexed position range from a large snapshot', function () {
         $plan = DB::select('EXPLAIN QUERY PLAN '.$sql, [$harvest->id, 2450, 2457])[0];
         expect($plan->detail)->toContain('SEARCH', 'harvest_id=?', 'position>?', 'position<?');
     }
+});
+
+it('distinguishes resource identities from deleted identities when invalidating shared inventories', function () {
+    $affected = OaiPmhHarvest::create(['item_count' => 1, 'expires_at' => now()->addDay()]);
+    $concurrent = OaiPmhHarvest::create(['item_count' => 1, 'expires_at' => now()->addDay()]);
+    $unrelated = OaiPmhHarvest::create(['item_count' => 2, 'expires_at' => now()->addDay()]);
+    DB::table('oai_pmh_harvest_items')->insert([
+        ['harvest_id' => $affected->id, 'position' => 0, 'kind' => 'resource', 'identity_id' => 123],
+        ['harvest_id' => $concurrent->id, 'position' => 0, 'kind' => 'resource', 'identity_id' => 123],
+        ['harvest_id' => $unrelated->id, 'position' => 0, 'kind' => 'deleted', 'identity_id' => 123],
+        ['harvest_id' => $unrelated->id, 'position' => 1, 'kind' => 'resource', 'identity_id' => 456],
+    ]);
+    app(OaiPmhHarvestService::class)->invalidateResource(123);
+    expect(OaiPmhHarvest::where('expires_at', '>', now())->pluck('id')->all())->toBe([$unrelated->id]);
+    app(OaiPmhResumptionTokenService::class)->purgeExpired();
+    expect(OaiPmhHarvest::pluck('id')->all())->toBe([$unrelated->id])
+        ->and(app(OaiPmhHarvestService::class)->page($unrelated, 0, 2))->toBe([
+            ['kind' => 'deleted', 'id' => 123], ['kind' => 'resource', 'id' => 456],
+        ])
+        ->and(DB::table('oai_pmh_harvest_items')->count())->toBe(2);
 });
 
 it('cleans up snapshot rows for empty and single-page responses', function () {
