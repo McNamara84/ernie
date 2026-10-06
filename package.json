@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "packageManager": "npm@12.2.0",
+  "volta": {
+    "node": "26.10.0",
+    "npm": "12.2.0"
+  },
   "engines": {
     "node": ">=26.10.0",
     "npm": ">=12.2.0"
@@ -58,7 +62,7 @@
     "types:watch": "npm run types:watch:app",
     "types:watch:app": "tsc -p tsconfig.json --noEmit --checkers 4 --watch",
     "types:watch:test": "tsc -p tests/vitest/tsconfig.json --noEmit --checkers 4 --watch",
-    "shadcn": "npx shadcn@4.21.2",
+    "shadcn": "npx shadcn@4.21.3",
     "test": "node ./scripts/run-vitest.mjs",
     "test:run": "node ./scripts/run-vitest.mjs run",
     "test:coverage": "node ./scripts/run-vitest.mjs run --coverage",
