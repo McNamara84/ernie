@@ -197,7 +197,7 @@ commit.
 
 ## Manual retry
 
-Open any one of the five successful deployment-blocking workflow runs for the
+Open any one of the six successful deployment-blocking workflow runs for the
 current `main` commit and choose **Re-run all jobs**. Its successful completion
 triggers the default-branch `Publish Stage Images` workflow again. Do not add a
 manual trigger to the privileged publishing workflow or dispatch it against a
@@ -238,7 +238,7 @@ selected for the stack.
 
 ### The deploy branch does not move
 
-Inspect the five deployment-blocking validation workflows and `Publish Stage
+Inspect the six deployment-blocking validation workflows and `Publish Stage
 Images`. Any missing, running, or failed validation for the exact commit
 prevents publication. A superseded run intentionally skips promotion when a
 newer `main` commit exists.
