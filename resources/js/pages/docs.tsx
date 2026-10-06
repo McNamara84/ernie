@@ -3065,7 +3065,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 Once a resource has both a DOI and a public landing page, only Admins can change or remove that DOI. Changing it can
-                                break existing citations, bookmarks, and public links.
+                                break existing citations, bookmarks, and public links. Changing or removing a published DOI also invalidates affected
+                                OAI-PMH harvest tokens and retains the previous OAI identifier as deleted.
                             </li>
                         </ul>
 

@@ -42,6 +42,7 @@ class OaiPmhDocsController extends Controller
 
         return Inertia::render('oai-pmh/docs', [
             'baseUrl' => config('oaipmh.base_url'),
+            'projectSet' => $setService->projectSetDefinition(),
             'adminEmail' => config('oaipmh.admin_email'),
             'metadataFormats' => $metadataFormats,
             'isoEligibleResourceTypeSlugs' => $isoProfile->isEnabled() ? $isoProfile->eligibleResourceTypeSlugs() : [],
