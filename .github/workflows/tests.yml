@@ -62,7 +62,7 @@ jobs:
 
       - name: Setup npm
         if: ${{ matrix.slice != 'architecture' }}
-        run: npm install --global npm@12.1.0
+        run: npm install --global npm@12.2.0
 
       - name: Install Node dependencies
         if: ${{ matrix.slice != 'architecture' }}

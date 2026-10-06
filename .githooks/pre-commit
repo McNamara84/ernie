@@ -3,6 +3,31 @@ set -eu
 
 cd "$(git rev-parse --show-toplevel)"
 
+# Flatpak Git clients cannot use the host's Docker CLI from their sandbox.
+# Re-enter this hook on the host and preserve Git's repository/index context.
+if test -f /.flatpak-info; then
+    if ! command -v flatpak-spawn >/dev/null 2>&1; then
+        printf '%s\n' '[pre-commit] This Flatpak Git client needs flatpak-spawn with host execution access to run the repository checks.' >&2
+        exit 1
+    fi
+
+    ernie_git_env_names=$(git rev-parse --local-env-vars)
+    ernie_config_index=0
+    while [ "$ernie_config_index" -lt "${GIT_CONFIG_COUNT:-0}" ]; do
+        ernie_git_env_names="$ernie_git_env_names GIT_CONFIG_KEY_$ernie_config_index GIT_CONFIG_VALUE_$ernie_config_index"
+        ernie_config_index=$((ernie_config_index + 1))
+    done
+
+    set -- flatpak-spawn --host "--directory=$PWD"
+    for ernie_git_env in $ernie_git_env_names; do
+        if ernie_git_value=$(printenv "$ernie_git_env"); then
+            set -- "$@" "--env=$ernie_git_env=$ernie_git_value"
+        fi
+    done
+
+    exec "$@" /bin/sh "$PWD/.githooks/pre-commit"
+fi
+
 # GitHub Desktop's Windows shell has no bash. npm's shell launcher can otherwise
 # resolve Windows' bash.exe (WSL), so use the native npm launcher on Windows.
 case "$(uname -s)" in

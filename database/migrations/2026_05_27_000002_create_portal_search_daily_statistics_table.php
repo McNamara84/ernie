@@ -170,20 +170,20 @@ return new class extends Migration
 
         return collect(Schema::getIndexes($table))
             ->contains(function (array $index) use ($expectedColumns, $unique): bool {
-                $indexColumns = array_values($index['columns'] ?? []);
+                $indexColumns = $index['columns'];
 
                 if ($indexColumns !== $expectedColumns) {
                     return false;
                 }
 
-                return ! $unique || (bool) ($index['unique'] ?? false);
+                return ! $unique || $index['unique'];
             });
     }
 
     private function hasPrimaryIndex(string $table): bool
     {
         return collect(Schema::getIndexes($table))
-            ->contains(fn (array $index): bool => (bool) ($index['primary'] ?? false));
+            ->contains(fn (array $index): bool => $index['primary']);
     }
 
     private function tableHasRows(string $table): bool

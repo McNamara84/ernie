@@ -16,7 +16,7 @@ class RelatedIdentifierTypeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $types = IdentifierType::with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
+        $types = IdentifierType::with(['patterns' => fn ($q) => $q->where('is_active', true)->orderByDesc('priority')])
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
 
@@ -30,7 +30,7 @@ class RelatedIdentifierTypeController extends Controller
     {
         $types = IdentifierType::query()
             ->elmoActive()
-            ->with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
+            ->with(['patterns' => fn ($q) => $q->where('is_active', true)->orderByDesc('priority')])
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
 
@@ -42,7 +42,7 @@ class RelatedIdentifierTypeController extends Controller
     {
         $types = IdentifierType::query()
             ->elmoMslActive()
-            ->with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
+            ->with(['patterns' => fn ($q) => $q->where('is_active', true)->orderByDesc('priority')])
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
 
@@ -56,7 +56,7 @@ class RelatedIdentifierTypeController extends Controller
     {
         $types = IdentifierType::query()
             ->active()
-            ->with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
+            ->with(['patterns' => fn ($q) => $q->where('is_active', true)->orderByDesc('priority')])
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
 
