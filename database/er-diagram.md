@@ -1327,6 +1327,22 @@ erDiagram
         timestamp updated_at
     }
 
+    oai_pmh_harvests {
+        bigint id PK
+        bigint_unsigned item_count
+        timestamp expires_at "indexed"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    oai_pmh_harvest_items {
+        bigint harvest_id PK, FK "cascade on delete"
+        bigint_unsigned position PK "zero-based ordered position"
+        varchar kind "resource or deleted"
+        bigint_unsigned identity_id "no FK; retained after resource deletion"
+    }
+    %% oai_pmh_harvest_items composite primary key (harvest_id, position) supports indexed page ranges.
+
     oai_pmh_resumption_tokens {
         bigint id PK
         varchar token UK "64 chars"
@@ -1337,6 +1353,8 @@ erDiagram
         timestamp until_date "nullable"
         bigint_unsigned cursor
         bigint_unsigned complete_list_size
+        bigint harvest_id FK "nullable; cascade on delete"
+        int_unsigned harvest_position "nullable; next snapshot position"
         timestamp expires_at
         timestamp created_at
         timestamp updated_at
@@ -1537,6 +1555,10 @@ erDiagram
     igsn_methods }o--|| resources : "for sample"
     igsn_measurements }o--|| resources : "for sample"
     igsn_metadata_values }o--|| resources : "for sample"
+
+    %% OAI-PMH snapshot relationships
+    oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
+    oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 
     %% Suggested/Dismissed relations (Assistance feature)
     suggested_relations }o--|| resources : "for resource"

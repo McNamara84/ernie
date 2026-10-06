@@ -28,6 +28,7 @@ use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
@@ -1342,8 +1343,9 @@ class ResourceStorageService
     private function storeSubjects(Resource $resource, array $data, bool $isUpdate): void
     {
         // Save subjects (free keywords and controlled keywords combined)
+        $deletedSubjects = 0;
         if ($isUpdate) {
-            $resource->subjects()->delete();
+            $deletedSubjects = $resource->subjects()->delete();
         }
 
         $freeKeywords = $data['freeKeywords'] ?? [];
@@ -1425,6 +1427,12 @@ class ResourceStorageService
         if (! empty($controlledKeywordsData)) {
             $resource->subjects()->createMany($controlledKeywordsData);
         }
+
+        // Query deletes bypass Subject events, including removal of the last keyword.
+        if ($deletedSubjects > 0) {
+            app(OaiPmhDatestampService::class)->touchResource((int) $resource->id);
+        }
+        $resource->refresh();
     }
 
     /**

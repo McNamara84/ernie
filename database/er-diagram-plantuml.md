@@ -1432,6 +1432,25 @@ entity oai_pmh_deleted_records {
     updated_at : TIMESTAMP
 }
 
+entity oai_pmh_harvests {
+    * id : BIGINT <<PK>>
+    --
+    * item_count : BIGINT UNSIGNED
+    * expires_at : TIMESTAMP <<INDEX>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity oai_pmh_harvest_items {
+    * harvest_id : BIGINT <<PK>> <<FK>>
+    * position : BIGINT UNSIGNED <<PK>>
+    --
+    * kind : VARCHAR(8)
+    * identity_id : BIGINT UNSIGNED
+}
+' Composite primary key (harvest_id, position) supports indexed page ranges.
+' Positions are zero-based; identity_id has no FK so resource deletion preserves the inventory.
+
 entity oai_pmh_resumption_tokens {
     * id : BIGINT <<PK>>
     --
@@ -1443,6 +1462,8 @@ entity oai_pmh_resumption_tokens {
     until_date : TIMESTAMP
     * cursor : BIGINT UNSIGNED
     * complete_list_size : BIGINT UNSIGNED
+    harvest_id : BIGINT <<FK>> <<nullable>>
+    harvest_position : INT UNSIGNED <<nullable>>
     * expires_at : TIMESTAMP
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -1639,6 +1660,10 @@ igsn_operators }o--|| resources
 igsn_methods }o--|| resources
 igsn_measurements }o--|| resources
 igsn_metadata_values }o--|| resources
+
+' OAI-PMH snapshot relationships
+oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
+oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 
 ' Suggested/Dismissed relations (Assistance feature)
 suggested_relations }o--|| resources

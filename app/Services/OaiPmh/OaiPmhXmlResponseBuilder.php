@@ -144,7 +144,7 @@ class OaiPmhXmlResponseBuilder
     /**
      * Add ListSets content.
      *
-     * @param  array<int, array{spec: string, name: string}>  $sets
+     * @param  array<int, array{spec: string, name: string, description?: string}>  $sets
      */
     public function addListSetsContent(array $sets): self
     {
@@ -157,6 +157,14 @@ class OaiPmhXmlResponseBuilder
 
             $this->appendTextElement($setEl, 'setSpec', $set['spec']);
             $this->appendTextElement($setEl, 'setName', $set['name']);
+
+            if (isset($set['description'])) {
+                $description = $this->dom->createElementNS(self::OAI_NAMESPACE, 'setDescription');
+                $setEl->appendChild($description);
+                $dc = $this->dom->createElementNS('http://www.openarchives.org/OAI/2.0/oai_dc/', 'oai_dc:dc');
+                $description->appendChild($dc);
+                $this->appendTextElement($dc, 'dc:description', $set['description'], 'http://purl.org/dc/elements/1.1/');
+            }
         }
 
         return $this;

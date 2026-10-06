@@ -95,7 +95,7 @@ class LandingPageObserver
 
         if (! $landingPage->is_published) {
             // Depublished → track as deleted in OAI-PMH (concurrency-safe)
-            $resource->loadMissing('resourceType');
+            $resource->load(['resourceType', 'subjects']);
             $sets = $this->oaiPmhSetService->getSetsForResource($resource);
 
             OaiPmhDeletedRecord::updateOrCreate(

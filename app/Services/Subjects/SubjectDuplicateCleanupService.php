@@ -11,6 +11,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Subject;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\PortalKeywordCacheInvalidationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -240,6 +241,7 @@ final class SubjectDuplicateCleanupService
                 ->delete();
 
             Subject::query()->whereIn('id', $duplicateIds)->delete();
+            app(OaiPmhDatestampService::class)->touchResource($resourceId);
         }
 
         return [

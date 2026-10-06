@@ -12,6 +12,7 @@ use App\Models\Resource;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
 use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\OaiPmh\OaiPmhHarvestService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
@@ -73,6 +74,10 @@ class ResourceObserver
      */
     public function updated(Resource $resource): void
     {
+        if ($resource->wasChanged('doi')) {
+            $this->trackOaiPmhIdentityChange($resource);
+        }
+
         $this->cacheService->invalidateResourceCache($resource->id);
         $this->schedulePortalUpdateInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
@@ -195,6 +200,8 @@ class ResourceObserver
      */
     public function deleting(Resource $resource): void
     {
+        // Refresh before the cascade; the deleted event must use this snapshot.
+        $resource->load('subjects');
         $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment', 'resourceType']);
 
         if ($resource->igsnMetadata !== null) {
@@ -249,6 +256,30 @@ class ResourceObserver
         $this->assistanceCacheInvalidationService->scheduleAfterCommit();
         $this->schedulePortalRemovalInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
+    }
+
+    /**
+     * Retire the previous published identity and invalidate its harvests.
+     * Keep these writes in the resource save transaction so a rollback also
+     * restores tokens and deletion records.
+     */
+    private function trackOaiPmhIdentityChange(Resource $resource): void
+    {
+        DB::transaction(function () use ($resource): void {
+            app(OaiPmhHarvestService::class)->invalidateResource($resource->id);
+
+            // Use the previous type and year, and refresh subjects rather than
+            // relying on relations cached before the DOI edit.
+            $previous = clone $resource;
+            $previous->setRawAttributes($resource->getRawOriginal());
+            $previous->load(['landingPage', 'resourceType', 'subjects']);
+            $this->trackOaiPmhDeletion($previous);
+
+            if ($previous->landingPage?->is_published && $resource->doi !== null && $resource->doi !== '') {
+                // Reusing a previously retired DOI makes that identity live again.
+                OaiPmhDeletedRecord::where('oai_identifier', config('oaipmh.identifier_prefix').':'.$resource->doi)->delete();
+            }
+        });
     }
 
     /**

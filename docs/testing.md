@@ -31,6 +31,7 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 | PHPStan                    | Host shell via npm wrapper | `npm run phpstan:check`                     | Required before finishing PHP changes                          |
 | Pest type coverage         | Host shell via npm wrapper | `npm run test:php:type-coverage`            | Enforces the measured 92% minimum; expensive on a cold cache   |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
+| MySQL-sensitive OAI-PMH | Host shell via npm wrapper | `npm run test:php:mysql-sensitive:oai-pmh` | Snapshot migration, indexed page ranges, and EPOS-MSL matching/harvesting on MySQL 9.7 |
 | Vitest one-shot            | Host shell                 | `npm run test:run`                          | Preferred for focused frontend validation                      |
 | Vitest coverage            | Host shell                 | `npm run test:coverage`                     | Use only when coverage detail is needed                        |
 | Vitest performance doctor  | Host shell                 | `npm run test:doctor`                       | Runs the suite repeatedly; use for measured tuning only        |
