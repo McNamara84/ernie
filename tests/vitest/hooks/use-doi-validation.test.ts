@@ -42,6 +42,7 @@ describe('useDoiValidation', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+        vi.restoreAllMocks();
         vi.useRealTimers();
         csrfMeta?.remove();
         csrfMeta = null;
@@ -75,9 +76,7 @@ describe('useDoiValidation', () => {
         it('sends DOI and excludeResourceId to the backend', async () => {
             const captured = mockDoiEndpoint({ is_valid_format: true, exists: false });
 
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ excludeResourceId: 123, debounceMs: 0 }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ excludeResourceId: 123, debounceMs: 0 }));
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
@@ -98,9 +97,7 @@ describe('useDoiValidation', () => {
             mockDoiEndpoint({ is_valid_format: true, exists: false });
 
             const onSuccess = vi.fn();
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0, onSuccess }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0, onSuccess }));
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
@@ -123,9 +120,7 @@ describe('useDoiValidation', () => {
             });
 
             const onError = vi.fn();
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0, onError }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0, onError }));
 
             await act(async () => {
                 result.current.validateDoi('invalid-doi');
@@ -149,9 +144,7 @@ describe('useDoiValidation', () => {
             });
 
             const onConflict = vi.fn();
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0, onConflict }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0, onConflict }));
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
@@ -251,9 +244,7 @@ describe('useDoiValidation', () => {
             server.use(http.post(apiEndpoints.doiValidate, () => HttpResponse.error()));
 
             const onError = vi.fn();
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0, onError }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0, onError }));
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
@@ -268,16 +259,10 @@ describe('useDoiValidation', () => {
         });
 
         it('uses backend error message on ApiError', async () => {
-            server.use(
-                http.post(apiEndpoints.doiValidate, () =>
-                    HttpResponse.json({ message: 'Rate limit exceeded' }, { status: 429 }),
-                ),
-            );
+            server.use(http.post(apiEndpoints.doiValidate, () => HttpResponse.json({ message: 'Rate limit exceeded' }, { status: 429 })));
 
             const onError = vi.fn();
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0, onError }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0, onError }));
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
@@ -421,9 +406,7 @@ describe('useDoiValidation', () => {
         it('passes excludeResourceId to the backend', async () => {
             const captured = mockDoiEndpoint({ is_valid_format: true, exists: false });
 
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ excludeResourceId: 42 }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ excludeResourceId: 42 }));
 
             await act(async () => {
                 await result.current.checkDoiBeforeSave('10.5880/test.2026.001');
@@ -598,17 +581,12 @@ describe('useDoiValidation', () => {
         it('surfaces the backend error field on HTTP 422 with invalid format body', async () => {
             server.use(
                 http.post(apiEndpoints.doiValidate, () =>
-                    HttpResponse.json(
-                        { is_valid_format: false, exists: false, error: 'DOI prefix is not allowed' },
-                        { status: 422 },
-                    ),
+                    HttpResponse.json({ is_valid_format: false, exists: false, error: 'DOI prefix is not allowed' }, { status: 422 }),
                 ),
             );
 
             const onError = vi.fn();
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0, onError }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0, onError }));
 
             await act(async () => {
                 result.current.validateDoi('10.9999/forbidden');
@@ -623,18 +601,9 @@ describe('useDoiValidation', () => {
         });
 
         it('falls back to default invalidFormat when 422 body omits error field', async () => {
-            server.use(
-                http.post(apiEndpoints.doiValidate, () =>
-                    HttpResponse.json(
-                        { is_valid_format: false, exists: false },
-                        { status: 422 },
-                    ),
-                ),
-            );
+            server.use(http.post(apiEndpoints.doiValidate, () => HttpResponse.json({ is_valid_format: false, exists: false }, { status: 422 })));
 
-            const { result } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0 }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0 }));
 
             await act(async () => {
                 result.current.validateDoi('10.9999/forbidden');
@@ -659,9 +628,7 @@ describe('useDoiValidation', () => {
                 }),
             );
 
-            const { result, unmount } = renderHookWithQueryClient(() =>
-                useDoiValidation({ debounceMs: 0 }),
-            );
+            const { result, unmount } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0 }));
 
             await act(async () => {
                 result.current.validateDoi('10.5880/unmount');
@@ -670,11 +637,16 @@ describe('useDoiValidation', () => {
                 await vi.advanceTimersByTimeAsync(10);
             });
 
+            await waitFor(() => expect(pendingResolvers).toHaveLength(1));
+
             unmount();
 
             // Release the pending request so MSW can tidy up; should not cause
             // state updates on the unmounted hook.
-            pendingResolvers.forEach((resolve) => resolve());
+            await act(async () => {
+                pendingResolvers.forEach((resolve) => resolve());
+                await vi.advanceTimersByTimeAsync(0);
+            });
 
             // Nothing to assert on state (hook is gone); the fact that the test
             // terminates without MSW complaining about an unclosed request is
@@ -709,9 +681,10 @@ describe('useDoiValidation', () => {
 
         it('keeps isValidating=true while the save-check runs even after a stale validateDoi resolves', async () => {
             // First: a slow validateDoi POST that has not yet resolved when
-            // checkDoiBeforeSave overtakes it. Second: the synchronous save
-            // check, which resolves quickly.
+            // checkDoiBeforeSave overtakes it. Hold the second request until
+            // the assertions finish, then release both response promises.
             let resolveFirst: (() => void) | null = null;
+            let resolveSave: (() => void) | undefined;
             let call = 0;
             server.use(
                 http.post(apiEndpoints.doiValidate, async () => {
@@ -722,10 +695,10 @@ describe('useDoiValidation', () => {
                         });
                         return HttpResponse.json({ is_valid_format: true, exists: false });
                     }
-                    // Block the second request indefinitely so we can observe
+                    // Hold the second request so we can observe
                     // `isValidating` while the save-check is still in flight.
-                    await new Promise(() => {
-                        /* never resolves */
+                    await new Promise<void>((resolve) => {
+                        resolveSave = resolve;
                     });
                     return HttpResponse.json({ is_valid_format: true, exists: false });
                 }),
@@ -743,7 +716,7 @@ describe('useDoiValidation', () => {
             await waitFor(() => expect(call).toBe(1));
 
             // Start the save-check. It will move `activeQueryKeyRef` to its own key
-            // and set `isValidating=true`. It then awaits a never-resolving fetch.
+            // and set `isValidating=true` while its response is held.
             let savePromise: Promise<unknown> | null = null;
             await act(async () => {
                 savePromise = result.current.checkDoiBeforeSave('10.5880/race-save');
@@ -751,6 +724,7 @@ describe('useDoiValidation', () => {
             });
 
             expect(result.current.isValidating).toBe(true);
+            await waitFor(() => expect(call).toBe(2));
 
             // Now release the stale validateDoi request. Its `finally` must NOT
             // flip `isValidating` to false because the save-check is the active run.
@@ -761,51 +735,53 @@ describe('useDoiValidation', () => {
 
             expect(result.current.isValidating).toBe(true);
 
-            // Cleanup: silence the dangling save promise.
-            void savePromise;
+            await act(async () => {
+                resolveSave?.();
+                await savePromise;
+            });
         });
 
         it('aborts the in-flight fetch when cancelQueries is invoked (e.g. on unmount)', async () => {
-            let receivedSignal: AbortSignal | null = null;
-            let aborted = false;
-            server.use(
-                http.post(apiEndpoints.doiValidate, async ({ request }) => {
-                    receivedSignal = request.signal;
-                    request.signal.addEventListener('abort', () => {
-                        aborted = true;
-                    });
-                    // Never resolve — caller must abort.
-                    await new Promise(() => {});
-                    return HttpResponse.json({ is_valid_format: true, exists: false });
+            // Hold the fetch itself so this cancellation test cannot race
+            // MSW's socket interception against a real connection failure.
+            const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) =>
+                new Promise<Response>((_resolve, reject) => {
+                    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
                 }),
             );
 
             const queryClient = createTestQueryClient();
-            const { result, unmount } = renderHook(
-                () => useDoiValidation({ debounceMs: 0 }),
-                {
-                    wrapper: ({ children }: { children: ReactNode }) =>
-                        createElement(QueryClientProvider, { client: queryClient }, children),
-                },
-            );
+            const { result, unmount } = renderHook(() => useDoiValidation({ debounceMs: 0 }), {
+                wrapper: ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children),
+            });
 
             let savePromise: Promise<unknown> | null = null;
             await act(async () => {
-                savePromise = result.current.checkDoiBeforeSave('10.5880/unmount');
+                savePromise = result.current.checkDoiBeforeSave('10.5880/cancel-queries');
                 await Promise.resolve();
             });
 
-            await waitFor(() => expect(receivedSignal).not.toBeNull());
-            expect(aborted).toBe(false);
+            await waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+            // Observe the signal actually passed to the in-flight fetch.
+            const receivedSignal = fetchSpy.mock.calls.find(([, init]) => init?.body === JSON.stringify({ doi: '10.5880/cancel-queries' }))?.[1]?.signal;
+            expect(receivedSignal).toBeDefined();
+            expect(receivedSignal?.aborted).toBe(false);
+
+            const onAbort = vi.fn();
+            receivedSignal?.addEventListener('abort', onAbort, { once: true });
 
             // Simulate the unmount path: cancel all queries, then unmount.
             await act(async () => {
                 await queryClient.cancelQueries();
-                unmount();
             });
 
-            expect(aborted).toBe(true);
-            void savePromise;
+            expect(onAbort).toHaveBeenCalledOnce();
+            expect(receivedSignal?.aborted).toBe(true);
+
+            await act(async () => {
+                unmount();
+                await savePromise;
+            });
         });
     });
 });

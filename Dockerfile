@@ -1,6 +1,6 @@
-FROM mysql:8.4.11@sha256:0744ee5ef89ce6ccfa13de3e579fe6b9e27f93dd70da9c06d2c908b1b193fb8d AS legacy-mysql-dump-client
+FROM mysql:8.4.11@sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242 AS legacy-mysql-dump-client
 
-FROM php:8.5.11-fpm-trixie@sha256:584e584083bada479f0ee733a3025722a68e366eb721e618d1b6a252e4ff45c5 AS app-base
+FROM php:8.5.11-fpm-trixie@sha256:b7bb221e9cbd162bcc5a281c820f270372b8982d7c146383ea283fb93f9ab883 AS app-base
 
 WORKDIR /var/www/html
 
@@ -53,7 +53,7 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.10.3@sha256:9715c7f69044da2a212a5fbde29ee7da24e364d426560ae6367b060236f847d7 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
@@ -71,7 +71,7 @@ RUN update-ca-certificates
 
 FROM app-base AS app-build
 
-ARG NPM_VERSION=12.1.0
+ARG NPM_VERSION=12.2.0
 ARG NODE_CHECKSUM_ARM64=7a6353f63eb3d04765004b4adf172616243e4522434635cb1d26288658b04ab5
 ARG NODE_CHECKSUM_X64=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
 

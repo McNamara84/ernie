@@ -9,7 +9,7 @@ immutable, release-approved images.
 ## Deployment flow
 
 1. A normal pull request is merged into `main`.
-2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
+2. The Security, Pest, MySQL, Vitest, lint/PHPStan, and Playwright workflows validate
    the `main` commit.
 3. `Publish Stage Images` builds and scans the application, Nginx, and F-UJI images,
    pins their exact digests in `deploy/stage`, and Stage deploys them.
@@ -93,7 +93,7 @@ Automatic Production promotion requires all of the following:
   `deploy/prod` head, including when that deployed release was later deleted
   from GitHub;
 - the tag resolves to a commit contained in `main`;
-- all five deployment-blocking push workflows succeeded for that exact
+- all six deployment-blocking push workflows succeeded for that exact
   commit;
 - `deploy/stage` contains a deployment commit for that exact source SHA;
 - all three Stage-pinned image manifests (application, Nginx, and F-UJI) still
@@ -138,7 +138,7 @@ connection from GitHub to the Production Portainer server is required.
 ### 2. Merge and stage the intended release commit
 
 Merge the implementation through the normal pull-request process. Keep
-Production polling paused. Wait until all five validation workflows and
+Production polling paused. Wait until all six validation workflows and
 `Publish Stage Images` have succeeded for the exact commit that will receive
 the release tag. Confirm that Stage is healthy with that deployment.
 
@@ -286,7 +286,7 @@ creating a Git tag or saving a draft release is not sufficient.
 
 Open the `validate` job summary. Confirm that the signal came from a release,
 the release is GitHub's current latest stable `vMAJOR.MINOR.PATCH` release, and
-all five push workflows succeeded for the tagged commit on `main`.
+all six push workflows succeeded for the tagged commit on `main`.
 
 ### No Stage deployment commit exists for the release source
 

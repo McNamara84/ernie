@@ -12,6 +12,7 @@ it('publishes Stage images only after every deployment workflow passed for the s
     $requiredWorkflows = [
         'Security Checks',
         'Pest PHP Unit Tests',
+        'MySQL Compatibility Tests',
         'Vitest TS integration Tests',
         'Linter Tests',
         'Playwright UI Tests',
@@ -47,6 +48,7 @@ it('publishes Stage images only after every deployment workflow passed for the s
         ->toBeString()
         ->toContain("['security.yml', 'Security Checks']")
         ->toContain("['tests.yml', 'Pest PHP Unit Tests']")
+        ->toContain("['mysql.yml', 'MySQL Compatibility Tests']")
         ->toContain("['vitest.yml', 'Vitest TS integration Tests']")
         ->toContain("['lint.yml', 'Linter Tests']")
         ->toContain("['playwright.yml', 'Playwright UI Tests']")
@@ -187,7 +189,7 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->toBeString()
         ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do')
         ->toContain('@sha256:[0-9a-f]{64}$')
-        ->toContain('aquasec/trivy:0.74.0@sha256:')
+        ->toContain('aquasec/trivy:0.75.0@sha256:')
         ->toContain('-v "${{ runner.temp }}/trivy-cache:/root/.cache/trivy"')
         ->toContain('--cache-dir /root/.cache/trivy')
         ->toContain('--exit-code 1')

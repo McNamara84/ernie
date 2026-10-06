@@ -18,6 +18,16 @@ Canonical entry points:
 
 Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile. The Docker entrypoints install npm packages only inside Docker-managed volumes and do not satisfy host-side frontend commands.
 
+The npm overrides keep indirect dependencies safe while upstream packages still
+request older versions. Solid.js uses Seroval and Seroval Plugins 1.6.8 or newer
+to fix [GHSA-p6vx-979v-rg4c](https://github.com/advisories/GHSA-p6vx-979v-rg4c)
+and [GHSA-jp82-f5mq-hwhp](https://github.com/advisories/GHSA-jp82-f5mq-hwhp).
+Swagger UI's Remarkable dependency uses Argparse 2.0.1, which removes the vulnerable
+sprintf-js dependency ([GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c))
+and preserves Remarkable's CLI API. Argparse 3 removes that compatibility API.
+The Swagger and query devtools runtime tests verify these overrides; recheck and
+remove them when the upstream dependency ranges include safe versions.
+
 ## Recommended Commands
 
 | Check                      | Where to run it            | Command                                     | Notes                                                          |
@@ -31,6 +41,7 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 | PHPStan                    | Host shell via npm wrapper | `npm run phpstan:check`                     | Required before finishing PHP changes                          |
 | Pest type coverage         | Host shell via npm wrapper | `npm run test:php:type-coverage`            | Enforces the measured 92% minimum; expensive on a cold cache   |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
+| MySQL-sensitive OAI-PMH | Host shell via npm wrapper | `npm run test:php:mysql-sensitive:oai-pmh` | Snapshot migration, indexed page ranges, and EPOS-MSL matching/harvesting on MySQL 9.7 |
 | Vitest one-shot            | Host shell                 | `npm run test:run`                          | Preferred for focused frontend validation                      |
 | Vitest coverage            | Host shell                 | `npm run test:coverage`                     | Use only when coverage detail is needed                        |
 | Vitest performance doctor  | Host shell                 | `npm run test:doctor`                       | Runs the suite repeatedly; use for measured tuning only        |
@@ -52,6 +63,14 @@ The default PHP suite is intentionally optimized for speed.
 - `tests/pest/CreatesApplication.php` forces `APP_ENV=testing`.
 - The same bootstrap defaults `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:`.
 - Setting `ERNIE_TEST_DB_CONNECTION` switches the dedicated MySQL-sensitive slice to its isolated Docker test schema instead.
+
+GitHub Actions also runs the complete MySQL-sensitive slice through
+`npm run test:php:mysql-sensitive` in the `MySQL Compatibility Tests` workflow.
+It builds `Dockerfile.dev` and uses the same digest-pinned MySQL 9.7 service from
+`docker-compose.dev.yml` as local development. Each test slice resets only the
+isolated `ernie_test` schema. Its fresh CI data volume uses tmpfs to avoid disk
+flush latency during repeated schema migrations. The general Pest and Playwright
+CI suites retain SQLite for fast feedback.
 
 Whenever a test opts into MySQL, the repository wrapper starts the pinned
 MySQL 9.7 service and waits for a healthcheck that also verifies the `9.7.x`
@@ -89,6 +108,10 @@ npm run test:php:mysql-sensitive:relation-correction
 `npm run test:php` is the only supported entry point for the routine complete
 PHP suite. The wrapper always applies a 2 GB PHP memory limit, including to
 ParaTest workers, and reports the duration of every phase plus the total.
+
+Pest 5.3.0 currently excludes PHPUnit versions newer than 13.3.6. ParaTest 7.26.0
+requires PHPUnit 13.4, so the lockfile keeps PHPUnit 13.3.6 and ParaTest 7.25.0
+until Pest supports that newer PHPUnit release line.
 
 On Docker Desktop, the checked-out source is a Windows/macOS bind mount. Pest
 and Laravel load hundreds of PHP files in every worker, so running directly
