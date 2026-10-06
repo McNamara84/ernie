@@ -1,6 +1,6 @@
 FROM mysql:8.4.11@sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242 AS legacy-mysql-dump-client
 
-FROM php:8.5.11-fpm-trixie@sha256:584e584083bada479f0ee733a3025722a68e366eb721e618d1b6a252e4ff45c5 AS app-base
+FROM php:8.5.11-fpm-trixie@sha256:b7bb221e9cbd162bcc5a281c820f270372b8982d7c146383ea283fb93f9ab883 AS app-base
 
 WORKDIR /var/www/html
 

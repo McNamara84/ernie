@@ -109,7 +109,7 @@
     "oxlint": "^1.87.0",
     "playwright": "^1.63.0",
     "start-server-and-test": "^3.0.12",
-    "vite": "^8.3.2",
+    "vite": "^8.3.3",
     "vitest": "^5.0.3"
   },
   "dependencies": {
@@ -144,7 +144,7 @@
     "nprogress": "^0.2.0",
     "papaparse": "^5.7.0",
     "qrcode.react": "^4.2.0",
-    "radix-ui": "^1.6.7",
+    "radix-ui": "^1.7.0",
     "react": "^19.3.0",
     "react-day-picker": "^10.0.2",
     "react-dom": "^19.3.0",
@@ -164,6 +164,13 @@
   "optionalDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "^4.3.3",
     "lightningcss-linux-x64-gnu": "^1.33.0"
+  },
+  "overrides": {
+    "seroval": "^1.6.8",
+    "seroval-plugins": "^1.6.8",
+    "remarkable": {
+      "argparse": "^2.0.1"
+    }
   },
   "allowScripts": {
     "core-js-pure@3.50.0": true,

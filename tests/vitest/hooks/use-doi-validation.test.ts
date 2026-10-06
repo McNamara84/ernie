@@ -637,11 +637,16 @@ describe('useDoiValidation', () => {
                 await vi.advanceTimersByTimeAsync(10);
             });
 
+            await waitFor(() => expect(pendingResolvers).toHaveLength(1));
+
             unmount();
 
             // Release the pending request so MSW can tidy up; should not cause
             // state updates on the unmounted hook.
-            pendingResolvers.forEach((resolve) => resolve());
+            await act(async () => {
+                pendingResolvers.forEach((resolve) => resolve());
+                await vi.advanceTimersByTimeAsync(0);
+            });
 
             // Nothing to assert on state (hook is gone); the fact that the test
             // terminates without MSW complaining about an unclosed request is
@@ -737,16 +742,11 @@ describe('useDoiValidation', () => {
         });
 
         it('aborts the in-flight fetch when cancelQueries is invoked (e.g. on unmount)', async () => {
-            const fetchSpy = vi.spyOn(globalThis, 'fetch');
-            let requestStarted = false;
-            let resolveResponse: (() => void) | undefined;
-            server.use(
-                http.post(apiEndpoints.doiValidate, async () => {
-                    requestStarted = true;
-                    await new Promise<void>((resolve) => {
-                        resolveResponse = resolve;
-                    });
-                    return HttpResponse.json({ is_valid_format: true, exists: false });
+            // Hold the fetch itself so this cancellation test cannot race
+            // MSW's socket interception against a real connection failure.
+            const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) =>
+                new Promise<Response>((_resolve, reject) => {
+                    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
                 }),
             );
 
@@ -757,27 +757,29 @@ describe('useDoiValidation', () => {
 
             let savePromise: Promise<unknown> | null = null;
             await act(async () => {
-                savePromise = result.current.checkDoiBeforeSave('10.5880/unmount');
+                savePromise = result.current.checkDoiBeforeSave('10.5880/cancel-queries');
                 await Promise.resolve();
             });
 
-            await waitFor(() => expect(requestStarted).toBe(true));
-            // Observe the signal passed to fetch. MSW's server-side request is
-            // a separate representation and need not share its abort signal.
-            const receivedSignal = fetchSpy.mock.calls.find(([, init]) => init?.body === JSON.stringify({ doi: '10.5880/unmount' }))?.[1]?.signal;
+            await waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+            // Observe the signal actually passed to the in-flight fetch.
+            const receivedSignal = fetchSpy.mock.calls.find(([, init]) => init?.body === JSON.stringify({ doi: '10.5880/cancel-queries' }))?.[1]?.signal;
             expect(receivedSignal).toBeDefined();
             expect(receivedSignal?.aborted).toBe(false);
+
+            const onAbort = vi.fn();
+            receivedSignal?.addEventListener('abort', onAbort, { once: true });
 
             // Simulate the unmount path: cancel all queries, then unmount.
             await act(async () => {
                 await queryClient.cancelQueries();
             });
 
+            expect(onAbort).toHaveBeenCalledOnce();
             expect(receivedSignal?.aborted).toBe(true);
 
             await act(async () => {
                 unmount();
-                resolveResponse?.();
                 await savePromise;
             });
         });

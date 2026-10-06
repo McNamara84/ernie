@@ -2,7 +2,7 @@
 # Recheck upstream pyproject.toml and `pip check` when changing these pins.
 charset-normalizer==3.5.2
 cryptography==50.0.2
-filelock==4.0.11
+filelock==4.0.12
 MarkupSafe==3.0.4
 platformdirs==4.12.3
 PyJWT==2.15.1

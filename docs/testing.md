@@ -18,6 +18,16 @@ Canonical entry points:
 
 Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile. The Docker entrypoints install npm packages only inside Docker-managed volumes and do not satisfy host-side frontend commands.
 
+The npm overrides keep indirect dependencies safe while upstream packages still
+request older versions. Solid.js uses Seroval and Seroval Plugins 1.6.8 or newer
+to fix [GHSA-p6vx-979v-rg4c](https://github.com/advisories/GHSA-p6vx-979v-rg4c)
+and [GHSA-jp82-f5mq-hwhp](https://github.com/advisories/GHSA-jp82-f5mq-hwhp).
+Swagger UI's Remarkable dependency uses Argparse 2.0.1, which removes the vulnerable
+sprintf-js dependency ([GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c))
+and preserves Remarkable's CLI API. Argparse 3 removes that compatibility API.
+The Swagger and query devtools runtime tests verify these overrides; recheck and
+remove them when the upstream dependency ranges include safe versions.
+
 ## Recommended Commands
 
 | Check                      | Where to run it            | Command                                     | Notes                                                          |
