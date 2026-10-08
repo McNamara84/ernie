@@ -136,7 +136,19 @@ describe('Services', function () {
             'App\Services\DatabaseDumps\DatabaseServerInfoProvider',
             'App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner',
             'App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider',
+            // Test-only namespace functions are not service classes. The guard
+            // below ensures these names cannot hide production declarations.
+            'App\Services\sleep',
+            'App\Services\usleep',
         ]);
+
+    it('keeps native delay adapters exclusively in the test harness', function (): void {
+        foreach (['App\\Services\\sleep', 'App\\Services\\usleep'] as $name) {
+            expect(class_exists($name) || interface_exists($name) || trait_exists($name))->toBeFalse();
+            $filename = (new ReflectionFunction($name))->getFileName();
+            expect($filename)->toBe(realpath(base_path('tests/pest/Helpers/NativeServiceDelays.php')));
+        }
+    });
 
     arch('services are not extending controllers')
         ->expect('App\Services')

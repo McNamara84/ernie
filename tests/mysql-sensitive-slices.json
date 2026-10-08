@@ -1,0 +1,45 @@
+{
+  "complete": [
+    "editor-settings", "dump-downloads", "statistics", "sizes-unit", "related-items-edition",
+    "igsn-user-code", "funder-name", "medusa-import", "size-precision", "rights-raw-fields",
+    "suggested-relation-title", "projection-sort", "projection-spdx", "projection-party",
+    "igsn-facets", "assessment", "tombstone-schema", "igsn-layout", "assistance",
+    "subject-hierarchy", "relation-correction", "description-language", "temporal-coverage",
+    "oai-schema", "oai-services"
+  ],
+  "aliases": {
+    "oai-pmh": ["oai-schema", "oai-services"]
+  },
+  "slices": {
+    "editor-settings": ["tests/pest/Feature/Database/EditorSettingsMigrationTest.php"],
+    "dump-downloads": ["tests/pest/Feature/Database/DatabaseDumpDownloadsMigrationTest.php"],
+    "statistics": ["tests/pest/Feature/Database/CreateStatisticsTablesMigrationTest.php"],
+    "sizes-unit": ["tests/pest/Feature/Database/WidenSizesUnitMigrationTest.php"],
+    "related-items-edition": ["tests/pest/Feature/Database/WidenRelatedItemsEditionMigrationTest.php"],
+    "igsn-user-code": ["tests/pest/Feature/Database/WidenIgsnMetadataUserCodeMigrationTest.php"],
+    "funder-name": ["tests/pest/Feature/Database/WidenFundingReferencesFunderNameMigrationTest.php"],
+    "medusa-import": ["tests/pest/Feature/IgsnImport/MedusaLegacyImportRegressionTest.php"],
+    "size-precision": ["tests/pest/Feature/Database/AlterSizesNumericValuePrecisionMigrationTest.php"],
+    "rights-raw-fields": ["tests/pest/Feature/Database/RepairResourceRightsRawFieldsSchemaMigrationTest.php"],
+    "suggested-relation-title": ["tests/pest/Feature/Database/WidenSuggestedRelationsSourceTitleMigrationTest.php"],
+    "projection-sort": ["tests/pest/Feature/Database/ResourceListingProjectionSortIndexesTest.php"],
+    "projection-spdx": ["tests/pest/Feature/Database/ResourceListingProjectionSpdxLicenseMigrationTest.php"],
+    "projection-party": ["tests/pest/Feature/Database/ResourceListingProjectionPartySearchMigrationTest.php"],
+    "igsn-facets": ["tests/pest/Feature/Database/IgsnPortalFacetIndexesTest.php"],
+    "assessment": ["tests/pest/Feature/Database/AssessmentRunSchemaTest.php"],
+    "tombstone-schema": ["tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php"],
+    "tombstones": ["tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php", "tests/pest/Feature/LandingPages/ResourceTombstoneTest.php"],
+    "igsn-layout": ["tests/pest/Feature/LandingPages/LandingPageTemplateIgsnLayoutMigrationTest.php"],
+    "assistance": ["tests/pest/Feature/Performance/AssistanceQueryPerformanceTest.php"],
+    "subject-hierarchy": ["tests/pest/Feature/Services/SubjectHierarchy/SubjectHierarchyCorrectionTest.php"],
+    "relation-correction": ["tests/pest/Feature/Services/RelationTypeCorrection"],
+    "description-language": ["tests/pest/Feature/Database/WidenDescriptionLanguageMigrationTest.php"],
+    "temporal-coverage": ["tests/pest/Feature/Database/PreserveTemporalCoverageSemanticsMigrationTest.php"],
+    "oai-schema": ["tests/pest/Feature/Database/OaiPmhHarvestSchemaTest.php"],
+    "oai-services": [
+      "tests/pest/Unit/OaiPmh/OaiPmhSetServiceTest.php",
+      "tests/pest/Unit/OaiPmh/OaiPmhHarvestServiceTest.php",
+      "tests/pest/Feature/OaiPmh/OaiPmhEposMslSetTest.php"
+    ]
+  }
+}

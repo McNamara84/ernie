@@ -35,31 +35,28 @@ jobs:
         run: |
           cp .env.docker.example .env.docker
           cp .env.docker.example .env
-          docker volume create \
-            --driver local --opt type=tmpfs --opt device=tmpfs --opt o=size=2g \
-            --label com.docker.compose.project=ernie-mysql-ci \
-            --label com.docker.compose.volume=ernie-db-data-mysql-9-7 \
-            ernie-mysql-ci_ernie-db-data-mysql-9-7
 
       - name: Build development application image
         run: docker compose --env-file .env.docker -f docker-compose.dev.yml build app
 
-      - name: Start backend services
-        run: npm run docker:dev:backend:d
-
-      - name: Verify MySQL server series
-        run: |
-          version=$(docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T db mysql -uroot -prootsecret --batch --skip-column-names -e 'SELECT VERSION()')
-          echo "MySQL server: $version"
-          [[ "$version" == 9.7.* ]]
-
       - name: Run MySQL-sensitive tests
         run: npm run test:php:mysql-sensitive
+        env:
+          ERNIE_TEST_TIMINGS_FILE: ${{ runner.temp }}/ernie-mysql-timings.json
+
+      - name: Upload MySQL timings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mysql-timings
+          path: ${{ runner.temp }}/ernie-mysql-timings.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Show backend logs on failure
         if: failure()
-        run: docker compose --env-file .env.docker -f docker-compose.dev.yml logs --no-color app db
+        run: docker compose --env-file .env.docker -f docker-compose.dev.yml --profile test logs --no-color app db db-test
 
       - name: Stop backend services
         if: always()
-        run: docker compose --env-file .env.docker -f docker-compose.dev.yml down --volumes --remove-orphans
+        run: docker compose --env-file .env.docker -f docker-compose.dev.yml --profile test down --volumes --remove-orphans

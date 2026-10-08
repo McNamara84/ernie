@@ -366,6 +366,8 @@ it('keeps base URL ports when resolving relative directory file links', function
         'https://datapub.gfz.de:8443/download/dataset/' => Http::response(<<<'HTML'
             <a href="data.csv">data.csv</a> 2026-06-14 10:00 1M
             HTML),
+        // Preserve the unavailable-file scenario without a real connection timeout.
+        'https://datapub.gfz.de:8443/download/dataset/data.csv' => Http::failedConnection(),
     ]);
 
     $service = app(SizeFormatFileProbeService::class);

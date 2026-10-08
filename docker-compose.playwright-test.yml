@@ -1,0 +1,21 @@
+# Applied temporarily by the dev-stack browser wrapper; restored after the run.
+# Browser submissions exercise real controllers with the existing fake
+# DataCite service and synchronous log mail; no test mail remains queued.
+services:
+  webserver:
+    volumes:
+      - ./storage/framework/testing/playwright-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  app:
+    tmpfs:
+      - /tmp/ernie-playwright-views:size=64m,uid=1000,gid=1000,mode=0775
+    environment:
+      MAIL_MAILER: log
+      LANDING_PAGE_CONTACT_CC_EMAIL: data-publication-team@example.test
+      QUEUE_CONNECTION: sync
+      VIEW_COMPILED_PATH: /tmp/ernie-playwright-views
+      INERTIA_DEVTOOLS_ENABLED: "false"
+      DATACITE_TEST_MODE: "true"
+      DATACITE_TEST_USERNAME: ""
+      DATACITE_TEST_PASSWORD: ""
+      DATACITE_USERNAME: ""
+      DATACITE_PASSWORD: ""

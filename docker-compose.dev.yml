@@ -215,7 +215,7 @@ services:
 
   # MySQL Database
   db:
-    image: mysql:9.7.2@sha256:e2bde46db6563855d7177adb5f0b57b9dc663f5a20927a90f4259d3312068497
+    image: &mysql-server mysql:9.7.2@sha256:e2bde46db6563855d7177adb5f0b57b9dc663f5a20927a90f4259d3312068497
     container_name: ernie-db-dev
     restart: unless-stopped
     environment:
@@ -237,6 +237,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+
+  # Optional, disposable test server. The image always matches development;
+  # DDL-heavy tests avoid durable-volume fsync without touching development data.
+  db-test:
+    image: *mysql-server
+    profiles: [test]
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootsecret
+      MYSQL_DATABASE: ernie_test
+      MYSQL_USER: ernie
+      MYSQL_PASSWORD: secret
+    tmpfs:
+      - /var/lib/mysql:size=2g
+    networks:
+      - ernie-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -prootsecret --silent && mysql -h localhost -u root -prootsecret -Nse 'SELECT VERSION()' | grep -Eq '^9\\.7\\.'"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
       start_period: 30s
 
   # Redis for caching and sessions
