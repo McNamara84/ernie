@@ -24,6 +24,11 @@ services:
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
+      # Preview each public page before enabling it in production.
+      - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
+      - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-true}
+      - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-true}
+      - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=app
       - ERNIE_RUN_MIGRATIONS=1
       - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}
