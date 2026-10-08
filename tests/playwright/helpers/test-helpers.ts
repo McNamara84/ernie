@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 import { LoginPage } from './page-objects/LoginPage';
@@ -54,22 +54,7 @@ export async function waitForAccordionState(
   accordionButton: Locator,
   expanded: boolean,
 ) {
-  const expectedState = String(expanded);
-  await accordionButton.waitFor({ state: 'visible' });
-  
-  // Wait for aria-expanded attribute to match expected state
-  await accordionButton.evaluate((el: HTMLElement, state: string) => {
-    return new Promise<void>((resolve) => {
-      const checkState = () => {
-        if (el.getAttribute('aria-expanded') === state) {
-          resolve();
-        } else {
-          setTimeout(checkState, 100);
-        }
-      };
-      checkState();
-    });
-  }, expectedState);
+  await expect(accordionButton).toHaveAttribute('aria-expanded', String(expanded));
 }
 
 /**

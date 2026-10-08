@@ -107,6 +107,7 @@ it('splits CI tests into isolated coverage and architecture slices', function ()
 
 it('keeps local backend validation parallel, Linux-native, and on the two gigabyte memory floor', function (): void {
     $runner = file_get_contents(base_path('scripts/run-pest.mjs'));
+    $mysqlRunner = file_get_contents(base_path('scripts/run-mysql-tests.mjs'));
     $workspacePreparation = file_get_contents(base_path('scripts/prepare-pest-workspace.sh'));
     $testBootstrap = file_get_contents(base_path('tests/pest/CreatesApplication.php'));
     $package = json_decode(file_get_contents(base_path('package.json')), true, flags: JSON_THROW_ON_ERROR);
@@ -115,7 +116,8 @@ it('keeps local backend validation parallel, Linux-native, and on the two gigaby
         ->toBeString()
         ->toContain("const phpMemoryLimit = '2G';")
         ->toContain("const pestWorkspace = '/var/www/pest-workspace';")
-        ->toContain('Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)))')
+        // The shared resolver's bounds and overrides have executable Node tests.
+        ->toContain('resolveTestWorkers(process.env.ERNIE_PEST_PROCESSES)')
         ->toContain("'--parallel'")
         ->toContain("'--no-progress'")
         ->toContain("'--exclude-group=serial'")
@@ -134,7 +136,8 @@ it('keeps local backend validation parallel, Linux-native, and on the two gigaby
         ->toContain('--memory-limit=2G')
         ->and($package['scripts']['test:php:mysql-sensitive:exec'] ?? null)
         ->toBeString()
-        ->toContain('php -d memory_limit=2G');
+        ->toContain('run-mysql-tests.mjs --exec')
+        ->and($mysqlRunner)->toContain("'memory_limit=2G'");
 });
 
 it('pins local MySQL-backed development and tests to the 9.7 server series', function (): void {
@@ -153,4 +156,11 @@ it('pins local MySQL-backed development and tests to the 9.7 server series', fun
         ->and($database['healthcheck']['test'] ?? null)
         ->toBeArray()
         ->toContain("mysqladmin ping -h localhost -u root -prootsecret --silent && mysql -h localhost -u root -prootsecret -Nse 'SELECT VERSION()' | grep -Eq '^9\\.7\\.'");
+
+    $testDatabase = $compose['services']['db-test'];
+    expect($testDatabase['image'])->toBe($database['image'])
+        ->and($testDatabase['profiles'])->toContain('test')
+        ->and($testDatabase['tmpfs'])->toContain('/var/lib/mysql:size=2g')
+        ->and($testDatabase)->not->toHaveKey('volumes')
+        ->and($testDatabase)->not->toHaveKey('ports');
 });

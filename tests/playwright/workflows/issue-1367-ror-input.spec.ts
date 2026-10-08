@@ -93,7 +93,8 @@ for (const section of ['author', 'contributor'] as const) {
 }
 
 test('funding: confirms an exact ROR, saves custom name and round trips the identifier', async ({ page }) => {
-    await page.getByTestId('main-title-input').fill(`ROR entry regression ${Date.now()}`);
+    const title = `ROR entry regression ${Date.now()}`;
+    await page.getByTestId('main-title-input').fill(title);
     await expand(page, 'Funding References');
     await page.getByRole('button', { name: 'Add Funding Reference', exact: true }).click();
     const input = page.getByLabel('Funder Name', { exact: false });
@@ -117,6 +118,9 @@ test('funding: confirms an exact ROR, saves custom name and round trips the iden
     });
     const saved = (await response.json()) as { resource: { id: number } };
     await page.goto(`/editor?resourceId=${saved.resource.id}`);
+    // Resource navigation finishes before the editor's option requests. Use
+    // the same readiness budget as initial loading and verify persisted data.
+    await expect(page.getByTestId('main-title-input')).toHaveValue(title, { timeout: 60_000 });
     await expand(page, 'Funding References');
     await expect(page.getByLabel('Funder Name', { exact: false })).toHaveValue('My Funding Institute');
     await expect(page.getByTestId('funding-reference-card')).toContainText(rorId);

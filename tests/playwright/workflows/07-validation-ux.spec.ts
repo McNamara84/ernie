@@ -1,7 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
+import { test } from '../fixtures/authenticated';
 import { DataCiteFormPage } from '../helpers/page-objects/DataCiteFormPage';
-import { loginAsTestUser } from '../helpers/test-helpers';
 
 /**
  * E2E Tests for DataCite Form Validation UX
@@ -12,21 +12,14 @@ import { loginAsTestUser } from '../helpers/test-helpers';
  * - Save button tooltip (missing required fields)
  * - Auto-scroll to first invalid section
  * - Form submission flow with validation
- *
- * Note: Skipped on Webkit in CI due to excessive waitForTimeout calls
- * that cause CI timeouts. Validation logic is tested on Chromium and Firefox.
+ * Session setup is shared per worker; every scenario keeps its own context.
+ * Observable validation, dropdown, and accordion states replace fixed pauses.
  */
-
-// Skip on Webkit in CI - 20+ waitForTimeout calls cause 5+ min runs
-test.skip(({ browserName }) => browserName === 'webkit' && !!process.env.CI, 'Skipped on Webkit in CI');
 
 test.describe('DataCite Form Validation UX', () => {
     let formPage: DataCiteFormPage;
 
     test.beforeEach(async ({ page }) => {
-        // Login as test user
-        await loginAsTestUser(page);
-
         // Initialize page object
         formPage = new DataCiteFormPage(page);
 
@@ -61,11 +54,10 @@ test.describe('DataCite Form Validation UX', () => {
     });
 
     test.describe('Inline Field Validation', () => {
-        test('shows error for invalid year (out of range)', async ({ page }) => {
+        test('shows error for invalid year (out of range)', async () => {
             // Fill with invalid year (too early)
             await formPage.yearInput.fill('1899');
             await formPage.yearInput.blur();
-            await page.waitForTimeout(400); // Wait for debounced validation
 
             // Should show error styling
             await formPage.expectValidationError(formPage.yearInput);
@@ -76,41 +68,62 @@ test.describe('DataCite Form Validation UX', () => {
             expect(messages.some((msg) => msg.includes('1900') || msg.includes('range'))).toBeTruthy();
         });
 
-        test('shows success for valid year', async ({ page }) => {
-            // Fill with valid year
+        test('shows success for valid year', async () => {
+            // Verify the invalid-to-valid transition instead of accepting an untouched field.
+            await formPage.yearInput.fill('1800');
+            await formPage.yearInput.blur();
+            await formPage.expectValidationError(formPage.yearInput);
             await formPage.yearInput.fill('2024');
             await formPage.yearInput.blur();
-            await page.waitForTimeout(400);
 
             // Should show success styling
             await formPage.expectValidationSuccess(formPage.yearInput);
         });
 
-        test('validates DOI format on blur', async () => {
+        test('validates DOI format on blur', async ({ page }) => {
+            const waitForValidation = (doi: string) => page.waitForResponse((response) =>
+                new URL(response.url()).pathname === '/api/v1/doi/validate'
+                && response.request().method() === 'POST'
+                && response.request().postDataJSON()?.doi === doi,
+            );
+
             // Fill with invalid DOI format
+            const invalidValidation = waitForValidation('not-a-doi');
             await formPage.doiInput.fill('not-a-doi');
             await formPage.doiInput.blur();
 
             // expectValidationError waits for aria-invalid="true" with auto-retry
             await formPage.expectValidationError(formPage.doiInput);
 
+            // Local format feedback precedes the asynchronous availability check.
+            // Synchronize with its real response before editing the disabled field.
+            const invalidResponse = await invalidValidation;
+            expect(invalidResponse.status()).toBe(422);
+            expect(await invalidResponse.json()).toMatchObject({ is_valid_format: false, exists: false });
+            await expect(formPage.doiInput).toBeEnabled();
+
             // Clear and fill with valid DOI format
+            const validValidation = waitForValidation('10.82433/test-dataset-2024');
             await formPage.doiInput.clear();
             await formPage.doiInput.fill('10.82433/test-dataset-2024');
             await formPage.doiInput.blur();
+
+            const validResponse = await validValidation;
+            expect(validResponse.status()).toBe(200);
+            expect(await validResponse.json()).toMatchObject({ is_valid_format: true, exists: false });
+            await expect(formPage.doiInput).toBeEnabled();
 
             // expectValidationSuccess waits for aria-invalid to NOT be "true"
             await formPage.expectValidationSuccess(formPage.doiInput);
         });
 
-        test('limits version input to 50 characters and accepts DataCite-style values', async ({ page }) => {
+        test('limits version input to 50 characters and accepts DataCite-style values', async () => {
             const maxLengthVersion = '1234567890'.repeat(5);
             const overlongVersion = `${maxLengthVersion}1`;
 
             // Browser input is capped at 50 characters via maxlength.
             await formPage.versionInput.fill(overlongVersion);
             await formPage.versionInput.blur();
-            await page.waitForTimeout(400);
 
             await expect(formPage.versionInput).toHaveValue(maxLengthVersion);
             await formPage.expectValidationSuccess(formPage.versionInput);
@@ -119,7 +132,6 @@ test.describe('DataCite Form Validation UX', () => {
             await formPage.versionInput.clear();
             await formPage.versionInput.fill('1.0');
             await formPage.versionInput.blur();
-            await page.waitForTimeout(400);
 
             await formPage.expectValidationSuccess(formPage.versionInput);
         });
@@ -170,42 +182,36 @@ test.describe('DataCite Form Validation UX', () => {
             expect(submittedVersions[1]).toBe('2.1');
         });
 
-        test('validates main title length', async ({ page }) => {
+        test('validates main title length', async () => {
             // Too short (empty)
             await formPage.mainTitleInput.fill('');
             await formPage.mainTitleInput.blur();
-            await page.waitForTimeout(400);
 
             await formPage.expectValidationError(formPage.mainTitleInput);
 
             // Valid length
             await formPage.mainTitleInput.fill('Valid Dataset Title');
             await formPage.mainTitleInput.blur();
-            await page.waitForTimeout(400);
 
             await formPage.expectValidationSuccess(formPage.mainTitleInput);
         });
 
-        test('accepts short abstracts and enforces only the maximum length', async ({ page }) => {
+        test('accepts short abstracts and enforces only the maximum length', async () => {
             await formPage.expandAccordion(formPage.descriptionsAccordion);
 
             const shortText = 'This is too short';
             await formPage.abstractTextarea.fill(shortText);
             await formPage.abstractTextarea.blur();
-            await page.waitForTimeout(400);
 
-            const charCount = await formPage.getAbstractCharacterCount();
-            expect(charCount).toContain(String(shortText.length));
-            expect(charCount).toContain('of 17,500');
+            await expect(formPage.abstractCharacterCount).toContainText(String(shortText.length));
+            await expect(formPage.abstractCharacterCount).toContainText('of 17,500');
             await formPage.expectValidationSuccess(formPage.abstractTextarea);
 
             const overlongText = 'x'.repeat(17_501);
             await formPage.abstractTextarea.fill(overlongText);
             await formPage.abstractTextarea.blur();
-            await page.waitForTimeout(400);
 
-            const newCharCount = await formPage.getAbstractCharacterCount();
-            expect(newCharCount).toContain('17,501');
+            await expect(formPage.abstractCharacterCount).toContainText('17,501');
             await formPage.expectValidationError(formPage.abstractTextarea);
         });
     });
@@ -216,51 +222,32 @@ test.describe('DataCite Form Validation UX', () => {
             await formPage.clearAllFields();
 
             // Resource Info should show invalid (yellow warning) due to missing fields
-            const status = await formPage.getSectionStatusBadge(formPage.resourceInfoSection);
-            expect(status).toContain('incomplete');
+            await formPage.expectSectionStatus(formPage.resourceInfoSection, 'Section incomplete or has errors');
         });
 
         test('updates badge to valid when all required fields are filled', async () => {
-            // Fill all required fields in Resource Info
-            await formPage.mainTitleInput.fill('Complete Dataset Title');
-            await formPage.yearInput.fill('2024');
-            await formPage.resourceTypeSelect.click();
-            await formPage.page
-                .getByRole('option', { name: /Dataset/i })
-                .first()
-                .click();
-            await formPage.languageSelect.click();
-            await formPage.page
-                .getByRole('option', { name: /English/i })
-                .first()
-                .click();
-
-            await formPage.page.waitForTimeout(500);
+            await formPage.fillResourceInfo('Complete Dataset Title');
 
             // Badge should update to valid (green checkmark)
-            const status = await formPage.getSectionStatusBadge(formPage.resourceInfoSection);
-            expect(status).toContain('complete');
+            await formPage.expectSectionStatus(formPage.resourceInfoSection, 'Section complete');
         });
 
         test('shows invalid badge for Licenses section without primary license', async () => {
             await formPage.clearAllFields();
 
-            const status = await formPage.getSectionStatusBadge(formPage.licensesAccordion);
-            expect(status).toContain('incomplete');
+            await formPage.expectSectionStatus(formPage.licensesAccordion, 'Section incomplete or has errors');
         });
 
         test('shows optional-empty badge for Contributors section', async () => {
             // Contributors are optional, so badge should be gray circle
-            const status = await formPage.getSectionStatusBadge(formPage.contributorsAccordion);
-            expect(status).toContain('Optional');
+            await formPage.expectSectionStatus(formPage.contributorsAccordion, 'Optional section');
         });
 
-        test('badges update reactively when form data changes', async ({ page }) => {
+        test('badges update reactively when form data changes', async () => {
             await formPage.clearAllFields();
 
             // Initially invalid
-            let status = await formPage.getSectionStatusBadge(formPage.descriptionsAccordion);
-            expect(status).toContain('incomplete');
+            await formPage.expectSectionStatus(formPage.descriptionsAccordion, 'Section incomplete or has errors');
 
             // Fill abstract to make it valid
             await formPage.expandAccordion(formPage.descriptionsAccordion);
@@ -268,11 +255,9 @@ test.describe('DataCite Form Validation UX', () => {
                 'This is a comprehensive abstract that meets all validation requirements with more than fifty characters.',
             );
             await formPage.abstractTextarea.blur();
-            await page.waitForTimeout(500);
 
             // Badge should update to valid
-            status = await formPage.getSectionStatusBadge(formPage.descriptionsAccordion);
-            expect(status).toContain('complete');
+            await formPage.expectSectionStatus(formPage.descriptionsAccordion, 'Section complete');
         });
     });
 
@@ -312,39 +297,25 @@ test.describe('DataCite Form Validation UX', () => {
 
             // Scroll to bottom of page
             await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-            await page.waitForTimeout(300);
 
             // Click Save to trigger auto-scroll to first invalid section
-            await formPage.clickSave();
-            await page.waitForTimeout(1000);
+            await formPage.clickSaveAndWaitForValidationAlert();
 
             // Resource Info should be the first invalid section (verify via badge)
-            const status = await formPage.getSectionStatusBadge(formPage.resourceInfoSection);
-            expect(status).toContain('incomplete');
-            await expect(formPage.resourceInfoSection).toBeVisible();
+            await formPage.expectSectionStatus(formPage.resourceInfoSection, 'Section incomplete or has errors');
+            await expect(formPage.resourceInfoSection).toBeInViewport();
             await expect(formPage.yearInput).toBeVisible();
         });
 
         test('opens correct accordion section when navigating to errors', async ({ page }) => {
-            // Fill Resource Info but leave Licenses empty
-            await formPage.mainTitleInput.fill('Test Dataset');
-            await formPage.yearInput.fill('2024');
-            await formPage.resourceTypeSelect.click();
-            await page
-                .getByRole('option', { name: /Dataset/i })
-                .first()
-                .click();
-            await formPage.languageSelect.click();
-            await page
-                .getByRole('option', { name: /English/i })
-                .first()
-                .click();
+            await formPage.fillResourceInfo('Test Dataset');
 
-            await page.waitForTimeout(500);
-
-            // Licenses section should be invalid
-            const licensesStatus = await formPage.getSectionStatusBadge(formPage.licensesAccordion);
-            expect(licensesStatus).toContain('incomplete');
+            await formPage.collapseAccordion(formPage.licensesAccordion);
+            await formPage.clickSaveAndWaitForValidationAlert();
+            await page.getByTestId('error-group-licenses-rights').getByRole('button').first().click();
+            await expect(formPage.licensesAccordion).toHaveAttribute('aria-expanded', 'true');
+            await expect(formPage.primaryLicenseSelect).toBeVisible();
+            await formPage.expectSectionStatus(formPage.licensesAccordion, 'Section incomplete or has errors');
         });
     });
 
@@ -362,99 +333,38 @@ test.describe('DataCite Form Validation UX', () => {
         });
 
         test('allows submission when all validations pass', async ({ page }) => {
-            // Fill all required fields with valid data
+            await page.route((url) => url.pathname === '/editor/resources', async (route) => {
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'Validated test submission.' }) });
+            });
             await formPage.fillAllRequiredFields();
-
-            // Add at least one author (required)
-            await formPage.expandAccordion(formPage.authorsAccordion);
-
-            // Check if there's an "Add Author" button and author fields
-            const addAuthorButton = page.getByRole('button', { name: /Add Author/i });
-            if (await addAuthorButton.isVisible()) {
-                await addAuthorButton.click();
-                await page.waitForTimeout(300);
-            }
-
-            // Fill author fields if visible
-            const lastNameInput = page.locator('input[name*="lastName"]').first();
-            if (await lastNameInput.isVisible()) {
-                await lastNameInput.fill('Testauthor');
-                await lastNameInput.blur();
-            }
-
-            // Add at least one Created date (required)
-            await formPage.expandAccordion(formPage.datesAccordion);
-            const addDateButton = page.getByRole('button', { name: /Add.*Date/i }).first();
-            if (await addDateButton.isVisible()) {
-                await addDateButton.click();
-                await page.waitForTimeout(300);
-
-                // Fill date fields
-                const dateTypeSelect = page.getByTestId('date-type-select-0');
-                if (await dateTypeSelect.isVisible()) {
-                    await dateTypeSelect.click();
-                    await page
-                        .getByRole('option', { name: /Created/i })
-                        .first()
-                        .click();
-                }
-
-                const dateInput = page.locator('input[type="date"]').first();
-                if (await dateInput.isVisible()) {
-                    await dateInput.fill('2024-01-15');
-                }
-            }
-
-            await page.waitForTimeout(500);
-
-            // Save button should now be enabled (or check validation state)
-            // Note: In test environment, actual save might fail due to backend,
-            // but validation should pass
-            const isDisabled = await formPage.isSaveButtonDisabled();
-
-            // If still disabled, check tooltip for any remaining issues
-            if (isDisabled) {
-                await formPage.hoverSaveButton();
-                const tooltip = await formPage.getSaveButtonTooltipText();
-                console.log('Remaining validation issues:', tooltip);
-            }
+            const [submitted] = await Promise.all([
+                page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname === '/editor/resources'),
+                formPage.clickSave(),
+            ]);
+            const payload = submitted.postDataJSON();
+            expect(payload).toMatchObject({ year: 2024, accessLevel: 'open', authors: [expect.objectContaining({ lastName: 'Testauthor' })] });
+            expect(payload.titles).toContainEqual(expect.objectContaining({ title: 'Test Dataset for Validation E2E' }));
+            expect(payload.datacenter_id).toBeGreaterThan(0);
+            expect(payload.resourceType).toBeGreaterThan(0);
+            expect(payload.licenses).toHaveLength(1);
+            await expect(page.getByTestId('global-validation-alert')).not.toBeVisible();
         });
 
-        test('shows validation feedback across multiple sections simultaneously', async ({ page }) => {
+        test('shows validation feedback across multiple sections simultaneously', async () => {
             await formPage.clearAllFields();
 
             // Multiple sections should show invalid badges
-            const resourceInfoStatus = await formPage.getSectionStatusBadge(formPage.resourceInfoSection);
-            const licensesStatus = await formPage.getSectionStatusBadge(formPage.licensesAccordion);
-            const descriptionsStatus = await formPage.getSectionStatusBadge(formPage.descriptionsAccordion);
+            await formPage.expectSectionStatus(formPage.resourceInfoSection, 'Section incomplete or has errors');
+            await formPage.expectSectionStatus(formPage.licensesAccordion, 'Section incomplete or has errors');
+            await formPage.expectSectionStatus(formPage.descriptionsAccordion, 'Section incomplete or has errors');
 
-            expect(resourceInfoStatus).toContain('incomplete');
-            expect(licensesStatus).toContain('incomplete');
-            expect(descriptionsStatus).toContain('incomplete');
-
-            // Fill Resource Info only
-            await formPage.fillMainTitle('Complete Title');
-            await formPage.fillYear('2024');
-            await formPage.resourceTypeSelect.click();
-            await page
-                .getByRole('option', { name: /Dataset/i })
-                .first()
-                .click();
-            await formPage.languageSelect.click();
-            await page
-                .getByRole('option', { name: /English/i })
-                .first()
-                .click();
-
-            await page.waitForTimeout(500);
+            await formPage.fillResourceInfo('Complete Title');
 
             // Resource Info should now be valid
-            const updatedResourceInfoStatus = await formPage.getSectionStatusBadge(formPage.resourceInfoSection);
-            expect(updatedResourceInfoStatus).toContain('complete');
+            await formPage.expectSectionStatus(formPage.resourceInfoSection, 'Section complete');
 
             // Others should still be invalid
-            const updatedLicensesStatus = await formPage.getSectionStatusBadge(formPage.licensesAccordion);
-            expect(updatedLicensesStatus).toContain('incomplete');
+            await formPage.expectSectionStatus(formPage.licensesAccordion, 'Section incomplete or has errors');
         });
     });
 
@@ -468,11 +378,10 @@ test.describe('DataCite Form Validation UX', () => {
             expect(ariaLabel).toMatch(/complete|incomplete|optional/i);
         });
 
-        test('validation messages are associated with form fields', async ({ page }) => {
+        test('validation messages are associated with form fields', async () => {
             // Fill with invalid data
             await formPage.yearInput.fill('1800');
             await formPage.yearInput.blur();
-            await page.waitForTimeout(400);
 
             // Check that validation message appears near the field
             const messages = await formPage.getFieldValidationMessages(formPage.yearInput);

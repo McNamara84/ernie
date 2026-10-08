@@ -2,10 +2,28 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
+
+import { createTestTimings } from './test-runtime.mjs';
+import { verifyPhpDependencies } from './verify-php-dependencies.mjs';
+
+const timings = createTestTimings('vitest');
+timings.report.mode = process.argv[2] ?? 'watch';
+let vitestStartedAt;
+process.once('exit', (exitCode) => {
+    if (vitestStartedAt !== undefined) {
+        timings.report.phases.push({
+            name: 'Vitest',
+            status: exitCode === 0 ? 'passed' : 'failed',
+            durationMs: performance.now() - vitestStartedAt,
+        });
+    }
+    timings.finish(exitCode);
+});
 
 const hostWayfinderProbeTimeoutMs = 20_000;
 const dockerWayfinderCommand =
-    'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php artisan ernie:wayfinder-generate';
+    'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php -d memory_limit=2G artisan ernie:wayfinder-generate';
 
 function resolveHostPhpCommand() {
     if (process.platform !== 'win32') {
@@ -39,7 +57,8 @@ function resolveHostPhpCommand() {
 }
 
 const hostPhpCommand = resolveHostPhpCommand();
-const hostWayfinderCommand = `${hostPhpCommand ?? 'php'} artisan ernie:wayfinder-generate --with-form`;
+const hostExecutable = process.platform === 'win32' && hostPhpCommand ? `"${hostPhpCommand}"` : 'php';
+const hostWayfinderCommand = `${hostExecutable} -d memory_limit=2G artisan ernie:wayfinder-generate --with-form`;
 
 function commandFailureReason(result) {
     if (result.error?.code === 'ETIMEDOUT') {
@@ -91,12 +110,22 @@ function canRunHostWayfinder() {
             return false;
         }
 
+        try {
+            verifyPhpDependencies(
+                JSON.parse(readFileSync('composer.lock', 'utf8')),
+                JSON.parse(readFileSync('vendor/composer/installed.json', 'utf8')),
+            );
+        } catch {
+            warnWayfinderFallback({ error: new Error('Host Composer dependencies are missing or differ from composer.lock.') }, outputPath);
+            return false;
+        }
+
         // Resolve Herd's php.bat shim once, then execute its selected php.exe
         // directly. A bare Node spawn prefers a later php.exe from Herd Lite,
         // while spawning PowerShell would leave PHP alive after a probe timeout.
         const result = spawnSync(
             hostPhpCommand,
-            ['artisan', 'ernie:wayfinder-generate', '--with-form', `--path=${outputPath}`],
+            ['-d', 'memory_limit=2G', 'artisan', 'ernie:wayfinder-generate', '--with-form', `--path=${outputPath}`],
             {
                 encoding: 'utf8',
                 maxBuffer: 10 * 1024 * 1024,
@@ -116,8 +145,27 @@ function canRunHostWayfinder() {
     }
 }
 
-if (!process.env.WAYFINDER_COMMAND && !canRunHostWayfinder()) {
-    process.env.WAYFINDER_COMMAND = dockerWayfinderCommand;
+function verifyDockerPhpDependencies() {
+    const result = spawnSync('docker', [
+        'compose', '--env-file', '.env.docker', '-f', 'docker-compose.dev.yml',
+        'exec', '-T', 'app', 'node', 'scripts/verify-php-dependencies.mjs',
+    ], { stdio: 'inherit' });
+    if (result.error || result.signal || result.status !== 0) {
+        throw result.error ?? new Error(`Docker PHP dependency verification failed: ${result.signal ?? result.status ?? 1}.`);
+    }
 }
 
+if (!process.env.WAYFINDER_COMMAND) {
+    const hostIsAvailable = timings.measure('Wayfinder preflight', canRunHostWayfinder);
+    timings.report.wayfinder = hostIsAvailable ? 'host' : 'docker';
+    if (!hostIsAvailable) {
+        timings.measure('Verify Docker PHP dependencies', verifyDockerPhpDependencies);
+    }
+    // Use the checked executable and memory limit for actual generation too.
+    process.env.WAYFINDER_COMMAND = hostIsAvailable ? hostWayfinderCommand : dockerWayfinderCommand;
+} else {
+    timings.report.wayfinder = 'configured';
+}
+
+vitestStartedAt = performance.now();
 await import('../node_modules/vitest/vitest.mjs');

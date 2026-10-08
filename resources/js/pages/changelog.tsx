@@ -88,6 +88,8 @@ export default function Changelog() {
     const [announcement, setAnnouncement] = useState('');
     const releaseRefs = useRef<(HTMLLIElement | null)[]>([]);
     const pendingScrollRef = useRef<{ index: number; behavior: ScrollBehavior } | null>(null);
+    const scrollFrameRef = useRef<number | null>(null);
+    const hasRenderedReleasesRef = useRef(false);
 
     const getScrollBehavior = useCallback(
         (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'),
@@ -187,10 +189,10 @@ export default function Changelog() {
             });
     }, [getReleaseIndexFromHash, getScrollBehavior]);
 
-    useEffect(() => {
+    const scrollPendingRelease = useCallback((index: number | null) => {
         const pendingScroll = pendingScrollRef.current;
 
-        if (!pendingScroll) {
+        if (!pendingScroll || pendingScroll.index !== index) {
             return;
         }
 
@@ -203,7 +205,38 @@ export default function Changelog() {
 
         element.scrollIntoView({ behavior: pendingScroll.behavior, block: 'center' });
         pendingScrollRef.current = null;
-    }, [releases, openIndex]);
+    }, []);
+
+    const scrollAfterPanelAnimation = useCallback(
+        (index: number) => {
+            if (pendingScrollRef.current?.index !== index) return;
+
+            if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+
+            // Let the completed height transition reach layout before centering.
+            scrollFrameRef.current = requestAnimationFrame(() => {
+                scrollFrameRef.current = null;
+                scrollPendingRelease(index);
+            });
+        },
+        [scrollPendingRelease],
+    );
+
+    useEffect(() => {
+        // AnimatePresence skips the initial panel transition; reduced motion
+        // also needs no animation callback before scrolling.
+        if (!hasRenderedReleasesRef.current || pendingScrollRef.current?.behavior === 'auto') {
+            scrollPendingRelease(openIndex);
+        }
+        hasRenderedReleasesRef.current = releases.length > 0;
+    }, [releases, openIndex, scrollPendingRelease]);
+
+    useEffect(
+        () => () => {
+            if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+        },
+        [],
+    );
 
     const navigateToRelease = useCallback(
         (
@@ -546,6 +579,7 @@ export default function Changelog() {
                                                             animate={prefersReducedMotion ? {} : { height: 'auto', opacity: 1 }}
                                                             exit={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
                                                             transition={prefersReducedMotion ? {} : { duration: 0.2 }}
+                                                            onAnimationComplete={() => scrollAfterPanelAnimation(index)}
                                                             className="mt-2 ml-5 border-l pl-4 text-sm text-gray-700"
                                                             role="region"
                                                             aria-labelledby={buttonId}

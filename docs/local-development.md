@@ -264,12 +264,14 @@ If the configured style or its tiles cannot be loaded, the portal remains usable
 - Complete Pest runs copy the current checkout into the Docker-managed
   `ernie-pest-workspace` volume before execution. This avoids repeated
   Windows/macOS bind-mount reads while leaving the development source mount and
-  focused test workflow unchanged.
+  focused test workflow unchanged. Read-only `--list-tests` discovery uses a
+  freshly synchronized native workspace as well.
 
 ### MySQL version and existing local data
 
 The local database service is pinned to MySQL 9.7, and its healthcheck verifies
-the `9.7.x` server series. MySQL-backed tests use this same service. Do not
+the `9.7.x` server series. MySQL-sensitive tests use the same pinned image in
+the disposable `db-test` service. Do not
 downgrade the service to MySQL 8 when an existing data directory fails to start.
 
 The Compose volume is named `ernie-db-data-mysql-9-7` so an older
@@ -790,12 +792,25 @@ npm run test:php:mysql-sensitive
 
 This command:
 
-- starts the backend containers if needed
-- verifies and uses the MySQL 9.7 service from `docker-compose.dev.yml`
-- creates an isolated `ernie_test` schema inside that local MySQL container
-- runs the current explicit MySQL-sensitive migration file slice with a schema reset before each file
+- starts the backend and optional `test` profile once
+- verifies MySQL 9.7 before resetting a schema; `db-test` uses the exact image pinned for `db`
+- uses `ernie_test` on the disposable `db-test` server, backed by a bounded 2 GiB tmpfs without a host port
+- runs the manifest in `tests/mysql-sensitive-slices.json`, preserving all 25 existing serial reset boundaries
+- copies the checkout into the Linux-native Pest workspace for the complete run; focused aliases keep using the checkout
 
-It does not reuse the regular development schema. For broader testing guidance, see [testing.md](testing.md).
+The development server and its versioned data volume are preserved. Focused
+aliases, `db:dev:test:prepare`, `db:dev:test:reset`, and the raw MySQL test wrapper
+all address the disposable test server. `--slice <name>` selects a manifest block;
+`--filter` and other Pest arguments can follow it. MySQL slices remain serial
+because they share the isolated test schema. To stop the optional server and
+release its tmpfs:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml --profile test stop db-test
+```
+
+Stopping it discards test data; the next wrapper call starts and initializes it
+again. For broader testing and optional timing reports, see [testing.md](testing.md).
 
 ### Digital resource access metadata
 

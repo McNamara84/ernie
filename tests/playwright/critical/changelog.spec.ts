@@ -248,6 +248,8 @@ test.describe('Changelog Page', () => {
 
         // And its content panel should be visible
         await expect(page.locator(`#${panelId as string}`)).toBeVisible();
+        // The initial panel has no enter animation; its release must still be scrolled into view.
+        await expect(targetButton.locator('xpath=ancestor::li[1]')).toBeInViewport();
     });
 
     test('displays gradient backgrounds for different version types', async ({ page }) => {

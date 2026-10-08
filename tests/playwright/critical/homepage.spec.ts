@@ -159,11 +159,33 @@ test.describe('GFZ Data Services homepage', () => {
         await page.getByRole('link', { name: 'Scientific Drilling', exact: true }).click();
         await page.waitForURL(/\/doi-search\?topic=scientific-drilling$/);
         await expect(page.getByTestId('portal-topic-filter')).toContainText('Scientific Drilling');
+        const waitForSearchResponse = (topic: string | null) =>
+            page.waitForResponse(
+                (response) => {
+                    const url = new URL(response.url());
+                    return (
+                        response.request().method() === 'GET' &&
+                        url.pathname === '/doi-search' &&
+                        url.searchParams.get('q') === 'core' &&
+                        url.searchParams.get('topic') === topic
+                    );
+                },
+                { timeout: 15_000 },
+            );
         await page.locator('#portal-search').fill('core');
+        const refinedSearchPromise = waitForSearchResponse('scientific-drilling');
         await page.locator('#portal-search').press('Enter');
+        const refinedSearch = await refinedSearchPromise;
+        expect(refinedSearch.status()).toBe(200);
+        expect(await refinedSearch.finished()).toBeNull();
         await expect(page).toHaveURL(/q=core/);
         expect(new URL(page.url()).searchParams.get('topic')).toBe('scientific-drilling');
+        await expect(page.getByTestId('portal-results-refreshing')).toHaveCount(0);
+        const removedTopicPromise = waitForSearchResponse(null);
         await page.getByRole('button', { name: 'Remove topic: Scientific Drilling' }).click();
+        const removedTopic = await removedTopicPromise;
+        expect(removedTopic.status()).toBe(200);
+        expect(await removedTopic.finished()).toBeNull();
         await expect(page.getByTestId('portal-topic-filter')).toHaveCount(0);
         expect(new URL(page.url()).searchParams.get('topic')).toBeNull();
         expect(new URL(page.url()).searchParams.get('q')).toBe('core');

@@ -6,8 +6,10 @@ use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Support\OrcidNormalizer;
-use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\ContributorTypeSeeder;
+use Database\Seeders\RelationTypeSeeder;
 use Database\Seeders\ResourceTestDataSeeder;
+use Database\Seeders\RightsSeeder;
 use Illuminate\Support\Facades\Http;
 
 uses()->group('seeders', 'test-data');
@@ -23,9 +25,10 @@ beforeEach(function () {
         ]),
     ]);
 
-    // Run base seeders first (lookup tables like Rights, ResourceTypes, etc.)
-    $this->seed(DatabaseSeeder::class);
-    // Then run the test data seeder
+    // Seed the catalogs used across the 27 scenarios, preserving real model
+    // writes and a fresh database for every case. Complete application seeding
+    // runs once in ResourceTestDataSeederIntegrationTest instead of 30 times.
+    $this->seed([RightsSeeder::class, ContributorTypeSeeder::class, RelationTypeSeeder::class]);
     $this->seed(ResourceTestDataSeeder::class);
 });
 

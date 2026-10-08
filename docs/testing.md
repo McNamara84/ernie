@@ -18,6 +18,20 @@ Canonical entry points:
 
 Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile. The Docker entrypoints install npm packages only inside Docker-managed volumes and do not satisfy host-side frontend commands.
 
+The Vite container also has its own dependency volume. A clean host install does
+not update it. The dev-stack Playwright wrapper verifies the container's Node
+version and dependencies before changing the app configuration. If it reports
+invalid packages, restore that volume while Vite is stopped, then restart it:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml stop vite
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app npm exec --yes --package=npm@12.2.0 -- npm ci
+docker compose --env-file .env.docker -f docker-compose.dev.yml start vite
+```
+
+Wait for Vite's ready message before browser tests. This preserves the database
+and development volumes; the first request may compile fresh frontend modules.
+
 The npm overrides keep indirect dependencies safe while upstream packages still
 request older versions. Solid.js uses Seroval and Seroval Plugins 1.6.8 or newer
 to fix [GHSA-p6vx-979v-rg4c](https://github.com/advisories/GHSA-p6vx-979v-rg4c)
@@ -68,7 +82,7 @@ GitHub Actions also runs the complete MySQL-sensitive slice through
 `npm run test:php:mysql-sensitive` in the `MySQL Compatibility Tests` workflow.
 It builds `Dockerfile.dev` and uses the same digest-pinned MySQL 9.7 service from
 `docker-compose.dev.yml` as local development. Each test slice resets only the
-isolated `ernie_test` schema. Its fresh CI data volume uses tmpfs to avoid disk
+isolated `ernie_test` schema on the optional `db-test` service. Its disposable data directory uses tmpfs to avoid disk
 flush latency during repeated schema migrations. The general Pest and Playwright
 CI suites retain SQLite for fast feedback.
 
@@ -87,7 +101,11 @@ Use a MySQL-backed slice only when one of the following is true:
 
 The npm wrapper runs the current explicit schema-mutating MySQL-sensitive file slice against a dedicated MySQL schema named `ernie_test`.
 
-That wrapper recreates the schema before each file so DDL-heavy migration tests do not leak state into the next process.
+The wrapper recreates the schema before each group defined in
+`tests/mysql-sensitive-slices.json`, preserving the existing DDL isolation
+boundaries. Run only one MySQL wrapper at a time: all groups share `ernie_test`.
+Parallel Pest worker options are rejected, but separate wrapper processes do
+not acquire a shared lock.
 
 ## Backend Validation
 
@@ -123,6 +141,11 @@ run, the wrapper copies the current checkout once to the Linux-native
 2. the `Arch` testsuite without coverage
 3. all remaining Unit and Feature tests in parallel without coverage
 
+The workspace omits `public/build` and `public/hot`: these suites disable Vite,
+and manifest-specific tests create their own complete fixtures. The Pest CI
+jobs therefore install only PHP dependencies and do not build frontend assets.
+Browser tests continue to use their existing asset setup.
+
 The default worker count is half of the available CPUs, rounded down, with a
 minimum of one and a maximum of eight. Use a measured override only when the
 local Docker resource allocation differs substantially:
@@ -140,9 +163,82 @@ the disposable test workspace:
 npm run test:php -- tests/pest/Unit/Support/UrlNormalizerTest.php
 ```
 
+Read-only `--list-tests` discovery also synchronizes a fresh native workspace.
+This includes dataset expansion and shard selection without repeatedly loading
+the full suite through the host bind mount. TIA and coverage commands continue
+to use the checkout.
+
 After a failure, rerun the failing path first. Run the complete suite again only
 after the focused failure passes; the 2 GB wrapper settings must not be replaced
 with the container's former 512 MB limit.
+
+The non-mutating `pint:check` also prepares and checks the Linux-native workspace
+to avoid scanning the Windows bind mount. Intentional formatting changes must
+still run against the checkout, for example through `composer:app exec`.
+
+The local PHP wrappers verify the Docker `vendor` volume against `composer.lock`,
+including development packages and locked revisions. A stale volume stops the
+check before testing or resetting a schema. Restore it with
+`npm run composer:app -- install`; updating host-side `vendor` does not update
+Docker's separate volume.
+
+Pure PHP tests listed in `tests/pest/pure-unit-tests.json` use PHPUnit without
+booting Laravel or migrating a database. Their paths and assertions stay intact;
+other Unit tests still receive the Laravel integration setup by default. Arch
+tests boot Laravel for path helpers but do not migrate a database. New entries
+in the pure manifest must work without facades, the container, or database access.
+
+### Measuring test performance
+
+`ERNIE_TEST_TIMINGS_FILE` writes an optional JSON report for Pest, Vitest, MySQL,
+and the dev-stack Playwright wrapper. It records startup, test phases, failures,
+available host resources, Node version, commit, and whether the checkout is dirty.
+Run suites sequentially when comparing performance. A failed or interrupted run
+is not a valid performance result.
+
+```powershell
+$env:ERNIE_TEST_TIMINGS_FILE = 'storage/logs/pest-timings.json'
+$env:ERNIE_PEST_REPORT_DIR = 'storage/logs/pest-junit'
+npm run test:php
+Remove-Item Env:ERNIE_PEST_REPORT_DIR, Env:ERNIE_TEST_TIMINGS_FILE
+```
+
+JUnit reports are optional and copied out of the Linux workspace, including
+the failing phase when Pest produced a report. The ordinary wrapper remains quiet
+apart from its existing phase timings. `npm run test:inventory` lists configured
+test files and reports files outside the default suites; runtime dataset counts
+and conditional skips still require actual suite reports.
+The current inventory contains 736 configured Pest files (including 23 pure
+Unit files), 515 Vitest entry points, and 35 Playwright specs. The 29 Pest
+Browser files and four Debug files remain outside the normal PHPUnit suites;
+they are optional browser experiments and diagnostic checks, respectively.
+The two additional Playwright specs (`authors-contributors.spec.ts` and
+`stage/full-workflow-stage.spec.ts`) remain outside shared discovery and are not counted
+as executed CI coverage. This refactoring preserves their existing roles.
+
+`npm run test:php:shard-timings` runs the complete backend suite and exports Pest's
+native `tests/.pest/shards.json`. Review and commit updated timings when test
+workloads change. Pest uses this data to balance the existing CI shards; newly
+discovered classes remain included automatically. Normal local runs use the same
+worker count and complete discovery.
+
+The fixed aggregate coverage baseline is in `tests/coverage-baseline.json`.
+All PHP coverage slices and all frontend blobs must be present before uploading.
+The existing final Vitest CI check then waits for the latest successful Pest run
+for the same revision and compares complete Codecov integer totals against that
+baseline. Failed reruns, missing uploads, timeout, and a one-line loss fail that
+workflow, including its existing release dependencies. Codecov's project status
+also reports the fixed target; no new per-file or per-area gates are added.
+After a successful CI run, the separate manual audit is:
+
+```bash
+npm run test:coverage:verify -- --report <complete-codecov-api-json> --commit <tested-sha>
+```
+
+The report must belong to that SHA, contain fresh backend and frontend uploads,
+and have completed successfully. Passing an audit of the baseline report itself
+does not validate an uncommitted refactoring. See
+[the refactoring plan and measurements](test-suite-refactoring-plan.md).
 
 ### Pest 5 development tools
 
@@ -269,7 +365,13 @@ npm run docker:dev:backend:d
 npm run test:run
 ```
 
-The Vitest wrapper checks whether the host can run `php artisan ernie:wayfinder-generate --with-form` before starting Vitest. The check writes to a temporary directory, so it does not touch the committed Wayfinder output. It also has a timeout, so a hanging host Artisan process falls back to Docker instead of blocking Vitest startup.
+The Vitest wrapper checks whether the host can run `php -d memory_limit=2G artisan ernie:wayfinder-generate --with-form` before starting Vitest. The check writes to a temporary directory, so it does not touch the committed Wayfinder output. It also has a timeout, so a hanging host Artisan process falls back to Docker instead of blocking Vitest startup.
+
+The host's Composer packages must match `composer.lock` before that probe.
+Missing or stale host packages select the Docker fallback immediately; it
+verifies its own Composer packages before generation. When the host probe
+succeeds, actual generation uses that same checked PHP binary
+and 2 GB limit. Both generator paths therefore use the validation memory floor.
 
 On Windows, the probe resolves PowerShell's active `php` command and executes
 the PHP binary selected by Laravel Herd's `php.bat` shim directly. This
@@ -286,7 +388,7 @@ npm run docker:dev:backend:d
 `WAYFINDER_COMMAND` is the supported escape hatch for custom setups, for example:
 
 ```bash
-WAYFINDER_COMMAND="php artisan ernie:wayfinder-generate" npm run test:run
+WAYFINDER_COMMAND="php -d memory_limit=2G artisan ernie:wayfinder-generate" npm run test:run
 ```
 
 The separate `vitest.browser.config.ts` deliberately contains only browser-test transforms. Laravel HMR and Wayfinder generation stay in the main Vite configuration: Vitest 5 starts multiple browser environments, and generating files from their `buildStart` hooks can repeatedly invalidate the browser test server. Generate Wayfinder sources before introducing or running browser tests that import them.
@@ -303,6 +405,45 @@ CI formatter jobs are non-mutating and check the complete frontend and PHP codeb
 
 ### Local browser verification
 
+The validation UX suite reuses a completed UI login per worker in memory.
+Every scenario still gets an isolated browser context; login/session tests keep
+their own UI flow. It waits for validation badges, accordion state, dropdown
+focus restoration, and completed backend responses rather than fixed pauses.
+Before copying the worker's authenticated state, it explicitly completes a real
+CSRF-cookie request through the context's shared cookie jar. XML workflows use
+the same preparation after their own UI login. Ordinary UI login only requires
+the successful dashboard redirect: the application's optional automatic CSRF
+refresh can abort after five seconds. A separate regression scenario verifies
+login and explicit preparation with those automatic requests deliberately aborted.
+The previous CI WebKit skip for this file has been removed after two successful
+complete local runs in each browser (144 executions, no retries or skips).
+
+IGSN workflows import complete CSV payloads with a unique sample identifier per
+test, including its occurrence in the title. Parallel deletion and export must
+operate on separate resources. The duplicate scenario uploads the same own
+payload twice and requires the first import to succeed. UI deletion waits for
+its HTTP redirect and the refreshed list; exports also verify their own IGSN
+in the returned metadata and filename.
+
+The modal preview switch test completes the real download URL suggestion
+response before writing the next session preview. Each transition also requires
+a completed HTTP 201 preview response. Its original request/download/removal
+assertions remain in place. This checks the functional transitions after the
+preceding input request finishes; concurrent session updates remain a separate
+application concern documented in the refactoring plan.
+
+The contact and preview specs give each test a separate client identity in
+`2001:db8:ee00::/48`. The normal per-IP contact limits stay enabled, including
+within a test; messages from previous or concurrent tests do not consume that
+test's allowance. CI's direct Laravel server receives the forwarded test IP.
+For the local Traefik path, the wrapper derives a temporary Nginx configuration
+from the unchanged development configuration. It forwards only marked client
+identities in the reserved range and preserves ordinary forwarded addresses.
+It restores both app and webserver configurations and removes its generated
+routing file after successful restoration. An existing routing file prevents a
+second wrapper from changing services; if restoration fails, the mounted file
+remains available for recovery. No contact records are deleted for isolation.
+
 Use the Docker dev stack behind Traefik:
 
 ```bash
@@ -311,6 +452,62 @@ npm run test:e2e:devstack
 ```
 
 This path exercises the local routing setup at `https://ernie.localhost:3333`.
+The wrapper temporarily applies `docker-compose.playwright-test.yml` to the app
+so contact submissions use synchronous log mail, a fixed example.test team
+recipient, and DataCite's existing fake service. Inertia DevTools request
+recording is disabled for this temporary browser backend. A backend preflight verifies
+these settings before starting browsers. It restores the normal
+app and webserver Compose configurations even if preparation or browser tests fail. Nginx reloads
+after both app container changes to refresh its FPM upstream. Before starting
+tests, the public `/login` route must return HTTP 200 HTML. A separate readiness
+phase waits up to 60 seconds for temporary gateway or connection failures;
+application errors fail immediately. Browser retries and test timeouts remain
+unchanged. `.env` remains untouched. `--list` only discovers tests and does not restart services. Seed the
+documented Playwright fixtures before running browser scenarios. Optional JSON
+timings include backend preparation and restoration separately.
+
+Fresh native workspaces omit generated `storage/inertia-devtools` recordings
+alongside logs and framework caches. Development recordings stay in place;
+they are runtime diagnostics rather than test or build inputs.
+The browser app uses a bounded Linux-native compiled-view cache to avoid
+concurrent Blade compilation on the Docker Desktop bind mount.
+
+For complete runs, `ERNIE_PLAYWRIGHT_ASSETS=build` builds the current checkout in
+the Linux-native workspace and serves those assets instead of Vite modules.
+This avoids waiting for Vite CSS/module compilation during browser navigation.
+The build is fresh each time, uses the verified Docker dependencies and a 2 GB
+Wayfinder process, and adds its own preparation time to the timing report.
+The wrapper restores the original `public/hot` bytes even on failure; the Vite
+service keeps running. The default remains `vite` for normal local feedback.
+
+```powershell
+$env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
+npm run test:e2e:devstack
+Remove-Item Env:ERNIE_PLAYWRIGHT_ASSETS
+```
+
+Local runs keep failure screenshots and make videos opt-in with
+`ERNIE_PLAYWRIGHT_VIDEO=1`; recording passing scenarios before discarding their
+videos adds runtime cost. CI keeps its existing recording settings. Use
+`--trace=on` when a detailed local failure trace is needed.
+
+If Windows WebKit fails to connect to the local HTTPS subdomain, the optional
+`ERNIE_WEBKIT_WS_ENDPOINT` connects just that browser to a Linux Playwright
+server. The test runner remains on the host with the pinned Node version and
+forwards loopback requests, including `ernie.localhost`, to the helper. Chromium and
+Firefox continue to use their normal host browsers. The server must match the
+installed Playwright version. For the current 1.63.0 dependency:
+
+```powershell
+docker run --rm --init -d --name ernie-webkit-tests --workdir /home/pwuser --user pwuser -p 127.0.0.1:3043:3000 mcr.microsoft.com/playwright:v1.63.0-noble npx --yes playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
+$env:ERNIE_WEBKIT_WS_ENDPOINT = 'ws://127.0.0.1:3043/'
+npm run test:e2e:devstack -- --project=webkit
+Remove-Item Env:ERNIE_WEBKIT_WS_ENDPOINT
+docker stop ernie-webkit-tests
+```
+
+Wait for the server's listening message before running tests. See Playwright's
+[remote browser documentation](https://playwright.dev/docs/docker#remote-connection).
 
 ### Stage bug reproduction
 

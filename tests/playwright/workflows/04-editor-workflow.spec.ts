@@ -248,7 +248,10 @@ test.describe('Editor Form', () => {
         await helpLink.click();
         const docsPage = await popupPromise;
 
-        await expect(docsPage).toHaveURL(/\/docs\?tab=datasets&section=editor-validate/);
+        await expect(docsPage.locator('#editor-validate')).toBeVisible();
+        await expect(docsPage).toHaveURL((url) => url.pathname === '/docs'
+            && url.searchParams.get('tab') === 'datasets'
+            && url.searchParams.get('section') === 'editor-validate');
         await expect(page).toHaveURL(/\/editor/);
         await expect(titleInput).toHaveValue('Unsaved metadata before opening help');
         await docsPage.close();
