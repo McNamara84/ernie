@@ -114,7 +114,9 @@ vi.mock('@/components/resources-filters', () => ({
         </div>
     ),
 }));
-vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
+vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    default: ({ isOpen, context }: { isOpen: boolean; context: string }) => (isOpen ? <div data-testid="setup-lp-context">{context}</div> : null),
+}));
 vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
@@ -817,6 +819,9 @@ describe('ResourcesPage', () => {
         expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
         expect(buildCurationQueryFromResourceMock).not.toHaveBeenCalled();
         expect(routerMock.get).not.toHaveBeenCalled();
+
+        await clickResourceAction('resources-action-setup-landing-page');
+        expect(await screen.findByTestId('setup-lp-context')).toHaveTextContent('resource-list');
     });
 
     it('opens the curation editor in a new tab when a resource row is clicked', () => {

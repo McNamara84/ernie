@@ -20,6 +20,7 @@ type CurationAccordionPreferencePayload = {
 };
 
 type MockSetupLandingPageModalProps = {
+    context: 'resource-list' | 'editor-preview' | 'editor-registration';
     isOpen: boolean;
     resource?: {
         id: number;
@@ -6976,6 +6977,7 @@ describe('DataCiteForm', () => {
                 }),
             );
             expect(modalProps.openPreviewOnSuccess).toBe(true);
+            expect(modalProps.context).toBe('editor-preview');
             expect(window.location.search).toBe('?resourceId=99');
             expect(mockRouterReplace).toHaveBeenCalledWith(expect.objectContaining({ url: '/editor?resourceId=99' }));
             expect(openSpy).not.toHaveBeenCalled();
@@ -8737,6 +8739,7 @@ describe('DataCiteForm', () => {
             expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
 
             let modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
+            expect(modalProps.context).toBe('editor-registration');
             act(() => modalProps.onClose?.());
             expect(toast.info).toHaveBeenCalledWith('DataCite registration cancelled. Your validated resource has been saved.');
             expect(mockedAxios.post).toHaveBeenCalledTimes(1);

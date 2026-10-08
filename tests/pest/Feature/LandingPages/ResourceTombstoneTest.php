@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Enums\AccessLevel;
+use App\Enums\ResourceWorkflowStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\EditorController;
 use App\Jobs\SyncResourceTombstoneWithDataCiteJob;
 use App\Models\ContactMessage;
+use App\Models\DateType;
+use App\Models\Description;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
@@ -14,10 +17,12 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceTombstoneTransition;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteMemberApiClient;
+use App\Services\DataCiteRequestLimiter;
 use App\Services\KeywordSuggestionService;
 use App\Services\LandingPageMachineMetadataService;
 use App\Services\PortalCacheInvalidationService;
@@ -582,4 +587,126 @@ test('portal counts facets and keyword suggestions exclude tombstones and return
     $keywords->invalidateCache();
     expect($portal->count([]))->toBe(1)
         ->and($keywords->getSuggestions())->toHaveCount(1);
+});
+
+test('tombstone state polling stays local and does not imply activation eligibility', function () {
+    $this->actingAs($this->user)->getJson($this->endpoint)->assertOk()
+        ->assertJsonMissingPath('tombstone.can_activate')->assertJsonMissingPath('activation_eligibility');
+    Http::assertNothingSent();
+});
+
+test('activation eligibility verifies registration with the authenticated effective DataCite repository', function (bool $testMode, UserRole $role, string $state) {
+    $this->user->update(['role' => $role]);
+    config([
+        'datacite.test_mode' => $testMode,
+        'datacite.production.client_id' => 'production.repository',
+        'datacite.production.username' => 'production.repository',
+        'datacite.production.password' => 'production-password',
+        'datacite.production.endpoint' => 'https://api.datacite.org',
+    ]);
+    $remote = ($this->remote)($state);
+    $remote['data']['relationships']['client']['data']['id'] = $testMode ? 'TEST.REPOSITORY' : 'PRODUCTION.REPOSITORY';
+    Http::swap(new Factory);
+    Http::fake(['*' => Http::response($remote)]);
+    $this->actingAs($this->user)->getJson($this->endpoint.'?include_eligibility=1')->assertOk()
+        ->assertJsonPath('activation_eligibility.status', 'eligible')->assertJsonPath('activation_eligibility.reason', null);
+    $host = $testMode ? 'api.test.datacite.org' : 'api.datacite.org';
+    Http::assertSent(fn ($request) => $request->method() === 'GET' && str_contains($request->url(), $host) && $request->hasHeader('Authorization'));
+    Http::assertSentCount(1);
+    expect($this->page->fresh()->is_tombstone)->toBeFalse()->and(ResourceTombstoneTransition::count())->toBe(0);
+})->with([true, false])->with([UserRole::CURATOR, UserRole::GROUP_LEADER, UserRole::ADMIN])->with(['registered', 'findable']);
+
+test('registration eligibility is independent of the local workflow status', function (string $status) {
+    $this->page->update(['is_published' => $status === 'published']);
+    $this->resource->update(['access_level' => $status === 'embargo' ? AccessLevel::EMBARGOED : AccessLevel::OPEN]);
+    $this->resource->rights()->attach(Right::factory()->create()->id);
+    Description::factory()->create(['resource_id' => $this->resource->id]);
+    if ($status === 'draft' || $status === 'review') {
+        $this->resource->update(['workflow_status_override' => ResourceWorkflowStatus::from($status)]);
+    }
+    if ($status === 'embargo') {
+        $type = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+        $this->resource->dates()->create(['date_type_id' => $type->id, 'date_value' => now()->addYear()->toDateString()]);
+    }
+    if ($status === 'curation') {
+        $this->page->delete();
+    }
+    expect($this->resource->fresh()->load(['titles.titleType', 'descriptions.descriptionType'])->publicStatus())->toBe($status);
+    $this->actingAs($this->user)->getJson($this->endpoint.'?include_eligibility=1')->assertOk()
+        ->assertJsonPath('activation_eligibility.status', 'eligible');
+})->with(['draft', 'review', 'curation', 'embargo', 'published']);
+
+test('ineligible local resources do not trigger remote registration checks', function (string $case, string $reason) {
+    if ($case === 'doi') {
+        $this->resource->update(['doi' => null]);
+    } elseif ($case === 'igsn') {
+        $type = ResourceType::firstOrCreate(['slug' => 'physical-object'], ['name' => 'Physical Object', 'is_active' => true]);
+        $this->resource->update(['resource_type_id' => $type->id]);
+    } else {
+        $this->user->update(['role' => UserRole::BEGINNER]);
+    }
+    $this->actingAs($this->user)->getJson($this->endpoint.'?include_eligibility=1')->assertOk()
+        ->assertJsonPath('activation_eligibility.status', 'ineligible')->assertJsonPath('activation_eligibility.reason', $reason);
+    Http::assertNothingSent();
+})->with([['doi', 'missing_doi'], ['igsn', 'igsn'], ['beginner', 'forbidden']]);
+
+test('active tombstones remain readable without a remote registration check', function (UserRole $role) {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $this->user->update(['role' => $role]);
+    Http::swap(new Factory);
+    Http::fake(['*' => Http::failedConnection()]);
+    $this->actingAs($this->user)->getJson($this->endpoint.'?include_eligibility=1')->assertOk()
+        ->assertJsonPath('tombstone.is_tombstone', true)
+        ->assertJsonPath('tombstone.can_manage', $role !== UserRole::BEGINNER);
+    Http::assertNothingSent();
+})->with([UserRole::CURATOR, UserRole::BEGINNER]);
+
+test('remote eligibility distinguishes ineligible registrations from unavailable verification', function (string $case, string $status, string $reason) {
+    $remote = ($this->remote)();
+    $httpStatus = 200;
+    match ($case) {
+        'draft' => $remote['data']['attributes']['state'] = 'draft',
+        'owner' => $remote['data']['relationships']['client']['data']['id'] = 'other.repository',
+        'url' => $remote['data']['attributes']['url'] = '  ',
+        'malformed' => $remote = ['data' => []],
+        'missing_owner' => $remote['data']['relationships'] = [],
+        default => $httpStatus = (int) $case,
+    };
+    Http::swap(new Factory);
+    Http::fake(['*' => Http::response($remote, $httpStatus)]);
+    $this->actingAs($this->user)->getJson($this->endpoint.'?include_eligibility=1')->assertOk()
+        ->assertJsonPath('activation_eligibility.status', $status)->assertJsonPath('activation_eligibility.reason', $reason);
+    expect($this->page->fresh()->is_tombstone)->toBeFalse();
+})->with([
+    ['draft', 'ineligible', 'not_registered'], ['404', 'ineligible', 'not_registered'],
+    ['owner', 'ineligible', 'foreign_repository'], ['url', 'ineligible', 'missing_target_url'],
+    ['malformed', 'unavailable', 'verification_unavailable'], ['missing_owner', 'unavailable', 'verification_unavailable'],
+    ['401', 'unavailable', 'verification_unavailable'], ['403', 'unavailable', 'verification_unavailable'],
+    ['429', 'unavailable', 'verification_unavailable'], ['503', 'unavailable', 'verification_unavailable'],
+]);
+
+test('registration verification handles connection failure missing configuration and limiter cooldown', function (string $case) {
+    if ($case === 'configuration') {
+        config(['datacite.test.client_id' => null]);
+    } elseif ($case === 'cooldown') {
+        app(DataCiteRequestLimiter::class)->imposeCooldown(60);
+    } else {
+        Http::swap(new Factory);
+        Http::fake(['*' => Http::failedConnection()]);
+    }
+    $this->actingAs($this->user)->getJson($this->endpoint.'?include_eligibility=1')->assertOk()
+        ->assertJsonPath('activation_eligibility.status', 'unavailable');
+    if ($case === 'cooldown') {
+        Http::assertNothingSent();
+    }
+})->with(['connection', 'configuration', 'cooldown']);
+
+test('activation rechecks the remote state after a positive eligibility response', function () {
+    $this->actingAs($this->user)->getJson($this->endpoint.'?include_eligibility=1')->assertOk()
+        ->assertJsonPath('activation_eligibility.status', 'eligible');
+    Http::swap(new Factory);
+    Http::fake(['*' => Http::response(($this->remote)('draft'))]);
+    $this->postJson($this->endpoint, $this->payload)->assertUnprocessable()->assertJsonValidationErrors('doi');
+    Http::assertSentCount(1);
+    expect($this->page->fresh()->is_tombstone)->toBeFalse()->and(ResourceTombstoneTransition::count())->toBe(0);
 });
