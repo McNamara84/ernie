@@ -1,15 +1,26 @@
+import { readFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { setTimeout } from 'node:timers/promises';
+import { getCACertificates } from 'node:tls';
 import { pathToFileURL } from 'node:url';
 
 function requestStatus(url, timeoutMs) {
     return new Promise((resolve, reject) => {
         const request = url.protocol === 'https:' ? httpsRequest : httpRequest;
-        const outgoing = request(url, {
+        const localHostname = url.hostname === 'localhost' || url.hostname.endsWith('.localhost')
+            || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
+        const ca = url.protocol === 'https:' && localHostname
+            ? [...getCACertificates('default'), readFileSync(new URL('../docker/traefik/certs/localhost.crt', import.meta.url), 'utf8')]
+            : undefined;
+        const endpoint = new URL(url);
+        if (ca) endpoint.hostname = 'localhost';
+        const outgoing = request(endpoint, {
             agent: false,
-            // Match the dev-stack browser's self-signed certificate policy.
-            rejectUnauthorized: false,
+            // Verify the local Traefik certificate as localhost; preserve virtual-host routing.
+            ca,
+            headers: ca ? { Host: url.host } : undefined,
+            servername: ca ? 'localhost' : undefined,
             signal: AbortSignal.timeout(timeoutMs),
         }, (response) => {
             response.resume();

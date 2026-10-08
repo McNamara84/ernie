@@ -42,6 +42,13 @@ and preserves Remarkable's CLI API. Argparse 3 removes that compatibility API.
 The Swagger and query devtools runtime tests verify these overrides; recheck and
 remove them when the upstream dependency ranges include safe versions.
 
+Concurrently still pins Shell Quote 1.9.0. A scoped override requires Shell Quote
+1.11.0 or newer to fix
+[GHSA-pqg4-j6r4-53mv](https://github.com/advisories/GHSA-pqg4-j6r4-53mv).
+The tooling tests verify that concurrently's resolved dependency rejects the
+reported comment/line-terminator injection and preserves ordinary arguments.
+Remove this override when concurrently depends on a corrected release.
+
 ## Recommended Commands
 
 | Check                      | Where to run it            | Command                                     | Notes                                                          |
@@ -127,9 +134,12 @@ npm run test:php:mysql-sensitive:relation-correction
 PHP suite. The wrapper always applies a 2 GB PHP memory limit, including to
 ParaTest workers, and reports the duration of every phase plus the total.
 
-Pest 5.3.0 currently excludes PHPUnit versions newer than 13.3.6. ParaTest 7.26.0
-requires PHPUnit 13.4, so the lockfile keeps PHPUnit 13.3.6 and ParaTest 7.25.0
-until Pest supports that newer PHPUnit release line.
+The lockfile uses Pest 5.3.1 with PHPUnit 13.4.1 and ParaTest 7.26.0. Pest
+currently restricts PHPUnit to exactly 13.4.1, so update the compatible test
+runner packages together through `npm run composer:app` rather than forcing
+an independent PHPUnit update. Laravel 13.35.0 is required for this combination:
+it fixes the PHPUnit 13.4 event-emitter API used by Laravel's parallel runner.
+The type-coverage plugin also needs version 5.0.3 for that PHPUnit API.
 
 On Docker Desktop, the checked-out source is a Windows/macOS bind mount. Pest
 and Laravel load hundreds of PHP files in every worker, so running directly
@@ -465,6 +475,12 @@ application errors fail immediately. Browser retries and test timeouts remain
 unchanged. `.env` remains untouched. `--list` only discovers tests and does not restart services. Seed the
 documented Playwright fixtures before running browser scenarios. Optional JSON
 timings include backend preparation and restoration separately.
+
+HTTPS readiness verifies certificates. For local origins, it adds the generated
+`docker/traefik/certs/localhost.crt` to Node's default trusted certificates,
+verifies the Traefik endpoint as `localhost`, and preserves the configured HTTP
+host for routing. Generate the development certificate as described in
+`docs/local-development.md`; invalid or expired certificates fail immediately.
 
 Fresh native workspaces omit generated `storage/inertia-devtools` recordings
 alongside logs and framework caches. Development recordings stay in place;

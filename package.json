@@ -175,6 +175,9 @@
     "lightningcss-linux-x64-gnu": "^1.33.0"
   },
   "overrides": {
+    "concurrently": {
+      "shell-quote": "^1.11.0"
+    },
     "seroval": "^1.6.8",
     "seroval-plugins": "^1.6.8",
     "remarkable": {

@@ -42,14 +42,14 @@ jobs:
       - name: Run MySQL-sensitive tests
         run: npm run test:php:mysql-sensitive
         env:
-          ERNIE_TEST_TIMINGS_FILE: storage/logs/mysql-timings.json
+          ERNIE_TEST_TIMINGS_FILE: ${{ runner.temp }}/ernie-mysql-timings.json
 
       - name: Upload MySQL timings
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mysql-timings
-          path: storage/logs/mysql-timings.json
+          path: ${{ runner.temp }}/ernie-mysql-timings.json
           if-no-files-found: warn
           retention-days: 7
 
