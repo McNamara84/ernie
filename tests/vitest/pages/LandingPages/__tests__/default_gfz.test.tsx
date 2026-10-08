@@ -102,7 +102,10 @@ describe('DefaultGfzTemplate', () => {
         expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
     });
 
-    it('shows an embargo date without a data request or file action in preview', () => {
+    it.each([
+        { embargoDue: false, notice: 'Under embargo until 2027-01-01.' },
+        { embargoDue: true, notice: 'Embargo expired on 2027-01-01; publication is pending manual release.' },
+    ])('shows a hidden embargo status without data actions when embargoDue=$embargoDue', ({ embargoDue, notice }) => {
         mockUsePage.mockReturnValue({
             props: {
                 resource: mockResource,
@@ -110,15 +113,20 @@ describe('DefaultGfzTemplate', () => {
                 isPreview: true,
                 embargoDate: '2027-01-01',
                 embargoPending: true,
-                embargoDue: false,
+                embargoDue,
             },
         } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
-        expect(screen.getByText('Under embargo until 2027-01-01.')).toBeInTheDocument();
-        expect(screen.getByText('Embargo')).toBeInTheDocument();
+        const hero = screen.getByTestId('landing-page-resource-hero');
+
+        expect(screen.getByText(notice)).toBeInTheDocument();
+        expect(within(hero).getByText('Embargo')).toBeInTheDocument();
+        expect(hero.querySelector('.lucide-eye-off')).toBeInTheDocument();
+        expect(hero.querySelector('.lucide-eye')).not.toBeInTheDocument();
         expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('data-request-section')).not.toBeInTheDocument();
     });
 
     it('renders the main layout structure', () => {
