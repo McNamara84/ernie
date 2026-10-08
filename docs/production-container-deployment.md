@@ -40,7 +40,7 @@ the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it ne
 
 ERNIE handles the public `/`, `/find`, `/data-centres`, and
 `/data-centres/description` routes on `dataservices.gfz.de`. Each page has its own
-runtime feature switch:
+environment switch applied when the app container is deployed:
 
 | Portainer stack variable | ERNIE route | TYPO3 target when `false` |
 | --- | --- | --- |
