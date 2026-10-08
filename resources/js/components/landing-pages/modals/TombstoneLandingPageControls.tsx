@@ -91,8 +91,9 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                 setStatement(typeof draft?.statement === 'string' ? draft.statement : (data.tombstone.statement ?? ''));
             })
             .catch((requestError: unknown) => {
-                if (!controller.signal.aborted)
-                    setError(getLandingPageRequestErrorMessage(requestError, 'Unable to verify DOI registration. Please retry.'));
+                if (controller.signal.aborted) return;
+                setEligibility({ status: 'unavailable', reason: 'verification_unavailable' });
+                setError(getLandingPageRequestErrorMessage(requestError, 'Unable to verify DOI registration. Please retry.'));
             });
         return () => controller.abort();
     }, [endpoint, resourceId, revision, reload]);

@@ -280,6 +280,32 @@ describe('Registration eligibility and disclosure', () => {
         expect(axios.get).toHaveBeenCalledTimes(2);
     });
 
+    it.each([false, true])('keeps repeated registration retries available after network failures (active tombstone: %s)', async (isActive) => {
+        setup(isActive ? { ...active, sync: null } : initial, 'unavailable');
+        const retry = await screen.findByRole('button', { name: 'Retry registration check' });
+        vi.mocked(axios.get).mockRejectedValue(new Error('Offline'));
+
+        fireEvent.click(retry);
+        expect(await screen.findByRole('alert')).toHaveTextContent('Unable to verify DOI registration');
+        expect(screen.queryByRole('button', { name: 'Activate tombstone page' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry registration check' }));
+        await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(3));
+        expect(await screen.findByRole('alert')).toHaveTextContent('Unable to verify DOI registration');
+        if (isActive) {
+            expect(screen.getByLabelText('Public explanation')).toHaveValue(active.statement);
+            expect(screen.getByRole('button', { name: 'Restore landing page' })).toBeInTheDocument();
+        }
+
+        vi.mocked(axios.get).mockResolvedValue({
+            data: { tombstone: isActive ? { ...active, sync: null } : initial, activation_eligibility: { status: 'eligible', reason: null } },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Retry registration check' }));
+        await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(4));
+        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(screen.getByRole('button', { name: 'Tombstone page' })).toHaveAttribute('aria-expanded', String(isActive));
+        expect(screen.queryByRole('button', { name: 'Retry registration check' })).not.toBeInTheDocument();
+    });
+
     it('retries failed state requests and never displays activation without a verified result', async () => {
         const callbacks = { onSaved: vi.fn(), onDirtyChange: vi.fn(), onBusyChange: vi.fn() };
         vi.mocked(axios.get).mockRejectedValue(new Error('Offline'));
