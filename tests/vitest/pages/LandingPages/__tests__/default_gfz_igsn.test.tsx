@@ -76,7 +76,10 @@ describe('DefaultGfzIgsnTemplate', () => {
     });
 
     describe('Layout Structure', () => {
-        it('shows a due embargo until manual release', () => {
+        it.each([
+            { embargoDue: false, notice: 'Under embargo until 2027-01-01.' },
+            { embargoDue: true, notice: 'Embargo expired on 2027-01-01; publication is pending manual release.' },
+        ])('shows a hidden embargo status until manual release when embargoDue=$embargoDue', ({ embargoDue, notice }) => {
             mockUsePage.mockReturnValue({
                 props: {
                     resource: mockResource,
@@ -84,13 +87,19 @@ describe('DefaultGfzIgsnTemplate', () => {
                     isPreview: true,
                     embargoDate: '2027-01-01',
                     embargoPending: true,
-                    embargoDue: true,
+                    embargoDue,
                     sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
             render(<DefaultGfzIgsnTemplate />);
-            expect(screen.getByText('Embargo expired on 2027-01-01; publication is pending manual release.')).toBeInTheDocument();
+
+            const hero = screen.getByTestId('landing-page-resource-hero');
+
+            expect(screen.getByText(notice)).toBeInTheDocument();
+            expect(within(hero).getByText('Embargo')).toBeInTheDocument();
+            expect(hero.querySelector('.lucide-eye-off')).toBeInTheDocument();
+            expect(hero.querySelector('.lucide-eye')).not.toBeInTheDocument();
         });
 
         it('renders the main layout structure', () => {
