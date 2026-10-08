@@ -28,6 +28,7 @@ services:
       - APP_DEBUG=false
       # Public pages are released independently; false keeps their TYPO3 redirects.
       - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-false}
+      - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-false}
       - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-false}
       - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-false}
       - ERNIE_CONTAINER_ROLE=app

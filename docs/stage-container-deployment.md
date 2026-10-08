@@ -143,11 +143,12 @@ exact validated manifests.
 Save and redeploy the stack, then re-enable automatic polling if changing the
 Git reference did not already enable it.
 
-The public homepage and both data-centre pages are enabled by default on Stage.
-Set `PUBLIC_HOME_ENABLED`, `PUBLIC_DATA_CENTRES_ENABLED`, or
+The public homepage, Find overview and both data-centre pages are enabled by
+default on Stage.
+Set `PUBLIC_HOME_ENABLED`, `PUBLIC_FIND_ENABLED`, `PUBLIC_DATA_CENTRES_ENABLED`, or
 `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` individually to `false` in the Portainer
 stack environment to preview the temporary TYPO3 fallback, then redeploy.
-Production defaults all three to `false`. See [public page routing and feature
+Production defaults all four to `false`. See [public page routing and feature
 switches](production-container-deployment.md#public-page-routing-and-feature-switches)
 for the route mapping and release procedure.
 

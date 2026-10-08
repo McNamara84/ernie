@@ -26,6 +26,7 @@ services:
       - APP_DEBUG=false
       # Preview each public page before enabling it in production.
       - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
+      - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-true}
       - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-true}
       - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=app

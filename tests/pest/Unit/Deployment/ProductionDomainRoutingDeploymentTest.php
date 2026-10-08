@@ -135,7 +135,7 @@ it('routes public pages through ERNIE and redirects only confirmed whole legacy 
             ->and(preg_match('~'.$legacyPattern.'~', "/{$segment}/example"))->toBe(1);
     }
 
-    foreach (['/', '/data-centres', '/data-centres/description', '/search', '/search/map', '/doi-search', '/doi-search/map', '/igsn-search', '/igsn-search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/images/home/topics/HEx_buttons_atmosphere.png', '/10.5880/example/slug'] as $erniePath) {
+    foreach (['/', '/find', '/data-centres', '/data-centres/description', '/search', '/search/map', '/doi-search', '/doi-search/map', '/igsn-search', '/igsn-search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/images/home/topics/HEx_buttons_atmosphere.png', '/10.5880/example/slug'] as $erniePath) {
         expect(preg_match('~'.$legacyPattern.'~', $erniePath))->toBe(0);
     }
 

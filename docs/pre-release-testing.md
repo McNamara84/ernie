@@ -201,8 +201,9 @@ Stop immediately if:
 
 - [ ] The curator test account and synthetic test data are available.
 
-- [ ] Record `PUBLIC_HOME_ENABLED`, `PUBLIC_DATA_CENTRES_ENABLED`, and
-      `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` for this deployment. Stage
+- [ ] Record `PUBLIC_HOME_ENABLED`, `PUBLIC_FIND_ENABLED`,
+      `PUBLIC_DATA_CENTRES_ENABLED`, and `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED`
+      for this deployment. Stage
       defaults to `true`; Production defaults to `false`. Enable the relevant
       switch before testing an ERNIE page's content, and redeploy after changes.
 
@@ -603,7 +604,7 @@ verify them after reopening:
 - [ ] Disable each public-page switch independently and redeploy. Its route
       redirects to the corresponding [TYPO3 target](production-container-deployment.md#public-page-routing-and-feature-switches)
       both on direct visits and when following an ERNIE navigation link, for
-      guests and signed-in users. The other two routes keep their configured
+      guests and signed-in users. The other three routes keep their configured
       behavior and both search portals remain available. Restore the intended
       switch values before continuing the content checks.
 

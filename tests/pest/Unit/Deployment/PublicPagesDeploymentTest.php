@@ -8,7 +8,7 @@ it('forwards independent public page switches with the correct deployment defaul
     $compose = Yaml::parseFile(base_path($composeFile));
     $environment = $compose['services']['app']['environment'];
 
-    foreach (['PUBLIC_HOME_ENABLED', 'PUBLIC_DATA_CENTRES_ENABLED', 'PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED'] as $name) {
+    foreach (['PUBLIC_HOME_ENABLED', 'PUBLIC_FIND_ENABLED', 'PUBLIC_DATA_CENTRES_ENABLED', 'PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED'] as $name) {
         expect($environment)->toContain($name.'=${'.$name.':-'.$default.'}');
     }
 })->with([
@@ -18,7 +18,7 @@ it('forwards independent public page switches with the correct deployment defaul
 ]);
 
 it('reads true and false environment values as public page booleans', function (string $value, bool $enabled): void {
-    $names = ['PUBLIC_HOME_ENABLED', 'PUBLIC_DATA_CENTRES_ENABLED', 'PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED'];
+    $names = ['PUBLIC_HOME_ENABLED', 'PUBLIC_FIND_ENABLED', 'PUBLIC_DATA_CENTRES_ENABLED', 'PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED'];
     $previous = [];
 
     foreach ($names as $name) {
@@ -31,6 +31,7 @@ it('reads true and false environment values as public page booleans', function (
 
         expect($config)->toBe([
             'home_enabled' => $enabled,
+            'find_enabled' => $enabled,
             'data_centres_enabled' => $enabled,
             'data_centre_description_enabled' => $enabled,
         ]);

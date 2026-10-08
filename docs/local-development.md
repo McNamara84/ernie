@@ -737,11 +737,12 @@ Restarting the scheduler also performs this refresh before `schedule:work` start
 
 ## Public Page Feature Switches
 
-Each of the three new public pages can be enabled independently in `.env.docker`:
+Each of the four new public pages can be enabled independently in `.env.docker`:
 
 | Environment variable | Route |
 | --- | --- |
 | `PUBLIC_HOME_ENABLED` | `/` |
+| `PUBLIC_FIND_ENABLED` | `/find` |
 | `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` |
 | `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` |
 

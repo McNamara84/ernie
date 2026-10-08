@@ -38,12 +38,14 @@ the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it ne
 
 ## Public page routing and feature switches
 
-ERNIE handles the public `/`, `/data-centres`, and `/data-centres/description`
-routes on `dataservices.gfz.de`. Each page has its own runtime feature switch:
+ERNIE handles the public `/`, `/find`, `/data-centres`, and
+`/data-centres/description` routes on `dataservices.gfz.de`. Each page has its own
+runtime feature switch:
 
 | Portainer stack variable | ERNIE route | TYPO3 target when `false` |
 | --- | --- | --- |
 | `PUBLIC_HOME_ENABLED` | `/` | `https://dataservices.gfz-potsdam.de/` |
+| `PUBLIC_FIND_ENABLED` | `/find` | `https://dataservices.gfz-potsdam.de/web/find` |
 | `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` | `https://dataservices.gfz-potsdam.de/web/find/data-centres` |
 | `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` | `https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description` |
 
@@ -55,7 +57,7 @@ equally and are independent: disabling the overview does not disable the
 description page, or vice versa. Other pages and both search portals remain
 available.
 
-Production Compose defaults all three switches to `false`. Stage and development
+Production Compose defaults all four switches to `false`. Stage and development
 Compose default them to `true`; the image's `.env.production` template keeps
 them disabled unless the runtime environment enables them. Configure overrides
 in **Stacks → your stack → Edit stack settings → Environment variables**, save,
@@ -80,8 +82,9 @@ When releasing the homepage, deploy both the application and the updated
 the application image leaves the old root redirect active. Verify `/` returns
 the expected response for `PUBLIC_HOME_ENABLED`: HTTP 200 with local topic
 images when `true`, or HTTP 302 to the TYPO3 homepage when `false`. Also verify
-that each data-centre route follows its individual switch, `/doi-search` and
-`/igsn-search` remain available, and legacy URLs still redirect correctly.
+that `/find` and each data-centre route follow their individual switches,
+`/doi-search` and `/igsn-search` remain available, and legacy URLs still redirect
+correctly.
 
 Verify the search redirects with GET requests, including both base paths,
 trailing slashes, nested paths and query parameters. For example:

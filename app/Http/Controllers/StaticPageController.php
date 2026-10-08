@@ -23,8 +23,12 @@ final class StaticPageController extends Controller
         ]);
     }
 
-    public function find(): Response
+    public function find(): Response|SymfonyResponse
     {
+        if (! config('public_pages.find_enabled')) {
+            return Inertia::location('https://dataservices.gfz-potsdam.de/web/find');
+        }
+
         return Inertia::render('find');
     }
 

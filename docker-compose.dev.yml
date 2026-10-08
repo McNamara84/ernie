@@ -56,6 +56,7 @@ services:
       - APP_ENV=local
       - APP_DEBUG=true
       - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
+      - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-true}
       - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-true}
       - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-true}
       # You can emulate production-style subdomains locally using e.g. https://ernie.localhost:3333
