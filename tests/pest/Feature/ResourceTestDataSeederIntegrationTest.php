@@ -27,4 +27,25 @@ it('creates every scenario after the complete application database seeder', func
     expect(Resource::where('doi', 'LIKE', '10.5880/testdata.%')->count())->toBe(27)
         ->and(LandingPage::whereHas('resource', fn ($query) => $query->where('doi', 'LIKE', '10.5880/testdata.%'))
             ->where('is_published', true)->count())->toBe(27);
+
+    $multipleDescriptions = Resource::with('descriptions.descriptionType')
+        ->whereHas('titles', fn ($query) => $query->where('value', 'TEST: Multiple Description Types'))
+        ->firstOrFail();
+    $manyDates = Resource::with('dates.dateType')
+        ->whereHas('titles', fn ($query) => $query->where('value', 'TEST: Many Date Types'))
+        ->firstOrFail();
+
+    expect($multipleDescriptions->descriptions->pluck('descriptionType.slug')->sort()->values()->all())->toBe([
+        'Abstract',
+        'Methods',
+        'TechnicalInfo',
+    ])->and($manyDates->dates->pluck('dateType.slug')->sort()->values()->all())->toBe([
+        'Accepted',
+        'Available',
+        'Collected',
+        'Created',
+        'Submitted',
+        'Updated',
+        'Valid',
+    ]);
 });

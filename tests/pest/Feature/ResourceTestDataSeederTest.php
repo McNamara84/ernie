@@ -7,6 +7,8 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Support\OrcidNormalizer;
 use Database\Seeders\ContributorTypeSeeder;
+use Database\Seeders\DateTypeSeeder;
+use Database\Seeders\DescriptionTypeSeeder;
 use Database\Seeders\RelationTypeSeeder;
 use Database\Seeders\ResourceTestDataSeeder;
 use Database\Seeders\RightsSeeder;
@@ -27,8 +29,14 @@ beforeEach(function () {
 
     // Seed the catalogs used across the 27 scenarios, preserving real model
     // writes and a fresh database for every case. Complete application seeding
-    // runs once in ResourceTestDataSeederIntegrationTest instead of 30 times.
-    $this->seed([RightsSeeder::class, ContributorTypeSeeder::class, RelationTypeSeeder::class]);
+    // runs once in ResourceTestDataSeederIntegrationTest.
+    $this->seed([
+        RightsSeeder::class,
+        ContributorTypeSeeder::class,
+        RelationTypeSeeder::class,
+        DescriptionTypeSeeder::class,
+        DateTypeSeeder::class,
+    ]);
     $this->seed(ResourceTestDataSeeder::class);
 });
 
@@ -329,6 +337,47 @@ describe('Scenario: Licenses', function () {
                 'CC-BY-SA-4.0',
                 'CC0-1.0',
             ]);
+    });
+});
+
+describe('Scenario: Multiple Description Types', function () {
+    test('has abstract, methods and technical information descriptions', function () {
+        $resource = Resource::with('descriptions.descriptionType')
+            ->whereHas('titles', fn ($query) => $query->where('value', 'TEST: Multiple Description Types'))
+            ->firstOrFail();
+
+        expect($resource->descriptions->pluck('descriptionType.slug')->sort()->values()->all())->toBe([
+            'Abstract',
+            'Methods',
+            'TechnicalInfo',
+        ]);
+        expect($resource->descriptions->firstWhere('descriptionType.slug', 'TechnicalInfo')->value)
+            ->toContain('File format: NetCDF 4.0.');
+    });
+});
+
+describe('Scenario: Many Date Types', function () {
+    test('has all five single dates and both date ranges', function () {
+        $resource = Resource::with('dates.dateType')
+            ->whereHas('titles', fn ($query) => $query->where('value', 'TEST: Many Date Types'))
+            ->firstOrFail();
+
+        $dates = $resource->dates->sortBy('dateType.slug')->map(fn ($date) => [
+            $date->dateType->slug,
+            $date->date_value,
+            $date->start_date,
+            $date->end_date,
+        ])->values()->all();
+
+        expect($dates)->toBe([
+            ['Accepted', '2024-03-01', null, null],
+            ['Available', '2024-04-01', null, null],
+            ['Collected', null, '2023-06-01', '2023-12-31'],
+            ['Created', '2024-01-01', null, null],
+            ['Submitted', '2024-02-15', null, null],
+            ['Updated', '2024-05-15', null, null],
+            ['Valid', null, '2024-01-01', '2025-12-31'],
+        ]);
     });
 });
 
