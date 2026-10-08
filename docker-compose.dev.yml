@@ -55,6 +55,9 @@ services:
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
+      - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
+      - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-true}
+      - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-true}
       # You can emulate production-style subdomains locally using e.g. https://ernie.localhost:3333
       # (certificate SAN already includes *.localhost). Override via ERNIE_DEV_HOST if needed.
       - APP_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}

@@ -26,6 +26,10 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
+      # Public pages are released independently; false keeps their TYPO3 redirects.
+      - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-false}
+      - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-false}
+      - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-false}
       - ERNIE_CONTAINER_ROLE=app
       - ERNIE_RUN_MIGRATIONS=1
       - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}
@@ -193,7 +197,8 @@ services:
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/igsn-new([/?].*)?$$"
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/igsn-search"
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.permanent=true"
-      # ERNIE serves /. Redirect only confirmed first path segments to the retired
+      # ERNIE decides whether / is rendered or redirected via PUBLIC_HOME_ENABLED.
+      # Redirect only confirmed first path segments to the retired
       # TYPO3 host. The (/|$) boundary is essential: /igsn must not capture
       # /igsns, and /thesaurus must not capture /thesauri.
       - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`)"

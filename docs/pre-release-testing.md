@@ -201,6 +201,11 @@ Stop immediately if:
 
 - [ ] The curator test account and synthetic test data are available.
 
+- [ ] Record `PUBLIC_HOME_ENABLED`, `PUBLIC_DATA_CENTRES_ENABLED`, and
+      `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` for this deployment. Stage
+      defaults to `true`; Production defaults to `false`. Enable the relevant
+      switch before testing an ERNIE page's content, and redeploy after changes.
+
 ### 2.3 Public Availability
 
 - [ ] `/` returns the GFZ Data Services homepage, including the welcome text,
@@ -212,8 +217,10 @@ Stop immediately if:
       Scientific Drilling filters the SDDB datacenter. Keyboard focus reveals
       topic labels, and touch devices show them without requiring a first tap.
 
-- [ ] On Production, `/` no longer redirects to TYPO3 after the updated Traefik
-      labels are deployed. `/web/` and ELMO still reach their existing applications.
+- [ ] On Production, after deploying the updated Traefik labels, `/` follows
+      `PUBLIC_HOME_ENABLED`: `true` returns the ERNIE page with HTTP 200, and
+      `false` temporarily redirects to `https://dataservices.gfz-potsdam.de/`
+      with HTTP 302. `/web/` and ELMO still reach their existing applications.
 
 - [ ] On Production, GET requests for `/portal`, `/portal/` and all their
       subpaths return HTTP 301 with exactly
@@ -592,6 +599,13 @@ verify them after reopening:
       false success status.
 
 ### 3.10 Portal and Public Discovery
+
+- [ ] Disable each public-page switch independently and redeploy. Its route
+      redirects to the corresponding [TYPO3 target](production-container-deployment.md#public-page-routing-and-feature-switches)
+      both on direct visits and when following an ERNIE navigation link, for
+      guests and signed-in users. The other two routes keep their configured
+      behavior and both search portals remain available. Restore the intended
+      switch values before continuing the content checks.
 
 - [ ] `Find → Data Centres` opens `/data-centres` on desktop and mobile. The
       homepage and Find overview link to the same local page. Every tile opens

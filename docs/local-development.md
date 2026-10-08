@@ -735,6 +735,26 @@ npm run artisan -- rights:update-usage-count
 
 Restarting the scheduler also performs this refresh before `schedule:work` starts. A failed startup refresh leaves the previous complete counter snapshot in place and causes the scheduler container to restart instead of silently serving a partially updated ranking.
 
+## Public Page Feature Switches
+
+Each of the three new public pages can be enabled independently in `.env.docker`:
+
+| Environment variable | Route |
+| --- | --- |
+| `PUBLIC_HOME_ENABLED` | `/` |
+| `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` |
+| `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` |
+
+Local development and Stage default to `true`; Production defaults to `false`.
+Use the literal `true` to serve the ERNIE page or `false` to temporarily redirect
+to its existing TYPO3 counterpart. Run `npm run docker:dev:backend:d` after
+changing `.env.docker` to recreate the app container with the new values. The
+switches apply equally to direct visits and Inertia navigation, including
+signed-in users. They do not disable the search portals or other public pages.
+
+For the exact fallback URLs and Portainer instructions, see [public page routing
+and feature switches](production-container-deployment.md#public-page-routing-and-feature-switches).
+
 ## Maintaining the Public Data Centres Catalogue
 
 The public `/data-centres` and `/data-centres/description` pages use

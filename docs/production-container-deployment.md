@@ -36,10 +36,35 @@ and form a linear deployment history. The generated Compose file references
 the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
 `latest`, `production`, or version tag.
 
-## Public homepage routing
+## Public page routing and feature switches
 
-The public `/` route on `dataservices.gfz.de` is served by ERNIE. Production
-Traefik labels permanently redirect GET requests for `/portal` and `/igsn-new`
+ERNIE handles the public `/`, `/data-centres`, and `/data-centres/description`
+routes on `dataservices.gfz.de`. Each page has its own runtime feature switch:
+
+| Portainer stack variable | ERNIE route | TYPO3 target when `false` |
+| --- | --- | --- |
+| `PUBLIC_HOME_ENABLED` | `/` | `https://dataservices.gfz-potsdam.de/` |
+| `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` | `https://dataservices.gfz-potsdam.de/web/find/data-centres` |
+| `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` | `https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description` |
+
+Set each variable to the literal `true` or `false`. `true` serves the ERNIE page
+with HTTP 200; `false` returns a temporary HTTP 302 redirect to the corresponding
+TYPO3 page. Inertia navigation uses an HTTP 409 location response to perform the
+same full browser navigation. The switches apply to guests and signed-in users
+equally and are independent: disabling the overview does not disable the
+description page, or vice versa. Other pages and both search portals remain
+available.
+
+Production Compose defaults all three switches to `false`. Stage and development
+Compose default them to `true`; the image's `.env.production` template keeps
+them disabled unless the runtime environment enables them. Configure overrides
+in **Stacks → your stack → Edit stack settings → Environment variables**, save,
+and redeploy the stack. A restart of the existing container does not apply
+changed stack variables. After the feature is deployed once, switching values
+requires no image rebuild. The container entrypoint rebuilds Laravel's
+configuration and route caches during startup.
+
+Production Traefik labels permanently redirect GET requests for `/portal` and `/igsn-new`
 to `https://dataservices.gfz.de/doi-search` and
 `https://dataservices.gfz.de/igsn-search`, respectively, with HTTP 301. Both
 redirects include the trailing-slash variants and all subpaths, discarding the
@@ -53,7 +78,9 @@ separate stacks.
 When releasing the homepage, deploy both the application and the updated
 `webserver` service definition so Traefik receives the new labels. Updating only
 the application image leaves the old root redirect active. Verify `/` returns
-the ERNIE homepage with HTTP 200, local topic images load, `/doi-search` and
+the expected response for `PUBLIC_HOME_ENABLED`: HTTP 200 with local topic
+images when `true`, or HTTP 302 to the TYPO3 homepage when `false`. Also verify
+that each data-centre route follows its individual switch, `/doi-search` and
 `/igsn-search` remain available, and legacy URLs still redirect correctly.
 
 Verify the search redirects with GET requests, including both base paths,
