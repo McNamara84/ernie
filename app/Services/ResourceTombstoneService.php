@@ -29,7 +29,6 @@ final class ResourceTombstoneService
 
         return [
             'can_manage' => $user->can('manageTombstone', LandingPage::class),
-            'can_activate' => (bool) $resource->doi && ! $resource->isIgsn(),
             'is_tombstone' => (bool) $page?->is_tombstone,
             'revision' => (int) $page?->tombstone_revision,
             'reason' => $page?->tombstone_reason?->value,
@@ -45,6 +44,61 @@ final class ResourceTombstoneService
         ];
     }
 
+    /** @return array{status: string, reason: ?string} */
+    public function activationEligibility(Resource $resource, User $user): array
+    {
+        if (! $user->can('manageTombstone', LandingPage::class)) {
+            return ['status' => 'ineligible', 'reason' => 'forbidden'];
+        }
+        if ($resource->landingPage?->is_tombstone) {
+            return ['status' => 'ineligible', 'reason' => 'already_active'];
+        }
+
+        $registration = $this->registration($resource, deferWhenLimited: true);
+
+        return ['status' => $registration['status'], 'reason' => $registration['reason']];
+    }
+
+    /** @return array{status: string, reason: ?string, state: ?string, url: ?string} */
+    private function registration(Resource $resource, bool $deferWhenLimited = false): array
+    {
+        $result = ['status' => 'ineligible', 'reason' => null, 'state' => null, 'url' => null];
+        if (! is_string($resource->doi) || trim($resource->doi) === '') {
+            return [...$result, 'reason' => 'missing_doi'];
+        }
+        if ($resource->isIgsn()) {
+            return [...$result, 'reason' => 'igsn'];
+        }
+
+        try {
+            $client = app(DataCiteMemberApiClient::class);
+            $response = $client->getDoi($resource->doi, deferWhenLimited: $deferWhenLimited);
+            if ($response->status() === 404) {
+                return [...$result, 'reason' => 'not_registered'];
+            }
+            $response->throw();
+            $state = $response->json('data.attributes.state');
+            $url = $response->json('data.attributes.url');
+            $owner = $response->json('data.relationships.client.data.id');
+            if ($state === 'draft') {
+                return [...$result, 'reason' => 'not_registered'];
+            }
+            if (! in_array($state, ['registered', 'findable'], true) || ! is_string($owner)) {
+                return [...$result, 'status' => 'unavailable', 'reason' => 'verification_unavailable'];
+            }
+            if (! is_string($url) || trim($url) === '') {
+                return [...$result, 'reason' => 'missing_target_url'];
+            }
+            if (strtolower($owner) !== $client->repositoryClientId()) {
+                return [...$result, 'reason' => 'foreign_repository'];
+            }
+
+            return ['status' => 'eligible', 'reason' => null, 'state' => $state, 'url' => $url];
+        } catch (\Throwable) {
+            return [...$result, 'status' => 'unavailable', 'reason' => 'verification_unavailable'];
+        }
+    }
+
     /** @param array<string, mixed> $data */
     public function activate(Resource $resource, User $user, array $data): LandingPage
     {
@@ -54,21 +108,17 @@ final class ResourceTombstoneService
         $client = app(DataCiteMemberApiClient::class);
 
         return DataCiteDoiWriteLockService::run($resource->doi, $client->isTestMode(), function () use ($resource, $user, $data, $client): LandingPage {
-            try {
-                $response = $client->getDoi((string) $resource->doi);
-                $response->throw();
-            } catch (\Throwable) {
-                throw ValidationException::withMessages(['doi' => 'The registered DOI could not be verified with DataCite. Please retry.']);
+            $registration = $this->registration($resource);
+            if ($registration['status'] !== 'eligible') {
+                $message = match ($registration['reason']) {
+                    'foreign_repository' => 'The DOI does not belong to the configured DataCite repository.',
+                    'not_registered', 'missing_target_url' => 'The DOI must already be registered with DataCite and have a target URL.',
+                    default => 'The registered DOI could not be verified with DataCite. Please retry.',
+                };
+                throw ValidationException::withMessages(['doi' => $message]);
             }
-            $remoteState = $response->json('data.attributes.state');
-            $remoteUrl = $response->json('data.attributes.url');
-            $owner = $response->json('data.relationships.client.data.id');
-            if (! in_array($remoteState, ['registered', 'findable'], true) || ! is_string($remoteUrl) || trim($remoteUrl) === '') {
-                throw ValidationException::withMessages(['doi' => 'The DOI must already be registered with DataCite and have a target URL.']);
-            }
-            if (! is_string($owner) || strtolower($owner) !== $client->repositoryClientId()) {
-                throw ValidationException::withMessages(['doi' => 'The DOI does not belong to the configured DataCite repository.']);
-            }
+            $remoteState = $registration['state'];
+            $remoteUrl = $registration['url'];
 
             return DB::transaction(function () use ($resource, $user, $data, $client, $remoteState, $remoteUrl): LandingPage {
                 $locked = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();

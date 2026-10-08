@@ -21,7 +21,12 @@ class ResourceTombstoneController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
-        return response()->json(['tombstone' => $this->service->state($resource, $user)]);
+        $payload = ['tombstone' => $this->service->state($resource, $user)];
+        if ($request->boolean('include_eligibility')) {
+            $payload['activation_eligibility'] = $this->service->activationEligibility($resource, $user);
+        }
+
+        return response()->json($payload);
     }
 
     public function activate(ResourceTombstoneRequest $request, Resource $resource): JsonResponse

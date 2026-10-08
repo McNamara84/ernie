@@ -53,6 +53,7 @@ interface Resource {
 }
 
 interface SetupLandingPageModalProps {
+    context: 'resource-list' | 'editor-preview' | 'editor-registration';
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
@@ -363,6 +364,7 @@ function SortableLinkItem({
 }
 
 export default function SetupLandingPageModal({
+    context,
     resource,
     isOpen,
     onClose,
@@ -1140,22 +1142,6 @@ export default function SetupLandingPageModal({
                     </div>
                 ) : (
                     <div data-testid="setup-lp-modal-scroll-area" className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-                        {!isPhysicalObject &&
-                            (resource.doi || currentConfig?.is_tombstone) &&
-                            auth.user?.role &&
-                            (auth.user.role !== 'beginner' || currentConfig?.is_tombstone) && (
-                                <TombstoneLandingPageControls
-                                    resourceId={resource.id}
-                                    revision={currentConfig?.tombstone_revision ?? 0}
-                                    onDirtyChange={setTombstoneDirty}
-                                    onBusyChange={setTombstoneBusy}
-                                    onSaved={(page) => {
-                                        clearPersistedDraftState();
-                                        applyConfigState(page);
-                                        onSuccess?.(page);
-                                    }}
-                                />
-                            )}
                         <fieldset
                             data-testid="setup-lp-modal-editable-fields"
                             disabled={isSaving || tombstoneBusy || currentConfig?.is_tombstone === true}
@@ -1682,6 +1668,24 @@ export default function SetupLandingPageModal({
                                 </div>
                             )}
                         </fieldset>
+                        {context === 'resource-list' &&
+                            !isPhysicalObject &&
+                            (resource.doi || currentConfig?.is_tombstone) &&
+                            auth.user?.role &&
+                            (auth.user.role !== 'beginner' || currentConfig?.is_tombstone) && (
+                                <TombstoneLandingPageControls
+                                    key={`${resource.id}:${resource.doi ?? ''}`}
+                                    resourceId={resource.id}
+                                    revision={currentConfig?.tombstone_revision ?? 0}
+                                    onDirtyChange={setTombstoneDirty}
+                                    onBusyChange={setTombstoneBusy}
+                                    onSaved={(page) => {
+                                        clearPersistedDraftState();
+                                        applyConfigState(page);
+                                        onSuccess?.(page);
+                                    }}
+                                />
+                            )}
                     </div>
                 )}
 
