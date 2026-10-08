@@ -114,16 +114,16 @@ export const DOCS_ACTIONS: DocsAction[] = [
         area: 'resources',
         capability: 'manageLandingPages',
         requirements: 'Select exactly one resource.',
-        onClick: 'Opens landing-page setup.',
+        onClick: 'Opens landing-page setup and checks DOI registration with DataCite before offering tombstone activation.',
         afterConfirmation:
-            'Saving normal setup stores landing-page settings in ERNIE. Curators and higher roles can separately activate a tombstone with a public reason and explanation, or confirm restoration.',
+            'Saving normal setup stores landing-page settings in ERNIE. Curators and higher roles can expand Tombstone page at the bottom to activate a tombstone for a verified registered DOI, or confirm restoration. Active tombstones open expanded.',
         localEffect: 'Updates the landing-page configuration for the selected resource.',
         externalEffect:
-            'Normal setup does not register a DOI. Tombstone activation automatically sets the existing DataCite DOI to Registered and updates its URL; restoration returns its previous state and URL.',
+            'Opening setup may read the existing DOI from DataCite to verify registration. Normal setup does not register a DOI. Tombstone activation automatically sets the existing DataCite DOI to Registered and updates its URL; restoration returns its previous state and URL.',
         publicEffect:
             'A tombstone remains publicly accessible with its DOI, citation and metadata, but has no data access, is marked Dead and is hidden from the portal.',
         failure:
-            'A failed setup must be corrected before DOI registration can continue. A failed DataCite tombstone sync leaves the local change active, displays the pending or failed status and supports retry.',
+            'A failed setup must be corrected before DOI registration can continue. Unavailable registration verification hides new tombstone activation and can be retried; active tombstones remain accessible. A failed DataCite tombstone sync leaves the local change active, displays the pending or failed status and supports retry.',
     },
     {
         id: 'resources-related-items',

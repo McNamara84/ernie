@@ -1,10 +1,12 @@
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
 import { getLandingPageRequestErrorMessage } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +14,6 @@ import type { LandingPageConfig } from '@/types/landing-page';
 
 export interface TombstoneState {
     can_manage: boolean;
-    can_activate: boolean;
     is_tombstone: boolean;
     revision: number;
     reason: string | null;
@@ -20,6 +21,11 @@ export interface TombstoneState {
     reasons: Array<{ value: string; label: string }>;
     sync: { status: 'pending' | 'running' | 'succeeded' | 'failed' | 'superseded'; attempts: number; last_error: string | null } | null;
     restore: { has_configuration: boolean; template: string | null; is_published: boolean | null; datacite_state: string | null } | null;
+}
+
+export interface ActivationEligibility {
+    status: 'eligible' | 'ineligible' | 'unavailable';
+    reason: string | null;
 }
 
 interface Props {
@@ -32,6 +38,9 @@ interface Props {
 
 export default function TombstoneLandingPageControls({ resourceId, revision, onSaved, onDirtyChange, onBusyChange }: Props) {
     const [state, setState] = useState<TombstoneState | null>(null);
+    const [eligibility, setEligibility] = useState<ActivationEligibility | null>(null);
+    const [open, setOpen] = useState(false);
+    const [reload, setReload] = useState(0);
     const [reason, setReason] = useState('data_lost');
     const [statement, setStatement] = useState('');
     const [confirmed, setConfirmed] = useState(false);
@@ -39,21 +48,37 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
     const [restorePublished, setRestorePublished] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
+    const requestScope = useRef(0);
     const endpoint = `/resources/${resourceId}/landing-page/tombstone`;
     const storageKey = `setup-landing-page-modal:tombstone:${resourceId}:${state?.revision ?? revision}`;
     const dirty = state !== null && (statement !== (state.statement ?? '') || reason !== (state.reason ?? 'data_lost'));
 
     useEffect(() => {
-        const controller = new AbortController();
+        requestScope.current += 1;
         setState(null);
+        setOpen(false);
+        return () => {
+            requestScope.current += 1;
+            onBusyChange(false);
+        };
+    }, [resourceId, onBusyChange]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setEligibility(null);
         setError('');
         setConfirmed(false);
         setRestoreConfirmed(false);
         void axios
-            .get<{ tombstone: TombstoneState }>(endpoint, { signal: controller.signal })
+            .get<{ tombstone: TombstoneState; activation_eligibility: ActivationEligibility }>(endpoint, {
+                signal: controller.signal,
+                params: { include_eligibility: 1 },
+            })
             .then(({ data }) => {
                 if (controller.signal.aborted) return;
                 setState(data.tombstone);
+                setEligibility(data.activation_eligibility);
+                setOpen(data.tombstone.is_tombstone);
                 let draft: { reason?: string; statement?: string } | null = null;
                 try {
                     draft = JSON.parse(
@@ -66,11 +91,14 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                 setStatement(typeof draft?.statement === 'string' ? draft.statement : (data.tombstone.statement ?? ''));
             })
             .catch((requestError: unknown) => {
-                if (!controller.signal.aborted)
-                    setError(getLandingPageRequestErrorMessage(requestError, 'Unable to load tombstone settings. Reopen this modal to retry.'));
+                if (controller.signal.aborted) return;
+                setEligibility({ status: 'unavailable', reason: 'verification_unavailable' });
+                setError(getLandingPageRequestErrorMessage(requestError, 'Unable to verify DOI registration. Please retry.'));
             });
         return () => controller.abort();
-    }, [endpoint, resourceId, revision]);
+    }, [endpoint, resourceId, revision, reload]);
+
+    useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
 
     useEffect(() => {
         onDirtyChange(dirty);
@@ -106,6 +134,7 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
 
     async function mutate(action: 'activate' | 'update' | 'restore' | 'retry') {
         if (!state) return;
+        const scope = requestScope.current;
         setBusy(true);
         onBusyChange(true);
         setError('');
@@ -126,7 +155,14 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                             action === 'retry' ? `${endpoint}/retry-sync` : endpoint,
                             payload,
                         );
+            if (scope !== requestScope.current) return;
             setState(response.data.tombstone);
+            if (action === 'activate') setOpen(true);
+            if (action === 'restore') {
+                setOpen(false);
+                setEligibility(null);
+                setReload((value) => value + 1);
+            }
             if (action !== 'retry') {
                 try {
                     sessionStorage.removeItem(storageKey);
@@ -140,16 +176,23 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                 if (response.data.landing_page) onSaved(response.data.landing_page);
             }
         } catch (requestError) {
-            setError(
-                getLandingPageRequestErrorMessage(requestError, 'The tombstone change could not be saved. Reload the modal if the page has changed.'),
-            );
+            if (scope === requestScope.current)
+                setError(
+                    getLandingPageRequestErrorMessage(
+                        requestError,
+                        'The tombstone change could not be saved. Reload the modal if the page has changed.',
+                    ),
+                );
         } finally {
-            setBusy(false);
-            onBusyChange(false);
+            if (scope === requestScope.current) {
+                setBusy(false);
+                onBusyChange(false);
+            }
         }
     }
 
     async function preview() {
+        const scope = requestScope.current;
         const previewWindow = openLandingPagePreviewPlaceholder();
         if (!previewWindow) {
             setError('Allow popups to open the tombstone preview.');
@@ -162,42 +205,67 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                 tombstone_reason: reason,
                 tombstone_statement: statement,
             });
-            previewWindow.location.href = data.preview_url;
+            if (scope === requestScope.current) previewWindow.location.href = data.preview_url;
+            else previewWindow.close();
         } catch (requestError) {
             previewWindow.close();
-            setError(getLandingPageRequestErrorMessage(requestError, 'The tombstone preview could not be opened.'));
+            if (scope === requestScope.current)
+                setError(getLandingPageRequestErrorMessage(requestError, 'The tombstone preview could not be opened.'));
         }
     }
 
-    return (
-        <section aria-labelledby="tombstone-settings-heading" className="mb-6 space-y-3 rounded-lg border p-4">
-            <h3 id="tombstone-settings-heading" className="font-semibold">
-                Tombstone page
-            </h3>
+    const canActivate = eligibility?.status === 'eligible';
+    const showSettings = state?.is_tombstone || canActivate;
+    const feedback = (
+        <>
             {error && (
                 <p role="alert" className="text-sm text-destructive">
                     {error}
                 </p>
             )}
-            {!state && !error && <p role="status">Loading tombstone settings...</p>}
-            {state && (
-                <>
+            {(eligibility?.status === 'unavailable' || (!state && error)) && (
+                <div className="space-y-2 text-sm">
+                    {!error && <p role="status">DOI registration could not be verified. Please retry.</p>}
+                    <Button type="button" variant="outline" onClick={() => setReload((value) => value + 1)}>
+                        Retry registration check
+                    </Button>
+                </div>
+            )}
+            {state?.sync && (
+                <div role="status" className="text-sm">
+                    DataCite sync: {state.sync.status === 'succeeded' ? 'completed' : state.sync.status}.
+                    {state.sync.last_error && <p>{state.sync.last_error} The saved landing page remains active.</p>}
+                    {state.can_manage && ['pending', 'failed'].includes(state.sync.status) && (
+                        <Button type="button" variant="outline" disabled={busy} onClick={() => void mutate('retry')}>
+                            Retry DataCite sync
+                        </Button>
+                    )}
+                </div>
+            )}
+        </>
+    );
+
+    if (!state || !showSettings) {
+        if (!error && eligibility?.status !== 'unavailable' && !state?.sync) return null;
+        return <div className="mt-6 space-y-3">{feedback}</div>;
+    }
+
+    return (
+        <section aria-labelledby="tombstone-settings-heading" className="mt-6 space-y-3 rounded-lg border p-4">
+            <Collapsible open={open} onOpenChange={setOpen}>
+                <h3 id="tombstone-settings-heading" className="font-semibold">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        Tombstone page
+                        <ChevronDown aria-hidden="true" className={open ? 'size-4 rotate-180' : 'size-4'} />
+                    </CollapsibleTrigger>
+                </h3>
+                {feedback}
+                <CollapsibleContent className="space-y-3 pt-3">
                     <p className="text-sm text-muted-foreground">
                         {state.is_tombstone
                             ? 'This resource is Dead. Its tombstone page remains publicly accessible.'
                             : 'Use a tombstone when a resource with a registered DOI is permanently unavailable.'}
                     </p>
-                    {state.sync && (
-                        <div role="status" className="text-sm">
-                            DataCite sync: {state.sync.status === 'succeeded' ? 'completed' : state.sync.status}.
-                            {state.sync.last_error && <p>{state.sync.last_error} The saved landing page remains active.</p>}
-                            {state.can_manage && ['pending', 'failed'].includes(state.sync.status) && (
-                                <Button type="button" variant="outline" disabled={busy} onClick={() => void mutate('retry')}>
-                                    Retry DataCite sync
-                                </Button>
-                            )}
-                        </div>
-                    )}
                     <fieldset disabled={busy || !state.can_manage} className="space-y-3">
                         <div className="space-y-1">
                             <Label htmlFor="tombstone-reason">Reason</Label>
@@ -289,19 +357,18 @@ export default function TombstoneLandingPageControls({ resourceId, revision, onS
                                         <Button
                                             type="button"
                                             variant="destructive"
-                                            disabled={!state.can_activate || !confirmed || !statement.trim()}
+                                            disabled={!canActivate || !confirmed || !statement.trim()}
                                             onClick={() => void mutate('activate')}
                                         >
                                             Activate tombstone page
                                         </Button>
-                                        {!state.can_activate && <p className="text-sm">An existing resource DOI is required.</p>}
                                     </>
                                 )}
                             </>
                         )}
                     </fieldset>
-                </>
-            )}
+                </CollapsibleContent>
+            </Collapsible>
         </section>
     );
 }

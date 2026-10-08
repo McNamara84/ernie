@@ -12,7 +12,7 @@ import type { LandingPageConfig, LandingPageDownloadUrlSuggestions } from '@/typ
 
 const mockUsePage = vi.hoisted(() =>
     vi.fn(() => ({
-        props: { auth: { user: { can_delete_landing_pages: true } } },
+        props: { auth: { user: { can_delete_landing_pages: true, role: undefined as string | undefined } } },
     })),
 );
 
@@ -120,7 +120,7 @@ describe('SetupLandingPageModal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockUsePage.mockReturnValue({
-            props: { auth: { user: { can_delete_landing_pages: true } } },
+            props: { auth: { user: { can_delete_landing_pages: true, role: undefined as string | undefined } } },
         });
         window.sessionStorage.clear();
     });
@@ -179,7 +179,9 @@ describe('SetupLandingPageModal', () => {
         it('reports edits to a new landing page and clears the signal after reverting them', async () => {
             const onDirtyChange = vi.fn();
             mockModalGetRequests();
-            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
+            );
 
             const input = await openDownloadInput();
             await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
@@ -193,7 +195,9 @@ describe('SetupLandingPageModal', () => {
             const onDirtyChange = vi.fn();
             mockModalGetRequests({ landingPage: mockExistingConfig });
             mockedAxiosPut.mockResolvedValue({ data: { message: 'Saved', landing_page: mockExistingConfig } });
-            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
+            );
 
             const input = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
             await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
@@ -214,7 +218,9 @@ describe('SetupLandingPageModal', () => {
                 }),
             );
             mockModalGetRequests({ landingPage: mockExistingConfig });
-            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
+            );
 
             const input = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
             await userEvent.clear(input);
@@ -251,7 +257,9 @@ describe('SetupLandingPageModal', () => {
                 }),
             );
             mockModalGetRequests({ landingPage: mockExistingConfig });
-            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
+            );
 
             const input = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
             const editedUrl = 'https://example.org/changed.zip';
@@ -275,7 +283,7 @@ describe('SetupLandingPageModal', () => {
     describe('Automatic download workflow', () => {
         it('starts empty and opening the input alone does not create an unsaved configuration', async () => {
             mockModalGetRequests();
-            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             expect(await screen.findByRole('button', { name: 'Add Download URL' })).toBeInTheDocument();
             expect(screen.queryByRole('checkbox', { name: /no data available/i })).not.toBeInTheDocument();
             const input = await openDownloadInput();
@@ -289,7 +297,7 @@ describe('SetupLandingPageModal', () => {
             const config = { ...mockExistingConfig, primary_download_label: 'Archive', ftp_format_id: 5, ftp_size_id: 6 };
             mockModalGetRequests({ landingPage: config });
             mockedAxiosPut.mockResolvedValue({ data: { landing_page: { ...config, ftp_url: null } } });
-            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             await user.click(await screen.findByRole('button', { name: 'Remove download URL' }));
             await waitFor(() => expect(screen.getByRole('button', { name: 'Add Download URL' })).toHaveFocus());
             await user.click(screen.getByRole('button', { name: /Update/i }));
@@ -321,7 +329,7 @@ describe('SetupLandingPageModal', () => {
                     activateDownloads: true,
                 }),
             );
-            render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             expect(await screen.findByRole('button', { name: 'Activate downloads' })).toBeInTheDocument();
             await user.click(screen.getByRole('button', { name: /Update/i }));
             await waitFor(() =>
@@ -332,12 +340,12 @@ describe('SetupLandingPageModal', () => {
 
         it('reloads suggestion ordering after the modal is reopened', async () => {
             mockModalGetRequests();
-            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            const { rerender } = render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             await openDownloadInput();
             await waitFor(() => expect(mockedAxiosGet).toHaveBeenCalledWith('/api/landing-page-download-url-suggestions'));
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
             mockModalGetRequests({ downloadSuggestions: { domains: [{ value: 'https://datapub.gfz.de/download', usage_count: 0 }], urls: [] } });
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             await openDownloadInput();
             expect(await screen.findByRole('option', { name: /https:\/\/datapub.gfz.de\/download/ })).toBeInTheDocument();
         });
@@ -351,7 +359,7 @@ describe('SetupLandingPageModal', () => {
                 response: { status: 404 },
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -360,7 +368,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('does not render when closed', () => {
-            render(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
 
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
@@ -372,7 +380,7 @@ describe('SetupLandingPageModal', () => {
                 response: { status: 404 },
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 // Component shows title if available, otherwise "Resource #${id}".
@@ -392,7 +400,7 @@ describe('SetupLandingPageModal', () => {
                 response: { status: 404 },
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/Landing Page Template/i)).toBeInTheDocument();
@@ -408,7 +416,7 @@ describe('SetupLandingPageModal', () => {
                 response: { status: 404 },
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByText(/Templates Resources/i)).toBeInTheDocument();
@@ -424,7 +432,12 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
 
             render(
-                <SetupLandingPageModal resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }} isOpen={true} onClose={mockOnClose} />,
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
             );
 
             await waitFor(() => {
@@ -443,7 +456,7 @@ describe('SetupLandingPageModal', () => {
         it('loads existing configuration', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 const ftpInput = screen.getByLabelText(/^Download URL$/i) as HTMLInputElement;
@@ -461,7 +474,7 @@ describe('SetupLandingPageModal', () => {
             };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: descriptorConfig } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             expect(await screen.findByTestId('primary-download-format')).toHaveTextContent('application/zip');
             expect(screen.getByTestId('primary-download-size')).toHaveTextContent('2 MiB');
@@ -478,7 +491,7 @@ describe('SetupLandingPageModal', () => {
                 },
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             expect(await screen.findByRole('button', { name: 'Activate downloads' })).toBeInTheDocument();
         });
@@ -488,7 +501,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.click(screen.getByRole('button', { name: 'Activate downloads' }));
@@ -501,7 +514,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.click(ftpInput);
@@ -519,7 +532,7 @@ describe('SetupLandingPageModal', () => {
         it('exposes the download url input as a combobox for assistive technology', async () => {
             mockModalGetRequests();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -532,7 +545,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -557,7 +570,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -572,7 +585,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -595,7 +608,9 @@ describe('SetupLandingPageModal', () => {
         it('allows adding a primary URL when imported files contain only historical placeholders', async () => {
             const config = { ...mockExistingConfig, ftp_url: null, files: [{ id: 1, url: '#', position: 0 }] };
             mockModalGetRequests({ landingPage: config });
-            render(<SetupLandingPageModal resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />,
+            );
             expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
             await openDownloadInput();
             expect(screen.getByRole('combobox', { name: /^Download URL$/ })).toBeEnabled();
@@ -617,6 +632,7 @@ describe('SetupLandingPageModal', () => {
 
             render(
                 <SetupLandingPageModal
+                    context="resource-list"
                     resource={mockResource}
                     existingConfig={{
                         ...mockExistingConfig,
@@ -657,6 +673,7 @@ describe('SetupLandingPageModal', () => {
 
             render(
                 <SetupLandingPageModal
+                    context="resource-list"
                     resource={mockResource}
                     existingConfig={{
                         ...mockExistingConfig,
@@ -685,7 +702,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.click(ftpInput);
@@ -711,7 +728,9 @@ describe('SetupLandingPageModal', () => {
             mockedAxiosDelete.mockResolvedValue({ data: {} });
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />,
+            );
 
             const labelInput = await screen.findByLabelText(/^Button label$/i);
             expect(labelInput).toHaveValue('Download data');
@@ -752,7 +771,9 @@ describe('SetupLandingPageModal', () => {
             mockedAxiosDelete.mockResolvedValue({ data: {} });
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />,
+            );
 
             const labelInput = await screen.findByLabelText(/model\.zip/i);
             expect(screen.getByLabelText(/documentation\.pdf/i)).toHaveValue('Documentation');
@@ -800,6 +821,7 @@ describe('SetupLandingPageModal', () => {
 
             render(
                 <SetupLandingPageModal
+                    context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
                     existingConfig={{ ...mockExistingConfig, template: 'default_gfz', landing_page_template_id: null }}
                     isOpen={true}
@@ -833,7 +855,7 @@ describe('SetupLandingPageModal', () => {
         it('fetches existing config on mount', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(axios.get).toHaveBeenCalledWith(expect.stringContaining(`/resources/${mockResource.id}/landing-page`));
@@ -872,7 +894,12 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
 
             render(
-                <SetupLandingPageModal resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }} isOpen={true} onClose={mockOnClose} />,
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
             );
 
             await waitFor(() => {
@@ -944,7 +971,12 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
 
             render(
-                <SetupLandingPageModal resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }} isOpen={true} onClose={mockOnClose} />,
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
             );
 
             await waitFor(() => {
@@ -981,7 +1013,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1023,7 +1055,7 @@ describe('SetupLandingPageModal', () => {
             });
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: /Add Link/i }));
             await user.type(screen.getByPlaceholderText('Display text'), 'Download package');
@@ -1075,6 +1107,7 @@ describe('SetupLandingPageModal', () => {
 
             render(
                 <SetupLandingPageModal
+                    context="resource-list"
                     resource={mockResource}
                     isOpen={true}
                     onClose={mockOnClose}
@@ -1111,7 +1144,15 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} openPreviewOnSuccess={true} />);
+            render(
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    openPreviewOnSuccess={true}
+                />,
+            );
 
             await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
 
@@ -1138,7 +1179,15 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} openPreviewOnSuccess={true} />);
+            render(
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    openPreviewOnSuccess={true}
+                />,
+            );
 
             await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
 
@@ -1171,7 +1220,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/no-data-record.zip');
@@ -1208,7 +1257,12 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
 
             render(
-                <SetupLandingPageModal resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }} isOpen={true} onClose={mockOnClose} />,
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
             );
 
             await waitFor(() => {
@@ -1235,7 +1289,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1279,7 +1333,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /Update/i }));
@@ -1312,7 +1366,9 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />,
+            );
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1336,7 +1392,7 @@ describe('SetupLandingPageModal', () => {
             // Published landing pages cannot be depublished because DOIs are persistent
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1348,11 +1404,11 @@ describe('SetupLandingPageModal', () => {
         });
         it('does not show remove button without landing page delete permission', async () => {
             mockUsePage.mockReturnValue({
-                props: { auth: { user: { can_delete_landing_pages: false } } },
+                props: { auth: { user: { can_delete_landing_pages: false, role: undefined } } },
             });
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: { ...mockExistingConfig, status: 'draft' } } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1365,7 +1421,7 @@ describe('SetupLandingPageModal', () => {
             // Published landing pages cannot be unpublished because DOIs are persistent
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1385,7 +1441,7 @@ describe('SetupLandingPageModal', () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 // Check for the label
@@ -1400,7 +1456,7 @@ describe('SetupLandingPageModal', () => {
         it('displays public URL for published configs', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 // Check for the label
@@ -1420,7 +1476,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // Wait for modal and config to load
             await waitFor(() => {
@@ -1455,7 +1511,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1481,7 +1537,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1521,7 +1577,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
@@ -1561,7 +1617,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
@@ -1593,7 +1649,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
@@ -1637,6 +1693,7 @@ describe('SetupLandingPageModal', () => {
 
             render(
                 <SetupLandingPageModal
+                    context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
                     existingConfig={legacyConfig}
                     isOpen={true}
@@ -1677,7 +1734,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1725,7 +1782,15 @@ describe('SetupLandingPageModal', () => {
                 external_url: 'https://example.org/saved-resource',
             };
 
-            render(<SetupLandingPageModal resource={mockResource} existingConfig={existingExternalConfig} isOpen={true} onClose={mockOnClose} />);
+            render(
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={mockResource}
+                    existingConfig={existingExternalConfig}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/Path/i)).toHaveValue('/saved-resource');
@@ -1751,7 +1816,7 @@ describe('SetupLandingPageModal', () => {
                 },
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // Should still render but in create mode
             await waitFor(() => {
@@ -1775,7 +1840,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1801,7 +1866,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1822,7 +1887,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1838,7 +1903,9 @@ describe('SetupLandingPageModal', () => {
             mockModalGetRequests({ landingPage: null });
 
             const user = userEvent.setup();
-            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            const { rerender } = render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
+            );
 
             const ftpInput = await openDownloadInput();
             await user.clear(ftpInput);
@@ -1857,9 +1924,9 @@ describe('SetupLandingPageModal', () => {
                 expect(persistedDraft.links).toEqual([expect.objectContaining({ kind: 'repository' })]);
             });
 
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
 
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const reopenedFtpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -1888,7 +1955,9 @@ describe('SetupLandingPageModal', () => {
             mockModalGetRequests({ landingPage: descriptorConfig });
 
             const user = userEvent.setup();
-            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            const { rerender } = render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
+            );
 
             await user.click(await screen.findByTestId('imported-file-17-format'));
             await user.click(await screen.findByRole('option', { name: 'application/zip' }));
@@ -1907,8 +1976,8 @@ describe('SetupLandingPageModal', () => {
                 ]);
             });
 
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
             expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
@@ -1946,7 +2015,7 @@ describe('SetupLandingPageModal', () => {
             );
             mockModalGetRequests({ landingPage: descriptorConfig });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
             expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
@@ -1973,7 +2042,9 @@ describe('SetupLandingPageModal', () => {
             mockedAxiosDelete.mockResolvedValue({});
 
             const user = userEvent.setup();
-            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            const { rerender } = render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
+            );
 
             const ftpInput = await openDownloadInput();
             await user.clear(ftpInput);
@@ -1995,9 +2066,9 @@ describe('SetupLandingPageModal', () => {
 
             mockModalGetRequests({ landingPage: savedConfig });
 
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
 
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const reopenedFtpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2009,7 +2080,7 @@ describe('SetupLandingPageModal', () => {
         it('does not persist a draft when the hydrated state matches the server config', async () => {
             mockModalGetRequests({ landingPage: mockExistingConfig });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2028,7 +2099,7 @@ describe('SetupLandingPageModal', () => {
             try {
                 mockModalGetRequests({ landingPage: mockExistingConfig });
 
-                render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+                render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
                 const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2047,7 +2118,7 @@ describe('SetupLandingPageModal', () => {
                 mockModalGetRequests({ landingPage: null });
 
                 const user = userEvent.setup();
-                render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+                render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
                 const ftpInput = await openDownloadInput();
                 await user.clear(ftpInput);
@@ -2083,7 +2154,7 @@ describe('SetupLandingPageModal', () => {
                 });
 
                 const user = userEvent.setup();
-                render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+                render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
                 const ftpInput = await openDownloadInput();
                 await user.clear(ftpInput);
@@ -2104,7 +2175,7 @@ describe('SetupLandingPageModal', () => {
             window.sessionStorage.setItem('setup-landing-page-modal:draft:123', '{not-valid-json');
             mockModalGetRequests({ landingPage: mockExistingConfig });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2121,7 +2192,7 @@ describe('SetupLandingPageModal', () => {
             );
             mockModalGetRequests({ landingPage: mockExistingConfig });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2152,7 +2223,7 @@ describe('SetupLandingPageModal', () => {
             );
             mockModalGetRequests({ landingPage: null });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             expect(await screen.findByDisplayValue('Manipulated role')).toBeInTheDocument();
             expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Related page');
@@ -2193,7 +2264,9 @@ describe('SetupLandingPageModal', () => {
             );
 
             const user = userEvent.setup();
-            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            const { rerender } = render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
+            );
 
             await screen.findByRole('dialog');
             await user.click(screen.getByRole('button', { name: /remove preview/i }));
@@ -2208,9 +2281,9 @@ describe('SetupLandingPageModal', () => {
 
             mockModalGetRequests({ landingPage: null });
 
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
 
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const reopenedFtpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2257,7 +2330,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.reject({ isAxiosError: true, response: { status: 404 } });
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(mockedAxiosGet).toHaveBeenCalledWith(expect.stringContaining('/landing-page/template-options'));
@@ -2277,7 +2350,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.reject({ isAxiosError: true, response: { status: 404 } });
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // Should still render without crashing
             await waitFor(() => {
@@ -2307,7 +2380,15 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} existingConfig={configWithTemplate} />);
+            render(
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    existingConfig={configWithTemplate}
+                />,
+            );
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2362,7 +2443,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2423,7 +2504,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2507,7 +2588,12 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
 
             render(
-                <SetupLandingPageModal resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }} isOpen={true} onClose={mockOnClose} />,
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
             );
 
             await waitFor(() => {
@@ -2582,7 +2668,12 @@ describe('SetupLandingPageModal', () => {
             const user = userEvent.setup();
 
             render(
-                <SetupLandingPageModal resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }} isOpen={true} onClose={mockOnClose} />,
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
             );
 
             await waitFor(() => {
@@ -2664,7 +2755,15 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} existingConfig={configWithCustomTemplate} />);
+            render(
+                <SetupLandingPageModal
+                    context="resource-list"
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    existingConfig={configWithCustomTemplate}
+                />,
+            );
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2719,7 +2818,9 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />,
+            );
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2755,7 +2856,9 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />);
+            render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />,
+            );
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2794,7 +2897,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2825,7 +2928,7 @@ describe('SetupLandingPageModal', () => {
                 });
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
@@ -2869,7 +2972,7 @@ describe('SetupLandingPageModal', () => {
                 });
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2917,14 +3020,16 @@ describe('SetupLandingPageModal', () => {
                 });
             });
 
-            const { rerender } = render(<SetupLandingPageModal resource={firstResource} isOpen={true} onClose={mockOnClose} />);
+            const { rerender } = render(
+                <SetupLandingPageModal context="resource-list" resource={firstResource} isOpen={true} onClose={mockOnClose} />,
+            );
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/^Download URL$/i)).toHaveValue('https://downloads.example.org/first-resource.zip');
             });
             expect(screen.getByDisplayValue('First resource link')).toBeInTheDocument();
 
-            rerender(<SetupLandingPageModal resource={secondResource} isOpen={true} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={secondResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('button', { name: 'Add Download URL' })).toBeInTheDocument();
@@ -2945,7 +3050,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.resolve({ data: { landing_page: mockExistingConfig } });
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3006,7 +3111,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.resolve({ data: { landing_page: serverConfig } });
             });
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // The select trigger should display the custom template name, not
             // the fallback "Templates Resources".
@@ -3039,7 +3144,9 @@ describe('SetupLandingPageModal', () => {
                 return Promise.resolve({ data: { landing_page: serverConfig } });
             });
 
-            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            const { rerender } = render(
+                <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
+            );
 
             // First open: custom template is shown.
             await waitFor(() => {
@@ -3048,14 +3155,14 @@ describe('SetupLandingPageModal', () => {
 
             // Close the dialog (state is reset in the component's useEffect
             // cleanup branch when isOpen transitions to false).
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
             });
 
             // Reopen the dialog — this re-triggers loadLandingPageConfig().
-            rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // After reopen, the custom template must still be selected.
             await waitFor(() => {
@@ -3089,7 +3196,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3139,7 +3246,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 const trigger = screen.getByLabelText(/Landing Page Template/i);
@@ -3200,7 +3307,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Templates Resources');
@@ -3247,7 +3354,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3296,14 +3403,14 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('renders the full long title inside the element text content (accessible to screen readers)', async () => {
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             expect(titleEl).toHaveTextContent(longTitle);
         });
 
         it('exposes the title via an accessible, focusable shadcn Tooltip trigger (not the native title attribute)', async () => {
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
 
@@ -3321,7 +3428,7 @@ describe('SetupLandingPageModal', () => {
 
         it('shows the full long title in the shadcn tooltip content on hover', async () => {
             const user = userEvent.setup();
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             await user.hover(titleEl);
@@ -3333,7 +3440,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('applies line-clamp and word-wrap classes to the long title', async () => {
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             // Tailwind v4 emits `.wrap-break-word { overflow-wrap: break-word }`
@@ -3344,7 +3451,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('falls back to "Resource #<id>" when title is missing and still exposes it via the accessible tooltip', async () => {
-            render(<SetupLandingPageModal resource={{ id: 777 }} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={{ id: 777 }} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             expect(titleEl).toHaveTextContent('Resource #777');
@@ -3353,7 +3460,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('moves overflow-y-auto from the dialog content onto the scroll body', async () => {
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const content = await screen.findByTestId('setup-lp-modal-content');
             const scrollArea = await screen.findByTestId('setup-lp-modal-scroll-area');
@@ -3370,7 +3477,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('renders a sticky footer with wrap + border that never shrinks', async () => {
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const footer = await screen.findByTestId('setup-lp-modal-footer');
             expect(footer.className).toContain('shrink-0');
@@ -3379,7 +3486,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('keeps all primary footer buttons visible even with an extremely long title', async () => {
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3406,7 +3513,7 @@ describe('SetupLandingPageModal', () => {
                 return new Promise(() => {});
             });
 
-            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const scrollArea = screen.getByTestId('setup-lp-modal-scroll-area');
             expect(scrollArea.textContent).toMatch(/Loading configuration/i);
@@ -3417,7 +3524,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('applies the same accessible tooltip and layout classes for short titles', async () => {
-            render(<SetupLandingPageModal resource={{ id: 1, title: 'Short title' }} isOpen={true} onClose={mockOnClose} />);
+            render(<SetupLandingPageModal context="resource-list" resource={{ id: 1, title: 'Short title' }} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             // Short titles use the same accessible tooltip pattern for consistency.
@@ -3429,6 +3536,81 @@ describe('SetupLandingPageModal', () => {
             expect(titleEl).not.toHaveAttribute('title');
             expect(titleEl.className).toContain('line-clamp-2');
             expect(titleEl.className).toContain('wrap-break-word');
+        });
+    });
+
+    describe('tombstone availability in the actual setup dialog', () => {
+        const tombstone = {
+            can_manage: true,
+            is_tombstone: false,
+            revision: 0,
+            reason: null,
+            statement: null,
+            reasons: [{ value: 'data_lost', label: 'Data lost' }],
+            sync: null,
+            restore: null,
+        };
+
+        beforeEach(() => {
+            mockUsePage.mockReturnValue({ props: { auth: { user: { can_delete_landing_pages: true, role: 'curator' } } } });
+            mockModalGetRequests();
+            const base = mockedAxiosGet.getMockImplementation()!;
+            mockedAxiosGet.mockImplementation((url: string, config: unknown) =>
+                url.endsWith('/tombstone')
+                    ? Promise.resolve({ data: { tombstone, activation_eligibility: { status: 'eligible', reason: null } } })
+                    : base(url, config),
+            );
+        });
+
+        it('places the collapsed verified option after all normal settings and before the footer', async () => {
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            const toggle = await screen.findByRole('button', { name: 'Tombstone page' });
+            const section = toggle.closest('section')!;
+            const fields = screen.getByTestId('setup-lp-modal-editable-fields');
+            expect(toggle).toHaveAttribute('aria-expanded', 'false');
+            expect(fields.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(section.compareDocumentPosition(screen.getByTestId('setup-lp-modal-footer')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(screen.getByTestId('setup-lp-modal-scroll-area').lastElementChild).toBe(section);
+            expect(screen.getByRole('button', { name: 'Create Preview' })).toBeEnabled();
+        });
+
+        it.each(['editor-preview', 'editor-registration'] as const)('does not request tombstone state in %s context', async (context) => {
+            render(<SetupLandingPageModal context={context} resource={mockResource} isOpen onClose={mockOnClose} />);
+            await screen.findByLabelText('Landing Page Template');
+            expect(screen.queryByRole('button', { name: 'Tombstone page' })).not.toBeInTheDocument();
+            expect(mockedAxiosGet.mock.calls.some(([url]) => String(url).includes('/tombstone'))).toBe(false);
+        });
+
+        it.each([{ doi: null }, { resourcetypegeneral: 'Physical Object' }])(
+            'skips tombstone checks for excluded resources %j',
+            async (overrides) => {
+                render(<SetupLandingPageModal context="resource-list" resource={{ ...mockResource, ...overrides }} isOpen onClose={mockOnClose} />);
+                await screen.findByLabelText('Landing Page Template');
+                expect(mockedAxiosGet.mock.calls.some(([url]) => String(url).includes('/tombstone'))).toBe(false);
+            },
+        );
+
+        it('does not offer activation to a beginner', async () => {
+            mockUsePage.mockReturnValue({ props: { auth: { user: { can_delete_landing_pages: true, role: 'beginner' } } } });
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            await screen.findByLabelText('Landing Page Template');
+            expect(mockedAxiosGet.mock.calls.some(([url]) => String(url).includes('/tombstone'))).toBe(false);
+        });
+
+        it('keeps active controls outside the disabled normal form and automatically opens them', async () => {
+            const base = mockedAxiosGet.getMockImplementation()!;
+            const active = { ...tombstone, is_tombstone: true, revision: 1, statement: 'Lost data.' };
+            mockedAxiosGet.mockImplementation((url: string, config: unknown) => {
+                if (url.endsWith('/tombstone')) return Promise.resolve({ data: { tombstone: active } });
+                if (url === `/resources/${mockResource.id}/landing-page`)
+                    return Promise.resolve({ data: { landing_page: { ...mockExistingConfig, is_tombstone: true, tombstone_revision: 1 } } });
+                return base(url, config);
+            });
+            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            expect(await screen.findByRole('button', { name: 'Tombstone page' })).toHaveAttribute('aria-expanded', 'true');
+            expect(screen.getByTestId('setup-lp-modal-editable-fields')).toBeDisabled();
+            expect(screen.getByLabelText('Public explanation')).toBeEnabled();
+            expect(screen.getByRole('button', { name: 'Restore landing page' })).toBeInTheDocument();
         });
     });
 });

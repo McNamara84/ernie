@@ -2757,7 +2757,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Use a tombstone when a Resource is permanently unavailable, for example because its data was lost, retracted, or removed
                             for legal reasons. Curators, Group Leaders, and Admins can activate and restore tombstones. Activation requires an
                             existing Resource DOI that is already Registered or Findable in the configured DataCite repository, plus a title,
-                            creators, publication year, and publisher for the citation. Tombstones are not available for IGSNs.
+                            creators, publication year, and publisher for the citation. Tombstones are not available for IGSNs. The option is shown
+                            only after DataCite confirms registration, regardless of the local workflow status. Preview LP and the registration setup
+                            in the Data Editor do not offer tombstone settings.
                         </p>
                         <p>
                             The public tombstone uses the default Resource landing page design and retains the DOI, citation, metadata, and contact
@@ -2768,7 +2770,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             On <code>/resources</code>, choose <strong>Dead</strong> in the <strong>Status</strong> filter to find Resources with an
                             active tombstone. In the Data Editor, <strong>Show LP</strong> opens the public tombstone directly. Its DOI remains
-                            read-only while the tombstone is active; metadata corrections remain possible.
+                            read-only while the tombstone is active; metadata corrections remain possible. The setup section opens automatically for
+                            active tombstones and remains accessible if DataCite verification is temporarily unavailable.
                         </p>
                         {userRole !== 'beginner' && permissions.manageLandingPages && (
                             <>
@@ -2777,7 +2780,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     <WorkflowSteps.Step number={1} title="Open Tombstone Settings">
                                         <p>
                                             Select exactly one Resource on <code>/resources</code>, click <strong>Set up landing page</strong>, and
-                                            open the <strong>Tombstone page</strong> section of the <strong>Setup Landing Page</strong> modal.
+                                            expand the <strong>Tombstone page</strong> section at the bottom of the{' '}
+                                            <strong>Setup Landing Page</strong> modal.
                                         </p>
                                     </WorkflowSteps.Step>
                                     <WorkflowSteps.Step number={2} title="Explain the Unavailability">

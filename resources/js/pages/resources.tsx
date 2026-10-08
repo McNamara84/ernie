@@ -2641,6 +2641,7 @@ function ResourcesPage({
             {/* Landing Page Setup Modal */}
             {selectedResourceForLandingPage && (
                 <SetupLandingPageModal
+                    context="resource-list"
                     isOpen={isLandingPageModalOpen}
                     resource={selectedResourceForLandingPage}
                     onClose={handleCloseLandingPageModal}

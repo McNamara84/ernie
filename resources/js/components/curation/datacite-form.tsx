@@ -4371,6 +4371,7 @@ export default function DataCiteForm({
             </div>
             {pendingLandingPageSetupResource && (
                 <SetupLandingPageModal
+                    context={landingPageSetupPurpose === 'preview' ? 'editor-preview' : 'editor-registration'}
                     resource={pendingLandingPageSetupResource}
                     isOpen={isLandingPageSetupOpen}
                     onClose={handleCloseLandingPageSetup}
