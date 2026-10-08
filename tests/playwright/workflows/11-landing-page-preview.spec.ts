@@ -1,6 +1,7 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
+import { test } from '../fixtures/client-identity';
 import { ResourcesPage } from '../helpers/page-objects/ResourcesPage';
 
 async function gotoWithLocalTlsRetry(page: Page, path: string): Promise<void> {
@@ -101,7 +102,18 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await setup.click();
         const dialog = page.getByRole('dialog');
         const preview = async () => {
-            const [tab] = await Promise.all([context.waitForEvent('page'), dialog.getByRole('button', { name: /^Preview$/ }).click()]);
+            const [tab, response] = await Promise.all([
+                context.waitForEvent('page'),
+                page.waitForResponse(
+                    (candidate) =>
+                        candidate.request().method() === 'POST' &&
+                        /^\/resources\/\d+\/landing-page\/preview$/.test(new URL(candidate.url()).pathname),
+                    { timeout: 15000 },
+                ),
+                dialog.getByRole('button', { name: /^Preview$/ }).click(),
+            ]);
+            expect(response.status()).toBe(201);
+            expect(await response.finished()).toBeNull();
             await expect(tab.getByText('Preview Mode')).toBeVisible();
             return tab;
         };
@@ -111,10 +123,19 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(emptyPreview.getByTestId('data-request-section')).toBeVisible();
         await emptyPreview.close();
 
+        const suggestionsResponsePromise = page.waitForResponse(
+            (response) => response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/landing-page-download-url-suggestions',
+            { timeout: 15000 },
+        );
         await dialog.getByRole('button', { name: 'Add Download URL' }).click();
         await expect(dialog.getByRole('combobox', { name: 'Download URL', exact: true })).toBeFocused();
         await dialog.getByRole('combobox', { name: 'Download URL', exact: true }).fill('https://example.org/issue-1363.zip');
         await dialog.getByLabel('Button label', { exact: true }).fill('Issue 1363 archive');
+        // Suggestions and previews share this session. Finish the input's
+        // request before starting the next preview transition.
+        const suggestionsResponse = await suggestionsResponsePromise;
+        expect(suggestionsResponse.status()).toBe(200);
+        expect(await suggestionsResponse.finished()).toBeNull();
         const downloadPreview = await preview();
         await expect(downloadPreview.getByRole('link', { name: 'Issue 1363 archive' })).toHaveAttribute('href', 'https://example.org/issue-1363.zip');
         await expect(downloadPreview.getByTestId('data-request-section')).toHaveCount(0);
@@ -140,13 +161,20 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         const inputs = list.getByRole('textbox');
         const count = await inputs.count();
         const handle = list.getByRole('button', { name: `Reorder suggestion ${count}`, exact: true });
+        const precedingHandle = list.getByRole('button', { name: `Reorder suggestion ${count - 1}`, exact: true });
+        const relativePosition = async () => {
+            const [active, preceding] = await Promise.all([handle.boundingBox(), precedingHandle.boundingBox()]);
+            return active && preceding ? active.y - preceding.y : 0;
+        };
         await handle.scrollIntoViewIfNeeded();
-        const initialPosition = await handle.boundingBox();
+        await expect.poll(relativePosition).toBeGreaterThan(10);
         await handle.focus();
         await page.keyboard.press('Space');
         await expect(handle).toHaveAttribute('aria-pressed', 'true');
         await page.keyboard.press('ArrowUp');
-        await expect.poll(async () => (await handle.boundingBox())?.y ?? Infinity).toBeLessThan(initialPosition!.y - 10);
+        // Keyboard sorting may scroll the container while the active handle
+        // stays at the same viewport coordinate. Compare the two rows instead.
+        await expect.poll(relativePosition).toBeLessThan(-10);
         await page.keyboard.press('Space');
         await expect(inputs.nth(count - 2)).toHaveValue('https://issue-1363.example/second');
 

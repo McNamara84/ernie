@@ -8,8 +8,9 @@
  * - Message sending
  */
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
+import { test } from '../fixtures/client-identity';
 import { LandingPage } from '../helpers/page-objects/LandingPage';
 
 // The test landing page slug from PlaywrightTestSeeder

@@ -11,7 +11,7 @@ import { testIgnorePatterns, testMatchPatterns, timeoutSettings } from './tests/
  *
  * Usage:
  * - npm run test:e2e:devstack
- * - PLAYWRIGHT_BASE_URL=https://ernie.localhost:3333 npx playwright test --config=playwright.devstack.config.ts
+ * - PLAYWRIGHT_BASE_URL=https://ernie.localhost:3333 npm run test:e2e:devstack
  */
 export default defineConfig({
   testDir: './tests/playwright',
@@ -37,7 +37,9 @@ export default defineConfig({
 
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    // Recording every local scenario adds work even when passing videos are
+    // discarded. Screenshots remain automatic; recordings are opt-in.
+    video: process.env.ERNIE_PLAYWRIGHT_VIDEO === '1' ? 'retain-on-failure' : 'off',
 
     actionTimeout: 15 * 1000,
     navigationTimeout: 30 * 1000,
@@ -54,7 +56,12 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        ...(process.env.ERNIE_WEBKIT_WS_ENDPOINT ? {
+          connectOptions: { wsEndpoint: process.env.ERNIE_WEBKIT_WS_ENDPOINT, exposeNetwork: '<loopback>' },
+        } : {}),
+      },
     },
   ],
 

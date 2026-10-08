@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
+import { ResourcesPage } from '../helpers/page-objects/ResourcesPage';
 
 // DOI Registration Workflow Tests
 // Tests the complete workflow of registering a DOI with DataCite
@@ -13,10 +14,18 @@ async function waitForResourcesTable(page: Page): Promise<Locator> {
     return resourceTable;
 }
 
-async function selectResourceByText(page: Page, matcher: RegExp): Promise<Locator> {
+async function findResourceByText(page: Page, searchTerm: string): Promise<Locator> {
+    // Other workflows create and edit resources. Search the actual fixture
+    // rather than relying on its position in the first infinite-scroll page.
+    await new ResourcesPage(page).search(searchTerm);
     const resourceTable = await waitForResourcesTable(page);
-    const resourceRow = resourceTable.locator('tbody tr').filter({ hasText: matcher }).first();
+    const resourceRow = resourceTable.locator('tbody tr').filter({ hasText: searchTerm }).first();
     await expect(resourceRow).toBeVisible();
+    return resourceRow;
+}
+
+async function selectResourceByText(page: Page, searchTerm: string): Promise<Locator> {
+    const resourceRow = await findResourceByText(page, searchTerm);
 
     await resourceRow.getByRole('checkbox').click();
     await expect(page.getByText(/^1 resource selected$/)).toBeVisible();
@@ -44,7 +53,7 @@ test.describe('DOI Registration Workflow', () => {
 
     test('update metadata for existing doi', async ({ page }) => {
         await page.goto('/resources');
-        await selectResourceByText(page, /10\.1234\/playwright-published/);
+        await selectResourceByText(page, '10.1234/playwright-published');
         await openResourceActionsMenu(page);
 
         const updateMetadataButton = page.getByTestId('resources-action-update-metadata');
@@ -65,7 +74,7 @@ test.describe('DOI Registration Workflow', () => {
 
     test('cannot register doi without landing page', async ({ page }) => {
         await page.goto('/resources');
-        await selectResourceByText(page, /Playwright: Curation Resource \(no landing page\)/);
+        await selectResourceByText(page, 'Playwright: Curation Resource (no landing page)');
         await openResourceActionsMenu(page);
 
         const registerDoiButton = page.getByTestId('resources-action-register-doi');
@@ -79,7 +88,7 @@ test.describe('DOI Registration Workflow', () => {
 
     test('displays test mode warning', async ({ page }) => {
         await page.goto('/resources');
-        await selectResourceByText(page, /Playwright: Curation Resource \(no DOI\)/);
+        await selectResourceByText(page, 'Playwright: Curation Resource (no DOI)');
         await openResourceActionsMenu(page);
 
         const registerDoiButton = page.getByTestId('resources-action-register-doi');
@@ -96,7 +105,7 @@ test.describe('DOI Registration Workflow', () => {
 
     test('modal can be cancelled', async ({ page }) => {
         await page.goto('/resources');
-        await selectResourceByText(page, /Playwright: Curation Resource \(no DOI\)/);
+        await selectResourceByText(page, 'Playwright: Curation Resource (no DOI)');
         await openResourceActionsMenu(page);
 
         const registerDoiButton = page.getByTestId('resources-action-register-doi');
@@ -141,8 +150,7 @@ test.describe('DOI Registration Workflow', () => {
     test('review status opens the tokenized landing-page preview instead of the DOI', async ({ page }) => {
         await page.goto('/resources');
 
-        const reviewRow = page.locator('tbody tr').filter({ hasText: '10.1234/playwright-qa' });
-        await expect(reviewRow).toBeVisible();
+        const reviewRow = await findResourceByText(page, '10.1234/playwright-qa');
 
         const reviewBadge = reviewRow.getByRole('button', { name: /Review - Click to open preview page/i });
         await expect(reviewBadge).toHaveCSS('cursor', 'pointer');

@@ -23,11 +23,14 @@ tar \
     --exclude='./coverage' \
     --exclude='./node_modules' \
     --exclude='./playwright-report' \
+    --exclude='./public/build' \
+    --exclude='./public/hot' \
     --exclude='./test-results' \
     --exclude='./vendor' \
     --exclude='./storage/framework/cache/*' \
     --exclude='./storage/framework/sessions/*' \
     --exclude='./storage/framework/views/*' \
+    --exclude='./storage/inertia-devtools' \
     --exclude='./storage/logs/*' \
     -C "$SOURCE_WORKSPACE" \
     -cf - . | tar -C "$TEST_WORKSPACE" -xf -
@@ -37,5 +40,11 @@ mkdir -p \
     "$TEST_WORKSPACE/storage/framework/cache/data" \
     "$TEST_WORKSPACE/storage/framework/sessions" \
     "$TEST_WORKSPACE/storage/framework/testing" \
+    "$TEST_WORKSPACE/storage/framework/testing/php-ini" \
     "$TEST_WORKSPACE/storage/framework/views" \
     "$TEST_WORKSPACE/storage/logs"
+
+# Pest's shard collector starts a serial discovery subprocess which cannot
+# accept ParaTest's --passthru-php option. Inherit the same memory floor through
+# an additional ini directory for discovery and every worker.
+printf '%s\n' 'memory_limit=2G' > "$TEST_WORKSPACE/storage/framework/testing/php-ini/zz-ernie-validation.ini"

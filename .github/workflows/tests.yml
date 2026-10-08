@@ -53,32 +53,11 @@ jobs:
           path: ~/.composer/cache
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
 
-      - name: Setup Node
-        if: ${{ matrix.slice != 'architecture' }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
-
-      - name: Setup npm
-        if: ${{ matrix.slice != 'architecture' }}
-        run: npm install --global npm@12.2.0
-
-      - name: Install Node dependencies
-        if: ${{ matrix.slice != 'architecture' }}
-        run: npm ci
-
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Build assets
-        if: ${{ matrix.slice != 'architecture' }}
-        run: npm run build
-        env:
-          NODE_ENV: production
-          APP_ENV: testing
-          APP_URL: http://localhost
-          ASSET_URL: http://localhost
+      # Non-browser tests disable Vite. Manifest-specific tests create their
+      # own complete fixtures, so these PHP slices need no frontend build.
 
       - name: Copy environment file
         run: cp .env.example .env
@@ -155,10 +134,21 @@ jobs:
           pattern: pest-coverage-*
           merge-multiple: true
 
+      - name: Verify complete coverage artifacts
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          for name in ('serial', 'parallel-1', 'parallel-2'):
+              root = ET.parse(f'coverage-{name}.xml').getroot()
+              assert root.tag == 'coverage' and root.findall('.//file'), f'Missing coverage in {name}'
+          PY
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage-serial.xml,coverage-parallel-1.xml,coverage-parallel-2.xml
           flags: backend
-          fail_ci_if_error: false
+          fail_ci_if_error: true
+          override_commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          disable_search: true

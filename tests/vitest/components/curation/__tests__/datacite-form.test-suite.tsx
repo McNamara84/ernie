@@ -401,7 +401,11 @@ describe('DataCiteForm', () => {
         if (lastNameInput.value) {
             await user.clear(lastNameInput);
         }
-        await user.type(lastNameInput, lastName);
+        // These helpers establish fixtures for payload/validation scenarios.
+        // Pasting still exercises the real input handler without rendering the
+        // entire form once per character; keyboard-specific tests keep typing.
+        await user.click(lastNameInput);
+        await user.paste(lastName);
     };
 
     const fillRequiredAuthor = async (user: ReturnType<typeof userEvent.setup>, lastName = 'Curator') => {
@@ -418,7 +422,8 @@ describe('DataCiteForm', () => {
         if (lastNameInput.value) {
             await user.clear(lastNameInput);
         }
-        await user.type(lastNameInput, lastName);
+        await user.click(lastNameInput);
+        await user.paste(lastName);
     };
 
     const ensureDescriptionsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -438,7 +443,7 @@ describe('DataCiteForm', () => {
         await ensureDescriptionsOpen(user);
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.click(abstractTextarea);
-        await user.keyboard(abstract);
+        await user.paste(abstract);
     };
 
     const advanceAccordionPreferenceDebounce = async () => {

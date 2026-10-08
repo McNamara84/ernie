@@ -397,7 +397,7 @@ for (const portal of [
 ] as const) {
     test(`${portal.path} cluster navigation stays monotone and exposes colocated records`, async ({ page }) => {
         const requestedZooms: number[] = [];
-        let releaseDelayedResponse: (() => void) | null = null;
+        const delayedResponseControl: { release?: () => void } = {};
         let delayedResponseReleased = false;
 
         await page.route(`**${portal.path}/map**`, async (route) => {
@@ -444,7 +444,7 @@ for (const portal of [
             requestedZooms.push(zoom);
             if (zoom === 8 && !delayedResponseReleased) {
                 await new Promise<void>((resolve) => {
-                    releaseDelayedResponse = resolve;
+                    delayedResponseControl.release = resolve;
                 });
             }
 
@@ -502,6 +502,10 @@ for (const portal of [
         }
         expect(currentZoom).toBe(4);
 
+        // Recording the request does not mean its replacement clusters are ready.
+        await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
+        await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
+        await expect(cluster()).toHaveClass(/leaflet-interactive/);
         await cluster().dispatchEvent('click');
         await expect.poll(() => requestedZooms.at(-1)).toBe(8);
         await expect(cluster()).not.toHaveClass(/leaflet-interactive/);
@@ -510,7 +514,10 @@ for (const portal of [
         expect(requestedZooms).toHaveLength(requestsWhileStale);
 
         delayedResponseReleased = true;
-        releaseDelayedResponse?.();
+        expect(delayedResponseControl.release).toBeDefined();
+        delayedResponseControl.release?.();
+        await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
+        await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
         await expect(cluster()).toHaveClass(/leaflet-interactive/);
 
         const navigationZooms = [4, 8];
@@ -522,6 +529,8 @@ for (const portal of [
             currentZoom = requestedZooms.at(-1)!;
             expect(currentZoom).toBeLessThanOrEqual(Math.min(18, previousZoom + 4));
             navigationZooms.push(currentZoom);
+            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
+            await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
             await expect(cluster()).toHaveClass(/leaflet-interactive/);
         }
 
