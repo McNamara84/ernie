@@ -1,4 +1,4 @@
-import { CheckCircle, Eye, FileEdit, type LucideIcon } from 'lucide-react';
+import { CheckCircle, Eye, EyeOff, FileEdit, type LucideIcon } from 'lucide-react';
 
 interface StatusConfig {
     icon: LucideIcon;
@@ -28,7 +28,7 @@ const STATUS_CONFIGS: Record<string, StatusConfig> = {
         label: 'Draft',
     },
     embargo: {
-        icon: Eye,
+        icon: EyeOff,
         color: 'text-purple-600',
         textColor: 'text-purple-700',
         label: 'Embargo',
