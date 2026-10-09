@@ -27,6 +27,7 @@ class DataCiteJsonLdToJsonConverterService
      */
     public function convert(array $jsonLd): array
     {
+        $jsonLd = $this->normalizeUriAliases($jsonLd);
         $attributes = [];
 
         // Extract DOI from @id
@@ -141,6 +142,28 @@ class DataCiteJsonLdToJsonConverterService
         }
 
         return $attributes;
+    }
+
+    /**
+     * Normalize historical URI aliases consistently at every nesting level.
+     *
+     * @param  array<array-key, mixed>  $node
+     * @return array<array-key, mixed>
+     */
+    private function normalizeUriAliases(array $node): array
+    {
+        $aliases = ['schemeURI' => 'schemeUri', 'rightsURI' => 'rightsUri', 'valueURI' => 'valueUri', 'awardURI' => 'awardUri'];
+        $normalized = [];
+        foreach ($node as $key => $value) {
+            $target = $aliases[$key] ?? $key;
+            $value = is_array($value) ? $this->normalizeUriAliases($value) : $value;
+            if (array_key_exists($target, $normalized) && $normalized[$target] !== $value) {
+                throw new JsonLdConversionException('Conflicting DataCite JSON-LD URI aliases: '.$target.'.');
+            }
+            $normalized[$target] = $value;
+        }
+
+        return $normalized;
     }
 
     /**
@@ -594,7 +617,7 @@ class DataCiteJsonLdToJsonConverterService
             $attrs = is_array($item['attrs'] ?? null) ? $item['attrs'] : [];
             $value = is_array($item['value'] ?? null) ? $item['value'] : $item;
 
-            foreach (['relatedItemType', 'relationType'] as $key) {
+            foreach (['relatedItemType', 'relationType', 'relationTypeInformation'] as $key) {
                 if (isset($attrs[$key])) {
                     $result[$key] = $attrs[$key];
                 } elseif (isset($value[$key])) {

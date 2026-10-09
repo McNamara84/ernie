@@ -69,6 +69,11 @@ final readonly class RelatedItemSectionParser
                 'position' => $position,
             ];
 
+            $relationInformation = $item->getAttribute('relationTypeInformation');
+            if (is_string($relationInformation)) {
+                $entry['relation_type_information'] = XmlElementHelpers::stringOrNull($relationInformation);
+            }
+
             $numberElement = XmlElementHelpers::firstChildElement($item, 'number');
             if ($numberElement !== null) {
                 $numberValue = XmlElementHelpers::stringValue($numberElement);

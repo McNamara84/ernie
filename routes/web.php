@@ -26,6 +26,7 @@ use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
+use App\Http\Controllers\JsonLdContextController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPageDomainController;
 use App\Http\Controllers\LandingPageDownloadRedirectController;
@@ -66,9 +67,15 @@ use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
 use App\Models\User;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 Route::get('/health', HealthController::class)->name('health');
+
+Route::get('/metadata/contexts/datacite-4.7-v1.jsonld', JsonLdContextController::class)
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class])
+    ->name('metadata.context.datacite');
 
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
 // Sanctum itself is not installed – this lightweight route provides the

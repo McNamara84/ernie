@@ -1,0 +1,281 @@
+{
+  "doi": "10.5880/jsonld.contract",
+  "creators": [
+    {
+      "name": "Lovelace, Ada",
+      "nameType": "Personal",
+      "givenName": "Ada",
+      "familyName": "Lovelace",
+      "nameIdentifiers": [
+        {
+          "nameIdentifier": "https://orcid.org/0000-0002-1825-0097",
+          "nameIdentifierScheme": "ORCID",
+          "schemeUri": "https://orcid.org"
+        }
+      ],
+      "affiliation": [
+        {
+          "name": "Example Observatory",
+          "affiliationIdentifier": "https://ror.org/04z8jg394",
+          "affiliationIdentifierScheme": "ROR",
+          "schemeUri": "https://ror.org/"
+        }
+      ]
+    },
+    {
+      "name": "Example Observatory",
+      "nameType": "Organizational"
+    }
+  ],
+  "titles": [
+    {
+      "title": "Research observations",
+      "lang": "en"
+    },
+    {
+      "title": "Forschungsbeobachtungen",
+      "titleType": "TranslatedTitle",
+      "lang": "de"
+    }
+  ],
+  "publisher": {
+    "name": "Example Publisher",
+    "publisherIdentifier": "https://ror.org/04z8jg394",
+    "publisherIdentifierScheme": "ROR",
+    "schemeUri": "https://ror.org/",
+    "lang": "en"
+  },
+  "publicationYear": "2026",
+  "types": {
+    "resourceTypeGeneral": "Dataset",
+    "resourceType": "Geophysical observations"
+  },
+  "subjects": [
+    {
+      "subject": "Geology",
+      "subjectScheme": "Science Keywords",
+      "schemeUri": "https://example.org/vocabulary",
+      "valueUri": "https://example.org/vocabulary/geology",
+      "classificationCode": "GEO-1",
+      "lang": "en"
+    },
+    {
+      "subject": "Free keyword"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Hopper, Grace",
+      "nameType": "Personal",
+      "givenName": "Grace",
+      "familyName": "Hopper",
+      "contributorType": "Editor",
+      "nameIdentifiers": [
+        {
+          "nameIdentifier": "https://orcid.org/0000-0002-1825-0097",
+          "nameIdentifierScheme": "ORCID",
+          "schemeUri": "https://orcid.org"
+        }
+      ],
+      "affiliation": [
+        {
+          "name": "Example Institute",
+          "affiliationIdentifier": "https://ror.org/04z8jg394",
+          "affiliationIdentifierScheme": "ROR",
+          "schemeUri": "https://ror.org/"
+        }
+      ]
+    }
+  ],
+  "dates": [
+    {
+      "date": "2026-10-01",
+      "dateType": "Issued",
+      "dateInformation": "First publication"
+    },
+    {
+      "date": "2025-01/2025-12",
+      "dateType": "Collected"
+    }
+  ],
+  "language": "en",
+  "alternateIdentifiers": [
+    {
+      "alternateIdentifier": "https://example.org/observations",
+      "alternateIdentifierType": "URL"
+    }
+  ],
+  "relatedIdentifiers": [
+    {
+      "relatedIdentifier": "https://raid.org/10.1234/example",
+      "relatedIdentifierType": "RAiD",
+      "relationType": "Other",
+      "relationTypeInformation": "Research project",
+      "resourceTypeGeneral": "Project"
+    },
+    {
+      "relatedIdentifier": "swh:1:dir:4f00d00000000000000000000000000000000000",
+      "relatedIdentifierType": "SWHID",
+      "relationType": "IsSupplementTo",
+      "resourceTypeGeneral": "Software"
+    },
+    {
+      "relatedIdentifier": "https://example.org/metadata",
+      "relatedIdentifierType": "URL",
+      "relationType": "HasMetadata",
+      "relatedMetadataScheme": "DataCite",
+      "schemeUri": "https://schema.datacite.org/",
+      "schemeType": "XSD"
+    }
+  ],
+  "relatedItems": [
+    {
+      "relatedItemType": "Presentation",
+      "relationType": "Other",
+      "relationTypeInformation": "Conference presentation of the observations",
+      "relatedItemIdentifier": {
+        "relatedItemIdentifier": "https://example.org/presentation",
+        "relatedItemIdentifierType": "URL"
+      },
+      "titles": [
+        {
+          "title": "Conference presentation",
+          "lang": "en"
+        }
+      ],
+      "creators": [
+        {
+          "name": "Lovelace, Ada",
+          "nameType": "Personal",
+          "givenName": "Ada",
+          "familyName": "Lovelace"
+        }
+      ],
+      "contributors": [
+        {
+          "name": "Example Observatory",
+          "nameType": "Organizational",
+          "contributorType": "HostingInstitution"
+        }
+      ],
+      "publicationYear": "2026",
+      "volume": "12",
+      "issue": "3",
+      "number": "7",
+      "numberType": "Article",
+      "firstPage": "101",
+      "lastPage": "115",
+      "publisher": "Example Publisher",
+      "edition": "2nd"
+    },
+    {
+      "relatedItemType": "Text",
+      "relationType": "HasMetadata",
+      "relatedItemIdentifier": {
+        "relatedItemIdentifier": "https://example.org/metadata",
+        "relatedItemIdentifierType": "URL",
+        "relatedMetadataScheme": "DataCite",
+        "schemeUri": "https://schema.datacite.org/",
+        "schemeType": "XSD"
+      },
+      "titles": [
+        {
+          "title": "Observation metadata"
+        }
+      ]
+    }
+  ],
+  "sizes": [
+    "12 MB",
+    "100 records"
+  ],
+  "formats": [
+    "text/csv",
+    "application/zip"
+  ],
+  "version": "2.0",
+  "rightsList": [
+    {
+      "rights": "Creative Commons Attribution 4.0 International",
+      "rightsUri": "https://creativecommons.org/licenses/by/4.0/",
+      "rightsIdentifier": "CC-BY-4.0",
+      "rightsIdentifierScheme": "SPDX",
+      "schemeUri": "https://spdx.org/licenses/",
+      "lang": "en"
+    }
+  ],
+  "descriptions": [
+    {
+      "description": "Geophysical research observations.",
+      "descriptionType": "Abstract",
+      "lang": "en"
+    },
+    {
+      "description": "Geophysikalische Forschungsbeobachtungen.",
+      "descriptionType": "Abstract",
+      "lang": "de"
+    }
+  ],
+  "geoLocations": [
+    {
+      "geoLocationPlace": "Potsdam",
+      "geoLocationPoint": {
+        "pointLongitude": 13,
+        "pointLatitude": 52.4
+      }
+    },
+    {
+      "geoLocationBox": {
+        "westBoundLongitude": 12,
+        "eastBoundLongitude": 14,
+        "southBoundLatitude": 51,
+        "northBoundLatitude": 53
+      }
+    },
+    {
+      "geoLocationPolygon": [
+        {
+          "polygonPoint": {
+            "pointLongitude": 12,
+            "pointLatitude": 51
+          }
+        },
+        {
+          "polygonPoint": {
+            "pointLongitude": 14,
+            "pointLatitude": 51
+          }
+        },
+        {
+          "polygonPoint": {
+            "pointLongitude": 14,
+            "pointLatitude": 53
+          }
+        },
+        {
+          "polygonPoint": {
+            "pointLongitude": 12,
+            "pointLatitude": 51
+          }
+        },
+        {
+          "inPolygonPoint": {
+            "pointLongitude": 13,
+            "pointLatitude": 52
+          }
+        }
+      ]
+    }
+  ],
+  "fundingReferences": [
+    {
+      "funderName": "Example Foundation",
+      "funderIdentifier": "https://doi.org/10.13039/501100001659",
+      "funderIdentifierType": "Crossref Funder ID",
+      "schemeUri": "https://www.crossref.org/",
+      "awardNumber": "EXAMPLE-1",
+      "awardUri": "https://example.org/awards/1",
+      "awardTitle": "Research observations grant"
+    }
+  ]
+}

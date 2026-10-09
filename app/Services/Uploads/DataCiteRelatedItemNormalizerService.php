@@ -50,6 +50,10 @@ final class DataCiteRelatedItemNormalizerService
                 'position' => $position,
             ];
 
+            if (array_key_exists('relationTypeInformation', $item)) {
+                $entry['relation_type_information'] = $this->string($item['relationTypeInformation']);
+            }
+
             if (($number = $this->string($item['number'] ?? null)) !== null) {
                 $entry['number'] = $number;
                 $entry['number_type'] = $this->string($item['numberType'] ?? null);

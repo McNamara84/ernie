@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 
 beforeEach(function () {
@@ -13,7 +14,7 @@ covers(DataCiteJsonLdToJsonConverterService::class);
 describe('format detection and basic conversion', function () {
     it('strips @context and @id from root', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             '@id' => 'https://doi.org/10.5880/test.2025.001',
             'titles' => ['title' => ['value' => 'Test']],
             'creators' => ['creator' => ['creatorName' => ['value' => 'Smith, John']]],
@@ -27,7 +28,7 @@ describe('format detection and basic conversion', function () {
 
     it('extracts DOI from @id', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             '@id' => 'https://doi.org/10.5880/test.2025.001',
             'titles' => ['title' => ['value' => 'Test']],
         ];
@@ -39,7 +40,7 @@ describe('format detection and basic conversion', function () {
 
     it('handles missing @id gracefully', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'titles' => ['title' => ['value' => 'Test']],
         ];
 
@@ -50,7 +51,7 @@ describe('format detection and basic conversion', function () {
 
     it('handles full DOI URL in @id', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             '@id' => 'https://doi.org/10.14470/FX828672',
             'titles' => ['title' => ['value' => 'Test']],
         ];
@@ -64,7 +65,7 @@ describe('format detection and basic conversion', function () {
 describe('titles conversion', function () {
     it('unwraps attrs/value pattern', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'titles' => [
                 'title' => [
                     'attrs' => ['titleType' => 'Subtitle'],
@@ -83,7 +84,7 @@ describe('titles conversion', function () {
 
     it('handles plain string title', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'titles' => [
                 'title' => ['value' => 'Main Title'],
             ],
@@ -96,7 +97,7 @@ describe('titles conversion', function () {
 
     it('handles multiple titles', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'titles' => [
                 'title' => [
                     ['value' => 'Main Title'],
@@ -120,7 +121,7 @@ describe('titles conversion', function () {
 describe('creators conversion', function () {
     it('converts personal creators with ORCID', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'creators' => [
                 'creator' => [
                     'creatorName' => [
@@ -162,7 +163,7 @@ describe('creators conversion', function () {
 
     it('handles multiple creators', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'creators' => [
                 'creator' => [
                     [
@@ -190,7 +191,7 @@ describe('creators conversion', function () {
 describe('contributors conversion', function () {
     it('converts contributors with type', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'contributors' => [
                 'contributor' => [
                     'attrs' => ['contributorType' => 'DataCollector'],
@@ -216,7 +217,7 @@ describe('contributors conversion', function () {
 describe('subjects conversion', function () {
     it('unwraps attrs/value pattern in subjects', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'subjects' => [
                 'subject' => [
                     'attrs' => [
@@ -238,7 +239,7 @@ describe('subjects conversion', function () {
 
     it('handles plain subjects without attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'subjects' => [
                 'subject' => ['value' => 'Free keyword'],
             ],
@@ -251,7 +252,7 @@ describe('subjects conversion', function () {
 
     it('handles multiple subjects', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'subjects' => [
                 'subject' => [
                     [
@@ -274,7 +275,7 @@ describe('subjects conversion', function () {
 describe('geoLocations conversion', function () {
     it('converts geoLocation point with JSON-LD value wrapping', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'geoLocations' => [
                 'geoLocation' => [
                     'geoLocationPlace' => ['value' => 'Potsdam, Germany'],
@@ -295,7 +296,7 @@ describe('geoLocations conversion', function () {
 
     it('converts geoLocation box with JSON-LD value wrapping', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'geoLocations' => [
                 'geoLocation' => [
                     'geoLocationBox' => [
@@ -321,7 +322,7 @@ describe('geoLocations conversion', function () {
 describe('dates conversion', function () {
     it('converts dates with type', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'dates' => [
                 'date' => [
                     'attrs' => ['dateType' => 'Created'],
@@ -338,7 +339,7 @@ describe('dates conversion', function () {
 
     it('handles multiple dates', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'dates' => [
                 'date' => [
                     [
@@ -364,7 +365,7 @@ describe('dates conversion', function () {
 describe('fundingReferences conversion', function () {
     it('converts funding references with attrs/value pattern', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'fundingReferences' => [
                 'fundingReference' => [
                     'funderName' => ['value' => 'Deutsche Forschungsgemeinschaft'],
@@ -396,7 +397,7 @@ describe('fundingReferences conversion', function () {
 describe('relatedIdentifiers conversion', function () {
     it('converts related identifiers', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'relatedIdentifiers' => [
                 'relatedIdentifier' => [
                     'attrs' => [
@@ -420,7 +421,7 @@ describe('relatedIdentifiers conversion', function () {
 describe('descriptions conversion', function () {
     it('converts descriptions with type', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'descriptions' => [
                 'description' => [
                     'attrs' => ['descriptionType' => 'Abstract', 'lang' => 'de'],
@@ -440,7 +441,7 @@ describe('descriptions conversion', function () {
 describe('rightsList conversion', function () {
     it('converts rights with identifier', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'rightsList' => [
                 'rights' => [
                     'attrs' => [
@@ -463,7 +464,7 @@ describe('rightsList conversion', function () {
 describe('scalar fields passthrough', function () {
     it('unwraps value-wrapped scalars', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'publicationYear' => ['value' => '2025'],
             'version' => ['value' => '1.0'],
             'language' => ['value' => 'en'],
@@ -478,7 +479,7 @@ describe('scalar fields passthrough', function () {
 
     it('passes through plain scalar values', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'publicationYear' => '2025',
             'version' => '1.0',
             'language' => 'en',
@@ -493,7 +494,7 @@ describe('scalar fields passthrough', function () {
 
     it('converts resourceType with attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'resourceType' => [
                 'attrs' => ['resourceTypeGeneral' => 'Dataset'],
                 'value' => 'DataCite Dataset',

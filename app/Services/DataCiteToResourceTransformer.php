@@ -1704,6 +1704,7 @@ class DataCiteToResourceTransformer
                 'related_item_type' => $relatedItemType,
                 'relation_type_id' => $relationTypeId,
                 'identifier' => $identifier,
+                'relation_type_information' => $riData['relationTypeInformation'] ?? null,
                 'identifier_type' => $identifierType,
                 'related_metadata_scheme' => $relatedMetadataScheme,
                 'scheme_uri' => $relatedSchemeUri,
