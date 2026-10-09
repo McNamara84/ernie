@@ -3615,6 +3615,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             before a draft is created. Use an ERNIE JSON-LD export or DataCite JSON/XML for import. The legacy context URLs are
                             recognized offline and are not used for new downloads.
                         </p>
+                        <p>
+                            If the file includes <code>@id</code>, it must contain a valid DOI, either as a bare DOI or an HTTP(S) resolver URL at{' '}
+                            <code>doi.org</code> or <code>dx.doi.org</code>. Invalid IDs produce an upload error (HTTP 422) before a draft is created.
+                            For a draft without a DOI, omit <code>@id</code>.
+                        </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">

@@ -31,14 +31,12 @@ class DataCiteJsonLdToJsonConverterService
         $attributes = [];
 
         // Extract DOI from @id
-        if (isset($jsonLd['@id']) && is_string($jsonLd['@id'])) {
-            $doi = preg_replace('#^https?://doi\.org/#', '', $jsonLd['@id']);
-            if ($doi !== null && $doi !== '') {
-                $attributes['doi'] = $doi;
-                $attributes['identifiers'] = [
-                    ['identifier' => $doi, 'identifierType' => 'DOI'],
-                ];
-            }
+        if (array_key_exists('@id', $jsonLd)) {
+            $doi = app(DataCiteJsonLdContextService::class)->doiFromId($jsonLd['@id']);
+            $attributes['doi'] = $doi;
+            $attributes['identifiers'] = [
+                ['identifier' => $doi, 'identifierType' => 'DOI'],
+            ];
         }
 
         // Identifier (may override from @id)

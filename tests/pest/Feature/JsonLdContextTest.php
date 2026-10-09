@@ -77,6 +77,64 @@ test('uploads new and legacy JSON-LD without losing related-item relation inform
     expect(session()->get($response->json('sessionKey'))['relatedItems'][0]['relation_type_information'])->toBe('Conference presentation');
 })->with([null, ...DataCiteJsonLdContextService::LEGACY_CONTEXTS]);
 
+test('rejects invalid JSON-LD DOI ids before creating a draft', function (mixed $id) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    $document = (new DataCiteLinkedDataExporter)->exportAttributes([
+        'titles' => [['title' => 'DOI import observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ]);
+    $document['@id'] = $id;
+    $before = Resource::count();
+
+    $response = $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('invalid-doi.jsonld', json_encode($document))]);
+
+    $response->assertStatus(422)->assertJsonPath('error.code', 'json_ld_conversion_error');
+    expect(Resource::count())->toBe($before);
+})->with([
+    'unrelated URL' => ['https://example.org/item'],
+    'unrelated string' => ['not-a-doi'],
+    'forged resolver host' => ['https://doi.org.example.org/10.5880/test'],
+    'invalid resolver suffix' => ['https://doi.org/invalid'],
+    'short DOI prefix' => ['https://doi.org/10.123/test'],
+    'missing DOI suffix' => ['https://doi.org/10.5880/'],
+    'embedded whitespace' => ['10.5880/invalid suffix'],
+    'resolver whitespace' => ['https://doi.org/ 10.5880/test'],
+    'empty id' => [''],
+    'blank id' => ['  '],
+    'null id' => [null],
+    'numeric id' => [123],
+    'array id' => [[]],
+]);
+
+test('normalizes supported JSON-LD DOI ids for draft storage', function (string $id) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    $document = (new DataCiteLinkedDataExporter)->exportAttributes([
+        'titles' => [['title' => 'DOI import observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ]);
+    $document['@id'] = $id;
+
+    $response = $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('valid-doi.jsonld', json_encode($document))]);
+
+    $response->assertOk();
+    $resource = Resource::findOrFail($response->json('resourceId'));
+    expect($resource->doi)->toBe('10.5880/test.2026');
+    expect(session()->get($response->json('sessionKey'))['doi'])->toBe('10.5880/Test.2026');
+})->with([
+    'bare DOI' => ['10.5880/Test.2026'],
+    'https resolver' => ['https://doi.org/10.5880/Test.2026'],
+    'http resolver' => ['http://doi.org/10.5880/Test.2026'],
+    'legacy https resolver' => ['https://dx.doi.org/10.5880/Test.2026'],
+    'legacy http resolver' => ['http://dx.doi.org/10.5880/Test.2026'],
+    'case and surrounding whitespace' => ['  HTTPS://DOI.ORG/10.5880/Test.2026  '],
+]);
+
 test('rejects unsupported profiles and incompatible structures before creating a draft', function (array $changes, string $message) {
     $this->actingAs(User::factory()->create());
     $document = ['@context' => app(DataCiteJsonLdContextService::class)->url(), ...$changes];

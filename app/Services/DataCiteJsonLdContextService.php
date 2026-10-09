@@ -77,6 +77,21 @@ final class DataCiteJsonLdContextService
         return rtrim((string) config('app.url'), '/').self::PATH;
     }
 
+    /** Resolve the root identifier to a valid bare DOI, preserving suffix casing. */
+    public function doiFromId(mixed $id): string
+    {
+        if (! is_string($id)) {
+            throw new JsonLdConversionException('Invalid DataCite JSON-LD @id: expected a string.');
+        }
+
+        $doi = preg_replace('~^https?://(?:dx\.)?doi\.org/~i', '', trim($id));
+        if ($doi === null || ! app(DoiSuggestionService::class)->isValidDoiFormat($id)) {
+            throw new JsonLdConversionException('Invalid DataCite JSON-LD @id: expected a valid DOI or DOI resolver URL.');
+        }
+
+        return $doi;
+    }
+
     /**
      * Validate the supported compact profile before an upload can create a draft.
      * Context URLs identify a contract; they are never fetched during import.
@@ -100,8 +115,8 @@ final class DataCiteJsonLdContextService
         if (isset($document['@type']) && ! in_array($document['@type'], ['Resource', 'https://w3id.org/tib/datacite/class/Resource'], true)) {
             throw new JsonLdConversionException('Unsupported DataCite JSON-LD resource type.');
         }
-        if (isset($document['@id']) && ! is_string($document['@id'])) {
-            throw new JsonLdConversionException('Invalid DataCite JSON-LD @id: expected a string.');
+        if (array_key_exists('@id', $document)) {
+            $this->doiFromId($document['@id']);
         }
 
         foreach ($document as $key => $value) {

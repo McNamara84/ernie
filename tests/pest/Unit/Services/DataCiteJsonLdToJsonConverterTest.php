@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\JsonLdConversionException;
 use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 
@@ -26,17 +27,37 @@ describe('format detection and basic conversion', function () {
         expect($result)->not->toHaveKey('@id');
     });
 
-    it('extracts DOI from @id', function () {
+    it('extracts a valid bare DOI from supported @id representations', function (string $id) {
         $jsonLd = [
             '@context' => app(DataCiteJsonLdContextService::class)->url(),
-            '@id' => 'https://doi.org/10.5880/test.2025.001',
+            '@id' => $id,
             'titles' => ['title' => ['value' => 'Test']],
         ];
 
         $result = $this->converter->convert($jsonLd);
 
-        expect($result['doi'])->toBe('10.5880/test.2025.001');
-    });
+        expect($result['doi'])->toBe('10.5880/Test.2025.001')
+            ->and($result['identifiers'][0])->toBe(['identifier' => '10.5880/Test.2025.001', 'identifierType' => 'DOI']);
+    })->with([
+        'bare DOI' => ['10.5880/Test.2025.001'],
+        'https resolver' => ['https://doi.org/10.5880/Test.2025.001'],
+        'http resolver' => ['http://doi.org/10.5880/Test.2025.001'],
+        'legacy https resolver' => ['https://dx.doi.org/10.5880/Test.2025.001'],
+        'legacy http resolver' => ['http://dx.doi.org/10.5880/Test.2025.001'],
+        'case and surrounding whitespace' => ['  HTTPS://DOI.ORG/10.5880/Test.2025.001  '],
+    ]);
+
+    it('rejects invalid DOI ids when the converter is called directly', function (mixed $id) {
+        expect(fn () => $this->converter->convert(['@id' => $id]))->toThrow(JsonLdConversionException::class, 'Invalid DataCite JSON-LD @id');
+    })->with([
+        'unrelated URL' => ['https://example.org/item'],
+        'empty DOI suffix' => ['https://doi.org/10.5880/'],
+        'embedded whitespace' => ['10.5880/invalid suffix'],
+        'resolver whitespace' => ['https://doi.org/ 10.5880/test'],
+        'blank id' => ['  '],
+        'null id' => [null],
+        'array id' => [[]],
+    ]);
 
     it('handles missing @id gracefully', function () {
         $jsonLd = [

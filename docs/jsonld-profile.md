@@ -135,6 +135,13 @@ and attribute placement. Foreign Schema.org documents, inline/array contexts,
 a draft. Converted attributes pass the existing DataCite validator. Drafts may omit
 a DOI; registration validation remains stricter.
 
+When present, the root `@id` must contain a valid DOI: either a bare DOI or an
+HTTP(S) resolver URL at `doi.org` or `dx.doi.org`. Both profile recognition and
+direct conversion reject unrelated URLs, invalid DOI syntax and empty/non-string
+IDs before draft storage. Resolver prefixes and surrounding whitespace are removed;
+the converter preserves DOI casing and the existing storage normalization
+lowercases it. A draft without a DOI omits `@id` entirely.
+
 Related-item `relationTypeInformation` now persists in
 `related_items.relation_type_information` through JSON/JSON-LD/XML upload, DOI
 metadata transformation and JSON/XML/JSON-LD export. Individual related-item updates
