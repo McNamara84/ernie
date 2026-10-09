@@ -37,6 +37,12 @@ and is never fetched during export or import. Its contents and availability must
 be verified by the deployment owner. Do not configure the unmodified TIB context:
 its wrapper and value coercions do not interpret this profile correctly.
 
+For Docker deployments, set the override in the environment file passed to Compose
+(`.env.docker` locally). Development, Stage and Production forward it to the app,
+queue, assessment queue and scheduler. An unset or empty override keeps the local
+context. Recreate the affected containers after changing it and refresh their
+Laravel configuration caches using the normal deployment process.
+
 Once released, v1's bytes and public URL must remain available unchanged. A future
 semantic change needs a new context file, manifest checksum, URL and reviewed
 compatibility tests. Updating the checksum alone is not a release strategy.

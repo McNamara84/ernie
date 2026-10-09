@@ -870,7 +870,7 @@ class DataCiteXmlExporter
             $relatedElement->setAttribute('relationType', $relatedIdentifier->relationType->slug ?? 'References');
 
             // Add relationTypeInformation if available (DataCite 4.7, property 12.g)
-            if ($relatedIdentifier->relation_type_information) {
+            if ($relatedIdentifier->relation_type_information !== null && $relatedIdentifier->relation_type_information !== '') {
                 $relatedElement->setAttribute(
                     'relationTypeInformation',
                     $relatedIdentifier->relation_type_information

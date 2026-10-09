@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\Format;
+use App\Models\IdentifierType;
 use App\Models\Person;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
@@ -14,6 +16,7 @@ use App\Models\Size;
 use App\Models\TitleType;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteJsonLdContextService;
+use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
 use App\Services\SchemaOrgJsonLdExporter;
@@ -467,19 +470,31 @@ describe('output is valid JSON-LD', function () {
             'date_type_id' => DateType::where('slug', 'Collected')->firstOrFail()->id,
             'date_value' => '2026-01-01', 'date_information' => '0',
         ]);
+        $resource->relatedIdentifiers()->create([
+            'identifier' => '10.5880/related.2026.001',
+            'identifier_type_id' => IdentifierType::where('slug', 'DOI')->firstOrFail()->id,
+            'relation_type_id' => RelationType::where('slug', 'Other')->firstOrFail()->id,
+            'relation_type_information' => '0',
+            'position' => 0,
+        ]);
         $attributes = (new DataCiteJsonExporter)->export($resource)['data']['attributes'];
         expect($attributes['subjects'][0]['classificationCode'])->toBe('0')
             ->and($attributes['version'])->toBe('0')
-            ->and($attributes['dates'][0]['dateInformation'])->toBe('0');
+            ->and($attributes['dates'][0]['dateInformation'])->toBe('0')
+            ->and($attributes['relatedIdentifiers'][0]['relationTypeInformation'])->toBe('0');
         $document = $this->exporter->export($resource);
         expect($document['subjects']['subject']['attrs']['classificationCode'])->toBe('0')
             ->and($document['version']['value'])->toBe('0')
-            ->and($document['dates']['date']['attrs']['dateInformation'])->toBe('0');
+            ->and($document['dates']['date']['attrs']['dateInformation'])->toBe('0')
+            ->and($document['relatedIdentifiers']['relatedIdentifier']['attrs']['relationTypeInformation'])->toBe('0');
+        $converted = (new DataCiteJsonLdToJsonConverterService)->convert($document);
+        expect($converted['relatedIdentifiers'][0]['relationTypeInformation'])->toBe('0');
         $xml = new DOMDocument;
         $xml->loadXML((new DataCiteXmlExporter)->export($resource));
         expect($xml->getElementsByTagName('subject')->item(0)->getAttribute('classificationCode'))->toBe('0')
             ->and($xml->getElementsByTagName('version')->item(0)->nodeValue)->toBe('0')
-            ->and($xml->getElementsByTagName('date')->item(0)->getAttribute('dateInformation'))->toBe('0');
+            ->and($xml->getElementsByTagName('date')->item(0)->getAttribute('dateInformation'))->toBe('0')
+            ->and($xml->getElementsByTagName('relatedIdentifier')->item(0)->getAttribute('relationTypeInformation'))->toBe('0');
         $schema = app(SchemaOrgJsonLdExporter::class)->export($resource);
         $version = $schema['version'] ?? collect($schema['subjectOf'] ?? [])->first(fn (array $node): bool => isset($node['version']))['version'] ?? null;
         expect($version)->toBe('0');

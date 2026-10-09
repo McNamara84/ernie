@@ -1506,10 +1506,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>DataCite XML v4.x</li>
                             <li>DataCite JSON (standard API format)</li>
                             <li>
-                                DataCite JSON-LD (linked data format with <code>@context</code>)
+                                ERNIE DataCite JSON-LD (versioned profile or supported legacy export with <code>@context</code>)
                             </li>
                             <li>ELMO's legacy DataCite {LEGACY_ELMO_ENVELOPE_SCHEMA_VERSION} + ISO envelope format</li>
                         </ul>
+                        <p>
+                            JSON-LD uploads must use ERNIE&apos;s versioned profile, a compatible mirror configured by the administrator, or one of
+                            the two legacy ERNIE contexts listed under <em>JSON-LD Export</em>. Unsupported profiles produce an upload error (HTTP
+                            422) before a draft is created. Use DataCite JSON or XML for metadata in other formats.
+                        </p>
 
                         <h4>Upload Process</h4>
                         <WorkflowSteps>
@@ -2359,9 +2364,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Export &amp; Import</h4>
                         <p>
                             Related items are included in all DataCite exports (XML, JSON, JSON-LD) as <code>&lt;relatedItems&gt;</code>/
-                            <code>relatedItems</code> and in the Schema.org landing page markup (<code>citation</code> block). XML uploads with{' '}
-                            <code>&lt;relatedItems&gt;</code> blocks are parsed on import and pre-filled in the editor. The DataCite JSON import path
-                            imports related items automatically.
+                            <code>relatedItems</code>. The Schema.org landing page <code>citation</code> block includes only outgoing{' '}
+                            <code>Cites</code> and <code>References</code> related items. Incoming and structural relationships remain in the DataCite
+                            exports and the landing page relation sections. XML uploads with <code>&lt;relatedItems&gt;</code> blocks are parsed on
+                            import and pre-filled in the editor. The DataCite JSON import path imports related items automatically.
                         </p>
 
                         <h4>On the Landing Page</h4>
@@ -3563,8 +3569,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>JSON-LD (Linked Data) Export</h3>
                         <p>
-                            Export metadata as <strong>DataCite Linked Data JSON-LD</strong> from the
-                            <code>/resources</code> page or from GFZ landing pages.
+                            Export metadata using <strong>ERNIE&apos;s DataCite 4.7 JSON-LD profile</strong> from the <code>/resources</code> page or
+                            from GFZ landing pages.
                         </p>
 
                         <h4>From the Resources List</h4>
@@ -3582,15 +3588,37 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>What is JSON-LD?</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>A W3C standard for linked data on the web</li>
-                            <li>Uses the official DataCite Linked Data vocabulary</li>
+                            <li>Uses ERNIE&apos;s versioned DataCite 4.7 profile with a public JSON-LD 1.1 context</li>
                             <li>Machine-readable semantic metadata for interoperability</li>
-                            <li>Embedded Schema.org follows ESIP Science-on-Schema.org v1.3</li>
+                            <li>Embedded Schema.org follows the applicable ESIP Science-on-Schema.org v1.3.2 recommendations</li>
                         </ul>
+
+                        <h4>Importing JSON-LD Files</h4>
+                        <p>
+                            Uploads accept these <code>@context</code> references when the file also follows ERNIE&apos;s DataCite structure:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                This ERNIE installation&apos;s versioned context at <code>/metadata/contexts/datacite-4.7-v1.jsonld</code>, referenced
+                                in its JSON-LD downloads
+                            </li>
+                            <li>A compatible context mirror configured by the administrator</li>
+                            <li>
+                                The legacy ERNIE context <code>https://schema.stage.datacite.org/linked-data/context/fullcontext.jsonld</code>
+                            </li>
+                            <li>
+                                The legacy ERNIE context <code>https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld</code>
+                            </li>
+                        </ul>
+                        <p>
+                            Schema.org JSON-LD, unrecognized or inline contexts, and <code>@graph</code> documents produce an upload error (HTTP 422)
+                            before a draft is created. Use an ERNIE JSON-LD export or DataCite JSON/XML for import. The legacy context URLs are
+                            recognized offline and are not used for new downloads.
+                        </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Tip:</strong> JSON-LD exports do not require validation — they are generated directly from the stored
-                                metadata.
+                                <strong>Tip:</strong> You can download stored metadata as JSON-LD before running DOI registration validation.
                             </p>
                         </div>
                     </>
@@ -3940,17 +3968,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>JSON-LD (Linked Data) Export for IGSNs</h3>
                         <p>
-                            Export IGSN metadata as <strong>DataCite Linked Data JSON-LD</strong> by clicking the JSON-LD button (braces icon) on any
-                            IGSN row.
+                            Export IGSN metadata using <strong>ERNIE&apos;s DataCite 4.7 JSON-LD profile</strong> by clicking the JSON-LD button
+                            (braces icon) on any IGSN row. The same context and upload compatibility rules documented under{' '}
+                            <em>Datasets → JSON-LD Export</em> apply.
                         </p>
 
                         <h4>Format Details</h4>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Uses the official DataCite Linked Data vocabulary</li>
+                            <li>Uses the same versioned, public JSON-LD 1.1 context as Resource exports</li>
                             <li>
                                 Downloaded as <code>.jsonld</code> file
                             </li>
-                            <li>Includes all IGSN-specific metadata fields</li>
+                            <li>Includes the stored DataCite metadata for the physical sample</li>
                             <li>No validation required — generated directly from stored data</li>
                         </ul>
                     </>
