@@ -15,7 +15,10 @@
     "dump-downloads": ["tests/pest/Feature/Database/DatabaseDumpDownloadsMigrationTest.php"],
     "statistics": ["tests/pest/Feature/Database/CreateStatisticsTablesMigrationTest.php"],
     "sizes-unit": ["tests/pest/Feature/Database/WidenSizesUnitMigrationTest.php"],
-    "related-items-edition": ["tests/pest/Feature/Database/WidenRelatedItemsEditionMigrationTest.php"],
+    "related-items-edition": [
+      "tests/pest/Feature/Database/WidenRelatedItemsEditionMigrationTest.php",
+      "tests/pest/Feature/Database/RelatedItemRelationInformationMigrationTest.php"
+    ],
     "igsn-user-code": ["tests/pest/Feature/Database/WidenIgsnMetadataUserCodeMigrationTest.php"],
     "funder-name": ["tests/pest/Feature/Database/WidenFundingReferencesFunderNameMigrationTest.php"],
     "medusa-import": ["tests/pest/Feature/IgsnImport/MedusaLegacyImportRegressionTest.php"],

@@ -50,6 +50,7 @@ trait ValidatesRelatedItems
             'relatedItems.*.identifier' => ['nullable', 'required_with:relatedItems.*.identifier_type', 'string', 'max:2183'],
             'relatedItems.*.identifier_type' => ['nullable', 'required_with:relatedItems.*.identifier', Rule::in(RelatedItem::IDENTIFIER_TYPES)],
             'relatedItems.*.related_metadata_scheme' => ['nullable', 'string', 'max:255'],
+            'relatedItems.*.relation_type_information' => ['nullable', 'string'],
             'relatedItems.*.scheme_uri' => ['nullable', 'string', 'max:512'],
             'relatedItems.*.scheme_type' => ['nullable', 'string', 'max:64'],
             'relatedItems.*.position' => ['nullable', 'integer', 'min:0'],

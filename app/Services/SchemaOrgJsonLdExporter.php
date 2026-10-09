@@ -158,11 +158,11 @@ class SchemaOrgJsonLdExporter
         }
 
         // Version
-        if (! empty($attributes['version'])) {
+        if (isset($attributes['version']) && $attributes['version'] !== '') {
             $jsonLd['version'] = $attributes['version'];
         }
 
-        // Citation: related items become schema:citation CreativeWork entries
+        // Citation follows the outgoing DataCite citation/reference direction.
         if (! empty($attributes['relatedItems'])) {
             $citations = $this->transformCitations($attributes['relatedItems']);
             if ($citations !== []) {
@@ -609,6 +609,10 @@ class SchemaOrgJsonLdExporter
     {
         $citations = [];
         foreach ($relatedItems as $ri) {
+            if (! in_array($ri['relationType'] ?? null, ['Cites', 'References'], true)) {
+                continue;
+            }
+
             $entry = ['@type' => 'CreativeWork'];
 
             // Name (MainTitle preferred — explicit MainTitle wins, missing

@@ -232,6 +232,10 @@
         ],
         "fixes": [
             {
+                "title": "Reliable DataCite JSON-LD Exports and Imports",
+                "description": "DataCite JSON-LD downloads now use a public, versioned JSON-LD 1.1 context instead of the unavailable staging context. Compatible context mirrors can be configured in all Docker environments. Creators and polygon vertices retain their order, while metadata values, language and identifier schemes survive conversion, including literal zero relation information on related identifiers. Historical ERNIE exports remain importable; unsupported JSON-LD profiles and invalid DOI ids fail before a draft is created. Related-item relation information is preserved through JSON, XML and JSON-LD imports, storage and exports. Schema.org citations now respect the direction of DataCite relationships. Automated offline checks validate actual exports for all 34 resource types."
+            },
+            {
                 "title": "Stable OAI-PMH Identities During DOI Changes",
                 "description": "Changing or removing a resource DOI invalidates all tokens for snapshots containing that resource, so harvesters restart instead of receiving a different identifier on retry. Previous published identifiers remain available as deleted headers with their original metadata sets. Unrelated harvests remain usable, and failed resource transactions restore tokens and deletion records.",
                 "references": [{ "type": "pull_request", "number": 1398, "url": "https://github.com/McNamara84/ernie/pull/1398" }]

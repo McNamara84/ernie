@@ -52,6 +52,20 @@ function citationPayload(int $relationTypeId, array $overrides = []): array
     ], $overrides);
 }
 
+it('preserves imported relation information when omitted during editing and supports replacement and clearing', function () {
+    $resource = Resource::factory()->create();
+    $relation = RelationType::firstOrCreate(['slug' => 'Other'], ['name' => 'Other', 'is_active' => true]);
+    $service = app(RelatedItemStorageService::class);
+    $item = $service->create($resource, citationPayload($relation->id, ['relation_type_information' => 'Conference presentation']));
+    expect($item->relation_type_information)->toBe('Conference presentation');
+    $item = $service->update($item, citationPayload($relation->id));
+    expect($item->relation_type_information)->toBe('Conference presentation');
+    $item = $service->update($item, citationPayload($relation->id, ['relation_type_information' => 'Revised presentation']));
+    expect($item->relation_type_information)->toBe('Revised presentation');
+    $item = $service->update($item, citationPayload($relation->id, ['relation_type_information' => null]));
+    expect($item->relation_type_information)->toBeNull();
+});
+
 it('creates a related item with all nested children in one transaction', function () {
     $resource = Resource::factory()->create();
     $relType = RelationType::firstOrCreate(

@@ -6,6 +6,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\ResourceStorageService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -709,7 +710,7 @@ describe('JSON Upload - JSON-LD format', function () {
         $this->actingAs(User::factory()->create());
 
         $jsonLd = json_encode([
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             '@id' => 'https://doi.org/10.5880/test.2025.jsonld',
             'titles' => [
                 'title' => ['value' => 'JSON-LD Test'],
@@ -761,7 +762,7 @@ describe('JSON Upload - JSON-LD format', function () {
         $this->actingAs(User::factory()->create());
 
         $jsonLd = json_encode([
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'titles' => [
                 'title' => [
                     [

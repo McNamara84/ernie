@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Exceptions\JsonLdConversionException;
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 
 beforeEach(function () {
@@ -14,7 +15,7 @@ covers(DataCiteJsonLdToJsonConverterService::class);
 describe('identifier conversion', function () {
     it('converts single identifier with attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'identifier' => [
                 'attrs' => ['identifierType' => 'DOI'],
                 'value' => '10.5880/test.2025.001',
@@ -30,7 +31,7 @@ describe('identifier conversion', function () {
 
     it('converts multiple identifiers wrapped in identifier key', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'identifier' => [
                 'identifier' => [
                     [
@@ -54,7 +55,7 @@ describe('identifier conversion', function () {
 
     it('returns empty array for unrecognized identifier format', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'identifier' => 'plain-string',
         ];
 
@@ -67,7 +68,7 @@ describe('identifier conversion', function () {
 describe('alternate identifiers conversion', function () {
     it('converts alternate identifiers with attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'alternateIdentifiers' => [
                 'alternateIdentifier' => [
                     'attrs' => ['alternateIdentifierType' => 'URL'],
@@ -85,7 +86,7 @@ describe('alternate identifiers conversion', function () {
 
     it('converts multiple alternate identifiers', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'alternateIdentifiers' => [
                 'alternateIdentifier' => [
                     [
@@ -111,7 +112,7 @@ describe('alternate identifiers conversion', function () {
 describe('publisher conversion with attrs', function () {
     it('converts publisher with all attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'publisher' => [
                 'attrs' => [
                     'publisherIdentifier' => 'https://ror.org/04z8jg394',
@@ -134,7 +135,7 @@ describe('publisher conversion with attrs', function () {
 
     it('converts publisher without attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'publisher' => ['value' => 'Simple Publisher'],
         ];
 
@@ -148,7 +149,7 @@ describe('publisher conversion with attrs', function () {
 describe('sizes conversion', function () {
     it('converts sizes with value wrapping', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'sizes' => [
                 'size' => ['value' => '1.5 GB'],
             ],
@@ -161,7 +162,7 @@ describe('sizes conversion', function () {
 
     it('converts multiple sizes', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'sizes' => [
                 'size' => [
                     ['value' => '100 MB'],
@@ -196,7 +197,7 @@ describe('formats conversion', function () {
 describe('geo location polygon conversion', function () {
     it('converts polygon with points and inPolygonPoint', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'geoLocations' => [
                 'geoLocation' => [
                     'geoLocationPolygon' => [
@@ -239,7 +240,7 @@ describe('geo location polygon conversion', function () {
 
     it('converts polygon without inPolygonPoint', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'geoLocations' => [
                 'geoLocation' => [
                     'geoLocationPolygon' => [
@@ -274,7 +275,7 @@ describe('geo location polygon conversion', function () {
 describe('contributor conversion edge cases', function () {
     it('converts contributor with name identifiers and affiliations', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'contributors' => [
                 'contributor' => [
                     'attrs' => ['contributorType' => 'Researcher'],
@@ -320,7 +321,7 @@ describe('contributor conversion edge cases', function () {
 describe('rights list conversion edge cases', function () {
     it('converts rights with all attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'rightsList' => [
                 'rights' => [
                     'attrs' => [
@@ -348,7 +349,7 @@ describe('rights list conversion edge cases', function () {
 
     it('converts multiple rights entries', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'rightsList' => [
                 'rights' => [
                     [
@@ -374,7 +375,7 @@ describe('rights list conversion edge cases', function () {
 describe('funding reference edge cases', function () {
     it('converts funding reference with funderIdentifier attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'fundingReferences' => [
                 'fundingReference' => [
                     'funderName' => ['value' => 'NSF'],
@@ -408,7 +409,7 @@ describe('funding reference edge cases', function () {
 
     it('converts funding reference without optional attrs', function () {
         $jsonLd = [
-            '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
             'fundingReferences' => [
                 'fundingReference' => [
                     'funderName' => ['value' => 'DFG'],

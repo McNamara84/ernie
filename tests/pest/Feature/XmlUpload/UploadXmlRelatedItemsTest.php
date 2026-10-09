@@ -26,7 +26,7 @@ const RELATED_ITEMS_XML = <<<'XML'
   <publicationYear>2021</publicationYear>
   <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
   <relatedItems>
-    <relatedItem relatedItemType="JournalArticle" relationType="IsCitedBy">
+    <relatedItem relatedItemType="JournalArticle" relationType="IsCitedBy" relationTypeInformation="Publication discussing these observations">
       <relatedItemIdentifier relatedItemIdentifierType="DOI">10.1234/example</relatedItemIdentifier>
       <creators>
         <creator>
@@ -86,6 +86,7 @@ test('extracts DataCite 4.7 <relatedItems> from uploaded XML', function () {
     expect($items[0])->toMatchArray([
         'related_item_type' => 'JournalArticle',
         'relation_type_slug' => 'IsCitedBy',
+        'relation_type_information' => 'Publication discussing these observations',
         'publication_year' => 2020,
         'volume' => '12',
         'issue' => '3',

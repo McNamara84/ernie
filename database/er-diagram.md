@@ -455,6 +455,7 @@ erDiagram
         bigint resource_id FK
         varchar related_item_type "DataCite resourceTypeGeneral (PascalCase)"
         bigint relation_type_id FK
+        text relation_type_information "nullable"
         smallint publication_year "nullable"
         varchar volume "nullable"
         varchar issue "nullable"

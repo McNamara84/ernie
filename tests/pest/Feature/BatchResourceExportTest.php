@@ -6,6 +6,7 @@ use App\Http\Requests\Batch\ExportResourcesRequest;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -185,6 +186,9 @@ describe('BatchResourceExportController@export', function () {
         expect($zip->open($zipPath))->toBeTrue();
         expect($zip->numFiles)->toBe(1);
         expect($zip->getNameIndex(0))->toEndWith('.jsonld');
+        $document = json_decode($zip->getFromIndex(0), true, flags: JSON_THROW_ON_ERROR);
+        expect($document['@context'])->toBe(app(DataCiteJsonLdContextService::class)->url())
+            ->and($document['@type'])->toBe('Resource');
         $zip->close();
         @unlink($zipPath);
     });
