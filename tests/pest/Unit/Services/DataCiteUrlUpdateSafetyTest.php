@@ -20,6 +20,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(function (): void {
@@ -265,6 +266,7 @@ test('target reachability uses its configured timeouts for HEAD and fallback GET
 });
 
 test('the job performs a remote GET before a minimal PUT and completes the audit counters', function (): void {
+    Log::spy();
     $resource = createJobUrlMigrationResource();
     [$run, $item] = createPendingUrlMigrationJob($resource);
 
@@ -298,6 +300,12 @@ test('the job performs a remote GET before a minimal PUT and completes the audit
         ->and($run->fresh()->processed)->toBe(1)
         ->and($run->fresh()->updated)->toBe(1)
         ->and($run->fresh()->active_marker)->toBeNull();
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'dataciteurlupdate.completed'
+        && $context['activity']['subject']['id'] === $resource->id
+        && $context['activity']['actor']['id'] === $run->initiated_by_user_id
+        && $context['activity']['operation_id'] === $run->id)->once();
 
     $methods = Http::recorded()->map(fn (array $pair): string => $pair[0]->method())->all();
     expect($methods)->toBe(['HEAD', 'GET', 'HEAD', 'PUT']);

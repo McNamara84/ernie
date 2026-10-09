@@ -15,8 +15,10 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Services\Citations\RelatedItemStorageService;
+use App\Services\UserActivityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class RelatedItemController extends Controller
 {
@@ -42,7 +44,7 @@ class RelatedItemController extends Controller
     {
         $this->authorizeAccess($request, $resource);
 
-        $item = $this->storage->create($resource, $request->validated());
+        $item = $this->mutate($request, $resource, 'added a related item to', fn () => $this->storage->create($resource, $request->validated()));
 
         return response()->json(['data' => $this->present($item)], 201);
     }
@@ -52,7 +54,7 @@ class RelatedItemController extends Controller
         $this->authorizeAccess($request, $resource);
         abort_unless($relatedItem->resource_id === $resource->id, 404);
 
-        $item = $this->storage->update($relatedItem, $request->validated());
+        $item = $this->mutate($request, $resource, 'updated a related item of', fn () => $this->storage->update($relatedItem, $request->validated()));
 
         return response()->json(['data' => $this->present($item)]);
     }
@@ -62,7 +64,7 @@ class RelatedItemController extends Controller
         $this->authorizeAccess($request, $resource);
         abort_unless($relatedItem->resource_id === $resource->id, 404);
 
-        $this->storage->delete($relatedItem);
+        $this->mutate($request, $resource, 'deleted a related item of', fn () => $this->storage->delete($relatedItem));
 
         return response()->json(null, 204);
     }
@@ -71,9 +73,29 @@ class RelatedItemController extends Controller
     {
         $validated = $request->validated();
 
-        $this->storage->reorder($resource, $validated['order']);
+        $this->mutate($request, $resource, 'reordered the related items of', fn () => $this->storage->reorder($resource, $validated['order']));
 
         return response()->json(null, 204);
+    }
+
+    /** @template T
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    private function mutate(Request $request, Resource $resource, string $verb, \Closure $callback): mixed
+    {
+        return DB::transaction(function () use ($request, $resource, $verb, $callback) {
+            $locked = Resource::query()->lockForUpdate()->findOrFail($resource->id);
+            $activities = app(UserActivityService::class);
+            $before = $activities->snapshot($locked);
+            $result = $callback();
+            $fields = $activities->changedFields($before, $activities->snapshot($locked));
+            if ($fields !== []) {
+                $activities->record($activities->actor($request->user()), (string) $request->route()?->getName(), $verb, $activities->subject($locked), $fields);
+            }
+
+            return $result;
+        });
     }
 
     private function authorizeAccess(Request $request, Resource $resource): void

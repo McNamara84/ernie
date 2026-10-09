@@ -288,6 +288,32 @@ database server.
 
 ### Log retention and downloads
 
+The **Application Logs** card at `/logs` also records successful user actions on
+resources, IGSNs and their landing pages at `INFO` level. English entries identify
+the user and dataset, name changed fields, and offer dataset and DOI links when
+available. This includes metadata and landing-page edits, tombstones, imports,
+registrations, metadata exports and review-link emails queued for delivery.
+Batch actions have individual successful-record entries and a correlated summary.
+Unchanged saves and failed actions do not create success entries; existing
+technical warnings and errors remain available.
+
+The viewer reads both single and daily application logs, newest first. It uses
+one shared 50 MB window across log files and shows a notice when older history
+falls outside that window. Downloads can include retained history outside it.
+Activities follow the same administrator access, deletion and rotation rules as
+other application logs; there is no separate permanent audit database and no
+retroactive reconstruction of earlier activity. Queue processing retains the
+initiating user's identity; file logging remains best effort after database commit.
+Run migrations before deploying the activity writer; background runs store a
+nullable actor snapshot. Resource links open the editor; IGSN links search for
+the recorded identifier. Deleted datasets retain their recorded identity and DOI.
+
+Stage/Production images now default to `LOG_LEVEL=info`; development keeps
+`debug`. Existing Portainer installations with an explicit `LOG_LEVEL=error`
+override must set it to `info` to record activities, recreate the affected app and
+worker services, and refresh Laravel's configuration cache using their normal
+deployment procedure. A threshold above `info` suppresses activity entries.
+
 The administration log viewer can download the application log for the last
 24 hours, 7 days, or 30 days. It reads both `storage/logs/laravel.log` and
 Laravel's daily files named `laravel-YYYY-MM-DD.log`. A download can only

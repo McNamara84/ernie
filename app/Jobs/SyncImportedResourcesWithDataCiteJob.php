@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Services\DataCiteSyncService;
 use App\Services\ImportProgressService;
+use App\Services\UserActivityService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
@@ -82,6 +85,11 @@ class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
                         $result->errorMessage ?? 'DataCite synchronization failed.',
                     );
                 } else {
+                    if ($result->attempted && $result->success && Cache::add(CacheKey::USER_ACTIVITY_IMPORT_SYNC->key($this->importId.':'.$resourceId), true, CacheKey::USER_ACTIVITY_IMPORT_SYNC->ttl())) {
+                        $activities = app(UserActivityService::class);
+                        $activities->record($progress['activity_actor'] ?? null, 'import.datacite_synced',
+                            'synchronized imported metadata with DataCite for', $activities->subject($resource), operationId: $this->importId);
+                    }
                     $progressService->recordSyncSuccess($this->importType, $this->importId, $resourceId);
                 }
             } catch (\Throwable $exception) {

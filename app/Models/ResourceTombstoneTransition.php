@@ -10,6 +10,8 @@ use Illuminate\Support\Carbon;
 /**
  * An immutable lifecycle record with mutable outbox execution fields.
  *
+ * @property array{id: int, name: string}|null $activity_actor
+ * @property int|null $user_id
  * @property int $id
  * @property int $resource_id
  * @property int $revision
@@ -33,11 +35,11 @@ use Illuminate\Support\Carbon;
 class ResourceTombstoneTransition extends Model
 {
     /** @var list<string> */
-    protected $fillable = ['resource_id', 'user_id', 'revision', 'action', 'reason', 'statement', 'snapshot', 'doi', 'test_mode', 'previous_state', 'previous_url', 'target_state', 'target_url', 'status', 'attempts', 'available_at', 'completed_at', 'last_error'];
+    protected $fillable = ['activity_actor', 'resource_id', 'user_id', 'revision', 'action', 'reason', 'statement', 'snapshot', 'doi', 'test_mode', 'previous_state', 'previous_url', 'target_state', 'target_url', 'status', 'attempts', 'available_at', 'completed_at', 'last_error'];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['snapshot' => 'array', 'test_mode' => 'boolean', 'revision' => 'integer', 'attempts' => 'integer', 'available_at' => 'datetime', 'completed_at' => 'datetime'];
+        return ['activity_actor' => 'array', 'snapshot' => 'array', 'test_mode' => 'boolean', 'revision' => 'integer', 'attempts' => 'integer', 'available_at' => 'datetime', 'completed_at' => 'datetime'];
     }
 }

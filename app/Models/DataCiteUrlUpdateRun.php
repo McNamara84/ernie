@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $active_marker
  * @property int|null $initiated_by_user_id
  * @property int|null $last_controlled_by_user_id
+ * @property array{id: int, name: string}|null $activity_actor
  * @property bool $test_mode
  * @property string $datacite_endpoint
  * @property string $target_base_url
@@ -57,6 +58,7 @@ class DataCiteUrlUpdateRun extends Model
         'status',
         'active_marker',
         'initiated_by_user_id',
+        'activity_actor',
         'last_controlled_by_user_id',
         'test_mode',
         'datacite_endpoint',
@@ -82,6 +84,7 @@ class DataCiteUrlUpdateRun extends Model
             'scope' => DataCiteUrlUpdateScope::class,
             'status' => DataCiteUrlUpdateRunStatus::class,
             'test_mode' => 'boolean',
+            'activity_actor' => 'array',
             'total' => 'integer',
             'processed' => 'integer',
             'updated' => 'integer',

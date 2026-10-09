@@ -107,6 +107,10 @@ enum CacheKey: string
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions:v2';
 
+    // Import activity deduplication (independent of resource caches)
+    case USER_ACTIVITY_IMPORT_SYNC = 'activity:import-sync';
+    case USER_ACTIVITY_IMPORT_SUMMARY = 'activity:import-summary';
+
     /**
      * Get the full cache key with optional suffix.
      *
@@ -232,6 +236,10 @@ enum CacheKey: string
             // Download URL suggestions use rememberForever and explicit invalidation.
             // This TTL acts only as a safe default if the enum is reused elsewhere.
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => 86400,
+
+            // Keep import retry activity idempotent for 2 days.
+            self::USER_ACTIVITY_IMPORT_SYNC,
+            self::USER_ACTIVITY_IMPORT_SUMMARY => 172800,
         };
     }
 
@@ -324,6 +332,9 @@ enum CacheKey: string
             self::LANDING_PAGE_RENDER_DATA => ['resources', 'landing_pages'],
 
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => [],
+
+            self::USER_ACTIVITY_IMPORT_SYNC,
+            self::USER_ACTIVITY_IMPORT_SUMMARY => [],
         };
     }
 

@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -165,6 +166,25 @@ test('batch registration creates a persistent run and queues it', function (): v
     ]);
     Queue::assertPushedOn('datacite', ProcessIgsnRegistrationRunJob::class);
     Http::assertNothingSent();
+});
+
+test('activity retains the original actor without an auth session and does not duplicate completed items', function (): void {
+    $this->curator->update(['name' => 'Original Initiator']);
+    $resource = createQueuedIgsn();
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    $this->curator->update(['name' => 'Renamed Initiator']);
+    Auth::logout();
+    Log::spy();
+    Http::fake(fn (Request $request) => Http::response(['data' => [
+        'id' => $request->data()['data']['attributes']['doi'], 'type' => 'dois', 'attributes' => ['state' => 'findable'],
+    ]], 201));
+    runQueuedIgsnRegistrationStep($run->id);
+    runQueuedIgsnRegistrationStep($run->id);
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'igsnregistration.completed'
+        && $context['activity']['actor']['name'] === 'Original Initiator'
+        && $context['activity']['operation_id'] === $run->id && $context['activity']['test_mode'] === true)->once();
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
+    Http::assertSentCount(1);
 });
 
 test('batch registration accepts and persists exactly 1000 ordered items', function (): void {

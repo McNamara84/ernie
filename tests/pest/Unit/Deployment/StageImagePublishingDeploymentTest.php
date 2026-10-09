@@ -77,7 +77,7 @@ it('builds images from sanitized Production defaults without replacing their run
         ->and($securityWorkflow)->toBeArray()
         ->and($productionEnvironment)->toBeString()
         ->toMatch('/^LOG_STACK=daily$/m')
-        ->toMatch('/^LOG_LEVEL=error$/m')
+        ->toMatch('/^LOG_LEVEL=info$/m')
         ->and($validator)->toBeString()
         ->toContain('"$key" == "APP_PREVIOUS_KEYS"')
         ->toContain('"$key" == "RESEND_KEY"')

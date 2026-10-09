@@ -848,6 +848,7 @@ entity "resource_tombstone_transitions" as resource_tombstone_transitions {
     --
     * resource_id : BIGINT <<FK>> //cascade delete//
     user_id : BIGINT <<FK>> <<nullable>> //null on user deletion//
+    activity_actor : JSON <<nullable>> //initiator identity snapshot//
     * revision : INT UNSIGNED
     * action : VARCHAR(30)
     reason : VARCHAR(40) <<nullable>>
@@ -1339,6 +1340,7 @@ entity "datacite_url_update_runs" as datacite_url_update_runs {
     active_marker : VARCHAR(20) <<UK>> <<nullable>>
     initiated_by_user_id : BIGINT <<FK>> <<nullable>>
     last_controlled_by_user_id : BIGINT <<FK>> <<nullable>>
+    activity_actor : JSON <<nullable>> //initiator identity snapshot//
     * test_mode : BOOLEAN
     * datacite_endpoint : VARCHAR(500)
     * target_base_url : VARCHAR(500)
@@ -1382,6 +1384,7 @@ entity "igsn_registration_runs" as igsn_registration_runs {
     --
     initiated_by_user_id : BIGINT <<FK>> <<nullable>>
     last_controlled_by_user_id : BIGINT <<FK>> <<nullable>>
+    activity_actor : JSON <<nullable>> //initiator identity snapshot//
     * status : VARCHAR(30)
     * test_mode : BOOLEAN
     * datacite_endpoint : VARCHAR(500)
