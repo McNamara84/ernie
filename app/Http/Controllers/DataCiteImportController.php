@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImportCancellationResult;
 use App\Http\Requests\StartDatacenterOldResourceImportRequest;
 use App\Http\Requests\StartSingleOldResourceImportRequest;
 use App\Jobs\ImportFromDataCiteJob;
@@ -227,28 +228,12 @@ class DataCiteImportController extends Controller
             ], 400);
         }
 
-        $progress = $progressService->get(ImportProgressService::TYPE_RESOURCE, $importId);
-
-        if ($progress === null) {
-            return response()->json([
-                'error' => 'Import not found',
-            ], 404);
-        }
-
-        if (! in_array($progress['status'] ?? null, ['running', 'pending'], true)) {
-            return response()->json([
-                'error' => 'Import is not running',
-            ], 400);
-        }
-
-        $progressService->update(ImportProgressService::TYPE_RESOURCE, $importId, [
-            'status' => 'cancelled',
-            'completed_at' => now()->toIso8601String(),
-        ]);
-
-        return response()->json([
-            'message' => 'Import cancelled',
-        ]);
+        return match ($progressService->cancelIfRunning(ImportProgressService::TYPE_RESOURCE, $importId)) {
+            ImportCancellationResult::CANCELLED => response()->json(['message' => 'Import cancelled']),
+            ImportCancellationResult::NOT_FOUND => response()->json(['error' => 'Import not found'], 404),
+            ImportCancellationResult::NOT_RUNNING => response()->json(['error' => 'Import is not running'], 400),
+            ImportCancellationResult::UNAVAILABLE => response()->json(['error' => 'Unable to cancel the import. Please try again.'], 503),
+        };
     }
 
     public function retrySync(

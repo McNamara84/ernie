@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ImportCancellationResult;
 use Closure;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
@@ -32,25 +33,60 @@ class ImportProgressService
     }
 
     /** @param array<string, mixed> $values */
-    public function update(string $type, string $importId, array $values): void
+    public function update(string $type, string $importId, array $values, bool $replace = false): void
     {
         $key = $this->progressKey($type, $importId);
 
-        $this->withProgressLock($type, $importId, 'update', function () use ($key, $values, $importId): void {
-            $progress = Cache::get($key, []);
-            $progress = is_array($progress) ? $progress : [];
+        $this->withProgressLock($type, $importId, 'update', function () use ($key, $values, $importId, $replace): void {
+            $current = Cache::get($key, []);
+            $current = is_array($current) ? $current : [];
+            $progress = $replace ? $values : array_replace($current, $values);
 
-            foreach ($values as $name => $value) {
-                $progress[$name] = $value;
+            // A worker may have calculated its next state before cancellation acquired the lock.
+            if (($current['status'] ?? null) === 'cancelled') {
+                $progress['status'] = 'cancelled';
+                $progress['phase'] = 'completed';
+                $progress['completed_at'] = $current['completed_at'] ?? ($progress['completed_at'] ?? null);
             }
 
             if (array_key_exists('sync_full_metadata_total', $values)) {
                 unset($progress['sync_full_metadata_resource_ids']);
             }
 
-            Cache::put($key, $progress, now()->addHours(24));
-            app(UserActivityService::class)->importSummary($importId, $progress);
+            if (Cache::put($key, $progress, now()->addHours(24))) {
+                app(UserActivityService::class)->importSummary($importId, $progress);
+            }
         });
+    }
+
+    public function cancelIfRunning(string $type, string $importId): ImportCancellationResult
+    {
+        $key = $this->progressKey($type, $importId);
+        $result = ImportCancellationResult::UNAVAILABLE;
+
+        $this->withProgressLock($type, $importId, 'cancel', function () use ($key, $importId, &$result): void {
+            $progress = Cache::get($key);
+            if (! is_array($progress)) {
+                $result = ImportCancellationResult::NOT_FOUND;
+
+                return;
+            }
+            if (! in_array($progress['status'] ?? null, ['running', 'pending'], true)) {
+                $result = ImportCancellationResult::NOT_RUNNING;
+
+                return;
+            }
+
+            $progress['status'] = 'cancelled';
+            $progress['phase'] = 'completed';
+            $progress['completed_at'] = now()->toIso8601String();
+            if (Cache::put($key, $progress, now()->addHours(24))) {
+                $result = ImportCancellationResult::CANCELLED;
+                app(UserActivityService::class)->importSummary($importId, $progress);
+            }
+        });
+
+        return $result;
     }
 
     /**

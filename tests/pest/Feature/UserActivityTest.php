@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\EditorDraftSaveIntent;
+use App\Enums\UserRole;
 use App\Exceptions\DuplicateUploadedResourceDoiException;
 use App\Http\Middleware\LogUserActivity;
 use App\Models\LandingPage;
@@ -97,6 +98,31 @@ it('captures each deleted resource and a correlated batch summary', function () 
     $this->actingAs($this->actor)->delete('/resources/batch', ['ids' => $resources->modelKeys()])->assertRedirect();
     Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'resources.batch-destroy')->twice();
     Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed' && str_contains($message, '2 successful'))->once();
+});
+
+it('rejects deleting all resources before querying activity subjects', function (UserRole $role, bool $testMode) {
+    $this->actor->update(['role' => $role]);
+    config(['datacite.test_mode' => $testMode]);
+    $resource = Resource::factory()->create();
+    DB::enableQueryLog();
+
+    $this->actingAs($this->actor)->deleteJson('/resources/all', ['confirmation' => 'delete'])->assertForbidden();
+
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+    expect(array_filter($queries, fn (array $query): bool => preg_match('/\bfrom\s+["`]?resources["`]?\b/i', $query['query']) === 1))->toBe([]);
+    expect(Resource::find($resource->id))->not->toBeNull();
+    Log::shouldNotHaveReceived('info');
+})->with([[UserRole::ADMIN, false], [UserRole::BEGINNER, true], [UserRole::GROUP_LEADER, true]]);
+
+it('captures authorized delete-all activity behind the gate', function () {
+    config(['datacite.test_mode' => true]);
+    Resource::factory()->count(2)->create();
+    $this->actingAs($this->actor)->delete('/resources/all', ['confirmation' => 'delete'])->assertRedirect();
+
+    expect(Resource::count())->toBe(0);
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'resources.destroy-all')->twice();
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
 });
 
 it('summarizes a partially successful import cancelled during synchronization with its original actor', function (string $prefix) {

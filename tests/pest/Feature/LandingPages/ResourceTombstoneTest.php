@@ -101,6 +101,19 @@ test('beginner cannot activate edit restore or retry a tombstone', function (str
     Http::assertNothingSent();
 })->with([['POST', ''], ['PATCH', ''], ['DELETE', ''], ['POST', '/retry-sync']]);
 
+test('retry activity retains the transition mode even when the configured mode changes', function (bool $testMode) {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    $transition->update(['status' => 'failed', 'test_mode' => $testMode]);
+    config(['datacite.test_mode' => ! $testMode]);
+    Log::spy();
+
+    $this->postJson($this->endpoint.'/retry-sync', ['revision' => 1])->assertOk();
+
+    Log::shouldHaveReceived('info')->once()->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'landing-page.tombstone.retry'
+        && $context['activity']['test_mode'] === $testMode && str_contains($message, 'DataCite test mode') === $testMode);
+})->with([true, false]);
+
 test('an unchanged tombstone explanation creates neither a transition nor an activity', function () {
     $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
     Log::spy();

@@ -236,7 +236,7 @@ final class ResourceTombstoneService
                     $this->sync->dispatch($transition);
                     $activities = app(UserActivityService::class);
                     $activities->record($activities->actor($user), 'landing-page.tombstone.retry', 'requested a tombstone synchronization retry for',
-                        $activities->subject($locked), operationId: (string) $transition->id);
+                        $activities->subject($locked), operationId: (string) $transition->id, testMode: $transition->test_mode);
                 }
             });
         });

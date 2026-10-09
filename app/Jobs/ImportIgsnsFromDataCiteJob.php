@@ -1450,8 +1450,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     private function updateProgress(array $data): void
     {
         $data['activity_actor'] = $this->activityActor;
-        app(UserActivityService::class)->importSummary($this->importId, $data);
-        Cache::put($this->getCacheKey(), $data, now()->addHours(24));
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_IGSN, $this->importId, $data, replace: true);
     }
 
     /**
@@ -1460,14 +1459,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     private function updateProgressKeys(array $data): void
     {
         $data['activity_actor'] = $this->activityActor;
-        $currentProgress = Cache::get($this->getCacheKey(), []);
-
-        foreach ($data as $key => $value) {
-            $currentProgress[$key] = $value;
-        }
-
-        Cache::put($this->getCacheKey(), $currentProgress, now()->addHours(24));
-        app(UserActivityService::class)->importSummary($this->importId, $currentProgress);
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_IGSN, $this->importId, $data);
     }
 
     private function getCacheKey(): string

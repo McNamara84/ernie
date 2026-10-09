@@ -775,6 +775,7 @@ erDiagram
         bigint id PK
         bigint resource_id FK "cascade delete"
         bigint user_id FK "nullable, null on user deletion"
+        json activity_actor "nullable, initiator identity snapshot"
         int revision "unsigned"
         varchar action "30"
         varchar reason "40, nullable"
@@ -1238,6 +1239,7 @@ erDiagram
         varchar active_marker UK "20, nullable"
         bigint initiated_by_user_id FK "nullable"
         bigint last_controlled_by_user_id FK "nullable"
+        json activity_actor "nullable, initiator identity snapshot"
         boolean test_mode
         varchar datacite_endpoint "500"
         varchar target_base_url "500"
@@ -1279,6 +1281,7 @@ erDiagram
         uuid id PK
         bigint initiated_by_user_id FK "nullable"
         bigint last_controlled_by_user_id FK "nullable"
+        json activity_actor "nullable, initiator identity snapshot"
         varchar status "30, indexed"
         boolean test_mode
         varchar datacite_endpoint "500"
