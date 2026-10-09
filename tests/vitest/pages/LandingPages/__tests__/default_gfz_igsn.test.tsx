@@ -77,7 +77,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
     describe('Layout Structure', () => {
         it.each([
-            { embargoDue: false, notice: 'Under embargo until 2027-01-01.' },
+            { embargoDue: false, notice: 'Under embargo until 2027-01-01' },
             { embargoDue: true, notice: 'Embargo expired on 2027-01-01; publication is pending manual release.' },
         ])('shows a hidden embargo status until manual release when embargoDue=$embargoDue', ({ embargoDue, notice }) => {
             mockUsePage.mockReturnValue({
@@ -100,6 +100,42 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(within(hero).getByText('Embargo')).toBeInTheDocument();
             expect(hero.querySelector('.lucide-eye-off')).toBeInTheDocument();
             expect(hero.querySelector('.lucide-eye')).not.toBeInTheDocument();
+        });
+
+        it.each([false, true])('announces a missing embargo date when embargoDue=%s', (embargoDue) => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: { ...mockLandingPage, status: 'draft' },
+                    isPreview: true,
+                    embargoPending: true,
+                    embargoDate: null,
+                    embargoDue,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByText('Embargo date is missing or invalid; publication is blocked.')).toHaveAttribute('role', 'status');
+            expect(screen.queryByText(/^Under embargo until|^Embargo expired on/)).not.toBeInTheDocument();
+        });
+
+        it.each([false, undefined])('omits embargo notices when embargoPending=%s even if an embargo date is supplied', (embargoPending) => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    embargoDate: '2027-01-01',
+                    embargoDue: true,
+                    embargoPending,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.queryByText(/^Under embargo until|^Embargo expired on|^Embargo date is missing/)).not.toBeInTheDocument();
+            expect(within(screen.getByTestId('landing-page-resource-hero')).getByText('Published')).toBeInTheDocument();
         });
 
         it('renders the main layout structure', () => {
