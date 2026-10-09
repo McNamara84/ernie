@@ -104,7 +104,7 @@ it('leaves the ELMO paths to their separate Docker stacks', function (): void {
         ->and(preg_match('~'.$externalPattern.'~', '/api/v1/elmo/vocabularies'))->toBe(0);
 });
 
-it('keeps the homepage in ERNIE and redirects only confirmed whole legacy path segments', function (): void {
+it('routes public pages through ERNIE and redirects only confirmed whole legacy path segments', function (): void {
     $compose = productionDomainCompose();
     $labels = productionTraefikLabels($compose['services']['webserver']['labels'] ?? []);
 
@@ -135,7 +135,7 @@ it('keeps the homepage in ERNIE and redirects only confirmed whole legacy path s
             ->and(preg_match('~'.$legacyPattern.'~', "/{$segment}/example"))->toBe(1);
     }
 
-    foreach (['/', '/search', '/search/map', '/doi-search', '/doi-search/map', '/igsn-search', '/igsn-search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/images/home/topics/HEx_buttons_atmosphere.png', '/10.5880/example/slug'] as $erniePath) {
+    foreach (['/', '/find', '/data-centres', '/data-centres/description', '/search', '/search/map', '/doi-search', '/doi-search/map', '/igsn-search', '/igsn-search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/images/home/topics/HEx_buttons_atmosphere.png', '/10.5880/example/slug'] as $erniePath) {
         expect(preg_match('~'.$legacyPattern.'~', $erniePath))->toBe(0);
     }
 

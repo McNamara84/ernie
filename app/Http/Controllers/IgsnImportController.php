@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImportCancellationResult;
 use App\Http\Requests\StartDatacenterIgsnImportRequest;
 use App\Http\Requests\StartSingleIgsnImportRequest;
 use App\Jobs\ImportIgsnsFromDataCiteJob;
@@ -207,22 +208,12 @@ class IgsnImportController extends Controller
             return response()->json(['error' => 'Invalid import ID format'], 400);
         }
 
-        $progress = $progressService->get(ImportProgressService::TYPE_IGSN, $importId);
-
-        if ($progress === null) {
-            return response()->json(['error' => 'Import not found'], 404);
-        }
-
-        if (! in_array($progress['status'] ?? null, ['running', 'pending'], true)) {
-            return response()->json(['error' => 'Import is not running'], 400);
-        }
-
-        Cache::put("igsn_import:{$importId}", array_merge($progress, [
-            'status' => 'cancelled',
-            'completed_at' => now()->toIso8601String(),
-        ]), now()->addHours(24));
-
-        return response()->json(['message' => 'Import cancelled']);
+        return match ($progressService->cancelIfRunning(ImportProgressService::TYPE_IGSN, $importId)) {
+            ImportCancellationResult::CANCELLED => response()->json(['message' => 'Import cancelled']),
+            ImportCancellationResult::NOT_FOUND => response()->json(['error' => 'Import not found'], 404),
+            ImportCancellationResult::NOT_RUNNING => response()->json(['error' => 'Import is not running'], 400),
+            ImportCancellationResult::UNAVAILABLE => response()->json(['error' => 'Unable to cancel the import. Please try again.'], 503),
+        };
     }
 
     public function retrySync(

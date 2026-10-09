@@ -9,10 +9,12 @@ use App\Enums\DataCiteUrlUpdateRunStatus;
 use App\Exceptions\DataCiteRequestDeferredException;
 use App\Models\DataCiteUrlUpdateItem;
 use App\Models\DataCiteUrlUpdateRun;
+use App\Models\Resource;
 use App\Services\DataCiteMemberApiClient;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\DataCiteUrlUpdateCandidateService;
 use App\Services\DataCiteUrlUpdateTargetService;
+use App\Services\UserActivityService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -344,6 +346,15 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
                 'processed_at' => now(),
             ]);
 
+            if ($status === DataCiteUrlUpdateItemStatus::UPDATED) {
+                $resource = Resource::find($lockedItem->resource_id);
+                if ($resource !== null) {
+                    $activities = app(UserActivityService::class);
+                    $activities->record($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'dataciteurlupdate.completed',
+                        'updated the DataCite landing-page URL for', $activities->subject($resource), operationId: (string) $run->id, testMode: $run->test_mode);
+                }
+            }
+
             $lockedRun = DataCiteUrlUpdateRun::query()->lockForUpdate()->findOrFail($run->id);
             $lockedRun->increment('processed');
             if ($status === DataCiteUrlUpdateItemStatus::UPDATED) {
@@ -367,12 +378,18 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
 
     private function completeRun(DataCiteUrlUpdateRun $run): void
     {
+        $recordSummary = $run->completed_at === null && $run->updated > 0;
         $run->update([
             'status' => DataCiteUrlUpdateRunStatus::COMPLETED,
             'active_marker' => null,
             'completed_at' => now(),
             'pause_reason' => null,
         ]);
+        if ($recordSummary) {
+            $activities = app(UserActivityService::class);
+            $activities->summary($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'DataCite URL update', (string) $run->id,
+                ['updated' => $run->updated, 'unchanged' => $run->already_current, 'skipped' => $run->skipped, 'failed' => $run->failed], $run->test_mode);
+        }
     }
 
     private function cancel(DataCiteUrlUpdateRun $run): void
@@ -382,6 +399,11 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
             'active_marker' => null,
             'cancelled_at' => now(),
         ]);
+        if ($run->updated > 0) {
+            $activities = app(UserActivityService::class);
+            $activities->summary($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'DataCite URL update (cancelled)', (string) $run->id,
+                ['updated' => $run->updated, 'unchanged' => $run->already_current, 'skipped' => $run->skipped, 'failed' => $run->failed, 'cancelled' => max(0, $run->total - $run->processed)], $run->test_mode);
+        }
     }
 
     private function pause(DataCiteUrlUpdateRun $run, string $reason): void

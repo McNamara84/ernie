@@ -52,6 +52,7 @@ class LogController extends Controller
 
         return Inertia::render('Logs/Index', [
             'logs' => $logs['data'],
+            'truncated' => $logs['truncated'],
             'pagination' => [
                 'current_page' => $logs['current_page'],
                 'last_page' => $logs['last_page'],
@@ -139,7 +140,11 @@ class LogController extends Controller
             return redirect()->route('logs.index')->with('error', 'Invalid log entry: timestamp must be in format YYYY-MM-DD HH:MM:SS');
         }
 
-        $deleted = $this->logService->deleteLogEntry((int) $lineNumber, $timestamp);
+        $entryId = $request->input('entry_id');
+        if ($entryId !== null && ! is_string($entryId)) {
+            return redirect()->route('logs.index')->with('error', 'Invalid log entry identity');
+        }
+        $deleted = $this->logService->deleteLogEntry((int) $lineNumber, $timestamp, $entryId);
 
         if (! $deleted) {
             return redirect()->route('logs.index')->with('error', 'Log entry not found or could not be deleted');

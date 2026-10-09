@@ -26,6 +26,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\IgsnStorageService;
+use Illuminate\Support\Facades\Log;
 
 covers(IgsnStorageService::class);
 
@@ -100,6 +101,16 @@ function buildMinimalIgsnRow(string $igsn = 'IEDE00001', string $title = 'Test S
 describe('IgsnStorageService::storeFromCsv()', function (): void {
     beforeEach(function (): void {
         seedIgsnLookupData();
+    });
+
+    it('correlates CSV import activities and skips duplicates', function () {
+        $user = User::factory()->create();
+        Log::spy();
+        $rows = [buildMinimalIgsnRow('IEDE00001'), buildMinimalIgsnRow('IEDE00002')];
+        app(IgsnStorageService::class)->storeFromCsv($rows, 'test.csv', $user->id);
+        app(IgsnStorageService::class)->storeFromCsv($rows, 'test.csv', $user->id);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'igsn.imported' && $context['activity']['actor']['id'] === $user->id)->twice();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed' && str_contains($message, '2 created'))->once();
     });
 
     it('creates a resource from minimal IGSN data', function (): void {

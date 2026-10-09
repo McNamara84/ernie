@@ -9,6 +9,7 @@ use App\Enums\ResourceWorkflowStatus;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\ResourceStorageService;
+use App\Services\UserActivityService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -28,6 +29,7 @@ final readonly class EditorResourceSaveService
     public function saveValidated(array $data, ?User $user): array
     {
         return DB::transaction(function () use ($data, $user): array {
+            $before = $user === null ? [] : $this->activitySnapshot($data);
             [$resource, $isUpdate] = $this->storageService->store(
                 $data,
                 $user?->id,
@@ -38,6 +40,8 @@ final readonly class EditorResourceSaveService
                 $resource->workflow_status_override = null;
                 $resource->save();
             }
+
+            $this->logSave($resource, $user, $before, $isUpdate);
 
             return [$this->loadStatusRelations($resource), $isUpdate];
         });
@@ -54,6 +58,8 @@ final readonly class EditorResourceSaveService
                 $this->assertResourceIsNotPublished($data);
             }
 
+            $autosave = $intent === EditorDraftSaveIntent::AUTOSAVE;
+            $before = $user === null ? [] : $this->activitySnapshot($data, $autosave);
             [$resource, $isUpdate] = $this->storageService->store(
                 $data,
                 $user?->id,
@@ -65,6 +71,8 @@ final readonly class EditorResourceSaveService
                 $resource->force_review_status = false;
                 $resource->save();
             }
+
+            $this->logSave($resource, $user, $before, $isUpdate, $autosave ? $data : null);
 
             return [$this->loadStatusRelations($resource), $isUpdate];
         });
@@ -87,6 +95,45 @@ final readonly class EditorResourceSaveService
             throw ValidationException::withMessages([
                 'intent' => ['Published resources cannot be changed to draft.'],
             ]);
+        }
+    }
+
+    /** @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function activitySnapshot(array $data, bool $autosave = false): array
+    {
+        $resource = isset($data['resourceId']) ? Resource::query()->lockForUpdate()->find((int) $data['resourceId']) : null;
+
+        if ($resource === null) {
+            return [];
+        }
+
+        $activities = app(UserActivityService::class);
+
+        return $autosave
+            ? $activities->editorSnapshot($resource, array_key_exists('relatedItems', $data))
+            : $activities->snapshot($resource);
+    }
+
+    /** @param array<string, mixed> $before
+     * @param  array<string, mixed>|null  $autosaveData
+     */
+    private function logSave(Resource $resource, ?User $user, array $before, bool $isUpdate, ?array $autosaveData = null): void
+    {
+        if ($user === null) {
+            return;
+        }
+
+        $activities = app(UserActivityService::class);
+        $after = $autosaveData === null
+            ? $activities->snapshot($resource)
+            : $activities->editorSnapshot($resource, array_key_exists('relatedItems', $autosaveData));
+        $fields = $activities->changedFields($before, $after);
+        if (! $isUpdate || $fields !== []) {
+            $activities->record($activities->actor($user), $isUpdate ? 'resource.metadata_updated' : 'resource.created',
+                $isUpdate ? 'updated metadata in the Data Editor for' : 'created in the Data Editor',
+                $activities->subject($resource->fresh() ?? $resource), $fields);
         }
     }
 

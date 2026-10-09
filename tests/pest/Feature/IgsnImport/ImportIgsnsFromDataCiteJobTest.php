@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -205,6 +206,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId);
+        Log::spy();
         $job->handle($this->importService, $this->transformer, $this->enrichmentService);
 
         $status = Cache::get("igsn_import:{$importId}");
@@ -217,9 +219,13 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect(LandingPage::query()->where('template', 'default_gfz_igsn')->count())->toBe(2);
         expect(LandingPage::query()->where('is_published', true)->count())->toBe(2);
         expect($status['sync_skipped_test_mode'])->toBeTrue();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context = []): bool => ($context['activity']['action'] ?? null) === 'resource.imported'
+            && $context['activity']['subject']['kind'] === 'IGSN'
+            && $context['activity']['operation_id'] === $importId)->twice();
     });
 
     it('skips existing DOIs', function () {
+        Log::spy();
         Resource::factory()->create(['doi' => '10.60510/existing001']);
 
         $this->importService
@@ -248,6 +254,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['skipped'])->toBe(1);
         expect($status['skipped_dois'])->toContain('10.60510/existing001');
         expect(LandingPage::query()->count())->toBe(0);
+        Log::shouldNotHaveReceived('info', [Mockery::any(), Mockery::on(fn (array $context): bool => isset($context['activity']))]);
     });
 
     it('queues a full DataCite metadata update for a newly imported IGSN in production', function (): void {

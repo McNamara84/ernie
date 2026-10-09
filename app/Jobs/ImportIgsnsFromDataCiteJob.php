@@ -19,6 +19,7 @@ use App\Services\IgsnImportService;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\LegacyIgsnPortalService;
+use App\Services\UserActivityService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -60,12 +61,17 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      * @param  int  $userId  The user who initiated the import
      * @param  string  $importId  UUID for progress tracking
      */
+    /** @var array{id: int, name: string}|null */
+    private ?array $activityActor = null;
+
     public function __construct(
         private int $userId,
         private string $importId,
         private ?string $singleDoi = null,
         private ?string $legacyDatacenterId = null,
     ) {
+        $this->activityActor = app(UserActivityService::class)->actor($userId);
+
         $this->onQueue('imports');
 
         if ($this->singleDoi !== null && $this->legacyDatacenterId !== null) {
@@ -1133,6 +1139,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $this->resourceIdsForDataCiteSync[] = (int) $importedResource->id;
         }
 
+        $activities = app(UserActivityService::class);
+        $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
+            $activities->subject($importedResource), operationId: $this->importId);
+
         return [
             'status' => 'imported',
             'enriched' => $wasEnriched,
@@ -1439,7 +1449,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      */
     private function updateProgress(array $data): void
     {
-        Cache::put($this->getCacheKey(), $data, now()->addHours(24));
+        $data['activity_actor'] = $this->activityActor;
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_IGSN, $this->importId, $data, replace: true);
     }
 
     /**
@@ -1447,13 +1458,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      */
     private function updateProgressKeys(array $data): void
     {
-        $currentProgress = Cache::get($this->getCacheKey(), []);
-
-        foreach ($data as $key => $value) {
-            $currentProgress[$key] = $value;
-        }
-
-        Cache::put($this->getCacheKey(), $currentProgress, now()->addHours(24));
+        $data['activity_actor'] = $this->activityActor;
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_IGSN, $this->importId, $data);
     }
 
     private function getCacheKey(): string

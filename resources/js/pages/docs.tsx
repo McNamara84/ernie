@@ -830,6 +830,27 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             and provides level and text filters for investigating the visible table.
                         </p>
 
+                        <h4>Review user activity</h4>
+                        <p>
+                            The <strong>Application Logs</strong> card includes successful user actions on resources, IGSNs, and landing pages as
+                            English <strong>Info</strong> entries. These cover metadata edits, imports, identifier registration, landing-page and FTP
+                            changes, tombstones, metadata exports, and review-link emails queued for delivery. Each record identifies the user and
+                            dataset and names changed fields. Batch operations include individual successful records and a summary.
+                        </p>
+                        <p>
+                            Select <strong>Info</strong> in the level filter and search for a user, dataset title, or DOI. Use{' '}
+                            <strong>Open dataset</strong> beside an entry to return to the editor or the matching IGSN search, and{' '}
+                            <strong>DOI</strong> to open the production DOI resolver when available. Deleted datasets have no dataset link; DataCite
+                            test-mode events have no production DOI link. Unchanged saves and failed actions do not create success activity entries;
+                            failures remain visible in ordinary warning and error logs.
+                        </p>
+                        <p>
+                            The table combines single and daily application logs, newest first, within a shared <strong>50 MB</strong> window. A
+                            notice appears when older retained history falls outside this viewer limit. Filters apply within that window. Use the
+                            download menu to inspect retained entries outside the window; downloads follow the selected period and are independent of
+                            the table filters and viewer limit.
+                        </p>
+
                         <h4>Review VM utilization</h4>
                         <p>
                             Use <strong>Last 24 hours</strong> or <strong>Last 7 days</strong> to switch both percentage charts. Current values and

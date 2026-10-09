@@ -143,6 +143,15 @@ exact validated manifests.
 Save and redeploy the stack, then re-enable automatic polling if changing the
 Git reference did not already enable it.
 
+The public homepage, Find overview and both data-centre pages are enabled by
+default on Stage.
+Set `PUBLIC_HOME_ENABLED`, `PUBLIC_FIND_ENABLED`, `PUBLIC_DATA_CENTRES_ENABLED`, or
+`PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` individually to `false` in the Portainer
+stack environment to preview the temporary TYPO3 fallback, then redeploy.
+Production defaults all four to `false`. See [public page routing and feature
+switches](production-container-deployment.md#public-page-routing-and-feature-switches)
+for the route mapping and release procedure.
+
 The portal basemap uses the keyless OpenFreeMap public instance by default. No account, API key, or additional Stage variable is required. To use a compatible self-hosted instance instead, configure its style URL in the Stage stack environment:
 
 ```dotenv
@@ -257,7 +266,7 @@ such as `null`. `stack.env` is excluded from the Docker build context. Before
 building, both image workflows reject credential-like values in
 `.env.production` but otherwise keep this sanitized Production template
 unchanged. The resulting image therefore retains Production-safe defaults such
-as `LOG_STACK=daily` and `LOG_LEVEL=error`; Portainer overrides only the values
+as `LOG_STACK=daily` and `LOG_LEVEL=info`; Portainer overrides only the values
 explicitly supplied by the stack environment or Compose service definition.
 
 Previously committed values remain in Git history. Rotate any application key,
