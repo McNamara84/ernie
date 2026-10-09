@@ -267,13 +267,13 @@ export default function DefaultGfzTemplate() {
                         {embargoPending && (
                             <div
                                 role="status"
-                                className="rounded-lg border-2 border-purple-500 bg-purple-50 p-4 font-semibold text-purple-900 dark:bg-purple-950 dark:text-purple-100"
+                                className="mx-4 rounded-lg border-2 border-purple-500 bg-purple-50 p-4 text-center font-semibold text-purple-900 sm:mx-0 dark:bg-purple-950 dark:text-purple-100"
                             >
                                 {!embargoDate
                                     ? 'Embargo date is missing or invalid; publication is blocked.'
                                     : embargoDue
                                       ? `Embargo expired on ${embargoDate}; publication is pending manual release.`
-                                      : `Under embargo until ${embargoDate}.`}
+                                      : `Under embargo until ${embargoDate}`}
                             </div>
                         )}
                         <VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />
