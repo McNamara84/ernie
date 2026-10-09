@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Enums\EditorDraftSaveIntent;
 use App\Enums\UserRole;
 use App\Exceptions\DuplicateUploadedResourceDoiException;
@@ -158,6 +159,30 @@ it('detects reordered geometry coordinates as a semantic edit', function () {
     $before = $this->activities->snapshot($resource);
     $geo->update(['polygon_points' => array_reverse($geo->polygon_points)]);
     expect($this->activities->changedFields($before, $this->activities->snapshot($resource)))->toBe(['geo_locations']);
+});
+
+it('retains import summary deduplication until the centralized TTL expires', function () {
+    $id = (string) Str::uuid();
+    $progress = ['activity_actor' => $this->activities->actor($this->actor), 'status' => 'completed', 'imported' => 2];
+    $this->activities->importSummary($id, $progress);
+    expect(Cache::get(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->key($id)))->toBeTrue();
+    $this->travel(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->ttl() - 1)->seconds();
+    $this->activities->importSummary($id, $progress);
+    $this->travel(2)->seconds();
+    expect(Cache::has(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->key($id)))->toBeFalse();
+    $this->activities->importSummary($id, $progress);
+
+    Log::shouldHaveReceived('info')->twice();
+});
+
+it('honors existing import summary markers and separates operations', function () {
+    $id = (string) Str::uuid();
+    Cache::put('activity:import-summary:'.$id, true, 3600);
+    $progress = ['activity_actor' => $this->activities->actor($this->actor), 'status' => 'completed', 'imported' => 2];
+    $this->activities->importSummary($id, $progress);
+    Log::shouldNotHaveReceived('info');
+    $this->activities->importSummary((string) Str::uuid(), $progress);
+    Log::shouldHaveReceived('info')->once();
 });
 
 it('records streamed exports only after their callback succeeds', function (bool $fail) {

@@ -29,7 +29,7 @@ final readonly class EditorResourceSaveService
     public function saveValidated(array $data, ?User $user): array
     {
         return DB::transaction(function () use ($data, $user): array {
-            $before = $this->activitySnapshot($data);
+            $before = $user === null ? [] : $this->activitySnapshot($data);
             [$resource, $isUpdate] = $this->storageService->store(
                 $data,
                 $user?->id,
@@ -58,7 +58,8 @@ final readonly class EditorResourceSaveService
                 $this->assertResourceIsNotPublished($data);
             }
 
-            $before = $this->activitySnapshot($data);
+            $autosave = $intent === EditorDraftSaveIntent::AUTOSAVE;
+            $before = $user === null ? [] : $this->activitySnapshot($data, $autosave);
             [$resource, $isUpdate] = $this->storageService->store(
                 $data,
                 $user?->id,
@@ -71,7 +72,7 @@ final readonly class EditorResourceSaveService
                 $resource->save();
             }
 
-            $this->logSave($resource, $user, $before, $isUpdate);
+            $this->logSave($resource, $user, $before, $isUpdate, $autosave ? $data : null);
 
             return [$this->loadStatusRelations($resource), $isUpdate];
         });
@@ -100,18 +101,35 @@ final readonly class EditorResourceSaveService
     /** @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function activitySnapshot(array $data): array
+    private function activitySnapshot(array $data, bool $autosave = false): array
     {
         $resource = isset($data['resourceId']) ? Resource::query()->lockForUpdate()->find((int) $data['resourceId']) : null;
 
-        return $resource === null ? [] : app(UserActivityService::class)->snapshot($resource);
+        if ($resource === null) {
+            return [];
+        }
+
+        $activities = app(UserActivityService::class);
+
+        return $autosave
+            ? $activities->editorSnapshot($resource, array_key_exists('relatedItems', $data))
+            : $activities->snapshot($resource);
     }
 
-    /** @param array<string, mixed> $before */
-    private function logSave(Resource $resource, ?User $user, array $before, bool $isUpdate): void
+    /** @param array<string, mixed> $before
+     * @param  array<string, mixed>|null  $autosaveData
+     */
+    private function logSave(Resource $resource, ?User $user, array $before, bool $isUpdate, ?array $autosaveData = null): void
     {
+        if ($user === null) {
+            return;
+        }
+
         $activities = app(UserActivityService::class);
-        $fields = $activities->changedFields($before, $activities->snapshot($resource));
+        $after = $autosaveData === null
+            ? $activities->snapshot($resource)
+            : $activities->editorSnapshot($resource, array_key_exists('relatedItems', $autosaveData));
+        $fields = $activities->changedFields($before, $after);
         if (! $isUpdate || $fields !== []) {
             $activities->record($activities->actor($user), $isUpdate ? 'resource.metadata_updated' : 'resource.created',
                 $isUpdate ? 'updated metadata in the Data Editor for' : 'created in the Data Editor',

@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Jobs\SyncImportedResourcesWithDataCiteJob;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
+use App\Services\UserActivityService;
 use Illuminate\Bus\PendingBatch;
 use Illuminate\Contracts\Cache\Lock as LockContract;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -25,6 +28,61 @@ beforeEach(function (): void {
         'imported' => 1,
     ]);
 });
+
+it('deduplicates import synchronization activity per resource and operation until its TTL expires', function (): void {
+    Config::set('datacite.test_mode', false);
+    Log::spy();
+    $actor = app(UserActivityService::class)->actor(User::factory()->admin()->create());
+    $resources = Resource::factory()->count(2)->create();
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldReceive('syncLandingPageUrlIfRegistered')->andReturn(DataCiteSyncResult::succeeded('10.5880/success'));
+    $progress = app(ImportProgressService::class);
+    $run = function (string $id) use ($actor, $resources, $syncService, $progress): void {
+        Cache::put("datacite_import:{$id}", ['status' => 'running', 'activity_actor' => $actor, 'imported' => 0]);
+        (new SyncImportedResourcesWithDataCiteJob(ImportProgressService::TYPE_RESOURCE, $id, $resources->modelKeys()))->handle($syncService, $progress);
+    };
+
+    $run($this->importId);
+    foreach ($resources as $resource) {
+        expect(Cache::get(CacheKey::USER_ACTIVITY_IMPORT_SYNC->key($this->importId.':'.$resource->id)))->toBeTrue();
+    }
+    $this->travel(CacheKey::USER_ACTIVITY_IMPORT_SYNC->ttl() - 1)->seconds();
+    $run($this->importId);
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'import.datacite_synced')->twice();
+    $this->travel(2)->seconds();
+    $run($this->importId);
+    $run(Str::uuid()->toString());
+
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'import.datacite_synced')->times(6);
+});
+
+it('honors existing synchronization activity markers during deployment', function (): void {
+    Config::set('datacite.test_mode', false);
+    Log::spy();
+    $resource = Resource::factory()->create();
+    Cache::put('activity:import-sync:'.$this->importId.':'.$resource->id, true, 3600);
+    Cache::put("datacite_import:{$this->importId}", [
+        'status' => 'running', 'imported' => 0,
+        'activity_actor' => app(UserActivityService::class)->actor(User::factory()->admin()->create()),
+    ]);
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldReceive('syncLandingPageUrlIfRegistered')->once()->andReturn(DataCiteSyncResult::succeeded('10.5880/success'));
+
+    (new SyncImportedResourcesWithDataCiteJob(ImportProgressService::TYPE_RESOURCE, $this->importId, [$resource->id]))->handle($syncService, app(ImportProgressService::class));
+
+    Log::shouldNotHaveReceived('info');
+});
+
+it('does not consume an activity deduplication key for failed or unnecessary synchronization', function (DataCiteSyncResult $result): void {
+    Config::set('datacite.test_mode', false);
+    $resource = Resource::factory()->create();
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldReceive('syncLandingPageUrlIfRegistered')->once()->andReturn($result);
+
+    (new SyncImportedResourcesWithDataCiteJob(ImportProgressService::TYPE_RESOURCE, $this->importId, [$resource->id]))->handle($syncService, app(ImportProgressService::class));
+
+    expect(Cache::has(CacheKey::USER_ACTIVITY_IMPORT_SYNC->key($this->importId.':'.$resource->id)))->toBeFalse();
+})->with([DataCiteSyncResult::failed('10.5880/failure', 'Temporary failure'), DataCiteSyncResult::notRequired()]);
 
 it('has a hard test-mode guard in the queued sync job', function (): void {
     Config::set('datacite.test_mode', true);

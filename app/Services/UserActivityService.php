@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -83,6 +84,41 @@ final class UserActivityService
         }
 
         return $this->normalize($fields);
+    }
+
+    /**
+     * Compare only metadata owned by editor persistence. Lookup IDs suffice for
+     * catalog selections; related items are preserved unless explicitly submitted.
+     * Reuse the relations loaded by storage and retain only normalized hashes.
+     *
+     * @return array<string, string>
+     */
+    public function editorSnapshot(Resource $resource, bool $includeRelatedItems = false): array
+    {
+        $relations = [
+            'titles', 'resourceRights', 'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.contributorTypes', 'contributors.affiliations',
+            'descriptions', 'dates.dateType', 'subjects', 'geoLocations',
+            'relatedIdentifiers', 'fundingReferences', 'instruments',
+        ];
+        if ($includeRelatedItems) {
+            $relations = [...$relations, 'relatedItems.titles', 'relatedItems.creators.affiliations', 'relatedItems.contributors.affiliations'];
+        }
+        $resource->loadMissing($relations);
+        $fields = array_intersect_key($resource->attributesToArray(), array_flip([
+            'doi', 'publication_year', 'datacenter_id', 'version', 'access_level',
+            'workflow_status_override', 'force_review_status',
+        ]));
+        $fields['resource_type'] = $resource->resource_type_id;
+        $fields['language'] = $resource->language_id;
+        $fields['publisher'] = $resource->publisher_id;
+        $fingerprint = fn (mixed $value): string => hash('sha256', json_encode($this->normalize(['value' => $value]), JSON_THROW_ON_ERROR));
+        $fields = array_map($fingerprint, $fields);
+        foreach (array_unique(array_map(static fn (string $relation): string => explode('.', $relation)[0], $relations)) as $relation) {
+            $fields[$relation === 'resourceRights' ? 'rights' : Str::snake($relation)] = $fingerprint($resource->getRelation($relation)?->toArray());
+        }
+
+        return $fields;
     }
 
     /** @param array<string, mixed> $before
@@ -175,7 +211,7 @@ final class UserActivityService
         }
         $actor = ['id' => $actor['id'], 'name' => $actor['name']];
         DB::afterCommit(function () use ($operationId, $progress, $actor, $status, $imported, $enriched): void {
-            if (Cache::add('activity:import-summary:'.$operationId, true, now()->addDays(2))) {
+            if (Cache::add(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->key($operationId), true, CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->ttl())) {
                 $this->summary($actor, 'import ('.$status.')', $operationId, [
                     'imported' => $imported, 'enriched' => $enriched,
                     'skipped' => (int) ($progress['skipped'] ?? 0), 'failed' => (int) ($progress['failed'] ?? 0),
