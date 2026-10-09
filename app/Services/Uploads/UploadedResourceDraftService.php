@@ -15,6 +15,7 @@ use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\ResourceStorageService;
+use App\Services\UserActivityService;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Database\QueryException;
@@ -52,6 +53,16 @@ final class UploadedResourceDraftService
             $this->throwDuplicateDoiExceptionIfUniqueDoiViolation($e, $doi);
 
             throw $e;
+        }
+
+        if ($userId !== null) {
+            $activities = app(UserActivityService::class);
+            $format = match (strtolower(pathinfo($filename, PATHINFO_EXTENSION))) {
+                'xml' => 'XML',
+                'json' => 'JSON',
+                default => 'file',
+            };
+            $activities->record($activities->actor($userId), 'resource.file_imported', "imported uploaded {$format} metadata for", $activities->subject($resource));
         }
 
         return $resource;

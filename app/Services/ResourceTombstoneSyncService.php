@@ -106,6 +106,12 @@ final class ResourceTombstoneSyncService
                     }
                 }
                 $transition->update(['status' => 'succeeded', 'completed_at' => now(), 'available_at' => null, 'last_error' => null]);
+                $resource = \App\Models\Resource::find($transition->resource_id);
+                if ($resource !== null) {
+                    $activities = app(UserActivityService::class);
+                    $activities->record($transition->activity_actor ?? $activities->actor($transition->user_id), 'tombstone.datacite_synced',
+                        'completed tombstone DataCite synchronization for', $activities->subject($resource), operationId: (string) $transition->id, testMode: $transition->test_mode);
+                }
             });
         } catch (Throwable $exception) {
             $status = $exception instanceof RequestException ? $exception->response->status() : null;

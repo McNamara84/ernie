@@ -127,6 +127,7 @@ final class ResourceTombstoneService
                 if (! $locked->main_title || $locked->creators->isEmpty() || ! $locked->publication_year || $locked->publisher === null) {
                     throw ValidationException::withMessages(['resource' => 'A title, creators, publication year and publisher are required for the tombstone citation.']);
                 }
+                $activityBefore = app(UserActivityService::class)->snapshot($locked, true);
                 $page = LandingPage::where('resource_id', $locked->id)->lockForUpdate()->first();
                 $this->assertRevision($page, (int) $data['revision']);
                 abort_if((bool) $page?->is_tombstone, 409, 'A tombstone page is already active.');
@@ -154,13 +155,15 @@ final class ResourceTombstoneService
                 ])->save();
                 $locked->touch();
                 $transition = ResourceTombstoneTransition::create([
-                    'resource_id' => $locked->id, 'user_id' => $user->id, 'revision' => $page->tombstone_revision,
+                    'resource_id' => $locked->id, 'user_id' => $user->id, 'activity_actor' => app(UserActivityService::class)->actor($user), 'revision' => $page->tombstone_revision,
                     'action' => 'activate', 'reason' => $data['reason'], 'statement' => $page->tombstone_statement,
                     'snapshot' => $snapshot, 'doi' => $locked->doi, 'test_mode' => $client->isTestMode(),
                     'previous_state' => $remoteState, 'previous_url' => $remoteUrl,
                     'target_state' => 'registered', 'target_url' => $page->public_url, 'available_at' => now(),
                 ]);
                 $this->sync->dispatch($transition);
+
+                app(UserActivityService::class)->landingChange($user, $locked, $activityBefore, 'landing-page.tombstone.activate');
 
                 return $page;
             });
@@ -174,6 +177,7 @@ final class ResourceTombstoneService
 
         return DataCiteDoiWriteLockService::run($previous->doi, $previous->test_mode, fn (): LandingPage => DB::transaction(function () use ($resource, $user, $data, $restore): LandingPage {
             $locked = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
+            $activityBefore = app(UserActivityService::class)->snapshot($locked, true);
             $page = LandingPage::where('resource_id', $locked->id)->lockForUpdate()->firstOrFail();
             $this->assertRevision($page, (int) $data['revision']);
             abort_unless($page->is_tombstone, 409, 'The resource is no longer a tombstone.');
@@ -196,27 +200,32 @@ final class ResourceTombstoneService
             } else {
                 $page->tombstone_reason = TombstoneReason::from((string) $data['reason']);
                 $page->tombstone_statement = trim((string) $data['statement']);
+                if (! $page->isDirty(['tombstone_reason', 'tombstone_statement'])) {
+                    return $page;
+                }
             }
             $page->tombstone_revision++;
             $page->save();
             $locked->touch();
             $transition = ResourceTombstoneTransition::create([
-                'resource_id' => $locked->id, 'user_id' => $user->id, 'revision' => $page->tombstone_revision,
+                'resource_id' => $locked->id, 'user_id' => $user->id, 'activity_actor' => app(UserActivityService::class)->actor($user), 'revision' => $page->tombstone_revision,
                 'action' => $restore ? 'restore' : 'update_statement', 'reason' => $page->tombstone_reason?->value, 'statement' => $page->tombstone_statement,
                 'doi' => $previous->doi, 'test_mode' => $previous->test_mode,
                 'target_state' => $targetState, 'target_url' => $targetUrl, 'available_at' => now(),
             ]);
             $this->sync->dispatch($transition);
 
+            app(UserActivityService::class)->landingChange($user, $locked, $activityBefore, $restore ? 'landing-page.tombstone.restore' : 'landing-page.tombstone.update');
+
             return $page;
         }));
     }
 
-    public function retry(Resource $resource, int $revision): void
+    public function retry(Resource $resource, int $revision, ?User $user = null): void
     {
         $transition = ResourceTombstoneTransition::where('resource_id', $resource->id)->latest('revision')->firstOrFail();
-        DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($resource, $revision): void {
-            DB::transaction(function () use ($resource, $revision): void {
+        DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($resource, $revision, $user): void {
+            DB::transaction(function () use ($resource, $revision, $user): void {
                 $locked = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
                 $page = LandingPage::where('resource_id', $locked->id)->lockForUpdate()->firstOrFail();
                 $this->assertRevision($page, $revision);
@@ -225,6 +234,9 @@ final class ResourceTombstoneService
                 if ($transition->status !== 'succeeded') {
                     $transition->update(['status' => 'pending', 'attempts' => 0, 'available_at' => now(), 'last_error' => null]);
                     $this->sync->dispatch($transition);
+                    $activities = app(UserActivityService::class);
+                    $activities->record($activities->actor($user), 'landing-page.tombstone.retry', 'requested a tombstone synchronization retry for',
+                        $activities->subject($locked), operationId: (string) $transition->id);
                 }
             });
         });

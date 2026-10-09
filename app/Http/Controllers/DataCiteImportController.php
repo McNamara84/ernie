@@ -241,10 +241,10 @@ class DataCiteImportController extends Controller
             ], 400);
         }
 
-        Cache::put("datacite_import:{$importId}", array_merge($progress, [
+        $progressService->update(ImportProgressService::TYPE_RESOURCE, $importId, [
             'status' => 'cancelled',
             'completed_at' => now()->toIso8601String(),
-        ]), now()->addHours(24));
+        ]);
 
         return response()->json([
             'message' => 'Import cancelled',

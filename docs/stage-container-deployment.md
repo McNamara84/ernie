@@ -266,7 +266,7 @@ such as `null`. `stack.env` is excluded from the Docker build context. Before
 building, both image workflows reject credential-like values in
 `.env.production` but otherwise keep this sanitized Production template
 unchanged. The resulting image therefore retains Production-safe defaults such
-as `LOG_STACK=daily` and `LOG_LEVEL=error`; Portainer overrides only the values
+as `LOG_STACK=daily` and `LOG_LEVEL=info`; Portainer overrides only the values
 explicitly supplied by the stack environment or Compose service definition.
 
 Previously committed values remain in Git history. Rotate any application key,

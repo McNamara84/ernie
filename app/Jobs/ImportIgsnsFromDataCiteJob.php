@@ -19,6 +19,7 @@ use App\Services\IgsnImportService;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\LegacyIgsnPortalService;
+use App\Services\UserActivityService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -60,12 +61,17 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      * @param  int  $userId  The user who initiated the import
      * @param  string  $importId  UUID for progress tracking
      */
+    /** @var array{id: int, name: string}|null */
+    private ?array $activityActor = null;
+
     public function __construct(
         private int $userId,
         private string $importId,
         private ?string $singleDoi = null,
         private ?string $legacyDatacenterId = null,
     ) {
+        $this->activityActor = app(UserActivityService::class)->actor($userId);
+
         $this->onQueue('imports');
 
         if ($this->singleDoi !== null && $this->legacyDatacenterId !== null) {
@@ -1133,6 +1139,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $this->resourceIdsForDataCiteSync[] = (int) $importedResource->id;
         }
 
+        $activities = app(UserActivityService::class);
+        $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
+            $activities->subject($importedResource), operationId: $this->importId);
+
         return [
             'status' => 'imported',
             'enriched' => $wasEnriched,
@@ -1439,6 +1449,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      */
     private function updateProgress(array $data): void
     {
+        $data['activity_actor'] = $this->activityActor;
+        app(UserActivityService::class)->importSummary($this->importId, $data);
         Cache::put($this->getCacheKey(), $data, now()->addHours(24));
     }
 
@@ -1447,6 +1459,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      */
     private function updateProgressKeys(array $data): void
     {
+        $data['activity_actor'] = $this->activityActor;
         $currentProgress = Cache::get($this->getCacheKey(), []);
 
         foreach ($data as $key => $value) {
@@ -1454,6 +1467,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         }
 
         Cache::put($this->getCacheKey(), $currentProgress, now()->addHours(24));
+        app(UserActivityService::class)->importSummary($this->importId, $currentProgress);
     }
 
     private function getCacheKey(): string

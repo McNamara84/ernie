@@ -16,6 +16,9 @@ it('adds inactive defaults to existing landing pages and preserves configuration
     $page = LandingPage::factory()->published()->create(['ftp_url' => 'https://example.org/original.zip']);
     /** @var Migration $migration */
     $migration = require database_path('migrations/2026_10_01_000001_add_resource_tombstones.php');
+    /** @var Migration $activityMigration */
+    $activityMigration = require database_path('migrations/2026_10_09_120000_add_activity_actor_to_background_runs.php');
+    $activityMigration->down();
     $migration->down();
     try {
         expect(Schema::hasTable('resource_tombstone_transitions'))->toBeFalse()
@@ -23,6 +26,7 @@ it('adds inactive defaults to existing landing pages and preserves configuration
             ->and($page->fresh()->ftp_url)->toBe('https://example.org/original.zip');
     } finally {
         $migration->up();
+        $activityMigration->up();
     }
     expect($page->fresh()->is_tombstone)->toBeFalse()
         ->and($page->fresh()->tombstone_revision)->toBe(0)
@@ -45,7 +49,7 @@ it('retains audit history when the responsible user is removed and cascades reso
     $page = LandingPage::factory()->create(['resource_id' => $resource->id]);
     $page->forceFill(['tombstoned_by_user_id' => $user->id])->save();
     $transition = ResourceTombstoneTransition::create([
-        'resource_id' => $resource->id, 'user_id' => $user->id, 'revision' => 1,
+        'resource_id' => $resource->id, 'user_id' => $user->id, 'activity_actor' => ['id' => $user->id, 'name' => $user->name], 'revision' => 1,
         'action' => 'activate', 'doi' => '10.83279/schema', 'test_mode' => true,
         'target_state' => 'registered', 'target_url' => $page->public_url,
         'snapshot' => ['configuration' => ['is_published' => true], 'files' => []],
@@ -54,6 +58,7 @@ it('retains audit history when the responsible user is removed and cascades reso
         ->and($transition->fresh()->snapshot['configuration']['is_published'])->toBeTrue();
     $user->delete();
     expect($transition->fresh()->user_id)->toBeNull()
+        ->and($transition->fresh()->activity_actor)->toBe(['id' => $user->id, 'name' => $user->name])
         ->and($page->fresh()->tombstoned_by_user_id)->toBeNull();
     $resource->delete();
     expect($transition->fresh())->toBeNull();

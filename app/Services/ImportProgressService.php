@@ -36,7 +36,7 @@ class ImportProgressService
     {
         $key = $this->progressKey($type, $importId);
 
-        $this->withProgressLock($type, $importId, 'update', function () use ($key, $values): void {
+        $this->withProgressLock($type, $importId, 'update', function () use ($key, $values, $importId): void {
             $progress = Cache::get($key, []);
             $progress = is_array($progress) ? $progress : [];
 
@@ -49,6 +49,7 @@ class ImportProgressService
             }
 
             Cache::put($key, $progress, now()->addHours(24));
+            app(UserActivityService::class)->importSummary($importId, $progress);
         });
     }
 
@@ -261,6 +262,7 @@ class ImportProgressService
                 && config('datacite.test_mode') === false;
             $progress['completed_at'] = now()->toIso8601String();
             Cache::put($key, $progress, now()->addHours(24));
+            app(UserActivityService::class)->importSummary($importId, $progress);
         });
     }
 
@@ -377,6 +379,7 @@ class ImportProgressService
             }
 
             Cache::put($key, $progress, now()->addHours(24));
+            app(UserActivityService::class)->importSummary($importId, $progress);
         });
     }
 

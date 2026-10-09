@@ -217,10 +217,10 @@ class IgsnImportController extends Controller
             return response()->json(['error' => 'Import is not running'], 400);
         }
 
-        Cache::put("igsn_import:{$importId}", array_merge($progress, [
+        $progressService->update(ImportProgressService::TYPE_IGSN, $importId, [
             'status' => 'cancelled',
             'completed_at' => now()->toIso8601String(),
-        ]), now()->addHours(24));
+        ]);
 
         return response()->json(['message' => 'Import cancelled']);
     }

@@ -15,6 +15,7 @@ use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunService;
+use App\Services\UserActivityService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -297,6 +298,15 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 'processed_at' => now(),
             ]);
 
+            if (in_array($status, [IgsnRegistrationItemStatus::REGISTERED, IgsnRegistrationItemStatus::UPDATED], true)) {
+                $resource = Resource::find($lockedItem->resource_id);
+                if ($resource !== null) {
+                    $activities = app(UserActivityService::class);
+                    $activities->record($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'igsnregistration.completed',
+                        $status === IgsnRegistrationItemStatus::REGISTERED ? 'registered at DataCite' : 'updated DataCite metadata for', $activities->subject($resource), operationId: (string) $run->id, testMode: $run->test_mode);
+                }
+            }
+
             $lockedRun = IgsnRegistrationRun::query()->lockForUpdate()->findOrFail($run->id);
             $lockedRun->increment('processed');
             if ($status === IgsnRegistrationItemStatus::REGISTERED) {
@@ -330,11 +340,17 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
 
     private function complete(IgsnRegistrationRun $run): void
     {
+        $recordSummary = $run->completed_at === null && $run->registered + $run->updated > 0;
         $run->update([
             'status' => IgsnRegistrationRunStatus::COMPLETED,
             'completed_at' => now(),
             'pause_reason' => null,
         ]);
+        if ($recordSummary) {
+            $activities = app(UserActivityService::class);
+            $activities->summary($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'IGSN registration', (string) $run->id,
+                ['registered' => $run->registered, 'updated' => $run->updated, 'failed' => $run->failed, 'cancelled' => $run->cancelled], $run->test_mode);
+        }
     }
 
     private function cancel(IgsnRegistrationRun $run, IgsnRegistrationRunService $runs): void
@@ -356,6 +372,11 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             'cancelled_at' => now(),
             'pause_reason' => null,
         ]);
+        if ($run->registered + $run->updated > 0) {
+            $activities = app(UserActivityService::class);
+            $activities->summary($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'IGSN registration (cancelled)', (string) $run->id,
+                ['registered' => $run->registered, 'updated' => $run->updated, 'failed' => $run->failed, 'cancelled' => $run->cancelled], $run->test_mode);
+        }
     }
 
     private function pause(IgsnRegistrationRun $run, string $reason): void

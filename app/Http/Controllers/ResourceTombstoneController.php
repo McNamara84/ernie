@@ -58,7 +58,7 @@ class ResourceTombstoneController extends Controller
     {
         $user = $request->user();
         assert($user instanceof User);
-        $this->service->retry($resource, $request->integer('revision'));
+        $this->service->retry($resource, $request->integer('revision'), $user);
 
         return response()->json(['tombstone' => $this->service->state($resource->fresh() ?? $resource, $user)]);
     }

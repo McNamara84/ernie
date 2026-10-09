@@ -180,6 +180,7 @@ function crc806ImportJobPage(string $doi = '10.5880/sfb806.80'): string
 
 describe('ImportFromDataCiteJob', function () {
     it('updates cache with progress during import', function () {
+        Log::spy();
         $this->importService
             ->shouldReceive('getTotalDoiCount')
             ->once()
@@ -217,6 +218,8 @@ describe('ImportFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $originalName = $this->user->name;
+        $this->user->update(['name' => 'Renamed after dispatch']);
         $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         // Check final cache state
@@ -225,6 +228,10 @@ describe('ImportFromDataCiteJob', function () {
         expect($status['processed'])->toBe(2);
         expect($status['imported'])->toBe(2);
         expect($status['failed'])->toBe(0);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'resource.imported'
+            && $context['activity']['actor']['name'] === $originalName
+            && $context['activity']['operation_id'] === $importId)->twice();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
     });
 
     it('adds SUMARIO pending import results to the bulk progress summary', function () {

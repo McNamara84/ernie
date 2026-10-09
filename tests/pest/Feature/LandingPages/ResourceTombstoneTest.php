@@ -33,6 +33,7 @@ use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
@@ -76,11 +77,38 @@ test('curator roles activate a public tombstone without losing its URL or files'
     Http::assertSentCount(1);
 })->with([UserRole::CURATOR, UserRole::GROUP_LEADER, UserRole::ADMIN]);
 
+test('logs tombstone activation and asynchronous completion with the original actor', function () {
+    $this->user->update(['name' => 'Original Curator']);
+    Log::spy();
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    $this->user->update(['name' => 'Renamed Curator']);
+    Http::swap(new Factory);
+    Http::fake(fn ($request) => Http::response(($this->remote)('registered', $this->page->public_url)));
+    $sync = app(ResourceTombstoneSyncService::class);
+    $sync->sync($transition->id);
+    $sync->sync($transition->id);
+    expect($transition->fresh()->status)->toBe('succeeded');
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'landing-page.tombstone.activate'
+        && in_array('is_tombstone', $context['activity']['changed_fields'], true))->once();
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'tombstone.datacite_synced'
+        && $context['activity']['actor']['name'] === 'Original Curator')->once();
+});
+
 test('beginner cannot activate edit restore or retry a tombstone', function (string $method, string $suffix) {
     $this->user->update(['role' => UserRole::BEGINNER]);
     $this->actingAs($this->user)->json($method, $this->endpoint.$suffix, $this->payload)->assertForbidden();
     Http::assertNothingSent();
 })->with([['POST', ''], ['PATCH', ''], ['DELETE', ''], ['POST', '/retry-sync']]);
+
+test('an unchanged tombstone explanation creates neither a transition nor an activity', function () {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    Log::spy();
+    $payload = [...$this->payload, 'revision' => 1];
+    $this->patchJson($this->endpoint, $payload)->assertOk();
+    expect(ResourceTombstoneTransition::count())->toBe(1)->and($this->page->fresh()->tombstone_revision)->toBe(1);
+    Log::shouldNotHaveReceived('info');
+});
 
 test('activation requires a reason public explanation confirmation and revision', function (string $field, mixed $value) {
     $this->payload[$field] = $value;

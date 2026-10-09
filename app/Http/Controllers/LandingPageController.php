@@ -18,6 +18,7 @@ use App\Services\LandingPageContentDescriptorOptionsService;
 use App\Services\LandingPageDownloadAvailabilityService;
 use App\Services\LandingPageDownloadUrlSuggestionService;
 use App\Services\LandingPageTemplateResolverService;
+use App\Services\UserActivityService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -270,7 +271,7 @@ class LandingPageController extends Controller
         // try to create, causing a constraint violation on resource_id unique index.
         // The try-catch handles both resource_id and slug uniqueness violations.
         try {
-            $landingPage = DB::transaction(function () use ($validated, $resource) {
+            $landingPage = DB::transaction(function () use ($validated, $resource, $request) {
                 /** @var Resource $lockedResource */
                 $lockedResource = Resource::query()
                     ->lockForUpdate()
@@ -353,6 +354,8 @@ class LandingPageController extends Controller
                 if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
                     $landingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
                 }
+
+                app(UserActivityService::class)->landingChange($request->user(), $lockedResource, [], 'landing-page.store');
 
                 return $landingPage;
             });
@@ -477,7 +480,7 @@ class LandingPageController extends Controller
         // values are derived from the current serialized state rather than the
         // route-bound snapshot used for the initial authorization check.
         /** @var JsonResponse|array{resource: Resource, landing_page: LandingPage, became_published: bool} $updateResult */
-        $updateResult = DB::transaction(function () use ($resource, $validated): JsonResponse|array {
+        $updateResult = DB::transaction(function () use ($resource, $validated, $request): JsonResponse|array {
             /** @var Resource $lockedResource */
             $lockedResource = Resource::query()
                 ->with('resourceType')
@@ -489,6 +492,8 @@ class LandingPageController extends Controller
                 ->where('resource_id', $lockedResource->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $activityBefore = app(UserActivityService::class)->snapshot($lockedResource, true);
 
             abort_if($lockedLandingPage->is_tombstone, 409, 'Restore the tombstone page before changing its landing page configuration.');
             if (isset($validated['tombstone_revision'])) {
@@ -678,6 +683,8 @@ class LandingPageController extends Controller
             if ($becamePublished) {
                 $lockedLandingPage->publish();
             }
+
+            app(UserActivityService::class)->landingChange($request->user(), $lockedResource, $activityBefore, 'landing-page.update');
 
             return [
                 'resource' => $lockedResource,

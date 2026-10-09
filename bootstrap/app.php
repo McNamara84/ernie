@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureTestEnvironment;
 use App\Http\Middleware\EnsureValidErnieApiKey;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LogUserActivity;
 use App\Http\Middleware\TrackLastSeenMiddleware;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernelContract;
 use Illuminate\Foundation\Application;
@@ -43,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             TrackLastSeenMiddleware::class,
+            LogUserActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
