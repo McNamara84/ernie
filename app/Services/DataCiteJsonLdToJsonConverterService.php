@@ -244,23 +244,33 @@ class DataCiteJsonLdToJsonConverterService
     {
         // Single identifier: {attrs: {identifierType: "DOI"}, value: "10.5880/..."}
         if (is_array($data) && (isset($data['attrs']) || array_key_exists('value', $data))) {
-            return [[
-                'identifier' => (string) ($data['value'] ?? ''),
-                'identifierType' => (string) ($data['attrs']['identifierType'] ?? 'DOI'),
-            ]];
+            return [$this->convertIdentifier($data)];
         }
 
         // Multiple identifiers wrapped: {identifier: [{...}, {...}]}
         if (is_array($data) && isset($data['identifier'])) {
             $items = $this->ensureList($data['identifier']);
 
-            return array_map(fn (array $item): array => [
-                'identifier' => (string) ($item['value'] ?? ''),
-                'identifierType' => (string) ($item['attrs']['identifierType'] ?? 'DOI'),
-            ], $items);
+            return array_map($this->convertIdentifier(...), $items);
         }
 
         throw new JsonLdConversionException('Invalid DataCite JSON-LD identifier: expected a value object.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $identifier
+     * @return array<string, string>
+     */
+    private function convertIdentifier(array $identifier): array
+    {
+        if (! array_key_exists('value', $identifier) || ! is_scalar($identifier['value'])) {
+            throw new JsonLdConversionException('Invalid DataCite JSON-LD identifier: expected a scalar value.');
+        }
+
+        return [
+            'identifier' => (string) $identifier['value'],
+            'identifierType' => (string) ($identifier['attrs']['identifierType'] ?? 'DOI'),
+        ];
     }
 
     /**

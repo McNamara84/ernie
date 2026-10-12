@@ -59,6 +59,17 @@ describe('identifier conversion', function () {
         expect(fn () => $this->converter->convert($jsonLd))
             ->toThrow(JsonLdConversionException::class, 'Invalid DataCite JSON-LD identifier: expected a value object.');
     })->with(['plain-string', '10.5880/other', '10.5880/Test.2026', null, false, 123, [['unknown' => '10.5880/other']]])->with([false, true]);
+
+    it('rejects incomplete identifier values during direct conversion', function (array $identifier, bool $wrapped) {
+        $document = ['identifier' => $wrapped ? ['identifier' => [$identifier]] : $identifier];
+
+        expect(fn () => $this->converter->convert($document))
+            ->toThrow(JsonLdConversionException::class, 'Invalid DataCite JSON-LD identifier: expected a scalar value.');
+    })->with([
+        'missing value' => [['attrs' => ['identifierType' => 'DOI']]],
+        'null value' => [['value' => null]],
+        'array value' => [['value' => []]],
+    ])->with([false, true]);
 });
 
 describe('alternate identifiers conversion', function () {

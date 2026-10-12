@@ -122,7 +122,7 @@ final class DataCiteJsonLdContextService
             }
         }
 
-        if (isset($document['@type']) && ! in_array($document['@type'], ['Resource', 'https://w3id.org/tib/datacite/class/Resource'], true)) {
+        if (array_key_exists('@type', $document) && ! in_array($document['@type'], ['Resource', 'https://w3id.org/tib/datacite/class/Resource'], true)) {
             throw new JsonLdConversionException('Unsupported DataCite JSON-LD resource type.');
         }
         $doi = array_key_exists('@id', $document) ? $this->doiFromId($document['@id']) : null;
@@ -173,10 +173,14 @@ final class DataCiteJsonLdContextService
         if ($children === null) {
             // Historical ERNIE profiles also used plain literals in some positions.
             if (! is_array($node)) {
+                if (! is_scalar($node)) {
+                    throw new JsonLdConversionException('Invalid DataCite JSON-LD '.$term.': expected a scalar value.');
+                }
+
                 return;
             }
             $this->assertKeys($node, ['value', 'attrs']);
-            if (is_array($node['value'] ?? null)) {
+            if (! array_key_exists('value', $node) || ! is_scalar($node['value'])) {
                 throw new JsonLdConversionException('Invalid DataCite JSON-LD '.$term.': expected a scalar value.');
             }
         } else {
@@ -205,7 +209,7 @@ final class DataCiteJsonLdContextService
             }
             $this->assertKeys($node['attrs'], self::ATTRIBUTES[$term] ?? []);
             foreach ($node['attrs'] as $value) {
-                if (is_array($value)) {
+                if (! is_scalar($value)) {
                     throw new JsonLdConversionException('Invalid DataCite JSON-LD '.$term.': expected scalar attributes.');
                 }
             }

@@ -165,7 +165,7 @@ test('rejects an explicitly invalid context on otherwise valid DataCite JSON bef
     expect(Resource::count())->toBe($before);
 })->with([[null], [''], [false], [123], [[]], ['https://example.org/context.jsonld']])->with([false, true]);
 
-test('rejects conflicting JSON-LD DOI identifiers before creating a draft', function (mixed $identifier) {
+test('rejects conflicting or malformed JSON-LD DOI identifiers before creating a draft', function (mixed $identifier, string $message) {
     $this->seed(ResourceTypeSeeder::class);
     $this->actingAs(User::factory()->create());
     $document = (new DataCiteLinkedDataExporter)->exportAttributes([
@@ -179,18 +179,18 @@ test('rejects conflicting JSON-LD DOI identifiers before creating a draft', func
     $before = Resource::count();
 
     expect(fn () => app(DataCiteJsonLdContextService::class)->assertSupportedDocument($document))
-        ->toThrow(JsonLdConversionException::class, 'DOI identifier must match @id');
+        ->toThrow(JsonLdConversionException::class, $message);
     $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('conflicting-doi.jsonld', json_encode($document))])
         ->assertStatus(422)->assertJsonPath('error.code', 'json_ld_conversion_error');
 
     expect(Resource::count())->toBe($before);
 })->with([
-    'different bare DOI' => ['10.5880/other'],
-    'different resolver DOI' => ['https://dx.doi.org/10.5880/other'],
-    'unrelated URL' => ['https://example.org/item'],
-    'empty identifier' => [''],
-    'null identifier' => [null],
-    'numeric identifier' => [123],
+    'different bare DOI' => ['10.5880/other', 'DOI identifier must match @id'],
+    'different resolver DOI' => ['https://dx.doi.org/10.5880/other', 'DOI identifier must match @id'],
+    'unrelated URL' => ['https://example.org/item', 'DOI identifier must match @id'],
+    'empty identifier' => ['', 'DOI identifier must match @id'],
+    'null identifier value' => [null, 'identifier: expected a scalar value'],
+    'numeric identifier' => [123, 'DOI identifier must match @id'],
 ]);
 
 test('rejects scalar JSON-LD identifiers before creating a draft', function (mixed $identifier, bool $withDoi, ?string $legacy) {
@@ -213,6 +213,63 @@ test('rejects scalar JSON-LD identifiers before creating a draft', function (mix
         ->assertStatus(422)->assertJsonPath('error.code', 'json_ld_conversion_error');
     expect(Resource::count())->toBe($before);
 })->with(['10.5880/other', '10.5880/Test.2026', null, false, 123])->with([false, true])->with([null, ...DataCiteJsonLdContextService::LEGACY_CONTEXTS]);
+
+test('rejects incomplete value objects and null metadata before creating a draft', function (array $changes, string $contextName) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    config(['app.url' => 'https://public.example.org', 'datacite.linked_data.context_url' => 'https://contexts.example.org/datacite.jsonld']);
+    $context = app(DataCiteJsonLdContextService::class);
+    $document = (new DataCiteLinkedDataExporter)->exportAttributes([
+        'titles' => [['title' => 'Literal validation observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ]);
+    $document = array_replace($document, $changes);
+    $document['@context'] = match ($contextName) {
+        'local' => $context->localUrl(),
+        'mirror' => $context->url(),
+        'staging legacy' => DataCiteJsonLdContextService::LEGACY_CONTEXTS[0],
+        'kernel legacy' => DataCiteJsonLdContextService::LEGACY_CONTEXTS[1],
+    };
+    $before = Resource::count();
+
+    $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('invalid-literals.jsonld', json_encode($document))])
+        ->assertStatus(422)->assertJsonPath('error.code', 'json_ld_conversion_error');
+    expect(Resource::count())->toBe($before);
+})->with([
+    'identifier without value' => [['identifier' => ['attrs' => ['identifierType' => 'DOI']]]],
+    'identifier with null value' => [['identifier' => ['attrs' => ['identifierType' => 'DOI'], 'value' => null]]],
+    'null version' => [['version' => null]],
+    'version with null value' => [['version' => ['value' => null]]],
+    'version without value' => [['version' => ['attrs' => []]]],
+    'null language' => [['language' => null]],
+    'title without value' => [['titles' => ['title' => ['attrs' => ['lang' => 'en']]]]],
+    'null given name' => [['creators' => ['creator' => ['creatorName' => ['value' => 'Example Observatory'], 'givenName' => null]]]],
+    'null funding award number' => [['fundingReferences' => ['fundingReference' => ['funderName' => ['value' => 'Example'], 'awardNumber' => null]]]],
+    'nested related item identifier without value' => [['relatedItems' => ['relatedItem' => ['attrs' => ['relatedItemType' => 'Other', 'relationType' => 'Other'], 'value' => ['relatedItemIdentifier' => ['attrs' => ['relatedItemIdentifierType' => 'DOI']]]]]]],
+    'null nested related item volume' => [['relatedItems' => ['relatedItem' => ['attrs' => ['relatedItemType' => 'Other', 'relationType' => 'Other'], 'value' => ['volume' => null]]]]],
+    'null publisher attribute' => [['publisher' => ['value' => 'Example Publisher', 'attrs' => ['publisherIdentifier' => null]]]],
+    'null structural attribute' => [['relatedItems' => ['relatedItem' => ['attrs' => ['relatedItemType' => 'Other', 'relationType' => 'Other', 'relationTypeInformation' => null]]]]],
+    'null resource type keyword' => [['@type' => null]],
+])->with(['local', 'mirror', 'staging legacy', 'kernel legacy']);
+
+test('uploads zero scalar metadata without losing values', function (mixed $value, bool $wrapped) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    $document = (new DataCiteLinkedDataExporter)->exportAttributes([
+        'titles' => [['title' => 'Zero version observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ]);
+    $document['version'] = $wrapped ? ['value' => $value] : $value;
+    $response = $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('zero-version.jsonld', json_encode($document))]);
+
+    $response->assertOk();
+    expect(Resource::findOrFail($response->json('resourceId'))->version)->toBe('0')
+        ->and(session()->get($response->json('sessionKey'))['version'])->toBe('0');
+})->with(['0', 0])->with([false, true]);
 
 test('uploads equivalent JSON-LD DOI identifiers with one normalized DOI', function (string $identifier) {
     $this->seed(ResourceTypeSeeder::class);

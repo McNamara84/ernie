@@ -3636,6 +3636,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <code>{'{"value":"10.5880/example","attrs":{"identifierType":"DOI"}}'}</code>. Plain strings and null identifiers are
                             rejected. For a draft without a DOI, omit <code>identifier</code> and <code>@id</code>.
                         </p>
+                        <p>
+                            Literal value objects must include a non-null scalar <code>value</code>. Omit optional fields and attributes instead of
+                            setting them to <code>null</code>, including nested metadata. Missing literal values and null scalar fields or attributes
+                            produce an upload error (HTTP 422) before a draft is created. Zero values and valid empty strings remain accepted.
+                        </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">

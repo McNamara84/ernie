@@ -163,6 +163,15 @@ and omitting `identifierType` defaults to DOI. Scalar identifiers (including pla
 strings and null) are rejected during profile validation and direct conversion
 rather than silently discarded. DOI-less drafts omit `identifier` and `@id`.
 
+Every literal value object must contain a present, non-null scalar `value`.
+Bare scalar nodes and metadata attributes must also be non-null, including nested
+fields and entries in lists. Omit optional fields and attributes instead of
+setting them to JSON `null`; incomplete value objects and null metadata are
+rejected with HTTP 422 before a draft is created in every supported context.
+Zero values and valid empty strings remain accepted. Structured nodes such as
+related items retain their object-valued `value` wrapper and do not require a
+literal `value` when only structural attributes are present.
+
 Related-item `relationTypeInformation` now persists in
 `related_items.relation_type_information` through JSON/JSON-LD/XML upload, DOI
 metadata transformation and JSON/XML/JSON-LD export. Individual related-item updates
