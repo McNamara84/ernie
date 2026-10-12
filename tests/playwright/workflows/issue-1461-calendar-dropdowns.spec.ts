@@ -52,7 +52,10 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
         const dates = page.locator('[data-slot="accordion-trigger"]', { hasText: 'Dates' });
         await expect(dates).toBeVisible();
         if ((await dates.getAttribute('aria-expanded')) !== 'true') await dates.click();
-        await page.getByRole('button', { name: 'Add Date', exact: true }).click();
+        await page
+            .getByTestId('dates-empty-state')
+            .getByRole('button', { name: /^Add date$/i })
+            .click();
         await chooseDateType(page, 'Created');
     });
 
