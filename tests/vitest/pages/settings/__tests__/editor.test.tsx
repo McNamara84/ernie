@@ -279,8 +279,8 @@ describe('EditorSettings accordion page', () => {
         const user = userEvent.setup();
         renderSettings();
 
-        for (const title of ['Contributor Roles (Persons)', 'Contributor Roles (Institutions)', 'Contributor Roles (Both)']) {
-            await user.click(sectionTrigger(new RegExp(`^${title.replace(/[()]/g, '\\$&')}`)));
+        for (const title of [/^Contributor Roles \(Persons\)/, /^Contributor Roles \(Institutions\)/, /^Contributor Roles \(Both\)/]) {
+            await user.click(sectionTrigger(title));
         }
 
         for (const value of ['contributor-person-roles', 'contributor-institution-roles', 'contributor-both-roles']) {
