@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
@@ -628,8 +628,10 @@ describe('Changelog', () => {
             const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
             expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+            await waitFor(() => {
+                expect(Element.prototype.scrollIntoView).toHaveBeenCalledExactlyOnceWith({ behavior: 'smooth', block: 'center' });
+            });
             expect(frames.size).toBe(0);
-            expect(Element.prototype.scrollIntoView).toHaveBeenCalledExactlyOnceWith({ behavior: 'smooth', block: 'center' });
             expect((Element.prototype.scrollIntoView as Mock).mock.instances[0]).toBe(targetButton.closest('li'));
         });
 

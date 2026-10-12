@@ -815,6 +815,13 @@ Modify only purpose-created `MANUAL-TEST` users.
 
 - [ ] Editor Settings loads all visible cards and current values.
 
+- [ ] All Editor Settings cards start collapsed on a new visit and full reload.
+      Multiple cards, including all three Contributor Roles cards, stay open
+      independently. Every card heading offers the appropriate actions to expand
+      or collapse all cards. These actions preserve unsaved values, and saving
+      preserves the open cards. Keyboard focus returns to the same card heading
+      after a bulk action.
+
 - [ ] A clearly labelled temporary setting, domain, or data centre can be created,
       selected in the editor, and then removed.
 
