@@ -44,8 +44,8 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
     test.beforeEach(async ({ page }) => {
         await page.clock.setFixedTime(new Date('2026-10-12T12:00:00Z'));
         await page.goto('/editor');
-        await expect(page.getByTestId('resource-info-section')).toBeVisible();
         const dates = page.locator('[data-slot="accordion-trigger"]', { hasText: 'Dates' });
+        await expect(dates).toBeVisible();
         if ((await dates.getAttribute('aria-expanded')) !== 'true') await dates.click();
         await page.getByRole('button', { name: 'Add Date', exact: true }).click();
         await chooseDateType(page, 'Created');
@@ -70,9 +70,9 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
                 await chooseMonthAndYear(page, '1', '1900');
                 await expect(input).toHaveValue(scenario.initial);
 
-                await calendar(page).getByRole('button', { name: 'Go to the next month' }).click();
+                await calendar(page).getByRole('button', { name: 'Go to the Next Month' }).click();
                 await expect(calendar(page).getByRole('combobox', { name: 'Choose the Month' })).toHaveValue('2');
-                await calendar(page).getByRole('button', { name: 'Go to the previous month' }).click();
+                await calendar(page).getByRole('button', { name: 'Go to the Previous Month' }).click();
                 await expect(calendar(page).getByRole('combobox', { name: 'Choose the Month' })).toHaveValue('1');
                 await chooseDay(page, input, 1900, 1, 2, scenario.expected);
 
@@ -105,12 +105,13 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
     test('preserves the earliest date and blocks future ordinary dates', async ({ page }) => {
         await page.getByRole('button', { name: 'Choose date', exact: true }).click();
         await chooseMonthAndYear(page, '0', '1900');
-        await expect(calendar(page).getByRole('button', { name: 'Go to the previous month' })).toHaveAttribute('aria-disabled', 'true');
-        await expect(await dayButton(page, 1899, 11, 31)).toBeDisabled();
+        await expect(calendar(page).getByRole('button', { name: 'Go to the Previous Month' })).toHaveAttribute('aria-disabled', 'true');
+        await expect(calendar(page).getByRole('combobox', { name: 'Choose the Year' }).locator('option[value="1899"]')).toHaveCount(0);
+        await expect(await dayButton(page, 1899, 11, 31)).toHaveCount(0);
         await expect(await dayButton(page, 1900, 0, 1)).toBeEnabled();
 
         await chooseMonthAndYear(page, '9', '2026');
-        await expect(calendar(page).getByRole('button', { name: 'Go to the next month' })).toHaveAttribute('aria-disabled', 'true');
+        await expect(calendar(page).getByRole('button', { name: 'Go to the Next Month' })).toHaveAttribute('aria-disabled', 'true');
         await expect(calendar(page).getByRole('combobox', { name: 'Choose the Year' }).locator('option[value="2027"]')).toHaveCount(0);
         await expect(await dayButton(page, 2026, 9, 12)).toBeEnabled();
         await expect(await dayButton(page, 2026, 9, 13)).toBeDisabled();
