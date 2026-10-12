@@ -48,6 +48,7 @@ describe('DataCiteToResourceTransformer — relatedItems', function (): void {
                 'relatedItems' => [[
                     'relatedItemType' => 'JournalArticle',
                     'relationType' => 'Cites',
+                    'relationTypeInformation' => 'Background study',
                     'relatedItemIdentifier' => [
                         'relatedItemIdentifier' => '10.1234/abcd',
                         'relatedItemIdentifierType' => 'DOI',
@@ -99,6 +100,7 @@ describe('DataCiteToResourceTransformer — relatedItems', function (): void {
         expect($resource->relatedItems)->toHaveCount(1);
         $ri = $resource->relatedItems->first();
         expect($ri->related_item_type)->toBe('JournalArticle');
+        expect($ri->relation_type_information)->toBe('Background study');
         expect($ri->identifier)->toBe('10.1234/abcd');
         expect($ri->identifier_type)->toBe('DOI');
         expect($ri->related_metadata_scheme)->toBe('citeproc-json');

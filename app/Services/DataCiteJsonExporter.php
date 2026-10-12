@@ -104,7 +104,7 @@ class DataCiteJsonExporter
             $attributes['language'] = 'en';
         }
 
-        if ($resource->version) {
+        if ($resource->version !== null && $resource->version !== '') {
             $attributes['version'] = $resource->version;
         }
 
@@ -652,7 +652,7 @@ class DataCiteJsonExporter
                 $subjectData['valueUri'] = $subject->value_uri;
             }
 
-            if ($subject->classification_code) {
+            if ($subject->classification_code !== null && $subject->classification_code !== '') {
                 $subjectData['classificationCode'] = $subject->classification_code;
             }
 
@@ -721,7 +721,7 @@ class DataCiteJsonExporter
             ];
 
             // Add date information if available
-            if ($date->date_information) {
+            if ($date->date_information !== null && $date->date_information !== '') {
                 $dateData['dateInformation'] = $date->date_information;
             }
 
@@ -968,7 +968,7 @@ class DataCiteJsonExporter
             }
 
             // Add relationTypeInformation if available (DataCite 4.7, property 12.g)
-            if ($relatedIdentifier->relation_type_information) {
+            if ($relatedIdentifier->relation_type_information !== null && $relatedIdentifier->relation_type_information !== '') {
                 $relatedData['relationTypeInformation'] = $relatedIdentifier->relation_type_information;
             }
 
@@ -1011,6 +1011,10 @@ class DataCiteJsonExporter
                     'titleType' => $t->title_type === 'MainTitle' ? null : $t->title_type,
                 ], fn ($v) => $v !== null))->all(),
             ];
+
+            if (is_string($item->relation_type_information) && $item->relation_type_information !== '') {
+                $data['relationTypeInformation'] = $item->relation_type_information;
+            }
 
             if (is_string($item->identifier) && $item->identifier !== ''
                 && is_string($item->identifier_type) && $item->identifier_type !== ''

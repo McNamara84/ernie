@@ -224,12 +224,12 @@ return [
     |
     */
     // DataCite Linked Data JSON-LD context configuration.
-    // The staging URL is used as default because DataCite has not yet published
-    // a stable production context URL. Update when a production URL becomes available.
+    // Blank uses ERNIE's immutable, locally published DataCite 4.7 context.
+    // An override must implement the same compact attrs/value profile.
     'linked_data' => [
         'context_url' => env(
             'DATACITE_LINKED_DATA_CONTEXT_URL',
-            'https://schema.stage.datacite.org/linked-data/context/fullcontext.jsonld'
+            null
         ),
     ],
 ];

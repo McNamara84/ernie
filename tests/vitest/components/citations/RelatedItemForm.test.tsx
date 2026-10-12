@@ -19,14 +19,61 @@ const relationTypes = [
 const contributorTypes = [{ value: 'Editor', label: 'Editor' }];
 
 describe('RelatedItemForm', () => {
-    it('renders required field labels and all accordion sections', () => {
+    it.each(['Conference presentation', '0', null])('displays and preserves imported relation information %s', async (information) => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn().mockResolvedValue(undefined);
         render(
             <RelatedItemForm
+                initialValue={{
+                    related_item_type: 'JournalArticle',
+                    relation_type_id: 1,
+                    relation_type_information: information,
+                    titles: [{ title: 'Imported observations', title_type: 'MainTitle', position: 0 }],
+                    position: 0,
+                }}
                 resourceTypes={resourceTypes}
                 relationTypes={relationTypes}
                 contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
+                onSubmit={onSubmit}
             />,
+        );
+
+        expect(screen.getByRole('textbox', { name: /Relation type information/ })).toHaveValue(information ?? '');
+        await user.click(screen.getByRole('button', { name: /^Save$/ }));
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+        expect(onSubmit.mock.calls[0][0].relation_type_information).toBe(information);
+    });
+
+    it.each(['Updated relation information', ''])('submits an edit or explicit clearing of relation information %s', async (information) => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn().mockResolvedValue(undefined);
+        render(
+            <RelatedItemForm
+                initialValue={{
+                    related_item_type: 'JournalArticle',
+                    relation_type_id: 1,
+                    relation_type_information: 'Imported relation information',
+                    titles: [{ title: 'Imported observations', title_type: 'MainTitle', position: 0 }],
+                    position: 0,
+                }}
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={onSubmit}
+            />,
+        );
+
+        const field = screen.getByRole('textbox', { name: /Relation type information/ });
+        await user.clear(field);
+        if (information !== '') await user.type(field, information);
+        await user.click(screen.getByRole('button', { name: /^Save$/ }));
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+        expect(onSubmit.mock.calls[0][0].relation_type_information).toBe(information === '' ? null : information);
+    });
+
+    it('renders required field labels and all accordion sections', () => {
+        render(
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
         expect(screen.getByText('Type *')).toBeInTheDocument();
@@ -42,12 +89,7 @@ describe('RelatedItemForm', () => {
         const user = userEvent.setup();
         const onSubmit = vi.fn();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={onSubmit}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={onSubmit} />,
         );
 
         await user.click(screen.getByRole('button', { name: /^Save$/ }));
@@ -112,12 +154,7 @@ describe('RelatedItemForm', () => {
 
         const user = userEvent.setup();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
         const identifierInput = screen.getByPlaceholderText(/10\.1234\/abcd/);
@@ -158,56 +195,30 @@ describe('RelatedItemForm', () => {
 
 describe('RelatedItemForm — lookup edge cases', () => {
     it('shows "No metadata found" message when source is not_found', async () => {
-        server.use(
-            http.get('/api/v1/citation-lookup', () =>
-                HttpResponse.json({ source: 'not_found' }),
-            ),
-        );
+        server.use(http.get('/api/v1/citation-lookup', () => HttpResponse.json({ source: 'not_found' })));
 
         const user = userEvent.setup();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
-        await user.type(
-            screen.getByPlaceholderText(/10\.1234\/abcd/),
-            '10.9999/missing',
-        );
+        await user.type(screen.getByPlaceholderText(/10\.1234\/abcd/), '10.9999/missing');
         await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
 
         await waitFor(() => {
-            expect(
-                screen.getByText(/No metadata found for this identifier/i),
-            ).toBeInTheDocument();
+            expect(screen.getByText(/No metadata found for this identifier/i)).toBeInTheDocument();
         });
     });
 
     it('renders lookup error as destructive message', async () => {
-        server.use(
-            http.get('/api/v1/citation-lookup', () =>
-                HttpResponse.json({ message: 'Crossref timed out' }, { status: 500 }),
-            ),
-        );
+        server.use(http.get('/api/v1/citation-lookup', () => HttpResponse.json({ message: 'Crossref timed out' }, { status: 500 })));
 
         const user = userEvent.setup();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
-        await user.type(
-            screen.getByPlaceholderText(/10\.1234\/abcd/),
-            '10.1234/boom',
-        );
+        await user.type(screen.getByPlaceholderText(/10\.1234\/abcd/), '10.1234/boom');
         await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
 
         await waitFor(() => {
@@ -226,12 +237,7 @@ describe('RelatedItemForm — lookup edge cases', () => {
 
         const user = userEvent.setup();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
         await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
@@ -252,9 +258,7 @@ describe('RelatedItemForm — lookup edge cases', () => {
             />,
         );
 
-        expect(
-            screen.queryByRole('button', { name: /Look up DOI metadata/i }),
-        ).toBeNull();
+        expect(screen.queryByRole('button', { name: /Look up DOI metadata/i })).toBeNull();
     });
 
     it('also autofills the subtitle when provided', async () => {
@@ -274,18 +278,10 @@ describe('RelatedItemForm — lookup edge cases', () => {
 
         const user = userEvent.setup();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
-        await user.type(
-            screen.getByPlaceholderText(/10\.1234\/abcd/),
-            '10.1234/x',
-        );
+        await user.type(screen.getByPlaceholderText(/10\.1234\/abcd/), '10.1234/x');
         await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
 
         await waitFor(() => {
@@ -316,18 +312,10 @@ describe('RelatedItemForm — lookup edge cases', () => {
 
         const user = userEvent.setup();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
-        await user.type(
-            screen.getByPlaceholderText(/10\.1234\/abcd/),
-            '10.1234/org',
-        );
+        await user.type(screen.getByPlaceholderText(/10\.1234\/abcd/), '10.1234/org');
         await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
 
         // Wait until the autofill effect has populated the creators field array
@@ -338,9 +326,7 @@ describe('RelatedItemForm — lookup edge cases', () => {
         await user.click(creatorsAccordion);
 
         await waitFor(() => {
-            expect(
-                screen.getByDisplayValue('GFZ Helmholtz Centre'),
-            ).toBeInTheDocument();
+            expect(screen.getByDisplayValue('GFZ Helmholtz Centre')).toBeInTheDocument();
         });
     });
 });
@@ -348,12 +334,7 @@ describe('RelatedItemForm — lookup edge cases', () => {
 describe('RelatedItemForm — titles field array', () => {
     it('disables the remove button when only one title remains', () => {
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
         const removeBtn = screen.getByRole('button', { name: /Remove title 1/i });
@@ -363,12 +344,7 @@ describe('RelatedItemForm — titles field array', () => {
     it('adds and removes additional titles', async () => {
         const user = userEvent.setup();
         render(
-            <RelatedItemForm
-                resourceTypes={resourceTypes}
-                relationTypes={relationTypes}
-                contributorTypes={contributorTypes}
-                onSubmit={vi.fn()}
-            />,
+            <RelatedItemForm resourceTypes={resourceTypes} relationTypes={relationTypes} contributorTypes={contributorTypes} onSubmit={vi.fn()} />,
         );
 
         await user.click(screen.getByRole('button', { name: /Add title/i }));
@@ -383,9 +359,7 @@ describe('RelatedItemForm — titles field array', () => {
         await user.click(removeButtons[1]);
 
         await waitFor(() => {
-            expect(
-                screen.getAllByRole('button', { name: /Remove title \d+/i }),
-            ).toHaveLength(1);
+            expect(screen.getAllByRole('button', { name: /Remove title \d+/i })).toHaveLength(1);
         });
     });
 
