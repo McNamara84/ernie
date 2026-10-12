@@ -3,12 +3,24 @@
 set -eu
 
 SOURCE_WORKSPACE=/var/www/html
-TEST_WORKSPACE=/var/www/pest-workspace
+TEST_WORKSPACE=${1:-/var/www/pest-workspace}
 
-if [ "$TEST_WORKSPACE" != /var/www/pest-workspace ]; then
-    echo "Unexpected Pest workspace: $TEST_WORKSPACE" >&2
-    exit 1
-fi
+case "$TEST_WORKSPACE" in
+    /var/www/pest-workspace) ;;
+    /tmp/ernie-jsonld-*)
+        REPORT_TOKEN=${TEST_WORKSPACE#/tmp/ernie-jsonld-}
+        case "$REPORT_TOKEN" in
+            *[!a-f0-9]*|'') echo 'Invalid JSON-LD workspace token' >&2; exit 1 ;;
+        esac
+        [ "${#REPORT_TOKEN}" -eq 32 ] || exit 1
+        # Each semantic run owns a separate Linux-native workspace. Refuse reuse.
+        mkdir "$TEST_WORKSPACE"
+        # Pest and Composer infer the project root from the real vendor path;
+        # a symlink would load the source checkout's test configuration.
+        cp -a --reflink=auto /var/www/html/vendor "$TEST_WORKSPACE/vendor"
+        ;;
+    *) echo "Unexpected Pest workspace: $TEST_WORKSPACE" >&2; exit 1 ;;
+esac
 
 # The source checkout is a Windows/macOS bind mount in Docker Desktop. Reading
 # hundreds of PHP files from it in every ParaTest worker serializes filesystem

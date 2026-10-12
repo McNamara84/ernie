@@ -5,10 +5,11 @@ import { type Resolver, useFieldArray, useForm } from 'react-hook-form';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useCitationLookup } from '@/hooks/use-citation-lookup';
 import { type RelatedItemInput, relatedItemSchema } from '@/lib/validations/related-item';
 import type { RelatedItem } from '@/types/related-item';
@@ -39,6 +40,7 @@ function emptyDefaults(): RelatedItemInput {
     return {
         related_item_type: '',
         relation_type_id: 0,
+        relation_type_information: null,
         publication_year: null,
         volume: null,
         issue: null,
@@ -189,6 +191,25 @@ export function RelatedItemForm({
                         )}
                     />
                 </div>
+
+                <FormField
+                    control={form.control}
+                    name="relation_type_information"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Relation type information (optional)</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                    {...field}
+                                    value={field.value ?? ''}
+                                    onChange={(event) => field.onChange(event.target.value === '' ? null : event.target.value)}
+                                />
+                            </FormControl>
+                            <FormDescription>Additional information about this relationship, especially for the Other relation type.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
                 <Accordion type="multiple" defaultValue={['identifier', 'titles']} className="w-full">
                     {/* Identifier + Lookup */}

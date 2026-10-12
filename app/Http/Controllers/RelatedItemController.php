@@ -168,6 +168,7 @@ class RelatedItemController extends Controller
             'related_item_type' => $item->related_item_type,
             'relation_type_id' => $item->relation_type_id,
             'relation_type_slug' => $item->relationType->slug,
+            'relation_type_information' => $item->relation_type_information,
             'publication_year' => $item->publication_year,
             'volume' => $item->volume,
             'issue' => $item->issue,

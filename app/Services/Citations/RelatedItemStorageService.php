@@ -27,6 +27,7 @@ class RelatedItemStorageService
             $item = $resource->relatedItems()->create([
                 'related_item_type' => $data['related_item_type'],
                 'relation_type_id' => (int) $data['relation_type_id'],
+                'relation_type_information' => $data['relation_type_information'] ?? null,
                 'publication_year' => $data['publication_year'] ?? null,
                 'volume' => $data['volume'] ?? null,
                 'issue' => $data['issue'] ?? null,
@@ -86,7 +87,7 @@ class RelatedItemStorageService
             // explicitly included the key. This preserves values imported from
             // XML/DataCite JSON when the editing UI does not yet round-trip
             // them, instead of nulling them out on every update.
-            foreach (['related_metadata_scheme', 'scheme_uri', 'scheme_type'] as $key) {
+            foreach (['related_metadata_scheme', 'scheme_uri', 'scheme_type', 'relation_type_information'] as $key) {
                 if (array_key_exists($key, $data)) {
                     $attributes[$key] = $data[$key];
                 }

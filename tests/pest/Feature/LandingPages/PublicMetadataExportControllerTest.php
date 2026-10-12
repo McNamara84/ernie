@@ -10,6 +10,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\Iso19115\Iso19115XmlValidator;
 
 covers(PublicMetadataExportController::class);
@@ -61,7 +62,9 @@ test('serves all canonical public metadata representations for a published landi
         ->assertOk()
         ->assertHeader('Content-Type', 'application/ld+json; charset=UTF-8')
         ->assertHeader('Content-Disposition', 'attachment; filename="metadata-test-datacite.jsonld"')
-        ->assertJsonStructure(['@context', '@id']);
+        ->assertJsonStructure(['@context', '@id'])
+        ->assertJsonPath('@context', app(DataCiteJsonLdContextService::class)->url())
+        ->assertJsonPath('@type', 'Resource');
 
     $isoResponse = $this->get("{$base}/iso-19115-3.xml")
         ->assertOk()

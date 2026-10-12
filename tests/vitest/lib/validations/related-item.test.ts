@@ -15,6 +15,16 @@ function validItem() {
 }
 
 describe('relatedItemSchema', () => {
+    it.each(['Conference presentation', '0', '', null])('retains relation information %s in the validated payload', (information) => {
+        const parsed = relatedItemSchema.parse({ ...validItem(), relation_type_information: information });
+        expect(parsed.relation_type_information).toBe(information);
+    });
+
+    it.each([123, []])('rejects non-string relation information %s', (information) => {
+        const result = relatedItemSchema.safeParse({ ...validItem(), relation_type_information: information });
+        expect(result.success).toBe(false);
+    });
+
     it('accepts a minimal valid payload', () => {
         const res = relatedItemSchema.safeParse(validItem());
         expect(res.success).toBe(true);

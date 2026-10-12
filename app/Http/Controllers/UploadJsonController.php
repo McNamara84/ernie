@@ -11,6 +11,7 @@ use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteJsonImportNormalizerService;
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\Imports\Subjects\ImportedSubjectData;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
@@ -360,10 +361,12 @@ class UploadJsonController extends Controller
     private function extractAttributes(array $decoded): array
     {
         // Check for JSON-LD format (@context key present)
-        if (isset($decoded['@context'])) {
+        if (array_key_exists('@context', $decoded)) {
             Log::info('Detected DataCite JSON-LD format, converting to JSON');
 
             try {
+                app(DataCiteJsonLdContextService::class)->assertSupportedDocument($decoded);
+
                 return $this->jsonLdConverter->convert($decoded);
             } catch (\Throwable $e) {
                 Log::warning('JSON-LD conversion failed', ['error' => $e->getMessage()]);

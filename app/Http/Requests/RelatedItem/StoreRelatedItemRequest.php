@@ -58,6 +58,7 @@ class StoreRelatedItemRequest extends FormRequest
             // Required so XML/DataCite-imported citations round-trip through the
             // Related Item Manager modal without losing these values on update.
             'related_metadata_scheme' => ['nullable', 'string', 'max:255'],
+            'relation_type_information' => ['nullable', 'string'],
             'scheme_uri' => ['nullable', 'string', 'max:512'],
             'scheme_type' => ['nullable', 'string', 'max:64'],
 

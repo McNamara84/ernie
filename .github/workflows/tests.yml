@@ -86,6 +86,23 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate
 
+      - name: Setup Node for JSON-LD validation
+        if: ${{ matrix.slice == 'serial' }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install JSON-LD validation dependencies
+        if: ${{ matrix.slice == 'serial' }}
+        run: |
+          npm install --global npm@12.2.0
+          npm ci
+
+      - name: Validate actual DataCite and Schema.org JSON-LD exports offline
+        if: ${{ matrix.slice == 'serial' }}
+        run: npm run test:jsonld
+
       - name: Verify migrations and seeders
         if: ${{ matrix.slice == 'serial' }}
         run: |

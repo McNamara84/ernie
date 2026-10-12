@@ -96,7 +96,7 @@ test case. A completeness test compares all seeded slugs, the configuration and
 the test matrix. Select a property profile whose supported domains match the
 chosen type; add a new profile if existing ones are unsuitable. Runtime exports
 do not contact Schema.org. After a mapping change, invalidate cached public
-render data by incrementing `CacheKey::LANDING_PAGE_RENDER_DATA` (v12 for this
+render data by incrementing `CacheKey::LANDING_PAGE_RENDER_DATA` (v13 for this
 release).
 
 The tests cover all 34 types in JSON-LD, raw HTML and GET/HEAD Signposting,
@@ -107,6 +107,15 @@ inherited property domains. It is intentionally not a complete range or value
 validator. Its source and version are recorded in
 `tests/pest/Fixtures/schemaorg-domains.json`; update its reviewed class ancestry
 and property domains when expanding supported output.
+
+`npm run test:jsonld` also expands actual exports for all 34 types with an offline
+JSON-LD 1.1 processor and the complete official context snapshot. It verifies DOI
+identity, ordered creators, dates, keywords, licenses, spatial and temporal coverage,
+funding, citation direction, object-description identity and dataset distributions.
+Related items become `citation` only for outgoing `Cites` and `References` relations;
+incoming citations and structural relations remain in DataCite without being relabeled
+as citations. See [the DataCite JSON-LD profile](jsonld-profile.md) for the crosswalk,
+snapshot maintenance and release checks.
 
 On 2026-10-02, the public [Schema.org Validator](https://validator.schema.org/)
 accepted server-rendered HTML examples for all 34 resource types with **zero
