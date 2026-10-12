@@ -142,6 +142,9 @@ final class DataCiteJsonLdContextService
 
     private function assertNode(mixed $node, string $term): void
     {
+        if ($term === 'identifier' && ! is_array($node)) {
+            throw new JsonLdConversionException('Invalid DataCite JSON-LD identifier: expected a value object.');
+        }
         if (isset(self::COLLECTIONS[$term])) {
             if (! is_array($node)) {
                 throw new JsonLdConversionException('Invalid DataCite JSON-LD '.$term.': expected an object or list.');

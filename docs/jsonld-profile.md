@@ -15,6 +15,11 @@ and a one-year public immutable cache policy. It supports conditional GET. Conte
 URLs use the configured public origin, including an optional deployment path,
 independently of the request Host header.
 
+The static context route excludes session and CSRF middleware. Anonymous GET,
+HEAD and conditional 304 responses emit no cookies. Its response test explicitly
+enables the real CSRF middleware because the shared HTTP test case disables it;
+the normal CSRF cookie endpoint remains active on other web routes.
+
 `resources/data/contexts/manifest.json` records the upstream TIB URL, immutable
 commit, retrieval date, upstream and profile SHA-256 checksums, CC BY 4.0 license,
 attribution and adjustments. The TIB vocabulary is maintained and created by
@@ -151,6 +156,12 @@ DOI after resolver and case normalization. Profile recognition and direct
 conversion reject conflicting or invalid DOI identifier values before draft
 storage. Equivalent identifiers use the bare `@id` DOI in converted attributes
 so import normalization removes the redundant primary identifier.
+
+A supplied `identifier` must use the compact value object, for example
+`{"value":"10.5880/example","attrs":{"identifierType":"DOI"}}`; `attrs` is optional,
+and omitting `identifierType` defaults to DOI. Scalar identifiers (including plain
+strings and null) are rejected during profile validation and direct conversion
+rather than silently discarded. DOI-less drafts omit `identifier` and `@id`.
 
 Related-item `relationTypeInformation` now persists in
 `related_items.relation_type_information` through JSON/JSON-LD/XML upload, DOI

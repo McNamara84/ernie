@@ -10,11 +10,14 @@ use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteLinkedDataExporter;
 use Database\Seeders\RelationTypeSeeder;
 use Database\Seeders\ResourceTypeSeeder;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\UploadedFile;
 
 covers(DataCiteJsonLdContextService::class, JsonLdContextController::class);
 
 test('publishes the exact immutable context without authentication or a session', function () {
+    // The shared test case disables this middleware; exercise the real web stack.
+    $this->withMiddleware(PreventRequestForgery::class);
     $content = file_get_contents(base_path(DataCiteJsonLdContextService::FILE));
     $response = $this->get(DataCiteJsonLdContextService::PATH);
 
@@ -24,10 +27,19 @@ test('publishes the exact immutable context without authentication or a session'
         ->and($response->headers->getCookies())->toBeEmpty()
         ->and($response->headers->get('ETag'))->toBe('"'.hash('sha256', $content).'"');
 
-    $this->head(DataCiteJsonLdContextService::PATH)->assertOk()->assertContent('');
-    $this->get(DataCiteJsonLdContextService::PATH, ['If-None-Match' => $response->headers->get('ETag')])->assertStatus(304)->assertContent('');
-    $this->get(DataCiteJsonLdContextService::PATH, ['If-Modified-Since' => $response->headers->get('Last-Modified')])->assertStatus(304);
+    $head = $this->head(DataCiteJsonLdContextService::PATH)->assertOk()->assertContent('');
+    $etag = $this->get(DataCiteJsonLdContextService::PATH, ['If-None-Match' => $response->headers->get('ETag')])->assertStatus(304)->assertContent('');
+    $modified = $this->get(DataCiteJsonLdContextService::PATH, ['If-Modified-Since' => $response->headers->get('Last-Modified')])->assertStatus(304);
+    foreach ([$head, $etag, $modified] as $cachedResponse) {
+        expect($cachedResponse->headers->getCookies())->toBeEmpty();
+    }
     $this->get(DataCiteJsonLdContextService::PATH, ['If-None-Match' => '"outdated"'])->assertOk()->assertContent($content);
+});
+
+test('keeps the normal web CSRF cookie endpoint active', function () {
+    $this->withMiddleware(PreventRequestForgery::class);
+
+    $this->get('/sanctum/csrf-cookie')->assertNoContent()->assertCookie('XSRF-TOKEN');
 });
 
 test('resolves the public context from configuration rather than the request host', function (?string $override, string $expected) {
@@ -180,6 +192,27 @@ test('rejects conflicting JSON-LD DOI identifiers before creating a draft', func
     'null identifier' => [null],
     'numeric identifier' => [123],
 ]);
+
+test('rejects scalar JSON-LD identifiers before creating a draft', function (mixed $identifier, bool $withDoi, ?string $legacy) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    $document = (new DataCiteLinkedDataExporter)->exportAttributes([
+        ...($withDoi ? ['doi' => '10.5880/Test.2026'] : []),
+        'titles' => [['title' => 'Identifier shape observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ]);
+    $document['identifier'] = $identifier;
+    if ($legacy !== null) {
+        $document['@context'] = $legacy;
+    }
+    $before = Resource::count();
+
+    $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('scalar-identifier.jsonld', json_encode($document))])
+        ->assertStatus(422)->assertJsonPath('error.code', 'json_ld_conversion_error');
+    expect(Resource::count())->toBe($before);
+})->with(['10.5880/other', '10.5880/Test.2026', null, false, 123])->with([false, true])->with([null, ...DataCiteJsonLdContextService::LEGACY_CONTEXTS]);
 
 test('uploads equivalent JSON-LD DOI identifiers with one normalized DOI', function (string $identifier) {
     $this->seed(ResourceTypeSeeder::class);

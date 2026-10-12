@@ -53,16 +53,12 @@ describe('identifier conversion', function () {
         expect($result['identifiers'][1]['identifierType'])->toBe('Handle');
     });
 
-    it('returns empty array for unrecognized identifier format', function () {
-        $jsonLd = [
-            '@context' => app(DataCiteJsonLdContextService::class)->url(),
-            'identifier' => 'plain-string',
-        ];
+    it('rejects unrecognized identifiers instead of discarding them', function (mixed $identifier, bool $withDoi) {
+        $jsonLd = ['identifier' => $identifier, ...($withDoi ? ['@id' => 'https://doi.org/10.5880/Test.2026'] : [])];
 
-        $result = $this->converter->convert($jsonLd);
-
-        expect($result['identifiers'])->toBe([]);
-    });
+        expect(fn () => $this->converter->convert($jsonLd))
+            ->toThrow(JsonLdConversionException::class, 'Invalid DataCite JSON-LD identifier: expected a value object.');
+    })->with(['plain-string', '10.5880/other', '10.5880/Test.2026', null, false, 123, [['unknown' => '10.5880/other']]])->with([false, true]);
 });
 
 describe('alternate identifiers conversion', function () {

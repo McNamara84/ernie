@@ -41,7 +41,7 @@ class DataCiteJsonLdToJsonConverterService
         }
 
         // Identifier (may override from @id)
-        if (isset($jsonLd['identifier'])) {
+        if (array_key_exists('identifier', $jsonLd)) {
             $attributes['identifiers'] = $this->convertIdentifiers($jsonLd['identifier']);
             foreach ($attributes['identifiers'] as $index => $identifier) {
                 if (isset($attributes['doi']) && strcasecmp($identifier['identifierType'], 'DOI') === 0) {
@@ -260,7 +260,7 @@ class DataCiteJsonLdToJsonConverterService
             ], $items);
         }
 
-        return [];
+        throw new JsonLdConversionException('Invalid DataCite JSON-LD identifier: expected a value object.');
     }
 
     /**

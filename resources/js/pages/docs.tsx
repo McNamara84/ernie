@@ -3618,7 +3618,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Schema.org JSON-LD, null, unrecognized or inline contexts, and <code>@graph</code> documents produce an upload error (HTTP
                             422) before a draft is created. Use an ERNIE JSON-LD export or DataCite JSON/XML for import. The legacy context URLs are
-                            recognized offline and are not used for new downloads. Ordinary DataCite JSON files must omit <code>@context</code>.
+                            recognized offline and are not used for new downloads. Ordinary DataCite JSON files must omit <code>@context</code>. The
+                            versioned context is publicly accessible without signing in and its responses set no cookies.
                         </p>
                         <p>
                             If the file includes <code>@id</code>, it must contain a valid DOI, either as a bare DOI or an HTTP(S) resolver URL at{' '}
@@ -3629,6 +3630,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             If both <code>@id</code> and a DOI <code>identifier</code> are present, they must identify the same DOI. Resolver URLs and
                             differences in letter casing are treated as equivalent. Conflicting DOI values produce an upload error (HTTP 422) before a
                             draft is created.
+                        </p>
+                        <p>
+                            Supply <code>identifier</code> as an object with <code>value</code> and optional <code>attrs</code>, for example{' '}
+                            <code>{'{"value":"10.5880/example","attrs":{"identifierType":"DOI"}}'}</code>. Plain strings and null identifiers are
+                            rejected. For a draft without a DOI, omit <code>identifier</code> and <code>@id</code>.
                         </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
