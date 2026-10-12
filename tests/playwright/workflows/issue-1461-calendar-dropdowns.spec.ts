@@ -2,6 +2,11 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 import { test } from '../fixtures/authenticated';
 
+// Framework exception: #1461 was reported on Stage in Firefox ESR. Keep this
+// pointer-interaction regression in the existing Chromium/Firefox/WebKit CI
+// matrix; selectOption alone cannot detect the navigation overlay. See
+// docs/issue-1461-browser-regression.md for the rationale and Firefox ESR check.
+
 function calendar(page: Page) {
     return page.locator('[data-slot="popover-content"] [data-slot="calendar"]');
 }
@@ -107,6 +112,10 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
         await chooseMonthAndYear(page, '0', '1900');
         await expect(calendar(page).getByRole('button', { name: 'Go to the Previous Month' })).toHaveAttribute('aria-disabled', 'true');
         await expect(calendar(page).getByRole('combobox', { name: 'Choose the Year' }).locator('option[value="1899"]')).toHaveCount(0);
+        // DayPicker 10 hides days before startMonth even with showOutsideDays=true.
+        const beforeStart = calendar(page).locator('[role="gridcell"][data-day="1899-12-31"]');
+        await expect(beforeStart).toHaveAttribute('data-hidden', 'true');
+        await expect(beforeStart).toBeHidden();
         await expect(await dayButton(page, 1899, 11, 31)).toHaveCount(0);
         await expect(await dayButton(page, 1900, 0, 1)).toBeEnabled();
 
