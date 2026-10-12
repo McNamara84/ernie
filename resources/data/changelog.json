@@ -166,6 +166,11 @@
         ],
         "improvements": [
             {
+                "title": "Independent Editor Settings Cards and Bulk Controls",
+                "description": "Admins and Group Leaders can keep multiple Editor Settings cards open, including all three Contributor Roles cards. Every card heading offers the same expand-all and collapse-all icons and tooltips as the editor, showing only applicable actions. Cards start collapsed on each new visit or full reload; saving preserves open cards, and collapsing cards preserves unsaved values and running vocabulary updates. Keyboard focus returns to the card heading after a bulk action.",
+                "references": [{ "type": "issue", "number": 1409, "url": "https://github.com/McNamara84/ernie/issues/1409" }]
+            },
+            {
                 "title": "Permanent Redirects for Legacy Search URLs",
                 "description": "Existing links to /portal and /igsn-new on dataservices.gfz.de now redirect permanently to the ERNIE DOI Data Portal at /doi-search and IGSN Portal at /igsn-search. Links to subpages also open the corresponding search start page, with old URL parameters discarded."
             },

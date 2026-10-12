@@ -166,7 +166,7 @@ export default function EditorSettings({
     const [newDomain, setNewDomain] = useState('');
     const [isAddingDomain, setIsAddingDomain] = useState(false);
     const [expandedIdentifierTypes, setExpandedIdentifierTypes] = useState<Set<number>>(new Set());
-    const [openSection, setOpenSection] = useState('');
+    const [openSections, setOpenSections] = useState<string[]>([]);
     const [savedDownloadUrlSuggestionOrder, setSavedDownloadUrlSuggestionOrder] = useState(downloadUrlSuggestionOrder);
 
     // Datacenter management - managed separately via API
@@ -707,7 +707,7 @@ export default function EditorSettings({
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
                 <EditorSettingsSaveBar isDirty={isDirty} processing={processing} recentlySuccessful={recentlySuccessful} />
 
-                <EditorSettingsAccordion value={openSection} onValueChange={setOpenSection}>
+                <EditorSettingsAccordion value={openSections} onValueChange={setOpenSections}>
                     <EditorSettingsSection
                         value="download-url-suggestions"
                         title="Download URL suggestions"
