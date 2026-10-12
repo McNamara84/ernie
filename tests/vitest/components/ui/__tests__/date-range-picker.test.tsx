@@ -31,42 +31,26 @@ describe('DateRangePicker', () => {
     });
 
     it('shows selected date range', () => {
-        render(
-            <DateRangePicker
-                value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }}
-            />,
-        );
+        render(<DateRangePicker value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }} />);
 
         expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument();
         expect(screen.getByText(/Jan 20, 2024/)).toBeInTheDocument();
     });
 
     it('shows only from date when to is not set', () => {
-        render(
-            <DateRangePicker value={{ from: new Date(2024, 0, 15) }} />,
-        );
+        render(<DateRangePicker value={{ from: new Date(2024, 0, 15) }} />);
 
         expect(screen.getByText('Jan 15, 2024')).toBeInTheDocument();
     });
 
     it('shows clear button when value is set', () => {
-        render(
-            <DateRangePicker
-                value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }}
-                clearable
-            />,
-        );
+        render(<DateRangePicker value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }} clearable />);
 
         expect(screen.getByLabelText('Clear date range')).toBeInTheDocument();
     });
 
     it('does not show clear button when not clearable', () => {
-        render(
-            <DateRangePicker
-                value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }}
-                clearable={false}
-            />,
-        );
+        render(<DateRangePicker value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }} clearable={false} />);
 
         expect(screen.queryByLabelText('Clear date range')).not.toBeInTheDocument();
     });
@@ -75,13 +59,7 @@ describe('DateRangePicker', () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
 
-        render(
-            <DateRangePicker
-                value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }}
-                onChange={onChange}
-                clearable
-            />,
-        );
+        render(<DateRangePicker value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }} onChange={onChange} clearable />);
 
         await user.click(screen.getByLabelText('Clear date range'));
         expect(onChange).toHaveBeenCalledWith(undefined);
@@ -89,10 +67,7 @@ describe('DateRangePicker', () => {
 
     it('renders hidden inputs when names are provided', () => {
         const { container } = render(
-            <DateRangePicker
-                value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }}
-                names={['start_date', 'end_date']}
-            />,
+            <DateRangePicker value={{ from: new Date(2024, 0, 15), to: new Date(2024, 0, 20) }} names={['start_date', 'end_date']} />,
         );
 
         const startInput = container.querySelector('input[name="start_date"]');
@@ -104,9 +79,7 @@ describe('DateRangePicker', () => {
     });
 
     it('renders empty hidden inputs when no value', () => {
-        const { container } = render(
-            <DateRangePicker names={['start_date', 'end_date']} />,
-        );
+        const { container } = render(<DateRangePicker names={['start_date', 'end_date']} />);
 
         const startInput = container.querySelector('input[name="start_date"]');
         expect(startInput).toHaveValue('');
@@ -120,5 +93,27 @@ describe('DateRangePicker', () => {
 
         // The calendar renders a grid for the month
         await expect(screen.findByRole('grid')).resolves.toBeInTheDocument();
+    });
+
+    it('navigates a two-month calendar and completes a range in another month', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        const from = new Date(2024, 0, 15);
+        render(<DateRangePicker value={{ from }} onChange={onChange} />);
+        const trigger = screen.getByRole('combobox');
+
+        await user.click(trigger);
+        await user.click(screen.getByRole('button', { name: 'Go to the Next Month' }));
+        expect(screen.getByRole('grid', { name: 'February 2024' })).toBeInTheDocument();
+        expect(screen.getByRole('grid', { name: 'March 2024' })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Go to the Previous Month' }));
+        expect(screen.getByRole('grid', { name: 'January 2024' })).toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
+        await user.click(screen.getByRole('button', { name: 'Go to the Next Month' }));
+
+        const to = new Date(2024, 1, 16);
+        await user.click(document.querySelector<HTMLButtonElement>(`button[data-day="${to.toLocaleDateString()}"]`)!);
+        expect(onChange).toHaveBeenCalledExactlyOnceWith({ from, to });
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
     });
 });

@@ -80,11 +80,16 @@ test.describe('Editor Settings accordion', () => {
             await expect(heading).toBeFocused();
             await expect(page.getByRole('button', { name: 'Save changes' })).toBeDisabled();
 
-            await trigger(page, 'licenses').click();
+            // Expansion state is page-local for every card. Use a short list for
+            // reload/navigation; bulk expansion above covers the full license list.
+            const transientCard = trigger(page, 'resource-types');
+            await transientCard.click();
+            await expect(transientCard).toHaveAttribute('aria-expanded', 'true');
             await page.reload();
             await expectAllCards(page, false);
 
-            await trigger(page, 'licenses').click();
+            await transientCard.click();
+            await expect(transientCard).toHaveAttribute('aria-expanded', 'true');
             await page.goto('/dashboard');
             await page.goto('/settings');
             await expectAllCards(page, false);
