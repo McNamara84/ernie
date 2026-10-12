@@ -157,9 +157,10 @@ jobs:
         echo "=== Testing login page ==="
         curl -s http://127.0.0.1:8000/login | grep -q "login" && echo "✅ Login page accessible" || echo "❌ Login page NOT accessible"
     - name: Run Playwright tests
-      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3
+      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 --reporter=github,html
       env:
         CI: true
+        PLAYWRIGHT_HTML_OPEN: never
     - name: Stop Laravel server
       if: always()
       run: |

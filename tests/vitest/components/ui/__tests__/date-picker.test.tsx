@@ -129,6 +129,27 @@ describe('DatePicker', () => {
             await userEvent.click(trigger);
             expect(trigger).toHaveAttribute('aria-expanded', 'true');
         });
+
+        it('navigates both directions before selecting a day in another month', async () => {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
+            const today = new Date();
+            const date = new Date(today.getFullYear(), today.getMonth() + 1, 16);
+            render(<DatePicker value={today} onChange={onChange} />);
+            const trigger = screen.getByRole('combobox');
+
+            await user.click(trigger);
+            await user.click(screen.getByRole('button', { name: 'Go to the Next Month' }));
+            expect(screen.getByRole('grid', { name: format(date, 'MMMM yyyy') })).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: 'Go to the Previous Month' }));
+            expect(screen.getByRole('grid', { name: format(today, 'MMMM yyyy') })).toBeInTheDocument();
+            expect(onChange).not.toHaveBeenCalled();
+            await user.click(screen.getByRole('button', { name: 'Go to the Next Month' }));
+
+            await user.click(document.querySelector<HTMLButtonElement>(`button[data-day="${date.toLocaleDateString()}"]`)!);
+            expect(onChange).toHaveBeenCalledExactlyOnceWith(date);
+            expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        });
     });
 
     describe('className', () => {

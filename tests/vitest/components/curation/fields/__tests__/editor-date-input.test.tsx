@@ -137,4 +137,38 @@ describe('EditorDateInput', () => {
         expect(yearSelect).toBeTruthy();
         expect(yearSelect).toHaveValue('1900');
     });
+
+    it.each([
+        { initial: '', locale: 'iso', expected: '1900-02-02' },
+        { initial: '2020-09-24', locale: 'iso', expected: '1900-02-02' },
+        { initial: '2020-09', locale: 'iso', expected: '1900-02-02' },
+        { initial: '2020-09-24', locale: 'de', expected: '02.02.1900' },
+    ] as const)('navigates without committing $locale input "$initial" until a day is selected', async ({ initial, locale, expected }) => {
+        const user = userEvent.setup();
+        const onValueChange = vi.fn();
+        render(<DateInputHarness initial={initial} locale={locale} onValueChange={onValueChange} />);
+        const input = screen.getByRole('textbox', { name: 'Date' });
+        const originalValue = (input as HTMLInputElement).value;
+
+        await user.click(screen.getByRole('button', { name: 'Choose date' }));
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Choose the Month' }), '1');
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Choose the Year' }), '1900');
+        await user.click(screen.getByRole('button', { name: 'Go to the Next Month' }));
+        expect(screen.getByRole('combobox', { name: 'Choose the Month' })).toHaveValue('2');
+        await user.click(screen.getByRole('button', { name: 'Go to the Previous Month' }));
+        expect(screen.getByRole('combobox', { name: 'Choose the Month' })).toHaveValue('1');
+        expect(screen.getByRole('combobox', { name: 'Choose the Year' })).toHaveValue('1900');
+        expect(input).toHaveValue(originalValue);
+        expect(onValueChange).not.toHaveBeenCalled();
+
+        const dayLabel = new Date(1900, 1, 2).toLocaleDateString();
+        await user.click(document.querySelector<HTMLButtonElement>(`button[data-day="${dayLabel}"]`)!);
+        expect(onValueChange).toHaveBeenCalledExactlyOnceWith('1900-02-02', true);
+        expect(input).toHaveValue(expected);
+        expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Choose date' }));
+        expect(screen.getByRole('combobox', { name: 'Choose the Month' })).toHaveValue('1');
+        expect(screen.getByRole('combobox', { name: 'Choose the Year' })).toHaveValue('1900');
+    });
 });

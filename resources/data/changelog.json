@@ -237,6 +237,14 @@
         ],
         "fixes": [
             {
+                "title": "Clickable Calendar Month and Year Dropdowns",
+                "description": "Month and year dropdowns in the Data Editor calendar can now be clicked reliably. Previous and next month buttons continue to work, and the date is applied only after a day is selected.",
+                "references": [
+                    { "type": "issue", "number": 1461, "url": "https://github.com/McNamara84/ernie/issues/1461" },
+                    { "type": "pull_request", "number": 1462, "url": "https://github.com/McNamara84/ernie/pull/1462" }
+                ]
+            },
+            {
                 "title": "Reliable DataCite JSON-LD Exports and Imports",
                 "description": "DataCite JSON-LD downloads now use a public, versioned JSON-LD 1.1 context instead of the unavailable staging context. The public context endpoint emits no session or CSRF cookies. Compatible context mirrors can be configured in all Docker environments. Creators and polygon vertices retain their order, while metadata values, language and identifier schemes survive conversion, including literal zero relation information on related identifiers. Historical ERNIE exports remain importable; unsupported JSON-LD profiles, explicit null contexts, invalid DOI ids, scalar identifiers, missing or null metadata values and conflicting DOI identifiers fail before a draft is created. Related-item relation information is preserved through JSON, XML and JSON-LD imports, storage and exports, and can be inspected, edited and cleared in the Related Item Manager. Schema.org citations now respect the direction of DataCite relationships. Automated offline checks validate actual exports for all 34 resource types."
             },
