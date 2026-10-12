@@ -495,9 +495,11 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
 
                         <h4>Page Layout and Saving</h4>
                         <p>
-                            Settings are organized in a full-width accordion. All sections start collapsed, and opening a section closes the
-                            previously open section. Unsaved values remain intact when you switch sections. Each section heading shows the summaries
-                            relevant to its controls, such as item totals and ERNIE or ELMO activation counts where available.
+                            Settings are organized in a full-width accordion. All sections start collapsed on each new visit or full page reload.
+                            Multiple sections can stay open independently. Each section heading offers actions to expand or collapse all settings
+                            cards, using the same icons and tooltips as the editor. Unsaved values remain intact when you switch sections or collapse
+                            all cards. Open sections remain open after saving and partial updates. Each section heading shows the summaries relevant
+                            to its controls, such as item totals and ERNIE or ELMO activation counts where available.
                         </p>
                         <p>
                             Changes to the editor tables and activation controls use the sticky <strong>Save changes</strong> action. Adding or

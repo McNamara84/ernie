@@ -813,6 +813,10 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Page Layout and Saving' })).toBeInTheDocument();
         expect(screen.getByText(/All sections start collapsed/i)).toBeInTheDocument();
+        expect(screen.getByText(/All sections start collapsed/i)).toHaveTextContent('on each new visit or full page reload');
+        expect(screen.getByText(/Multiple sections can stay open independently/i)).toBeInTheDocument();
+        expect(screen.getByText(/expand or collapse all settings cards/i)).toHaveTextContent('same icons and tooltips as the editor');
+        expect(screen.getByText(/Open sections remain open after saving and partial updates/i)).toBeInTheDocument();
         expect(screen.getByText(/Unsaved values remain intact when you switch sections/i)).toBeInTheDocument();
         expect(screen.getByText(/editor tables and activation controls use the sticky/i)).toHaveTextContent('Save changes');
         expect(screen.getByText(/Adding or deleting/i)).toHaveTextContent('Landing Page Domains');

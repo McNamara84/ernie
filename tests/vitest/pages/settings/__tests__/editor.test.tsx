@@ -205,6 +205,22 @@ function section(value: string): HTMLElement {
     return element;
 }
 
+function settingsTriggers(): HTMLButtonElement[] {
+    return Array.from(screen.getByTestId('settings-accordion').querySelectorAll<HTMLButtonElement>('[data-slot="accordion-trigger"]'));
+}
+
+function bulkAction(value: string, action: 'Expand' | 'Collapse'): HTMLButtonElement {
+    return within(section(value)).getByRole('button', { name: `${action} all settings cards` }) as HTMLButtonElement;
+}
+
+function expectBulkActions(expand: boolean, collapse: boolean) {
+    for (const value of EDITOR_SETTINGS_SECTION_ORDER) {
+        const actions = within(section(value).querySelector<HTMLElement>('[data-slot="accordion-actions"]')!);
+        expect(actions.queryByRole('button', { name: 'Expand all settings cards' }) !== null).toBe(expand);
+        expect(actions.queryByRole('button', { name: 'Collapse all settings cards' }) !== null).toBe(collapse);
+    }
+}
+
 describe('EditorSettings accordion page', () => {
     beforeEach(() => {
         formHarness.initialData = null;
@@ -224,17 +240,18 @@ describe('EditorSettings accordion page', () => {
         expect(screen.queryByTestId('settings-grid')).not.toBeInTheDocument();
 
         const renderedOrder = within(accordion)
-            .getAllByRole('button')
+            .getAllByRole('button', { expanded: false })
             .map((trigger) => trigger.closest('[data-accordion-value]')?.getAttribute('data-accordion-value'));
 
         expect(renderedOrder).toEqual(EDITOR_SETTINGS_SECTION_ORDER);
         expect(sectionTrigger(/^Resource Types/)).toHaveAccessibleName(/2 resource types, 1 ERNIE, 1 ELMO/);
         within(accordion)
-            .getAllByRole('button')
+            .getAllByRole('button', { expanded: false })
             .forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
+        expectBulkActions(true, false);
     });
 
-    it('opens one section at a time and lets the open section collapse again', async () => {
+    it('opens sections independently and closes only the chosen section', async () => {
         const user = userEvent.setup();
         renderSettings();
 
@@ -247,11 +264,130 @@ describe('EditorSettings accordion page', () => {
 
         await user.click(licenses);
         expect(licenses).toHaveAttribute('aria-expanded', 'true');
-        expect(resourceTypes).toHaveAttribute('aria-expanded', 'false');
+        expect(resourceTypes).toHaveAttribute('aria-expanded', 'true');
         expect(within(section('licenses')).getByText('CC-BY-4.0')).toBeVisible();
 
         await user.click(licenses);
         expect(licenses).toHaveAttribute('aria-expanded', 'false');
+        expect(resourceTypes).toHaveAttribute('aria-expanded', 'true');
+
+        await user.click(resourceTypes);
+        expectBulkActions(true, false);
+    });
+
+    it('keeps all three Contributor Roles cards open together', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+
+        for (const title of ['Contributor Roles (Persons)', 'Contributor Roles (Institutions)', 'Contributor Roles (Both)']) {
+            await user.click(sectionTrigger(new RegExp(`^${title.replace(/[()]/g, '\\$&')}`)));
+        }
+
+        for (const value of ['contributor-person-roles', 'contributor-institution-roles', 'contributor-both-roles']) {
+            expect(within(section(value)).getByRole('button', { expanded: true })).toBeVisible();
+            expect(within(section(value)).getByRole('table')).toBeVisible();
+        }
+    });
+
+    it('moves a contributor role between open cards without closing them or losing edits', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+        for (const title of [/^Contributor Roles \(Persons\)/, /^Contributor Roles \(Institutions\)/, /^Contributor Roles \(Both\)/]) {
+            await user.click(sectionTrigger(title));
+        }
+
+        await user.click(within(section('contributor-person-roles')).getByRole('combobox', { name: 'Category for Contact Person' }));
+        await user.click(screen.getByRole('option', { name: 'Institution' }));
+        expect(within(section('contributor-person-roles')).queryByText('Contact Person')).not.toBeInTheDocument();
+        expect(within(section('contributor-institution-roles')).getByText('Contact Person')).toBeVisible();
+        for (const value of ['contributor-person-roles', 'contributor-institution-roles', 'contributor-both-roles']) {
+            expect(within(section(value)).getByRole('button', { expanded: true })).toBeVisible();
+        }
+
+        await user.click(bulkAction('contributor-institution-roles', 'Collapse'));
+        await user.click(bulkAction('contributor-person-roles', 'Expand'));
+        expect(within(section('contributor-institution-roles')).getByRole('combobox', { name: 'Category for Contact Person' })).toHaveTextContent(
+            'Institution',
+        );
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        expect(formHarness.post).toHaveBeenCalledWith(
+            '/settings',
+            expect.objectContaining({
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: expect.arrayContaining([expect.objectContaining({ id: 1, category: 'institution' })]),
+                contributorBothRoles: defaultProps.contributorBothRoles,
+            }),
+        );
+    });
+
+    it('expands and collapses every card from different headings and mixed states', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+
+        await user.click(sectionTrigger(/^Licenses/));
+        expectBulkActions(true, true);
+
+        await user.click(bulkAction('contributor-both-roles', 'Expand'));
+        expect(settingsTriggers()).toHaveLength(16);
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+        expectBulkActions(false, true);
+        expect(within(section('datacenters')).getByPlaceholderText('Datacenter name')).toBeVisible();
+
+        await user.click(bulkAction('identifier-types', 'Collapse'));
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
+        expectBulkActions(true, false);
+
+        await user.click(bulkAction('datacenters', 'Expand'));
+        expectBulkActions(false, true);
+        await user.click(sectionTrigger(/^Resource Types/));
+        expectBulkActions(true, true);
+
+        await user.click(bulkAction('resource-types', 'Collapse'));
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
+        expectBulkActions(true, false);
+        expect(formHarness.post).not.toHaveBeenCalled();
+        expect(axiosMocks.post).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+        expect(screen.getByTestId('settings-save-status')).toHaveTextContent('No unsaved changes');
+    });
+
+    it('keeps bulk actions outside the card trigger and returns keyboard focus to that trigger', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+        const resourceTypes = sectionTrigger(/^Resource Types/);
+        const expand = bulkAction('resource-types', 'Expand');
+        expect(expand).toHaveAttribute('type', 'button');
+        expect(resourceTypes).not.toContainElement(expand);
+
+        expand.focus();
+        await user.keyboard('{Enter}');
+        expect(resourceTypes).toHaveFocus();
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+
+        const collapse = bulkAction('resource-types', 'Collapse');
+        expect(collapse).toHaveAttribute('type', 'button');
+        expect(resourceTypes).not.toContainElement(collapse);
+        collapse.focus();
+        await user.keyboard(' ');
+        expect(resourceTypes).toHaveFocus();
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
+        expect(formHarness.post).not.toHaveBeenCalled();
+    });
+
+    it('starts collapsed on a new mount and keeps open cards during partial prop updates', async () => {
+        const user = userEvent.setup();
+        const view = renderSettings();
+        await user.click(sectionTrigger(/^Resource Types/));
+        await user.click(sectionTrigger(/^Persistent Identifiers/));
+
+        view.rerender(<EditorSettings {...defaultProps} pidSettings={defaultProps.pidSettings.map((pid) => ({ ...pid, itemCount: 20 }))} />);
+        expect(sectionTrigger(/^Resource Types/)).toHaveAttribute('aria-expanded', 'true');
+        expect(sectionTrigger(/^Persistent Identifiers/)).toHaveAttribute('aria-expanded', 'true');
+
+        view.unmount();
+        renderSettings();
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
+        expectBulkActions(true, false);
     });
 
     it('mounts regular section content only while that section is open', async () => {
@@ -265,10 +401,12 @@ describe('EditorSettings accordion page', () => {
         expect(resourceTypeName).toBeVisible();
 
         await user.click(sectionTrigger(/^Licenses/));
+        expect(resourceTypeName).toBeVisible();
+        await user.click(sectionTrigger(/^Resource Types/));
         expect(resourceTypeName).not.toBeInTheDocument();
     });
 
-    it('keeps opt-in force-mounted Thesaurus and PID content alive while switching sections', async () => {
+    it('keeps force-mounted Thesaurus and PID content alive when individually or collectively collapsed', async () => {
         const user = userEvent.setup();
         renderSettings();
 
@@ -280,9 +418,31 @@ describe('EditorSettings accordion page', () => {
         expect(thesaurusContent).toBeVisible();
 
         await user.click(sectionTrigger(/^Persistent Identifiers/));
+        const pidContent = screen.getByTestId('pid-settings-card-mock');
         expect(screen.getByTestId('thesaurus-card-mock')).toBe(thesaurusContent);
+        expect(thesaurusContent).toBeVisible();
+        expect(pidContent).toBeVisible();
+
+        await user.click(sectionTrigger(/^Thesauri/));
         expect(thesaurusContent).not.toBeVisible();
-        expect(screen.getByTestId('pid-settings-card-mock')).toBeVisible();
+        expect(pidContent).toBeVisible();
+
+        await user.click(bulkAction('thesauri', 'Collapse'));
+        expect(pidContent).not.toBeVisible();
+        expect(screen.getByTestId('thesaurus-card-mock')).toBe(thesaurusContent);
+        expect(screen.getByTestId('pid-settings-card-mock')).toBe(pidContent);
+        for (const value of ['thesauri', 'persistent-identifiers']) {
+            expect(section(value).querySelector('[data-slot="accordion-content"]')).toHaveAttribute('hidden');
+            expect(section(value).querySelector('[data-slot="accordion-content"]')).toHaveAttribute('aria-hidden', 'true');
+        }
+
+        await user.click(bulkAction('thesauri', 'Expand'));
+        expect(thesaurusContent).toBeVisible();
+        expect(pidContent).toBeVisible();
+        for (const value of ['thesauri', 'persistent-identifiers']) {
+            expect(section(value).querySelector('[data-slot="accordion-content"]')).not.toHaveAttribute('hidden');
+            expect(section(value).querySelector('[data-slot="accordion-content"]')).not.toHaveAttribute('aria-hidden');
+        }
     });
 
     it('shows live section summaries from current form data', async () => {
@@ -326,6 +486,7 @@ describe('EditorSettings accordion page', () => {
 
         await user.click(sectionTrigger(/^Licenses/));
         await user.click(sectionTrigger(/^Resource Types/));
+        await user.click(sectionTrigger(/^Resource Types/));
         expect(within(section('resource-types')).getByDisplayValue('Updated Dataset')).toBeVisible();
 
         await user.click(save);
@@ -335,6 +496,35 @@ describe('EditorSettings accordion page', () => {
                 resourceTypes: expect.arrayContaining([expect.objectContaining({ name: 'Updated Dataset' })]),
             }),
         );
+    });
+
+    it('preserves unsaved values through bulk actions and keeps cards open after saving', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+        await user.click(sectionTrigger(/^Resource Types/));
+        await user.type(within(section('resource-types')).getAllByLabelText('Name')[0], ' edited');
+        const save = screen.getByRole('button', { name: 'Save changes' });
+
+        await user.click(bulkAction('resource-types', 'Collapse'));
+        expect(screen.queryByDisplayValue('Dataset edited')).not.toBeInTheDocument();
+        expect(save).toBeEnabled();
+        await user.click(bulkAction('licenses', 'Expand'));
+        expect(within(section('resource-types')).getByDisplayValue('Dataset edited')).toBeVisible();
+        expect(save).toBeEnabled();
+        expect(formHarness.post).not.toHaveBeenCalled();
+
+        await user.click(save);
+        const submitted = formHarness.post.mock.calls[0][1];
+        expect(submitted).not.toHaveProperty('openSections');
+        expect(submitted.resourceTypes[0].name).toBe('Dataset edited');
+        // A request without a success callback leaves edits and open cards intact.
+        expect(save).toBeEnabled();
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+
+        act(() => formHarness.succeed?.());
+        expect(save).toBeDisabled();
+        settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+        expect(within(section('resource-types')).getByDisplayValue('Dataset edited')).toBeVisible();
     });
 
     it.each([false, true])('omits the unchanged installation order when saving other settings (section opened: %s)', async (openSuggestions) => {
@@ -416,7 +606,6 @@ describe('EditorSettings accordion page', () => {
         await user.click(save);
         expect(formHarness.post.mock.calls[2][1]).not.toHaveProperty('downloadUrlSuggestionOrder');
 
-        await user.click(sectionTrigger(/^Download URL suggestions/));
         await user.click(screen.getByRole('button', { name: 'Remove suggestion 1' }));
         await user.click(save);
         expect(formHarness.post.mock.calls[3][1]).toHaveProperty('downloadUrlSuggestionOrder', []);
