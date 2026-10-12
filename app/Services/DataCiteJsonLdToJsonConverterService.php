@@ -29,10 +29,11 @@ class DataCiteJsonLdToJsonConverterService
     {
         $jsonLd = $this->normalizeUriAliases($jsonLd);
         $attributes = [];
+        $context = app(DataCiteJsonLdContextService::class);
 
         // Extract DOI from @id
         if (array_key_exists('@id', $jsonLd)) {
-            $doi = app(DataCiteJsonLdContextService::class)->doiFromId($jsonLd['@id']);
+            $doi = $context->doiFromId($jsonLd['@id']);
             $attributes['doi'] = $doi;
             $attributes['identifiers'] = [
                 ['identifier' => $doi, 'identifierType' => 'DOI'],
@@ -42,6 +43,12 @@ class DataCiteJsonLdToJsonConverterService
         // Identifier (may override from @id)
         if (isset($jsonLd['identifier'])) {
             $attributes['identifiers'] = $this->convertIdentifiers($jsonLd['identifier']);
+            foreach ($attributes['identifiers'] as $index => $identifier) {
+                if (isset($attributes['doi']) && strcasecmp($identifier['identifierType'], 'DOI') === 0) {
+                    $context->assertDoiMatches($attributes['doi'], $identifier['identifier']);
+                    $attributes['identifiers'][$index]['identifier'] = $attributes['doi'];
+                }
+            }
         }
 
         // Creators
@@ -236,7 +243,7 @@ class DataCiteJsonLdToJsonConverterService
     private function convertIdentifiers(mixed $data): array
     {
         // Single identifier: {attrs: {identifierType: "DOI"}, value: "10.5880/..."}
-        if (is_array($data) && isset($data['attrs'])) {
+        if (is_array($data) && (isset($data['attrs']) || array_key_exists('value', $data))) {
             return [[
                 'identifier' => (string) ($data['value'] ?? ''),
                 'identifierType' => (string) ($data['attrs']['identifierType'] ?? 'DOI'),

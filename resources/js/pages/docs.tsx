@@ -2318,6 +2318,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Select the relation type (e.g. <em>IsCitedBy</em>, <em>IsSupplementTo</em>) and the related item type (
                                     <em>JournalArticle</em>, <em>Book</em>, <em>Dataset</em>, …).
                                 </p>
+                                <p>
+                                    Use the optional <em>Relation type information</em> field to explain the relationship, especially when choosing
+                                    <em> Other</em>. Imported information appears when you edit the item. Edit it or clear the field and save to
+                                    remove it. This information is included in DataCite exports.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Enter Titles, Creators & Contributors">
                                 <p>
@@ -3611,14 +3616,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                         </ul>
                         <p>
-                            Schema.org JSON-LD, unrecognized or inline contexts, and <code>@graph</code> documents produce an upload error (HTTP 422)
-                            before a draft is created. Use an ERNIE JSON-LD export or DataCite JSON/XML for import. The legacy context URLs are
-                            recognized offline and are not used for new downloads.
+                            Schema.org JSON-LD, null, unrecognized or inline contexts, and <code>@graph</code> documents produce an upload error (HTTP
+                            422) before a draft is created. Use an ERNIE JSON-LD export or DataCite JSON/XML for import. The legacy context URLs are
+                            recognized offline and are not used for new downloads. Ordinary DataCite JSON files must omit <code>@context</code>.
                         </p>
                         <p>
                             If the file includes <code>@id</code>, it must contain a valid DOI, either as a bare DOI or an HTTP(S) resolver URL at{' '}
                             <code>doi.org</code> or <code>dx.doi.org</code>. Invalid IDs produce an upload error (HTTP 422) before a draft is created.
                             For a draft without a DOI, omit <code>@id</code>.
+                        </p>
+                        <p>
+                            If both <code>@id</code> and a DOI <code>identifier</code> are present, they must identify the same DOI. Resolver URLs and
+                            differences in letter casing are treated as equivalent. Conflicting DOI values produce an upload error (HTTP 422) before a
+                            draft is created.
                         </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">

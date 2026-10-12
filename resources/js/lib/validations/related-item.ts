@@ -48,6 +48,7 @@ export const relatedItemSchema = z
         id: z.number().optional(),
         related_item_type: z.string().min(1, 'Related item type is required'),
         relation_type_id: z.number().int().positive('Relation type is required'),
+        relation_type_information: z.string().nullish(),
         publication_year: z
             .number()
             .int()

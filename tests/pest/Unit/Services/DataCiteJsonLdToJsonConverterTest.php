@@ -70,6 +70,29 @@ describe('format detection and basic conversion', function () {
         expect($result)->not->toHaveKey('doi');
     });
 
+    it('rejects conflicting DOI identifiers during direct conversion', function (array $identifier) {
+        expect(fn () => $this->converter->convert(['@id' => 'https://doi.org/10.5880/Test.2026', 'identifier' => $identifier]))
+            ->toThrow(JsonLdConversionException::class, 'DOI identifier must match @id');
+    })->with([
+        'bare DOI' => [['value' => '10.5880/other', 'attrs' => ['identifierType' => 'DOI']]],
+        'resolver DOI' => [['value' => 'https://dx.doi.org/10.5880/other', 'attrs' => ['identifierType' => 'DOI']]],
+        'implicit DOI type' => [['value' => '10.5880/other']],
+        'wrapped identifiers' => [['identifier' => [
+            ['value' => '10.5880/Test.2026', 'attrs' => ['identifierType' => 'DOI']],
+            ['value' => '10.5880/other', 'attrs' => ['identifierType' => 'DOI']],
+        ]]],
+    ]);
+
+    it('normalizes equivalent DOI identifiers during direct conversion', function (string $identifier, string $type) {
+        $result = $this->converter->convert([
+            '@id' => 'https://doi.org/10.5880/Test.2026',
+            'identifier' => ['value' => $identifier, 'attrs' => ['identifierType' => $type]],
+        ]);
+
+        expect($result['doi'])->toBe('10.5880/Test.2026')
+            ->and($result['identifiers'][0]['identifier'])->toBe('10.5880/Test.2026');
+    })->with(['10.5880/test.2026', 'https://doi.org/10.5880/TEST.2026', '  HTTP://DX.DOI.ORG/10.5880/Test.2026  '])->with(['DOI', 'doi']);
+
     it('handles full DOI URL in @id', function () {
         $jsonLd = [
             '@context' => app(DataCiteJsonLdContextService::class)->url(),

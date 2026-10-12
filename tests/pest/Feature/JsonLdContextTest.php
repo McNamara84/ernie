@@ -135,6 +135,70 @@ test('normalizes supported JSON-LD DOI ids for draft storage', function (string 
     'case and surrounding whitespace' => ['  HTTPS://DOI.ORG/10.5880/Test.2026  '],
 ]);
 
+test('rejects an explicitly invalid context on otherwise valid DataCite JSON before creating a draft', function (mixed $context, bool $envelope) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    $attributes = [
+        'titles' => [['title' => 'Context validation observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ];
+    $document = ['@context' => $context, ...($envelope ? ['data' => ['attributes' => $attributes]] : $attributes)];
+    $before = Resource::count();
+
+    $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('invalid-context.json', json_encode($document))])
+        ->assertStatus(422)->assertJsonPath('error.code', 'json_ld_conversion_error');
+
+    expect(Resource::count())->toBe($before);
+})->with([[null], [''], [false], [123], [[]], ['https://example.org/context.jsonld']])->with([false, true]);
+
+test('rejects conflicting JSON-LD DOI identifiers before creating a draft', function (mixed $identifier) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    $document = (new DataCiteLinkedDataExporter)->exportAttributes([
+        'doi' => '10.5880/Test.2026',
+        'titles' => [['title' => 'DOI consistency observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ]);
+    $document['identifier']['value'] = $identifier;
+    $before = Resource::count();
+
+    expect(fn () => app(DataCiteJsonLdContextService::class)->assertSupportedDocument($document))
+        ->toThrow(JsonLdConversionException::class, 'DOI identifier must match @id');
+    $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('conflicting-doi.jsonld', json_encode($document))])
+        ->assertStatus(422)->assertJsonPath('error.code', 'json_ld_conversion_error');
+
+    expect(Resource::count())->toBe($before);
+})->with([
+    'different bare DOI' => ['10.5880/other'],
+    'different resolver DOI' => ['https://dx.doi.org/10.5880/other'],
+    'unrelated URL' => ['https://example.org/item'],
+    'empty identifier' => [''],
+    'null identifier' => [null],
+    'numeric identifier' => [123],
+]);
+
+test('uploads equivalent JSON-LD DOI identifiers with one normalized DOI', function (string $identifier) {
+    $this->seed(ResourceTypeSeeder::class);
+    $this->actingAs(User::factory()->create());
+    $document = (new DataCiteLinkedDataExporter)->exportAttributes([
+        'doi' => '10.5880/Test.2026',
+        'titles' => [['title' => 'DOI consistency observations']],
+        'creators' => [['name' => 'Example Observatory', 'nameType' => 'Organizational']],
+        'publisher' => ['name' => 'Example Publisher'], 'publicationYear' => '2026',
+        'types' => ['resourceTypeGeneral' => 'Dataset'],
+    ]);
+    $document['identifier']['value'] = $identifier;
+    $response = $this->postJson('/dashboard/upload-json', ['file' => UploadedFile::fake()->createWithContent('matching-doi.jsonld', json_encode($document))]);
+
+    $response->assertOk();
+    expect(Resource::findOrFail($response->json('resourceId'))->doi)->toBe('10.5880/test.2026')
+        ->and(session()->get($response->json('sessionKey'))['doi'])->toBe('10.5880/Test.2026');
+})->with(['10.5880/test.2026', 'https://doi.org/10.5880/TEST.2026', 'http://dx.doi.org/10.5880/test.2026', '  HTTPS://DX.DOI.ORG/10.5880/test.2026  ']);
+
 test('rejects unsupported profiles and incompatible structures before creating a draft', function (array $changes, string $message) {
     $this->actingAs(User::factory()->create());
     $document = ['@context' => app(DataCiteJsonLdContextService::class)->url(), ...$changes];

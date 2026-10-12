@@ -92,6 +92,16 @@ final class DataCiteJsonLdContextService
         return $doi;
     }
 
+    /** Compare DOI identifiers without treating resolver URLs or casing as different DOIs. */
+    public function assertDoiMatches(string $doi, mixed $identifier): void
+    {
+        $validator = app(DoiSuggestionService::class);
+        if (! is_string($identifier) || ! $validator->isValidDoiFormat($identifier)
+            || $validator->normalizeDoi($doi) !== $validator->normalizeDoi($identifier)) {
+            throw new JsonLdConversionException('DataCite JSON-LD DOI identifier must match @id.');
+        }
+    }
+
     /**
      * Validate the supported compact profile before an upload can create a draft.
      * Context URLs identify a contract; they are never fetched during import.
@@ -115,14 +125,18 @@ final class DataCiteJsonLdContextService
         if (isset($document['@type']) && ! in_array($document['@type'], ['Resource', 'https://w3id.org/tib/datacite/class/Resource'], true)) {
             throw new JsonLdConversionException('Unsupported DataCite JSON-LD resource type.');
         }
-        if (array_key_exists('@id', $document)) {
-            $this->doiFromId($document['@id']);
-        }
+        $doi = array_key_exists('@id', $document) ? $this->doiFromId($document['@id']) : null;
 
         foreach ($document as $key => $value) {
             if (! str_starts_with($key, '@')) {
                 $this->assertNode($value, $key);
             }
+        }
+
+        $identifier = $document['identifier'] ?? null;
+        if ($doi !== null && is_array($identifier)
+            && strcasecmp((string) ($identifier['attrs']['identifierType'] ?? 'DOI'), 'DOI') === 0) {
+            $this->assertDoiMatches($doi, $identifier['value'] ?? null);
         }
     }
 

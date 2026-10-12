@@ -361,7 +361,7 @@ class UploadJsonController extends Controller
     private function extractAttributes(array $decoded): array
     {
         // Check for JSON-LD format (@context key present)
-        if (isset($decoded['@context'])) {
+        if (array_key_exists('@context', $decoded)) {
             Log::info('Detected DataCite JSON-LD format, converting to JSON');
 
             try {

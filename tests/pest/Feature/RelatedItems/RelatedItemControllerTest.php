@@ -68,6 +68,39 @@ function validStorePayload(int $relationTypeId): array
 }
 
 describe('RelatedItemController', function () {
+    test('round-trips relation information through create, list, update and clear', function (string $information, ?string $clear) {
+        [, $relationType] = seedRelatedItemPrereqs();
+        $this->actingAs(User::factory()->create());
+        $resource = Resource::factory()->create();
+        $endpoint = "/resources/{$resource->id}/related-items";
+        $payload = validStorePayload($relationType->id);
+        $payload['relation_type_information'] = $information;
+
+        $created = $this->postJson($endpoint, $payload)->assertCreated()
+            ->assertJsonPath('data.relation_type_information', $information);
+        $id = $created->json('data.id');
+        $this->getJson($endpoint)->assertOk()->assertJsonPath('data.0.relation_type_information', $information);
+
+        unset($payload['relation_type_information']);
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk()
+            ->assertJsonPath('data.relation_type_information', $information);
+        expect(RelatedItem::findOrFail($id)->relation_type_information)->toBe($information);
+
+        $payload['relation_type_information'] = 'Updated relation information';
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk()
+            ->assertJsonPath('data.relation_type_information', 'Updated relation information');
+        $this->getJson($endpoint)->assertOk()->assertJsonPath('data.0.relation_type_information', 'Updated relation information');
+        expect(RelatedItem::findOrFail($id)->relation_type_information)->toBe('Updated relation information');
+
+        $payload['relation_type_information'] = $clear;
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk()
+            ->assertJsonStructure(['data' => ['relation_type_information']])
+            ->assertJsonPath('data.relation_type_information', null);
+        $this->getJson($endpoint)->assertOk()->assertJsonStructure(['data' => [['relation_type_information']]])
+            ->assertJsonPath('data.0.relation_type_information', null);
+        expect(RelatedItem::findOrFail($id)->relation_type_information)->toBeNull();
+    })->with(['Conference presentation', '0'])->with([null, '']);
+
     test('logs related-item changes without logging semantic replacement saves', function () {
         [, $relationType] = seedRelatedItemPrereqs();
         $user = User::factory()->admin()->create();

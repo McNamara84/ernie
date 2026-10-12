@@ -135,6 +135,10 @@ and attribute placement. Foreign Schema.org documents, inline/array contexts,
 a draft. Converted attributes pass the existing DataCite validator. Drafts may omit
 a DOI; registration validation remains stricter.
 
+Any root `@context` key selects JSON-LD validation, including an explicit null.
+Null and unsupported contexts cannot fall back to flat DataCite JSON or the JSON
+API envelope; ordinary DataCite JSON imports omit `@context`.
+
 When present, the root `@id` must contain a valid DOI: either a bare DOI or an
 HTTP(S) resolver URL at `doi.org` or `dx.doi.org`. Both profile recognition and
 direct conversion reject unrelated URLs, invalid DOI syntax and empty/non-string
@@ -142,11 +146,20 @@ IDs before draft storage. Resolver prefixes and surrounding whitespace are remov
 the converter preserves DOI casing and the existing storage normalization
 lowercases it. A draft without a DOI omits `@id` entirely.
 
+When both `@id` and a DOI `identifier` are supplied, they must identify the same
+DOI after resolver and case normalization. Profile recognition and direct
+conversion reject conflicting or invalid DOI identifier values before draft
+storage. Equivalent identifiers use the bare `@id` DOI in converted attributes
+so import normalization removes the redundant primary identifier.
+
 Related-item `relationTypeInformation` now persists in
 `related_items.relation_type_information` through JSON/JSON-LD/XML upload, DOI
 metadata transformation and JSON/XML/JSON-LD export. Individual related-item updates
 that omit the field preserve its imported value; an explicit null clears it. The
-migration is additive and does not rewrite existing records. This work does not claim that the
+Related Item Manager API includes this nullable field in list and write responses.
+Its optional form field displays imported values and supports editing or clearing
+them, including a literal `"0"`. The migration is additive and does not rewrite
+existing records. This work does not claim that the
 editor/database can represent arbitrary DataCite extensions or every external
 metadata arrangement; the field matrix defines the JSON-LD transport contract.
 

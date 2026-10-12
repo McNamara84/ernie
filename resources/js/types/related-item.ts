@@ -44,6 +44,7 @@ export interface RelatedItem {
     related_item_type: string;
     relation_type_id: number;
     relation_type_slug?: string;
+    relation_type_information?: string | null;
     publication_year?: number | null;
     volume?: string | null;
     issue?: string | null;
