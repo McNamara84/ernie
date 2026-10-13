@@ -2172,7 +2172,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             When you click <strong>Add Date</strong>, the new row selects the most frequently used type available in the dropdown. You
-                            can choose a different type at any time. Existing and imported date type selections are preserved when the order changes.
+                            can choose a different type before saving. Existing and imported date type selections are preserved when the order
+                            changes.
+                        </p>
+                        <p>
+                            <strong>Submitted</strong> records the original submission date, including dates provided by ELMO or DataCite XML imports.
+                            If it is missing, you can add it once. After saving, its date, time, timezone, and type are fixed, and the entry cannot be
+                            removed. Submitted is then unavailable for additional rows. Other editable date types can still be changed after saving.
                         </p>
                         <p>
                             In the <strong>Dates</strong> section, type a year (<code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full

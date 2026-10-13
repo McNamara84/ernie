@@ -60,6 +60,34 @@ describe('DateField', () => {
         expect(screen.getByRole('button', { name: 'Choose date' })).toBeInTheDocument();
     });
 
+    it('locks a saved Submitted entry while keeping the first-row Add action available', async () => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} dateType="submitted" startDate="2020-01-15" startTime="09:30" startTimezone="+01:00" readOnly />);
+
+        expect(screen.getByRole('textbox', { name: 'Date' })).toBeDisabled();
+        expect(screen.getByRole('combobox', { name: 'Date Type' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Clear date' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Choose date' })).toBeDisabled();
+        expect(screen.getByLabelText('Time (optional)')).toBeDisabled();
+        expect(screen.getByLabelText('Timezone (optional)')).toBeDisabled();
+        expect(screen.getByText(/cannot be changed after saving/)).toBeInTheDocument();
+
+        await user.type(screen.getByRole('textbox', { name: 'Date' }), '2024-01-15');
+        expect(mockOnStartDateChange).not.toHaveBeenCalled();
+        await user.click(screen.getByRole('button', { name: 'Add date' }));
+        expect(mockOnAdd).toHaveBeenCalledOnce();
+    });
+
+    it('prevents removing a saved Submitted entry after the first row', async () => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} dateType="submitted" startDate="2020" isFirst={false} readOnly />);
+
+        const remove = screen.getByRole('button', { name: 'Remove date' });
+        expect(remove).toBeDisabled();
+        await user.click(remove);
+        expect(mockOnRemove).not.toHaveBeenCalled();
+    });
+
     it('shows Date label for single-date mode', () => {
         render(<DateField {...defaultProps} dateType="collected" dateMode="single" />);
 

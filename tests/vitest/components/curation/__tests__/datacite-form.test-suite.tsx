@@ -5789,6 +5789,150 @@ describe('DataCiteForm', () => {
         const getEditorDateInputs = () =>
             Array.from(document.querySelectorAll<HTMLInputElement>('input[id$="-date"], input[id$="-startDate"], input[id$="-endDate"]'));
 
+        it.each([true, false])('locks stored Submitted dates even when the type is inactive (active: %s)', async (isActive) => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialDates: [{ dateType: 'SUBMITTED', startDate: '2020-01-15T09:30:00+01:00', endDate: '' }],
+                dateTypes: [
+                    ...(isActive ? [{ id: 1, name: 'Submitted', slug: 'Submitted', description: '' }] : []),
+                    { id: 2, name: 'Collected', slug: 'Collected', description: '' },
+                    { id: 3, name: 'Created', slug: 'Created', description: '' },
+                ],
+            });
+            await ensureDatesOpen(user);
+
+            expect(screen.getByRole('textbox', { name: 'Date' })).toBeDisabled();
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toBeDisabled();
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Submitted');
+            expect(screen.getByLabelText('Time (optional)')).toHaveValue('09:30:00');
+
+            await user.click(screen.getByRole('button', { name: /^add date$/i }));
+            const selects = screen.getAllByRole('combobox', { name: 'Date Type' });
+            expect(selects[1]).toHaveTextContent('Collected');
+            expect(screen.getAllByRole('textbox', { name: 'Date' })[1]).toBeEnabled();
+            await user.click(selects[1]);
+            expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Collected', 'Created']);
+        });
+
+        it('does not add a duplicate when Submitted is the only enabled date type', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialDates: [{ dateType: 'Submitted', startDate: '2020', endDate: '' }],
+                dateTypes: [{ id: 1, name: 'Submitted', slug: 'Submitted', description: '' }],
+            });
+            await ensureDatesOpen(user);
+            const add = screen.getByRole('button', { name: /^add date$/i });
+            expect(add).toBeDisabled();
+            await user.click(add);
+            expect(screen.getAllByRole('textbox', { name: 'Date' })).toHaveLength(1);
+        });
+
+        it('allows a missing Submitted date to be added and locks it after its first draft save', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Resource without submission date', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Created', startDate: '2020', endDate: '' }],
+                dateTypes: [
+                    { id: 1, name: 'Submitted', slug: 'Submitted', description: '' },
+                    { id: 2, name: 'Created', slug: 'Created', description: '' },
+                ],
+            });
+            await ensureDatesOpen(user);
+            await user.click(screen.getByRole('button', { name: /^add date$/i }));
+            const submittedInput = screen.getAllByRole('textbox', { name: 'Date' })[1];
+            const submittedType = screen.getAllByRole('combobox', { name: 'Date Type' })[1];
+            expect(submittedType).toHaveTextContent('Submitted');
+            expect(submittedType).toBeEnabled();
+            await user.type(submittedInput, '2020-02-15');
+            await user.tab();
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(submittedInput).toBeDisabled());
+            expect(submittedType).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Remove date' })).toBeDisabled();
+            expect(mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1].dates).toContainEqual(
+                expect.objectContaining({ dateType: 'submitted', startDate: '2020-02-15' }),
+            );
+        });
+
+        it('keeps an imported Submitted value editable after a failed save and locks it after a successful retry', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValueOnce(new Error('Save failed'));
+            renderDataCiteForm({
+                initialTitles: [{ title: 'XML-imported resource', titleType: 'main-title' }],
+                hasUnpersistedPrefill: true,
+                initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            const dateInput = screen.getByRole('textbox', { name: 'Date' });
+            expect(dateInput).toBeEnabled();
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(screen.getByTestId('save-draft-button')).toBeEnabled());
+            expect(mockedAxios.post).toHaveBeenCalledOnce();
+            expect(dateInput).toBeEnabled();
+
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(dateInput).toBeDisabled());
+            expect(dateInput).toHaveValue('2020-01-15');
+        });
+
+        it('restores and locks the saved Submitted value if it was edited while a save was in flight', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const response = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValue(response.promise);
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Submission snapshot', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            const dateInput = screen.getByRole('textbox', { name: 'Date' });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledOnce());
+            await user.clear(dateInput);
+            await user.type(dateInput, '2021-01-15');
+            expect(dateInput).toHaveValue('2021-01-15');
+            await act(async () => response.resolve({ data: { resource: { id: 42 } }, status: 201 }));
+
+            await waitFor(() => expect(dateInput).toBeDisabled());
+            expect(dateInput).toHaveValue('2020-01-15');
+        });
+
+        it('locks the first Submitted value after autosave succeeds', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({
+                initialTitles: [{ title: 'Autosaved submission', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
+                hasUnpersistedPrefill: true,
+            });
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                // Open the accordion after returning to real timers so userEvent can complete.
+                vi.useRealTimers();
+                await ensureDatesOpen(userEvent.setup({ pointerEventsCheck: 0 }));
+                expect(screen.getByRole('textbox', { name: 'Date' })).toBeDisabled();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
         it('renders the Dates accordion section', async () => {
             render(
                 <DataCiteForm

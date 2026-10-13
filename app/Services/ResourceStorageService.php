@@ -1195,15 +1195,18 @@ class ResourceStorageService
         /** @var array<string, int> $dateTypeLookup */
         $dateTypeLookup = DateType::query()
             ->get(['id', 'slug'])
-            ->mapWithKeys(fn (DateType $type): array => [Str::kebab($type->slug) => $type->id])
+            ->mapWithKeys(fn (DateType $type): array => [Str::kebab(mb_strtolower($type->slug)) => $type->id])
             ->all();
 
         $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
+        $submittedDateTypeId = $dateTypeLookup['submitted'] ?? null;
+        $hasPersistedSubmittedDate = $submittedDateTypeId !== null
+            && $resource->dates()->where('date_type_id', $submittedDateTypeId)->exists();
         $hasSubmittedDates = array_key_exists('dates', $data);
         $dates = $hasSubmittedDates && is_array($data['dates']) ? $data['dates'] : [];
 
         if ($isUpdate && $hasSubmittedDates) {
-            $preservedDateTypeKeys = ['accepted', 'issued', 'coverage'];
+            $preservedDateTypeKeys = ['submitted', 'accepted', 'issued', 'coverage'];
             $preservedDateTypeIds = array_values(array_filter(
                 array_map(fn (string $dateType): ?int => $dateTypeLookup[$dateType] ?? null, $preservedDateTypeKeys),
                 fn (?int $dateTypeId): bool => $dateTypeId !== null,
@@ -1223,9 +1226,14 @@ class ResourceStorageService
                 continue;
             }
 
-            $dateTypeKey = Str::kebab((string) ($date['dateType'] ?? ''));
+            $dateTypeKey = Str::kebab(mb_strtolower((string) ($date['dateType'] ?? '')));
 
             if (in_array($dateTypeKey, ['accepted', 'issued', 'updated', 'coverage'], true)) {
+                continue;
+            }
+
+            // Submitted records the original submission and may only be added once.
+            if ($dateTypeKey === 'submitted' && $hasPersistedSubmittedDate) {
                 continue;
             }
 
@@ -1309,6 +1317,10 @@ class ResourceStorageService
                 'end_date' => $hasRange ? $endDate : null,
                 'date_information' => $this->normalizeNullableString($date['dateInformation'] ?? null),
             ]);
+
+            if ($dateTypeKey === 'submitted') {
+                $hasPersistedSubmittedDate = true;
+            }
         }
 
         if ($isUpdate && $updatedDateTypeId !== null) {

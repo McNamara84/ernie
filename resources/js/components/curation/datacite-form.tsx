@@ -533,6 +533,11 @@ export default function DataCiteForm({
         // Start with an empty Dates section when no editable imported dates exist.
         return [];
     });
+    const [persistedSubmittedDateIds, setPersistedSubmittedDateIds] = useState(
+        () => new Set(initialResourceId ? dates.filter((date) => date.dateType === 'submitted').map((date) => date.id) : []),
+    );
+    const hasSubmittedDate = dates.some((date) => date.dateType === 'submitted');
+    const selectableDateTypeOptions = dateTypeOptions.filter((option) => option.value !== 'submitted' || !hasSubmittedDate);
 
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
         const combined = [...(initialGcmdKeywords ?? []), ...(initialGemetKeywords ?? [])];
@@ -2144,7 +2149,10 @@ export default function DataCiteForm({
     const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string, committed = false) => {
         setDates((prev) => {
             const current = prev[index];
-            if (!current) return prev;
+            if (!current || persistedSubmittedDateIds.has(current.id)) return prev;
+            if (field === 'dateType' && value === 'submitted' && prev.some((date, i) => i !== index && date.dateType === 'submitted')) {
+                return prev;
+            }
 
             const next = [...prev];
             let updated: DateEntry = { ...current };
@@ -2188,7 +2196,8 @@ export default function DataCiteForm({
     };
 
     const addDate = () => {
-        const availableType = dateTypeOptions[0]?.value ?? 'other';
+        const availableType = selectableDateTypeOptions[0]?.value;
+        if (!availableType) return;
         setDates((prev) => [
             ...prev,
             {
@@ -2207,7 +2216,7 @@ export default function DataCiteForm({
     };
 
     const removeDate = (index: number) => {
-        setDates((prev) => prev.filter((_, i) => i !== index));
+        setDates((prev) => prev.filter((date, i) => i !== index || persistedSubmittedDateIds.has(date.id)));
     };
 
     useEffect(() => {
@@ -2680,17 +2689,37 @@ export default function DataCiteForm({
         isSubmittingDataCite;
     const { allowNextInternalVisit } = useEditorLeaveGuard(hasUnsavedChanges);
 
-    const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
-        const savedPayload = resourceId ? { ...payload, resourceId } : payload;
-        if (resourceId) delete savedPayload.relatedItems;
+    const recordSavedPayload = useCallback(
+        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+            const savedPayload = resourceId ? { ...payload, resourceId } : payload;
+            if (resourceId) delete savedPayload.relatedItems;
 
-        try {
-            lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
-        } catch (error) {
-            console.error('Failed to serialize draft autosave signature', error);
-            lastDraftAutosaveSignatureRef.current = null;
-        }
-    }, []);
+            try {
+                lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
+            } catch (error) {
+                console.error('Failed to serialize draft autosave signature', error);
+                lastDraftAutosaveSignatureRef.current = null;
+            }
+
+            const savedSubmittedDate = dates.find((date) => date.dateType === 'submitted' && date.startDate?.trim());
+            if (
+                savedSubmittedDate &&
+                payload.dates.some((date) => date.dateType === 'submitted') &&
+                !persistedSubmittedDateIds.has(savedSubmittedDate.id)
+            ) {
+                setPersistedSubmittedDateIds((current) => new Set([...current, savedSubmittedDate.id]));
+                setActiveDateInputId((current) => (current === `${savedSubmittedDate.id}-date` ? null : current));
+                // Keep the saved value even if this row changed while the request was in flight.
+                setDates((current) => {
+                    const remaining = current.filter((date) => date.id === savedSubmittedDate.id || date.dateType !== 'submitted');
+                    return remaining.some((date) => date.id === savedSubmittedDate.id)
+                        ? remaining.map((date) => (date.id === savedSubmittedDate.id ? savedSubmittedDate : date))
+                        : [...remaining, savedSubmittedDate];
+                });
+            }
+        },
+        [dates, persistedSubmittedDateIds],
+    );
 
     const replaceSavedDraftUrl = useCallback(
         (resourceId: number) => {
@@ -2716,12 +2745,12 @@ export default function DataCiteForm({
 
     const markDraftAutosaveSaved = useCallback(
         (payload: ReturnType<typeof buildPayload>, snapshot: string, resourceId?: number) => {
-            updateDraftAutosaveSignature(payload, resourceId);
+            recordSavedPayload(payload, resourceId);
             markEditorSaved(snapshot);
             setLastDraftAutosaveAt(new Date());
             setDraftAutosaveStatus('saved');
         },
-        [markEditorSaved, updateDraftAutosaveSignature],
+        [markEditorSaved, recordSavedPayload],
     );
 
     useEffect(() => {
@@ -3015,7 +3044,7 @@ export default function DataCiteForm({
             }
 
             setHasAttemptedSubmit(false);
-            updateDraftAutosaveSignature(payload, data?.resource?.id);
+            recordSavedPayload(payload, data?.resource?.id);
             markEditorSaved(submittedSnapshot);
 
             return data;
@@ -3271,7 +3300,7 @@ export default function DataCiteForm({
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            updateDraftAutosaveSignature(payload, savedResourceId);
+            recordSavedPayload(payload, savedResourceId);
             markEditorSaved(submittedSnapshot);
 
             setHasAttemptedSubmit(false);
@@ -3361,7 +3390,7 @@ export default function DataCiteForm({
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            updateDraftAutosaveSignature(payload, savedResourceId);
+            recordSavedPayload(payload, savedResourceId);
             markEditorSaved(submittedSnapshot);
             setHasAttemptedSubmit(false);
 
@@ -3408,7 +3437,7 @@ export default function DataCiteForm({
         replaceSavedDraftUrl,
         resolvedResourceId,
         revealValidationErrors,
-        updateDraftAutosaveSignature,
+        recordSavedPayload,
     ]);
 
     const handleShowLandingPagePreview = useCallback(async () => {
@@ -4198,6 +4227,12 @@ export default function DataCiteForm({
                                     const selectedDateType = dateTypeOptions.find(
                                         (dt) => normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType),
                                     );
+                                    const entryDateTypeOptions = dateTypeOptions.filter(
+                                        (option) => option.value !== 'submitted' || entry.dateType === 'submitted' || !hasSubmittedDate,
+                                    );
+                                    if (entry.dateType === 'submitted' && !entryDateTypeOptions.some((option) => option.value === 'submitted')) {
+                                        entryDateTypeOptions.push({ value: 'submitted', label: 'Submitted', description: '' });
+                                    }
                                     return (
                                         <DateField
                                             key={entry.id}
@@ -4211,7 +4246,8 @@ export default function DataCiteForm({
                                             startTimezone={entry.startTimezone}
                                             endTimezone={entry.endTimezone}
                                             dateTypeDescription={selectedDateType?.description}
-                                            options={dateTypeOptions}
+                                            options={entryDateTypeOptions}
+                                            readOnly={persistedSubmittedDateIds.has(entry.id)}
                                             onStartDateChange={(val, committed) => handleDateChange(index, 'startDate', val, committed)}
                                             onEditingChange={handleDateInputEditingChange}
                                             locale={editorDateLocale}
@@ -4225,7 +4261,7 @@ export default function DataCiteForm({
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}
                                             isFirst={index === 0}
-                                            canAdd={canAddDate(dates)}
+                                            canAdd={canAddDate(dates) && selectableDateTypeOptions.length > 0}
                                         />
                                     );
                                 })

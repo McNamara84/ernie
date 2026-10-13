@@ -123,7 +123,10 @@ it('refreshes deleted dates and resources, changed date types and resource recla
     expect($service->getUsageCounts())->toBe([$collected->id => 1]);
 });
 
-it('survives resource cache invalidation and supports targeted resets', function () {
+it('survives tagged resource cache invalidation and supports targeted resets', function () {
+    config(['cache.default' => 'array']);
+    expect(Cache::store()->supportsTags())->toBeTrue();
+
     $created = DateType::factory()->create();
     $dataset = Resource::factory()->create();
     $dataset->dates()->create(['date_type_id' => $created->id, 'date_value' => '2020']);
@@ -159,6 +162,8 @@ it('supports the database cache fallback without tags including expiry and targe
     // The pre-existing non-tagged resource invalidation flushes the whole store.
     app(ResourceCacheService::class)->invalidateAllResourceCaches();
     expect(Cache::has(CacheKey::EDITOR_DATE_TYPE_USAGE->key()))->toBeFalse();
+    DB::table('dates')->insert(['resource_id' => $dataset->id, 'date_type_id' => $created->id, 'date_value' => '2022']);
+    expect($service->getUsageCounts())->toBe([$created->id => 3]);
 });
 
 it('refreshes on manual vocabulary and complete cache resets', function (string $category) {

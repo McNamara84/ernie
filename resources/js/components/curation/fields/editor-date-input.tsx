@@ -25,6 +25,7 @@ interface EditorDateInputProps {
     calendarLabel: string;
     clearLabel: string;
     allowFuture?: boolean;
+    readOnly?: boolean;
 }
 
 /** Text and calendar controls for one ISO or reduced-precision editor date. */
@@ -38,6 +39,7 @@ export function EditorDateInput({
     calendarLabel,
     clearLabel,
     allowFuture = false,
+    readOnly = false,
 }: EditorDateInputProps) {
     const [focused, setFocused] = useState(false);
     const [draft, setDraft] = useState('');
@@ -54,6 +56,7 @@ export function EditorDateInput({
         setFocused(false);
         setTouched(true);
         onEditingChange?.(id, false);
+        if (readOnly) return;
         if (!draft.trim()) {
             onChange('', true);
             return;
@@ -76,7 +79,8 @@ export function EditorDateInput({
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"
-                    value={focused ? draft : formatEditorDate(value, locale)}
+                    value={focused && !readOnly ? draft : formatEditorDate(value, locale)}
+                    readOnly={readOnly}
                     placeholder={locale === 'de' ? 'DD.MM.YYYY or YYYY-MM-DD' : 'YYYY-MM-DD'}
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? errorId : undefined}
@@ -110,7 +114,7 @@ export function EditorDateInput({
                         <X className="size-4" />
                     </Button>
                 )}
-                <Popover open={open} onOpenChange={handleOpenChange}>
+                <Popover open={open && !readOnly} onOpenChange={handleOpenChange}>
                     <PopoverTrigger asChild>
                         <Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={calendarLabel}>
                             <CalendarDays className="size-4" />
