@@ -389,7 +389,7 @@ describe('Registration eligibility and disclosure', () => {
         vi.mocked(axios.delete).mockResolvedValue({ data: { tombstone: initial } });
         fireEvent.click(screen.getByRole('button', { name: 'Restore landing page' }));
         await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(2));
-        expect(screen.getByRole('button', { name: 'Tombstone page' })).toHaveAttribute('aria-expanded', 'false');
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Tombstone page' })).toHaveAttribute('aria-expanded', 'false'));
     });
 });
 
