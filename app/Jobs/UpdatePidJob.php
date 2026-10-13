@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\PidSetting;
+use App\Services\ElmoCacheRefreshDispatcherService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -109,6 +110,8 @@ class UpdatePidJob implements ShouldQueue
             $exitCode = Artisan::call($command);
 
             if ($exitCode === 0) {
+                app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting->refresh());
+
                 Log::info('PID update completed successfully', [
                     'job_id' => $this->jobId,
                     'pid_type' => $this->pidType,

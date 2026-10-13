@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\ThesaurusSetting;
+use App\Services\ElmoCacheRefreshDispatcherService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -109,6 +110,11 @@ class UpdateThesaurusJob implements ShouldQueue
             $exitCode = Artisan::call($command);
 
             if ($exitCode === 0) {
+                $setting = ThesaurusSetting::where('type', $this->thesaurusType)->first();
+                if ($setting !== null) {
+                    app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting);
+                }
+
                 Log::info('Thesaurus update completed successfully', [
                     'job_id' => $this->jobId,
                     'thesaurus_type' => $this->thesaurusType,
