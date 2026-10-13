@@ -2321,6 +2321,76 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             ->and($createdDates->first()->date_value)->toBe('2022-04-02');
     });
 
+    it('allows Submitted to be added once to new resources and existing resources without it', function (bool $isExisting) {
+        $submittedType = DateType::query()->whereRaw('LOWER(slug) = ?', ['submitted'])->firstOrFail();
+        $resource = $isExisting ? Resource::factory()->create() : null;
+        $data = [
+            'resourceId' => $resource?->id,
+            'year' => 2024,
+            'resourceType' => ResourceType::first()->id,
+            'titles' => [['title' => 'Submission Date Resource', 'titleType' => 'MainTitle']],
+            'authors' => [['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0]],
+            'dates' => [
+                ['dateType' => 'submitted', 'startDate' => ''],
+                ['dateType' => 'Submitted', 'startDate' => '2024-01-15T10:30:00+01:00', 'dateInformation' => 'Original submission'],
+                ['dateType' => 'SUBMITTED', 'startDate' => '2024-02-15'],
+            ],
+        ];
+
+        [$stored] = $this->service->store($data, $this->user->id);
+        $submitted = $stored->dates()->where('date_type_id', $submittedType->id)->get();
+
+        expect($submitted)->toHaveCount(1)
+            ->and($submitted->first()->date_value)->toBe('2024-01-15T10:30:00+01:00')
+            ->and($submitted->first()->date_information)->toBe('Original submission');
+        $savedId = $submitted->first()->id;
+
+        $data['resourceId'] = $stored->id;
+        $data['dates'] = [['dateType' => 'Submitted', 'startDate' => '2024-03-15']];
+        [$updated] = $this->service->store($data, $this->user->id);
+
+        expect($updated->dates()->where('date_type_id', $submittedType->id)->sole()->id)->toBe($savedId)
+            ->and($updated->dates()->where('date_type_id', $submittedType->id)->sole()->date_value)->toBe('2024-01-15T10:30:00+01:00');
+    })->with([false, true]);
+
+    it('preserves stored Submitted values when editor dates are omitted, removed, changed or duplicated', function (?array $dates) {
+        $submittedType = DateType::query()->whereRaw('LOWER(slug) = ?', ['submitted'])->firstOrFail();
+        $submittedType->update(['is_active' => false]);
+        $resource = Resource::factory()->create(['legacy_source' => 'old_datasets']);
+        $submitted = $resource->dates()->create([
+            'date_type_id' => $submittedType->id,
+            'date_value' => '2020-01-15T09:30:00+02:00',
+            'date_information' => 'Imported submission',
+        ]);
+        $data = [
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => ResourceType::first()->id,
+            'titles' => [['title' => 'Preserved Submission Date', 'titleType' => 'MainTitle']],
+            'authors' => [['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0]],
+        ];
+        if ($dates !== null) {
+            $data['dates'] = $dates;
+        }
+
+        [$updated] = $this->service->store($data, $this->user->id);
+        $preserved = $updated->dates()->where('date_type_id', $submittedType->id)->sole();
+
+        expect($preserved->id)->toBe($submitted->id)
+            ->and($preserved->date_value)->toBe('2020-01-15T09:30:00+02:00')
+            ->and($preserved->start_date)->toBeNull()
+            ->and($preserved->end_date)->toBeNull()
+            ->and($preserved->date_information)->toBe('Imported submission');
+    })->with([
+        'omitted' => [null],
+        'removed' => [[]],
+        'changed' => [[['dateType' => 'submitted', 'startDate' => '2024-05-15', 'dateInformation' => 'Replacement']]],
+        'duplicated' => [[
+            ['dateType' => 'Submitted', 'startDate' => '2020-01-15T09:30:00+02:00'],
+            ['dateType' => 'SUBMITTED', 'startDate' => '2024-05-15'],
+        ]],
+    ]);
+
     it('ignores system-managed date types submitted directly with editor dates', function () {
         $resourceType = ResourceType::first();
 

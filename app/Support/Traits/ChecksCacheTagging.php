@@ -18,8 +18,8 @@ trait ChecksCacheTagging
     /**
      * Check if the current cache store supports tagging.
      *
-     * Cache tagging is supported by Redis and Memcached drivers,
-     * but not by file, database, or array drivers.
+     * Cache tagging is supported by Redis, Memcached, and array drivers,
+     * but not by file or database drivers.
      *
      * @return bool True if tagging is supported, false otherwise
      */

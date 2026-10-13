@@ -1350,6 +1350,39 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
         expect($createdDate->date_value)->toBe('2020-01-01');
     });
 
+    it('imports only the first valid Submitted date per resource while retaining repeated Created dates', function (string $submittedValue): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        // Reusing the transformer must not carry the Submitted limit across resources.
+        foreach (range(1, 2) as $index) {
+            $resource = $transformer->transform([
+                'attributes' => [
+                    'doi' => '10.5880/submitted.unique.'.$index,
+                    'publicationYear' => 2024,
+                    'titles' => [['title' => 'Unique submission date '.$index]],
+                    'creators' => [['familyName' => 'Doe', 'givenName' => 'Jane', 'nameType' => 'Personal']],
+                    'dates' => [
+                        ['date' => null, 'dateType' => 'Submitted'],
+                        ['date' => '', 'dateType' => 'Submitted'],
+                        ['date' => '2020-02-30', 'dateType' => 'Submitted'],
+                        ['date' => $submittedValue, 'dateType' => 'Submitted', 'dateInformation' => 'Original submission'],
+                        ['date' => $submittedValue, 'dateType' => 'Submitted'],
+                        ['date' => '2024-06-01', 'dateType' => 'Submitted', 'dateInformation' => 'Later submission'],
+                        ['date' => '2019', 'dateType' => 'Created'],
+                        ['date' => '2019', 'dateType' => 'Created'],
+                    ],
+                ],
+            ], $user->id);
+
+            $submitted = $resource->dates()->whereHas('dateType', fn ($q) => $q->where('slug', 'Submitted'))->get();
+            expect($submitted)->toHaveCount(1)
+                ->and($submitted->first()->date_value)->toBe($submittedValue)
+                ->and($submitted->first()->date_information)->toBe('Original submission')
+                ->and($resource->dates()->whereHas('dateType', fn ($q) => $q->where('slug', 'Created'))->count())->toBe(2);
+        }
+    })->with(['2020', '2020-01', '2020-01-15T09:30:00+01:00']);
+
     it('preserves partial single-date precision for every DataCite date type imported from the DataCite API', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
