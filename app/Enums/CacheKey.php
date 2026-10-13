@@ -47,6 +47,9 @@ enum CacheKey: string
     // Editor settings cache key
     case DOCS_EDITOR_SETTINGS = 'docs:editor_settings';
 
+    // Repository-wide editor option usage, independent of resource invalidation
+    case EDITOR_DATE_TYPE_USAGE = 'editor:date_type_usage:v1';
+
     // Portal cache keys
     case PORTAL_FREE_KEYWORD_SUGGESTIONS = 'portal:free_keyword_suggestions';
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
@@ -170,6 +173,9 @@ enum CacheKey: string
             // Editor settings for docs - 1 hour (settings rarely change)
             self::DOCS_EDITOR_SETTINGS => 3600,
 
+            // Global date type ordering changes slowly - 7 days
+            self::EDITOR_DATE_TYPE_USAGE => 604800,
+
             // Portal keyword facets - 1 hour
             self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS,
@@ -279,6 +285,8 @@ enum CacheKey: string
             self::ORCID_PERSON => ['orcid'],
 
             self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
+
+            self::EDITOR_DATE_TYPE_USAGE => ['vocabularies', 'editor_date_type_usage'],
 
             self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],

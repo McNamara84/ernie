@@ -6,6 +6,13 @@ use App\Enums\CacheKey;
 
 covers(CacheKey::class);
 
+it('retains editor date type usage for seven days independently of resource caches', function () {
+    expect(CacheKey::EDITOR_DATE_TYPE_USAGE->key())->toBe('editor:date_type_usage:v1')
+        ->and(CacheKey::EDITOR_DATE_TYPE_USAGE->ttl())->toBe(604800)
+        ->and(CacheKey::EDITOR_DATE_TYPE_USAGE->tags())->toBe(['vocabularies', 'editor_date_type_usage'])
+        ->and(CacheKey::vocabularyKeys())->not->toContain(CacheKey::EDITOR_DATE_TYPE_USAGE);
+});
+
 it('preserves import activity namespaces and centralizes their retention', function (CacheKey $key, string $suffix, string $expected) {
     expect($key->key($suffix))->toBe($expected)
         ->and($key->ttl())->toBe(172800)
