@@ -135,9 +135,11 @@ PHP suite. The wrapper always applies a 2 GB PHP memory limit, including to
 ParaTest workers, and reports the duration of every phase plus the total.
 
 The lockfile uses Pest 5.3.2 with PHPUnit 13.4.2 and ParaTest 7.26.1. Pest
-requires PHPUnit 13.4.2 or newer within the 13.x series and ParaTest 7.26.1
-or newer within the 7.x series. Update compatible test runner packages together
-through `npm run composer:app`. Laravel 13.35.0 is required for this combination:
+5.3.2 requires `^13.4.2` but also conflicts with PHPUnit versions `>13.4.2`,
+effectively pinning PHPUnit to exactly 13.4.2. ParaTest must be 7.26.1 or newer
+within the 7.x series. Update compatible test runner packages together through
+`npm run composer:app` rather than forcing an independent PHPUnit update.
+Laravel 13.35.0 is required for this combination:
 it fixes the PHPUnit 13.4 event-emitter API used by Laravel's parallel runner.
 The type-coverage plugin also needs version 5.0.3 for that PHPUnit API.
 
