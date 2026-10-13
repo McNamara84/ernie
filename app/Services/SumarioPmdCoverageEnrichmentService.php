@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\GeoLocation;
 use App\Models\Resource;
+use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\Legacy\LegacyCoverageGeometryParserService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +47,7 @@ class SumarioPmdCoverageEnrichmentService
                     foreach ($coverages as $coverage) {
                         $matchingBox = $this->findMatchingBox($dataCiteBoxes, $doi, $coverage);
 
-                        $resource->geoLocations()->create([
+                        app(GeoLocationWriterService::class)->write($resource, [
                             'geo_type' => 'line',
                             'place' => $coverage['description'],
                             'polygon_points' => $coverage['points'],

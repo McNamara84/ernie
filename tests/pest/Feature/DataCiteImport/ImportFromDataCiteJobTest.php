@@ -28,6 +28,7 @@ use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use App\Services\SumarioPmdCoverageEnrichmentService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Database\Seeders\ContributorTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
 use Database\Seeders\FunderIdentifierTypeSeeder;
@@ -232,6 +233,39 @@ describe('ImportFromDataCiteJob', function () {
             && $context['activity']['actor']['name'] === $originalName
             && $context['activity']['operation_id'] === $importId)->twice();
         Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
+    });
+
+    it('retains location merge warnings through bulk progress replacements without sharing reports', function () {
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () {
+            foreach (['10.5880/geo-merge.first', '10.5880/geo-merge.second'] as $doi) {
+                yield ['id' => $doi, 'attributes' => ['doi' => $doi, 'types' => ['resourceTypeGeneral' => 'Dataset']]];
+            }
+        })());
+        $this->transformer->shouldReceive('transform')->twice()->andReturnUsing(function (
+            array $record,
+            int $userId,
+            GeoLocationWriteReport $report,
+        ): Resource {
+            expect($userId)->toBe($this->user->id)->and($report->removedCount)->toBe(0);
+            if ($record['id'] === '10.5880/geo-merge.first') {
+                $report->removedCount = 2;
+            }
+
+            return Resource::factory()->make(['doi' => $record['id']]);
+        });
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        $warnings = ['10.5880/geo-merge.first: 2 identical GeoLocation entries were merged.'];
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(2)
+            ->and($status['failed'])->toBe(0)
+            ->and($status['warnings'])->toBe($warnings)
+            ->and($status['geo_location_merge_warnings'])->toBe($warnings);
     });
 
     it('adds SUMARIO pending import results to the bulk progress summary', function () {
@@ -452,7 +486,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($mergedDoiRecord, $this->user->id)
+            ->with($mergedDoiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => '10.5880/legacy-relations']));
 
         $importId = Str::uuid()->toString();
@@ -551,7 +585,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($preparedRecord, $this->user->id)
+            ->with($preparedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
 
         Http::fake();
@@ -653,7 +687,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($preparedRecord, $this->user->id)
+            ->with($preparedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
 
         Http::fake([
@@ -1195,7 +1229,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make());
 
         $importId = Str::uuid()->toString();
@@ -1250,7 +1284,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($expectedRecord, $this->user->id)
+            ->with($expectedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => $doi]));
 
         $importId = Str::uuid()->toString();
@@ -1293,7 +1327,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
         $this->coverageEnrichmentService
             ->shouldReceive('enrich')
@@ -1335,7 +1369,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
         $this->coverageEnrichmentService
             ->shouldReceive('enrich')
@@ -1544,7 +1578,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($expectedDoiRecord, $this->user->id)
+            ->with($expectedDoiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
 
         $importId = Str::uuid()->toString();
@@ -1681,7 +1715,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => '10.5880/incomplete-citations']));
 
         $importId = Str::uuid()->toString();

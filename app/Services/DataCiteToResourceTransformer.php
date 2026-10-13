@@ -15,7 +15,6 @@ use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\FunderIdentifierType;
 use App\Models\FundingReference;
-use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Language;
@@ -39,12 +38,14 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use App\Services\Xml\Sections\RightsSectionParser;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\DescriptionTextNormalizer;
 use App\Support\GemetVocabularyParser;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\LanguageTag;
 use App\Support\LegacyMslScheme;
 use App\Support\OrcidNormalizer;
@@ -97,7 +98,7 @@ class DataCiteToResourceTransformer
      *
      * @throws \Exception If transformation fails
      */
-    public function transform(array $doiData, int $userId): Resource
+    public function transform(array $doiData, int $userId, ?GeoLocationWriteReport $geoReport = null): Resource
     {
         $preparedDoiData = $this->prepareDoiData($doiData);
 
@@ -108,7 +109,7 @@ class DataCiteToResourceTransformer
 
         unset($attributes[self::PREPARED_MARKER]);
 
-        return DB::transaction(function () use ($attributes, $userId) {
+        return DB::transaction(function () use ($attributes, $userId, $geoReport) {
             // Create the main Resource
             $resource = $this->createResource($attributes, $userId);
 
@@ -120,7 +121,7 @@ class DataCiteToResourceTransformer
             $this->transformDescriptions($attributes['descriptions'] ?? [], $resource);
             $this->transformSubjects($attributes['subjects'] ?? [], $resource);
             $this->transformDates($attributes['dates'] ?? [], $resource);
-            $this->transformGeoLocations($attributes['geoLocations'] ?? [], $resource);
+            $this->transformGeoLocations($attributes['geoLocations'] ?? [], $resource, $geoReport);
             $this->transformRelatedIdentifiers($attributes['relatedIdentifiers'] ?? [], $resource);
             $this->transformRelatedItems($attributes['relatedItems'] ?? [], $resource);
             $this->transformFundingReferences($attributes['fundingReferences'] ?? [], $resource);
@@ -1521,7 +1522,7 @@ class DataCiteToResourceTransformer
      *
      * @param  array<int, array<string, mixed>>  $geoLocations
      */
-    private function transformGeoLocations(array $geoLocations, Resource $resource): void
+    private function transformGeoLocations(array $geoLocations, Resource $resource, ?GeoLocationWriteReport $geoReport): void
     {
         foreach ($geoLocations as $geoData) {
             $point = $geoData['geoLocationPoint'] ?? null;
@@ -1577,7 +1578,7 @@ class DataCiteToResourceTransformer
                 $geoType = 'point';
             }
 
-            GeoLocation::create([
+            $result = app(GeoLocationWriterService::class)->write($resource, [
                 'resource_id' => $resource->id,
                 'geo_type' => $geoType,
                 'place' => $geoData['geoLocationPlace'] ?? null,
@@ -1591,6 +1592,7 @@ class DataCiteToResourceTransformer
                 'in_polygon_point_longitude' => $inPolygonPointLon,
                 'in_polygon_point_latitude' => $inPolygonPointLat,
             ]);
+            $geoReport?->record($result);
         }
     }
 

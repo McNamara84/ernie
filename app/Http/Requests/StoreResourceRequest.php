@@ -149,6 +149,8 @@ class StoreResourceRequest extends FormRequest
             'gcmdKeywords.*.schemeURI' => ['nullable', 'string', 'max:512'],
             'gcmdKeywords.*.classificationCode' => ['nullable', 'string', 'max:255'],
             'spatialTemporalCoverages' => ['nullable', 'array'],
+            'spatialTemporalCoverages.*.id' => ['nullable', 'string', 'max:100'],
+            'spatialTemporalCoverages.*.copyFromId' => ['nullable', 'string', 'max:100'],
             'spatialTemporalCoverages.*.type' => ['required', Rule::in(['point', 'box', 'polygon', 'line'])],
             'spatialTemporalCoverages.*.latMin' => ['nullable', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.latMax' => ['nullable', 'numeric', 'between:-90,90'],

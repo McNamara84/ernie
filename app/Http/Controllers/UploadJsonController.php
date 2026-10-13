@@ -24,6 +24,7 @@ use App\Services\UploadLogService;
 use App\Services\Uploads\DataCiteRelatedItemNormalizerService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\DataCiteDateNormalizer;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\LanguageTag;
 use App\Support\MslLaboratoryService;
 use App\Support\UploadError;
@@ -270,10 +271,12 @@ class UploadJsonController extends Controller
         }
 
         try {
+            $geoReport = new GeoLocationWriteReport;
             $resource = $this->uploadedResourceDraftService->storeFromPayload(
                 $sessionPayload,
                 $filename,
                 $request->user()?->id,
+                $geoReport,
             );
         } catch (DuplicateUploadedResourceDoiException $e) {
             $error = UploadError::withMessage(
@@ -325,6 +328,7 @@ class UploadJsonController extends Controller
         return response()->json([
             'success' => true,
             'resourceId' => $resource->id,
+            'deduplicatedGeoLocations' => $geoReport->removedCount,
             'sessionKey' => $sessionKey,
         ]);
     }

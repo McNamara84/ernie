@@ -162,6 +162,8 @@ class StoreDraftResourceRequest extends FormRequest
             'gcmdKeywords.*.schemeURI' => ['nullable', 'string', 'max:512'],
             'gcmdKeywords.*.classificationCode' => ['nullable', 'string', 'max:255'],
             'spatialTemporalCoverages' => ['nullable', 'array'],
+            'spatialTemporalCoverages.*.id' => ['nullable', 'string', 'max:100'],
+            'spatialTemporalCoverages.*.copyFromId' => ['nullable', 'string', 'max:100'],
             'spatialTemporalCoverages.*.type' => ['required', Rule::in(['point', 'box', 'polygon', 'line'])],
             'spatialTemporalCoverages.*.latMin' => ['nullable', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.latMax' => ['nullable', 'numeric', 'between:-90,90'],
@@ -695,12 +697,12 @@ class StoreDraftResourceRequest extends FormRequest
         }
 
         // Normalize spatial temporal coverages
-        /** @var array<int, array<string, mixed>|mixed> $rawCoverages */
+        $hasCoveragesInput = $this->exists('spatialTemporalCoverages');
         $rawCoverages = $this->input('spatialTemporalCoverages', []);
 
         $coverages = [];
 
-        foreach ($rawCoverages as $coverage) {
+        foreach (is_array($rawCoverages) ? $rawCoverages : [] as $coverage) {
             if (! is_array($coverage)) {
                 continue;
             }
@@ -731,6 +733,8 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             $coverages[] = [
+                'id' => $coverage['id'] ?? null,
+                'copyFromId' => $coverage['copyFromId'] ?? null,
                 'type' => $type,
                 'placeNames' => isset($coverage['placeNames']) && is_array($coverage['placeNames'])
                     ? array_values(array_filter(array_map('trim', $coverage['placeNames'])))
@@ -857,7 +861,7 @@ class StoreDraftResourceRequest extends FormRequest
             'mslLaboratories' => $mslLaboratories,
             'descriptions' => $descriptions,
             'dates' => $dates,
-            'spatialTemporalCoverages' => $coverages,
+            ...($hasCoveragesInput ? ['spatialTemporalCoverages' => is_array($rawCoverages) || $rawCoverages === null ? $coverages : $rawCoverages] : []),
             'relatedIdentifiers' => $relatedIdentifiers,
             'fundingReferences' => $fundingReferences,
         ]);

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 
 /**
  * Transforms DataCite API IGSN records into Resource + IgsnMetadata models.
@@ -26,10 +27,10 @@ class DataCiteToIgsnTransformer
      * @param  array<string, mixed>  $doiData  The DOI record from DataCite API
      * @param  int  $userId  The user ID to set as created_by
      */
-    public function transform(array $doiData, int $userId): Resource
+    public function transform(array $doiData, int $userId, ?GeoLocationWriteReport $geoReport = null): Resource
     {
         // Create the Resource with all standard DataCite fields
-        $resource = $this->baseTransformer->transform($doiData, $userId);
+        $resource = $this->baseTransformer->transform($doiData, $userId, $geoReport);
 
         // Create the IGSN metadata stub (fields populated during enrichment phase)
         IgsnMetadata::create([

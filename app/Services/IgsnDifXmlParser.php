@@ -34,6 +34,7 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Size;
 use App\Services\Creators\ResourceCreatorNameResolverService;
+use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
 use App\Services\Igsn\IgsnSampleImageUrlService;
@@ -283,7 +284,7 @@ class IgsnDifXmlParser
                 $this->replaceGeometry($existing, $geometry);
             }
             if ($existing->isDirty()) {
-                $existing->save();
+                app(GeoLocationWriterService::class)->save($resource, $existing);
             }
 
             return;
@@ -294,7 +295,7 @@ class IgsnDifXmlParser
             static fn (mixed $value): bool => $value !== null,
         );
         if ($attributes !== []) {
-            GeoLocation::create(['resource_id' => $resource->id, ...$attributes]);
+            app(GeoLocationWriterService::class)->write($resource, $attributes);
         }
     }
 

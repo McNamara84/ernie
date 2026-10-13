@@ -52,6 +52,7 @@ import {
     validateEditorDate,
 } from '@/lib/editor-date';
 import { feedback } from '@/lib/feedback';
+import { applyGeoLocationChanges, type GeoLocationChanges, snapshotWithSavedGeoLocations } from '@/lib/geo-location-save-result';
 import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
 import { toImportedFormParts } from '@/lib/imported-metadata-form';
 import { indexRorSuggestions } from '@/lib/ror-input';
@@ -150,11 +151,13 @@ function parseCurationAccordionRevision(value: unknown): number | null {
 }
 
 type DraftSaveResponse = {
+    geoLocationChanges?: GeoLocationChanges;
     message?: string;
     resource?: { id: number; publicStatus?: ResourcePublicStatus; canEditDoi?: boolean };
 };
 
 type ValidatedSaveResponse = {
+    geoLocationChanges?: GeoLocationChanges;
     message?: string;
     resource?: { id: number; publicStatus?: ResourcePublicStatus; canEditDoi?: boolean };
 };
@@ -587,6 +590,16 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const applySavedGeoLocations = useCallback(
+        (changes?: GeoLocationChanges) => {
+            if (!changes) return;
+            setSpatialTemporalCoverages((current) => applyGeoLocationChanges(current, spatialTemporalCoverages, changes, true));
+            if (changes.removedCount > 0) {
+                toast.info(`${changes.removedCount} identical location ${changes.removedCount === 1 ? 'entry was' : 'entries were'} merged.`);
+            }
+        },
+        [spatialTemporalCoverages],
+    );
     const [relatedWorks, setRelatedWorks] = useState<RelatedIdentifier[]>(() => {
         if (initialRelatedWorks && initialRelatedWorks.length > 0) {
             return initialRelatedWorks;
@@ -2480,19 +2493,7 @@ export default function DataCiteForm({
                 classificationCode?: string;
                 vocabularyType: string;
             }[];
-            spatialTemporalCoverages: {
-                latMin: string;
-                latMax: string;
-                lonMin: string;
-                lonMax: string;
-                startDate: string;
-                endDate: string;
-                temporalMode?: 'instant' | 'interval';
-                startTime: string;
-                endTime: string;
-                timezone: string;
-                description: string;
-            }[];
+            spatialTemporalCoverages: SpatialTemporalCoverageEntry[];
             relatedIdentifiers: {
                 id?: number;
                 identifier: string;
@@ -2578,6 +2579,8 @@ export default function DataCiteForm({
                 vocabularyType: getVocabularyTypeFromScheme(kw.scheme),
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
+                id: coverage.storageId ?? coverage.id,
+                copyFromId: coverage.copyFromId,
                 type: coverage.type,
                 polygonPoints: coverage.polygonPoints?.map((p) => ({ lat: p.lat, lon: p.lon })),
                 latMin: coverage.latMin,
@@ -2819,6 +2822,7 @@ export default function DataCiteForm({
             );
 
             const data = response.data as DraftSaveResponse | null;
+            applySavedGeoLocations(data?.geoLocationChanges);
             const savedResourceId = data?.resource?.id;
 
             if (resolvedResourceId === null && !savedResourceId) {
@@ -2836,7 +2840,14 @@ export default function DataCiteForm({
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
 
-            markDraftAutosaveSaved(payload, editorSnapshot, savedResourceId);
+            const changes = data?.geoLocationChanges;
+            const savedPayload = changes
+                ? {
+                      ...payload,
+                      spatialTemporalCoverages: applyGeoLocationChanges(payload.spatialTemporalCoverages, payload.spatialTemporalCoverages, changes),
+                  }
+                : payload;
+            markDraftAutosaveSaved(savedPayload, snapshotWithSavedGeoLocations(editorSnapshot, spatialTemporalCoverages, changes), savedResourceId);
         } catch (error) {
             console.error('Failed to autosave draft', error);
             setDraftAutosaveStatus('error');
@@ -2846,6 +2857,7 @@ export default function DataCiteForm({
         }
     }, [
         activeDateInputId,
+        applySavedGeoLocations,
         buildPayload,
         dateValidationIssues.length,
         draftSaveUrl,
@@ -2858,6 +2870,7 @@ export default function DataCiteForm({
         isSavingDraft,
         isSubmittingDataCite,
         markDraftAutosaveSaved,
+        spatialTemporalCoverages,
         replaceSavedDraftUrl,
         registrationSuccess,
         resolvedResourceId,
@@ -3031,6 +3044,7 @@ export default function DataCiteForm({
                 },
             });
             const data = response.data as ValidatedSaveResponse | null;
+            applySavedGeoLocations(data?.geoLocationChanges);
 
             if (data?.resource?.id) {
                 setResolvedResourceId(data.resource.id);
@@ -3044,8 +3058,21 @@ export default function DataCiteForm({
             }
 
             setHasAttemptedSubmit(false);
-            recordSavedPayload(payload, data?.resource?.id);
-            markEditorSaved(submittedSnapshot);
+            const changes = data?.geoLocationChanges;
+            recordSavedPayload(
+                changes
+                    ? {
+                          ...payload,
+                          spatialTemporalCoverages: applyGeoLocationChanges(
+                              payload.spatialTemporalCoverages,
+                              payload.spatialTemporalCoverages,
+                              changes,
+                          ),
+                      }
+                    : payload,
+                data?.resource?.id,
+            );
+            markEditorSaved(snapshotWithSavedGeoLocations(submittedSnapshot, spatialTemporalCoverages, changes));
 
             return data;
         } catch (error) {
@@ -3287,6 +3314,7 @@ export default function DataCiteForm({
             );
 
             const data = response.data as DraftSaveResponse | null;
+            applySavedGeoLocations(data?.geoLocationChanges);
             const successMsg = data?.message || 'Draft saved successfully.';
 
             // Persist the resource ID so subsequent saves update rather than duplicate (PR #639 review)
@@ -3300,8 +3328,21 @@ export default function DataCiteForm({
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            recordSavedPayload(payload, savedResourceId);
-            markEditorSaved(submittedSnapshot);
+            const changes = data?.geoLocationChanges;
+            recordSavedPayload(
+                changes
+                    ? {
+                          ...payload,
+                          spatialTemporalCoverages: applyGeoLocationChanges(
+                              payload.spatialTemporalCoverages,
+                              payload.spatialTemporalCoverages,
+                              changes,
+                          ),
+                      }
+                    : payload,
+                savedResourceId,
+            );
+            markEditorSaved(snapshotWithSavedGeoLocations(submittedSnapshot, spatialTemporalCoverages, changes));
 
             setHasAttemptedSubmit(false);
             toast.success(successMsg);
@@ -3375,6 +3416,7 @@ export default function DataCiteForm({
             );
 
             const data = response.data as DraftSaveResponse | null;
+            applySavedGeoLocations(data?.geoLocationChanges);
             const savedResourceId = data?.resource?.id ?? resolvedResourceId;
 
             if (!savedResourceId) {
@@ -3390,8 +3432,21 @@ export default function DataCiteForm({
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            recordSavedPayload(payload, savedResourceId);
-            markEditorSaved(submittedSnapshot);
+            const changes = data?.geoLocationChanges;
+            recordSavedPayload(
+                changes
+                    ? {
+                          ...payload,
+                          spatialTemporalCoverages: applyGeoLocationChanges(
+                              payload.spatialTemporalCoverages,
+                              payload.spatialTemporalCoverages,
+                              changes,
+                          ),
+                      }
+                    : payload,
+                savedResourceId,
+            );
+            markEditorSaved(snapshotWithSavedGeoLocations(submittedSnapshot, spatialTemporalCoverages, changes));
             setHasAttemptedSubmit(false);
 
             return { resourceId: savedResourceId };
@@ -3426,6 +3481,7 @@ export default function DataCiteForm({
         }
     }, [
         applyBackendValidationErrors,
+        applySavedGeoLocations,
         buildPayload,
         clearBackendErrors,
         dateValidationIssues,
@@ -3437,6 +3493,7 @@ export default function DataCiteForm({
         replaceSavedDraftUrl,
         resolvedResourceId,
         revealValidationErrors,
+        spatialTemporalCoverages,
         recordSavedPayload,
     ]);
 

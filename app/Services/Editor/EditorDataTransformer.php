@@ -710,6 +710,7 @@ class EditorDataTransformer
     public function transformCoverages(Resource $resource): array
     {
         return $resource->geoLocations->map(function ($geoLocation): array {
+            $polygonPoints = $geoLocation->getAttribute('polygon_points');
             // Determine type from explicit geo_type column or fall back to implicit detection
             $type = $geoLocation->geo_type;
 
@@ -751,11 +752,11 @@ class EditorDataTransformer
                     'lonMax' => $geoLocation->east_bound_longitude !== null ? (string) $geoLocation->east_bound_longitude : '',
                 ]),
                 'polygon', 'line' => $entry = array_merge($entry, [
-                    'polygonPoints' => $geoLocation->polygon_points !== null
-                        ? array_map(fn (array $point): array => [
-                            'lat' => (float) $point['latitude'],
-                            'lon' => (float) $point['longitude'],
-                        ], $geoLocation->polygon_points)
+                    'polygonPoints' => is_array($polygonPoints)
+                        ? array_map(fn (mixed $point): array => [
+                            'lat' => is_array($point) && is_numeric($point['latitude'] ?? null) ? (float) $point['latitude'] : null,
+                            'lon' => is_array($point) && is_numeric($point['longitude'] ?? null) ? (float) $point['longitude'] : null,
+                        ], $polygonPoints)
                         : [],
                 ]),
                 default => null,

@@ -12,6 +12,10 @@ export interface PolygonPoint {
 
 export interface SpatialTemporalCoverageEntry {
     id: string;
+    /** Save identifier, independent of the stable editor row key. */
+    storageId?: string;
+    /** Keep hidden metadata when editing a row merged by an in-flight save. */
+    copyFromId?: string;
 
     // Coverage Type
     type: CoverageType; // Required, determines which spatial data is used

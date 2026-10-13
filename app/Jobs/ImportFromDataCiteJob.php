@@ -30,6 +30,7 @@ use App\Services\SumarioPmdContactEnrichmentService;
 use App\Services\SumarioPmdCoverageEnrichmentService;
 use App\Services\UserActivityService;
 use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\LegacyDescriptionBreakNormalizer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -1090,7 +1091,14 @@ class ImportFromDataCiteJob implements ShouldQueue
                     return ['status' => 'skipped', 'resource' => null];
                 }
 
-                $resource = $transformer->transform($preparedDoiRecord, $this->userId);
+                $geoReport = new GeoLocationWriteReport;
+                $resource = $transformer->transform($preparedDoiRecord, $this->userId, $geoReport);
+                if ($geoReport->removedCount > 0) {
+                    $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
+                    $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+                    $mergeWarnings[] = sprintf('%s: %d identical GeoLocation entries were merged.', $doi, $geoReport->removedCount);
+                    $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
+                }
 
                 if ($legacyResourceId !== null) {
                     $resource->forceFill([
@@ -1756,6 +1764,10 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     private function updateProgress(array $data): void
     {
+        $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
+        $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+        $data['geo_location_merge_warnings'] = $mergeWarnings;
+        $data['warnings'] = array_values(array_unique([...($data['warnings'] ?? []), ...$mergeWarnings]));
         $data['activity_actor'] = $this->activityActor;
         app(ImportProgressService::class)->update(ImportProgressService::TYPE_RESOURCE, $this->importId, $data, replace: true);
     }
