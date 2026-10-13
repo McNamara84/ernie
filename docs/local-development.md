@@ -911,3 +911,17 @@ npm run test:php:mysql-sensitive:tombstones
 npm run test:run -- tests/vitest/components/landing-pages/modals/__tests__/TombstoneLandingPageControls.test.tsx tests/vitest/pages/LandingPages/__tests__/default_gfz.test.tsx
 npm run test:e2e:devstack -- critical/tombstone-pages.spec.ts --project=chromium
 ```
+
+### Editor date type usage ordering
+
+The Data Editor's **Dates** dropdown orders ERNIE-enabled date types by their repository-wide usage, descending, with alphabetical ties. Each saved entry in `dates` counts once, including multiple entries of the same type on one resource and date ranges. All resource types, datacenters, imports and publication states contribute except `PhysicalObject`, identified by the stable `physical-object` slug. Resources without an assigned type also contribute.
+
+Only the usage counts are cached for seven days under `editor:date_type_usage:v1`. The next request after expiry refreshes the counts; changes to enabled types and display names take effect on the next editor load. The Dates section continues to exclude system-managed dates and Coverage. New date rows select the first editable option in this order, while saved or imported date selections are preserved.
+
+Redis resource-cache invalidation does not clear this usage snapshot. To refresh it manually before expiry, use the existing vocabulary cache reset, which also clears the other vocabulary caches:
+
+```bash
+npm run artisan -- cache:clear-app vocabularies
+```
+
+The complete `cache:clear-app all` reset also clears the snapshot. Cache stores without tags use the existing fallback; their global resource-cache flushes can clear the snapshot earlier than seven days.

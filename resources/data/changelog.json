@@ -4,6 +4,10 @@
         "date": "2026-10-06",
         "features": [
             {
+                "title": "Date Types Ordered by Repository Usage",
+                "description": "The Dates dropdown in the Data Editor now lists the most frequently used date types first, counting every saved date entry across ERNIE resources except Physical Objects. Equal frequencies and unused types are ordered alphabetically. New date rows select the most frequent available type, while existing selections are preserved. Usage counts are cached for seven days; changes to enabled date types take effect on the next editor load."
+            },
+            {
                 "title": "EPOS-MSL OAI-PMH Project Set",
                 "description": "Harvesters can select the epos-msl set to retrieve published resources with the complete free keyword EPOS or MSL, ignoring letter case and surrounding whitespace. Resources with both keywords appear once; controlled vocabulary subjects are excluded. Project membership is included in record headers and retained when resources are deleted or depublished. Subject edits update harvesting timestamps, and paginated harvests preserve the identifier order when records change. The OAI-PMH documentation includes project requests and guidance for incremental updates with regular complete identifier reconciliation."
             },
