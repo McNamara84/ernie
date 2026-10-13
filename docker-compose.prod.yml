@@ -75,6 +75,15 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - BOT_PROTECTION_ENABLED=${BOT_PROTECTION_ENABLED:-true}
       - BOT_PROTECTION_AI_USER_AGENTS=${BOT_PROTECTION_AI_USER_AGENTS:-Amazonbot,anthropic-ai,Applebot-Extended,Bytespider,CCBot,ChatGPT-User,ClaudeBot,Claude-User,cohere-ai,Diffbot,FacebookBot,Google-Extended,GPTBot,ImagesiftBot,Meta-ExternalAgent,omgili,PerplexityBot,YouBot}
@@ -301,7 +310,7 @@ services:
       retries: 5
       start_period: 60s
 
-  queue:
+  queue: &ernie-queue
     image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}"
     pull_policy: always
     container_name: dockerized-laravel-queue
@@ -346,6 +355,15 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
@@ -401,6 +419,13 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
+  # Separate reservation window for the potentially 300-second ELMO request.
+  elmo-cache-refresh:
+    <<: *ernie-queue
+    container_name: dockerized-laravel-elmo-cache-refresh
+    stop_grace_period: 360s
+    command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+
   assessment-queue:
     image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}"
     pull_policy: always
@@ -436,6 +461,15 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
@@ -525,6 +559,15 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
 
 networks:

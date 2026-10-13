@@ -925,3 +925,85 @@ npm run artisan -- cache:clear-app vocabularies
 ```
 
 The complete `cache:clear-app all` reset also clears the snapshot. Cache stores without tags use the existing fallback; their global resource-cache flushes can clear the snapshot earlier than seven days.
+
+
+### Automatic ELMO cache refresh
+
+Saving Editor Settings queues a refresh for each affected external editor. Changes
+to ELMO and ELMO-MSL activations and license exclusions remain independent.
+Shared names, contributor categories and identifier patterns refresh the editors
+whose API data changes. Unchanged values, request ordering, timestamps and
+ERNIE-only settings do not trigger a refresh. Successful thesaurus/PID downloads
+and genuine thesaurus version changes also request a refresh for active editors.
+
+Local development and Stage both target:
+
+- ELMO: `https://env.rz-vm182.gfz.de/elmo`
+- ELMO-MSL: `https://env.rz-vm182.gfz.de/elmo-msl`
+
+Set `ELMO_API_KEY` and `ELMO_MSL_API_KEY` in `.env.docker` to the corresponding
+Stage ELMO admin keys. These authenticate outgoing `POST /api/v2/admin/cache/refresh`
+requests through `X-API-KEY`; `ERNIE_API_KEY` authenticates ELMO requests to ERNIE.
+`ELMO_BASE_URL` and `ELMO_MSL_BASE_URL` override the deployment's default URLs.
+The `/elmo` or `/elmo-msl` path must be retained in the base URL.
+
+Start or recreate the workers after configuring the environment:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml up -d queue elmo-cache-refresh
+```
+
+The web application must receive the same configuration; recreate `app` if its
+environment changed. Incomplete target configuration is logged and skips only that
+target. `ELMO_CACHE_REFRESH_ENABLED=false` disables automatic dispatch and skips
+already queued jobs. Automated tests force this switch off and enable simulated
+integration explicitly in their own tests.
+
+`elmo-cache-refresh` uses the persistent `elmo` database queue connection and the
+`elmo-cache-refresh` queue. Each job calls one target and makes at most three
+attempts, with 30/120-second retry delays. Network failures, HTTP 408/429 and 5xx
+responses are retried; valid `Retry-After` values on HTTP 429 are capped at 300
+seconds. Other HTTP errors and invalid success responses fail immediately.
+Redirects are rejected and TLS verification remains enabled.
+
+Default limits are 10 seconds to connect, 310 seconds for the HTTP request,
+330 seconds for the job and 390 seconds for the queue reservation. Configure them
+with `ELMO_CACHE_REFRESH_CONNECT_TIMEOUT`, `ELMO_CACHE_REFRESH_TIMEOUT`,
+`ELMO_CACHE_REFRESH_JOB_TIMEOUT` and `ELMO_CACHE_REFRESH_RETRY_AFTER`. Keep
+`connect_timeout <= HTTP timeout < job timeout < retry_after`; invalid settings
+skip dispatch. Increase the worker's 360-second container stop grace period if
+increasing its job timeout. The general worker does not consume this queue.
+
+Saved settings and completed local data updates remain successful when ELMO or
+queue insertion fails. Logs identify the editor, trigger and correlation ID.
+Failed jobs can be inspected and retried with the existing Artisan wrapper:
+
+```bash
+npm run artisan -- queue:failed
+npm run artisan -- queue:retry <failed-job-uuid>
+```
+
+If insertion into the queue itself failed, no failed job exists. After resolving
+the queue error, invoke the authenticated ELMO admin refresh manually. The
+post-commit dispatch does not provide an outbox guarantee across process crashes.
+
+A refresh triggered locally makes Stage ELMO read from its configured ERNIE
+source; it does not upload local database contents. Thesaurus version changes
+remove the old local file, so a subsequent successful vocabulary download is
+needed to make the new data available and requests another refresh.
+
+The matching ELMO endpoint is introduced by
+[ELMO PR #1270](https://github.com/McNamara84/elmo/pull/1270). Its reviewed version
+still needs complete cache coverage, the correct MSL source routes and handling
+for empty/disabled vocabularies. Check the actual ELMO UI and vocabulary data as
+well as `GET /api/v2/admin/cache/status` after deployment; a successful request
+alone does not establish support for every ERNIE setting.
+
+Focused regression checks:
+
+```bash
+npm run test:php -- tests/pest/Feature/ElmoCacheRefresh --parallel
+npm run test:php -- tests/pest/Unit/Deployment/ElmoCacheRefreshDeploymentTest.php
+npm run test:php:mysql-sensitive:editor-settings
+npm run check:backend
+```

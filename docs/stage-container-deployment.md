@@ -53,7 +53,7 @@ The Compose file on `main` contains the deliberately unpublished
 direct Portainer deployment target. The workflow requires and replaces every
 marker before advancing `deploy/stage`.
 
-The `app`, `queue`, `assessment-queue`, and `scheduler` services share
+The `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler` services share
 the same application image. `webserver` uses the Nginx image.
 
 ## One-time rollout
@@ -164,7 +164,7 @@ The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does 
 
 Portainer must show these image references:
 
-- `app`, `queue`, `assessment-queue`, and `scheduler`:
+- `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
 - `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
 - `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
@@ -280,3 +280,31 @@ Plan the Laravel `APP_KEY` rotation separately. Changing it without a
 transition can invalidate encrypted cookies and make application-encrypted
 values unreadable. Audit encrypted data first and use Laravel's previous-key
 support during the transition.
+
+
+## ELMO cache refresh worker
+
+The `elmo-cache-refresh` service runs from the same pinned application image as
+`queue`, using the dedicated persistent `elmo` connection and
+`elmo-cache-refresh` queue. The defaults are `https://env.rz-vm182.gfz.de/elmo` and
+`https://env.rz-vm182.gfz.de/elmo-msl`; Stage also uses `APP_ENV=production`, so target URLs come from
+the Compose configuration rather than the Laravel environment name.
+
+Provide `ELMO_API_KEY` and `ELMO_MSL_API_KEY` through the stack environment, matching
+the keys of these ELMO instances. `ELMO_BASE_URL` and `ELMO_MSL_BASE_URL` optionally
+override the addresses. Deploy the matching authenticated ELMO admin endpoint
+before enabling live refreshes. `ELMO_CACHE_REFRESH_ENABLED=false` temporarily
+disables dispatch and execution without blocking settings saves.
+
+The inherited queue environment is shared with the web app and data-update
+workers. After changing configuration, redeploy the app and queue services so
+both dispatch and execution use current values. Keep the HTTP timeout (310s),
+job/worker timeout (330s) and reservation window (390s) in increasing order, with
+a container stop grace period exceeding the job timeout. The worker has three
+attempts and remains separate from the general queue.
+
+Inspect logs and Laravel failed jobs for unsuccessful refreshes. Check ELMO and
+ELMO-MSL independently, including deactivations and completed vocabulary updates.
+The ELMO source must use the appropriate ERNIE editor routes. See
+[local-development.md](local-development.md#automatic-elmo-cache-refresh) for the
+configuration variables, retry policy, upstream dependencies and recovery steps.
