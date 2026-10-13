@@ -2165,6 +2165,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Entering Dates in the Editor</h4>
                         <p>
+                            The <strong>Date Type</strong> dropdown lists the most frequently used types first, based on all date entries across ERNIE
+                            resources except those with the PhysicalObject resource type. Multiple entries of the same type in one resource each count
+                            separately. Types with equal usage, including unused types, appear alphabetically. Changes in usage can take up to seven
+                            days to affect the order.
+                        </p>
+                        <p>
+                            When you click <strong>Add Date</strong>, the new row selects the most frequently used type available in the dropdown. You
+                            can choose a different type at any time. Existing and imported date type selections are preserved when the order changes.
+                        </p>
+                        <p>
                             In the <strong>Dates</strong> section, type a year (<code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full
                             date (<code>YYYY-MM-DD</code>) directly into the date field. Year-only and year-month values remain editable without
                             adding a day. With a German browser language, you can also enter a full date as <code>DD.MM.YYYY</code>; ERNIE displays
