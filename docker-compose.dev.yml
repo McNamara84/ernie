@@ -86,6 +86,16 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
@@ -309,7 +319,7 @@ services:
       start_period: 60s
 
   # Queue Worker
-  queue:
+  queue: &ernie-queue
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -339,6 +349,16 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
@@ -362,6 +382,13 @@ services:
       - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
     command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default,imports --sleep=3 --tries=3
+
+  # Separate reservation window for the potentially 300-second ELMO request.
+  elmo-cache-refresh:
+    <<: *ernie-queue
+    container_name: ernie-elmo-cache-refresh-dev
+    stop_grace_period: 360s
+    command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
     build:
@@ -400,6 +427,16 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
@@ -467,6 +504,16 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}

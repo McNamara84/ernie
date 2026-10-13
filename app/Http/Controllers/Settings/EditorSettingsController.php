@@ -22,6 +22,8 @@ use App\Models\Right;
 use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
+use App\Services\EditorSettingsChangeService;
+use App\Services\ElmoCacheRefreshDispatcherService;
 use App\Services\KeywordSuggestionService;
 use App\Services\LandingPageDownloadUrlSuggestionService;
 use App\Services\Pid4instStatusService;
@@ -41,6 +43,8 @@ class EditorSettingsController extends Controller
         private readonly RorStatusService $rorStatusService,
         private readonly RaidStatusService $raidStatusService,
         private readonly KeywordSuggestionService $keywordSuggestionService,
+        private readonly EditorSettingsChangeService $settingsChangeService,
+        private readonly ElmoCacheRefreshDispatcherService $elmoRefreshDispatcher,
     ) {}
 
     public function index(): Response
@@ -221,7 +225,8 @@ class EditorSettingsController extends Controller
 
         // Wrap all updates in a single transaction for atomicity and performance
         // Using direct DB updates instead of Eloquent for efficiency
-        DB::transaction(function () use ($validated): void {
+        $refreshEditors = DB::transaction(function () use ($validated): array {
+            $before = $this->settingsChangeService->snapshot();
             $now = now();
             if (array_key_exists('downloadUrlSuggestionOrder', $validated)) {
                 Setting::updateOrCreate(
@@ -448,11 +453,15 @@ class EditorSettingsController extends Controller
                     }
                 }
             }
+
+            return $this->settingsChangeService->changedEditors($before);
         });
 
         if ($hasThesaurusUpdates) {
             $this->keywordSuggestionService->invalidateCache();
         }
+
+        $this->elmoRefreshDispatcher->dispatch($refreshEditors, 'editor-settings');
 
         return back()->with('success', 'Settings updated');
     }
