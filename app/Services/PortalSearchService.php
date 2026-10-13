@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
+use App\Enums\ScienceTopic;
 use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\GeoLocation;
@@ -19,15 +20,20 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
+use App\Services\Resources\ResourcePartySearchNormalizerService;
 use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
+use App\Support\PortalIgsnSearchPattern;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Service for searching and filtering resources in the public portal.
@@ -41,9 +47,15 @@ class PortalSearchService
 
     private readonly ResourceCreatorNameResolverService $creatorNameResolver;
 
+    private ?bool $hasPartyNameSearchColumn = null;
+
+    private ?bool $hasPartyNameTermsTable = null;
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
         private readonly IgsnMaterialHierarchyService $materialHierarchyService,
+        private readonly ResourcePartySearchNormalizerService $partySearchNormalizer,
+        private readonly ResourceListingProjectionRefreshService $projectionRefreshScheduler,
         ?ResourceCreatorNameResolverService $creatorNameResolver = null,
     ) {
         $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
@@ -86,6 +98,7 @@ class PortalSearchService
      *
      * @param  array{
      *     portal_scope?: string|null,
+     *     topic?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -161,6 +174,7 @@ class PortalSearchService
      *
      * @param  array{
      *     portal_scope?: string|null,
+     *     topic?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -210,6 +224,7 @@ class PortalSearchService
      *
      * @param  array{
      *     portal_scope?: string|null,
+     *     topic?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -231,7 +246,7 @@ class PortalSearchService
     {
         $query = Resource::query()
             ->whereHas('landingPage', function (Builder $q): void {
-                $q->where('is_published', true);
+                $q->where('is_published', true)->where('is_tombstone', false);
             });
 
         $scope = isset($filters['portal_scope'])
@@ -262,8 +277,28 @@ class PortalSearchService
             $this->applyTypeFilter($query, $type);
         }
 
-        // Apply search query
-        $this->applySearchQuery($query, $filters['query'] ?? null);
+        // Apply search query. DOI people search uses the read-optimized name-only
+        // projection; pending in-process projection writes must be visible first.
+        // Cross-process dependency jobs retain the current cache generation and
+        // invalidate it only after their projection refresh has completed.
+        $searchQuery = $filters['query'] ?? null;
+        $includePartyNameSearch = $scope === PortalScope::DOI
+            && is_string($searchQuery)
+            && trim($searchQuery) !== ''
+            && $this->partyNameSearchProjectionAvailable();
+        if ($includePartyNameSearch) {
+            $this->projectionRefreshScheduler->flushPending();
+        }
+        if ($scope === PortalScope::IGSN
+            && is_string($searchQuery)
+            && trim($searchQuery) !== ''
+            && $this->partyNameTermsTableAvailable()) {
+            $this->projectionRefreshScheduler->flushPending();
+        }
+        $this->applySearchQuery($query, $searchQuery, $includePartyNameSearch, $scope === PortalScope::IGSN);
+        if ($scope !== PortalScope::IGSN) {
+            $this->applyScienceTopicFilter($query, $filters['topic'] ?? null);
+        }
 
         // Apply legacy exact keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
@@ -435,9 +470,9 @@ class PortalSearchService
             return;
         }
 
-        $query->whereHas('datacenter', function (Builder $q) use ($datacenterNames): void {
-            $q->whereIn('name', $datacenterNames);
-        });
+        $ids = app(DatacenterNameService::class)->idsForNames($datacenterNames);
+
+        $query->whereIn('resources.datacenter_id', array_values(array_unique($ids)));
     }
 
     /**
@@ -461,6 +496,7 @@ class PortalSearchService
                 ->join('resources', 'resources.resource_type_id', '=', 'resource_types.id')
                 ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                 ->where('landing_pages.is_published', true)
+                ->where('landing_pages.is_tombstone', false)
                 ->when(
                     $scope === PortalScope::DOI,
                     fn (Builder $query): Builder => $query->where('resource_types.slug', '!=', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
@@ -502,6 +538,7 @@ class PortalSearchService
                 ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                 ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id')
                 ->where('landing_pages.is_published', true)
+                ->where('landing_pages.is_tombstone', false)
                 ->when($scope === PortalScope::DOI, function (Builder $query): void {
                     $query->where(function (Builder $typeQuery): void {
                         $typeQuery
@@ -536,17 +573,30 @@ class PortalSearchService
      *
      * @param  Builder<Resource>  $query
      */
-    private function applySearchQuery(Builder $query, ?string $searchQuery): void
-    {
+    private function applySearchQuery(
+        Builder $query,
+        ?string $searchQuery,
+        bool $includePartyNameSearch = false,
+        bool $isIgsn = false,
+    ): void {
         if ($searchQuery === null || trim($searchQuery) === '') {
             return;
         }
 
         $trimmedQuery = trim($searchQuery);
+        if ($isIgsn) {
+            $this->applyIgsnSearchQuery($query, $trimmedQuery);
+
+            return;
+        }
+
         $searchTerm = '%'.$trimmedQuery.'%';
         $identifierVariants = $this->identifierSearchVariants($trimmedQuery);
+        $partyQueryTerms = $includePartyNameSearch
+            ? $this->partySearchNormalizer->queryTerms($trimmedQuery)
+            : [];
 
-        $query->where(function (Builder $q) use ($identifierVariants, $searchTerm): void {
+        $query->where(function (Builder $q) use ($identifierVariants, $partyQueryTerms, $searchTerm): void {
             // Search in DOI
             $q->where('doi', 'like', $searchTerm)
                 // Search in titles
@@ -598,6 +648,29 @@ class PortalSearchService
                     $subjectQuery->where('value', 'like', $searchTerm);
                 });
 
+            if ($partyQueryTerms !== []) {
+                $q->orWhereExists(function (QueryBuilder $projectionQuery) use ($partyQueryTerms): void {
+                    $projectionQuery
+                        ->selectRaw('1')
+                        ->from('resource_listing_projections as portal_listing')
+                        ->whereColumn('portal_listing.resource_id', 'resources.id')
+                        ->where(function (QueryBuilder $nameQuery) use ($partyQueryTerms): void {
+                            $firstTerm = array_shift($partyQueryTerms);
+                            $nameQuery->whereRaw(
+                                "portal_listing.party_name_search_text LIKE ? ESCAPE '!'",
+                                [$this->partySearchNormalizer->likePattern($firstTerm)],
+                            );
+
+                            foreach ($partyQueryTerms as $term) {
+                                $nameQuery->orWhereRaw(
+                                    "portal_listing.party_name_search_text LIKE ? ESCAPE '!'",
+                                    [$this->partySearchNormalizer->likePattern($term)],
+                                );
+                            }
+                        });
+                });
+            }
+
             if ($identifierVariants !== []) {
                 // Alternate identifiers are aliases of the resource itself.
                 $q->orWhereHas('alternateIdentifiers', function (Builder $alternateQuery) use ($identifierVariants): void {
@@ -616,12 +689,86 @@ class PortalSearchService
         });
     }
 
+    /** @param Builder<Resource> $query */
+    private function applyIgsnSearchQuery(Builder $query, string $searchQuery): void
+    {
+        $searchPattern = new PortalIgsnSearchPattern($searchQuery);
+        if ($searchPattern->isMatchAll()) {
+            return;
+        }
+
+        $pattern = $searchPattern->likePattern();
+        $namePatterns = array_values(array_unique(array_map(
+            static fn (string $term): string => (new PortalIgsnSearchPattern($term))->likePattern(),
+            $this->partySearchNormalizer->queryTerms($searchQuery),
+        )));
+        $identifierPatterns = array_values(array_unique(array_map(
+            static fn (string $term): string => (new PortalIgsnSearchPattern($term))->likePattern(),
+            $this->identifierSearchVariants($searchQuery, allowWildcard: true),
+        )));
+
+        $query->where(function (Builder $resourceQuery) use ($pattern, $namePatterns, $identifierPatterns): void {
+            $resourceQuery->whereRaw("LOWER(resources.doi) LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereHas('titles', static fn (Builder $titleQuery): Builder => $titleQuery
+                    ->whereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('descriptions', static fn (Builder $descriptionQuery): Builder => $descriptionQuery
+                    ->whereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('subjects', static fn (Builder $subjectQuery): Builder => $subjectQuery
+                    ->whereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$pattern]));
+
+            if ($namePatterns !== [] && $this->partyNameTermsTableAvailable()) {
+                $resourceQuery->orWhereExists(static function (QueryBuilder $termsQuery) use ($namePatterns): void {
+                    $termsQuery->selectRaw('1')
+                        ->from('resource_party_name_terms as party_terms')
+                        ->whereColumn('party_terms.resource_id', 'resources.id')
+                        ->where(static function (QueryBuilder $nameQuery) use ($namePatterns): void {
+                            foreach ($namePatterns as $namePattern) {
+                                $nameQuery->orWhereRaw("party_terms.term LIKE ? ESCAPE '!'", [$namePattern]);
+                            }
+                        });
+                });
+            }
+
+            if ($identifierPatterns !== []) {
+                $resourceQuery->orWhereHas('alternateIdentifiers', static function (Builder $alternateQuery) use ($identifierPatterns): void {
+                    $alternateQuery->where(static function (Builder $identifierQuery) use ($identifierPatterns): void {
+                        foreach ($identifierPatterns as $identifierPattern) {
+                            $identifierQuery->orWhereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$identifierPattern]);
+                        }
+                    });
+                })->orWhereHas('relatedIdentifiers', static function (Builder $relatedQuery) use ($identifierPatterns): void {
+                    $relatedQuery
+                        ->whereHas('relationType', static fn (Builder $relationQuery): Builder => $relationQuery
+                            ->where('slug', 'IsIdenticalTo'))
+                        ->where(static function (Builder $identifierQuery) use ($identifierPatterns): void {
+                            foreach ($identifierPatterns as $identifierPattern) {
+                                $identifierQuery->orWhereRaw("LOWER(identifier) LIKE ? ESCAPE '!'", [$identifierPattern]);
+                            }
+                        });
+                });
+            }
+        });
+    }
+
+    private function partyNameTermsTableAvailable(): bool
+    {
+        return $this->hasPartyNameTermsTable ??= Schema::hasTable('resource_party_name_terms');
+    }
+
+    private function partyNameSearchProjectionAvailable(): bool
+    {
+        return $this->hasPartyNameSearchColumn ??= Schema::hasColumn(
+            'resource_listing_projections',
+            'party_name_search_text',
+        );
+    }
+
     /**
-     * Produce exact identity aliases for common IGSN representations.
+     * Produce identity aliases for common IGSN representations.
      *
-     * @return list<string> Lower-case variants suitable for exact comparisons.
+     * @return list<string> Lower-case variants suitable for exact or wildcard comparisons.
      */
-    private function identifierSearchVariants(string $query): array
+    private function identifierSearchVariants(string $query, bool $allowWildcard = false): array
     {
         $identifier = preg_replace(
             '#^https?://(?:(?:www\.)?igsn\.org|hdl\.handle\.net|(?:dx\.)?doi\.org)/?#i',
@@ -647,11 +794,19 @@ class PortalSearchService
             return array_map(strtolower(...), $variants);
         }
 
-        if (preg_match('#^10273/([A-Za-z0-9][A-Za-z0-9._-]*)$#i', $identifier, $matches) === 1) {
-            $variants[] = $matches[1];
+        $suffixPattern = $allowWildcard
+            ? '[A-Za-z0-9*][A-Za-z0-9._*-]*'
+            : '[A-Za-z0-9][A-Za-z0-9._-]*';
+
+        if (preg_match('#^10273/('.$suffixPattern.')$#i', $identifier, $matches) === 1) {
+            if (str_replace('*', '', $matches[1]) !== '') {
+                $variants[] = $matches[1];
+            }
             $variants[] = '10.60510/'.$matches[1];
-        } elseif (preg_match('#^10\.60510/([A-Za-z0-9][A-Za-z0-9._-]*)$#i', $identifier, $matches) === 1) {
-            $variants[] = $matches[1];
+        } elseif (preg_match('#^10\.60510/('.$suffixPattern.')$#i', $identifier, $matches) === 1) {
+            if (str_replace('*', '', $matches[1]) !== '') {
+                $variants[] = $matches[1];
+            }
             $variants[] = '10273/'.$matches[1];
         } elseif (preg_match('/^(?=[A-Za-z0-9._-]*\d)[A-Za-z0-9][A-Za-z0-9._-]{4,}$/', $identifier) === 1) {
             $variants[] = '10273/'.$identifier;
@@ -719,7 +874,7 @@ class PortalSearchService
      * @param  Builder<Resource>  $query
      * @param  string[]|null  $selectedNodeIds
      */
-    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds, ?PortalScope $scope = null): void
+    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds, ?PortalScope $scope = null, bool $unionScienceBranches = false): void
     {
         if ($selectedNodeIds === null || $selectedNodeIds === []) {
             return;
@@ -757,6 +912,16 @@ class PortalSearchService
             $query->whereRaw('1 = 0');
 
             return;
+        }
+
+        if ($unionScienceBranches) {
+            // Homepage branches all belong to Science Keywords. Their union
+            // is one subject predicate, while manual node selections remain AND.
+            $union = $resolvedNodes[0];
+            foreach (['subject_schemes', 'descendant_ids', 'descendant_values'] as $key) {
+                $union[$key] = array_values(array_unique(array_merge(...array_column($resolvedNodes, $key))));
+            }
+            $resolvedNodes = [$union];
         }
 
         foreach ($resolvedNodes as $resolvedNode) {
@@ -819,6 +984,52 @@ class PortalSearchService
                         ));
                     });
             });
+        }
+    }
+
+    /** @param Builder<Resource> $query */
+    private function applyScienceTopicFilter(Builder $query, ?string $slug): void
+    {
+        if ($slug === null || $slug === '') {
+            return;
+        }
+
+        $topic = ScienceTopic::tryFrom($slug);
+        if ($topic === null) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        switch ($topic) {
+            case ScienceTopic::Archaeobotany:
+                $query->whereHas('subjects', fn (Builder $subject): Builder => $subject->whereRaw('LOWER(TRIM(value)) = ?', ['archaeobotany']));
+
+                return;
+            case ScienceTopic::ScientificDrilling:
+                $this->applyDatacenterFilter($query, [LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER]);
+
+                return;
+            case ScienceTopic::Modeling:
+                $this->applySearchQuery($query, 'modeling');
+
+                return;
+            case ScienceTopic::RemoteSensing:
+                $this->applySearchQuery($query, 'remote sensing');
+
+                return;
+            case ScienceTopic::Seismology:
+                $this->applySearchQuery($query, 'seismic');
+
+                return;
+            default:
+                $nodeIds = $this->keywordService->scienceTopicNodeIds($topic);
+                if ($nodeIds === []) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $this->applyThesaurusKeywordFilter($query, $nodeIds, PortalScope::DOI, unionScienceBranches: true);
         }
     }
 
@@ -1007,6 +1218,7 @@ class PortalSearchService
                 ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                 ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id')
                 ->where('landing_pages.is_published', true)
+                ->where('landing_pages.is_tombstone', false)
                 ->when($scope === PortalScope::DOI, function ($query): void {
                     $query->where(function ($typeQuery): void {
                         $typeQuery

@@ -1,10 +1,11 @@
 import { Head, useForm } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ChevronDown, ChevronRight, Database, Globe, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, Globe, Pencil, Trash2 } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type ContributorRoleRow, ContributorRolesCard } from '@/components/settings/contributor-roles-card';
+import { DownloadUrlSuggestions } from '@/components/settings/download-url-suggestions';
 import { EditorSettingsSaveBar } from '@/components/settings/editor-settings-save-bar';
 import { EditorSettingsAccordion, EditorSettingsSection } from '@/components/settings/editor-settings-section';
 import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
@@ -16,17 +17,20 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { getSelectAllState } from '@/lib/select-all';
 import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
+import type { LandingPageDownloadUrlSuggestionItem } from '@/types/landing-page';
 
 interface ResourceTypeRow {
     id: number;
     name: string;
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
 }
 
 interface TitleTypeRow {
@@ -35,6 +39,7 @@ interface TitleTypeRow {
     slug: string;
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
 }
 
 interface LicenseRow {
@@ -43,7 +48,10 @@ interface LicenseRow {
     name: string;
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
     excluded_resource_type_ids: number[];
+    elmo_excluded_resource_type_ids?: number[];
+    elmo_msl_excluded_resource_type_ids?: number[];
 }
 
 interface LanguageRow {
@@ -52,6 +60,7 @@ interface LanguageRow {
     name: string;
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
 }
 
 interface DateTypeRow {
@@ -60,6 +69,8 @@ interface DateTypeRow {
     slug: string;
     description: string | null;
     active: boolean;
+    elmo_active?: boolean;
+    elmo_msl_active?: boolean;
 }
 
 interface DescriptionTypeRow {
@@ -68,6 +79,7 @@ interface DescriptionTypeRow {
     slug: string;
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
 }
 
 interface LandingPageDomainRow {
@@ -87,6 +99,7 @@ interface RelationTypeRow {
     slug: string;
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
 }
 
 interface IdentifierTypePatternRow {
@@ -103,10 +116,13 @@ interface IdentifierTypeRow {
     slug: string;
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
     patterns: IdentifierTypePatternRow[];
 }
 
 interface EditorSettingsProps {
+    downloadUrlSuggestions?: LandingPageDownloadUrlSuggestionItem[];
+    downloadUrlSuggestionOrder?: string[];
     resourceTypes: ResourceTypeRow[];
     titleTypes: TitleTypeRow[];
     licenses: LicenseRow[];
@@ -127,6 +143,8 @@ interface EditorSettingsProps {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
 export default function EditorSettings({
+    downloadUrlSuggestions = [],
+    downloadUrlSuggestionOrder = [],
     resourceTypes,
     titleTypes,
     licenses,
@@ -148,12 +166,17 @@ export default function EditorSettings({
     const [newDomain, setNewDomain] = useState('');
     const [isAddingDomain, setIsAddingDomain] = useState(false);
     const [expandedIdentifierTypes, setExpandedIdentifierTypes] = useState<Set<number>>(new Set());
-    const [openSection, setOpenSection] = useState('');
+    const [openSections, setOpenSections] = useState<string[]>([]);
+    const [savedDownloadUrlSuggestionOrder, setSavedDownloadUrlSuggestionOrder] = useState(downloadUrlSuggestionOrder);
 
     // Datacenter management - managed separately via API
     const [datacenters, setDatacenters] = useState<DatacenterRow[]>(initialDatacenters);
     const [newDatacenter, setNewDatacenter] = useState('');
     const [isAddingDatacenter, setIsAddingDatacenter] = useState(false);
+    const [editingDatacenterId, setEditingDatacenterId] = useState<number | null>(null);
+    const [datacenterNameDraft, setDatacenterNameDraft] = useState('');
+    const [datacenterRenameError, setDatacenterRenameError] = useState('');
+    const [isRenamingDatacenter, setIsRenamingDatacenter] = useState(false);
 
     const handleAddDomain = async () => {
         if (!newDomain.trim()) return;
@@ -235,12 +258,50 @@ export default function EditorSettings({
         }
     };
 
-    const { data, setData, post, processing, isDirty, recentlySuccessful } = useForm({
+    const cancelDatacenterRename = () => {
+        setEditingDatacenterId(null);
+        setDatacenterNameDraft('');
+        setDatacenterRenameError('');
+    };
+
+    const handleRenameDatacenter = async (datacenter: DatacenterRow) => {
+        const name = datacenterNameDraft.trim();
+        if (name === datacenter.name) {
+            cancelDatacenterRename();
+            return;
+        }
+        if (!name || Array.from(name).length > 255) {
+            setDatacenterRenameError(name ? 'Datacenter names must be at most 255 characters.' : 'Enter a datacenter name.');
+            return;
+        }
+
+        setIsRenamingDatacenter(true);
+        setDatacenterRenameError('');
+        try {
+            const response = await axios.patch<{ datacenter: DatacenterRow; message: string }>(`/api/datacenters/${datacenter.id}`, { name });
+            setDatacenters((previous) =>
+                previous.map((item) => (item.id === datacenter.id ? response.data.datacenter : item)).sort((a, b) => a.name.localeCompare(b.name)),
+            );
+            cancelDatacenterRename();
+            toast.success(response.data.message);
+        } catch (error) {
+            const message = isAxiosError(error)
+                ? (error.response?.data?.errors?.name?.[0] ?? error.response?.data?.message ?? 'Failed to rename datacenter')
+                : 'Failed to rename datacenter';
+            setDatacenterRenameError(message);
+        } finally {
+            setIsRenamingDatacenter(false);
+        }
+    };
+
+    const { data, setData, setDefaults, transform, post, processing, isDirty, recentlySuccessful, errors } = useForm({
+        downloadUrlSuggestionOrder,
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
             name: r.name,
             active: r.active,
             elmo_active: r.elmo_active,
+            elmo_msl_active: r.elmo_msl_active ?? false,
         })),
         titleTypes: titleTypes.map((t) => ({
             id: t.id,
@@ -248,6 +309,7 @@ export default function EditorSettings({
             slug: t.slug,
             active: t.active,
             elmo_active: t.elmo_active,
+            elmo_msl_active: t.elmo_msl_active ?? false,
         })),
         licenses: licenses.map((l) => ({
             id: l.id,
@@ -255,7 +317,10 @@ export default function EditorSettings({
             name: l.name,
             active: l.active,
             elmo_active: l.elmo_active,
+            elmo_msl_active: l.elmo_msl_active ?? false,
             excluded_resource_type_ids: l.excluded_resource_type_ids,
+            elmo_excluded_resource_type_ids: l.elmo_excluded_resource_type_ids ?? [],
+            elmo_msl_excluded_resource_type_ids: l.elmo_msl_excluded_resource_type_ids ?? [],
         })),
         languages: languages.map((l) => ({
             id: l.id,
@@ -263,6 +328,7 @@ export default function EditorSettings({
             name: l.name,
             active: l.active,
             elmo_active: l.elmo_active,
+            elmo_msl_active: l.elmo_msl_active ?? false,
         })),
         dateTypes: dateTypes.map((d) => ({
             id: d.id,
@@ -270,6 +336,8 @@ export default function EditorSettings({
             slug: d.slug,
             description: d.description,
             active: d.active,
+            elmo_active: d.elmo_active ?? false,
+            elmo_msl_active: d.elmo_msl_active ?? false,
         })),
         descriptionTypes: descriptionTypes.map((d) => ({
             id: d.id,
@@ -277,16 +345,19 @@ export default function EditorSettings({
             slug: d.slug,
             active: d.slug === 'Abstract' ? true : d.active,
             elmo_active: d.slug === 'Abstract' ? true : d.elmo_active,
+            elmo_msl_active: d.slug === 'Abstract' ? true : (d.elmo_msl_active ?? false),
         })),
         thesauri: thesauri.map((t) => ({
             type: t.type,
             isActive: t.isActive,
             isElmoActive: t.isElmoActive,
+            isElmoMslActive: t.isElmoMslActive ?? false,
         })),
         pidSettings: pidSettings.map((p) => ({
             type: p.type,
             isActive: p.isActive,
             isElmoActive: p.isElmoActive,
+            isElmoMslActive: p.isElmoMslActive ?? false,
         })),
         contributorPersonRoles: contributorPersonRoles.map((r) => ({
             id: r.id,
@@ -295,6 +366,7 @@ export default function EditorSettings({
             category: r.category,
             active: r.active,
             elmo_active: r.elmo_active,
+            elmo_msl_active: r.elmo_msl_active ?? false,
         })),
         contributorInstitutionRoles: contributorInstitutionRoles.map((r) => ({
             id: r.id,
@@ -303,6 +375,7 @@ export default function EditorSettings({
             category: r.category,
             active: r.active,
             elmo_active: r.elmo_active,
+            elmo_msl_active: r.elmo_msl_active ?? false,
         })),
         contributorBothRoles: contributorBothRoles.map((r) => ({
             id: r.id,
@@ -311,6 +384,7 @@ export default function EditorSettings({
             category: r.category,
             active: r.active,
             elmo_active: r.elmo_active,
+            elmo_msl_active: r.elmo_msl_active ?? false,
         })),
         relationTypes: relationTypes.map((r) => ({
             id: r.id,
@@ -318,6 +392,7 @@ export default function EditorSettings({
             slug: r.slug,
             active: r.active,
             elmo_active: r.elmo_active,
+            elmo_msl_active: r.elmo_msl_active ?? false,
         })),
         identifierTypes: identifierTypes.map((it) => ({
             id: it.id,
@@ -325,6 +400,7 @@ export default function EditorSettings({
             slug: it.slug,
             active: it.active,
             elmo_active: it.elmo_active,
+            elmo_msl_active: it.elmo_msl_active ?? false,
             patterns: it.patterns.map((p) => ({
                 id: p.id,
                 type: p.type,
@@ -357,6 +433,13 @@ export default function EditorSettings({
         );
     };
 
+    const handleElmoMslActiveChange = (index: number, value: boolean) => {
+        setData(
+            'resourceTypes',
+            data.resourceTypes.map((r, i) => (i === index ? { ...r, elmo_msl_active: value } : r)),
+        );
+    };
+
     const handleTitleTypeChange = (index: number, field: 'name' | 'slug', value: string) => {
         setData(
             'titleTypes',
@@ -378,6 +461,13 @@ export default function EditorSettings({
         );
     };
 
+    const handleTitleElmoMslActiveChange = (index: number, value: boolean) => {
+        setData(
+            'titleTypes',
+            data.titleTypes.map((t, i) => (i === index ? { ...t, elmo_msl_active: value } : t)),
+        );
+    };
+
     const handleLicenseActiveChange = (index: number, value: boolean) => {
         setData(
             'licenses',
@@ -392,10 +482,21 @@ export default function EditorSettings({
         );
     };
 
-    const handleLicenseExcludedResourceTypesChange = (index: number, excludedIds: number[]) => {
+    const handleLicenseElmoMslActiveChange = (index: number, value: boolean) => {
         setData(
             'licenses',
-            data.licenses.map((l, i) => (i === index ? { ...l, excluded_resource_type_ids: excludedIds } : l)),
+            data.licenses.map((l, i) => (i === index ? { ...l, elmo_msl_active: value } : l)),
+        );
+    };
+
+    const handleLicenseExcludedResourceTypesChange = (
+        index: number,
+        field: 'excluded_resource_type_ids' | 'elmo_excluded_resource_type_ids' | 'elmo_msl_excluded_resource_type_ids',
+        excludedIds: number[],
+    ) => {
+        setData(
+            'licenses',
+            data.licenses.map((l, i) => (i === index ? { ...l, [field]: excludedIds } : l)),
         );
     };
 
@@ -413,10 +514,31 @@ export default function EditorSettings({
         );
     };
 
+    const handleLanguageElmoMslActiveChange = (index: number, value: boolean) => {
+        setData(
+            'languages',
+            data.languages.map((l, i) => (i === index ? { ...l, elmo_msl_active: value } : l)),
+        );
+    };
+
     const handleDateTypeActiveChange = (index: number, value: boolean) => {
         setData(
             'dateTypes',
             data.dateTypes.map((d, i) => (i === index ? { ...d, active: value } : d)),
+        );
+    };
+
+    const handleDateTypeElmoMslActiveChange = (index: number, value: boolean) => {
+        setData(
+            'dateTypes',
+            data.dateTypes.map((d, i) => (i === index ? { ...d, elmo_msl_active: value } : d)),
+        );
+    };
+
+    const handleDateTypeElmoActiveChange = (index: number, value: boolean) => {
+        setData(
+            'dateTypes',
+            data.dateTypes.map((d, i) => (i === index ? { ...d, elmo_active: value } : d)),
         );
     };
 
@@ -434,6 +556,13 @@ export default function EditorSettings({
         );
     };
 
+    const handleDescriptionTypeElmoMslActiveChange = (index: number, value: boolean) => {
+        setData(
+            'descriptionTypes',
+            data.descriptionTypes.map((d, i) => (i === index ? { ...d, elmo_msl_active: value } : d)),
+        );
+    };
+
     const handleThesaurusActiveChange = (type: string, isActive: boolean) => {
         setData(
             'thesauri',
@@ -445,6 +574,13 @@ export default function EditorSettings({
         setData(
             'thesauri',
             data.thesauri.map((t) => (t.type === type ? { ...t, isElmoActive } : t)),
+        );
+    };
+
+    const handleThesaurusElmoMslActiveChange = (type: string, isElmoMslActive: boolean) => {
+        setData(
+            'thesauri',
+            data.thesauri.map((t) => (t.type === type ? { ...t, isElmoMslActive } : t)),
         );
     };
 
@@ -462,6 +598,13 @@ export default function EditorSettings({
         );
     };
 
+    const handleBulkThesaurusElmoMslActiveChange = (isElmoMslActive: boolean) => {
+        setData(
+            'thesauri',
+            data.thesauri.map((t) => ({ ...t, isElmoMslActive })),
+        );
+    };
+
     const handlePidActiveChange = (type: string, isActive: boolean) => {
         setData(
             'pidSettings',
@@ -476,10 +619,17 @@ export default function EditorSettings({
         );
     };
 
+    const handlePidElmoMslActiveChange = (type: string, isElmoMslActive: boolean) => {
+        setData(
+            'pidSettings',
+            pidSettingsData.map((p) => (p.type === type ? { ...p, isElmoMslActive } : p)),
+        );
+    };
+
     const handleContributorRoleChange = (
         arrayKey: 'contributorPersonRoles' | 'contributorInstitutionRoles' | 'contributorBothRoles',
         index: number,
-        field: 'active' | 'elmo_active' | 'category',
+        field: 'active' | 'elmo_active' | 'elmo_msl_active' | 'category',
         value: boolean | string,
     ) => {
         if (field === 'category') {
@@ -510,22 +660,45 @@ export default function EditorSettings({
     // Select-all state for each card's ERNIE / ELMO columns
     const licenseErnieState = getSelectAllState(data.licenses.map((l) => l.active));
     const licenseElmoState = getSelectAllState(data.licenses.map((l) => l.elmo_active));
+    const licenseElmoMslState = getSelectAllState(data.licenses.map((l) => l.elmo_msl_active));
     const rtErnieState = getSelectAllState(data.resourceTypes.map((r) => r.active));
     const rtElmoState = getSelectAllState(data.resourceTypes.map((r) => r.elmo_active));
+    const rtElmoMslState = getSelectAllState(data.resourceTypes.map((r) => r.elmo_msl_active));
     const ttErnieState = getSelectAllState(data.titleTypes.map((t) => t.active));
     const ttElmoState = getSelectAllState(data.titleTypes.map((t) => t.elmo_active));
+    const ttElmoMslState = getSelectAllState(data.titleTypes.map((t) => t.elmo_msl_active));
     const langErnieState = getSelectAllState(data.languages.map((l) => l.active));
     const langElmoState = getSelectAllState(data.languages.map((l) => l.elmo_active));
+    const langElmoMslState = getSelectAllState(data.languages.map((l) => l.elmo_msl_active));
+    const dtElmoState = getSelectAllState(data.dateTypes.map((d) => d.elmo_active));
+    const dtElmoMslState = getSelectAllState(data.dateTypes.map((d) => d.elmo_msl_active));
     const dtErnieState = getSelectAllState(data.dateTypes.map((d) => d.active));
     const descTypeErnieState = getSelectAllState(data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.active));
     const descTypeElmoState = getSelectAllState(data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.elmo_active));
+    const descTypeElmoMslState = getSelectAllState(data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.elmo_msl_active));
     const relTypeErnieState = getSelectAllState(data.relationTypes.map((r) => r.active));
     const relTypeElmoState = getSelectAllState(data.relationTypes.map((r) => r.elmo_active));
+    const relTypeElmoMslState = getSelectAllState(data.relationTypes.map((r) => r.elmo_msl_active));
     const idTypeErnieState = getSelectAllState(data.identifierTypes.map((it) => it.active));
     const idTypeElmoState = getSelectAllState(data.identifierTypes.map((it) => it.elmo_active));
+    const idTypeElmoMslState = getSelectAllState(data.identifierTypes.map((it) => it.elmo_msl_active));
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(settings().url);
+        transform(({ downloadUrlSuggestionOrder: order, ...otherSettings }) => {
+            const orderUnchanged =
+                order.length === savedDownloadUrlSuggestionOrder.length &&
+                order.every((prefix, index) => prefix === savedDownloadUrlSuggestionOrder[index]);
+
+            // Preserve the installation default until this section is explicitly changed.
+            return orderUnchanged ? otherSettings : { ...otherSettings, downloadUrlSuggestionOrder: order };
+        });
+        post(settings().url, {
+            onSuccess: () => {
+                setSavedDownloadUrlSuggestionOrder(data.downloadUrlSuggestionOrder);
+                // Keep edits made during the request dirty against the submitted snapshot.
+                setDefaults(data);
+            },
+        });
     };
 
     return (
@@ -534,7 +707,19 @@ export default function EditorSettings({
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
                 <EditorSettingsSaveBar isDirty={isDirty} processing={processing} recentlySuccessful={recentlySuccessful} />
 
-                <EditorSettingsAccordion value={openSection} onValueChange={setOpenSection}>
+                <EditorSettingsAccordion value={openSections} onValueChange={setOpenSections}>
+                    <EditorSettingsSection
+                        value="download-url-suggestions"
+                        title="Download URL suggestions"
+                        summary={<span className="text-sm font-normal text-muted-foreground">{downloadUrlSuggestions.length} suggestions</span>}
+                    >
+                        <DownloadUrlSuggestions
+                            order={data.downloadUrlSuggestionOrder}
+                            suggestions={downloadUrlSuggestions}
+                            onChange={(order) => setData('downloadUrlSuggestionOrder', order)}
+                            errors={errors}
+                        />
+                    </EditorSettingsSection>
                     {/* Licenses */}
                     <EditorSettingsSection
                         value="licenses"
@@ -545,6 +730,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.licenses.length, 'license'),
                                     `${data.licenses.filter((license) => license.active).length} ERNIE`,
                                     `${data.licenses.filter((license) => license.elmo_active).length} ELMO`,
+                                    `${data.licenses.filter((license) => license.elmo_msl_active).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -593,6 +779,24 @@ export default function EditorSettings({
                                             </div>
                                         </TableHead>
                                         <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={licenseElmoMslState.allChecked}
+                                                    indeterminate={licenseElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'licenses',
+                                                            data.licenses.map((l) => ({ ...l, elmo_msl_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Licenses"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
                                             Resource
                                             <br />
                                             Types
@@ -628,15 +832,54 @@ export default function EditorSettings({
                                                 />
                                             </TableCell>
                                             <TableCell className="text-center">
+                                                <Label htmlFor={`lic-elmo-msl-active-${license.id}`} className="sr-only">
+                                                    ELMO-MSL active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lic-elmo-msl-active-${license.id}`}
+                                                    checked={license.elmo_msl_active}
+                                                    onCheckedChange={(checked) => handleLicenseElmoMslActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
                                                 <LicenseResourceTypePopover
                                                     licenseId={license.id}
+                                                    editor="ERNIE"
                                                     licenseName={license.name}
                                                     resourceTypes={data.resourceTypes.map((rt) => ({
                                                         id: rt.id,
                                                         name: rt.name,
                                                     }))}
                                                     excludedIds={license.excluded_resource_type_ids}
-                                                    onExcludedChange={(ids) => handleLicenseExcludedResourceTypesChange(index, ids)}
+                                                    onExcludedChange={(ids) =>
+                                                        handleLicenseExcludedResourceTypesChange(index, 'excluded_resource_type_ids', ids)
+                                                    }
+                                                />
+                                                <LicenseResourceTypePopover
+                                                    licenseId={license.id}
+                                                    editor="ELMO"
+                                                    licenseName={license.name}
+                                                    resourceTypes={data.resourceTypes.map((rt) => ({
+                                                        id: rt.id,
+                                                        name: rt.name,
+                                                    }))}
+                                                    excludedIds={license.elmo_excluded_resource_type_ids}
+                                                    onExcludedChange={(ids) =>
+                                                        handleLicenseExcludedResourceTypesChange(index, 'elmo_excluded_resource_type_ids', ids)
+                                                    }
+                                                />
+                                                <LicenseResourceTypePopover
+                                                    licenseId={license.id}
+                                                    editor="ELMO-MSL"
+                                                    licenseName={license.name}
+                                                    resourceTypes={data.resourceTypes.map((rt) => ({
+                                                        id: rt.id,
+                                                        name: rt.name,
+                                                    }))}
+                                                    excludedIds={license.elmo_msl_excluded_resource_type_ids}
+                                                    onExcludedChange={(ids) =>
+                                                        handleLicenseExcludedResourceTypesChange(index, 'elmo_msl_excluded_resource_type_ids', ids)
+                                                    }
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -756,30 +999,106 @@ export default function EditorSettings({
                                             <TableRow>
                                                 <TableHead>Name</TableHead>
                                                 <TableHead className="w-24 text-center">Resources</TableHead>
-                                                <TableHead className="w-16 text-center">Actions</TableHead>
+                                                <TableHead className="w-44 text-center">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {datacenters.map((dc) => (
                                                 <TableRow key={dc.id}>
-                                                    <TableCell>{dc.name}</TableCell>
+                                                    <TableCell>
+                                                        {editingDatacenterId === dc.id ? (
+                                                            <div className="space-y-1">
+                                                                <Input
+                                                                    aria-label={`Datacenter name for ${dc.name}`}
+                                                                    aria-invalid={Boolean(datacenterRenameError)}
+                                                                    aria-describedby={
+                                                                        datacenterRenameError ? `datacenter-rename-error-${dc.id}` : undefined
+                                                                    }
+                                                                    value={datacenterNameDraft}
+                                                                    onChange={(event) => {
+                                                                        setDatacenterNameDraft(event.target.value);
+                                                                        setDatacenterRenameError('');
+                                                                    }}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === 'Enter') {
+                                                                            event.preventDefault();
+                                                                            void handleRenameDatacenter(dc);
+                                                                        } else if (event.key === 'Escape' && !isRenamingDatacenter) {
+                                                                            cancelDatacenterRename();
+                                                                        }
+                                                                    }}
+                                                                    disabled={isRenamingDatacenter}
+                                                                />
+                                                                {datacenterRenameError ? (
+                                                                    <p
+                                                                        id={`datacenter-rename-error-${dc.id}`}
+                                                                        role="alert"
+                                                                        className="text-sm text-destructive"
+                                                                    >
+                                                                        {datacenterRenameError}
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                        ) : (
+                                                            dc.name
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="text-center">{dc.resources_count}</TableCell>
                                                     <TableCell className="text-center">
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleDeleteDatacenter(dc.id)}
-                                                            disabled={dc.resources_count > 0}
-                                                            title={
-                                                                dc.resources_count > 0
-                                                                    ? 'Cannot delete: datacenter is assigned to resources'
-                                                                    : 'Delete datacenter'
-                                                            }
-                                                            aria-label="Delete datacenter"
-                                                        >
-                                                            <Trash2 className="size-4 text-destructive" aria-hidden="true" />
-                                                        </Button>
+                                                        {editingDatacenterId === dc.id ? (
+                                                            <div className="flex justify-center gap-1">
+                                                                <LoadingButton
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    onClick={() => void handleRenameDatacenter(dc)}
+                                                                    loading={isRenamingDatacenter}
+                                                                >
+                                                                    Save
+                                                                </LoadingButton>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={cancelDatacenterRename}
+                                                                    disabled={isRenamingDatacenter}
+                                                                >
+                                                                    Cancel
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex justify-center gap-1">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => {
+                                                                        setEditingDatacenterId(dc.id);
+                                                                        setDatacenterNameDraft(dc.name);
+                                                                        setDatacenterRenameError('');
+                                                                    }}
+                                                                    disabled={isRenamingDatacenter}
+                                                                    title="Rename datacenter"
+                                                                    aria-label={`Rename ${dc.name}`}
+                                                                >
+                                                                    <Pencil className="size-4" aria-hidden="true" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDeleteDatacenter(dc.id)}
+                                                                    disabled={isRenamingDatacenter || dc.resources_count > 0}
+                                                                    title={
+                                                                        dc.resources_count > 0
+                                                                            ? 'Cannot delete: datacenter is assigned to resources'
+                                                                            : 'Delete datacenter'
+                                                                    }
+                                                                    aria-label="Delete datacenter"
+                                                                >
+                                                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -803,6 +1122,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.resourceTypes.length, 'resource type'),
                                     `${data.resourceTypes.filter((type) => type.active).length} ERNIE`,
                                     `${data.resourceTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                    `${data.resourceTypes.filter((type) => type.elmo_msl_active).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -849,6 +1169,24 @@ export default function EditorSettings({
                                                 />
                                             </div>
                                         </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={rtElmoMslState.allChecked}
+                                                    indeterminate={rtElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'resourceTypes',
+                                                            data.resourceTypes.map((r) => ({ ...r, elmo_msl_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Resource Types"
+                                                />
+                                            </div>
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -885,6 +1223,16 @@ export default function EditorSettings({
                                                     onCheckedChange={(checked) => handleElmoActiveChange(index, checked === true)}
                                                 />
                                             </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`elmo-msl-active-${type.id}`} className="sr-only">
+                                                    ELMO-MSL active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`elmo-msl-active-${type.id}`}
+                                                    checked={type.elmo_msl_active}
+                                                    onCheckedChange={(checked) => handleElmoMslActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -902,6 +1250,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.titleTypes.length, 'title type'),
                                     `${data.titleTypes.filter((type) => type.active).length} ERNIE`,
                                     `${data.titleTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                    `${data.titleTypes.filter((type) => type.elmo_msl_active).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -946,6 +1295,24 @@ export default function EditorSettings({
                                                         );
                                                     }}
                                                     aria-label="Select all ELMO active for Title Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={ttElmoMslState.allChecked}
+                                                    indeterminate={ttElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'titleTypes',
+                                                            data.titleTypes.map((t) => ({ ...t, elmo_msl_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Title Types"
                                                 />
                                             </div>
                                         </TableHead>
@@ -995,6 +1362,16 @@ export default function EditorSettings({
                                                     onCheckedChange={(checked) => handleTitleElmoActiveChange(index, checked === true)}
                                                 />
                                             </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`tt-elmo-msl-active-${type.id}`} className="sr-only">
+                                                    ELMO-MSL active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`tt-elmo-msl-active-${type.id}`}
+                                                    checked={type.elmo_msl_active}
+                                                    onCheckedChange={(checked) => handleTitleElmoMslActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -1012,6 +1389,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.languages.length, 'language'),
                                     `${data.languages.filter((language) => language.active).length} ERNIE`,
                                     `${data.languages.filter((language) => language.elmo_active).length} ELMO`,
+                                    `${data.languages.filter((language) => language.elmo_msl_active).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -1059,6 +1437,24 @@ export default function EditorSettings({
                                                 />
                                             </div>
                                         </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={langElmoMslState.allChecked}
+                                                    indeterminate={langElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'languages',
+                                                            data.languages.map((l) => ({ ...l, elmo_msl_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Languages"
+                                                />
+                                            </div>
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1087,6 +1483,16 @@ export default function EditorSettings({
                                                     onCheckedChange={(checked) => handleLanguageElmoActiveChange(index, checked === true)}
                                                 />
                                             </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`lang-elmo-msl-active-${language.id}`} className="sr-only">
+                                                    ELMO-MSL active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lang-elmo-msl-active-${language.id}`}
+                                                    checked={language.elmo_msl_active}
+                                                    onCheckedChange={(checked) => handleLanguageElmoMslActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -1103,6 +1509,8 @@ export default function EditorSettings({
                                 items={[
                                     pluralizedCount(data.dateTypes.length, 'date type'),
                                     `${data.dateTypes.filter((type) => type.active).length} ERNIE`,
+                                    `${data.dateTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                    `${data.dateTypes.filter((type) => type.elmo_msl_active).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -1132,6 +1540,42 @@ export default function EditorSettings({
                                                 />
                                             </div>
                                         </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={dtElmoState.allChecked}
+                                                    indeterminate={dtElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'dateTypes',
+                                                            data.dateTypes.map((d) => ({ ...d, elmo_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Date Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={dtElmoMslState.allChecked}
+                                                    indeterminate={dtElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'dateTypes',
+                                                            data.dateTypes.map((d) => ({ ...d, elmo_msl_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Date Types"
+                                                />
+                                            </div>
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1148,6 +1592,26 @@ export default function EditorSettings({
                                                     id={`dt-active-${dateType.id}`}
                                                     checked={dateType.active}
                                                     onCheckedChange={(checked) => handleDateTypeActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`dt-elmo-active-${dateType.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`dt-elmo-active-${dateType.id}`}
+                                                    checked={dateType.elmo_active}
+                                                    onCheckedChange={(checked) => handleDateTypeElmoActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`dt-elmo-msl-active-${dateType.id}`} className="sr-only">
+                                                    ELMO-MSL active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`dt-elmo-msl-active-${dateType.id}`}
+                                                    checked={dateType.elmo_msl_active}
+                                                    onCheckedChange={(checked) => handleDateTypeElmoMslActiveChange(index, checked === true)}
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -1167,6 +1631,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.descriptionTypes.length, 'description type'),
                                     `${data.descriptionTypes.filter((type) => type.active).length} ERNIE`,
                                     `${data.descriptionTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                    `${data.descriptionTypes.filter((type) => type.elmo_msl_active).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -1218,6 +1683,26 @@ export default function EditorSettings({
                                                 />
                                             </div>
                                         </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={descTypeElmoMslState.allChecked}
+                                                    indeterminate={descTypeElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'descriptionTypes',
+                                                            data.descriptionTypes.map((d) =>
+                                                                d.slug === 'Abstract' ? d : { ...d, elmo_msl_active: checked === true },
+                                                            ),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Description Types"
+                                                />
+                                            </div>
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1250,6 +1735,19 @@ export default function EditorSettings({
                                                         onCheckedChange={(checked) => handleDescriptionTypeElmoActiveChange(index, checked === true)}
                                                     />
                                                 </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Label htmlFor={`desc-elmo-msl-active-${descType.id}`} className="sr-only">
+                                                        ELMO-MSL active
+                                                    </Label>
+                                                    <Checkbox
+                                                        id={`desc-elmo-msl-active-${descType.id}`}
+                                                        checked={descType.elmo_msl_active}
+                                                        disabled={isAbstract}
+                                                        onCheckedChange={(checked) =>
+                                                            handleDescriptionTypeElmoMslActiveChange(index, checked === true)
+                                                        }
+                                                    />
+                                                </TableCell>
                                             </TableRow>
                                         );
                                     })}
@@ -1270,6 +1768,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.thesauri.length, 'thesaurus', 'thesauri'),
                                     `${data.thesauri.filter((thesaurus) => thesaurus.isActive).length} ERNIE`,
                                     `${data.thesauri.filter((thesaurus) => thesaurus.isElmoActive).length} ELMO`,
+                                    `${data.thesauri.filter((thesaurus) => thesaurus.isElmoMslActive).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -1281,12 +1780,15 @@ export default function EditorSettings({
                                     ...t,
                                     isActive: formData?.isActive ?? t.isActive,
                                     isElmoActive: formData?.isElmoActive ?? t.isElmoActive,
+                                    isElmoMslActive: formData?.isElmoMslActive ?? t.isElmoMslActive ?? false,
                                 };
                             })}
                             onActiveChange={handleThesaurusActiveChange}
                             onElmoActiveChange={handleThesaurusElmoActiveChange}
+                            onElmoMslActiveChange={handleThesaurusElmoMslActiveChange}
                             onBulkActiveChange={handleBulkThesaurusActiveChange}
                             onBulkElmoActiveChange={handleBulkThesaurusElmoActiveChange}
+                            onBulkElmoMslActiveChange={handleBulkThesaurusElmoMslActiveChange}
                         />
                     </EditorSettingsSection>
 
@@ -1302,6 +1804,7 @@ export default function EditorSettings({
                                     pluralizedCount(pidSettingsData.length, 'registry', 'registries'),
                                     `${pidSettingsData.filter((pidSetting) => pidSetting.isActive).length} ERNIE`,
                                     `${pidSettingsData.filter((pidSetting) => pidSetting.isElmoActive).length} ELMO`,
+                                    `${pidSettingsData.filter((pidSetting) => pidSetting.isElmoMslActive).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -1313,10 +1816,18 @@ export default function EditorSettings({
                                     ...p,
                                     isActive: formData?.isActive ?? p.isActive,
                                     isElmoActive: formData?.isElmoActive ?? p.isElmoActive,
+                                    isElmoMslActive: formData?.isElmoMslActive ?? p.isElmoMslActive ?? false,
                                 };
                             })}
                             onActiveChange={handlePidActiveChange}
                             onElmoActiveChange={handlePidElmoActiveChange}
+                            onElmoMslActiveChange={handlePidElmoMslActiveChange}
+                            onBulkActiveChange={(field, active) =>
+                                setData(
+                                    'pidSettings',
+                                    pidSettingsData.map((setting) => ({ ...setting, [field]: active })),
+                                )
+                            }
                         />
                     </EditorSettingsSection>
 
@@ -1328,7 +1839,12 @@ export default function EditorSettings({
                         roles={data.contributorPersonRoles}
                         dataKey="contributorPersonRoles"
                         onRoleChange={(index, field, value) => handleContributorRoleChange('contributorPersonRoles', index, field, value)}
-                        onSetAll={(roles) => setData('contributorPersonRoles', roles)}
+                        onSetAll={(roles) =>
+                            setData(
+                                'contributorPersonRoles',
+                                roles.map((role) => ({ ...role, elmo_msl_active: role.elmo_msl_active ?? false })),
+                            )
+                        }
                     />
 
                     {/* Contributor Roles (Institutions) */}
@@ -1339,7 +1855,12 @@ export default function EditorSettings({
                         roles={data.contributorInstitutionRoles}
                         dataKey="contributorInstitutionRoles"
                         onRoleChange={(index, field, value) => handleContributorRoleChange('contributorInstitutionRoles', index, field, value)}
-                        onSetAll={(roles) => setData('contributorInstitutionRoles', roles)}
+                        onSetAll={(roles) =>
+                            setData(
+                                'contributorInstitutionRoles',
+                                roles.map((role) => ({ ...role, elmo_msl_active: role.elmo_msl_active ?? false })),
+                            )
+                        }
                     />
 
                     {/* Contributor Roles (Both) */}
@@ -1350,7 +1871,12 @@ export default function EditorSettings({
                         roles={data.contributorBothRoles}
                         dataKey="contributorBothRoles"
                         onRoleChange={(index, field, value) => handleContributorRoleChange('contributorBothRoles', index, field, value)}
-                        onSetAll={(roles) => setData('contributorBothRoles', roles)}
+                        onSetAll={(roles) =>
+                            setData(
+                                'contributorBothRoles',
+                                roles.map((role) => ({ ...role, elmo_msl_active: role.elmo_msl_active ?? false })),
+                            )
+                        }
                     />
 
                     {/* Relation Types */}
@@ -1364,6 +1890,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.relationTypes.length, 'relation type'),
                                     `${data.relationTypes.filter((type) => type.active).length} ERNIE`,
                                     `${data.relationTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                    `${data.relationTypes.filter((type) => type.elmo_msl_active).length} ELMO-MSL`,
                                 ]}
                             />
                         }
@@ -1411,6 +1938,24 @@ export default function EditorSettings({
                                                 />
                                             </div>
                                         </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={relTypeElmoMslState.allChecked}
+                                                    indeterminate={relTypeElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'relationTypes',
+                                                            data.relationTypes.map((r) => ({ ...r, elmo_msl_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Relation Types"
+                                                />
+                                            </div>
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1451,6 +1996,23 @@ export default function EditorSettings({
                                                     }}
                                                 />
                                             </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`rel-elmo-msl-active-${relType.id}`} className="sr-only">
+                                                    ELMO-MSL active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`rel-elmo-msl-active-${relType.id}`}
+                                                    checked={relType.elmo_msl_active}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'relationTypes',
+                                                            data.relationTypes.map((r, i) =>
+                                                                i === index ? { ...r, elmo_msl_active: checked === true } : r,
+                                                            ),
+                                                        );
+                                                    }}
+                                                />
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -1469,6 +2031,7 @@ export default function EditorSettings({
                                     pluralizedCount(data.identifierTypes.length, 'identifier type'),
                                     `${data.identifierTypes.filter((type) => type.active).length} ERNIE`,
                                     `${data.identifierTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                    `${data.identifierTypes.filter((type) => type.elmo_msl_active).length} ELMO-MSL`,
                                     pluralizedCount(
                                         data.identifierTypes.reduce((count, type) => count + type.patterns.length, 0),
                                         'pattern',
@@ -1518,6 +2081,24 @@ export default function EditorSettings({
                                                         );
                                                     }}
                                                     aria-label="Select all ELMO active for Identifier Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO-MSL
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={idTypeElmoMslState.allChecked}
+                                                    indeterminate={idTypeElmoMslState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'identifierTypes',
+                                                            data.identifierTypes.map((it) => ({ ...it, elmo_msl_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO-MSL active for Identifier Types"
                                                 />
                                             </div>
                                         </TableHead>
@@ -1595,6 +2176,23 @@ export default function EditorSettings({
                                                             }}
                                                         />
                                                     </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Label htmlFor={`id-elmo-msl-active-${idType.id}`} className="sr-only">
+                                                            ELMO-MSL active
+                                                        </Label>
+                                                        <Checkbox
+                                                            id={`id-elmo-msl-active-${idType.id}`}
+                                                            checked={idType.elmo_msl_active}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'identifierTypes',
+                                                                    data.identifierTypes.map((it, i) =>
+                                                                        i === typeIndex ? { ...it, elmo_msl_active: checked === true } : it,
+                                                                    ),
+                                                                );
+                                                            }}
+                                                        />
+                                                    </TableCell>
                                                     <TableCell className="text-center text-sm text-muted-foreground">
                                                         {idType.patterns.length}
                                                     </TableCell>
@@ -1602,7 +2200,7 @@ export default function EditorSettings({
                                                 {isExpanded && (
                                                     <TableRow className="bg-muted/50">
                                                         <TableCell />
-                                                        <TableCell colSpan={6} className="p-2">
+                                                        <TableCell colSpan={7} className="p-2">
                                                             <Table>
                                                                 <TableHeader>
                                                                     <TableRow>

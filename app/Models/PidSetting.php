@@ -15,11 +15,12 @@ use Illuminate\Support\Carbon;
  * @property string $type
  * @property string $display_name
  * @property bool $is_active
+ * @property bool $is_elmo_msl_active
  * @property bool $is_elmo_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active'])]
+#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])]
 class PidSetting extends Model
 {
     public const TYPE_PID4INST = 'pid4inst';
@@ -36,6 +37,7 @@ class PidSetting extends Model
         return [
             'is_active' => 'boolean',
             'is_elmo_active' => 'boolean',
+            'is_elmo_msl_active' => 'boolean',
         ];
     }
 

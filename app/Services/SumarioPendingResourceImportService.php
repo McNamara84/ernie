@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Enums\CitationLabelResolutionMode;
 use App\Enums\ResourceWorkflowStatus;
-use App\Models\Datacenter;
 use App\Models\OldDataset;
 use App\Models\Resource;
 use App\Support\LanguageTag;
@@ -146,7 +145,7 @@ class SumarioPendingResourceImportService
     }
 
     /**
-     * @return array{processed: int, imported: int, skipped: int, failed: int, skipped_dois: list<string>, failed_dois: list<array{doi: string, error: string}>}
+     * @return array{processed: int, imported: int, skipped: int, failed: int, skipped_dois: list<string>, failed_dois: list<array{doi: string, error: string}>, imported_resource_ids?: list<int>}
      */
     public function importAllPending(int $userId, int $maxStoredDois = 100): array
     {
@@ -157,6 +156,7 @@ class SumarioPendingResourceImportService
             'failed' => 0,
             'skipped_dois' => [],
             'failed_dois' => [],
+            'imported_resource_ids' => [],
         ];
 
         /** @var iterable<int, OldDataset> $pendingDatasets */
@@ -198,12 +198,13 @@ class SumarioPendingResourceImportService
             }
 
             try {
-                $this->importDataset(
+                $resource = $this->importDataset(
                     $oldDataset,
                     $doi,
                     $userId,
                     CitationLabelResolutionMode::BEST_EFFORT,
                 );
+                $summary['imported_resource_ids'][] = $resource->id;
                 $summary['imported']++;
             } catch (\Throwable $exception) {
                 $summary['failed']++;
@@ -576,9 +577,8 @@ class SumarioPendingResourceImportService
             return $ids[0];
         }
 
-        return (int) Datacenter::query()->firstOrCreate([
-            'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
-        ])->id;
+        return (int) app(DatacenterNameService::class)
+            ->findOrCreate(LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER)->id;
     }
 
     private function resolveLegacyResourceTypeId(?string $legacyResourceType): int

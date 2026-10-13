@@ -1,7 +1,7 @@
 // organize-imports-ignore
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, Copy, ExternalLink, GripVertical, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Copy, ExternalLink, GripVertical, RotateCcw, Upload } from 'lucide-react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -37,6 +37,7 @@ import { type ValidationError, ValidationErrorModal } from '@/components/ui/vali
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import { handleXmlFiles } from '@/lib/datacite-upload';
 import { openDetachedTab } from '@/lib/detached-tab';
 import { validateDOIFormat } from '@/lib/doi-validation';
 import {
@@ -147,6 +148,7 @@ interface ResourcesProps {
     sort: ResourceSortState;
     filters?: ResourceFilterState;
     canImportFromDataCite?: boolean;
+    canCreateResource?: boolean;
     canUpdateDataCiteLandingPageUrls?: boolean;
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
 }
@@ -285,11 +287,11 @@ const createDefaultDeleteStatusSelection = (): Record<ResourceDeleteStatus, bool
 });
 
 const normalizeDeleteStatus = (resource: Resource): ResourceDeleteStatus => {
-    if (resource.publicstatus === 'published') {
+    if (resource.publicstatus === 'published' || resource.publicstatus === 'dead') {
         return 'published';
     }
 
-    if (resource.publicstatus === 'review') {
+    if (resource.publicstatus === 'review' || resource.publicstatus === 'embargo') {
         return 'review';
     }
 
@@ -771,6 +773,7 @@ function ResourcesPage({
     sort: initialSort,
     filters: initialFilters,
     canImportFromDataCite,
+    canCreateResource,
     canUpdateDataCiteLandingPageUrls,
     dataCiteUrlUpdateRun,
 }: ResourcesProps) {
@@ -791,6 +794,8 @@ function ResourcesPage({
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [isUploadingXml, setIsUploadingXml] = useState(false);
+    const xmlUploadInputRef = useRef<HTMLInputElement>(null);
     const [showDatacenterImportModal, setShowDatacenterImportModal] = useState(false);
     const [showSingleImportModal, setShowSingleImportModal] = useState(false);
     const [showDataCiteUrlUpdateModal, setShowDataCiteUrlUpdateModal] = useState(false);
@@ -1148,6 +1153,22 @@ function ResourcesPage({
         router.reload({ only: ['resources', 'pagination'] });
     }, []);
 
+    const handleXmlUpload = useCallback(async (file: File) => {
+        setIsUploadingXml(true);
+        try {
+            const result = await handleXmlFiles([file]);
+            if (!result?.resourceId || !result.editorUrl) {
+                throw new Error('The XML upload did not return a draft resource.');
+            }
+            router.visit(result.editorUrl);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'The XML upload failed.');
+        } finally {
+            setIsUploadingXml(false);
+            if (xmlUploadInputRef.current) xmlUploadInputRef.current.value = '';
+        }
+    }, []);
+
     // Drop selections that no longer correspond to a loaded resource (e.g. after
     // filter/sort changes that replace the list).
     useEffect(() => {
@@ -1308,7 +1329,7 @@ function ResourcesPage({
 
     const handleStatusBadgeClick = useCallback(
         (resource: Resource, status: string) => {
-            if (status === 'published' && resource.doi) {
+            if ((status === 'published' || status === 'dead') && resource.doi) {
                 // Published: Open DOI URL and copy to clipboard
                 const doiUrl = `https://doi.org/${resource.doi}`;
 
@@ -1316,7 +1337,7 @@ function ResourcesPage({
 
                 // Open in new tab
                 window.open(doiUrl, '_blank', 'noopener,noreferrer');
-            } else if (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url) {
+            } else if ((status === 'embargo' || (canSendReviewLinks && status === 'review')) && resource.landingPage?.preview_url) {
                 // Review: Open preview landing page and copy URL to clipboard
                 const previewUrl = resource.landingPage.preview_url;
 
@@ -2160,7 +2181,8 @@ function ResourcesPage({
 
                 // Determine if badge is clickable
                 const isClickable =
-                    (status === 'published' && resource.doi) || (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url);
+                    ((status === 'published' || status === 'dead') && resource.doi) ||
+                    ((status === 'embargo' || (canSendReviewLinks && status === 'review')) && resource.landingPage?.preview_url);
 
                 // Determine badge style based on status
                 let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center justify-center';
@@ -2169,6 +2191,10 @@ function ResourcesPage({
                     if (isClickable) {
                         statusClasses += ' cursor-pointer hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors';
                     }
+                } else if (status === 'dead') {
+                    statusClasses += ' bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 cursor-pointer';
+                } else if (status === 'embargo') {
+                    statusClasses += ' bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 cursor-pointer';
                 } else if (status === 'review') {
                     statusClasses += ' bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
                     if (isClickable) {
@@ -2182,7 +2208,7 @@ function ResourcesPage({
 
                 const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
                 const ariaLabel = isClickable
-                    ? status === 'published'
+                    ? status === 'published' || status === 'dead'
                         ? `${statusLabel} - Click to open DOI and copy URL to clipboard`
                         : `${statusLabel} - Click to open preview page and copy URL to clipboard`
                     : statusLabel;
@@ -2346,8 +2372,35 @@ function ResourcesPage({
                                 onAction={handleResourceAction}
                                 onUnavailableAction={handleUnavailableAction}
                             />
-                            {(canImportFromDataCite || canUpdateDataCiteLandingPageUrls) && (
+                            {(canCreateResource || canImportFromDataCite || canUpdateDataCiteLandingPageUrls) && (
                                 <div className="ml-auto flex flex-wrap items-center gap-2">
+                                    {canCreateResource && (
+                                        <>
+                                            <input
+                                                ref={xmlUploadInputRef}
+                                                type="file"
+                                                accept=".xml,text/xml,application/xml"
+                                                hidden
+                                                aria-label="Select DataCite XML file"
+                                                data-testid="resources-xml-upload-input"
+                                                onChange={(event) => {
+                                                    const file = event.target.files?.[0];
+                                                    if (file) void handleXmlUpload(file);
+                                                }}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                disabled={isUploadingXml}
+                                                aria-busy={isUploadingXml}
+                                                data-testid="resources-xml-upload"
+                                                onClick={() => xmlUploadInputRef.current?.click()}
+                                            >
+                                                <Upload className="size-4" aria-hidden="true" />
+                                                {isUploadingXml ? 'Uploading XML…' : 'Upload XML'}
+                                            </Button>
+                                        </>
+                                    )}
                                     {canUpdateDataCiteLandingPageUrls && (
                                         <Button
                                             variant="outline"
@@ -2588,6 +2641,7 @@ function ResourcesPage({
             {/* Landing Page Setup Modal */}
             {selectedResourceForLandingPage && (
                 <SetupLandingPageModal
+                    context="resource-list"
                     isOpen={isLandingPageModalOpen}
                     resource={selectedResourceForLandingPage}
                     onClose={handleCloseLandingPageModal}
@@ -2665,7 +2719,9 @@ function ResourcesPage({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Update metadata?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will update metadata at DataCite for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'}.
+                            This sends the saved metadata for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'} to DataCite, updating
+                            existing DOIs one by one. It does not save unsaved editor changes or create a new DOI. Some updates may succeed even if
+                            others fail; check the results before retrying.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

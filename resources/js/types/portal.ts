@@ -2,6 +2,8 @@
  * Portal types for the public dataset discovery page.
  */
 
+import type { PartySearchMatch } from '@/types/party-search';
+
 export type PortalKind = 'doi' | 'igsn';
 export type PortalBasePath = '/doi-search' | '/igsn-search';
 
@@ -14,6 +16,13 @@ export interface PortalContext {
 
 export interface PortalMapConfig {
     maxZoom: number;
+    basemap: PortalBasemapConfig;
+}
+
+export interface PortalBasemapConfig {
+    provider: 'openfreemap';
+    styleUrl: string;
+    language: 'en';
 }
 
 /**
@@ -61,6 +70,8 @@ export interface PortalResource {
     doi: string | null;
     title: string;
     creators: PortalCreator[];
+    searchMatches: PartySearchMatch[];
+    sampleNameMatches?: PortalSampleNameMatch[];
     year: number | null;
     resourceType: string;
     resourceTypeSlug: string | null;
@@ -69,6 +80,11 @@ export interface PortalResource {
     igsn?: PortalMapIgsnSummary | null;
     geoLocations: PortalGeoLocation[];
     landingPageUrl: string | null;
+}
+
+export interface PortalSampleNameMatch {
+    label: 'Local accession number' | 'Local sample name';
+    display_value: string;
 }
 
 /** On-demand citation and abstract shown from a portal result row. */
@@ -101,6 +117,7 @@ export interface PortalPagination {
  * Active filter state.
  */
 export interface PortalFilters {
+    topic?: { slug: string; label: string } | null;
     query: string | null;
     type: string[];
     exclude_type?: string | null;

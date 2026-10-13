@@ -1,4 +1,7 @@
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+import { expect, type Locator, type Page, test as base } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -13,9 +16,9 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
  * 3. Verify data is correctly stored in database
  * 4. Export IGSN as DataCite JSON and verify download succeeds
  *
- * Note: These tests run in a shared database environment. Previous test runs
- * or retries may leave data in the database. Tests use .first() selectors
- * to handle multiple matching elements gracefully.
+ * Each test imports the complete CSV fixtures with its own unique IGSNs.
+ * Parallel deletion/export and repeated runs must not share mutable resources.
+ * The duplicate scenario deliberately uploads its own payload twice.
  */
 
 const __filename = fileURLToPath(import.meta.url);
@@ -24,31 +27,11 @@ const __dirname = path.dirname(__filename);
 function resolveDatasetExample(filename: string): string {
     return path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', filename);
 }
-async function waitForIgsnUploadResult(page: Page): Promise<'success' | 'error'> {
-    return Promise.race([
-        page
-            .getByTestId('dropzone-success-state')
-            .waitFor({ timeout: 30000 })
-            .then(() => 'success' as const),
-        page
-            .getByTestId('dropzone-error-state')
-            .waitFor({ timeout: 30000 })
-            .then(() => 'error' as const),
-    ]);
-}
-
-async function openIgsnListAfterDashboardUpload(page: Page): Promise<'success' | 'error'> {
-    const result = await waitForIgsnUploadResult(page);
-
-    if (result === 'success') {
-        await expect(page.getByTestId('dropzone-success-alert')).toContainText('IGSN import complete');
-        await page.getByRole('button', { name: /view igsns/i }).click();
-        await page.waitForURL(/\/igsns/, { timeout: 30000 });
-        return result;
-    }
-
-    await page.goto('/igsns');
-    return result;
+async function openIgsnListAfterDashboardUpload(page: Page): Promise<void> {
+    await expect(page.getByTestId('dropzone-success-state')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('dropzone-success-alert')).toContainText('IGSN import complete');
+    await page.getByRole('button', { name: /view igsns/i }).click();
+    await page.waitForURL(/\/igsns/, { timeout: 30000 });
 }
 
 async function exportIgsnJsonThroughUi(page: Page, exportButton: Locator) {
@@ -104,6 +87,38 @@ const DIVE_CSV_DATA = {
     city: 'Verbano-Cusio-Ossola',
 };
 
+type CsvFixture = {
+    igsn: string;
+    file: { name: string; mimeType: string; buffer: Buffer };
+};
+
+function isolatedCsv(original: { filename: string; igsn: string }): CsvFixture {
+    const igsn = original.igsn + randomUUID().replaceAll('-', '').toUpperCase();
+    // Keep every CSV field and its embedded descriptions/relations intact;
+    // replace only this sample's identifier, including its occurrence in title.
+    const contents = readFileSync(resolveDatasetExample(original.filename), 'utf8');
+    return {
+        igsn,
+        file: {
+            name: original.filename,
+            mimeType: 'text/csv',
+            buffer: Buffer.from(contents.replaceAll(original.igsn, igsn)),
+        },
+    };
+}
+
+const test = base.extend<{ doveCsv: CsvFixture; diveCsv: CsvFixture }>({
+    // Playwright requires an object pattern for dependency-free fixtures.
+    // eslint-disable-next-line no-empty-pattern
+    doveCsv: async ({}, provide) => {
+        await provide(isolatedCsv(DOVE_CSV_DATA));
+    },
+    // eslint-disable-next-line no-empty-pattern
+    diveCsv: async ({}, provide) => {
+        await provide(isolatedCsv(DIVE_CSV_DATA));
+    },
+});
+
 test.describe('IGSN Workflow', () => {
     test.beforeEach(async ({ page }) => {
         // Login
@@ -114,19 +129,19 @@ test.describe('IGSN Workflow', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     });
 
-    test('can upload DOVE CSV file and see data in /igsns table', async ({ page }) => {
+    test('can upload DOVE CSV file and see data in /igsns table', async ({ page, doveCsv }) => {
         // Navigate to dashboard
         await page.goto('/dashboard');
 
         // Find the unified dropzone and upload CSV
         const fileInput = page.getByTestId('unified-file-input');
-        const csvFilePath = resolveDatasetExample(DOVE_CSV_DATA.filename);
-        await fileInput.setInputFiles(csvFilePath);
+        const csvFile = doveCsv.file;
+        await fileInput.setInputFiles(csvFile);
         await openIgsnListAfterDashboardUpload(page);
 
         // Verify the IGSN is displayed in the table (use exact match in IGSN column)
         // The IGSN appears in both IGSN column and title column, use getByRole for precision
-        const igsnCell = page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first();
+        const igsnCell = page.getByRole('cell', { name: doveCsv.igsn, exact: true }).first();
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
 
         // Verify sample type (appears only once per row in its column)
@@ -142,35 +157,35 @@ test.describe('IGSN Workflow', () => {
         await expect(page.getByRole('cell', { name: 'uploaded' }).first()).toBeVisible();
     });
 
-    test('can upload DIVE CSV file and see data in /igsns table', async ({ page }) => {
+    test('can upload DIVE CSV file and see data in /igsns table', async ({ page, diveCsv }) => {
         // Navigate to dashboard
         await page.goto('/dashboard');
 
         // Upload CSV
         const fileInput = page.getByTestId('unified-file-input');
-        const csvFilePath = resolveDatasetExample(DIVE_CSV_DATA.filename);
-        await fileInput.setInputFiles(csvFilePath);
+        const csvFile = diveCsv.file;
+        await fileInput.setInputFiles(csvFile);
         await openIgsnListAfterDashboardUpload(page);
 
         // Verify data (use exact match for IGSN column)
-        await expect(page.getByRole('cell', { name: DIVE_CSV_DATA.igsn, exact: true }).first()).toBeVisible({ timeout: 10000 });
+        await expect(page.getByRole('cell', { name: diveCsv.igsn, exact: true }).first()).toBeVisible({ timeout: 10000 });
         await expect(page.getByRole('cell', { name: DIVE_CSV_DATA.sampleType }).first()).toBeVisible();
         await expect(page.getByRole('cell', { name: DIVE_CSV_DATA.material }).first()).toBeVisible();
         await expect(page.getByText(DIVE_CSV_DATA.collectionStartDate).first()).toBeVisible();
     });
 
-    test('can upload both CSV files and see all data', async ({ page }) => {
+    test('can upload both CSV files and see all data', async ({ page, doveCsv, diveCsv }) => {
         // Upload first file (DOVE)
         await page.goto('/dashboard');
         let fileInput = page.getByTestId('unified-file-input');
-        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        await fileInput.setInputFiles(doveCsv.file);
 
         await openIgsnListAfterDashboardUpload(page);
 
         // Go back to dashboard and upload second file (DIVE)
         await page.goto('/dashboard');
         fileInput = page.getByTestId('unified-file-input');
-        await fileInput.setInputFiles(resolveDatasetExample(DIVE_CSV_DATA.filename));
+        await fileInput.setInputFiles(diveCsv.file);
 
         await openIgsnListAfterDashboardUpload(page);
 
@@ -178,65 +193,57 @@ test.describe('IGSN Workflow', () => {
         await page.goto('/igsns');
 
         // Verify both IGSNs are displayed (use exact match)
-        await expect(page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first()).toBeVisible({ timeout: 10000 });
-        await expect(page.getByRole('cell', { name: DIVE_CSV_DATA.igsn, exact: true }).first()).toBeVisible();
+        await expect(page.getByRole('cell', { name: doveCsv.igsn, exact: true }).first()).toBeVisible({ timeout: 10000 });
+        await expect(page.getByRole('cell', { name: diveCsv.igsn, exact: true }).first()).toBeVisible();
 
         // Verify both materials are displayed
         await expect(page.getByRole('cell', { name: 'Sediment' }).first()).toBeVisible();
         await expect(page.getByRole('cell', { name: 'Rock' }).first()).toBeVisible();
     });
 
-    test('rejects duplicate IGSN upload with clear error message', async ({ page }) => {
+    test('rejects duplicate IGSN upload with clear error message', async ({ page, doveCsv }) => {
         // First, ensure the IGSN exists by uploading
         await page.goto('/dashboard');
         let fileInput = page.getByTestId('unified-file-input');
-        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        await fileInput.setInputFiles(doveCsv.file);
 
-        // Wait for either a successful dashboard confirmation or a duplicate error.
-        const firstUploadResult = await waitForIgsnUploadResult(page);
+        await openIgsnListAfterDashboardUpload(page);
 
-        // If first upload showed error, the IGSN already exists (from previous tests)
-        if (firstUploadResult === 'error') {
-            // Verify error state shows correct message about duplicate
-            await expect(page.getByTestId('dropzone-error-alert')).toBeVisible();
-            // Test passed - duplicate detection works
-            return;
-        }
-
-        // First upload succeeded on the dashboard - now try uploading the same file again
+        // The first import must succeed; the same per-test payload must now fail.
         // This MUST fail because IGSNs must be globally unique
         await page.goto('/dashboard');
         fileInput = page.getByTestId('unified-file-input');
-        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        await fileInput.setInputFiles(doveCsv.file);
 
         // Wait for error state - duplicate IGSNs are now validated before storage
         await expect(page.getByTestId('dropzone-error-state')).toBeVisible({ timeout: 15000 });
         await expect(page.getByTestId('dropzone-error-alert')).toBeVisible();
 
         // Verify the error message mentions the duplicate IGSN
-        await expect(page.getByText(/already exists/i)).toBeVisible();
+        const duplicateError = page.getByTestId('dropzone-error-state').getByRole('listitem');
+        await expect(duplicateError).toBeVisible();
+        await expect(duplicateError).toContainText(/already exists/i);
+        await expect(duplicateError).toContainText(doveCsv.igsn);
     });
 
-    test('admin can delete IGSN from /igsns page', async ({ page }) => {
+    test('admin can delete IGSN from /igsns page', async ({ page, doveCsv }) => {
         // First ensure an IGSN exists
         await page.goto('/dashboard');
         const fileInput = page.getByTestId('unified-file-input');
-        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        await fileInput.setInputFiles(doveCsv.file);
 
         await openIgsnListAfterDashboardUpload(page);
 
-        // Navigate to IGSNs page
-        await page.goto('/igsns');
-
         // Verify IGSN is there (use exact match)
-        const igsnCell = page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first();
+        const igsnCell = page.getByRole('cell', { name: doveCsv.igsn, exact: true }).first();
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
 
         // Get the row containing this IGSN and select it via checkbox
         // Test user is always admin (see PlaywrightTestSeeder), so bulk delete is available
         const row = page.locator('tr').filter({ has: igsnCell }).first();
         const checkbox = row.getByRole('checkbox');
-        await checkbox.click();
+        await checkbox.check();
+        await expect(checkbox).toBeChecked();
 
         // Click the bulk delete button in the toolbar
         const deleteButton = page.getByRole('button', { name: /delete/i });
@@ -245,21 +252,29 @@ test.describe('IGSN Workflow', () => {
 
         // Confirm deletion in dialog
         const confirmButton = page.getByRole('alertdialog').getByRole('button', { name: /delete/i });
+        const deletion = page.waitForResponse((response) => response.request().method() === 'DELETE'
+            && new URL(response.url()).pathname === '/igsns/batch', { timeout: 15000 });
+        const refreshedList = page.waitForResponse((response) => response.request().method() === 'GET'
+            && new URL(response.url()).pathname === '/igsns', { timeout: 15000 });
         await confirmButton.click();
+        expect([302, 303]).toContain((await deletion).status());
+        const listResponse = await refreshedList;
+        expect(listResponse.ok()).toBeTruthy();
+        await listResponse.finished();
 
         // Wait for the row to be removed
         await expect(row).not.toBeVisible({ timeout: 10000 });
     });
 
-    test('can export IGSN as DataCite JSON after upload', async ({ page }) => {
+    test('can export IGSN as DataCite JSON after upload', async ({ page, doveCsv }) => {
         // Step 1: Upload the DOVE CSV file
         await page.goto('/dashboard');
         const fileInput = page.getByTestId('unified-file-input');
-        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        await fileInput.setInputFiles(doveCsv.file);
         await openIgsnListAfterDashboardUpload(page);
 
         // Step 2: Verify the IGSN exists in the table
-        const igsnCell = page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first();
+        const igsnCell = page.getByRole('cell', { name: doveCsv.igsn, exact: true }).first();
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
 
         // Step 3: Find the row and click the JSON export button
@@ -278,6 +293,7 @@ test.describe('IGSN Workflow', () => {
         const contentDisposition = exportResponse.headers()['content-disposition'];
         expect(contentDisposition).toContain('.json');
         expect(contentDisposition?.toLowerCase()).toContain('igsn');
+        expect(contentDisposition).toContain(doveCsv.igsn);
 
         // Verify basic DataCite JSON structure
         expect(jsonData).toHaveProperty('data');
@@ -286,6 +302,7 @@ test.describe('IGSN Workflow', () => {
 
         // Verify attributes contain required DataCite fields
         const attributes = jsonData.data.attributes;
+        expect(attributes).toHaveProperty('doi', doveCsv.igsn);
         expect(attributes).toHaveProperty('titles');
         expect(attributes).toHaveProperty('creators');
         expect(attributes).toHaveProperty('publisher');
@@ -303,18 +320,18 @@ test.describe('IGSN Workflow', () => {
         await expect(errorToast).not.toBeVisible();
     });
 
-    test('exported JSON passes DataCite schema validation (no validation modal)', async ({ page }) => {
+    test('exported JSON passes DataCite schema validation (no validation modal)', async ({ page, doveCsv }) => {
         // This test specifically verifies that the fix for contributorType, relationType,
         // and geoLocation coordinate types works correctly
 
         // Upload the DOVE CSV (which has contributors and geo coordinates)
         await page.goto('/dashboard');
         const fileInput = page.getByTestId('unified-file-input');
-        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        await fileInput.setInputFiles(doveCsv.file);
         await openIgsnListAfterDashboardUpload(page);
 
         // Find the IGSN row
-        const igsnCell = page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first();
+        const igsnCell = page.getByRole('cell', { name: doveCsv.igsn, exact: true }).first();
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
 
         const row = page.locator('tr').filter({ has: igsnCell }).first();
@@ -333,6 +350,7 @@ test.describe('IGSN Workflow', () => {
         }
 
         const attributes = jsonData.data.attributes;
+        expect(attributes).toHaveProperty('doi', doveCsv.igsn);
 
         // Verify contributors have correct contributorType format (PascalCase, no spaces)
         if (attributes.contributors) {

@@ -24,6 +24,7 @@ entity "resource_types" as resource_types {
     description : TEXT
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -35,6 +36,7 @@ entity "title_types" as title_types {
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -45,6 +47,8 @@ entity "date_types" as date_types {
     * name : VARCHAR
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
+    * is_elmo_active : BOOLEAN = true
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -56,6 +60,7 @@ entity "description_types" as description_types {
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -68,6 +73,7 @@ entity "contributor_types" as contributor_types {
     * category : VARCHAR(20) = 'both'
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -80,6 +86,7 @@ entity "identifier_types" as identifier_types {
     description : TEXT //nullable, official DataCite 4.7 definition//
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -104,6 +111,7 @@ entity "relation_types" as relation_types {
     description : TEXT //nullable, official DataCite 4.7 definition//
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -125,6 +133,7 @@ entity "languages" as languages {
     * name : VARCHAR
     * active : BOOLEAN
     * elmo_active : BOOLEAN
+    * elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -138,6 +147,7 @@ entity "rights" as rights {
     scheme_uri : VARCHAR
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
+    * is_elmo_msl_active : BOOLEAN = true
     * usage_count : INT = 0
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -279,6 +289,8 @@ entity "resources" as resources {
     legacy_description_breaks_normalized_at : TIMESTAMP <<nullable>>
     * force_review_status : BOOLEAN = false
     workflow_status_override : VARCHAR(20) <<nullable>> //indexed//
+    embargo_registration_started_at : TIMESTAMP <<nullable>>
+    embargo_registration_prefix : VARCHAR(64) <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -307,8 +319,16 @@ entity "resource_listing_projections" as resource_listing_projections {
     * updated_sort : VARCHAR(40) //indexed//
     * search_text : TEXT
     party_search_text : TEXT <<nullable>>
+    party_name_search_text : TEXT <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
+}
+
+entity "resource_party_name_terms" as resource_party_name_terms {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>> //indexed, cascade delete//
+    * term : TEXT //normalized public party name//
 }
 
 ' ==========================================================================
@@ -479,6 +499,7 @@ entity "related_items" as related_items {
     * resource_id : BIGINT <<FK>>
     * related_item_type : VARCHAR(64) //DataCite resourceTypeGeneral (PascalCase)//
     * relation_type_id : BIGINT <<FK>>
+    relation_type_information : TEXT //nullable//
     publication_year : SMALLINT
     volume : VARCHAR(64)
     issue : VARCHAR(64)
@@ -631,6 +652,25 @@ entity "resource_assessments" as resource_assessments {
     error_message : TEXT
     payload : JSON
     assessed_at : TIMESTAMP
+    assessment_started_at : TIMESTAMP(6) //nullable, result ordering//
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "resource_assessment_refreshes" as resource_assessment_refreshes {
+    * **resource_id** : BIGINT <<PK>> <<FK>> //1:1, cascade delete//
+    --
+    * status : VARCHAR(20) <<IDX>>
+    * generation : INT UNSIGNED = 1
+    claim_token : UUID <<nullable>>
+    queue_job_id : BIGINT UNSIGNED <<nullable>> //queued database job ID//
+    * attempts : SMALLINT UNSIGNED = 0
+    * service_attempts : SMALLINT UNSIGNED = 0
+    * requested_at : TIMESTAMP(6) //publication ordering//
+    available_at : TIMESTAMP <<nullable>> <<IDX>>
+    lease_expires_at : TIMESTAMP <<nullable>> <<IDX>>
+    completed_at : TIMESTAMP <<nullable>>
+    last_error : TEXT <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -792,10 +832,45 @@ entity "landing_pages" as landing_pages {
     * is_published : BOOLEAN = false
     preview_token : VARCHAR(64) <<UK>>
     published_at : TIMESTAMP
+    * is_tombstone : BOOLEAN = false //indexed//
+    tombstone_reason : VARCHAR(40) <<nullable>>
+    tombstone_statement : TEXT <<nullable>>
+    tombstoned_at : TIMESTAMP <<nullable>>
+    tombstoned_by_user_id : BIGINT <<FK>> <<nullable>> //null on user deletion//
+    * tombstone_revision : INT UNSIGNED = 0
     * view_count : INT = 0
     last_viewed_at : TIMESTAMP
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
+}
+
+entity "resource_tombstone_transitions" as resource_tombstone_transitions {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>> //cascade delete//
+    user_id : BIGINT <<FK>> <<nullable>> //null on user deletion//
+    activity_actor : JSON <<nullable>> //initiator identity snapshot//
+    * revision : INT UNSIGNED
+    * action : VARCHAR(30)
+    reason : VARCHAR(40) <<nullable>>
+    statement : TEXT <<nullable>>
+    snapshot : JSON <<nullable>>
+    * doi : VARCHAR
+    * test_mode : BOOLEAN
+    previous_state : VARCHAR(20) <<nullable>>
+    previous_url : TEXT <<nullable>>
+    * target_state : VARCHAR(20)
+    * target_url : TEXT
+    * status : VARCHAR(20) = 'pending'
+    * attempts : SMALLINT UNSIGNED = 0
+    available_at : TIMESTAMP <<nullable>>
+    completed_at : TIMESTAMP <<nullable>>
+    last_error : TEXT <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+    --
+    UNIQUE(resource_id, revision)
+    INDEX(status, available_at)
 }
 
 entity "landing_page_files" as landing_page_files {
@@ -903,6 +978,7 @@ entity "thesaurus_settings" as thesaurus_settings {
     * display_name : VARCHAR
     * is_active : BOOLEAN = true
     * is_elmo_active : BOOLEAN = true
+    * is_elmo_msl_active : BOOLEAN = true
     version : VARCHAR //nullable//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -913,8 +989,11 @@ entity "right_resource_type_exclusions" as right_resource_type_exclusions {
     --
     * right_id : BIGINT <<FK>>
     * resource_type_id : BIGINT <<FK>>
+    * editor : VARCHAR(16) = 'ernie'
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
+    --
+    UNIQUE(right_id, resource_type_id, editor) //unique_editor_exclusion//
 }
 
 ' ==========================================================================
@@ -928,6 +1007,7 @@ entity "pid_settings" as pid_settings {
     * display_name : VARCHAR
     * is_active : BOOLEAN = true
     * is_elmo_active : BOOLEAN = true
+    * is_elmo_msl_active : BOOLEAN = true
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -972,6 +1052,14 @@ entity "datacenters" as datacenters {
     igsn_landing_page_template_id : BIGINT <<FK>> <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
+}
+
+entity "datacenter_name_aliases" as datacenter_name_aliases {
+    * **id** : BIGINT <<PK>>
+    --
+    * datacenter_id : BIGINT <<FK>>
+    * name : VARCHAR
+    * name_key : VARCHAR <<UK>>
 }
 ' ==========================================================================
 ' LARAVEL FRAMEWORK TABLES
@@ -1253,6 +1341,7 @@ entity "datacite_url_update_runs" as datacite_url_update_runs {
     active_marker : VARCHAR(20) <<UK>> <<nullable>>
     initiated_by_user_id : BIGINT <<FK>> <<nullable>>
     last_controlled_by_user_id : BIGINT <<FK>> <<nullable>>
+    activity_actor : JSON <<nullable>> //initiator identity snapshot//
     * test_mode : BOOLEAN
     * datacite_endpoint : VARCHAR(500)
     * target_base_url : VARCHAR(500)
@@ -1296,6 +1385,7 @@ entity "igsn_registration_runs" as igsn_registration_runs {
     --
     initiated_by_user_id : BIGINT <<FK>> <<nullable>>
     last_controlled_by_user_id : BIGINT <<FK>> <<nullable>>
+    activity_actor : JSON <<nullable>> //initiator identity snapshot//
     * status : VARCHAR(30)
     * test_mode : BOOLEAN
     * datacite_endpoint : VARCHAR(500)
@@ -1346,6 +1436,25 @@ entity oai_pmh_deleted_records {
     updated_at : TIMESTAMP
 }
 
+entity oai_pmh_harvests {
+    * id : BIGINT <<PK>>
+    --
+    * item_count : BIGINT UNSIGNED
+    * expires_at : TIMESTAMP <<INDEX>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity oai_pmh_harvest_items {
+    * harvest_id : BIGINT <<PK>> <<FK>>
+    * position : BIGINT UNSIGNED <<PK>>
+    --
+    * kind : VARCHAR(8)
+    * identity_id : BIGINT UNSIGNED
+}
+' Composite primary key (harvest_id, position) supports indexed page ranges.
+' Positions are zero-based; identity_id has no FK so resource deletion preserves the inventory.
+
 entity oai_pmh_resumption_tokens {
     * id : BIGINT <<PK>>
     --
@@ -1357,6 +1466,8 @@ entity oai_pmh_resumption_tokens {
     until_date : TIMESTAMP
     * cursor : BIGINT UNSIGNED
     * complete_list_size : BIGINT UNSIGNED
+    harvest_id : BIGINT <<FK>> <<nullable>>
+    harvest_position : INT UNSIGNED <<nullable>>
     * expires_at : TIMESTAMP
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -1393,6 +1504,21 @@ entity assistant_dismissed {
     updated_at : TIMESTAMP
 }
 
+entity relation_type_correction_reviews {
+    * id : BIGINT <<PK>>
+    --
+    resource_id : BIGINT <<FK>> <<nullable>> //ON DELETE SET NULL//
+    related_identifier_id : BIGINT <<FK>> <<nullable>> //ON DELETE SET NULL//
+    actor_id : BIGINT <<FK>> <<nullable>> //ON DELETE SET NULL//
+    * suggestion_id : BIGINT UNSIGNED <<UK>> //snapshot ID, no FK//
+    * decision : VARCHAR(16)
+    reason : VARCHAR(255) <<nullable>>
+    * context_fingerprint : CHAR(64)
+    * review_fingerprint : CHAR(64)
+    * snapshot : JSON
+    * reviewed_at : TIMESTAMP
+}
+
 ' ==========================================================================
 ' RELATIONSHIPS
 ' ==========================================================================
@@ -1400,6 +1526,9 @@ entity assistant_dismissed {
 ' Assistant module relationships
 resources ||--o{ assistant_suggestions
 users ||--o{ assistant_dismissed
+resources |o--o{ relation_type_correction_reviews : "resource_id"
+related_identifiers |o--o{ relation_type_correction_reviews : "related_identifier_id"
+users |o--o{ relation_type_correction_reviews : "actor_id"
 
 ' Guided tour relationships
 users ||--o{ guided_tours : "created_by"
@@ -1432,6 +1561,7 @@ resources |o--o{ assessment_run_items
 
 ' Resource core relationships
 resources ||--o| resource_listing_projections
+resources ||--o{ resource_party_name_terms
 resources ||--o{ titles
 resources ||--o{ resource_creators
 resources ||--o{ resource_contributors
@@ -1446,10 +1576,15 @@ resources ||--o{ resource_rights
 resources ||--o{ sizes
 resources ||--o{ formats
 resources ||--o| resource_assessments
+resources ||--o| resource_assessment_refreshes
 resources ||--o| landing_pages
+resources ||--o{ resource_tombstone_transitions
+users |o--o{ resource_tombstone_transitions : "user_id"
+users |o--o{ landing_pages : "tombstoned_by_user_id"
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments
 resources }o--o| datacenters
+datacenters ||--o{ datacenter_name_aliases : "has names"
 datacenters }o--o| landing_page_templates : "inherits resource template"
 datacenters }o--o| landing_page_templates : "inherits IGSN template"
 
@@ -1529,6 +1664,10 @@ igsn_operators }o--|| resources
 igsn_methods }o--|| resources
 igsn_measurements }o--|| resources
 igsn_metadata_values }o--|| resources
+
+' OAI-PMH snapshot relationships
+oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
+oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 
 ' Suggested/Dismissed relations (Assistance feature)
 suggested_relations }o--|| resources

@@ -68,7 +68,7 @@ class ResourcePolicy
             'descriptions.descriptionType',
         ]);
 
-        return $resource->publicStatus() !== 'published';
+        return ! in_array($resource->publicStatus(), ['published', 'dead'], true);
     }
 
     /**
@@ -98,6 +98,10 @@ class ResourcePolicy
      */
     public function editDoi(User $user, Resource $resource): bool
     {
+        if ($resource->landingPage?->is_tombstone) {
+            return false;
+        }
+
         if ($user->role === UserRole::ADMIN) {
             return true;
         }

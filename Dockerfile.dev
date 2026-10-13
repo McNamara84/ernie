@@ -5,20 +5,20 @@
 # Usage: docker-compose -f docker-compose.dev.yml up --build
 # =============================================================================
 
-FROM mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a AS legacy-mysql-dump-client
+FROM mysql:8.4.11@sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242 AS legacy-mysql-dump-client
 
 # -----------------------------------------------------------------------------
 # Stage: PHP-FPM Application (Development)
 # -----------------------------------------------------------------------------
-FROM php:8.5.10-fpm-trixie@sha256:f697f5e5a02534fff868345cc77e29925a852bbea339c2ad53b690d28dba2868 AS app
+FROM php:8.5.11-fpm-trixie@sha256:b7bb221e9cbd162bcc5a281c820f270372b8982d7c146383ea283fb93f9ab883 AS app
 
 WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
 ARG XDEBUG_VERSION=3.5.3
-ARG NPM_VERSION=12.0.2
-ARG NODE_CHECKSUM_ARM64=81d8f0fdea9dcd3bfdcfeafc5f8359c151f097e9880b0007c0645ca670d07971
-ARG NODE_CHECKSUM_X64=40e1d3225c1c9ae9a2671c98ecb9857e4d5555026394f348645676798840d5c5
+ARG NPM_VERSION=12.2.0
+ARG NODE_CHECKSUM_ARM64=7a6353f63eb3d04765004b4adf172616243e4522434635cb1d26288658b04ab5
+ARG NODE_CHECKSUM_X64=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
 
 # Copy the exact Node.js version from the repository's single source of truth.
 COPY .node-version /tmp/.node-version
@@ -190,7 +190,7 @@ RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.in
     && echo "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # Install Composer
-COPY --from=composer:2.10.3@sha256:add7779823f272dcbc4b47b092d8a9e26fd304fb72f7209e0725737d2a5ba6a6 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac /usr/bin/composer /usr/bin/composer
 
 # Create symlink for php in /bin so it's available in all shells
 RUN ln -s /usr/local/bin/php /bin/php
@@ -217,7 +217,7 @@ CMD ["php-fpm"]
 # -----------------------------------------------------------------------------
 # Stage: Nginx Webserver (Development)
 # -----------------------------------------------------------------------------
-FROM nginx:1.31.5-alpine@sha256:72ba65eb42c10344912a84ff42408db7d34f2feb642204570ab8fc5ffd29f1d3 AS nginx
+FROM nginx:1.31.6-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS nginx
 
 WORKDIR /var/www/html
 

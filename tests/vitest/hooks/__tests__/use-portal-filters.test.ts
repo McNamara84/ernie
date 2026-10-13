@@ -34,6 +34,36 @@ describe('usePortalFilters', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        window.history.replaceState({}, '', '/');
+    });
+
+    it('keeps a topic through search changes and can remove it without dropping the search', () => {
+        const selected = { ...defaultFilters, query: 'cores', topic: { slug: 'scientific-drilling', label: 'Scientific Drilling' } };
+        const { result } = renderHook(() => usePortalFilters({ filters: selected, currentPage: 4 }));
+        expect(result.current.hasActiveFilters).toBe(true);
+        act(() => result.current.setSearch('sediments'));
+        expect(routerMock.get.mock.calls[0][0]).toContain('topic=scientific-drilling');
+        expect(routerMock.get.mock.calls[0][0]).not.toContain('page=');
+        window.history.replaceState({}, '', '/doi-search?q=cores&topic=scientific-drilling&page=4');
+        act(() => result.current.clearTopic());
+        expect(routerMock.get.mock.calls[1][0]).toBe('/doi-search?q=cores');
+        act(() => result.current.clearFilters());
+        expect(routerMock.get.mock.calls[2][0]).toBe('/doi-search');
+    });
+
+    it('recognizes a topic as the only active DOI filter', () => {
+        const filters = { ...defaultFilters, topic: { slug: 'atmosphere', label: 'Atmosphere' } };
+        const { result } = renderHook(() => usePortalFilters({ filters, currentPage: 1 }));
+        expect(result.current.hasActiveFilters).toBe(true);
+        const igsn = renderHook(() => usePortalFilters({ filters, currentPage: 1, basePath: '/igsn-search' }));
+        expect(igsn.result.current.hasActiveFilters).toBe(false);
+    });
+
+    it('preserves the current URL filters when an Inertia navigation has not yet committed new props', () => {
+        const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
+        window.history.replaceState({}, '', '/doi-search?q=core&topic=scientific-drilling&datacenter%5B%5D=GFZ&page=2');
+        act(() => result.current.clearTopic());
+        expect(routerMock.get.mock.calls[0][0]).toBe('/doi-search?q=core&datacenter%5B%5D=GFZ');
     });
 
     describe('initial state', () => {

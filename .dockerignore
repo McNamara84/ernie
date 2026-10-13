@@ -25,6 +25,7 @@
 /coverage
 /playwright-report
 /test-results
+/storage/framework/testing
 
 # Build artifacts
 /public/hot

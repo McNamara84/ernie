@@ -20,6 +20,7 @@ type CurationAccordionPreferencePayload = {
 };
 
 type MockSetupLandingPageModalProps = {
+    context: 'resource-list' | 'editor-preview' | 'editor-registration';
     isOpen: boolean;
     resource?: {
         id: number;
@@ -29,14 +30,17 @@ type MockSetupLandingPageModalProps = {
     };
     onClose?: () => void;
     onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
+    onDirtyChange?: (dirty: boolean) => void;
     openPreviewOnSuccess?: boolean;
 };
 
-const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
+const { mockRouterPut, mockRouterVisit, mockRouterReplace, mockRouterOn, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
     mockRouterPut: vi.fn(),
     mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.();
     }),
+    mockRouterReplace: vi.fn(),
+    mockRouterOn: vi.fn(() => vi.fn()),
     mockSetupLandingPageModal: vi.fn(),
     mockUsePageProps: vi.fn((): Record<string, unknown> => ({
         curationAccordionOpenItems: null as string[] | null,
@@ -47,12 +51,15 @@ const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePagePr
 vi.mock('@inertiajs/react', () => ({
     router: {
         visit: mockRouterVisit,
+        replace: mockRouterReplace,
+        on: mockRouterOn,
         get: vi.fn(),
         post: vi.fn(),
         put: mockRouterPut,
         reload: vi.fn(),
     },
     usePage: () => ({
+        url: window.location.pathname + window.location.search,
         props: mockUsePageProps(),
     }),
 }));
@@ -60,6 +67,7 @@ vi.mock('@inertiajs/react', () => ({
 vi.mock('axios');
 vi.mock('@/hooks/use-ror-affiliations');
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    hasStoredLandingPageDraft: (resourceId: number) => window.sessionStorage.getItem(`setup-landing-page-modal:draft:${resourceId}`) !== null,
     default: (props: MockSetupLandingPageModalProps) => {
         mockSetupLandingPageModal(props);
 
@@ -394,7 +402,11 @@ describe('DataCiteForm', () => {
         if (lastNameInput.value) {
             await user.clear(lastNameInput);
         }
-        await user.type(lastNameInput, lastName);
+        // These helpers establish fixtures for payload/validation scenarios.
+        // Pasting still exercises the real input handler without rendering the
+        // entire form once per character; keyboard-specific tests keep typing.
+        await user.click(lastNameInput);
+        await user.paste(lastName);
     };
 
     const fillRequiredAuthor = async (user: ReturnType<typeof userEvent.setup>, lastName = 'Curator') => {
@@ -411,7 +423,8 @@ describe('DataCiteForm', () => {
         if (lastNameInput.value) {
             await user.clear(lastNameInput);
         }
-        await user.type(lastNameInput, lastName);
+        await user.click(lastNameInput);
+        await user.paste(lastName);
     };
 
     const ensureDescriptionsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -431,7 +444,7 @@ describe('DataCiteForm', () => {
         await ensureDescriptionsOpen(user);
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.click(abstractTextarea);
-        await user.keyboard(abstract);
+        await user.paste(abstract);
     };
 
     const advanceAccordionPreferenceDebounce = async () => {
@@ -454,6 +467,13 @@ describe('DataCiteForm', () => {
         // Reset router mock for each test
         mockRouterPut.mockClear();
         mockRouterVisit.mockClear();
+        mockRouterReplace.mockClear();
+        mockRouterOn.mockClear();
+        mockRouterReplace.mockImplementation((options: { url: string }) => {
+            window.history.replaceState(window.history.state, '', options.url);
+        });
+        window.history.replaceState(window.history.state, '', '/editor');
+        window.sessionStorage.clear();
         mockSetupLandingPageModal.mockClear();
         mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
             options?.onSuccess?.();
@@ -551,18 +571,18 @@ describe('DataCiteForm', () => {
     const authorRoles: Role[] = [{ id: 5, name: 'Author', slug: 'author' }];
 
     const dateTypes: DateType[] = [
-        { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.' },
-        { id: 2, name: 'Available', slug: 'available', description: 'The date the resource is made publicly available.' },
-        { id: 3, name: 'Collected', slug: 'collected', description: 'The date the resource content was collected.' },
-        { id: 4, name: 'Copyrighted', slug: 'copyrighted', description: 'The date the resource receives a copyrighted status.' },
-        { id: 5, name: 'Issued', slug: 'issued', description: 'The date the resource is published or distributed.' },
-        { id: 6, name: 'Other', slug: 'other', description: 'Other date type.' },
-        { id: 7, name: 'Submitted', slug: 'submitted', description: 'The date the creator submits the resource to the publisher.' },
-        { id: 8, name: 'Valid', slug: 'valid', description: 'The date range during which the dataset is accurate.' },
-        { id: 9, name: 'Withdrawn', slug: 'withdrawn', description: 'The date the resource is removed.' },
-        { id: 10, name: 'Created', slug: 'created', description: 'The date the resource was created.' },
-        { id: 11, name: 'Updated', slug: 'updated', description: 'The date the resource metadata was updated.' },
-        { id: 12, name: 'Coverage', slug: 'coverage', description: 'Temporal coverage for the resource.' },
+        { id: 1, name: 'Accepted', slug: 'Accepted', description: 'The date that the publisher accepted the resource.' },
+        { id: 2, name: 'Available', slug: 'Available', description: 'The date the resource is made publicly available.' },
+        { id: 3, name: 'Collected', slug: 'Collected', description: 'The date the resource content was collected.' },
+        { id: 4, name: 'Copyrighted', slug: 'Copyrighted', description: 'The date the resource receives a copyrighted status.' },
+        { id: 5, name: 'Issued', slug: 'Issued', description: 'The date the resource is published or distributed.' },
+        { id: 6, name: 'Other', slug: 'Other', description: 'Other date type.' },
+        { id: 7, name: 'Submitted', slug: 'Submitted', description: 'The date the creator submits the resource to the publisher.' },
+        { id: 8, name: 'Valid', slug: 'Valid', description: 'The date range during which the dataset is accurate.' },
+        { id: 9, name: 'Withdrawn', slug: 'Withdrawn', description: 'The date the resource is removed.' },
+        { id: 10, name: 'Created', slug: 'Created', description: 'The date the resource was created.' },
+        { id: 11, name: 'Updated', slug: 'Updated', description: 'The date the resource metadata was updated.' },
+        { id: 12, name: 'Coverage', slug: 'Coverage', description: 'Temporal coverage for the resource.' },
     ];
 
     const descriptionTypes: DescriptionType[] = [
@@ -593,6 +613,617 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('unsaved editor changes', () => {
+        const unloadIsBlocked = () => {
+            const event = new Event('beforeunload', { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+        };
+
+        it('warns only while a metadata edit differs from the last saved state', async () => {
+            renderDataCiteForm();
+            expect(unloadIsBlocked()).toBe(false);
+
+            fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(true));
+            fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: '' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(false));
+        });
+
+        it('treats imported initial metadata as unsaved until the first successful draft save', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Imported title', titleType: 'main-title' }],
+                hasUnpersistedPrefill: true,
+            });
+
+            expect(unloadIsBlocked()).toBe(true);
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(unloadIsBlocked()).toBe(false));
+            expect(window.location.search).toBe('?resourceId=42');
+        });
+
+        it('keeps changes made during autosave dirty after the older request succeeds', async () => {
+            vi.useFakeTimers();
+            const response = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValue(response.promise);
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'First title' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave', titles: [expect.objectContaining({ title: 'First title' })] }),
+                    expect.any(Object),
+                );
+                expect(unloadIsBlocked()).toBe(true);
+
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Newer title' } });
+                await act(async () => {
+                    response.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(window.location.search).toBe('?resourceId=42');
+                expect(unloadIsBlocked()).toBe(true);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('clears the warning after a successful autosave and makes the first draft reloadable', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Autosaved title' } });
+                expect(unloadIsBlocked()).toBe(true);
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(window.location.search).toBe('?resourceId=42');
+                expect(unloadIsBlocked()).toBe(false);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('keeps the warning after autosave fails', async () => {
+            vi.useFakeTimers();
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue(new Error('Network error'));
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent('Autosave failed');
+                expect(unloadIsBlocked()).toBe(true);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+                consoleError.mockRestore();
+            }
+        });
+
+        it('does not treat a new draft as saved if autosave omits its resource ID', async () => {
+            vi.useFakeTimers();
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.' }, status: 201 });
+            const view = renderDataCiteForm();
+
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(window.location.search).toBe('');
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent('Autosave failed');
+                expect(unloadIsBlocked()).toBe(true);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+                consoleError.mockRestore();
+            }
+        });
+
+        it('warns while Tagify contains uncommitted text and clears after discarding it', async () => {
+            const user = userEvent.setup();
+            renderDataCiteForm();
+            await ensureFreeKeywordsOpen(user);
+            const keywordInput = screen.getByTestId('free-keywords-input') as TagifyEnabledInput;
+            const pendingInput = keywordInput.parentElement?.querySelector<HTMLInputElement>('.tagify__input');
+            expect(pendingInput).toBeTruthy();
+
+            expect(unloadIsBlocked()).toBe(false);
+            fireEvent.input(pendingInput!, { target: { value: 'unfinished keyword' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(true));
+            fireEvent.input(pendingInput!, { target: { value: '' } });
+            await waitFor(() => expect(unloadIsBlocked()).toBe(false));
+        });
+
+        it('protects a retained landing-page draft even when the setup modal is closed', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
+            expect(unloadIsBlocked()).toBe(false);
+
+            await userEvent.click(screen.getByTestId('show-lp-preview-button'));
+            await waitFor(() => expect(mockSetupLandingPageModal).toHaveBeenCalledWith(expect.objectContaining({ isOpen: true })));
+            const modal = mockSetupLandingPageModal.mock.calls.at(-1)?.[0] as MockSetupLandingPageModalProps;
+            act(() => modal.onDirtyChange?.(true));
+            expect(unloadIsBlocked()).toBe(true);
+            act(() => modal.onClose?.());
+            expect(unloadIsBlocked()).toBe(true);
+        });
+
+        it('clears the landing-page warning after the setup is saved', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
+
+            await userEvent.click(screen.getByTestId('show-lp-preview-button'));
+            const modal = mockSetupLandingPageModal.mock.calls.at(-1)?.[0] as MockSetupLandingPageModalProps;
+            act(() => modal.onDirtyChange?.(true));
+            expect(unloadIsBlocked()).toBe(true);
+            await act(async () => modal.onSuccess?.(null));
+            expect(unloadIsBlocked()).toBe(false);
+        });
+
+        it('restores the landing-page warning from session storage for an existing resource', () => {
+            window.sessionStorage.setItem('setup-landing-page-modal:draft:42', '{"template":"default_gfz"}');
+            renderDataCiteForm({ initialResourceId: '42' });
+            expect(unloadIsBlocked()).toBe(true);
+        });
+    });
+
+    describe('ROR input save guards', () => {
+        const rorInitialValues = {
+            initialTitles: [{ title: 'ROR draft', titleType: 'main-title' }],
+            initialFundingReferences: [
+                {
+                    id: 'ror-funder',
+                    funderName: 'Existing Funder',
+                    funderIdentifier: '',
+                    funderIdentifierType: null,
+                    awardNumber: '',
+                    awardUri: '',
+                    awardTitle: '',
+                    isExpanded: false,
+                },
+            ],
+        };
+        for (const action of ['save-draft-button', 'save-resource-button', 'show-lp-preview-button', 'datacite-action-button']) {
+            it(`blocks ${action} while a ROR input is unconfirmed`, async () => {
+                mockUsePageProps.mockReturnValue({ auth: { user: { can_register_doi: true } } });
+                renderDataCiteForm(rorInitialValues);
+                const trigger = getAccordionTrigger(/Funding References/i);
+                if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+                fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: 'Unknown (012345678)' } });
+                fireEvent.click(screen.getByTestId(action));
+                expect(await screen.findByText('Please finish the institution or funder input before saving.')).toBeInTheDocument();
+                expect(axios.post).not.toHaveBeenCalled();
+                expect(mockSetupLandingPageModal).not.toHaveBeenCalledWith(expect.objectContaining({ isOpen: true }));
+            });
+        }
+        it('pauses autosave for a pending ROR and resumes after explicitly choosing an unlinked name', async () => {
+            vi.useFakeTimers();
+            const view = renderDataCiteForm(rorInitialValues);
+            try {
+                const trigger = getAccordionTrigger(/Funding References/i);
+                if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+                fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: 'Unknown (012345678)' } });
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(60_000);
+                });
+                expect(axios.post).not.toHaveBeenCalled();
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent('Autosave paused');
+                fireEvent.click(screen.getByText('Use name without ROR ID'));
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(60_000);
+                });
+                expect(axios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({
+                        intent: 'autosave',
+                        fundingReferences: [expect.objectContaining({ funderName: 'Unknown', funderIdentifier: '', funderIdentifierType: null })],
+                    }),
+                    expect.anything(),
+                );
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+        it('removes a pending ROR guard when its funding entry is deleted', async () => {
+            renderDataCiteForm(rorInitialValues);
+            const trigger = getAccordionTrigger(/Funding References/i);
+            if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+            fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: '012345678' } });
+            fireEvent.click(screen.getByRole('button', { name: 'Remove funding 1' }));
+            fireEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() =>
+                expect(axios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ fundingReferences: [] }),
+                    expect.anything(),
+                ),
+            );
+        });
+    });
+
+    describe('metadata upload when creating a resource', () => {
+        it('shows the upload group only for a new editor session', () => {
+            const { unmount } = renderDataCiteForm();
+            expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+            unmount();
+            renderDataCiteForm({ initialResourceId: '42' });
+            expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+        });
+
+        it('hides the upload group after saving the first draft', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument());
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                '/editor/resources/draft',
+                expect.objectContaining({ intent: 'save-draft' }),
+                expect.any(Object),
+            );
+        });
+
+        it('hides the upload group when autosave creates the first draft', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+
+            try {
+                expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('blocks metadata upload while the first draft autosave is in flight', async () => {
+            vi.useFakeTimers();
+            const autosaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValue(autosaveResponse.promise);
+            const fetchMock = vi.fn((input: RequestInfo | URL) => createDefaultFetchResponse(input.toString()));
+            global.fetch = fetchMock;
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                const upload = screen.getByTestId('editor-metadata-file-input');
+                expect(upload).toBeDisabled();
+                fireEvent.change(upload, { target: { files: [new File(['xml'], 'import.xml')] } });
+                expect(fetchMock.mock.calls.some(([url]) => url.toString().includes('/editor/upload-'))).toBe(false);
+
+                await act(async () => {
+                    autosaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+                expect(fetchMock.mock.calls.some(([url]) => url.toString().includes('/editor/upload-'))).toBe(false);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('keeps imported citations in the first autosave when upload starts first', async () => {
+            vi.useFakeTimers();
+            const uploadResponse = createDeferred<Response>();
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-') ? uploadResponse.promise : createDefaultFetchResponse(input.toString()),
+            );
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Imported citation' }] }];
+
+            try {
+                fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).not.toHaveBeenCalled();
+
+                await act(async () => {
+                    uploadResponse.resolve(createJsonResponse({ success: true, metadata: { relatedItems } }));
+                });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave', relatedItems }),
+                    expect.any(Object),
+                );
+                expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('sends imported inline citations only when creating the draft', async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
+            renderDataCiteForm({
+                initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
+                initialRelatedItems: relatedItems,
+            });
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            await waitFor(() => expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument());
+            expect(mockedAxios.post.mock.calls[0][1].relatedItems).toEqual(relatedItems);
+
+            fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Updated dataset' } });
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
+            expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ resourceId: 42 });
+            expect(mockedAxios.post.mock.calls[1][1]).not.toHaveProperty('relatedItems');
+        });
+
+        it('leaves REST-managed citations out of later autosaves without an extra unchanged save', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
+            const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
+            const view = renderDataCiteForm({
+                initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
+                initialRelatedItems: relatedItems,
+            });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1].relatedItems).toEqual(relatedItems);
+
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Updated dataset' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'autosave', resourceId: 42 });
+                expect(mockedAxios.post.mock.calls[1][1]).not.toHaveProperty('relatedItems');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('disables persistence actions until an upload has finished merging', async () => {
+            const uploadResponse = createDeferred<Response>();
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-') ? uploadResponse.promise : createDefaultFetchResponse(input.toString()),
+            );
+            mockUsePageProps.mockReturnValue({
+                auth: { user: { can_register_doi: true } },
+                curationAccordionOpenItems: null,
+                curationAccordionRevision: null,
+            });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            renderDataCiteForm({ initialTitles: [{ title: 'Entered title', titleType: 'main-title' }] });
+
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
+            await waitFor(() => {
+                expect(screen.getByTestId('save-draft-button')).toBeDisabled();
+                expect(screen.getByTestId('save-resource-button')).toBeDisabled();
+                expect(screen.getByTestId('datacite-action-button')).toBeDisabled();
+                expect(screen.getByTestId('show-lp-preview-button')).toBeDisabled();
+            });
+            fireEvent.submit(screen.getByTestId('save-resource-button').closest('form')!);
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+
+            await act(async () => {
+                uploadResponse.resolve(createJsonResponse({ success: true, metadata: { year: '2025' } }));
+            });
+            await waitFor(() => expect(screen.getByTestId('save-draft-button')).toBeEnabled());
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'save-draft', year: 2025 });
+        });
+
+        it('normalizes nullable server defaults before merging an uploaded file', async () => {
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(
+                          createJsonResponse({ success: true, metadata: { year: '2024', titles: [{ title: 'Imported', titleType: 'main-title' }] } }),
+                      )
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm({
+                initialDoi: null as unknown as string,
+                initialYear: null as unknown as string,
+                initialResourceType: null as unknown as string,
+                initialVersion: null as unknown as string,
+                initialLanguage: null as unknown as string,
+            });
+
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'metadata.xml')] } });
+
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('metadata.xml was added'),
+            );
+            expect(screen.getByTestId('main-title-input')).toHaveValue('Imported');
+            expect(document.querySelector('#year')).toHaveValue(2024);
+        });
+
+        it('preserves typed values, fills empty values, and saves unique imported collections', { timeout: 60000 }, async () => {
+            const metadata = {
+                doi: '10.5880/imported',
+                year: '2025',
+                resourceType: '99',
+                version: '1.0',
+                titles: [
+                    { title: 'Imported main', titleType: 'main-title' },
+                    { title: 'Imported subtitle', titleType: 'subtitle' },
+                ],
+                authors: [
+                    { type: 'person', orcid: '0000-0001', firstName: 'Jane', lastName: 'From XML', email: 'jane@example.test', isContact: true },
+                ],
+                descriptions: [{ type: 'Abstract', description: 'Imported description' }],
+                freeKeywords: ['existing', 'new keyword'],
+                relatedItems: [{ relatedItemIdentifier: '10.1000/citation' }],
+            };
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(createJsonResponse({ success: true, metadata }))
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm({
+                initialDoi: '10.5880/typed',
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Typed main', titleType: 'main-title' }],
+                initialAuthors: [{ type: 'person', orcid: '0000-0001', firstName: 'Jane', lastName: 'Typed', email: '', isContact: true }],
+                initialFreeKeywords: ['existing'],
+            });
+
+            const upload = screen.getByTestId('editor-metadata-file-input');
+            fireEvent.change(upload, { target: { files: [new File(['xml'], 'first.xml')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('first.xml was added'),
+            );
+            fireEvent.change(upload, { target: { files: [new File(['json'], 'second.json')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('second.json was added'),
+            );
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            const payload = mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1];
+            expect(payload).toMatchObject({ doi: '10.5880/typed', year: 2024, resourceType: 1, version: '1.0' });
+            expect(payload.titles).toEqual([
+                { title: 'Typed main', titleType: 'main-title', language: null },
+                { title: 'Imported subtitle', titleType: 'subtitle', language: null },
+            ]);
+            expect(payload.authors).toHaveLength(1);
+            expect(payload.authors[0]).toMatchObject({ lastName: 'Typed', email: 'jane@example.test' });
+            expect(payload.freeKeywords).toEqual(['existing', 'new keyword']);
+            expect(payload.descriptions).toEqual(expect.arrayContaining([expect.objectContaining({ description: 'Imported description' })]));
+            expect(payload.relatedItems).toEqual([{ relatedItemIdentifier: '10.1000/citation' }]);
+        });
+
+        it('saves unknown imported rights as raw metadata and ignores unsupported languages', { timeout: 60000 }, async () => {
+            const right = {
+                rights: 'Local reuse terms',
+                rightsIdentifier: 'LOCAL-2025',
+                rightsIdentifierScheme: 'Institution',
+                rightsUri: 'https://example.test/rights/local',
+            };
+            global.fetch = vi.fn((input: RequestInfo | URL) =>
+                input.toString().includes('/editor/upload-')
+                    ? Promise.resolve(
+                          createJsonResponse({
+                              success: true,
+                              metadata: {
+                                  titles: [{ title: 'Imported title', titleType: 'main-title' }],
+                                  language: 'xx-UNCONFIGURED',
+                                  licenses: ['LOCAL-2025'],
+                                  rawRights: [right],
+                              },
+                          }),
+                      )
+                    : createDefaultFetchResponse(input.toString()),
+            );
+            renderDataCiteForm();
+            fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['json'], 'rights.json')] } });
+            await waitFor(() =>
+                expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('rights.json was added'),
+            );
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            const payload = mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1];
+            expect(payload.language).toBe('');
+            expect(payload.licenses).toEqual([]);
+            expect(payload.customLicenses).toEqual([]);
+            expect(payload.rawRights).toEqual([{ ...right, sourceResourceRightId: null }]);
+        });
+    });
+
     describe('Floating editor actions (Issue #969)', () => {
         it('keeps the editor action buttons in a fixed bottom-right action cluster', () => {
             renderDataCiteForm();
@@ -617,6 +1248,35 @@ describe('DataCiteForm', () => {
             expect(screen.getAllByTestId('save-draft-button')).toHaveLength(1);
             expect(screen.getAllByTestId('show-lp-preview-button')).toHaveLength(1);
             expect(screen.getAllByTestId('save-resource-button')).toHaveLength(1);
+        });
+
+        it('opens editor action guidance in a new tab so unsaved form values remain available', () => {
+            mockUsePageProps.mockReturnValue({
+                auth: { user: { can_register_doi: true } },
+                curationAccordionOpenItems: null,
+                curationAccordionRevision: null,
+            });
+
+            const { unmount } = renderDataCiteForm();
+            const draftActions = within(screen.getByTestId('editor-floating-actions'));
+            const validateHelp = draftActions.getByRole('link', { name: 'Details (opens in a new tab)' });
+            const registerHelp = draftActions.getByRole('link', { name: 'What happens? (opens in a new tab)' });
+
+            expect(validateHelp).toHaveAttribute('href', '/docs?tab=datasets&section=editor-validate');
+            expect(registerHelp).toHaveAttribute('href', '/docs?tab=datasets&section=editor-register');
+            for (const link of [validateHelp, registerHelp]) {
+                expect(link).toHaveAttribute('target', '_blank');
+                expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+            }
+
+            unmount();
+            renderDataCiteForm({ initialDoi: '10.5880/existing.001', initialPublicStatus: 'published' });
+            const updateHelp = within(screen.getByTestId('editor-floating-actions')).getByRole('link', {
+                name: 'What happens? (opens in a new tab)',
+            });
+            expect(updateHelp).toHaveAttribute('href', '/docs?tab=datasets&section=editor-update-metadata');
+            expect(updateHelp).toHaveAttribute('target', '_blank');
+            expect(updateHelp).toHaveAttribute('rel', 'noopener noreferrer');
         });
 
         it('uses transparent small-screen idle state with hover, focus, and touch reveal fallbacks', () => {
@@ -5126,6 +5786,153 @@ describe('DataCiteForm', () => {
     });
 
     describe('Dates Form Group', () => {
+        const getEditorDateInputs = () =>
+            Array.from(document.querySelectorAll<HTMLInputElement>('input[id$="-date"], input[id$="-startDate"], input[id$="-endDate"]'));
+
+        it.each([true, false])('locks stored Submitted dates even when the type is inactive (active: %s)', async (isActive) => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialDates: [{ dateType: 'SUBMITTED', startDate: '2020-01-15T09:30:00+01:00', endDate: '' }],
+                dateTypes: [
+                    ...(isActive ? [{ id: 1, name: 'Submitted', slug: 'Submitted', description: '' }] : []),
+                    { id: 2, name: 'Collected', slug: 'Collected', description: '' },
+                    { id: 3, name: 'Created', slug: 'Created', description: '' },
+                ],
+            });
+            await ensureDatesOpen(user);
+
+            expect(screen.getByRole('textbox', { name: 'Date' })).toBeDisabled();
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toBeDisabled();
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Submitted');
+            expect(screen.getByLabelText('Time (optional)')).toHaveValue('09:30:00');
+
+            await user.click(screen.getByRole('button', { name: /^add date$/i }));
+            const selects = screen.getAllByRole('combobox', { name: 'Date Type' });
+            expect(selects[1]).toHaveTextContent('Collected');
+            expect(screen.getAllByRole('textbox', { name: 'Date' })[1]).toBeEnabled();
+            await user.click(selects[1]);
+            expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Collected', 'Created']);
+        });
+
+        it('does not add a duplicate when Submitted is the only enabled date type', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialDates: [{ dateType: 'Submitted', startDate: '2020', endDate: '' }],
+                dateTypes: [{ id: 1, name: 'Submitted', slug: 'Submitted', description: '' }],
+            });
+            await ensureDatesOpen(user);
+            const add = screen.getByRole('button', { name: /^add date$/i });
+            expect(add).toBeDisabled();
+            await user.click(add);
+            expect(screen.getAllByRole('textbox', { name: 'Date' })).toHaveLength(1);
+        });
+
+        it('allows a missing Submitted date to be added and locks it after its first draft save', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Resource without submission date', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Created', startDate: '2020', endDate: '' }],
+                dateTypes: [
+                    { id: 1, name: 'Submitted', slug: 'Submitted', description: '' },
+                    { id: 2, name: 'Created', slug: 'Created', description: '' },
+                ],
+            });
+            await ensureDatesOpen(user);
+            await user.click(screen.getByRole('button', { name: /^add date$/i }));
+            const submittedInput = screen.getAllByRole('textbox', { name: 'Date' })[1];
+            const submittedType = screen.getAllByRole('combobox', { name: 'Date Type' })[1];
+            expect(submittedType).toHaveTextContent('Submitted');
+            expect(submittedType).toBeEnabled();
+            await user.type(submittedInput, '2020-02-15');
+            await user.tab();
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(submittedInput).toBeDisabled());
+            expect(submittedType).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Remove date' })).toBeDisabled();
+            expect(mockedAxios.post.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1].dates).toContainEqual(
+                expect.objectContaining({ dateType: 'submitted', startDate: '2020-02-15' }),
+            );
+        });
+
+        it('keeps an imported Submitted value editable after a failed save and locks it after a successful retry', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValueOnce(new Error('Save failed'));
+            renderDataCiteForm({
+                initialTitles: [{ title: 'XML-imported resource', titleType: 'main-title' }],
+                hasUnpersistedPrefill: true,
+                initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            const dateInput = screen.getByRole('textbox', { name: 'Date' });
+            expect(dateInput).toBeEnabled();
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(screen.getByTestId('save-draft-button')).toBeEnabled());
+            expect(mockedAxios.post).toHaveBeenCalledOnce();
+            expect(dateInput).toBeEnabled();
+
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(dateInput).toBeDisabled());
+            expect(dateInput).toHaveValue('2020-01-15');
+        });
+
+        it('restores and locks the saved Submitted value if it was edited while a save was in flight', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const response = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValue(response.promise);
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Submission snapshot', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            const dateInput = screen.getByRole('textbox', { name: 'Date' });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledOnce());
+            await user.clear(dateInput);
+            await user.type(dateInput, '2021-01-15');
+            expect(dateInput).toHaveValue('2021-01-15');
+            await act(async () => response.resolve({ data: { resource: { id: 42 } }, status: 201 }));
+
+            await waitFor(() => expect(dateInput).toBeDisabled());
+            expect(dateInput).toHaveValue('2020-01-15');
+        });
+
+        it('locks the first Submitted value after autosave succeeds', async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({
+                initialTitles: [{ title: 'Autosaved submission', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
+                hasUnpersistedPrefill: true,
+            });
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ intent: 'autosave' }),
+                    expect.any(Object),
+                );
+                // Open the accordion after returning to real timers so userEvent can complete.
+                vi.useRealTimers();
+                await ensureDatesOpen(userEvent.setup({ pointerEventsCheck: 0 }));
+                expect(screen.getByRole('textbox', { name: 'Date' })).toBeDisabled();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
         it('renders the Dates accordion section', async () => {
             render(
                 <DataCiteForm
@@ -5169,6 +5976,80 @@ describe('DataCiteForm', () => {
             expect(dateInputs).toHaveLength(0);
         });
 
+        it('preserves date type usage order and defaults new rows to the first editable type', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm({
+                dateTypes: [
+                    { id: 1, name: 'Accepted', slug: 'Accepted', description: '' },
+                    { id: 2, name: 'Issued', slug: 'Issued', description: '' },
+                    { id: 3, name: 'Updated', slug: 'Updated', description: '' },
+                    { id: 4, name: 'Coverage', slug: 'Coverage', description: '' },
+                    { id: 5, name: 'Withdrawn', slug: 'Withdrawn', description: '' },
+                    { id: 6, name: 'Created', slug: 'Created', description: '' },
+                    { id: 7, name: 'Collected', slug: 'Collected', description: '' },
+                    { id: 8, name: 'Available', slug: 'Available', description: '' },
+                ],
+            });
+            await ensureDatesOpen(user);
+            expect(screen.queryByRole('combobox', { name: 'Date Type' })).not.toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: /^add date$/i }));
+            const dateTypeSelect = screen.getByRole('combobox', { name: 'Date Type' });
+            expect(dateTypeSelect).toHaveTextContent('Withdrawn');
+
+            await user.click(dateTypeSelect);
+            expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Withdrawn', 'Created', 'Collected', 'Available']);
+            await user.click(screen.getByRole('option', { name: 'Collected' }));
+            await user.type(screen.getByRole('textbox', { name: 'Date' }), '2020-01-01');
+            await user.tab();
+            await user.click(screen.getByRole('button', { name: /^add date$/i }));
+
+            const dateTypeSelects = screen.getAllByRole('combobox', { name: 'Date Type' });
+            expect(dateTypeSelects).toHaveLength(2);
+            expect(dateTypeSelects[0]).toHaveTextContent('Collected');
+            expect(dateTypeSelects[1]).toHaveTextContent('Withdrawn');
+        });
+
+        it('keeps imported date types when usage order changes while using the new order for added rows', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const props: Partial<DataCiteFormProps> = {
+                dateTypes: [
+                    { id: 1, name: 'Collected', slug: 'Collected', description: '' },
+                    { id: 2, name: 'Created', slug: 'Created', description: '' },
+                ],
+                initialDates: [{ dateType: 'Created', startDate: '2020-01-01', endDate: '' }],
+            };
+            const view = renderDataCiteForm(props);
+            await ensureDatesOpen(user);
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Created');
+
+            view.rerender(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={[
+                        { id: 1, name: 'Withdrawn', slug: 'Withdrawn', description: '' },
+                        { id: 2, name: 'Created', slug: 'Created', description: '' },
+                        { id: 3, name: 'Collected', slug: 'Collected', description: '' },
+                    ]}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={props.initialDates}
+                />,
+            );
+            await user.click(screen.getByRole('button', { name: /^add date$/i }));
+
+            const dateTypeSelects = screen.getAllByRole('combobox', { name: 'Date Type' });
+            expect(dateTypeSelects[0]).toHaveTextContent('Created');
+            expect(dateTypeSelects[1]).toHaveTextContent('Withdrawn');
+            expect(screen.getAllByRole('textbox', { name: 'Date' })[0]).toHaveValue('2020-01-01');
+        });
+
         it('supports adding date types (excludes accepted, issued, updated, and coverage)', async () => {
             render(
                 <DataCiteForm
@@ -5189,13 +6070,9 @@ describe('DataCiteForm', () => {
             const addButton = screen.getByRole('button', { name: 'Add Date' });
             await user.click(addButton);
 
-            // After adding a new date: the DatePicker uses combobox role
-            // Find all comboboxes - one is the date picker, one is the date type select
+            // The new row has a text input; the date type still uses a select.
             const allComboboxes = screen.getAllByRole('combobox');
-            // DatePicker comboboxes contain "Select date" text
-            const datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            const datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(1);
 
             // Verify system-managed date types are not available, while Created is editable.
@@ -5212,6 +6089,122 @@ describe('DataCiteForm', () => {
             expect(updatedOption).not.toBeInTheDocument();
             expect(coverageOption).not.toBeInTheDocument();
             expect(createdOption).toBeInTheDocument();
+        });
+
+        it('saves a future Available date entered with the seeded slug for Embargoed access', { timeout: 60000 }, async () => {
+            vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('de-DE');
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            const futureIso = `${futureYear}-10-12`;
+
+            renderDataCiteForm({
+                initialYear: String(new Date().getFullYear()),
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Embargo Dataset', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenterId: 1,
+                initialAccessLevel: 'embargoed',
+            });
+            await ensureDatesOpen(user);
+            await user.click(screen.getByRole('button', { name: 'Add Date' }));
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Available');
+
+            const dateInput = screen.getByRole('textbox', { name: 'Date' });
+            await user.type(dateInput, `12.10.${futureYear}`);
+            await user.tab();
+            expect(dateInput).toHaveValue(`12.10.${futureYear}`);
+            expect(dateInput).not.toHaveAttribute('aria-invalid', 'true');
+            expect(screen.queryByText('Date cannot be in the future.')).not.toBeInTheDocument();
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
+
+            const mockPost = axios.post as ReturnType<typeof vi.fn>;
+            await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/editor/resources', expect.any(Object), expect.any(Object)));
+            expect(mockPost.mock.calls.find(([url]) => url === '/editor/resources')?.[1]).toMatchObject({
+                accessLevel: 'embargoed',
+                dates: [{ dateType: 'available', dateMode: 'single', startDate: futureIso, endDate: null }],
+            });
+        });
+
+        it('chooses a future Available day from the editor calendar with seeded slugs', async () => {
+            vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('en-US');
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            renderDataCiteForm({
+                initialAccessLevel: 'embargoed',
+                initialDates: [{ dateType: 'Available', startDate: `${futureYear}-10-12`, endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+
+            await user.click(screen.getByRole('button', { name: 'Choose date' }));
+            const dayLabel = new Date(futureYear, 9, 13).toLocaleDateString();
+            const dayButton = document.querySelector<HTMLButtonElement>(`button[data-day="${dayLabel}"]`);
+            expect(dayButton).toBeTruthy();
+            expect(dayButton).toBeEnabled();
+            await user.click(dayButton!);
+
+            expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(`${futureYear}-10-13`);
+        });
+
+        it('rejects a future Available date for Open access with seeded slugs', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            renderDataCiteForm({
+                initialYear: String(new Date().getFullYear()),
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Open Dataset', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenterId: 1,
+                initialAccessLevel: 'open',
+                initialDates: [{ dateType: 'Available', startDate: `${futureYear}-10-12`, endDate: '' }],
+            });
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
+
+            expect(axios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText('A future Available date requires Embargoed access.').length).toBeGreaterThan(0);
+        });
+
+        it('rejects a future Created date with seeded slugs', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Future Created Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'Created', startDate: `${futureYear}-10-12`, endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            expect(axios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText(/Date cannot be in the future/).length).toBeGreaterThan(0);
+        });
+
+        it.each(['Available', 'available'])('loads and saves an existing %s date type', { timeout: 60000 }, async (dateType) => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const futureYear = new Date().getFullYear() + 2;
+            const futureIso = `${futureYear}-10-12`;
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Existing Embargo Dataset', titleType: 'main-title' }],
+                initialAccessLevel: 'embargoed',
+                initialDates: [{ dateType, startDate: futureIso, endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Available');
+            expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(futureIso);
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            const mockPost = axios.post as ReturnType<typeof vi.fn>;
+            await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            expect(mockPost.mock.calls.find(([url]) => url === '/editor/resources/draft')?.[1].dates).toMatchObject([
+                { dateType: 'available', startDate: futureIso },
+            ]);
         });
 
         it('supports removing date fields', async () => {
@@ -5235,21 +6228,15 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // Should have 2 date picker comboboxes from initialDates
-            let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            // Should have 2 date text inputs from initialDates
+            let datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(2);
 
             // Remove button should be on the second date entry (first shows "Add")
             const removeButton = screen.getByRole('button', { name: 'Remove date' });
             await user.click(removeButton);
 
-            allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
         });
 
@@ -5339,18 +6326,12 @@ describe('DataCiteForm', () => {
             expect(screen.getByText('Single date')).toBeInTheDocument();
             expect(screen.getByText('Period')).toBeInTheDocument();
 
-            let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            let datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
 
             await user.click(screen.getByText('Period'));
 
-            allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(2);
         });
 
@@ -5372,17 +6353,14 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // Initially, "valid" type should have both date pickers with values displayed
-            let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            // Initially, the valid period shows both dates.
+            let datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(2);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
-            expect(datePickerComboboxes[1]).toHaveTextContent('2024-12-31');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-01');
+            expect(datePickerComboboxes[1]).toHaveValue('2024-12-31');
 
             // Open the date type selector and change to "available" (a single-date-only type).
-            const dateTypeTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('dateType'));
+            const dateTypeTrigger = screen.getAllByRole('combobox').find((el) => el.getAttribute('id')?.includes('dateType'));
             expect(dateTypeTrigger).toBeDefined();
             if (dateTypeTrigger) {
                 await user.click(dateTypeTrigger);
@@ -5391,13 +6369,10 @@ describe('DataCiteForm', () => {
             }
 
             // After changing to "available", should only have 1 date picker
-            allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
             // startDate should be preserved
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-01');
         });
 
         it('hydrates space-separated datetime values into date, time, and timezone controls', () => {
@@ -5418,14 +6393,12 @@ describe('DataCiteForm', () => {
             );
 
             const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            const datePickerComboboxes = getEditorDateInputs();
             const timeInput = screen.getByLabelText('Time (optional)') as HTMLInputElement;
             const timezoneTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('startTimezone'));
 
             expect(datePickerComboboxes).toHaveLength(1);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-15');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-15');
             expect(timeInput).toHaveValue('09:35:20');
             expect(timezoneTrigger).toHaveTextContent('UTC');
         });
@@ -5454,13 +6427,10 @@ describe('DataCiteForm', () => {
             );
 
             // Only 'created' should be shown; Accepted/Issued/Updated are system-managed and Coverage is edited elsewhere.
-            // DatePicker uses combobox role
-            const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            // Editor dates use text inputs.
+            const datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-01');
         });
     });
 
@@ -6062,7 +7032,7 @@ describe('DataCiteForm', () => {
 
             renderDataCiteForm({
                 initialTitles: [{ title: 'Invalid Preview Date Dataset', titleType: 'main-title' }],
-                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
+                initialDates: [{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
             });
 
             const previewButton = screen.getByTestId('show-lp-preview-button');
@@ -6225,6 +7195,9 @@ describe('DataCiteForm', () => {
                 }),
             );
             expect(modalProps.openPreviewOnSuccess).toBe(true);
+            expect(modalProps.context).toBe('editor-preview');
+            expect(window.location.search).toBe('?resourceId=99');
+            expect(mockRouterReplace).toHaveBeenCalledWith(expect.objectContaining({ url: '/editor?resourceId=99' }));
             expect(openSpy).not.toHaveBeenCalled();
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
@@ -6304,52 +7277,57 @@ describe('DataCiteForm', () => {
             expect(previewWindow.location.href).toBe('https://example.test/draft-new-lp?preview=token');
         });
 
-        it('locks a curator DOI immediately when landing page setup publishes the resource', { timeout: 30000 }, async () => {
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const { previewWindow } = createPreopenedPreviewWindow();
-            const mockedAxios = axios as unknown as { post: Mock };
-            mockedAxios.post.mockResolvedValue({
-                data: { message: 'Draft saved.', resource: { id: 42, publicStatus: 'review', canEditDoi: true } },
-                status: 200,
-                statusText: 'OK',
-                headers: {},
-                config: {},
-            });
+        it.each([false, true])(
+            'locks a curator DOI immediately when setup publishes the resource (tombstone: %s)',
+            { timeout: 30000 },
+            async (isTombstone) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                const { previewWindow } = createPreopenedPreviewWindow();
+                const mockedAxios = axios as unknown as { post: Mock };
+                mockedAxios.post.mockResolvedValue({
+                    data: { message: 'Draft saved.', resource: { id: 42, publicStatus: 'review', canEditDoi: true } },
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {},
+                    config: {},
+                });
 
-            renderDataCiteForm({
-                initialResourceId: '42',
-                initialDoi: '10.5880/publish-transition.001',
-                initialPublicStatus: 'review',
-                initialTitles: [{ title: 'Publish transition', titleType: 'main-title' }],
-                canEditDoi: true,
-                isUserAdmin: false,
-            });
+                renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialDoi: '10.5880/publish-transition.001',
+                    initialPublicStatus: 'review',
+                    initialTitles: [{ title: 'Publish transition', titleType: 'main-title' }],
+                    canEditDoi: true,
+                    isUserAdmin: false,
+                });
 
-            expect(screen.getByLabelText('DOI')).not.toHaveAttribute('readonly');
-            await user.click(screen.getByTestId('show-lp-preview-button'));
-            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+                expect(screen.getByLabelText('DOI')).not.toHaveAttribute('readonly');
+                await user.click(screen.getByTestId('show-lp-preview-button'));
+                expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
 
-            const modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
-            await act(async () => {
-                await modalProps.onSuccess?.(
-                    {
-                        id: 17,
-                        resource_id: 42,
-                        template: 'default_gfz',
-                        status: 'published',
-                        public_url: 'https://example.test/published-transition',
-                        preview_url: 'https://example.test/published-transition?preview=token',
-                        external_url: null,
-                        view_count: 0,
-                        created_at: '2026-09-14T00:00:00Z',
-                        updated_at: '2026-09-14T00:00:00Z',
-                    },
-                    previewWindow,
-                );
-            });
+                const modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
+                await act(async () => {
+                    await modalProps.onSuccess?.(
+                        {
+                            id: 17,
+                            resource_id: 42,
+                            template: 'default_gfz',
+                            is_tombstone: isTombstone,
+                            status: 'published',
+                            public_url: 'https://example.test/published-transition',
+                            preview_url: 'https://example.test/published-transition?preview=token',
+                            external_url: null,
+                            view_count: 0,
+                            created_at: '2026-09-14T00:00:00Z',
+                            updated_at: '2026-09-14T00:00:00Z',
+                        },
+                        previewWindow,
+                    );
+                });
 
-            expect(screen.getByLabelText('DOI')).toHaveAttribute('readonly');
-        });
+                expect(screen.getByLabelText('DOI')).toHaveAttribute('readonly');
+            },
+        );
 
         it('shows the preparing state while the preview draft save is in progress', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -6972,6 +7950,42 @@ describe('DataCiteForm', () => {
                 expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
                 expect(within(datacenterSelect.parentElement!).getByText('The selected datacenter is invalid.')).toBeInTheDocument();
             });
+            expect(window.location.pathname + window.location.search).toBe('/editor');
+            expect(mockRouterReplace).not.toHaveBeenCalled();
+        });
+
+        it('focuses the submitted date row named by a backend error after empty rows are omitted', { timeout: 60000 }, async () => {
+            vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+                callback(performance.now());
+                return 1;
+            });
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: { errors: { 'dates.0.startDate': ['[Dates] The submitted date is invalid.'] } },
+                },
+                isAxiosError: true,
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Dated Dataset', titleType: 'main-title' }],
+                initialDates: [
+                    { dateType: 'available', startDate: '', endDate: '' },
+                    { dateType: 'available', startDate: '2020-09-24', endDate: '' },
+                ],
+            });
+            await ensureDatesOpen(user);
+            const dateInputs = screen.getAllByRole('textbox', { name: 'Date' });
+            expect(dateInputs).toHaveLength(2);
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            const errorLink = await screen.findByTestId('error-link-dates.0.startDate-0');
+            await user.click(errorLink);
+
+            await waitFor(() => expect(dateInputs[1]).toHaveFocus());
+            expect(dateInputs[0]).not.toHaveFocus();
         });
 
         it('blocks draft save when a selected date period is incomplete', { timeout: 60000 }, async () => {
@@ -7028,7 +8042,7 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialTitles={[{ title: 'Draft Dataset', titleType: 'main-title' }]}
-                    initialDates={[{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
+                    initialDates={[{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
                 />,
             );
 
@@ -7040,7 +8054,128 @@ describe('DataCiteForm', () => {
             expect(screen.queryByText('Please complete the date period before saving your draft.')).not.toBeInTheDocument();
         });
 
-        it('redirects to resources after draft save (Issue #624)', { timeout: 60000 }, async () => {
+        it('blocks a reversed timed period and saves it after its end time is corrected', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Timed Dataset', titleType: 'main-title' }],
+                initialDates: [
+                    {
+                        dateType: 'collected',
+                        dateMode: 'range',
+                        startDate: '2020-09-24T16:00:00Z',
+                        endDate: '2020-09-24T09:00:00Z',
+                    },
+                ],
+            });
+            await ensureDatesOpen(user);
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText('Date 1: End date must be after start date').length).toBeGreaterThan(0);
+
+            fireEvent.change(screen.getByLabelText('End Time (optional)'), { target: { value: '17:00:00' } });
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1].dates).toMatchObject([{ startDate: '2020-09-24T16:00:00Z', endDate: '2020-09-24T17:00:00Z' }]);
+        });
+
+        it('saves German typed dates as ISO without changing their precision', { timeout: 60000 }, async () => {
+            vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('de-DE');
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Historic Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'collected', dateMode: 'range', startDate: '2020-06', endDate: '2020-09-24' }],
+            });
+            await ensureDatesOpen(user);
+            const start = screen.getByRole('textbox', { name: 'Start Date' });
+            const end = screen.getByRole('textbox', { name: 'End Date' });
+            expect(start).toHaveValue('2020-06');
+            expect(end).toHaveValue('24.09.2020');
+
+            await user.clear(end);
+            await user.type(end, '25.09.2020');
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1].dates).toMatchObject([
+                { dateType: 'collected', dateMode: 'range', startDate: '2020-06', endDate: '2020-09-25' },
+            ]);
+        });
+
+        it('clears only the edited endpoint time when a date is committed with reduced precision', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Timed Dataset', titleType: 'main-title' }],
+                initialDates: [
+                    {
+                        dateType: 'collected',
+                        dateMode: 'range',
+                        startDate: '2020-06-15T09:30:00Z',
+                        endDate: '2020-06-20T16:45:00+02:00',
+                    },
+                ],
+            });
+            await ensureDatesOpen(user);
+
+            const start = screen.getByRole('textbox', { name: 'Start Date' });
+            const end = screen.getByRole('textbox', { name: 'End Date' });
+            expect(screen.getByLabelText('Start Time (optional)')).toHaveValue('09:30:00');
+            expect(screen.getByLabelText('End Time (optional)')).toHaveValue('16:45:00');
+
+            await user.clear(start);
+            await user.type(start, '2020');
+            await user.tab();
+
+            expect(screen.getByLabelText('Start Time (optional)')).toHaveValue('');
+            expect(screen.getByLabelText('End Time (optional)')).toHaveValue('16:45:00');
+            expect(screen.getAllByRole('combobox').find((element) => element.id.includes('startTimezone'))).toHaveTextContent('No timezone');
+
+            await user.clear(end);
+            await user.type(end, '2020-06');
+            await user.tab();
+
+            expect(screen.queryByLabelText('Start Time (optional)')).not.toBeInTheDocument();
+            expect(screen.queryByLabelText('End Time (optional)')).not.toBeInTheDocument();
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1].dates).toMatchObject([
+                { dateType: 'collected', dateMode: 'range', startDate: '2020', endDate: '2020-06' },
+            ]);
+        });
+
+        it('blocks draft save instead of sending the previous date when typed input is invalid', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn();
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Historic Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'available', startDate: '2020-09-24', endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            const date = screen.getByRole('textbox', { name: 'Date' });
+            await user.clear(date);
+            await user.type(date, '2020-02-30');
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(date).toHaveValue('2020-02-30');
+            expect(screen.getByText('Please resolve the date validation issues before saving your draft.')).toBeInTheDocument();
+        });
+
+        it('keeps a new draft in the editor and makes its URL reloadable (Issue #1370)', { timeout: 60000 }, async () => {
+            window.history.replaceState(window.history.state, '', '/editor?xmlSession=staged-upload');
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
@@ -7079,18 +8214,150 @@ describe('DataCiteForm', () => {
                 expect(mockedAxios.post).toHaveBeenCalledTimes(1);
             });
 
-            // Should redirect to resources list (Issue #624)
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/resources',
+                expect(mockRouterReplace).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        onError: expect.any(Function),
+                        url: '/editor?resourceId=42',
+                        preserveState: true,
+                        preserveScroll: true,
                     }),
                 );
             });
+            const replaceOptions = mockRouterReplace.mock.calls[0][0];
+            expect(replaceOptions.props({ titles: [] })).toEqual({
+                titles: [],
+                resourceId: '42',
+                refreshSavedDraftOnRestore: true,
+                draftSaveTransition: { fromUrl: '/editor?xmlSession=staged-upload', resourceId: '42' },
+            });
+            expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            expect(mainTitleInput).toHaveValue('Draft Dataset');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
 
             const { toast } = await import('sonner');
             expect(toast.success).toHaveBeenCalledWith('Draft saved.');
+        });
+
+        it('keeps an existing draft on its resource URL after saving', { timeout: 60000 }, async () => {
+            window.history.replaceState(window.history.state, '', '/editor?resourceId=42');
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft updated.', resource: { id: 42 } }, status: 200 });
+            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Existing draft', titleType: 'main-title' }] });
+
+            await userEvent.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Draft updated.'));
+
+            expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ resourceId: 42, intent: 'save-draft' });
+            expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            expect(screen.getByTestId('main-title-input')).toHaveValue('Existing draft');
+            expect(mockRouterReplace).toHaveBeenCalledWith(
+                expect.objectContaining({ url: '/editor?resourceId=42', preserveState: true, preserveScroll: true }),
+            );
+            expect(mockRouterReplace.mock.calls[0][0].props({})).not.toHaveProperty('draftSaveTransition');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('keeps the resource URL after manual save when autosave created the draft first', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Autosaved draft', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1].intent).toBe('autosave');
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+                expect(mockRouterReplace).toHaveBeenCalledTimes(1);
+
+                await act(async () => {
+                    fireEvent.click(screen.getByTestId('save-draft-button'));
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'save-draft', resourceId: 42 });
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+                expect(mockRouterReplace).toHaveBeenCalledTimes(2);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('waits for an in-flight autosave before allowing the first manual draft save', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const autosaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post
+                .mockReturnValueOnce(autosaveResponse.promise)
+                .mockResolvedValueOnce({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+
+            try {
+                const draftButton = screen.getByTestId('save-draft-button');
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    // Click before React commits the disabled state, too.
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'autosave' });
+                expect(mockedAxios.post.mock.calls[0][1]).not.toHaveProperty('resourceId');
+                expect(draftButton).toBeDisabled();
+                fireEvent.click(draftButton);
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+                await act(async () => {
+                    autosaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(draftButton).toBeEnabled();
+
+                await act(async () => {
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(mockedAxios.post.mock.calls[1][1]).toMatchObject({ intent: 'save-draft', resourceId: 42 });
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('does not start autosave while the first manual draft save is in flight', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const manualSaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockReturnValueOnce(manualSaveResponse.promise);
+            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+
+            try {
+                await act(async () => {
+                    fireEvent.click(screen.getByTestId('save-draft-button'));
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({ intent: 'save-draft' });
+                expect(mockedAxios.post.mock.calls[0][1]).not.toHaveProperty('resourceId');
+
+                await act(async () => {
+                    manualSaveResponse.resolve({ data: { resource: { id: 42 } }, status: 201 });
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=42');
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
         });
 
         it('updates the autosave signature without showing autosave status after manual draft save', { timeout: 60000 }, async () => {
@@ -7121,12 +8388,8 @@ describe('DataCiteForm', () => {
 
                 expect(mockedAxios.post).toHaveBeenCalledTimes(1);
                 expect(screen.queryByTestId('draft-autosave-status')).not.toBeInTheDocument();
-                expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/resources',
-                    expect.objectContaining({
-                        onError: expect.any(Function),
-                    }),
-                );
+                expect(mockRouterReplace).toHaveBeenCalledWith(expect.objectContaining({ url: '/editor?resourceId=42' }));
+                expect(mockRouterVisit).not.toHaveBeenCalled();
 
                 await act(async () => {
                     vi.advanceTimersByTime(60_000);
@@ -7281,6 +8544,8 @@ describe('DataCiteForm', () => {
 
             await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource saved!'));
 
+            expect(window.location.search).toBe('?resourceId=1');
+            expect(mockRouterReplace).toHaveBeenCalledWith(expect.objectContaining({ url: '/editor?resourceId=1' }));
             expect(mockRouterVisit).not.toHaveBeenCalled();
             expect(toast.success).not.toHaveBeenCalledWith('DataCite metadata synchronized', expect.anything());
         });
@@ -7420,13 +8685,8 @@ describe('DataCiteForm', () => {
             expect(secondPayload.resourceId).toBe(42);
         });
 
-        it('persists resource ID after draft save when navigation fails', { timeout: 60000 }, async () => {
+        it('uses the saved resource ID on subsequent draft saves without leaving the editor', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-
-            // Navigation fails
-            mockRouterVisit.mockImplementation((_url: string, options?: { onError?: () => void }) => {
-                options?.onError?.();
-            });
 
             const mockPost = (axios as unknown as { post: ReturnType<typeof vi.fn> }).post;
             mockPost.mockResolvedValue({
@@ -7457,8 +8717,9 @@ describe('DataCiteForm', () => {
             await user.click(draftButton);
 
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalled();
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=99');
             });
+            expect(mockRouterVisit).not.toHaveBeenCalled();
 
             // Reset mocks for second draft save
             mockPost.mockClear();
@@ -7466,8 +8727,6 @@ describe('DataCiteForm', () => {
                 data: { message: 'Draft updated!' },
                 status: 200,
             });
-            mockRouterVisit.mockClear();
-
             // Second draft save
             await user.click(draftButton);
 
@@ -7478,6 +8737,7 @@ describe('DataCiteForm', () => {
             // The second draft save payload should include the resource ID from the first save
             const secondPayload = mockPost.mock.calls[0][1];
             expect(secondPayload.resourceId).toBe(99);
+            expect(mockRouterReplace).toHaveBeenCalledTimes(2);
         });
 
         it('does not redirect on client-side validation failure', { timeout: 60000 }, async () => {
@@ -7697,6 +8957,7 @@ describe('DataCiteForm', () => {
             expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
 
             let modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
+            expect(modalProps.context).toBe('editor-registration');
             act(() => modalProps.onClose?.());
             expect(toast.info).toHaveBeenCalledWith('DataCite registration cancelled. Your validated resource has been saved.');
             expect(mockedAxios.post).toHaveBeenCalledTimes(1);
@@ -7730,10 +8991,10 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('shows only Update Metadata and Show LP for a published record', () => {
+        it.each(['published', 'dead'] as const)('shows only Update Metadata and Show LP for a %s record', (publicStatus) => {
             renderDataCiteForm({
                 initialDoi: '10.5880/example',
-                initialPublicStatus: 'published',
+                initialPublicStatus: publicStatus,
                 initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 7,
@@ -7798,7 +9059,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => expect(screen.getByRole('button', { name: 'Update metadata' })).toBeEnabled());
         });
 
-        it('opens a published landing page without saving invalid editor changes', async () => {
+        it.each(['published', 'dead'] as const)('opens a %s landing page without saving invalid editor changes', async (publicStatus) => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
@@ -7806,7 +9067,7 @@ describe('DataCiteForm', () => {
             renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/example',
-                initialPublicStatus: 'published',
+                initialPublicStatus: publicStatus,
                 initialTitles: [{ title: '', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 7,
@@ -8021,15 +9282,11 @@ describe('DataCiteForm', () => {
             const draftButton = screen.getByTestId('save-draft-button');
             await user.click(draftButton);
 
-            // Should redirect to resources after draft save (Issue #624)
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/resources',
-                    expect.objectContaining({
-                        onError: expect.any(Function),
-                    }),
-                );
+                expect(window.location.pathname + window.location.search).toBe('/editor?resourceId=99');
             });
+            expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue('Draft Dataset');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
         it('keeps an empty Related Work card when the section is collapsed and reopened', { timeout: 30000 }, async () => {
@@ -8179,5 +9436,49 @@ describe('DataCiteForm', () => {
                 },
             ]);
         });
+    });
+    it('offers only resource-specific license choices for a new license entry', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const fetchMock = vi.fn((input: RequestInfo | URL) =>
+            input.toString().includes('/api/v1/licenses/ernie?')
+                ? Promise.resolve(createJsonResponse([licenses[1]]))
+                : createDefaultFetchResponse(input.toString()),
+        );
+        global.fetch = fetchMock;
+        renderDataCiteForm({ initialResourceType: '1' });
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/licenses/ernie?resource_type_id=1', expect.any(Object)));
+        const section = getAccordionTrigger(/Licenses and Rights/i);
+        if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+        await waitFor(() => expect(screen.queryByText('Loading license choices…')).not.toBeInTheDocument());
+        await user.click(screen.getByTestId('license-select-0'));
+        expect(screen.getByRole('option', { name: 'Apache License 2.0' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'MIT License' })).not.toBeInTheDocument();
+    });
+
+    it('preserves saved rights when resource-specific license choices exclude them', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        global.fetch = vi.fn((input: RequestInfo | URL) =>
+            input.toString().includes('/api/v1/licenses/ernie?')
+                ? Promise.resolve(createJsonResponse([licenses[1]]))
+                : createDefaultFetchResponse(input.toString()),
+        );
+        renderDataCiteForm({
+            initialResourceType: '1',
+            initialLicenses: ['MIT'],
+            initialTitles: [{ title: 'Existing licensed resource', titleType: 'main-title' }],
+        });
+        const section = getAccordionTrigger(/Licenses and Rights/i);
+        if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+        await waitFor(() => expect(screen.queryByText('Loading license choices…')).not.toBeInTheDocument());
+        expect(screen.getByTestId('license-select-0')).toHaveTextContent('MIT License');
+        await user.click(screen.getByTestId('save-draft-button'));
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        await waitFor(() =>
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                '/editor/resources/draft',
+                expect.objectContaining({ licenses: ['MIT'] }),
+                expect.any(Object),
+            ),
+        );
     });
 });

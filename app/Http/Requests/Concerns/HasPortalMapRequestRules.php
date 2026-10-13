@@ -28,7 +28,7 @@ trait HasPortalMapRequestRules
             }
         };
 
-        $maxZoom = max(0, (int) config('portal_map.max_zoom', 18));
+        $maxZoom = max(1, (int) config('portal_map.max_zoom', 18));
 
         return [
             'viewport' => ['required', 'array'],
@@ -114,6 +114,6 @@ trait HasPortalMapRequestRules
 
     public function zoom(): int
     {
-        return (int) $this->validated('zoom');
+        return max(1, (int) $this->validated('zoom'));
     }
 }

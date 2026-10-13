@@ -1,8 +1,13 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\File;
 
 use function Pest\Laravel\getJson;
+
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
 
 it('returns changelog data grouped by release', function () {
     getJson('/api/changelog')

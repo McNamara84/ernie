@@ -102,6 +102,26 @@ it('normalizes a validated numeric-string override before accepting', function (
     expect($result['success'])->toBeTrue();
 });
 
+it('defers DataCite synchronization when accepted through a batch input', function (): void {
+    $resource = Resource::factory()->create();
+    $relationType = RelationType::query()->where('slug', 'Cites')->firstOrFail();
+    $suggestion = relationAcceptanceSuggestion($resource, $relationType, '10.5880/override.2026.deferred');
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldNotReceive('syncIfRegistered');
+    $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+    $citationLabelService->shouldReceive('resolveBestEffort')->once()->andReturnNull();
+    $assistant = new RelationSuggestionAssistant(relationAcceptanceService($syncService, $citationLabelService));
+
+    $result = $assistant->acceptSuggestion($suggestion->id, ['defer_datacite_sync' => true]);
+
+    expect($result)->toMatchArray([
+        'success' => true,
+        'datacite_synced' => false,
+        'datacite_sync_deferred' => true,
+        'datacite_sync_resource_ids' => [$resource->id],
+    ])->and(RelatedIdentifier::where('resource_id', $resource->id)->exists())->toBeTrue();
+});
+
 it('still rejects a non-integer string override before calling the service', function (): void {
     $resource = Resource::factory()->create();
     $suggestedType = RelationType::query()->where('slug', 'Cites')->firstOrFail();

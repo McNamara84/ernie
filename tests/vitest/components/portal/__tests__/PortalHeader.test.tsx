@@ -7,7 +7,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ href, children, ...props }: { href: string; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-        <a href={href} data-testid="inertia-link" {...props}>{children}</a>
+        <a href={href} data-testid="inertia-link" {...props}>
+            {children}
+        </a>
     ),
 }));
 
@@ -27,6 +29,93 @@ vi.mock('@/components/ui/button', () => ({
 import { PortalHeader } from '@/components/portal/PortalHeader';
 
 describe('PortalHeader', () => {
+    it.each([
+        ['home', 'Home'],
+        ['find', 'Overview'],
+        ['data-centres', 'Data Centres'],
+        ['data-centres-description', null],
+        ['doi', 'Data Portal'],
+        ['igsn', 'IGSN Portal'],
+    ] as const)('keeps Overview first and marks only the current link for %s on desktop and mobile', async (portalKind, currentLabel) => {
+        const user = userEvent.setup();
+        render(<PortalHeader portalKind={portalKind} />);
+        const entries = [
+            ['Overview', '/find'],
+            ['Data Portal', '/doi-search'],
+            ['Data Centres', '/data-centres'],
+            ['IGSN Portal', '/igsn-search'],
+        ];
+
+        await user.click(screen.getByRole('button', { name: 'Find' }));
+        const desktopLinks = await screen.findAllByRole('menuitem');
+        expect(desktopLinks.map((link) => link.textContent)).toEqual(entries.map(([label]) => label));
+        for (const [index, [label, href]] of entries.entries()) {
+            const link = desktopLinks[index];
+            expect(link).toHaveAttribute('href', href);
+            expect(link).toHaveAttribute('data-testid', 'inertia-link');
+            expect(link.getAttribute('aria-current')).toBe(label === currentLabel ? 'page' : null);
+        }
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: 'Open menu' }));
+        const mobile = within(screen.getByTestId('mobile-menu'));
+        expect(
+            mobile
+                .getAllByRole('link')
+                .slice(1, 5)
+                .map((link) => link.textContent),
+        ).toEqual(entries.map(([label]) => label));
+        for (const [label, href] of [['Home', '/'], ...entries]) {
+            const link = mobile.getByRole('link', { name: label });
+            expect(link).toHaveAttribute('href', href);
+            expect(link.getAttribute('aria-current')).toBe(label === currentLabel ? 'page' : null);
+        }
+        await user.click(mobile.getByRole('link', { name: 'Overview' }));
+        expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it.each(['find', 'data-centres', 'data-centres-description'] as const)('keeps the %s wordmark visible without adding a second main heading', (kind) => {
+        render(<PortalHeader portalKind={kind} />);
+        expect(screen.getByTestId('portal-wordmark').tagName).toBe('P');
+        expect(screen.getByTestId('portal-wordmark')).toHaveTextContent('GFZ Data Services');
+        expect(screen.getByTestId('portal-wordmark')).not.toHaveClass('sr-only');
+        expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+        expect(screen.getByRole('button', { name: 'Find' })).toHaveClass('bg-portal-nav-active');
+    });
+
+    it('highlights the Data Centres section on its description page without marking the overview as the current page', async () => {
+        const user = userEvent.setup();
+        render(<PortalHeader portalKind="data-centres-description" />);
+        await user.click(screen.getByRole('button', { name: 'Find' }));
+        const desktop = await screen.findByRole('menuitem', { name: 'Data Centres' });
+        expect(desktop).toHaveClass('bg-portal-nav-active');
+        expect(desktop).not.toHaveAttribute('aria-current');
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: 'Open menu' }));
+        const mobile = within(screen.getByTestId('mobile-menu')).getByRole('link', { name: 'Data Centres' });
+        expect(mobile).toHaveClass('bg-portal-nav-active');
+        expect(mobile).not.toHaveAttribute('aria-current');
+    });
+
+    it('marks Home instead of Find on the homepage in desktop and mobile navigation', async () => {
+        const user = userEvent.setup();
+        render(<PortalHeader portalKind="home" />);
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('GFZ Data Services');
+        expect(screen.getByRole('heading', { level: 1 })).not.toHaveClass('sr-only');
+        expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('button', { name: 'Find' })).not.toHaveAttribute('aria-current');
+        await user.click(screen.getByRole('button', { name: 'Find' }));
+        expect(await screen.findByRole('menuitem', { name: 'Data Portal' })).not.toHaveAttribute('aria-current');
+        expect(screen.getByRole('menuitem', { name: 'IGSN Portal' })).not.toHaveAttribute('aria-current');
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: 'Open menu' }));
+        const mobile = within(screen.getByTestId('mobile-menu'));
+        expect(mobile.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+        expect(mobile.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+        expect(mobile.getByRole('link', { name: 'Data Portal' })).not.toHaveAttribute('aria-current');
+    });
+
     describe('branding bar', () => {
         it('renders portal title as h1 heading', () => {
             render(<PortalHeader />);
@@ -57,11 +146,12 @@ describe('PortalHeader', () => {
             expect(screen.getByText('Data Protection')).toBeInTheDocument();
         });
 
-        it('uses external links for external items', () => {
+        it('uses an internal link for Home and external links for TYPO3 pages', () => {
             render(<PortalHeader />);
             const homeLink = screen.getByText('Home').closest('a');
-            expect(homeLink).toHaveAttribute('href', 'https://dataservices.gfz-potsdam.de/web');
-            expect(homeLink).not.toHaveAttribute('data-testid', 'inertia-link');
+            expect(homeLink).toHaveAttribute('href', '/');
+            expect(homeLink).toHaveAttribute('data-testid', 'inertia-link');
+            expect(screen.getByText('Publish Data').closest('a')).not.toHaveAttribute('data-testid', 'inertia-link');
         });
 
         it('uses Inertia Link for internal items', async () => {
@@ -109,18 +199,34 @@ describe('PortalHeader', () => {
         it('has correct external link targets', () => {
             render(<PortalHeader />);
             expect(screen.getByText('Publish Data').closest('a')).toHaveAttribute(
-                'href', 'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions',
+                'href',
+                'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions',
             );
             expect(screen.getByText('Samples (IGSN)').closest('a')).toHaveAttribute(
-                'href', 'https://dataservices.gfz-potsdam.de/web/samples/introduction',
+                'href',
+                'https://dataservices.gfz-potsdam.de/web/samples/introduction',
             );
             expect(screen.getByText('Data Protection').closest('a')).toHaveAttribute(
-                'href', 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
+                'href',
+                'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
             );
         });
     });
 
     describe('mobile menu', () => {
+        it('associates the menu with its trigger and restores focus after Escape', async () => {
+            const user = userEvent.setup();
+            render(<PortalHeader />);
+            await user.click(screen.getByRole('button', { name: 'Open menu' }));
+            const menu = screen.getByTestId('mobile-menu');
+            expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-controls', menu.id);
+            within(menu).getByRole('link', { name: 'Home' }).focus();
+            await user.keyboard('{Escape}');
+            expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
+            expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
+        });
+
         it('does not show mobile menu by default', () => {
             render(<PortalHeader />);
             // Hamburger button is present
@@ -141,15 +247,17 @@ describe('PortalHeader', () => {
             expect(within(mobileMenu).getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         });
 
-        it('closes mobile menu on item click', () => {
+        it.each(['Home', 'Publish Data', 'Legal Notice'])('closes mobile menu when following %s', (label) => {
             render(<PortalHeader />);
             const menuButton = screen.getByLabelText('Open menu');
             fireEvent.click(menuButton);
 
             // Click a mobile nav item within the mobile dropdown
             const mobileMenu = screen.getByTestId('mobile-menu');
-            const homeLink = within(mobileMenu).getByText('Home');
-            fireEvent.click(homeLink);
+            const link = within(mobileMenu).getByRole('link', { name: label });
+            // jsdom cannot navigate to another document; still exercise the click handler.
+            link.addEventListener('click', (event) => event.preventDefault());
+            fireEvent.click(link);
 
             // Menu should close, button label back to "Open menu"
             expect(screen.getByLabelText('Open menu')).toBeInTheDocument();

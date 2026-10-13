@@ -74,11 +74,10 @@ final class GeofonEventLandingPageUrlRepairService
                     $result['resources_scanned']++;
                     $localUrl = $this->localUrl($resource->landingPage);
                     $localInspection = $this->urls->inspect($localUrl);
-                    $datacenter = trim((string) $resource->datacenter?->name);
-                    $isExpectedDatacenter = strcasecmp(
-                        $datacenter,
+                    $isExpectedDatacenter = app(DatacenterNameService::class)->matches(
+                        $resource->datacenter,
                         LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
-                    ) === 0;
+                    );
 
                     if (! $isExpectedDatacenter) {
                         if ($localInspection['status'] === 'legacy') {
@@ -640,10 +639,10 @@ final class GeofonEventLandingPageUrlRepairService
                 || $lockedLandingPage->template !== 'external'
                 || $lockedLandingPage->external_domain_id !== $expectedDomainId
                 || $lockedLandingPage->external_path !== $expectedPath
-                || strcasecmp(
-                    trim((string) $lockedResource->datacenter()->value('name')),
+                || ! app(DatacenterNameService::class)->matches(
+                    $lockedResource->datacenter,
                     LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
-                ) !== 0) {
+                )) {
                 return false;
             }
 

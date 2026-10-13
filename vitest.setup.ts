@@ -37,13 +37,13 @@ if (vitestJsdom && vitestJsdom.virtualConsole[jsdomErrorFilterInstalled] !== tru
 }
 
 // Start MSW before any test runs so that fetch calls inside hooks/components
-// are intercepted deterministically. `onUnhandledRequest: 'error'` prevents
+// are intercepted deterministically. `onUnhandledFrame: 'error'` prevents
 // the suite from silently hitting the real network when a handler is missing
 // — this is important for CI determinism as more hooks move to TanStack Query.
 // Tests that still stub `global.fetch` directly are unaffected because those
 // stubs are invoked before the request reaches MSW.
 beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'error' });
+    server.listen({ onUnhandledFrame: 'error' });
 });
 
 afterEach(() => {

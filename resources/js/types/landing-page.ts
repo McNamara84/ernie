@@ -345,6 +345,11 @@ export interface LandingPageLink {
  * Represents the database model for landing_pages table
  */
 export interface LandingPageConfig {
+    is_tombstone?: boolean;
+    tombstone_reason?: 'data_lost' | 'retracted' | 'legal_restriction' | 'other' | null;
+    tombstone_statement?: string | null;
+    tombstoned_at?: string | null;
+    tombstone_revision?: number;
     /** Primary key */
     id: number;
 
@@ -369,6 +374,9 @@ export interface LandingPageConfig {
 
     /** Whether automated downloads should be replaced by a data request form */
     downloads_unavailable?: boolean;
+
+    /** Previously hidden stored URLs require an explicit activation before display. */
+    download_activation_required?: boolean;
 
     /** Public tracked redirect URL used only on published landing pages */
     tracked_ftp_url?: string | null;

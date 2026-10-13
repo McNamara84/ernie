@@ -23,6 +23,7 @@ class DeclineSuggestionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'relation_type_correction_fingerprint' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'reason' => ['nullable', 'string', 'max:255'],
         ];
     }

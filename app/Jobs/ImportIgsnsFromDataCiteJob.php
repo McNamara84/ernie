@@ -6,11 +6,11 @@ namespace App\Jobs;
 
 use App\Exceptions\IgsnParentRelationshipException;
 use App\Exceptions\LegacyIgsnPortalException;
-use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\AutomaticIgsnLandingPageService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteToIgsnTransformer;
 use App\Services\Igsn\IgsnSampleImageStorageService;
 use App\Services\IgsnChildDiscoveryService;
@@ -19,6 +19,7 @@ use App\Services\IgsnImportService;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\LegacyIgsnPortalService;
+use App\Services\UserActivityService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -60,12 +61,17 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      * @param  int  $userId  The user who initiated the import
      * @param  string  $importId  UUID for progress tracking
      */
+    /** @var array{id: int, name: string}|null */
+    private ?array $activityActor = null;
+
     public function __construct(
         private int $userId,
         private string $importId,
         private ?string $singleDoi = null,
         private ?string $legacyDatacenterId = null,
     ) {
+        $this->activityActor = app(UserActivityService::class)->actor($userId);
+
         $this->onQueue('imports');
 
         if ($this->singleDoi !== null && $this->legacyDatacenterId !== null) {
@@ -364,9 +370,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         $total = count($targetDois);
 
         // The complete legacy target set is loaded before the first database write.
-        $datacenter = Datacenter::query()->firstOrCreate([
-            'name' => $selection['datacenter']['name'],
-        ]);
+        $datacenter = app(DatacenterNameService::class)->findOrCreate($selection['datacenter']['name']);
 
         $this->updateProgress([
             'status' => 'running',
@@ -1135,6 +1139,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $this->resourceIdsForDataCiteSync[] = (int) $importedResource->id;
         }
 
+        $activities = app(UserActivityService::class);
+        $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
+            $activities->subject($importedResource), operationId: $this->importId);
+
         return [
             'status' => 'imported',
             'enriched' => $wasEnriched,
@@ -1319,7 +1327,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
         $idsByName = [];
         foreach (array_values(array_unique($assignments)) as $name) {
-            $idsByName[$name] = Datacenter::query()->firstOrCreate(['name' => $name])->id;
+            $idsByName[$name] = app(DatacenterNameService::class)->findOrCreate($name)->id;
         }
 
         $idsByDoi = [];
@@ -1441,7 +1449,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      */
     private function updateProgress(array $data): void
     {
-        Cache::put($this->getCacheKey(), $data, now()->addHours(24));
+        $data['activity_actor'] = $this->activityActor;
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_IGSN, $this->importId, $data, replace: true);
     }
 
     /**
@@ -1449,13 +1458,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      */
     private function updateProgressKeys(array $data): void
     {
-        $currentProgress = Cache::get($this->getCacheKey(), []);
-
-        foreach ($data as $key => $value) {
-            $currentProgress[$key] = $value;
-        }
-
-        Cache::put($this->getCacheKey(), $currentProgress, now()->addHours(24));
+        $data['activity_actor'] = $this->activityActor;
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_IGSN, $this->importId, $data);
     }
 
     private function getCacheKey(): string

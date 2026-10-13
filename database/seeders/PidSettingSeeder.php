@@ -17,6 +17,7 @@ class PidSettingSeeder extends Seeder
                 'display_name' => 'PID4INST (b2inst)',
                 'is_active' => true,
                 'is_elmo_active' => true,
+                'is_elmo_msl_active' => true,
             ]
         );
 
@@ -26,6 +27,7 @@ class PidSettingSeeder extends Seeder
                 'display_name' => 'ROR (Research Organization Registry)',
                 'is_active' => true,
                 'is_elmo_active' => true,
+                'is_elmo_msl_active' => true,
             ]
         );
 
@@ -35,6 +37,7 @@ class PidSettingSeeder extends Seeder
                 'display_name' => 'RAiD (Research Activity Identifier)',
                 'is_active' => true,
                 'is_elmo_active' => true,
+                'is_elmo_msl_active' => true,
             ]
         );
     }

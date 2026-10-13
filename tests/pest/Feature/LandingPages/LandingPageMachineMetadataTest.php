@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\AccessLevel;
+use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPagePublicController;
+use App\Models\DateType;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
 use App\Models\Person;
@@ -12,17 +15,23 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
+use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteXmlExporter;
 use App\Services\LandingPageMachineMetadataService;
+use App\Services\ResourceAccessLevelResolverService;
 use App\Services\SchemaOrgJsonLdExporter;
+use Illuminate\Support\Facades\Cache;
+use Tests\Fixtures\SchemaOrgResourceTypes;
+use Tests\Fixtures\SchemaOrgVocabulary;
 
-covers(LandingPagePublicController::class, LandingPageMachineMetadataService::class);
+covers(LandingPagePublicController::class, LandingPageMachineMetadataService::class, ResourceAccessLevelResolverService::class);
 
 /** @return array{0: Resource, 1: LandingPage} */
 function machineMetadataLandingPage(string $resourceTypeSlug = 'dataset', array $landingPageAttributes = []): array
 {
     $resourceType = ResourceType::firstOrCreate(
         ['slug' => $resourceTypeSlug],
-        ['name' => $resourceTypeSlug === 'software' ? 'Software' : 'Dataset', 'is_active' => true],
+        ['name' => ucwords(str_replace('-', ' ', $resourceTypeSlug)), 'is_active' => true],
     );
     $resource = Resource::factory()->create([
         'doi' => '10.5880/test.machine.001',
@@ -163,6 +172,137 @@ test('raw dataset HTML and GET HEAD responses expose complete machine metadata',
         ->assertHeader('Link', $linkHeader);
 });
 
+test('unresolved digital access is derived consistently in public HTML and metadata exports', function (
+    ?string $downloadUrl,
+    bool $unavailable,
+    bool $withFile,
+    ?AccessLevel $curatedLevel,
+    ?AccessLevel $expectedLevel,
+) {
+    [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
+        'ftp_url' => $downloadUrl,
+        'downloads_unavailable' => $unavailable,
+    ]);
+    $resource->update(['access_level' => $curatedLevel]);
+    if ($withFile) {
+        $landingPage->files()->create(['url' => 'https://downloads.example.org/data.zip', 'position' => 0]);
+        // Creating a new download clears empty suppression; restore the historical state after import.
+        $landingPage->refresh()->update(['downloads_unavailable' => $unavailable]);
+    }
+
+    $html = $this->get($landingPage->getPublicPath())->assertOk()->getContent();
+    $jsonLd = decodedEmbeddedSchemaOrg($html);
+    $rights = $this->get($landingPage->getPublicPath().'/metadata/datacite.json')
+        ->assertOk()->json('data.attributes.rightsList') ?? [];
+    $xml = $this->get($landingPage->getPublicPath().'/metadata/datacite.xml')->assertOk()->getContent();
+
+    if ($expectedLevel === null) {
+        expect($jsonLd)->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+            ->and($html)->not->toContain('name="DC.accessRights"')
+            ->and($rights)->toBeEmpty()
+            ->and($xml)->not->toContain('http://purl.org/coar/access_right/');
+    } else {
+        expect($jsonLd['conditionsOfAccess'])->toBe($expectedLevel->label())
+            ->and($html)->toContain('name="DC.accessRights" content="'.$expectedLevel->coarUri().'"')
+            ->and($rights)->toBe([[
+                'rights' => $expectedLevel->label(),
+                'rightsUri' => $expectedLevel->coarUri(),
+                'rightsIdentifier' => $expectedLevel->coarIdentifier(),
+                'rightsIdentifierScheme' => AccessLevel::coarScheme(),
+                'schemeUri' => AccessLevel::coarSchemeUri(),
+            ]])
+            ->and($xml)->toContain('rightsURI="'.$expectedLevel->coarUri().'"');
+        if ($expectedLevel === AccessLevel::METADATA_ONLY) {
+            expect($jsonLd)->not->toHaveKey('isAccessibleForFree');
+        } else {
+            expect($jsonLd['isAccessibleForFree'])->toBe($expectedLevel->isAccessibleForFree());
+        }
+    }
+
+    expect($resource->fresh()->access_level)->toBe($curatedLevel);
+})->with([
+    'direct download' => ['https://downloads.example.org/data.zip', false, false, null, AccessLevel::OPEN],
+    'imported file' => [null, false, true, null, AccessLevel::OPEN],
+    'explicit no download' => [null, true, false, null, AccessLevel::METADATA_ONLY],
+    'no automatic download' => [null, false, false, null, AccessLevel::METADATA_ONLY],
+    'placeholder download' => ['#', false, false, null, AccessLevel::METADATA_ONLY],
+    'hidden historical download' => ['https://downloads.example.org/data.zip', true, false, null, AccessLevel::METADATA_ONLY],
+    'hidden imported file' => [null, true, true, null, AccessLevel::METADATA_ONLY],
+    'curated restriction' => ['https://downloads.example.org/data.zip', false, false, AccessLevel::RESTRICTED, AccessLevel::RESTRICTED],
+]);
+
+test('inferred access follows download configuration changes without storing a stale level', function () {
+    [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: ['ftp_url' => null]);
+    $resource->update(['access_level' => null]);
+
+    expect(decodedEmbeddedSchemaOrg($this->get($landingPage->getPublicPath())->assertOk()->getContent())['conditionsOfAccess'])
+        ->toBe(AccessLevel::METADATA_ONLY->label());
+
+    $landingPage->update(['ftp_url' => 'https://downloads.example.org/data.zip']);
+    $jsonLd = decodedEmbeddedSchemaOrg($this->get($landingPage->getPublicPath())->assertOk()->getContent());
+    expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::OPEN->label())
+        ->and($jsonLd['isAccessibleForFree'])->toBeTrue();
+
+    $landingPage->update(['ftp_url' => null]);
+    $jsonLd = decodedEmbeddedSchemaOrg($this->get($landingPage->getPublicPath())->assertOk()->getContent());
+    expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::METADATA_ONLY->label())
+        ->and($jsonLd)->not->toHaveKey('isAccessibleForFree')
+        ->and($resource->fresh()->access_level)->toBeNull();
+});
+
+test('external landing pages do not imply open or restricted access', function (?AccessLevel $curatedLevel) {
+    $resource = Resource::factory()->create(['access_level' => $curatedLevel]);
+    $landingPage = LandingPage::factory()->external()->published()->create([
+        'resource_id' => $resource->id,
+        'ftp_url' => 'https://downloads.example.org/retained.zip',
+    ]);
+
+    $jsonLd = app(SchemaOrgJsonLdExporter::class)->export($resource, $landingPage);
+    $rights = app(DataCiteJsonExporter::class)->export($resource)['data']['attributes']['rightsList'] ?? [];
+    $xml = app(DataCiteXmlExporter::class)->export($resource);
+
+    if ($curatedLevel === null) {
+        expect($jsonLd)->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+            ->and($rights)->toBeEmpty()
+            ->and($xml)->not->toContain('http://purl.org/coar/access_right/');
+    } else {
+        expect($jsonLd['conditionsOfAccess'])->toBe($curatedLevel->label())
+            ->and($jsonLd['isAccessibleForFree'])->toBe($curatedLevel->isAccessibleForFree())
+            ->and($rights[0]['rightsUri'])->toBe($curatedLevel->coarUri())
+            ->and($xml)->toContain('rightsURI="'.$curatedLevel->coarUri().'"');
+    }
+})->with([null, AccessLevel::OPEN, AccessLevel::RESTRICTED]);
+
+test('digital access inference does not affect physical objects or IGSN metadata', function (bool $physicalObject) {
+    [$resource, $landingPage] = machineMetadataLandingPage($physicalObject ? 'physical-object' : 'dataset', [
+        'ftp_url' => 'https://downloads.example.org/sample.zip',
+    ]);
+    $resource->update(['access_level' => null]);
+    if (! $physicalObject) {
+        IgsnMetadata::create(['resource_id' => $resource->id, 'sample_access' => 'open']);
+    }
+    $resource->refresh();
+
+    expect(app(SchemaOrgJsonLdExporter::class)->export($resource, $landingPage))
+        ->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+        ->and(app(DataCiteJsonExporter::class)->export($resource)['data']['attributes'])
+        ->not->toHaveKey('rightsList')
+        ->and(app(DataCiteXmlExporter::class)->export($resource))
+        ->not->toContain('http://purl.org/coar/access_right/');
+
+    $resource->update(['access_level' => AccessLevel::METADATA_ONLY]);
+    $jsonLd = app(SchemaOrgJsonLdExporter::class)->export($resource, $landingPage);
+    if ($physicalObject) {
+        $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($jsonLd)->not->toHaveKeys(['conditionsOfAccess', 'isAccessibleForFree'])
+            ->and($description['conditionsOfAccess'])->toBe('Access to the described resource: Metadata only access')
+            ->and($description)->not->toHaveKey('isAccessibleForFree');
+    } else {
+        expect($jsonLd['conditionsOfAccess'])->toBe(AccessLevel::METADATA_ONLY->label())
+            ->and($jsonLd['isAccessibleForFree'])->toBeFalse();
+    }
+})->with([true, false]);
+
 test('software JSON-LD exposes software types repository and direct downloads', function () {
     [$resource, $landingPage] = machineMetadataLandingPage('software', [
         'ftp_url' => 'https://downloads.example.org/software.zip',
@@ -241,6 +381,46 @@ test('downloads unavailable suppresses JSON-LD and Signposting content links', f
         ->and($response->headers->get('Link'))->not->toContain('rel="item"');
 });
 
+test('request-only pages omit machine downloads even with additional download links', function (string $resourceType, bool $withLink) {
+    [$resource, $landingPage] = machineMetadataLandingPage($resourceType, [
+        'ftp_url' => null,
+        'downloads_unavailable' => false,
+    ]);
+    $resource->formats()->create(['value' => 'application/zip']);
+    $landingPage->files()->create(['url' => '#', 'position' => 0]);
+    if ($withLink) {
+        $landingPage->links()->create([
+            'url' => 'https://downloads.example.org/extra.zip',
+            'label' => 'Additional download',
+            'kind' => LandingPageLink::KIND_DOWNLOAD,
+            'position' => 0,
+        ]);
+    }
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('landingPage.downloads_unavailable', true));
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+
+    expect($jsonLd)->not->toHaveKeys(['distribution', 'downloadUrl', 'associatedMedia'])
+        ->and($response->headers->get('Link'))->not->toContain('rel="item"');
+    $this->head($landingPage->getPublicPath())->assertOk()
+        ->assertHeader('Link', $response->headers->get('Link'));
+})->with(['dataset', 'software'])->with([false, true]);
+
+test('placeholder files do not hide the primary URL in machine metadata', function () {
+    [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
+        'ftp_url' => 'https://downloads.example.org/data.zip',
+    ]);
+    $resource->formats()->create(['value' => 'application/zip']);
+    $landingPage->files()->create(['url' => '#', 'position' => 0]);
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+
+    expect($jsonLd['distribution'][0]['contentUrl'])->toBe('https://downloads.example.org/data.zip')
+        ->and($response->headers->get('Link'))->toContain('<https://downloads.example.org/data.zip>; rel="item"');
+});
+
 test('JSON-LD encoding cannot be terminated by metadata containing script markup', function () {
     [$resource, $landingPage] = machineMetadataLandingPage();
     $dangerousTitle = 'Danger </script><script>alert(1)</script> — safe data';
@@ -271,4 +451,110 @@ test('invalid UTF-8 metadata is substituted instead of failing public rendering'
     $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
 
     expect($jsonLd['name'])->toBe("Invalid \u{FFFD} title");
+});
+
+test('all reviewed resource types agree in JSON-LD HTML and GET HEAD Signposting', function (string $slug, string $type, string $profile, bool $fallback): void {
+    [$resource, $landingPage] = machineMetadataLandingPage($slug);
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $html = $response->getContent();
+    $jsonLd = decodedEmbeddedSchemaOrg($html);
+    $expectedTypes = $slug === 'software' ? ['SoftwareSourceCode', 'SoftwareApplication'] : $type;
+    preg_match_all('/<([^>]+)>; rel="type"/', $response->headers->get('Link'), $httpTypes);
+    preg_match_all('/<link\s+rel="type"\s+href="([^"]+)"/', $html, $htmlTypes);
+
+    expect($jsonLd['@type'])->toBe($expectedTypes)
+        ->and(SchemaOrgVocabulary::violations($jsonLd))->toBe([])
+        ->and($jsonLd['@id'])->toBe('https://doi.org/'.$resource->doi)
+        ->and($httpTypes[1])->toBe(['https://schema.org/'.$type, 'https://schema.org/AboutPage'])
+        ->and($htmlTypes[1])->toBe($httpTypes[1]);
+    if ($fallback) {
+        expect($jsonLd['additionalType'])->toBe(ResourceType::slugToDataciteResourceTypeGeneral($slug));
+    } else {
+        expect($jsonLd)->not->toHaveKey('additionalType');
+    }
+
+    if ($profile === 'described-object') {
+        $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($description['@id'])->toBe(url($landingPage->getPublicPath()).'#resource-description')
+            ->and($description['about'])->toBe(['@id' => $jsonLd['@id']])
+            ->and($description['creator']['@list'][0]['name'])->toBe('Lovelace, Ada')
+            ->and($description['publisher']['@type'])->toBe('Organization')
+            ->and($description['datePublished'])->toBe('2026')
+            ->and($description)->not->toHaveKeys(['identifier', 'isAccessibleForFree'])
+            ->and(count($jsonLd['subjectOf']))->toBe(3);
+        foreach (['creator', 'publisher', 'datePublished', 'provider', 'conditionsOfAccess', 'isAccessibleForFree', 'version'] as $property) {
+            expect($jsonLd)->not->toHaveKey($property);
+        }
+    } else {
+        expect($jsonLd['creator']['@list'][0]['name'])->toBe('Lovelace, Ada')
+            ->and($jsonLd['publisher']['@type'])->toBe('Organization');
+    }
+
+    $this->head($landingPage->getPublicPath())->assertOk()->assertHeader('Link', $response->headers->get('Link'));
+})->with(SchemaOrgResourceTypes::cases());
+
+test('published pages retain type and Dublin Core semantics after renaming and disabling a type', function (string $slug, string $expected): void {
+    [$resource, $landingPage] = machineMetadataLandingPage($slug);
+    $type = $resource->resourceType;
+    $type->update(['name' => 'A curator renamed this', 'is_active' => false]);
+    $issued = DateType::firstOrCreate(['slug' => 'Issued'], ['name' => 'Issued']);
+    $resource->dates()->create(['date_type_id' => $issued->id, 'date_value' => '2025-12-03']);
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+    expect($jsonLd['@type'])->toBe($expected)
+        ->and($response->headers->get('Link'))->toContain('<https://schema.org/'.$expected.'>; rel="type"')
+        ->and($response->getContent())->toContain('name="DC.type" content="'.ResourceType::slugToDataciteResourceTypeGeneral($slug).'"')
+        ->toContain('name="DC.date" content="2025-12-03"');
+    if ($slug === 'physical-object') {
+        $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+        expect($jsonLd['additionalType'])->toBe('PhysicalObject')
+            ->and($description['datePublished'])->toBe('2025-12-03');
+    }
+})->with([['journal-article', 'ScholarlyArticle'], ['physical-object', 'Thing']]);
+
+test('JSON-LD and Signposting both follow the configured mapping', function (): void {
+    config(['schemaorg.resource_types.model' => [
+        'primary_type' => 'https://schema.org/3DModel',
+        'additional_types' => [],
+        'profile' => 'media',
+        'fallback_reason' => null,
+    ]]);
+    [, $landingPage] = machineMetadataLandingPage('model');
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    expect(decodedEmbeddedSchemaOrg($response->getContent())['@type'])->toBe('3DModel')
+        ->and($response->headers->get('Link'))->toContain('<https://schema.org/3DModel>; rel="type"');
+});
+
+test('published unknown or missing resource types use Thing with preserved metadata', function (bool $missing): void {
+    [$resource, $landingPage] = machineMetadataLandingPage('custom-material');
+    if ($missing) {
+        $resource->update(['resource_type_id' => null]);
+    }
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+    $description = collect($jsonLd['subjectOf'])->firstWhere('@type', 'CreativeWork');
+    expect($jsonLd['@type'])->toBe('Thing')
+        ->and($jsonLd)->not->toHaveKey('additionalType')
+        ->and($description['creator']['@list'][0]['name'])->toBe('Lovelace, Ada')
+        ->and($response->headers->get('Link'))->toContain('<https://schema.org/Thing>; rel="type"')
+        ->not->toContain('<https://schema.org/Dataset>; rel="type"');
+})->with([false, true]);
+
+test('old cached Dataset metadata is ignored and new machine metadata is cached consistently', function (): void {
+    config(['bot_protection.enabled' => true, 'bot_protection.landing_cache_ttl' => 600]);
+    [$resource, $landingPage] = machineMetadataLandingPage('service');
+    $cache = Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+    $legacy = 'landing_pages:render_data:v11:'.$landingPage->id;
+    $cache->put($legacy, ['template' => 'default_gfz', 'props' => [], 'viewData' => [
+        'landingPageMachineMetadata' => ['jsonLdJson' => '{"@type":"Dataset"}'],
+    ]], 600);
+
+    $first = $this->get($landingPage->getPublicPath())->assertOk();
+    $warm = $this->get($landingPage->getPublicPath())->assertOk();
+    expect(decodedEmbeddedSchemaOrg($first->getContent())['@type'])->toBe('Service')
+        ->and(decodedEmbeddedSchemaOrg($warm->getContent()))->toBe(decodedEmbeddedSchemaOrg($first->getContent()))
+        ->and($warm->headers->get('Link'))->toBe($first->headers->get('Link'))
+        ->and($cache->has(CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id)))->toBeTrue()
+        ->and($cache->has($legacy))->toBeTrue();
 });

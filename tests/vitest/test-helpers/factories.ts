@@ -257,6 +257,7 @@ export function createMockPortalResource(overrides?: Partial<PortalResource>): P
         doi: `10.5880/portal.2026.${String(id).padStart(3, '0')}`,
         title: `Portal Resource ${id}`,
         creators: [{ name: 'Doe, John', givenName: 'John' }],
+        searchMatches: [],
         year: 2026,
         resourceType: 'Dataset',
         resourceTypeSlug: 'dataset',
@@ -341,7 +342,10 @@ export function createMockPortalPageProps(overrides?: {
             basePath: '/doi-search',
             showResourceTypeFilter: true,
         },
-        mapConfig: { maxZoom: 18 },
+        mapConfig: {
+            maxZoom: 18,
+            basemap: { provider: 'openfreemap', styleUrl: 'https://tiles.openfreemap.org/styles/liberty', language: 'en' },
+        },
         resources,
         pagination: createMockPortalPagination({
             total: resources.length,

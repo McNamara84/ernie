@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Exceptions\BatchSuggestionValidationException;
+use App\Models\Resource;
 use App\Models\User;
 use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\BatchSuggestionActionService;
+use App\Services\DataCiteSyncResult;
+use App\Services\DataCiteSyncService;
 
 covers(BatchSuggestionActionService::class, BatchSuggestionValidationException::class);
 
@@ -46,7 +49,7 @@ it('executes a validated batch and returns complete per-item feedback', function
         1 => reviewSuggestion(1, 10),
         2 => reviewSuggestion(2, 10),
     ]);
-    $assistant->shouldReceive('acceptSuggestion')->once()->with(1)->andReturn([
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(1, ['defer_datacite_sync' => true])->andReturn([
         'success' => true,
         'message' => 'Accepted first.',
         'synced_dois' => ['10.1/a'],
@@ -59,7 +62,7 @@ it('executes a validated batch and returns complete per-item feedback', function
             'suggested_ror_id' => 'https://ror.org/012345678',
         ],
     ]);
-    $assistant->shouldReceive('acceptSuggestion')->once()->with(2)->andReturn([
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(2, ['defer_datacite_sync' => true])->andReturn([
         'success' => false,
         'message' => 'Stale suggestion.',
         'synced_dois' => [],
@@ -86,10 +89,16 @@ it('forwards a relation type override only when accepting', function (): void {
         3 => reviewSuggestion(3, 10),
     ]);
     $user = new User;
-    $assistant->shouldReceive('acceptSuggestion')->once()->with(1, ['relation_type_id' => 42])->andReturn([
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(1, [
+        'relation_type_id' => 42,
+        'defer_datacite_sync' => true,
+    ])->andReturn([
         'success' => true, 'message' => 'Accepted with first override.',
     ]);
-    $assistant->shouldReceive('acceptSuggestion')->once()->with(2, ['relation_type_id' => 43])->andReturn([
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(2, [
+        'relation_type_id' => 43,
+        'defer_datacite_sync' => true,
+    ])->andReturn([
         'success' => true, 'message' => 'Accepted with second override.',
     ]);
     $assistant->shouldReceive('declineSuggestion')->once()->with(3, $user, null)->andReturn([
@@ -105,6 +114,46 @@ it('forwards a relation type override only when accepting', function (): void {
     $service->execute('decline', 10, [[
         'assistant_id' => 'test-assistant', 'suggestion_id' => 3, 'relation_type_id' => 42,
     ]], $user);
+});
+
+it('coalesces deferred synchronization across assistants for the same resource', function (): void {
+    $resource = Resource::factory()->create(['doi' => '10.5880/test.batch.coalesced']);
+    $registrar = new AssistantRegistrar;
+
+    foreach (['first-assistant' => 1, 'second-assistant' => 2] as $assistantId => $suggestionId) {
+        $assistant = Mockery::mock(AssistantContract::class);
+        $assistant->shouldReceive('getId')->andReturn($assistantId);
+        $assistant->shouldReceive('getName')->andReturn($assistantId);
+        $assistant->shouldReceive('getSuggestionForReview')
+            ->once()
+            ->with($suggestionId)
+            ->andReturn(reviewSuggestion($suggestionId, $resource->id));
+        $assistant->shouldReceive('acceptSuggestion')
+            ->once()
+            ->with($suggestionId, ['defer_datacite_sync' => true])
+            ->andReturn([
+                'success' => true,
+                'message' => 'Accepted.',
+                'datacite_sync_deferred' => true,
+                'datacite_sync_resource_ids' => [$resource->id],
+            ]);
+        $registrar->register($assistant);
+    }
+
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldReceive('syncIfRegistered')
+        ->once()
+        ->with(Mockery::on(fn (Resource $candidate): bool => $candidate->is($resource)))
+        ->andReturn(DataCiteSyncResult::succeeded((string) $resource->doi));
+
+    $result = (new BatchSuggestionActionService($registrar, $syncService))->execute('accept', $resource->id, [
+        ['assistant_id' => 'first-assistant', 'suggestion_id' => 1],
+        ['assistant_id' => 'second-assistant', 'suggestion_id' => 2],
+    ], new User);
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['synced_dois'])->toBe([$resource->doi])
+        ->and($result['processed_count'])->toBe(2);
 });
 
 it('allows multiple exclusive alternatives to be declined', function (): void {

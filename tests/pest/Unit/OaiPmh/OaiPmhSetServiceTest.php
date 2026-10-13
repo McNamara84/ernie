@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\Subject;
+use App\Services\OaiPmh\EposMslSetService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 describe('listSets', function () {
-    it('returns empty array when no published resources exist', function () {
+    it('advertises the project set when no published resources exist', function () {
         $service = app(OaiPmhSetService::class);
 
-        expect($service->listSets())->toBe([]);
+        expect($service->listSets())->toBe([$service->projectSetDefinition()]);
     });
 
     it('returns resource type sets from published resources', function () {
@@ -46,8 +48,83 @@ describe('listSets', function () {
 
         $service = app(OaiPmhSetService::class);
 
-        expect($service->listSets())->toBe([]);
+        expect($service->listSets())->toBe([$service->projectSetDefinition()]);
     });
+});
+
+it('recognizes only complete free project keywords in both queries and headers', function (string $value, bool $matches) {
+    $resource = Resource::factory()->create();
+    Subject::factory()->create(['resource_id' => $resource->id, 'value' => $value, 'language' => 'de']);
+    $service = app(OaiPmhSetService::class);
+
+    expect($service->applySetFilter(Resource::query(), EposMslSetService::SPEC)->whereKey($resource->id)->exists())->toBe($matches)
+        ->and(in_array(EposMslSetService::SPEC, $service->getSetsForResource($resource), true))->toBe($matches);
+})->with([
+    'EPOS' => ['EPOS', true],
+    'MSL' => ['MSL', true],
+    'mixed case' => ['ePoS', true],
+    'lowercase' => ['msl', true],
+    'spaces' => [' EPOS ', true],
+    'all ASCII whitespace' => ["\t\r\n\v\f MSL \t\r\n\v\f", true],
+    'empty' => ['', false],
+    'whitespace only' => [" \t\n", false],
+    'compound' => ['EPOS-MSL', false],
+    'prefix' => ['EPOS project', false],
+    'suffix' => ['laboratory MSL', false],
+    'internal spaces' => ['EP OS', false],
+    'internal tab' => ["M\tSL", false],
+    'accent' => ['ÉPOS', false],
+    'Unicode whitespace is not ASCII whitespace' => ["\u{00a0}EPOS\u{00a0}", false],
+    'NUL is not whitespace' => ["\0EPOS\0", false],
+]);
+
+it('excludes every controlled subject attribute from project membership', function (string $field) {
+    $resource = Resource::factory()->create();
+    Subject::factory()->create(['resource_id' => $resource->id, 'value' => 'EPOS', $field => 'controlled']);
+    $service = app(OaiPmhSetService::class);
+
+    expect($service->applySetFilter(Resource::query(), EposMslSetService::SPEC)->exists())->toBeFalse()
+        ->and($service->getSetsForResource($resource))->not->toContain(EposMslSetService::SPEC);
+})->with(['subject_scheme', 'scheme_uri', 'value_uri', 'classification_code', 'breadcrumb_path']);
+
+it('treats blank subject attributes as absent', function (?string $blank) {
+    $resource = Resource::factory()->create();
+    Subject::factory()->create([
+        'resource_id' => $resource->id, 'value' => 'MSL', 'subject_scheme' => $blank,
+        'scheme_uri' => $blank, 'value_uri' => $blank, 'classification_code' => $blank, 'breadcrumb_path' => $blank,
+    ]);
+    $service = app(OaiPmhSetService::class);
+
+    expect($service->applySetFilter(Resource::query(), EposMslSetService::SPEC)->exists())->toBeTrue()
+        ->and($service->getSetsForResource($resource))->toContain(EposMslSetService::SPEC);
+})->with([null, '', " \t\n\v\f\r"]);
+
+it('does not combine a free unrelated subject with a controlled project keyword', function () {
+    $resource = Resource::factory()->create();
+    Subject::factory()->create(['resource_id' => $resource->id, 'value' => 'geology']);
+    Subject::factory()->create(['resource_id' => $resource->id, 'value' => 'EPOS', 'value_uri' => 'https://example.org/epos']);
+    $service = app(OaiPmhSetService::class);
+
+    expect($service->applySetFilter(Resource::query(), EposMslSetService::SPEC)->exists())->toBeFalse();
+});
+
+it('counts a resource once when both keywords and duplicates are present', function () {
+    $resource = Resource::factory()->create();
+    foreach (['EPOS', 'MSL', 'epos'] as $keyword) {
+        Subject::factory()->create(['resource_id' => $resource->id, 'value' => $keyword]);
+    }
+    $service = app(OaiPmhSetService::class);
+
+    expect($service->applySetFilter(Resource::query(), EposMslSetService::SPEC)->count())->toBe(1)
+        ->and(array_count_values($service->getSetsForResource($resource))[EposMslSetService::SPEC])->toBe(1);
+});
+
+it('accepts only the exact project set specification', function () {
+    $service = app(OaiPmhSetService::class);
+    expect($service->isValidSetSpec('epos-msl'))->toBeTrue();
+    foreach (['EPOS-MSL', 'epos', 'msl', 'epos-msl:extra', ' epos-msl', 'epos-msl '] as $spec) {
+        expect($service->isValidSetSpec($spec))->toBeFalse();
+    }
 });
 
 describe('getSetsForResource', function () {

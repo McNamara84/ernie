@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -129,6 +129,19 @@ function expectClosedFilterSections(expectedValues: string[]): void {
 }
 
 describe('PortalFilters', () => {
+    it('shows and removes the selected DOI science topic', () => {
+        const onClearTopic = vi.fn();
+        render(<PortalFilters {...defaultProps} filters={{ ...defaultFilters, topic: { slug: 'atmosphere', label: 'Atmosphere' } }} onClearTopic={onClearTopic} />);
+        expect(screen.getByTestId('portal-topic-filter')).toHaveTextContent('Science topicAtmosphere');
+        fireEvent.click(screen.getByRole('button', { name: 'Remove topic: Atmosphere' }));
+        expect(onClearTopic).toHaveBeenCalledOnce();
+    });
+
+    it('does not display a DOI topic in the IGSN filter panel', () => {
+        render(<PortalFilters {...defaultProps} basePath="/igsn-search" filters={{ ...defaultFilters, topic: { slug: 'atmosphere', label: 'Atmosphere' } }} />);
+        expect(screen.queryByTestId('portal-topic-filter')).not.toBeInTheDocument();
+    });
+
     beforeEach(() => vi.clearAllMocks());
 
     it('keeps the unified search above the single scrolling filter region', () => {

@@ -63,6 +63,111 @@ describe('DefaultGfzTemplate', () => {
         document.title = '';
     });
 
+    it('renders a tombstone with metadata and no data access even when URLs are retained', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: { ...mockResource, doi: '10.5880/lost' },
+                landingPage: {
+                    ...mockLandingPage,
+                    is_tombstone: true,
+                    tombstone_reason: 'data_lost',
+                    tombstone_statement: '<script>lost files</script>',
+                    tombstoned_at: '2026-10-01T12:00:00Z',
+                    downloads_unavailable: true,
+                },
+                isPreview: false,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+        render(<DefaultGfzTemplate />);
+        expect(screen.getByRole('heading', { name: 'This resource is no longer available' })).toBeInTheDocument();
+        expect(screen.getByText('Dead')).toBeInTheDocument();
+        expect(screen.getByText('<script>lost files</script>')).toBeInTheDocument();
+        expect(document.querySelector('script')).toBeNull();
+        expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
+        expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('data-request-section')).not.toBeInTheDocument();
+    });
+
+    it('identifies a tombstone preview while keeping data access disabled', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                landingPage: { ...mockLandingPage, is_tombstone: true, tombstone_reason: 'retracted', tombstone_statement: 'Retraction explained.' },
+                isPreview: true,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+        render(<DefaultGfzTemplate />);
+        expect(screen.getByText(/Tombstone preview/)).toBeInTheDocument();
+        expect(screen.getByText('Dead')).toBeInTheDocument();
+        expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+    });
+
+    it.each([
+        { embargoDue: false, notice: 'Under embargo until 2027-01-01' },
+        { embargoDue: true, notice: 'Embargo expired on 2027-01-01; publication is pending manual release.' },
+    ])('shows a hidden embargo status without data actions when embargoDue=$embargoDue', ({ embargoDue, notice }) => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                landingPage: { ...mockLandingPage, status: 'draft', downloads_unavailable: true },
+                isPreview: true,
+                embargoDate: '2027-01-01',
+                embargoPending: true,
+                embargoDue,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        const hero = screen.getByTestId('landing-page-resource-hero');
+
+        expect(screen.getByText(notice)).toBeInTheDocument();
+        expect(within(hero).getByText('Embargo')).toBeInTheDocument();
+        expect(hero.querySelector('.lucide-eye-off')).toBeInTheDocument();
+        expect(hero.querySelector('.lucide-eye')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('data-request-section')).not.toBeInTheDocument();
+    });
+
+    it.each([false, true])('announces a missing embargo date and blocks data actions when embargoDue=%s', (embargoDue) => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                landingPage: { ...mockLandingPage, status: 'draft' },
+                isPreview: true,
+                embargoPending: true,
+                embargoDate: null,
+                embargoDue,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(screen.getByText('Embargo date is missing or invalid; publication is blocked.')).toHaveAttribute('role', 'status');
+        expect(screen.queryByText(/^Under embargo until|^Embargo expired on/)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('data-request-section')).not.toBeInTheDocument();
+    });
+
+    it.each([false, undefined])('omits embargo notices when embargoPending=%s even if an embargo date is supplied', (embargoPending) => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                landingPage: mockLandingPage,
+                isPreview: false,
+                embargoDate: '2027-01-01',
+                embargoDue: true,
+                embargoPending,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(screen.queryByText(/^Under embargo until|^Embargo expired on|^Embargo date is missing/)).not.toBeInTheDocument();
+        expect(within(screen.getByTestId('landing-page-resource-hero')).getByText('Published')).toBeInTheDocument();
+        expect(screen.getByTestId('files-section')).toBeInTheDocument();
+    });
+
     it('renders the main layout structure', () => {
         mockUsePage.mockReturnValue({
             props: {

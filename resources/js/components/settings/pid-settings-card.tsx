@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { getSelectAllState } from '@/lib/select-all';
 import { type SharedData } from '@/types';
 
 /**
@@ -24,6 +25,7 @@ export interface PidSettingData {
     displayName: string;
     isActive: boolean;
     isElmoActive: boolean;
+    isElmoMslActive?: boolean;
     exists: boolean;
     itemCount: number;
     lastUpdated: string | null;
@@ -68,6 +70,7 @@ interface PidSettingRowProps {
     pidSetting: PidSettingData;
     onActiveChange: (type: string, isActive: boolean) => void;
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
+    onElmoMslActiveChange?: (type: string, isElmoMslActive: boolean) => void;
     onUpdateComplete?: () => void;
 }
 
@@ -83,7 +86,7 @@ export function getTypeLabels(type: string): { countLabel: string; sourceName: s
     return { countLabel: 'instruments', sourceName: 'b2inst' };
 }
 
-function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdateComplete }: PidSettingRowProps) {
+function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoMslActiveChange, onUpdateComplete }: PidSettingRowProps) {
     const [checkStatus, setCheckStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
     const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
     const [checkError, setCheckError] = useState<string | null>(null);
@@ -296,6 +299,16 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                             ELMO
                         </Label>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id={`pid-elmo-msl-${pidSetting.type}`}
+                            checked={pidSetting.isElmoMslActive ?? false}
+                            onCheckedChange={(checked) => onElmoMslActiveChange?.(pidSetting.type, checked === true)}
+                        />
+                        <Label htmlFor={`pid-elmo-msl-${pidSetting.type}`} className="text-sm font-normal">
+                            ELMO-MSL
+                        </Label>
+                    </div>
                 </div>
             </div>
 
@@ -403,9 +416,17 @@ export interface PidSettingsCardProps {
     pidSettings: PidSettingData[];
     onActiveChange: (type: string, isActive: boolean) => void;
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
+    onElmoMslActiveChange?: (type: string, isElmoMslActive: boolean) => void;
+    onBulkActiveChange?: (field: 'isActive' | 'isElmoActive' | 'isElmoMslActive', active: boolean) => void;
 }
 
-export function PidSettingsCard({ pidSettings, onActiveChange, onElmoActiveChange }: PidSettingsCardProps) {
+export function PidSettingsCard({
+    pidSettings,
+    onActiveChange,
+    onElmoActiveChange,
+    onElmoMslActiveChange,
+    onBulkActiveChange,
+}: PidSettingsCardProps) {
     // Reload page data after update to get fresh data from backend
     const handleUpdateComplete = useCallback(() => {
         setTimeout(() => {
@@ -415,12 +436,41 @@ export function PidSettingsCard({ pidSettings, onActiveChange, onElmoActiveChang
 
     return (
         <div className="space-y-4" data-testid="pid-settings-card">
+            {pidSettings.length > 0 && (
+                <div className="flex flex-wrap justify-end gap-4 border-b pb-3">
+                    {(
+                        [
+                            ['ERNIE', 'isActive', onActiveChange],
+                            ['ELMO', 'isElmoActive', onElmoActiveChange],
+                            ['ELMO-MSL', 'isElmoMslActive', onElmoMslActiveChange],
+                        ] as const
+                    ).map(([editor, field, onChange]) => {
+                        const state = getSelectAllState(pidSettings.map((setting) => setting[field] ?? false));
+                        return (
+                            <div key={editor} className="flex items-center gap-2">
+                                <Checkbox
+                                    id={`pid-all-${editor}`}
+                                    checked={state.allChecked}
+                                    indeterminate={state.indeterminate}
+                                    onCheckedChange={(checked) => {
+                                        if (onBulkActiveChange) onBulkActiveChange(field, checked === true);
+                                        else pidSettings.forEach((setting) => onChange?.(setting.type, checked === true));
+                                    }}
+                                    aria-label={`Select all ${editor} active for PID Settings`}
+                                />
+                                <Label htmlFor={`pid-all-${editor}`}>All {editor}</Label>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
             {pidSettings.map((pidSetting) => (
                 <PidSettingRow
                     key={pidSetting.type}
                     pidSetting={pidSetting}
                     onActiveChange={onActiveChange}
                     onElmoActiveChange={onElmoActiveChange}
+                    onElmoMslActiveChange={onElmoMslActiveChange}
                     onUpdateComplete={handleUpdateComplete}
                 />
             ))}

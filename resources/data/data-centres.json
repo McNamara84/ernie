@@ -1,0 +1,539 @@
+[
+    {
+        "slug": "arbodat-2016",
+        "datacenterName": "ArboDat 2016",
+        "displayName": "ArboDat 2016 Data Centre",
+        "shortName": "ArboDat 2016",
+        "logo": {
+            "src": "/images/data-centres/25_arbodat.png",
+            "width": 324,
+            "height": 311
+        },
+        "description": [
+            "The ArboDat 2016 Data Centre makes archaeobotanical research results available as citable data publications. The collections document plant remains from archaeological sites and help researchers compare findings across sites and periods.",
+            "Publications can include site documentation, reports by archaeological dating and tables of results for individual samples. Consult each publication for its data files, methods and citation information."
+        ],
+        "links": [
+            {
+                "label": "ArboDat 2016 manual",
+                "href": "https://doi.org/10.48440/hA-ArboDat_manual_en"
+            }
+        ],
+        "sources": ["https://gfzpublic.gfz.de/pubman/item/item_5012091_5/component/file_5012502/README_ArboDat2016_Datacentre-GFZ_english.pdf"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/25_arbodat.png"
+    },
+    {
+        "slug": "crc1211",
+        "datacenterName": "CRC1211DB CRC 1211 Database",
+        "displayName": "CRC 1211 — Earth: Evolution at the Dry Limit",
+        "shortName": "CRC 1211",
+        "logo": {
+            "src": "/images/data-centres/15_sfb1211.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "CRC 1211 investigates the relationships between landscape development and life in arid environments, including the Atacama and Namib deserts. Its project database brings together observations and modelling results from the participating research groups.",
+            "The database holds research data, images, reports and other project outputs with accompanying metadata. This data centre provides access to the project's DOI publications; access conditions for individual files are described in their records."
+        ],
+        "links": [
+            {
+                "label": "CRC 1211 Database",
+                "href": "https://www.crc1211db.uni-koeln.de/"
+            }
+        ],
+        "sources": ["https://www.crc1211db.uni-koeln.de/", "https://sfb1211.uni-koeln.de/"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/15_sfb1211.png"
+    },
+    {
+        "slug": "dekorp",
+        "datacenterName": "DEKORP - German Continental Seismic Reflection Program",
+        "displayName": "DEKORP — German Continental Seismic Reflection Program",
+        "shortName": "DEKORP",
+        "logo": {
+            "src": "/images/data-centres/23_dekorp.png",
+            "width": 451,
+            "height": 447
+        },
+        "description": [
+            "DEKORP investigated the deep structure of the continental crust using reflection seismology. The German programme and its associated surveys produced an extensive archive of seismic profiles for studying crustal structure and tectonic evolution.",
+            "The archive preserves raw and processed seismic data together with supporting documentation. These publications allow the measurements to be revisited for new processing methods and geological interpretations."
+        ],
+        "links": [
+            {
+                "label": "DEKORP at GFZ",
+                "href": "https://www.gfz.de/en/dekorp"
+            }
+        ],
+        "sources": ["https://www.gfz.de/en/dekorp"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/23_dekorp.png"
+    },
+    {
+        "slug": "digis",
+        "datacenterName": "DIGIS Geochemical Data for GEOROC 2.0",
+        "displayName": "DIGIS — Geochemical Data for GEOROC 2.0",
+        "shortName": "DIGIS / GEOROC",
+        "logo": {
+            "src": "/images/data-centres/digis-georoc.png",
+            "width": 449,
+            "height": 450
+        },
+        "description": [
+            "The DIGIS repository publishes geochemical research data within the scope of the GEOROC database. It is a collaboration between the University of Göttingen's Digital Geochemical Data Infrastructure and GFZ Data Services.",
+            "Researchers contribute data using standardised templates and metadata. The publications preserve the submitted datasets as citable records and support their consideration for inclusion in GEOROC."
+        ],
+        "links": [
+            {
+                "label": "DIGIS repository",
+                "href": "https://www.uni-goettingen.de/en/digis%2Brepository/651621.html"
+            }
+        ],
+        "sources": ["https://www.uni-goettingen.de/en/digis%2Brepository/651621.html"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/digis-georoc.png"
+    },
+    {
+        "slug": "enmap",
+        "datacenterName": "EnMAP",
+        "displayName": "EnMAP — Environmental Mapping and Analysis Program",
+        "shortName": "EnMAP",
+        "logo": {
+            "src": "/images/data-centres/01_enmap.png",
+            "width": 300,
+            "height": 320
+        },
+        "description": [
+            "EnMAP is a German hyperspectral satellite mission for observing terrestrial and aquatic environments. Its imaging spectroscopy measurements support research into the composition and changing condition of the Earth's surface.",
+            "This data centre brings together campaign and supporting research datasets published through GFZ Data Services. These include airborne and field measurements used to develop applications and support calibration and validation."
+        ],
+        "links": [
+            {
+                "label": "EnMAP mission",
+                "href": "https://www.enmap.org/"
+            }
+        ],
+        "sources": ["https://www.enmap.org/", "https://www.enmap.org/data_tools/flight_campaigns/"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/01_enmap.png"
+    },
+    {
+        "slug": "fid-geo",
+        "datacenterName": "FID GEO",
+        "displayName": "FID GEO — Specialised Information Service for Geosciences",
+        "shortName": "FID GEO",
+        "logo": {
+            "src": "/images/data-centres/02_fid-geo.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "FID GEO supports open science in the geosciences with services for publishing data and texts, digitising literature and finding research information.",
+            "GFZ Data Services is the research data repository associated with FID GEO. This data centre groups its DOI-referenced data publications, while GEO-LEOe-docs provides a complementary repository for texts and maps."
+        ],
+        "links": [
+            {
+                "label": "FID GEO",
+                "href": "https://www.fidgeo.de/"
+            }
+        ],
+        "sources": ["https://www.fidgeo.de/"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/02_fid-geo.png"
+    },
+    {
+        "slug": "geofon-seismic-events",
+        "datacenterName": "GEOFON Seismic Events",
+        "displayName": "GEOFON Seismic Events",
+        "shortName": "GEOFON Seismic Events",
+        "logo": {
+            "src": "/images/data-centres/03_geofon.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "GEOFON's Earthquake Information Service monitors global seismicity and provides information about earthquake locations and source parameters. Its event catalogue supports research into earthquakes and seismic hazards.",
+            "This data centre groups the DOI records for individual seismic events. Open a publication to reach its event information; seismic-network data are listed separately under GEOFON Seismic Networks."
+        ],
+        "links": [
+            {
+                "label": "GEOFON earthquake information",
+                "href": "https://geofon.gfz.de/eqinfo/eqinfo.php"
+            }
+        ],
+        "sources": ["https://geofon.gfz.de/eqinfo/eqinfo.php"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/03_geofon.png"
+    },
+    {
+        "slug": "geofon-seismic-networks",
+        "datacenterName": "GEOFON Seismic Networks",
+        "displayName": "GEOFON Seismic Networks",
+        "shortName": "GEOFON Seismic Networks",
+        "logo": {
+            "src": "/images/data-centres/03_geofon.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "The GFZ Seismological Data Archive operated by GEOFON preserves waveform data and station metadata from permanent and temporary seismic networks. Its services provide access to observations contributed by GFZ and partner institutions.",
+            "This data centre lists seismic networks with DOI-referenced datasets. Network publications describe the observations and how to access and cite them; individual earthquake records are available under GEOFON Seismic Events."
+        ],
+        "links": [
+            {
+                "label": "GFZ Seismological Data Archive",
+                "href": "https://geofon.gfz.de/waveform/archive/"
+            }
+        ],
+        "sources": ["https://geofon.gfz.de/waveform/archive/"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/03_geofon.png"
+    },
+    {
+        "slug": "gfz",
+        "datacenterName": "GFZ German Research Centre for Geosciences",
+        "displayName": "GFZ Helmholtz Centre for Geosciences",
+        "shortName": "GFZ",
+        "logo": {
+            "src": "/images/data-centres/04_gfz_neu.png",
+            "width": 269,
+            "height": 269
+        },
+        "description": [
+            "The GFZ Helmholtz Centre for Geosciences studies the Earth, its interior and surface, and the interactions between its physical, chemical and biological systems.",
+            "This data centre brings together research data and scientific software from GFZ researchers that are not assigned to a more specific project or service data centre. Each publication provides metadata, citation details and information about accessing the research outputs."
+        ],
+        "links": [
+            {
+                "label": "GFZ Helmholtz Centre for Geosciences",
+                "href": "https://www.gfz.de/en/"
+            }
+        ],
+        "sources": ["https://www.gfz.de/en/", "https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/04_gfz_neu.png"
+    },
+    {
+        "slug": "gipp",
+        "datacenterName": "GIPP Geophysical Instrument Pool Potsdam",
+        "displayName": "GIPP — Geophysical Instrument Pool Potsdam",
+        "shortName": "GIPP",
+        "logo": {
+            "src": "/images/data-centres/05_gipp.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "The Geophysical Instrument Pool Potsdam supplies seismic, magnetotelluric and geodetic instruments for research at GFZ, universities and other institutions.",
+            "Its Experiment and Data Archive preserves metadata about supported experiments and data from active seismic and magnetotelluric field measurements. This data centre provides the associated citable publications and documentation."
+        ],
+        "links": [
+            {
+                "label": "Geophysical Instrument Pool Potsdam",
+                "href": "https://www.gfz.de/en/section/geophysical-imaging/infrastructure/geophysical-instrument-pool-potsdam-gipp"
+            }
+        ],
+        "sources": ["https://www.gfz.de/en/section/geophysical-imaging/infrastructure/geophysical-instrument-pool-potsdam-gipp"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/05_gipp.png"
+    },
+    {
+        "slug": "icgem",
+        "datacenterName": "ICGEM International Centre for Global Earth Models",
+        "displayName": "ICGEM — International Centre for Global Earth Models",
+        "shortName": "ICGEM",
+        "logo": {
+            "src": "/images/data-centres/06_icgem.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "ICGEM collects and distributes global gravity field models. The service provides tools to visualise and compare models and to calculate gravity-related quantities at grids or user-defined locations.",
+            "DOI publications identify the model coefficient datasets and document their provenance. ICGEM is hosted at GFZ and contributes to the International Gravity Field Service of the International Association of Geodesy."
+        ],
+        "links": [
+            {
+                "label": "ICGEM",
+                "href": "https://icgem.gfz.de/home"
+            }
+        ],
+        "sources": ["https://icgem.gfz.de/home"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/06_icgem.png"
+    },
+    {
+        "slug": "igets",
+        "datacenterName": "IGETS International Geodynamics and Earth Tide Service",
+        "displayName": "IGETS — International Geodynamics and Earth Tide Service",
+        "shortName": "IGETS",
+        "logo": {
+            "src": "/images/data-centres/07_igets.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "IGETS supports the study of changes in the Earth's gravity field and other geodynamic signals using long-term ground-based observations. Its measurements include records from gravimeters and related sensors.",
+            "The IGETS database at GFZ provides access to station time series and accompanying documentation. The DOI publications make individual datasets identifiable and citable for studies of tides, hydrology and other sources of gravity variation."
+        ],
+        "links": [
+            {
+                "label": "IGETS database at GFZ",
+                "href": "https://isdc.gfz.de/igets-data-base"
+            }
+        ],
+        "sources": ["https://isdc.gfz.de/igets-data-base"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/07_igets.png"
+    },
+    {
+        "slug": "intermagnet",
+        "datacenterName": "INTERMAGNET",
+        "displayName": "INTERMAGNET — International Real-time Magnetic Observatory Network",
+        "shortName": "INTERMAGNET",
+        "logo": {
+            "src": "/images/data-centres/08_intermagnet.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "INTERMAGNET connects observatories that measure the Earth's magnetic field. Shared standards for instruments, data processing and exchange help produce consistent geomagnetic observations across the network.",
+            "The network distributes observatory data and coordinates quality-controlled definitive data products. This data centre provides the DOI publications through which these products can be discovered and cited."
+        ],
+        "links": [
+            {
+                "label": "INTERMAGNET",
+                "href": "https://intermagnet.org/"
+            }
+        ],
+        "sources": ["https://intermagnet.org/", "https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/08_intermagnet.png"
+    },
+    {
+        "slug": "isdc",
+        "datacenterName": "ISDC Information System and Data Center",
+        "displayName": "ISDC — Information System and Data Center",
+        "shortName": "ISDC",
+        "logo": {
+            "src": "/images/data-centres/09_isdc.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "ISDC provides access to geoscientific observations, metadata, documentation and software at GFZ. Its holdings include satellite orbit and gravity products, geomagnetic and atmospheric observations, and Earth system modelling data.",
+            "This data centre groups the related DOI publications. ISDC's data delivery uses HTTPS; the former FTP service has been retired."
+        ],
+        "links": [
+            {
+                "label": "ISDC",
+                "href": "https://isdc.gfz.de/"
+            }
+        ],
+        "sources": ["https://isdc.gfz.de/"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/09_isdc.png"
+    },
+    {
+        "slug": "isg",
+        "datacenterName": "ISG International Service for the Geoid",
+        "displayName": "ISG — International Service for the Geoid",
+        "shortName": "ISG",
+        "logo": {
+            "src": "/images/data-centres/19_isg.png",
+            "width": 493,
+            "height": 501
+        },
+        "description": [
+            "The International Service for the Geoid collects and distributes geoid models and supports research and training in geoid determination. Its repository makes regional and local models available for comparison and use.",
+            "ISG is a service of the International Association of Geodesy within the International Gravity Field Service. Its DOI-referenced model publications connect the distributed data with their documentation and citation information."
+        ],
+        "links": [
+            {
+                "label": "International Service for the Geoid",
+                "href": "https://www.isgeoid.polimi.it/"
+            }
+        ],
+        "sources": ["https://www.isgeoid.polimi.it/", "https://doi.org/10.5194/essd-13-1653-2021"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/19_isg.png"
+    },
+    {
+        "slug": "pik",
+        "datacenterName": "PIK Potsdam Institute for Climate Impact Research",
+        "displayName": "PIK — Potsdam Institute for Climate Impact Research",
+        "shortName": "PIK",
+        "logo": {
+            "src": "/images/data-centres/13_PIK.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "The Potsdam Institute for Climate Impact Research studies climate change, its impacts and possible responses. Its interdisciplinary work connects Earth system science with the assessment of risks and pathways towards sustainability.",
+            "This data centre brings together PIK research outputs published through GFZ Data Services. The records provide dataset descriptions, citation information and links to the underlying data or software."
+        ],
+        "links": [
+            {
+                "label": "About PIK",
+                "href": "https://www.pik-potsdam.de/en/institute/about"
+            }
+        ],
+        "sources": ["https://www.pik-potsdam.de/en/institute/about"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/13_PIK.png"
+    },
+    {
+        "slug": "riesgos",
+        "datacenterName": "Riesgos",
+        "displayName": "RIESGOS — Multi-risk Analysis in the Andes",
+        "shortName": "RIESGOS",
+        "logo": {
+            "src": "/images/data-centres/20_riesgos.png",
+            "width": 393,
+            "height": 390
+        },
+        "description": [
+            "RIESGOS developed methods and tools to analyse interacting natural hazards in the Andes region. Its research considered hazards such as earthquakes, landslides, volcanic events, floods and tsunamis, including cascading effects.",
+            "The RIESGOS and RIESGOS 2.0 project phases produced data and methods for scenario-based risk analysis. Their publications remain available through this data centre after the projects' completion."
+        ],
+        "links": [
+            {
+                "label": "RIESGOS at GFZ",
+                "href": "https://www.gfz.de/en/section/seismic-hazard-and-risk-dynamics/projects/previous-projects/riesgos-multi-risk-information-system-for-south-americas-andes-regions"
+            }
+        ],
+        "sources": [
+            "https://www.gfz.de/en/section/seismic-hazard-and-risk-dynamics/projects/previous-projects/riesgos-multi-risk-information-system-for-south-americas-andes-regions",
+            "https://www.gfz.de/en/section/hydrology/projects/completed-projects/riesgos-multi-risk-analysis-and-information-system-components-for-the-andes-region"
+        ],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/20_riesgos.png"
+    },
+    {
+        "slug": "sddb",
+        "datacenterName": "SDDB Scientific Drilling Database",
+        "displayName": "SDDB — Scientific Drilling Database",
+        "shortName": "SDDB",
+        "logo": null,
+        "description": [
+            "The Scientific Drilling Database provides a publication home for research data from scientific drilling. It developed from cooperation between GFZ and the International Continental Scientific Drilling Program and is now part of GFZ Data Services.",
+            "Publications document drilling projects and their scientific results, including operational reports and associated datasets. Use the individual records to find methods, files and citation details."
+        ],
+        "links": [
+            {
+                "label": "Scientific drilling data management",
+                "href": "https://www.gfz.de/en/section/geomechanics-and-scientific-drilling/infrastructure/equipment-pool/drilling-information-system"
+            }
+        ],
+        "sources": [
+            "https://www.gfz.de/en/section/geomechanics-and-scientific-drilling/infrastructure/equipment-pool/drilling-information-system",
+            "https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description"
+        ],
+        "reviewedAt": "2026-09-30",
+        "logoSource": null,
+        "logoNote": "The legacy description used the ICDP logo. SDDB is displayed as text to distinguish this data centre from ICDP."
+    },
+    {
+        "slug": "crc806",
+        "datacenterName": "SFB806 and CRC806-Database",
+        "displayName": "CRC 806 — Our Way to Europe",
+        "shortName": "CRC 806",
+        "logo": {
+            "src": "/images/data-centres/22_crc806.png",
+            "width": 676,
+            "height": 678
+        },
+        "description": [
+            "CRC 806 studied the dispersal of modern humans from Africa into Eurasia, connecting archaeological evidence with environmental and chronological research.",
+            "The CRC 806 Database preserves project data and provides an information infrastructure for their reuse. This data centre links to the project's DOI publications, with descriptions of the datasets and their access conditions."
+        ],
+        "links": [
+            {
+                "label": "About the CRC 806 Database",
+                "href": "https://crc806db.uni-koeln.de/about/"
+            }
+        ],
+        "sources": ["https://crc806db.uni-koeln.de/about/"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/22_crc806.png"
+    },
+    {
+        "slug": "dome",
+        "datacenterName": "SPP 2238 - Dynamics of Ore Metals Enrichment - DOME",
+        "displayName": "SPP 2238 — Dynamics of Ore Metals Enrichment (DOME)",
+        "shortName": "DOME / SPP 2238",
+        "logo": {
+            "src": "/images/data-centres/dome.webp",
+            "width": 729,
+            "height": 320
+        },
+        "description": [
+            "DOME is a DFG priority programme investigating how ore metals become enriched in the Earth's crust. It brings together research on the physical and chemical processes that transport and concentrate metals.",
+            "This data centre provides access to the programme's publications at GFZ Data Services, connecting experimental and analytical research results with their metadata and citation information."
+        ],
+        "links": [
+            {
+                "label": "DOME priority programme",
+                "href": "https://www.uni-potsdam.de/en/spp2238"
+            }
+        ],
+        "sources": [
+            "https://www.uni-potsdam.de/en/spp2238",
+            "https://www.gfz.de/en/section/chemistry-and-physics-of-earth-materials/projects/dfg-spp-2238-dome"
+        ],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://www.uni-potsdam.de/fileadmin/_processed_/1/6/csm_DOME_LOGE3_7292b332f0.webp"
+    },
+    {
+        "slug": "tereno",
+        "datacenterName": "TERENO",
+        "displayName": "TERENO — Terrestrial Environmental Observatories",
+        "shortName": "TERENO",
+        "logo": {
+            "src": "/images/data-centres/11_tereno.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "TERENO is a network of environmental observatories in Germany that investigates the long-term effects of global change. Observations and experiments connect processes in soils, vegetation, water and the atmosphere.",
+            "The TERENO publications at GFZ Data Services include observations from the northeastern German lowlands and the Demmin test area. Individual records describe the instruments, observation periods and available data."
+        ],
+        "links": [
+            {
+                "label": "TERENO observatories",
+                "href": "https://service.tereno.net/joomla4/index.php"
+            }
+        ],
+        "sources": [
+            "https://service.tereno.net/joomla4/index.php",
+            "https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description"
+        ],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/11_tereno.png"
+    },
+    {
+        "slug": "world-stress-map",
+        "datacenterName": "WDS World Stress Map",
+        "displayName": "World Stress Map",
+        "shortName": "World Stress Map",
+        "logo": {
+            "src": "/images/data-centres/12_wsm.png",
+            "width": 300,
+            "height": 300
+        },
+        "description": [
+            "The World Stress Map compiles information about the present-day stress field in the Earth's crust. Contributions from research and industry are brought together using common formats and quality assessments.",
+            "Maintained at GFZ, the database supports geodynamics, hazard assessment and geotechnical applications. This data centre provides access to database releases and associated publications, including the 2025 release."
+        ],
+        "links": [
+            {
+                "label": "World Stress Map",
+                "href": "https://www.world-stress-map.org/"
+            }
+        ],
+        "sources": ["https://www.world-stress-map.org/"],
+        "reviewedAt": "2026-09-30",
+        "logoSource": "https://dataservices.gfz-potsdam.de/web/fileadmin/dataservices.gfz.de/Data_Centres/12_wsm.png"
+    }
+]

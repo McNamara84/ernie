@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
+use App\Contracts\AcceptsDeclineInput;
 use App\Exceptions\BatchSuggestionValidationException;
+use App\Models\Resource;
 use App\Models\User;
+use App\Services\DataCiteSyncService;
 use Throwable;
 
 /**
@@ -18,10 +21,11 @@ final class BatchSuggestionActionService
 {
     public function __construct(
         private readonly AssistantRegistrar $registrar,
+        private readonly ?DataCiteSyncService $dataCiteSyncService = null,
     ) {}
 
     /**
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string}>  $selections
      * @return array<string, mixed>
      */
     public function execute(
@@ -35,9 +39,13 @@ final class BatchSuggestionActionService
             throw new BatchSuggestionValidationException('Unknown batch action.');
         }
 
-        $resolved = $this->resolveSelection($action, $resourceId, $selections);
+        $resolved = $this->resolveSelection($action, $resourceId, $selections, $reason);
+        $hasHierarchyDecline = $action === 'decline' && array_any($resolved,
+            static fn (array $selection): bool => $selection['assistant']->getId() === 'subject-hierarchy-correction');
         $results = [];
         $syncedDois = [];
+        $deferredSyncResourceIds = [];
+        $dataCiteSyncFailures = [];
         $followUps = [];
 
         foreach ($resolved as $selection) {
@@ -46,12 +54,17 @@ final class BatchSuggestionActionService
             $suggestionId = $selection['suggestion_id'];
             $acceptanceInput = $selection['acceptance_input'];
 
+            if ($action === 'accept') {
+                $acceptanceInput['defer_datacite_sync'] = true;
+            }
+
             try {
+                $declineReason = $hasHierarchyDecline && $assistant->getId() !== 'subject-hierarchy-correction' ? null : $reason;
                 $result = $action === 'accept'
-                    ? ($acceptanceInput === []
-                        ? $assistant->acceptSuggestion($suggestionId)
-                        : $assistant->acceptSuggestion($suggestionId, $acceptanceInput))
-                    : $assistant->declineSuggestion($suggestionId, $user, $reason);
+                    ? $assistant->acceptSuggestion($suggestionId, $acceptanceInput)
+                    : ($assistant instanceof AcceptsDeclineInput
+                        ? $assistant->declineSuggestionWithInput($suggestionId, $user, $declineReason, $acceptanceInput)
+                        : $assistant->declineSuggestion($suggestionId, $user, $declineReason));
             } catch (Throwable $exception) {
                 report($exception);
                 $result = [
@@ -71,6 +84,18 @@ final class BatchSuggestionActionService
 
             if ($success) {
                 array_push($syncedDois, ...$itemSyncedDois);
+
+                if (($result['datacite_sync_deferred'] ?? false) === true) {
+                    $syncResourceIds = is_array($result['datacite_sync_resource_ids'] ?? null)
+                        ? $result['datacite_sync_resource_ids']
+                        : [$result['resource_id'] ?? null];
+
+                    foreach ($syncResourceIds as $syncResourceId) {
+                        if (is_int($syncResourceId) || (is_string($syncResourceId) && ctype_digit($syncResourceId))) {
+                            $deferredSyncResourceIds[(int) $syncResourceId] = true;
+                        }
+                    }
+                }
 
                 if ($followUp !== null && ($followUp['available'] ?? false)) {
                     $followUps[] = [
@@ -93,12 +118,35 @@ final class BatchSuggestionActionService
             ];
         }
 
+        foreach (array_keys($deferredSyncResourceIds) as $syncResourceId) {
+            $resource = Resource::query()->find($syncResourceId);
+
+            if (! $resource instanceof Resource) {
+                continue;
+            }
+
+            $syncResult = ($this->dataCiteSyncService ?? app(DataCiteSyncService::class))->syncIfRegistered($resource);
+
+            if ($syncResult->attempted && $syncResult->success && $syncResult->doi !== null) {
+                $syncedDois[] = $syncResult->doi;
+            }
+
+            if ($syncResult->hasFailed()) {
+                $dataCiteSyncFailures[] = [
+                    'resource_id' => $resource->id,
+                    'doi' => $syncResult->doi,
+                    'message' => $syncResult->errorMessage,
+                    'retry_url' => route('assistance.datacite-sync.retry', ['resource' => $resource->id]),
+                ];
+            }
+        }
+
         $successCount = count(array_filter($results, static fn (array $result): bool => $result['success']));
         $failureCount = count($results) - $successCount;
         $verb = $action === 'accept' ? 'accepted' : 'declined';
 
         return [
-            'success' => $failureCount === 0,
+            'success' => $failureCount === 0 && $dataCiteSyncFailures === [],
             'action' => $action,
             'resource_id' => $resourceId,
             'resource_label' => $this->resourceLabel($resolved, $resourceId),
@@ -106,9 +154,15 @@ final class BatchSuggestionActionService
             'success_count' => $successCount,
             'failure_count' => $failureCount,
             'message' => $failureCount === 0
-                ? sprintf('%d suggestion(s) %s.', $successCount, $verb)
+                ? sprintf(
+                    '%d suggestion(s) %s.%s',
+                    $successCount,
+                    $verb,
+                    $dataCiteSyncFailures === [] ? '' : ' Local metadata was saved, but DataCite synchronization failed.',
+                )
                 : sprintf('%d suggestion(s) %s; %d failed.', $successCount, $verb, $failureCount),
             'synced_dois' => array_values(array_unique($syncedDois)),
+            'datacite_sync_failures' => $dataCiteSyncFailures,
             'follow_ups' => $followUps,
             'results' => $results,
         ];
@@ -119,10 +173,10 @@ final class BatchSuggestionActionService
      * leave a partially processed selection behind.
      *
      * @param  'accept'|'decline'  $action
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string}>  $selections
      * @return list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int, acceptance_input: array<string, mixed>}>
      */
-    private function resolveSelection(string $action, int $resourceId, array $selections): array
+    private function resolveSelection(string $action, int $resourceId, array $selections, ?string $reason): array
     {
         $resolved = [];
         $identities = [];
@@ -175,13 +229,34 @@ final class BatchSuggestionActionService
                 $exclusiveTargets[$targetKey] = true;
             }
 
+            if ($assistantId === 'subject-hierarchy-correction') {
+                if ($action === 'decline' && (trim($reason ?? '') === '' || mb_strlen($reason) > 255)) {
+                    throw new BatchSuggestionValidationException('Explain why the current broader terms should be retained.');
+                }
+                if ($action === 'accept' && (empty($selection['selected_leaf_ids']) || empty($selection['subject_hierarchy_fingerprint']))) {
+                    throw new BatchSuggestionValidationException('Choose narrower terms before accepting a hierarchy suggestion.');
+                }
+            }
+
+            if ($assistantId === 'relation-type-correction') {
+                $metadata = is_array($suggestion['metadata'] ?? null) ? $suggestion['metadata'] : [];
+                $fingerprint = $selection['relation_type_correction_fingerprint'] ?? null;
+                if (! is_string($fingerprint) || ($metadata['review_fingerprint'] ?? null) !== $fingerprint) {
+                    throw new BatchSuggestionValidationException('Review the current relation type preview before processing the selection.');
+                }
+            }
+
             $resolved[] = [
                 'assistant' => $assistant,
                 'suggestion' => $suggestion,
                 'suggestion_id' => $suggestionId,
-                'acceptance_input' => isset($selection['relation_type_id'])
-                    ? ['relation_type_id' => $selection['relation_type_id']]
-                    : [],
+                'acceptance_input' => array_filter([
+                    'relation_type_correction_fingerprint' => $selection['relation_type_correction_fingerprint'] ?? null,
+                    'selected_leaf_ids' => $selection['selected_leaf_ids'] ?? null,
+                    'subject_hierarchy_fingerprint' => $selection['subject_hierarchy_fingerprint'] ?? null,
+                    'relation_type_id' => $selection['relation_type_id'] ?? null,
+                    'size_conflict_resolution' => $selection['size_conflict_resolution'] ?? null,
+                ], static fn (mixed $value): bool => $value !== null),
             ];
         }
 

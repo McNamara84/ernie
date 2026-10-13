@@ -1,11 +1,21 @@
 codecov:
-  require_ci_to_pass: false
+  require_ci_to_pass: true
+  notify:
+    after_n_builds: 2
+    wait_for_ci: true
 
 coverage:
+  precision: 5
+  round: down
   status:
     project:
       default:
-        informational: true
+        # Fixed baseline: 84482 / 95483 lines at f05d239567f427155b1df4e75bdf0f74b8f27261.
+        # Keep the project gate aggregated; individual areas may exchange coverage.
+        target: 88.47857733%
+        threshold: 0%
+        informational: false
+        if_not_found: failure
     patch:
       default:
         informational: true
@@ -41,11 +51,11 @@ flags:
       - routes/
       - config/
       - database/
-    carryforward: true
+    carryforward: false
   frontend:
     paths:
       - resources/js/
-    carryforward: true
+    carryforward: false
 
 comment:
   layout: "reach,diff,flags,files"

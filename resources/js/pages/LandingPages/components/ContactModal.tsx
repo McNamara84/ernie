@@ -129,6 +129,7 @@ export function ContactModal({
                     sender_name: senderName.trim(),
                     sender_email: senderEmail.trim(),
                     message: message.trim(),
+                    data_request: isDataRequest,
                     // Data requests always target every available contact person.
                     send_to_all: shouldSendToAll,
                     copy_to_sender: copyToSender,

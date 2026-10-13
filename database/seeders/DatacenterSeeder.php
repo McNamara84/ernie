@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\Datacenter;
+use App\Services\DatacenterNameService;
 use App\Support\LegacyIgsnDatacenterCatalog;
 use Illuminate\Database\Seeder;
 
@@ -50,7 +50,7 @@ class DatacenterSeeder extends Seeder
         ]));
 
         foreach ($datacenters as $name) {
-            Datacenter::firstOrCreate(['name' => $name]);
+            app(DatacenterNameService::class)->findOrCreate($name);
         }
     }
 }

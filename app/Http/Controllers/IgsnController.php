@@ -26,6 +26,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
+use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\JsonSchemaValidator;
@@ -479,7 +480,7 @@ class IgsnController extends Controller
         // Already-registered IGSNs keep their original publicationYear.
         // Only persisted after a successful DataCite response to avoid inconsistent local state.
         if (! $wasAlreadyRegistered) {
-            $resource->publication_year = (int) date('Y');
+            $resource->publication_year = now(config('app.timezone'))->year;
         }
 
         try {
@@ -512,6 +513,7 @@ class IgsnController extends Controller
             }
 
             // New registration
+            app(EmbargoService::class)->assertCanRegister($resource);
             $response = $service->registerIgsn($resource);
             $doi = $response['data']['id'] ?? $resource->doi;
 
@@ -520,11 +522,25 @@ class IgsnController extends Controller
                 $resource->doi = $doi;
             }
 
-            // Persist publicationYear (and possibly updated DOI) after successful DataCite response
-            $resource->save();
-
-            // Mark as registered
-            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+            // Keep local identifier, access right, page, and registration state atomic.
+            $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
+            DB::transaction(function () use ($resource, $metadata, $wasEmbargoed): void {
+                $resource->save();
+                if ($wasEmbargoed) {
+                    app(EmbargoService::class)->completeRelease($resource);
+                }
+                $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+            });
+            if ($wasEmbargoed && $resource->doi !== null) {
+                try {
+                    $service->updateLandingPageUrl($resource->doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
+                } catch (\Throwable $exception) {
+                    Log::warning('IGSN URL update failed; stable dataset alias remains available.', [
+                        'resource_id' => $resource->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
 
             Log::info('IGSN registered at DataCite', [
                 'resource_id' => $resource->id,

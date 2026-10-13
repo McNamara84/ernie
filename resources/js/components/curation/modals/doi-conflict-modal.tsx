@@ -65,14 +65,14 @@ export function DoiConflictModal({
         async (text: string, field: 'suggested' | 'last') => {
             // Feature detection: check if Clipboard API is available
             if (!isClipboardAvailable) {
-                toast.error('Die Zwischenablage ist in diesem Browser nicht verfügbar. Bitte kopieren Sie die DOI manuell.', { duration: 5000 });
+                toast.error('The clipboard is unavailable in this browser. Please copy the DOI manually.', { duration: 5000 });
                 return;
             }
 
             try {
                 await navigator.clipboard.writeText(text);
                 setCopiedField(field);
-                toast.success('DOI in die Zwischenablage kopiert');
+                toast.success('DOI copied to the clipboard');
 
                 // Clear any existing timeout before setting a new one
                 if (copyTimeoutRef.current) {
@@ -87,10 +87,7 @@ export function DoiConflictModal({
                 // Log the full error for debugging
                 console.error('Failed to copy to clipboard:', error);
                 // Provide user-friendly error message with guidance
-                toast.error(
-                    'Kopieren fehlgeschlagen. Bitte stellen Sie sicher, dass die Seite über HTTPS geladen wird und Ihr Browser Zugriff auf die Zwischenablage hat.',
-                    { duration: 5000 },
-                );
+                toast.error('Copy failed. Make sure this page uses HTTPS and your browser allows clipboard access.', { duration: 5000 });
             }
         },
         [isClipboardAvailable],
@@ -111,19 +108,19 @@ export function DoiConflictModal({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-destructive">
                         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-                        DOI bereits vergeben
+                        DOI already in use
                     </DialogTitle>
-                    <DialogDescription>Die eingegebene DOI ist bereits in der Datenbank registriert.</DialogDescription>
+                    <DialogDescription>This DOI is already stored in the ERNIE database.</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
                     {/* Existing DOI Info */}
                     <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-                        <div className="mb-2 text-sm font-medium text-destructive">Konflikt-DOI:</div>
+                        <div className="mb-2 text-sm font-medium text-destructive">Conflicting DOI:</div>
                         <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{existingDoi}</code>
                         {existingResourceTitle && (
                             <div className="mt-2 text-sm text-muted-foreground">
-                                <span className="font-medium">Zugehörige Resource:</span>{' '}
+                                <span className="font-medium">Existing resource:</span>{' '}
                                 {existingResourceId ? (
                                     <a
                                         href={`/resources/${existingResourceId}/edit`}
@@ -143,7 +140,7 @@ export function DoiConflictModal({
 
                     {/* Last Assigned DOI */}
                     <div className="space-y-2">
-                        <div className="text-sm font-medium">Zuletzt vergebene DOI:</div>
+                        <div className="text-sm font-medium">Last assigned DOI:</div>
                         <div className="flex items-center gap-2">
                             <code className="flex-1 rounded bg-muted px-2 py-1 font-mono text-sm">{lastAssignedDoi}</code>
                             <Button
@@ -152,7 +149,7 @@ export function DoiConflictModal({
                                 size="sm"
                                 onClick={() => copyToClipboard(lastAssignedDoi, 'last')}
                                 className={cn('shrink-0 transition-colors', copiedField === 'last' && 'border-green-500 text-green-600')}
-                                aria-label="Zuletzt vergebene DOI kopieren"
+                                aria-label="Copy last assigned DOI"
                             >
                                 {copiedField === 'last' ? (
                                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
@@ -166,7 +163,7 @@ export function DoiConflictModal({
                     {/* Suggested DOI - only show if suggestion is available */}
                     {hasSuggestion && suggestedDoi ? (
                         <div className="space-y-2">
-                            <div className="text-sm font-medium text-primary">Vorgeschlagene DOI:</div>
+                            <div className="text-sm font-medium text-primary">Suggested DOI:</div>
                             <div className="flex items-center gap-2">
                                 <code className="flex-1 rounded bg-primary/10 px-2 py-1 font-mono text-sm font-medium text-primary">
                                     {suggestedDoi}
@@ -177,7 +174,7 @@ export function DoiConflictModal({
                                     size="sm"
                                     onClick={() => copyToClipboard(suggestedDoi, 'suggested')}
                                     className={cn('shrink-0 transition-colors', copiedField === 'suggested' && 'border-green-500 text-green-600')}
-                                    aria-label="Vorgeschlagene DOI kopieren"
+                                    aria-label="Copy suggested DOI"
                                 >
                                     {copiedField === 'suggested' ? (
                                         <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
@@ -190,7 +187,7 @@ export function DoiConflictModal({
                     ) : (
                         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                Es konnte kein DOI-Vorschlag generiert werden. Bitte wenden Sie sich an einen Administrator.
+                                No DOI suggestion could be generated. Contact an administrator.
                             </p>
                         </div>
                     )}
@@ -198,11 +195,11 @@ export function DoiConflictModal({
 
                 <DialogFooter className="gap-2 sm:gap-0">
                     <Button type="button" variant="outline" onClick={handleClose}>
-                        Schließen
+                        Close
                     </Button>
                     {onUseSuggested && hasSuggestion && suggestedDoi && (
                         <Button type="button" onClick={handleUseSuggested}>
-                            Vorschlag übernehmen
+                            Use suggestion
                         </Button>
                     )}
                 </DialogFooter>

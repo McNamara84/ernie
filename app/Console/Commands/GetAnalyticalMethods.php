@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\ThesaurusSetting;
 use App\Services\ArdcApiService;
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
 use App\Support\AnalyticalMethodsVocabularyParser;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -42,6 +43,7 @@ class GetAnalyticalMethods extends Command
             $this->info('Extracted '.count($concepts).' concepts');
 
             $this->info('Building hierarchical structure...');
+            (new SubjectHierarchyCacheService)->validateFlat($concepts, 'Analytical Methods for Geochemistry and Cosmochemistry', 'https://w3id.org/geochem/1.0/analyticalmethod/method');
             $hierarchicalData = $parser->buildHierarchy($concepts);
 
             $totalConcepts = $parser->countConcepts($hierarchicalData['data']);
@@ -56,7 +58,7 @@ class GetAnalyticalMethods extends Command
                 return Command::FAILURE;
             }
 
-            Storage::put(self::OUTPUT_FILE, $json);
+            (new SubjectHierarchyCacheService)->publishFlat(self::OUTPUT_FILE, $json, $concepts, 'Analytical Methods for Geochemistry and Cosmochemistry', 'https://w3id.org/geochem/1.0/analyticalmethod/method');
 
             $this->call('cache:clear-app', ['category' => 'vocabularies']);
 

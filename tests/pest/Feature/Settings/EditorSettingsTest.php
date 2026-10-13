@@ -168,7 +168,7 @@ test('thesaurus settings are auto-created when missing', function () {
     Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
     // Verify only migration-seeded settings exist initially.
-    expect(ThesaurusSetting::count())->toBe(6);
+    expect(ThesaurusSetting::count())->toBe(7);
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_CHRONOSTRAT)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_GEMET)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS)->exists())->toBeTrue();
@@ -182,7 +182,7 @@ test('thesaurus settings are auto-created when missing', function () {
     $response = $this->get(route('settings'))->assertOk();
 
     // Verify every centralized thesaurus definition now exists.
-    expect(ThesaurusSetting::count())->toBe(9);
+    expect(ThesaurusSetting::count())->toBe(10);
 
     $this->assertDatabaseHas('thesaurus_settings', [
         'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
@@ -212,7 +212,7 @@ test('thesaurus settings are auto-created when missing', function () {
     // Verify all thesauri are returned in the response.
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
-        ->has('thesauri', 9)
+        ->has('thesauri', 10)
         ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_PLATFORMS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_INSTRUMENTS)

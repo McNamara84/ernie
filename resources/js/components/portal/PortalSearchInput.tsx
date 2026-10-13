@@ -187,7 +187,10 @@ export function PortalSearchInput({
                     </div>
                 )}
             </form>
-            <p className="text-xs text-muted-foreground">Choose a suggestion for an exact keyword filter, or press Enter for a text search.</p>
+            <p className="text-xs text-muted-foreground">
+                Choose a suggestion for an exact keyword filter, or press Enter for a text search.
+                {basePath === '/igsn-search' && ' Use * to replace any number of characters.'}
+            </p>
         </div>
     );
 }

@@ -55,16 +55,16 @@ describe('GET /api/v1/relation-types/ernie', function (): void {
 });
 
 describe('GET /api/v1/relation-types/elmo', function (): void {
-    test('returns only active and elmo-active relation types with valid API key', function (): void {
+    test('returns only ELMO-enabled independently of ERNIE relation types with valid API key', function (): void {
         $response = $this->getJson('/api/v1/relation-types/elmo', [
             'X-API-Key' => 'test-api-key',
         ])->assertOk();
 
-        expect($response->json())->toHaveCount(1);
+        expect($response->json())->toHaveCount(2);
 
         $slugs = collect($response->json())->pluck('slug')->all();
-        expect($slugs)->toContain('Cites')
-            ->not->toContain('IsCitedBy', 'References', 'CustomRelation');
+        expect($slugs)->toContain('Cites', 'References')
+            ->not->toContain('IsCitedBy', 'CustomRelation');
 
         expect($response->json('0.description'))->toBe('Indicates that A includes B in a citation');
     });

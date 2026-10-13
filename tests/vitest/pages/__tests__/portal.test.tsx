@@ -6,7 +6,7 @@ import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Portal from '@/pages/portal';
-import type { PortalPageProps } from '@/types/portal';
+import type { PortalBasemapConfig, PortalPageProps } from '@/types/portal';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -186,12 +186,14 @@ vi.mock('@/components/portal/PortalMap', () => ({
     PortalMap: ({
         filters,
         maxZoom,
+        basemap,
         onViewportChange,
         onLocationCountChange,
         geoFilterEnabled,
     }: {
         filters: { query: string | null };
         maxZoom: number;
+        basemap: PortalBasemapConfig;
         onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
         onLocationCountChange?: (count: number) => void;
         geoFilterEnabled?: boolean;
@@ -199,6 +201,7 @@ vi.mock('@/components/portal/PortalMap', () => ({
         <div data-testid="portal-map">
             <span data-testid="map-filter-query">{filters.query ?? ''}</span>
             <span data-testid="map-max-zoom">{maxZoom}</span>
+            <span data-testid="map-basemap">{`${basemap.provider}:${basemap.styleUrl}:${basemap.language}`}</span>
             <span data-testid="map-geo-enabled">{String(geoFilterEnabled ?? false)}</span>
             {onViewportChange && (
                 <button data-testid="trigger-viewport-change" onClick={() => onViewportChange({ north: 54, south: 50, east: 15, west: 11 })}>
@@ -273,13 +276,17 @@ const defaultProps: PortalPageProps = {
         basePath: '/doi-search',
         showResourceTypeFilter: true,
     },
-    mapConfig: { maxZoom: 7 },
+    mapConfig: {
+        maxZoom: 7,
+        basemap: { provider: 'openfreemap', styleUrl: 'https://tiles.openfreemap.org/styles/liberty', language: 'en' },
+    },
     resources: [
         {
             id: 1,
             doi: '10.1234/test1',
             title: 'Dataset 1',
             creators: [],
+            searchMatches: [],
             year: 2024,
             resourceType: 'Dataset',
             resourceTypeSlug: 'dataset',
@@ -292,6 +299,7 @@ const defaultProps: PortalPageProps = {
             doi: '10.1234/test2',
             title: 'Dataset 2',
             creators: [],
+            searchMatches: [],
             year: 2023,
             resourceType: 'Dataset',
             resourceTypeSlug: 'dataset',
@@ -350,6 +358,7 @@ describe('Portal', () => {
         render(<Portal {...defaultProps} />);
         expect(screen.getByTestId('portal-layout')).toBeInTheDocument();
         expect(screen.getAllByTestId('map-max-zoom')[0]).toHaveTextContent('7');
+        expect(screen.getAllByTestId('map-basemap')[0]).toHaveTextContent('openfreemap:https://tiles.openfreemap.org/styles/liberty:en');
     });
 
     it('uses the configured title and hides the IGSN resource type filter', () => {

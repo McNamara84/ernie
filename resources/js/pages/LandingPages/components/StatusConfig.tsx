@@ -1,4 +1,4 @@
-import { CheckCircle, Eye, FileEdit, type LucideIcon } from 'lucide-react';
+import { CheckCircle, Eye, EyeOff, FileEdit, type LucideIcon } from 'lucide-react';
 
 interface StatusConfig {
     icon: LucideIcon;
@@ -9,6 +9,12 @@ interface StatusConfig {
 }
 
 const STATUS_CONFIGS: Record<string, StatusConfig> = {
+    dead: {
+        icon: FileEdit,
+        color: 'text-red-600',
+        textColor: 'text-red-700',
+        label: 'Dead',
+    },
     published: {
         icon: CheckCircle,
         color: 'text-green-600',
@@ -20,6 +26,12 @@ const STATUS_CONFIGS: Record<string, StatusConfig> = {
         color: 'text-amber-500',
         textColor: 'text-amber-700',
         label: 'Draft',
+    },
+    embargo: {
+        icon: EyeOff,
+        color: 'text-purple-600',
+        textColor: 'text-purple-700',
+        label: 'Embargo',
     },
     // Review Preview (not a database status, but for preview mode)
     preview: {

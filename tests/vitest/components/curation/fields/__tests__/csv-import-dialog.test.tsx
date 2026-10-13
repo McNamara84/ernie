@@ -10,7 +10,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Papa from 'papaparse';
-import { beforeEach, describe, expect, it, type MockInstance,vi } from 'vitest';
+import { beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { CsvImportDialog } from '@/components/curation/fields/csv-import-dialog';
 
@@ -56,7 +56,7 @@ describe('CsvImportDialog', () => {
             await user.click(screen.getByRole('button', { name: /import csv/i }));
 
             expect(screen.getByRole('dialog')).toBeInTheDocument();
-            expect(screen.getByText('Authors aus CSV importieren')).toBeInTheDocument();
+            expect(screen.getByText('Authors from CSV')).toBeInTheDocument();
         });
 
         it('shows contributor title when type is contributor', async () => {
@@ -65,7 +65,7 @@ describe('CsvImportDialog', () => {
 
             await user.click(screen.getByRole('button', { name: /import csv/i }));
 
-            expect(screen.getByText('Contributors aus CSV importieren')).toBeInTheDocument();
+            expect(screen.getByText('Contributors from CSV')).toBeInTheDocument();
         });
 
         it('applies custom trigger class name', () => {
@@ -82,7 +82,7 @@ describe('CsvImportDialog', () => {
 
             await user.click(screen.getByRole('button', { name: /import csv/i }));
 
-            expect(screen.getByText('CSV-Datei hochladen')).toBeInTheDocument();
+            expect(screen.getByText('Upload a CSV file')).toBeInTheDocument();
         });
 
         it('shows example download button', async () => {
@@ -91,7 +91,7 @@ describe('CsvImportDialog', () => {
 
             await user.click(screen.getByRole('button', { name: /import csv/i }));
 
-            expect(screen.getByRole('button', { name: /beispiel-csv herunterladen/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /download example csv/i })).toBeInTheDocument();
         });
 
         it('shows file upload area', async () => {
@@ -100,8 +100,8 @@ describe('CsvImportDialog', () => {
 
             await user.click(screen.getByRole('button', { name: /import csv/i }));
 
-            expect(screen.getByText('CSV-Datei auswählen')).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /datei auswählen/i })).toBeInTheDocument();
+            expect(screen.getByText('Choose a CSV file')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
         });
 
         it('has a hidden file input that accepts CSV files', async () => {
@@ -118,14 +118,14 @@ describe('CsvImportDialog', () => {
 
         it('downloads example CSV for authors when button is clicked', async () => {
             const user = userEvent.setup();
-            
+
             // Store original methods
             const originalAppendChild = document.body.appendChild.bind(document.body);
             const originalRemoveChild = document.body.removeChild.bind(document.body);
-            
+
             const mockClick = vi.fn();
             let createdLink: HTMLAnchorElement | null = null;
-            
+
             // Override methods
             document.body.appendChild = vi.fn((node: Node) => {
                 if (node instanceof HTMLAnchorElement) {
@@ -135,7 +135,7 @@ describe('CsvImportDialog', () => {
                 }
                 return originalAppendChild(node);
             }) as typeof document.body.appendChild;
-            
+
             document.body.removeChild = vi.fn((node: Node) => {
                 if (node === createdLink) {
                     return node;
@@ -146,7 +146,7 @@ describe('CsvImportDialog', () => {
             render(<CsvImportDialog {...defaultProps} type="author" />);
 
             await user.click(screen.getByRole('button', { name: /import csv/i }));
-            await user.click(screen.getByRole('button', { name: /beispiel-csv herunterladen/i }));
+            await user.click(screen.getByRole('button', { name: /download example csv/i }));
 
             expect(Papa.unparse).toHaveBeenCalled();
             expect(mockCreateObjectURL).toHaveBeenCalled();
@@ -184,7 +184,7 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
             return user;
@@ -193,16 +193,16 @@ describe('CsvImportDialog', () => {
         it('shows mapping step after file upload', async () => {
             await setupMappingStep();
 
-            expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+            expect(screen.getByText('Map columns')).toBeInTheDocument();
             expect(screen.getByText(/test.csv/)).toBeInTheDocument();
-            expect(screen.getByText(/2 Zeilen/)).toBeInTheDocument();
+            expect(screen.getByText(/2 rows/)).toBeInTheDocument();
         });
 
         it('displays CSV headers for mapping', async () => {
             await setupMappingStep();
 
-            expect(screen.getByText('First Name')).toBeInTheDocument();
-            expect(screen.getByText('Last Name')).toBeInTheDocument();
+            expect(screen.getAllByText('First Name').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Last Name').length).toBeGreaterThanOrEqual(1);
             // ORCID appears both as header and select value, so use getAllByText
             expect(screen.getAllByText('ORCID').length).toBeGreaterThanOrEqual(1);
         });
@@ -224,18 +224,18 @@ describe('CsvImportDialog', () => {
         it('has back button that returns to upload step', async () => {
             const user = await setupMappingStep();
 
-            const backButton = screen.getByRole('button', { name: /zurück/i });
+            const backButton = screen.getByRole('button', { name: /back/i });
             await user.click(backButton);
 
             await waitFor(() => {
-                expect(screen.getByText('CSV-Datei hochladen')).toBeInTheDocument();
+                expect(screen.getByText('Upload a CSV file')).toBeInTheDocument();
             });
         });
 
         it('has preview button to proceed', async () => {
             await setupMappingStep();
 
-            expect(screen.getByRole('button', { name: /vorschau anzeigen/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /show preview/i })).toBeInTheDocument();
         });
     });
 
@@ -265,14 +265,14 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
             // Go to preview
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
 
             await waitFor(() => {
-                expect(screen.getByText('Vorschau & Import')).toBeInTheDocument();
+                expect(screen.getByText('Preview and import')).toBeInTheDocument();
             });
 
             return user;
@@ -281,14 +281,14 @@ describe('CsvImportDialog', () => {
         it('shows preview step after mapping', async () => {
             await setupPreviewStep();
 
-            expect(screen.getByText('Vorschau & Import')).toBeInTheDocument();
+            expect(screen.getByText('Preview and import')).toBeInTheDocument();
         });
 
         it('displays valid and error row counts', async () => {
             await setupPreviewStep();
 
-            expect(screen.getByText('1 gültig')).toBeInTheDocument();
-            expect(screen.getByText('1 Fehler')).toBeInTheDocument();
+            expect(screen.getByText('1 valid')).toBeInTheDocument();
+            expect(screen.getByText('1 error')).toBeInTheDocument();
         });
 
         it('shows preview table with column headers', async () => {
@@ -303,30 +303,54 @@ describe('CsvImportDialog', () => {
         it('shows error message for invalid rows', async () => {
             await setupPreviewStep();
 
-            expect(screen.getByText(/Vorname oder Nachname erforderlich/i)).toBeInTheDocument();
+            expect(screen.getByText(/First or last name is required/i)).toBeInTheDocument();
         });
 
         it('has back button that returns to mapping step', async () => {
             const user = await setupPreviewStep();
 
-            const backButton = screen.getByRole('button', { name: /zurück/i });
+            const backButton = screen.getByRole('button', { name: /back/i });
             await user.click(backButton);
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
         });
 
         it('shows import button with valid row count', async () => {
             await setupPreviewStep();
 
-            expect(screen.getByRole('button', { name: /1 authors importieren/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /import 1 author/i })).toBeInTheDocument();
+        });
+
+        it('uses the plural contributor label when two rows are valid', async () => {
+            const user = userEvent.setup();
+            mockedPapaParse.mockImplementation((file, options) => {
+                options.complete({
+                    data: [
+                        { 'First Name': 'Ada', 'Last Name': 'Lovelace' },
+                        { 'First Name': 'Grace', 'Last Name': 'Hopper' },
+                    ],
+                    errors: [],
+                    meta: { fields: ['First Name', 'Last Name'] },
+                });
+            });
+
+            render(<CsvImportDialog {...defaultProps} type="contributor" />);
+            await user.click(screen.getByRole('button', { name: /import csv/i }));
+            fireEvent.change(document.getElementById('csv-upload') as HTMLInputElement, {
+                target: { files: [new File(['test'], 'contributors.csv', { type: 'text/csv' })] },
+            });
+            await screen.findByText('Map columns');
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
+
+            expect(screen.getByRole('button', { name: 'Import 2 contributors' })).toBeEnabled();
         });
 
         it('calls onImport with valid rows when import button is clicked', async () => {
             const user = await setupPreviewStep();
 
-            const importButton = screen.getByRole('button', { name: /1 authors importieren/i });
+            const importButton = screen.getByRole('button', { name: /import 1 author/i });
             await user.click(importButton);
 
             expect(mockOnImport).toHaveBeenCalledWith(
@@ -335,14 +359,14 @@ describe('CsvImportDialog', () => {
                         firstName: 'Max',
                         lastName: 'Mustermann',
                     }),
-                ])
+                ]),
             );
         });
 
         it('closes dialog after successful import', async () => {
             const user = await setupPreviewStep();
 
-            const importButton = screen.getByRole('button', { name: /1 authors importieren/i });
+            const importButton = screen.getByRole('button', { name: /import 1 author/i });
             await user.click(importButton);
 
             await waitFor(() => {
@@ -354,9 +378,7 @@ describe('CsvImportDialog', () => {
     describe('Validation', () => {
         it('shows error for person type without name', async () => {
             const user = userEvent.setup();
-            const csvData = [
-                { Type: 'person', 'First Name': '', 'Last Name': '', ORCID: '' },
-            ];
+            const csvData = [{ Type: 'person', 'First Name': '', 'Last Name': '', ORCID: '' }];
 
             mockedPapaParse.mockImplementation((file, options) => {
                 options.complete({
@@ -375,21 +397,19 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
 
             await waitFor(() => {
-                expect(screen.getByText(/Vorname oder Nachname erforderlich/i)).toBeInTheDocument();
+                expect(screen.getByText(/First or last name is required/i)).toBeInTheDocument();
             });
         });
 
         it('shows error for institution type without organization name', async () => {
             const user = userEvent.setup();
-            const csvData = [
-                { Type: 'institution', 'Institution Name': '' },
-            ];
+            const csvData = [{ Type: 'institution', 'Institution Name': '' }];
 
             mockedPapaParse.mockImplementation((file, options) => {
                 options.complete({
@@ -408,21 +428,19 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
 
             await waitFor(() => {
-                expect(screen.getByText(/Institution Name erforderlich/i)).toBeInTheDocument();
+                expect(screen.getByText(/Institution name is required/i)).toBeInTheDocument();
             });
         });
 
         it('shows error for invalid ORCID format', async () => {
             const user = userEvent.setup();
-            const csvData = [
-                { 'First Name': 'Max', 'Last Name': 'Test', ORCID: 'invalid-orcid' },
-            ];
+            const csvData = [{ 'First Name': 'Max', 'Last Name': 'Test', ORCID: 'invalid-orcid' }];
 
             mockedPapaParse.mockImplementation((file, options) => {
                 options.complete({
@@ -441,13 +459,13 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
 
             await waitFor(() => {
-                expect(screen.getByText(/Ungültiges ORCID-Format/i)).toBeInTheDocument();
+                expect(screen.getByText(/Invalid ORCID format/i)).toBeInTheDocument();
             });
         });
     });
@@ -474,14 +492,14 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
             // Preview should work because auto-mapping detected firstName from Vorname
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
 
             await waitFor(() => {
-                expect(screen.getByText('Vorschau & Import')).toBeInTheDocument();
+                expect(screen.getByText('Preview and import')).toBeInTheDocument();
             });
         });
     });
@@ -517,9 +535,7 @@ describe('CsvImportDialog', () => {
         it('shows alert when no valid rows to import', async () => {
             const user = userEvent.setup();
             const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
-            const csvData = [
-                { 'First Name': '', 'Last Name': '', Type: 'person' },
-            ];
+            const csvData = [{ 'First Name': '', 'Last Name': '', Type: 'person' }];
 
             mockedPapaParse.mockImplementation((file, options) => {
                 options.complete({
@@ -538,17 +554,17 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
 
             await waitFor(() => {
-                expect(screen.getByText('Vorschau & Import')).toBeInTheDocument();
+                expect(screen.getByText('Preview and import')).toBeInTheDocument();
             });
 
             // Import button should be disabled when no valid rows
-            const importButton = screen.getByRole('button', { name: /0 authors importieren/i });
+            const importButton = screen.getByRole('button', { name: /import 0 authors/i });
             expect(importButton).toBeDisabled();
 
             alertMock.mockRestore();
@@ -559,10 +575,10 @@ describe('CsvImportDialog', () => {
         it('processes affiliations as comma-separated list', async () => {
             const user = userEvent.setup();
             const csvData = [
-                { 
-                    'First Name': 'Max', 
-                    'Last Name': 'Mustermann', 
-                    Affiliations: 'GFZ Potsdam, University of Berlin' 
+                {
+                    'First Name': 'Max',
+                    'Last Name': 'Mustermann',
+                    Affiliations: 'GFZ Potsdam, University of Berlin',
                 },
             ];
 
@@ -583,13 +599,13 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
 
             await waitFor(() => {
-                expect(screen.getByText('Vorschau & Import')).toBeInTheDocument();
+                expect(screen.getByText('Preview and import')).toBeInTheDocument();
             });
 
             // Should show affiliations in table
@@ -599,10 +615,10 @@ describe('CsvImportDialog', () => {
         it('processes isContact field correctly', async () => {
             const user = userEvent.setup();
             const csvData = [
-                { 
-                    'First Name': 'Max', 
-                    'Last Name': 'Mustermann', 
-                    'Contact Person': 'yes' 
+                {
+                    'First Name': 'Max',
+                    'Last Name': 'Mustermann',
+                    'Contact Person': 'yes',
                 },
             ];
 
@@ -623,18 +639,18 @@ describe('CsvImportDialog', () => {
             fireEvent.change(fileInput, { target: { files: [file] } });
 
             await waitFor(() => {
-                expect(screen.getByText('Spalten zuordnen')).toBeInTheDocument();
+                expect(screen.getByText('Map columns')).toBeInTheDocument();
             });
 
-            await user.click(screen.getByRole('button', { name: /vorschau anzeigen/i }));
-            await user.click(screen.getByRole('button', { name: /1 authors importieren/i }));
+            await user.click(screen.getByRole('button', { name: /show preview/i }));
+            await user.click(screen.getByRole('button', { name: /import 1 author/i }));
 
             expect(mockOnImport).toHaveBeenCalledWith(
                 expect.arrayContaining([
                     expect.objectContaining({
                         isContact: true,
                     }),
-                ])
+                ]),
             );
         });
     });

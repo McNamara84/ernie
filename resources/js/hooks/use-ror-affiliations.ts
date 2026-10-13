@@ -9,6 +9,7 @@ interface UseRorAffiliationsResult {
     suggestions: AffiliationSuggestion[];
     isLoading: boolean;
     error: Error | null;
+    retry: () => void;
 }
 
 const normalizeSuggestion = (input: unknown): AffiliationSuggestion | null => {
@@ -63,7 +64,7 @@ export async function fetchRorAffiliations(signal?: AbortSignal): Promise<Affili
  * the data becomes stale.
  */
 export function useRorAffiliations(): UseRorAffiliationsResult {
-    const { data, isLoading, error } = useQuery({
+    const { data, isLoading, error, refetch } = useQuery({
         queryKey: queryKeys.ror.all(),
         queryFn: ({ signal }) => fetchRorAffiliations(signal),
         staleTime: 30 * 60_000,
@@ -79,8 +80,11 @@ export function useRorAffiliations(): UseRorAffiliationsResult {
             // object thrown from `queryFn`) is still surfaced as a proper
             // `Error` to consumers, honouring the `Error | null` contract.
             error: normalizeQueryError(error),
+            retry: () => {
+                void refetch();
+            },
         }),
-        [data, isLoading, error],
+        [data, isLoading, error, refetch],
     );
 }
 

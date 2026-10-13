@@ -1,25 +1,20 @@
-import { format, parseISO } from 'date-fns';
 import { Minus, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { normalizeTimeForInput, TIMEZONE_OPTIONS } from '@/lib/date-utils';
+import { type EditorDateLocale, parseEditorDate } from '@/lib/editor-date';
 import { cn } from '@/lib/utils';
 
-import { type DateMode, isDateRangeCapable } from '../utils/date-rules';
+import { type DateMode, isAvailableDateType, isDateRangeCapable } from '../utils/date-rules';
+import { EditorDateInput } from './editor-date-input';
 import { SelectField } from './select-field';
 
-/**
- * Check if a date string is partial-precision (YYYY or YYYY-MM).
- * These cannot be reliably rendered in a calendar DatePicker without data loss.
- */
-function isPartialDate(date: string | null): boolean {
-    if (!date) return false;
-    return /^\d{4}$/.test(date) || /^\d{4}-\d{2}$/.test(date);
+function isFullDate(date: string | null, locale: EditorDateLocale): boolean {
+    return Boolean(date && parseEditorDate(date, locale)?.precision === 'day');
 }
 
 interface Option {
@@ -40,8 +35,10 @@ interface DateFieldProps {
     endTimezone: string | null;
     options: Option[];
     dateTypeDescription?: string;
-    onStartDateChange: (value: string) => void;
-    onEndDateChange: (value: string) => void;
+    onStartDateChange: (value: string, committed?: boolean) => void;
+    onEditingChange?: (id: string, editing: boolean) => void;
+    locale?: EditorDateLocale;
+    onEndDateChange: (value: string, committed?: boolean) => void;
     onStartTimeChange: (value: string) => void;
     onEndTimeChange: (value: string) => void;
     onStartTimezoneChange: (value: string) => void;
@@ -52,6 +49,7 @@ interface DateFieldProps {
     onRemove: () => void;
     isFirst: boolean;
     canAdd?: boolean;
+    readOnly?: boolean;
     className?: string;
 }
 
@@ -68,6 +66,8 @@ export function DateField({
     options,
     dateTypeDescription,
     onStartDateChange,
+    onEditingChange,
+    locale = 'iso',
     onEndDateChange,
     onStartTimeChange,
     onEndTimeChange,
@@ -79,6 +79,7 @@ export function DateField({
     onRemove,
     isFirst,
     canAdd = true,
+    readOnly = false,
     className,
 }: DateFieldProps) {
     const supportsDateRange = isDateRangeCapable(dateType);
@@ -102,113 +103,80 @@ export function DateField({
         <div className={cn('space-y-3', className)}>
             {/* Main row: Date(s) + DateType + Date mode + Add/Remove button */}
             <div className={cn('grid gap-4', modeGridClass)}>
-                <div className="space-y-2">
-                    {isFirst && <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>{isDateRange ? 'Start Date' : 'Date'}</Label>}
-                    {isPartialDate(startDate) ? (
-                        <div className="flex gap-2">
-                            <Input
-                                id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
-                                value={startDate ?? ''}
-                                readOnly
-                                className="h-9 bg-muted"
-                                title="Partial-precision date (year or year-month)"
-                            />
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 shrink-0"
-                                aria-label="Clear date"
-                                onClick={() => onStartDateChange('')}
-                            >
-                                <Minus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ) : (
-                        <DatePicker
+                <fieldset disabled={readOnly} className="contents">
+                    <div className="space-y-2">
+                        {isFirst && <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>{isDateRange ? 'Start Date' : 'Date'}</Label>}
+                        <EditorDateInput
                             id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
-                            value={startDate ? parseISO(startDate) : undefined}
-                            onChange={(date) => onStartDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                            placeholder="Select date"
-                            dateFormat="yyyy-MM-dd"
+                            inputLabel={isDateRange ? 'Start Date' : 'Date'}
+                            value={startDate}
+                            readOnly={readOnly}
+                            allowFuture={isAvailableDateType(dateType)}
+                            onChange={onStartDateChange}
+                            onEditingChange={onEditingChange}
+                            locale={locale}
+                            calendarLabel={isDateRange ? 'Choose start date' : 'Choose date'}
+                            clearLabel={isDateRange ? 'Clear start date' : 'Clear date'}
                         />
-                    )}
-                </div>
-                {isDateRange && (
-                    <div className="space-y-2">
-                        {isFirst && <Label htmlFor={`${id}-endDate`}>End Date</Label>}
-                        {isPartialDate(endDate) ? (
-                            <div className="flex gap-2">
-                                <Input
-                                    id={`${id}-endDate`}
-                                    value={endDate ?? ''}
-                                    readOnly
-                                    className="h-9 bg-muted"
-                                    title="Partial-precision date (year or year-month)"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-9 w-9 shrink-0"
-                                    aria-label="Clear end date"
-                                    onClick={() => onEndDateChange('')}
-                                >
-                                    <Minus className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ) : (
-                            <DatePicker
+                    </div>
+                    {isDateRange && (
+                        <div className="space-y-2">
+                            {isFirst && <Label htmlFor={`${id}-endDate`}>End Date</Label>}
+                            <EditorDateInput
                                 id={`${id}-endDate`}
-                                value={endDate ? parseISO(endDate) : undefined}
-                                onChange={(date) => onEndDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                                placeholder="Select date"
-                                dateFormat="yyyy-MM-dd"
+                                inputLabel="End Date"
+                                value={endDate}
+                                readOnly={readOnly}
+                                onChange={onEndDateChange}
+                                onEditingChange={onEditingChange}
+                                locale={locale}
+                                calendarLabel="Choose end date"
+                                clearLabel="Clear end date"
                             />
-                        )}
+                        </div>
+                    )}
+                    <div>
+                        <SelectField
+                            id={`${id}-dateType`}
+                            label="Date Type"
+                            value={dateType}
+                            onValueChange={onTypeChange}
+                            options={options}
+                            hideLabel={!isFirst}
+                            required
+                        />
+                        {dateTypeDescription && <p className="mt-1 text-xs text-muted-foreground">{dateTypeDescription}</p>}
                     </div>
-                )}
-                <div>
-                    <SelectField
-                        id={`${id}-dateType`}
-                        label="Date Type"
-                        value={dateType}
-                        onValueChange={onTypeChange}
-                        options={options}
-                        hideLabel={!isFirst}
-                        required
-                    />
-                    {dateTypeDescription && <p className="mt-1 text-xs text-muted-foreground">{dateTypeDescription}</p>}
-                </div>
-                {supportsDateRange && (
-                    <div className="space-y-2">
-                        {isFirst && <Label htmlFor={`${id}-dateMode`}>Date Mode</Label>}
-                        <ToggleGroup
-                            id={`${id}-dateMode`}
-                            type="single"
-                            variant="outline"
-                            size="sm"
-                            value={dateMode}
-                            onValueChange={handleDateModeChange}
-                            className="h-9 w-full"
-                            aria-label="Date mode"
-                        >
-                            <ToggleGroupItem value="single" className="h-9 flex-1 px-2 text-xs">
-                                Single date
-                            </ToggleGroupItem>
-                            <ToggleGroupItem value="range" className="h-9 flex-1 px-2 text-xs">
-                                Period
-                            </ToggleGroupItem>
-                        </ToggleGroup>
-                    </div>
-                )}
+                    {supportsDateRange && (
+                        <div className="space-y-2">
+                            {isFirst && <Label htmlFor={`${id}-dateMode`}>Date Mode</Label>}
+                            <ToggleGroup
+                                id={`${id}-dateMode`}
+                                type="single"
+                                variant="outline"
+                                size="sm"
+                                value={dateMode}
+                                onValueChange={handleDateModeChange}
+                                className="h-9 w-full"
+                                aria-label="Date mode"
+                            >
+                                <ToggleGroupItem value="single" className="h-9 flex-1 px-2 text-xs">
+                                    Single date
+                                </ToggleGroupItem>
+                                <ToggleGroupItem value="range" className="h-9 flex-1 px-2 text-xs">
+                                    Period
+                                </ToggleGroupItem>
+                            </ToggleGroup>
+                        </div>
+                    )}
+                </fieldset>
                 <div className="flex items-end">
                     {isFirst ? (
                         <Button type="button" variant="outline" size="icon" aria-label="Add date" onClick={onAdd} disabled={!canAdd}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     ) : (
-                        <Button type="button" variant="outline" size="icon" aria-label="Remove date" onClick={onRemove}>
+                        <Button type="button" variant="outline" size="icon" aria-label="Remove date" onClick={onRemove} disabled={readOnly}>
                             <Minus className="h-4 w-4" />
                         </Button>
                     )}
@@ -216,8 +184,8 @@ export function DateField({
             </div>
 
             {/* Time/Timezone row: shown when a full-precision date is set (not partial YYYY or YYYY-MM) */}
-            {((startDate && !isPartialDate(startDate)) || (endDate && !isPartialDate(endDate)) || hasTimeInfo) && (
-                <div className="grid grid-cols-1 gap-4 border-l-2 border-muted pl-4 md:grid-cols-[1fr_1fr]">
+            {(isFullDate(startDate, locale) || isFullDate(endDate, locale) || hasTimeInfo) && (
+                <fieldset disabled={readOnly} className="grid grid-cols-1 gap-4 border-l-2 border-muted pl-4 md:grid-cols-[1fr_1fr]">
                     <div className="space-y-2">
                         <Label htmlFor={`${id}-startTime`} className="text-xs text-muted-foreground">
                             {isDateRange ? 'Start Time' : 'Time'} (optional)
@@ -284,7 +252,10 @@ export function DateField({
                             </div>
                         </>
                     )}
-                </div>
+                </fieldset>
+            )}
+            {readOnly && (
+                <p className="text-xs text-muted-foreground">Submitted records the original submission date and cannot be changed after saving.</p>
             )}
         </div>
     );

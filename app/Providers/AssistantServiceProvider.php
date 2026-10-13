@@ -88,6 +88,10 @@ class AssistantServiceProvider extends ServiceProvider
                 Route::post('/suggestions/batch/decline', [AssistanceController::class, 'batchDecline'])
                     ->name('assistance.suggestions.batch.decline');
 
+                Route::post('/resources/{resource}/retry-datacite-sync', [AssistanceController::class, 'retryDataCiteSync'])
+                    ->whereNumber('resource')
+                    ->name('assistance.datacite-sync.retry');
+
                 // Dynamic routes for each registered assistant
                 foreach ($registrar->getAll() as $assistant) {
                     $prefix = $assistant->getManifest()->routePrefix;

@@ -4,311 +4,220 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
+use App\Models\Resource;
 
 /**
- * Service for parsing and managing Laravel log files.
+ * @phpstan-type LogEntry array{timestamp: string, level: string, message: string, context: string, line_number: int, entry_id: string, activity: ?array<string, mixed>}
  */
 class LogService
 {
-    private const LOG_LEVELS = [
-        'emergency',
-        'alert',
-        'critical',
-        'error',
-        'warning',
-        'notice',
-        'info',
-        'debug',
-    ];
-
-    /**
-     * Maximum log file size to load into memory (50 MB).
-     * Files larger than this will be truncated to the last N bytes.
-     */
     private const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
-    /**
-     * Get available log levels.
-     *
-     * @return array<string>
-     */
+    private const PATTERN = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\S+\.(\w+):\s*(.*)$/';
+
+    public function __construct(private readonly ApplicationLogSourceService $sources = new ApplicationLogSourceService) {}
+
+    /** @return list<string> */
     public function getAvailableLevels(): array
     {
-        return self::LOG_LEVELS;
+        return ['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug'];
     }
 
-    /**
-     * Get paginated log entries from the Laravel log file.
-     * Uses memory-efficient filtering during parsing to reduce memory usage.
-     *
-     * @return array{data: array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}>, current_page: int, last_page: int, per_page: int, total: int}
-     */
-    public function getLogs(
-        int $perPage = 50,
-        int $page = 1,
-        ?string $level = null,
-        ?string $search = null
-    ): array {
-        $logPath = storage_path('logs/laravel.log');
-
-        if (! File::exists($logPath)) {
-            return $this->emptyResult($perPage, $page);
-        }
-
-        // Parse and filter in one pass to reduce memory usage
-        $entries = $this->parseLogFileWithFilter($logPath, $level, $search);
-
-        // Reverse to show newest first
-        /** @var array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}> $entries */
-        $entries = array_reverse($entries);
-
-        // Pagination
-        $total = count($entries);
-        $lastPage = max(1, (int) ceil($total / $perPage));
-        $page = max(1, min($page, $lastPage));
-        $offset = ($page - 1) * $perPage;
-
-        /** @var array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}> $data */
-        $data = array_slice($entries, $offset, $perPage);
-
-        // Clear the full entries array to free memory before returning
-        unset($entries);
-
-        return [
-            'data' => $data,
-            'current_page' => $page,
-            'last_page' => $lastPage,
-            'per_page' => $perPage,
-            'total' => $total,
-        ];
-    }
-
-    /**
-     * Parse log file and filter entries in a single pass to reduce memory usage.
-     * Uses streaming approach for large files to limit memory usage.
-     * Entries that don't match the filter criteria are immediately discarded.
-     *
-     * @return array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}>
-     */
-    private function parseLogFileWithFilter(string $logPath, ?string $level = null, ?string $search = null): array
+    /** @return array{data: list<LogEntry>, current_page: int, last_page: int, per_page: int, total: int, truncated: bool} */
+    public function getLogs(int $perPage = 50, int $page = 1, ?string $level = null, ?string $search = null): array
     {
-        $fileSize = File::size($logPath);
-        $levelLower = $level !== null && $level !== '' ? strtolower($level) : null;
-        $searchLower = $search !== null && $search !== '' ? strtolower($search) : null;
+        $perPage = max(1, min(200, $perPage));
+        $sources = $this->sources->sources();
+        // Editing an old daily file must not move it ahead of newer history.
+        $sourceDate = static fn (array $source): string => basename($source['path']) === 'laravel.log'
+            ? date('Y-m-d', filemtime($source['path']) ?: 0)
+            : substr(basename($source['path']), 8, 10);
+        usort($sources, static fn (array $a, array $b): int => ($sourceDate($b) <=> $sourceDate($a)) ?: ($b['path'] <=> $a['path']));
+        $remaining = self::MAX_FILE_SIZE;
+        $entries = [];
+        $truncated = false;
+        foreach ($sources as $source) {
+            if ($remaining <= 0) {
+                $truncated = $truncated || $source['size'] > 0;
 
-        // For very large files, only read the last MAX_FILE_SIZE bytes
-        if ($fileSize > self::MAX_FILE_SIZE) {
-            $handle = fopen($logPath, 'r');
-            if ($handle === false) {
-                Log::warning('LogService: Failed to open log file for reading', ['path' => $logPath]);
-
-                return [];
+                continue;
             }
-
+            $length = min($remaining, $source['size']);
+            $start = $source['size'] - $length;
+            $remaining -= $length;
+            $truncated = $truncated || $start > 0;
+            $handle = @fopen($source['path'], 'rb');
+            if ($handle === false) {
+                continue;
+            }
             try {
-                // Seek to position near the end
-                fseek($handle, -self::MAX_FILE_SIZE, SEEK_END);
-                // Skip first partial line
-                fgets($handle);
-                $content = fread($handle, self::MAX_FILE_SIZE);
+                fseek($handle, $start);
+                if ($start > 0) {
+                    fgets($handle);
+                }
+                $current = null;
+                $raw = '';
+                $offset = 0;
+                $number = 0;
+                while (($position = ftell($handle)) !== false && $position < $source['size'] && ($line = fgets($handle, max(1, $source['size'] - $position + 1))) !== false) {
+                    if (preg_match(self::PATTERN, rtrim($line, "\r\n"), $match) === 1) {
+                        if ($current !== null) {
+                            $this->append($entries, $current, $raw, $source['path'], $offset, $level, $search);
+                        }
+                        $offset = $position;
+                        $number++;
+                        $current = ['timestamp' => $match[1], 'level' => strtolower($match[2]), 'message' => $match[3], 'context' => '', 'line_number' => $number, 'entry_id' => '', 'activity' => null];
+                        $raw = $line;
+                    } elseif ($current !== null) {
+                        $raw .= $line;
+                        if (trim($line) !== '') {
+                            $current['context'] .= ($current['context'] === '' ? '' : "\n").rtrim($line, "\r\n");
+                        }
+                    }
+                }
+                if ($current !== null) {
+                    $this->append($entries, $current, $raw, $source['path'], $offset, $level, $search);
+                }
             } finally {
                 fclose($handle);
             }
-
-            if ($content === false) {
-                Log::warning('LogService: Failed to read from large log file', [
-                    'path' => $logPath,
-                    'file_size' => $fileSize,
-                ]);
-
-                return [];
-            }
-        } else {
-            $content = File::get($logPath);
         }
+        usort($entries, static fn (array $a, array $b): int => ($b['timestamp'] <=> $a['timestamp']) ?: ($b['_order'] <=> $a['_order']));
+        $total = count($entries);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = max(1, min($page, $lastPage));
+        $data = array_slice($entries, ($page - 1) * $perPage, $perPage);
+        foreach ($data as &$entry) {
+            unset($entry['_order']);
+        }
+        unset($entry);
+        /** @var list<LogEntry> $data */
+        $this->addLinks($data);
 
-        $lines = explode("\n", $content);
-        $entries = [];
-        $currentEntry = null;
-        $entryNumber = 0;
+        return ['data' => $data, 'current_page' => $page, 'last_page' => $lastPage, 'per_page' => $perPage, 'total' => $total, 'truncated' => $truncated];
+    }
 
-        // Laravel log format: [YYYY-MM-DD HH:MM:SS] environment.LEVEL: message
-        $pattern = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\w+\.(\w+):\s*(.*)$/';
+    /** @param list<array<string, mixed>> $entries
+     * @param  LogEntry  $entry
+     */
+    private function append(array &$entries, array $entry, string $raw, string $path, int $offset, ?string $level, ?string $search): void
+    {
+        if ($level !== null && $level !== '' && $entry['level'] !== strtolower($level)) {
+            return;
+        }
+        $entry['entry_id'] = base64_encode(json_encode([basename($path), $offset, hash('sha256', $raw)], JSON_THROW_ON_ERROR));
+        $entry['_order'] = basename($path).sprintf('%020d', $offset);
+        if (preg_match('/\s+(\{"activity":.*\})\s*(?:\[\])?$/s', $entry['message'], $match, PREG_OFFSET_CAPTURE) === 1) {
+            $context = json_decode($match[1][0], true);
+            $activity = is_array($context) ? ($context['activity'] ?? null) : null;
+            if (is_array($activity) && ($activity['schema_version'] ?? null) === 1 && is_string($activity['action'] ?? null)
+                && is_array($activity['actor'] ?? null) && is_string($activity['actor']['name'] ?? null)) {
+                $entry['activity'] = $activity;
+                $entry['message'] = rtrim(substr($entry['message'], 0, $match[1][1]));
+            }
+        }
+        $searchable = $raw.' '.json_encode($entry['activity'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($search !== null && $search !== '' && ! str_contains(mb_strtolower($searchable), mb_strtolower($search))) {
+            return;
+        }
+        $entries[] = $entry;
+    }
 
-        // Helper function to check if entry matches filters
-        $matchesFilter = function (array $entry) use ($levelLower, $searchLower): bool {
-            // Check level filter
-            if ($levelLower !== null && $entry['level'] !== $levelLower) {
+    /** @param list<LogEntry> $entries */
+    private function addLinks(array &$entries): void
+    {
+        $ids = [];
+        foreach ($entries as $entry) {
+            $id = $entry['activity']['subject']['id'] ?? null;
+            if (is_int($id) && $id > 0) {
+                $ids[] = $id;
+            }
+        }
+        $available = $ids === [] ? [] : Resource::query()->whereIn('id', $ids)->pluck('id')->all();
+        foreach ($entries as &$entry) {
+            if ($entry['activity'] === null) {
+                continue;
+            }
+            $entry['activity']['dataset_path'] = null;
+            $entry['activity']['doi_url'] = null;
+            $subject = $entry['activity']['subject'] ?? null;
+            if (! is_array($subject)) {
+                continue;
+            }
+            if (in_array($subject['id'] ?? null, $available, true) && ! in_array($entry['activity']['action'], ['resources.destroy', 'resources.batch-destroy', 'resources.destroy-all', 'igsns.destroy', 'igsns.batch.destroy'], true)) {
+                $entry['activity']['dataset_path'] = ($subject['kind'] ?? null) === 'IGSN'
+                    ? (is_string($subject['doi'] ?? null) && $subject['doi'] !== '' ? '/igsns?search='.rawurlencode($subject['doi']) : null)
+                    : '/editor?resourceId='.$subject['id'];
+            }
+            $doi = $subject['doi'] ?? null;
+            if (is_string($doi) && preg_match('/^10\.\d{4,9}\/[^\s]+$/u', $doi) === 1 && ! ($entry['activity']['test_mode'] ?? false)) {
+                $entry['activity']['doi_url'] = 'https://doi.org/'.str_replace('%2F', '/', rawurlencode($doi));
+            }
+        }
+    }
+
+    public function deleteLogEntry(int $lineNumber, string $timestamp, ?string $entryId = null): bool
+    {
+        $identity = $entryId === null ? null : json_decode(base64_decode($entryId, true) ?: '', true);
+        if ($entryId !== null && (! is_array($identity) || count($identity) !== 3 || ! is_string($identity[0] ?? null) || ! is_int($identity[1] ?? null) || ! is_string($identity[2] ?? null))) {
+            return false;
+        }
+        foreach ($this->sources->sources() as $source) {
+            if (basename($source['path']) !== ($identity[0] ?? 'laravel.log') || $source['size'] > self::MAX_FILE_SIZE) {
+                continue;
+            }
+            $handle = @fopen($source['path'], 'r+b');
+            if ($handle === false) {
                 return false;
             }
-
-            // Check search filter
-            if ($searchLower !== null) {
-                $messageMatch = str_contains(strtolower($entry['message']), $searchLower);
-                $contextMatch = str_contains(strtolower($entry['context']), $searchLower);
-                if (! $messageMatch && ! $contextMatch) {
+            try {
+                if (! flock($handle, LOCK_EX)) {
                     return false;
                 }
-            }
-
-            return true;
-        };
-
-        foreach ($lines as $line) {
-            if (preg_match($pattern, $line, $matches)) {
-                // Check if previous entry matches filters before saving
-                if ($currentEntry !== null && $matchesFilter($currentEntry)) {
-                    $entries[] = $currentEntry;
+                $content = stream_get_contents($handle);
+                if ($content === false) {
+                    return false;
                 }
+                preg_match_all(self::PATTERN.'m', $content, $matches, PREG_OFFSET_CAPTURE);
+                foreach ($matches[0] as $index => $match) {
+                    $start = $match[1];
+                    $end = $matches[0][$index + 1][1] ?? strlen($content);
+                    $raw = substr($content, $start, $end - $start);
+                    $selected = $identity === null ? $index + 1 === $lineNumber : $start === $identity[1] && hash_equals($identity[2], hash('sha256', $raw));
+                    if ($selected && $matches[1][$index][0] === $timestamp) {
+                        rewind($handle);
+                        $replacement = substr($content, 0, $start).substr($content, $end);
+                        ftruncate($handle, 0);
 
-                $entryNumber++;
-
-                // Start new entry
-                $currentEntry = [
-                    'timestamp' => $matches[1],
-                    'level' => strtolower($matches[2]),
-                    'message' => $matches[3],
-                    'context' => '',
-                    'line_number' => $entryNumber,
-                ];
-            } elseif ($currentEntry !== null && trim($line) !== '') {
-                // Append to context (stack traces, etc.)
-                $currentEntry['context'] .= ($currentEntry['context'] !== '' ? "\n" : '').$line;
-            }
-        }
-
-        // Don't forget the last entry - apply filter here too
-        if ($currentEntry !== null && $matchesFilter($currentEntry)) {
-            $entries[] = $currentEntry;
-        }
-
-        return $entries;
-    }
-
-    /**
-     * Delete a specific log entry by its line number.
-     * Uses line numbers for precise identification to avoid ambiguity with duplicate timestamps.
-     *
-     * Note: This operation loads the entire file into memory. For very large files (>50MB),
-     * consider using log rotation instead of individual entry deletion.
-     *
-     * @param  int  $lineNumber  The starting line number of the log entry
-     * @param  string  $timestamp  The timestamp for validation (to ensure correct entry)
-     */
-    public function deleteLogEntry(int $lineNumber, string $timestamp): bool
-    {
-        $logPath = storage_path('logs/laravel.log');
-
-        if (! File::exists($logPath)) {
-            return false;
-        }
-
-        // Safety check: Don't process very large files for deletion
-        // This also prevents line number mismatches from file truncation in parseLogFile
-        $fileSize = File::size($logPath);
-        if ($fileSize > self::MAX_FILE_SIZE) {
-            return false;
-        }
-
-        $fileContent = File::get($logPath);
-        $lines = explode("\n", $fileContent);
-        $newLines = [];
-        $found = false;
-        $skipUntilNextEntry = false;
-        // Entry number (1-indexed) - only incremented for actual log entries, not context lines
-        $entryNumber = 0;
-
-        $pattern = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\w+\.\w+:/';
-
-        foreach ($lines as $line) {
-            // Check if this is a new log entry
-            if (preg_match($pattern, $line, $matches)) {
-                $skipUntilNextEntry = false;
-                $entryNumber++;
-
-                // Check if this is the entry to delete by entry number AND timestamp
-                if ($entryNumber === $lineNumber && $matches[1] === $timestamp) {
-                    $found = true;
-                    $skipUntilNextEntry = true;
-
-                    continue;
+                        return fwrite($handle, $replacement) === strlen($replacement) && fflush($handle);
+                    }
                 }
-            }
-
-            if (! $skipUntilNextEntry) {
-                $newLines[] = $line;
-            }
-        }
-
-        if ($found) {
-            // Use file locking to prevent race conditions during concurrent deletions
-            $handle = fopen($logPath, 'c');
-            if ($handle !== false && flock($handle, LOCK_EX)) {
-                ftruncate($handle, 0);
-                fwrite($handle, implode("\n", $newLines));
-                fflush($handle);
+            } finally {
                 flock($handle, LOCK_UN);
                 fclose($handle);
-            } else {
-                if ($handle !== false) {
-                    fclose($handle);
-                }
-                Log::warning('LogService: Failed to acquire lock for log file deletion', ['path' => $logPath]);
-
-                return false;
             }
         }
-
-        return $found;
-    }
-
-    /**
-     * Clear all log entries.
-     * Uses file locking to prevent race conditions.
-     */
-    public function clearLogs(): bool
-    {
-        $logPath = storage_path('logs/laravel.log');
-
-        if (! File::exists($logPath)) {
-            return true;
-        }
-
-        // Use file locking for atomic operation
-        $handle = fopen($logPath, 'c');
-        if ($handle !== false && flock($handle, LOCK_EX)) {
-            ftruncate($handle, 0);
-            fflush($handle);
-            flock($handle, LOCK_UN);
-            fclose($handle);
-
-            return true;
-        }
-
-        if ($handle !== false) {
-            fclose($handle);
-        }
-
-        Log::warning('LogService: Failed to acquire lock for clearing logs', ['path' => $logPath]);
 
         return false;
     }
 
-    /**
-     * Get empty result structure.
-     *
-     * @return array{data: array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}>, current_page: int, last_page: int, per_page: int, total: int}
-     */
-    private function emptyResult(int $perPage, int $page): array
+    public function clearLogs(): bool
     {
-        return [
-            'data' => [],
-            'current_page' => $page,
-            'last_page' => 1,
-            'per_page' => $perPage,
-            'total' => 0,
-        ];
+        foreach ($this->sources->sources() as $source) {
+            $handle = @fopen($source['path'], 'r+b');
+            if ($handle === false) {
+                return false;
+            }
+            try {
+                if (! flock($handle, LOCK_EX) || ! ftruncate($handle, 0) || ! fflush($handle)) {
+                    return false;
+                }
+            } finally {
+                flock($handle, LOCK_UN);
+                fclose($handle);
+            }
+        }
+
+        return true;
     }
 }

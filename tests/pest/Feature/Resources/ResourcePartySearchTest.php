@@ -13,6 +13,7 @@ use App\Models\ResourceListingProjection;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\ListingCountService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -268,6 +269,7 @@ it('refreshes contributor-only projections when a party name changes', function 
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
     app(ResourceListingProjectionRefreshService::class)->flushPending();
 
@@ -291,6 +293,7 @@ it('refreshes contributor-only projections when an institution name changes', fu
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
     app(ResourceListingProjectionRefreshService::class)->flushPending();
 

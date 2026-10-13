@@ -1,4 +1,4 @@
-import { CheckCircle, Eye, FileEdit } from 'lucide-react';
+import { CheckCircle, Eye, EyeOff, FileEdit } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 
 import { getStatusConfig } from '@/pages/LandingPages/components/StatusConfig';
@@ -29,6 +29,16 @@ describe('getStatusConfig', () => {
         expect(config.color).toBe('text-blue-500');
         expect(config.textColor).toBe('text-blue-700');
         expect(config.label).toBe('Review Preview');
+    });
+
+    it.each(['embargo', 'EMBARGO', 'Embargo'])('returns a hidden visibility icon for "%s" status', (status) => {
+        const config = getStatusConfig(status);
+
+        expect(config.icon).toBe(EyeOff);
+        expect(config.color).toBe('text-purple-600');
+        expect(config.textColor).toBe('text-purple-700');
+        expect(config.label).toBe('Embargo');
+        expect(config.reviewLabel).toBeUndefined();
     });
 
     it('handles case-insensitive status matching', () => {

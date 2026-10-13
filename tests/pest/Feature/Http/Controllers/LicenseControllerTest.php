@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\EditorContext;
 use App\Http\Controllers\LicenseController;
 use App\Models\ResourceType;
 use App\Models\Right;
@@ -69,7 +70,7 @@ describe('elmoForResourceType', function () {
 
         // Exclude the CC-BY-4.0 license for software
         $license = Right::where('identifier', 'CC-BY-4.0')->first();
-        $license->excludedResourceTypes()->attach($resourceType->id);
+        $license->excludedResourceTypes(EditorContext::ELMO)->attach($resourceType->id);
 
         $response = $this->getJson('/api/v1/licenses/elmo/software', [
             'X-API-Key' => config('services.ernie.api_key'),

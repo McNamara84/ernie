@@ -518,7 +518,8 @@ describe('ResourcesPage - bulk selection', () => {
         await clickResourceAction('resources-action-update-metadata');
 
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-        expect(screen.getByText(/this will update metadata at datacite for 2 resources/i)).toBeInTheDocument();
+        expect(screen.getByText(/This sends the saved metadata for 2 resources to DataCite/i)).toBeInTheDocument();
+        expect(screen.getByText(/It does not save unsaved editor changes or create a new DOI/i)).toBeInTheDocument();
 
         await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
 

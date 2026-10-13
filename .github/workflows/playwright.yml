@@ -29,7 +29,7 @@ jobs:
         node-version-file: '.node-version'
         cache: 'npm'
     - name: Setup npm
-      run: npm install --global npm@12.0.2
+      run: npm install --global npm@12.2.0
     - name: Cache Composer dependencies
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -132,6 +132,9 @@ jobs:
         CACHE_DRIVER: file
         QUEUE_CONNECTION: sync
         BROADCAST_DRIVER: log
+        # Portal behavior is covered here without starting a WebGL renderer in
+        # every test. Basemap integration has focused frontend tests.
+        PORTAL_MAP_BASEMAP_STYLE_URL: ''
     - name: Wait for server to be ready
       run: |
         echo "Waiting for Laravel server to start..."
@@ -154,15 +157,16 @@ jobs:
         echo "=== Testing login page ==="
         curl -s http://127.0.0.1:8000/login | grep -q "login" && echo "✅ Login page accessible" || echo "❌ Login page NOT accessible"
     - name: Run Playwright tests
-      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3
+      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 --reporter=github,html
       env:
         CI: true
+        PLAYWRIGHT_HTML_OPEN: never
     - name: Stop Laravel server
       if: always()
       run: |
         pkill -f "php artisan serve" || true
         echo "Server cleanup completed"
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       if: ${{ !cancelled() }}
       with:
         name: playwright-report-${{ matrix.browser }}-${{ matrix.shard }}

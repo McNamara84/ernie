@@ -16,8 +16,6 @@ final class LogDownloadService
 {
     private const LOG_ENTRY_PATTERN = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\S+\.[A-Za-z]+:/';
 
-    private const ROTATED_LOG_PATTERN = '/^laravel-(\d{4})-(\d{2})-(\d{2})\.log$/';
-
     /**
      * @param  resource  $stream
      */
@@ -208,73 +206,7 @@ final class LogDownloadService
      */
     private function logSources(): array
     {
-        $logDirectory = storage_path('logs');
-        $resolvedDirectory = realpath($logDirectory);
-        if ($resolvedDirectory === false || ! is_dir($resolvedDirectory)) {
-            return [];
-        }
-
-        $filenames = scandir($resolvedDirectory);
-        if ($filenames === false) {
-            return [];
-        }
-
-        /** @var list<array{path: string, size: int}> $sources */
-        $sources = [];
-
-        foreach ($filenames as $filename) {
-            if (! $this->isSupportedFilename($filename)) {
-                continue;
-            }
-
-            $candidate = $resolvedDirectory.DIRECTORY_SEPARATOR.$filename;
-            if (is_link($candidate)) {
-                continue;
-            }
-
-            $resolvedPath = realpath($candidate);
-            if ($resolvedPath === false || dirname($resolvedPath) !== $resolvedDirectory) {
-                continue;
-            }
-
-            if (! is_file($resolvedPath) || ! is_readable($resolvedPath)) {
-                continue;
-            }
-
-            $size = filesize($resolvedPath);
-            if ($size === false) {
-                continue;
-            }
-
-            $sources[] = [
-                'path' => $resolvedPath,
-                'size' => $size,
-            ];
-        }
-
-        usort($sources, static fn (array $left, array $right): int => basename($left['path']) <=> basename($right['path']));
-
-        return array_map(
-            static fn (array $source, int $order): array => [
-                ...$source,
-                'order' => $order,
-            ],
-            $sources,
-            array_keys($sources),
-        );
-    }
-
-    private function isSupportedFilename(string $filename): bool
-    {
-        if ($filename === 'laravel.log') {
-            return true;
-        }
-
-        if (preg_match(self::ROTATED_LOG_PATTERN, $filename, $matches) !== 1) {
-            return false;
-        }
-
-        return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]);
+        return app(ApplicationLogSourceService::class)->sources();
     }
 
     /**

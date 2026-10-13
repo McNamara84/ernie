@@ -1,0 +1,295 @@
+{
+  "source": "https://raw.githubusercontent.com/schemaorg/schemaorg/main/data/releases/30.1/schemaorg-all-https.jsonld",
+  "version": "30.1",
+  "license": "https://schema.org/docs/terms.html",
+  "classes": {
+    "3DModel": [
+      "MediaObject"
+    ],
+    "Article": [
+      "CreativeWork"
+    ],
+    "AudioObject": [
+      "MediaObject"
+    ],
+    "Book": [
+      "CreativeWork"
+    ],
+    "Chapter": [
+      "CreativeWork"
+    ],
+    "Collection": [
+      "CreativeWork"
+    ],
+    "CreativeWork": [
+      "Thing"
+    ],
+    "CreativeWorkSeries": [
+      "CreativeWork",
+      "Series"
+    ],
+    "DataDownload": [
+      "MediaObject"
+    ],
+    "Dataset": [
+      "CreativeWork"
+    ],
+    "DefinedTerm": [
+      "Intangible"
+    ],
+    "DigitalDocument": [
+      "CreativeWork"
+    ],
+    "Event": [
+      "Thing"
+    ],
+    "GeoCoordinates": [
+      "StructuredValue"
+    ],
+    "GeoShape": [
+      "StructuredValue"
+    ],
+    "Grant": [
+      "Intangible"
+    ],
+    "ImageObject": [
+      "MediaObject"
+    ],
+    "Intangible": [
+      "Thing"
+    ],
+    "MediaObject": [
+      "CreativeWork"
+    ],
+    "MonetaryGrant": [
+      "Grant"
+    ],
+    "Organization": [
+      "Thing"
+    ],
+    "Periodical": [
+      "CreativeWorkSeries"
+    ],
+    "Person": [
+      "Thing"
+    ],
+    "Place": [
+      "Thing"
+    ],
+    "PresentationDigitalDocument": [
+      "DigitalDocument"
+    ],
+    "Project": [
+      "Organization"
+    ],
+    "PropertyValue": [
+      "StructuredValue"
+    ],
+    "Report": [
+      "Article"
+    ],
+    "Review": [
+      "CreativeWork"
+    ],
+    "ScholarlyArticle": [
+      "Article"
+    ],
+    "Series": [
+      "Intangible"
+    ],
+    "Service": [
+      "Intangible"
+    ],
+    "SoftwareApplication": [
+      "CreativeWork"
+    ],
+    "SoftwareSourceCode": [
+      "CreativeWork"
+    ],
+    "StructuredValue": [
+      "Intangible"
+    ],
+    "Thesis": [
+      "CreativeWork"
+    ],
+    "Thing": [],
+    "VideoObject": [
+      "MediaObject"
+    ]
+  },
+  "properties": {
+    "about": [
+      "Certification",
+      "CommunicateAction",
+      "CreativeWork",
+      "DefinedTerm",
+      "DefinedTermSet",
+      "Event"
+    ],
+    "additionalType": [
+      "Thing"
+    ],
+    "affiliation": [
+      "Person"
+    ],
+    "associatedMedia": [
+      "CreativeWork",
+      "HyperToc",
+      "HyperTocEntry"
+    ],
+    "author": [
+      "CreativeWork",
+      "Rating"
+    ],
+    "box": [
+      "GeoShape"
+    ],
+    "citation": [
+      "CreativeWork"
+    ],
+    "codeRepository": [
+      "SoftwareSourceCode"
+    ],
+    "conditionsOfAccess": [
+      "CreativeWork"
+    ],
+    "contentSize": [
+      "MediaObject"
+    ],
+    "contentUrl": [
+      "MediaObject"
+    ],
+    "creator": [
+      "CreativeWork",
+      "UserComments"
+    ],
+    "dateCreated": [
+      "CreativeWork",
+      "DataFeedItem"
+    ],
+    "dateModified": [
+      "CreativeWork",
+      "DataFeedItem"
+    ],
+    "datePublished": [
+      "Certification",
+      "CreativeWork"
+    ],
+    "description": [
+      "Thing"
+    ],
+    "distribution": [
+      "Dataset"
+    ],
+    "downloadUrl": [
+      "SoftwareApplication"
+    ],
+    "encoding": [
+      "CreativeWork"
+    ],
+    "encodingFormat": [
+      "CreativeWork",
+      "MediaObject"
+    ],
+    "familyName": [
+      "Person"
+    ],
+    "funder": [
+      "CreativeWork",
+      "Event",
+      "Grant",
+      "MonetaryGrant",
+      "Organization",
+      "Person"
+    ],
+    "funding": [
+      "BioChemEntity",
+      "CreativeWork",
+      "Event",
+      "MedicalEntity",
+      "Organization",
+      "Person",
+      "Product"
+    ],
+    "geo": [
+      "Place"
+    ],
+    "givenName": [
+      "Person"
+    ],
+    "identifier": [
+      "Thing"
+    ],
+    "inDefinedTermSet": [
+      "DefinedTerm"
+    ],
+    "isAccessibleForFree": [
+      "CreativeWork",
+      "Event",
+      "Place"
+    ],
+    "keywords": [
+      "CreativeWork",
+      "Event",
+      "Organization",
+      "Place",
+      "Product"
+    ],
+    "latitude": [
+      "GeoCoordinates",
+      "Place"
+    ],
+    "license": [
+      "CreativeWork"
+    ],
+    "longitude": [
+      "GeoCoordinates",
+      "Place"
+    ],
+    "name": [
+      "Thing"
+    ],
+    "polygon": [
+      "GeoShape"
+    ],
+    "propertyID": [
+      "PropertyValue"
+    ],
+    "provider": [
+      "Action",
+      "CreativeWork",
+      "EducationalOccupationalProgram",
+      "FinancialIncentive",
+      "Invoice",
+      "OfferShippingDetails",
+      "ParcelDelivery",
+      "Reservation",
+      "Service",
+      "Trip"
+    ],
+    "publisher": [
+      "CreativeWork",
+      "FinancialIncentive"
+    ],
+    "spatialCoverage": [
+      "CreativeWork"
+    ],
+    "subjectOf": [
+      "Thing"
+    ],
+    "temporalCoverage": [
+      "CreativeWork"
+    ],
+    "url": [
+      "Thing"
+    ],
+    "value": [
+      "MonetaryAmount",
+      "PropertyValue",
+      "QuantitativeValue"
+    ],
+    "version": [
+      "CreativeWork"
+    ]
+  }
+}

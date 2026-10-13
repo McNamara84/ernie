@@ -7,12 +7,18 @@ use App\Services\RorLookupService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Tests\Helpers\NativeSleep;
 
 covers(OrcidService::class);
 
 beforeEach(function () {
+    NativeSleep::fake();
     $this->service = new OrcidService(new RorLookupService);
     Cache::flush();
+});
+
+afterEach(function () {
+    NativeSleep::restore();
 });
 
 describe('Format validation', function () {
@@ -402,6 +408,7 @@ describe('Retries', function () {
 
         // Verify all 3 retry attempts were made
         Http::assertSentCount(3);
+        expect(NativeSleep::seconds())->toBe([2, 4]);
     });
 
     it('retries on rate limit 429 error', function () {
@@ -420,6 +427,7 @@ describe('Retries', function () {
 
         // Verify all 3 attempts were made (2 retries + final success)
         Http::assertSentCount(3);
+        expect(NativeSleep::seconds())->toBe([2, 4]);
     });
 
     it('honors maxAttempts=1 for preflight to avoid retry/backoff budget', function () {
@@ -439,6 +447,7 @@ describe('Retries', function () {
         // No retry → first 500 immediately surfaces as api_error.
         expect($result['errorType'])->toBe('api_error');
         Http::assertSentCount(1);
+        expect(NativeSleep::seconds())->toBeEmpty();
     });
 
     it('honors maxAttempts=1 for preflight on connection failures', function () {
@@ -456,6 +465,7 @@ describe('Retries', function () {
 
         expect($result['errorType'])->toBe('timeout');
         expect($attempts)->toBe(1);
+        expect(NativeSleep::seconds())->toBeEmpty();
     });
 });
 

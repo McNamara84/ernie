@@ -176,6 +176,10 @@ class Assistant extends AbstractAssistant
             ];
         }
 
+        if (($input['defer_datacite_sync'] ?? false) === true) {
+            return $this->service->acceptRelation($suggestion, $relationTypeId, false);
+        }
+
         return $this->service->acceptRelation($suggestion, $relationTypeId);
     }
 

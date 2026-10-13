@@ -28,6 +28,7 @@ use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
@@ -124,6 +125,12 @@ class ResourceStorageService
                 $resource = Resource::query()
                     ->lockForUpdate()
                     ->findOrFail($data['resourceId']);
+
+                if ($resource->embargo_registration_started_at !== null) {
+                    throw ValidationException::withMessages([
+                        'resourceId' => 'A DataCite embargo registration is pending reconciliation. Finish that registration before editing this resource.',
+                    ]);
+                }
 
                 if ($hasDoiInput && $doiChangeActor !== null) {
                     // Publication uses the resource lock as its serialization
@@ -1188,15 +1195,18 @@ class ResourceStorageService
         /** @var array<string, int> $dateTypeLookup */
         $dateTypeLookup = DateType::query()
             ->get(['id', 'slug'])
-            ->mapWithKeys(fn (DateType $type): array => [Str::kebab($type->slug) => $type->id])
+            ->mapWithKeys(fn (DateType $type): array => [Str::kebab(mb_strtolower($type->slug)) => $type->id])
             ->all();
 
         $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
+        $submittedDateTypeId = $dateTypeLookup['submitted'] ?? null;
+        $hasPersistedSubmittedDate = $submittedDateTypeId !== null
+            && $resource->dates()->where('date_type_id', $submittedDateTypeId)->exists();
         $hasSubmittedDates = array_key_exists('dates', $data);
         $dates = $hasSubmittedDates && is_array($data['dates']) ? $data['dates'] : [];
 
         if ($isUpdate && $hasSubmittedDates) {
-            $preservedDateTypeKeys = ['accepted', 'issued', 'coverage'];
+            $preservedDateTypeKeys = ['submitted', 'accepted', 'issued', 'coverage'];
             $preservedDateTypeIds = array_values(array_filter(
                 array_map(fn (string $dateType): ?int => $dateTypeLookup[$dateType] ?? null, $preservedDateTypeKeys),
                 fn (?int $dateTypeId): bool => $dateTypeId !== null,
@@ -1216,9 +1226,14 @@ class ResourceStorageService
                 continue;
             }
 
-            $dateTypeKey = Str::kebab((string) ($date['dateType'] ?? ''));
+            $dateTypeKey = Str::kebab(mb_strtolower((string) ($date['dateType'] ?? '')));
 
             if (in_array($dateTypeKey, ['accepted', 'issued', 'updated', 'coverage'], true)) {
+                continue;
+            }
+
+            // Submitted records the original submission and may only be added once.
+            if ($dateTypeKey === 'submitted' && $hasPersistedSubmittedDate) {
                 continue;
             }
 
@@ -1302,6 +1317,10 @@ class ResourceStorageService
                 'end_date' => $hasRange ? $endDate : null,
                 'date_information' => $this->normalizeNullableString($date['dateInformation'] ?? null),
             ]);
+
+            if ($dateTypeKey === 'submitted') {
+                $hasPersistedSubmittedDate = true;
+            }
         }
 
         if ($isUpdate && $updatedDateTypeId !== null) {
@@ -1336,8 +1355,9 @@ class ResourceStorageService
     private function storeSubjects(Resource $resource, array $data, bool $isUpdate): void
     {
         // Save subjects (free keywords and controlled keywords combined)
+        $deletedSubjects = 0;
         if ($isUpdate) {
-            $resource->subjects()->delete();
+            $deletedSubjects = $resource->subjects()->delete();
         }
 
         $freeKeywords = $data['freeKeywords'] ?? [];
@@ -1419,6 +1439,12 @@ class ResourceStorageService
         if (! empty($controlledKeywordsData)) {
             $resource->subjects()->createMany($controlledKeywordsData);
         }
+
+        // Query deletes bypass Subject events, including removal of the last keyword.
+        if ($deletedSubjects > 0) {
+            app(OaiPmhDatestampService::class)->touchResource((int) $resource->id);
+        }
+        $resource->refresh();
     }
 
     /**

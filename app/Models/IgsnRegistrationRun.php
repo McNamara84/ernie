@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $initiated_by_user_id
  * @property int|null $last_controlled_by_user_id
  * @property IgsnRegistrationRunStatus $status
+ * @property array{id: int, name: string}|null $activity_actor
  * @property bool $test_mode
  * @property string $datacite_endpoint
  * @property int $total
@@ -46,6 +47,7 @@ class IgsnRegistrationRun extends Model
     /** @var list<string> */
     protected $fillable = [
         'initiated_by_user_id',
+        'activity_actor',
         'last_controlled_by_user_id',
         'status',
         'test_mode',
@@ -70,6 +72,7 @@ class IgsnRegistrationRun extends Model
         return [
             'status' => IgsnRegistrationRunStatus::class,
             'test_mode' => 'boolean',
+            'activity_actor' => 'array',
             'total' => 'integer',
             'processed' => 'integer',
             'registered' => 'integer',

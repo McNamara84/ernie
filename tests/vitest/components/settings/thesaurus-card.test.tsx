@@ -149,11 +149,11 @@ describe('ThesaurusCard', () => {
             expect(screen.getByRole('checkbox', { name: 'Platforms: ERNIE active' })).toBeInTheDocument();
         });
 
-        it('should render 8 checkboxes (2 select-all + 2 per thesaurus)', () => {
+        it('should render 12 checkboxes (3 select-all + 3 per thesaurus)', () => {
             render(<ThesaurusCard thesauri={mockThesauri} onActiveChange={mockOnActiveChange} onElmoActiveChange={mockOnElmoActiveChange} />);
 
-            // 2 select-all checkboxes + 6 individual checkboxes
-            expect(screen.getAllByRole('checkbox')).toHaveLength(8);
+            // 3 select-all checkboxes + 9 individual checkboxes
+            expect(screen.getAllByRole('checkbox')).toHaveLength(12);
         });
 
         it('should have correct test ids for each thesaurus row', () => {
@@ -172,8 +172,7 @@ describe('ThesaurusCard', () => {
 
             // Find and click the first individual ERNIE checkbox (Science Keywords)
             // Index 0 = select-all ERNIE, 1 = select-all ELMO, 2 = first thesaurus ERNIE
-            const ernieCheckboxes = screen.getAllByRole('checkbox');
-            await user.click(ernieCheckboxes[2]); // Third checkbox is ERNIE for science_keywords
+            await user.click(screen.getByRole('checkbox', { name: 'Science Keywords: ERNIE active' })); // Third checkbox is ERNIE for science_keywords
 
             expect(mockOnActiveChange).toHaveBeenCalledWith('science_keywords', false);
         });
@@ -184,8 +183,7 @@ describe('ThesaurusCard', () => {
 
             // Find and click the ELMO checkbox for science_keywords
             // Index 0 = select-all ERNIE, 1 = select-all ELMO, 2 = first ERNIE, 3 = first ELMO
-            const checkboxes = screen.getAllByRole('checkbox');
-            await user.click(checkboxes[3]); // Fourth checkbox is ELMO for science_keywords
+            await user.click(screen.getByRole('checkbox', { name: 'Science Keywords: ELMO active' })); // Fourth checkbox is ELMO for science_keywords
 
             expect(mockOnElmoActiveChange).toHaveBeenCalledWith('science_keywords', false);
         });
@@ -534,15 +532,16 @@ describe('ThesaurusCard', () => {
             const remoteSha = 'b'.repeat(64);
             global.fetch = vi.fn().mockResolvedValue({
                 ok: true,
-                json: () => Promise.resolve({
-                    localCount: 265,
-                    remoteCount: 265,
-                    updateAvailable: true,
-                    lastUpdated: '2026-08-25T12:00:00Z',
-                    reason: 'Labels, definitions, or hierarchy relationships changed.',
-                    localSha,
-                    remoteSha,
-                }),
+                json: () =>
+                    Promise.resolve({
+                        localCount: 265,
+                        remoteCount: 265,
+                        updateAvailable: true,
+                        lastUpdated: '2026-08-25T12:00:00Z',
+                        reason: 'Labels, definitions, or hierarchy relationships changed.',
+                        localSha,
+                        remoteSha,
+                    }),
             });
             const thesaurus: ThesaurusData = {
                 type: 'simple_lithology',
@@ -555,9 +554,7 @@ describe('ThesaurusCard', () => {
                 sourceSha: localSha,
             };
 
-            render(
-                <ThesaurusCard thesauri={[thesaurus]} onActiveChange={mockOnActiveChange} onElmoActiveChange={mockOnElmoActiveChange} />,
-            );
+            render(<ThesaurusCard thesauri={[thesaurus]} onActiveChange={mockOnActiveChange} onElmoActiveChange={mockOnElmoActiveChange} />);
             expect(screen.getByText('SHA-256 aaaaaaaaaaaa…')).toBeInTheDocument();
 
             await user.click(screen.getByRole('button', { name: /check for updates/i }));
@@ -655,4 +652,28 @@ describe('ThesaurusCard', () => {
             expect(screen.getByText(/version must be digits/i)).toBeInTheDocument();
         });
     });
+});
+
+it('keeps MSL vocabulary row and bulk selection independent from the other editors', async () => {
+    const user = userEvent.setup();
+    const ernie = vi.fn();
+    const elmo = vi.fn();
+    const msl = vi.fn();
+    const bulk = vi.fn();
+    render(
+        <ThesaurusCard
+            thesauri={mockThesauri.map((setting, index) => ({ ...setting, isElmoMslActive: index === 0 }))}
+            onActiveChange={ernie}
+            onElmoActiveChange={elmo}
+            onElmoMslActiveChange={msl}
+            onBulkElmoMslActiveChange={bulk}
+        />,
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Platforms: ELMO-MSL active' }));
+    expect(msl).toHaveBeenCalledWith('platforms', true);
+    await user.click(screen.getByLabelText('Select all ELMO-MSL active for Thesauri'));
+    expect(bulk).toHaveBeenCalledOnce();
+    expect(bulk).toHaveBeenCalledWith(true);
+    expect(ernie).not.toHaveBeenCalled();
+    expect(elmo).not.toHaveBeenCalled();
 });

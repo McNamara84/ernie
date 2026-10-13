@@ -1,0 +1,24 @@
+{
+    "profile": "ERNIE DataCite 4.7 attrs/value v1",
+    "processingMode": "json-ld-1.1",
+    "file": "datacite-4.7-v1.jsonld",
+    "sha256": "5ae5469498eb7599f05240c41ef21b5f7dbd91cfd8ad84ea4228a231c52f19e3",
+    "source": {
+        "url": "https://w3id.org/tib/datacite/context/fullcontext.jsonld",
+        "commit": "6dccaf6acf220a6249644b12f8aef4210a999e8d",
+        "immutableUrl": "https://raw.githubusercontent.com/TIBHannover/datacite/6dccaf6acf220a6249644b12f8aef4210a999e8d/context/fullcontext.jsonld",
+        "sha256": "c7f5664fb647e7c4c2b7d2a9302e383bcacdb3e948da4bb6c05427e15f9da6b1",
+        "retrieved": "2026-10-09",
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "TIB DataCite Linked Data, maintained and created by @selgebali"
+    },
+    "adjustments": [
+        "Explicit JSON-LD 1.1 processing mode.",
+        "Language attributes use explicit dcterms:language metadata on nodes, avoiding invalid @language assertions on rdf:value wrappers.",
+        "Plural ERNIE collection wrappers alias @nest; their singular keys keep the TIB property IRIs.",
+        "Creators and polygon vertices use ordered @list containers.",
+        "Scalar attrs/value objects coerce rdf:value through scoped contexts rather than coercing the containing node.",
+        "Related-item value aliases @nest with a non-propagating scoped context, retaining its metadata on the related-item node without changing descendant literals.",
+        "Name-identifier objects remain nodes with identifier literals and scheme attributes, rather than incorrectly coercing the object to an IRI."
+    ]
+}

@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:def09f85d0fe45c4f4fe2f861f006be3deb5a621ec6b4b0c10dc5cee674e3a01}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -26,6 +26,11 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
+      # Public pages are released independently; false keeps their TYPO3 redirects.
+      - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-false}
+      - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-false}
+      - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-false}
+      - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-false}
       - ERNIE_CONTAINER_ROLE=app
       - ERNIE_RUN_MIGRATIONS=1
       - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}
@@ -70,6 +75,17 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
+      - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - BOT_PROTECTION_ENABLED=${BOT_PROTECTION_ENABLED:-true}
       - BOT_PROTECTION_AI_USER_AGENTS=${BOT_PROTECTION_AI_USER_AGENTS:-Amazonbot,anthropic-ai,Applebot-Extended,Bytespider,CCBot,ChatGPT-User,ClaudeBot,Claude-User,cohere-ai,Diffbot,FacebookBot,Google-Extended,GPTBot,ImagesiftBot,Meta-ExternalAgent,omgili,PerplexityBot,YouBot}
       - BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS=${BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS:-}
@@ -85,6 +101,7 @@ services:
       - BOT_PROTECTION_PORTAL_CACHE_LOCK_WAIT_SECONDS=${BOT_PROTECTION_PORTAL_CACHE_LOCK_WAIT_SECONDS:-10}
       - PORTAL_MAP_ENABLED=${PORTAL_MAP_ENABLED:-true}
       - PORTAL_MAP_MAX_ZOOM=${PORTAL_MAP_MAX_ZOOM:-18}
+      - PORTAL_MAP_BASEMAP_STYLE_URL=${PORTAL_MAP_BASEMAP_STYLE_URL-https://tiles.openfreemap.org/styles/liberty}
       - PORTAL_MAP_MAX_FEATURES=${PORTAL_MAP_MAX_FEATURES:-1000}
       - PORTAL_MAP_CLUSTER_RADIUS=${PORTAL_MAP_CLUSTER_RADIUS:-60}
       - PORTAL_MAP_SHAPE_DETAIL_ZOOM=${PORTAL_MAP_SHAPE_DETAIL_ZOOM:-10}
@@ -149,9 +166,10 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
+      - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:b807c9b3f3b2c9286f09b61c965a4c9e506ee28a44f86ad8ea8bc0fe01dbee75}"
+    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:688080f73a33f9b80f546ee0ecd2f2ec7f4dcde589200702b736e2c42cebaba1}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -168,14 +186,34 @@ services:
       - "traefik.enable=true"
       # Canonical ERNIE router. /elmo and /elmo-msl belong to separate Docker
       # stacks; more specific legacy paths are handled by the higher-priority
-      # router below.
+      # routers below.
       - "traefik.http.routers.ernie-router.rule=Host(`dataservices.gfz.de`) && !PathRegexp(`^/(elmo|elmo-msl)(/|$$)`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.service=ernie-service"
-      # Redirect the exact root and confirmed first path segments to the retired
+      # Retired search URLs, including all subpaths, lead to the corresponding
+      # ERNIE search start page. Consume the entire URL to discard old queries.
+      # Match the Host router's case, trailing-dot and port normalization.
+      - "traefik.http.routers.ernie-doi-search-redirect-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/portal(/|$$)`)"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.entrypoints=https"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.service=ernie-service"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.middlewares=ernie-doi-search-redirect"
+      - "traefik.http.routers.ernie-doi-search-redirect-router.priority=400"
+      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/portal([/?].*)?$$"
+      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/doi-search"
+      - "traefik.http.middlewares.ernie-doi-search-redirect.redirectregex.permanent=true"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/igsn-new(/|$$)`)"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.entrypoints=https"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.service=ernie-service"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.middlewares=ernie-igsn-search-redirect"
+      - "traefik.http.routers.ernie-igsn-search-redirect-router.priority=400"
+      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/igsn-new([/?].*)?$$"
+      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/igsn-search"
+      - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.permanent=true"
+      # ERNIE decides whether / is rendered or redirected via PUBLIC_HOME_ENABLED.
+      # Redirect only confirmed first path segments to the retired
       # TYPO3 host. The (/|$) boundary is essential: /igsn must not capture
       # /igsns, and /thesaurus must not capture /thesauri.
-      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && (Path(`/`) || PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsn-new|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|portal|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`))"
+      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`)"
       - "traefik.http.routers.dataservices-legacy-router.entrypoints=https"
       - "traefik.http.routers.dataservices-legacy-router.service=ernie-service"
       - "traefik.http.routers.dataservices-legacy-router.middlewares=dataservices-legacy-redirect"
@@ -183,8 +221,7 @@ services:
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.regex=^https://dataservices[.]gfz[.]de/(.*)"
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.replacement=https://dataservices.gfz-potsdam.de/$${1}"
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.permanent=false"
-      # Preserve bookmarks for the ERNIE portal while /portal on the canonical
-      # host remains owned by the retired website.
+      # Preserve paths and queries in bookmarks for the former ERNIE portal.
       - "traefik.http.routers.ernie-old-portal-router.rule=Host(`ernie.rz-vm499.gfz.de`) && PathRegexp(`^/portal(/|$$)`)"
       - "traefik.http.routers.ernie-old-portal-router.entrypoints=https"
       - "traefik.http.routers.ernie-old-portal-router.service=ernie-service"
@@ -208,7 +245,7 @@ services:
       - "traefik.docker.network=traefik"
 
   db:
-    image: mysql:9.7.2@sha256:29abb0a179982e4a8928138bfc7f918af9eda64e7eeb1b1d084c1720a20159e6
+    image: mysql:9.7.2@sha256:e2bde46db6563855d7177adb5f0b57b9dc663f5a20927a90f4259d3312068497
     container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
@@ -231,7 +268,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
     container_name: dockerized-laravel-redis
     restart: unless-stopped
     networks:
@@ -244,7 +281,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
+    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:ae6605c5f0e676fc709383084590aa8397586680e5364c4a93e0c20a06372827}"
     container_name: ernie-fuji-prod
     restart: unless-stopped
     entrypoint:
@@ -274,8 +311,8 @@ services:
       retries: 5
       start_period: 60s
 
-  queue:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
+  queue: &ernie-queue
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:def09f85d0fe45c4f4fe2f861f006be3deb5a621ec6b4b0c10dc5cee674e3a01}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -319,6 +356,17 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
+      - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
@@ -371,9 +419,17 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
+      - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
+
+  # Separate reservation window for the potentially 300-second ELMO request.
+  elmo-cache-refresh:
+    <<: *ernie-queue
+    container_name: dockerized-laravel-elmo-cache-refresh
+    stop_grace_period: 360s
+    command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:def09f85d0fe45c4f4fe2f861f006be3deb5a621ec6b4b0c10dc5cee674e3a01}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -407,6 +463,17 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
+      - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
@@ -431,7 +498,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:def09f85d0fe45c4f4fe2f861f006be3deb5a621ec6b4b0c10dc5cee674e3a01}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped
@@ -485,6 +552,7 @@ services:
       - PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS=${PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS:-300}
       - INERTIA_SSR_ENABLED=false
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}
       - FUJI_ASSESSMENT_QUEUE=${FUJI_ASSESSMENT_QUEUE:-assessments}
       - DB_HOST=db
@@ -494,6 +562,17 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
+      - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
+      - ELMO_API_KEY=${ELMO_API_KEY:-}
+      - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://dataservices.gfz.de/elmo-msl}
+      - ELMO_MSL_API_KEY=${ELMO_MSL_API_KEY:-}
+      - ELMO_CACHE_REFRESH_CONNECT_TIMEOUT=${ELMO_CACHE_REFRESH_CONNECT_TIMEOUT:-10}
+      - ELMO_CACHE_REFRESH_TIMEOUT=${ELMO_CACHE_REFRESH_TIMEOUT:-310}
+      - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
+      - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
+      - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
 
 networks:
   dockerized-laravel-network:

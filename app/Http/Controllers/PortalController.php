@@ -37,7 +37,12 @@ class PortalController extends Controller
             $scope,
         );
         $payload['mapConfig'] = [
-            'maxZoom' => max(0, (int) config('portal_map.max_zoom', 18)),
+            'maxZoom' => max(1, (int) config('portal_map.max_zoom', 18)),
+            'basemap' => [
+                'provider' => 'openfreemap',
+                'styleUrl' => (string) config('portal_map.basemap_style_url', 'https://tiles.openfreemap.org/styles/liberty'),
+                'language' => 'en',
+            ],
         ];
 
         $response = Inertia::render('portal', $payload);

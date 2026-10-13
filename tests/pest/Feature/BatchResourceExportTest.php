@@ -6,9 +6,11 @@ use App\Http\Requests\Batch\ExportResourcesRequest;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
@@ -184,6 +186,9 @@ describe('BatchResourceExportController@export', function () {
         expect($zip->open($zipPath))->toBeTrue();
         expect($zip->numFiles)->toBe(1);
         expect($zip->getNameIndex(0))->toEndWith('.jsonld');
+        $document = json_decode($zip->getFromIndex(0), true, flags: JSON_THROW_ON_ERROR);
+        expect($document['@context'])->toBe(app(DataCiteJsonLdContextService::class)->url())
+            ->and($document['@type'])->toBe('Resource');
         $zip->close();
         @unlink($zipPath);
     });
@@ -231,6 +236,7 @@ describe('BatchResourceExportController@export', function () {
     });
 
     test('skips entries that fail during export but still produces a zip', function () {
+        Log::spy();
         $good = Resource::factory()->create(['doi' => '10.1234/good']);
         $bad = Resource::factory()->create(['doi' => '10.1234/bad']);
 
@@ -252,6 +258,10 @@ describe('BatchResourceExportController@export', function () {
             ]);
 
         $response->assertOk();
+
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'resources.batch-export' && $context['activity']['subject']['id'] === $good->id)->once();
+        Log::shouldNotHaveReceived('info', [Mockery::any(), Mockery::on(fn (array $context): bool => ($context['activity']['subject']['id'] ?? null) === $bad->id)]);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed' && str_contains($message, '1 successful'))->once();
 
         $zipPath = tempnam(sys_get_temp_dir(), 'ernie-test-zip-');
         file_put_contents($zipPath, $response->streamedContent() ?: $response->getContent());

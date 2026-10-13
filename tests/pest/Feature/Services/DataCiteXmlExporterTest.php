@@ -1324,13 +1324,14 @@ describe('DataCiteXmlExporter - Sizes & Formats', function () {
             ->and($xml)->not->toContain('<format>zip</format>');
     });
 
-    test('exports accepted Stepanov ZIP content size and formats', function () {
+    test('exports exact uncompressed ZIP content size and container plus content formats', function () {
         $resource = Resource::factory()->create();
 
         Size::create([
             'resource_id' => $resource->id,
-            'numeric_value' => '335.01',
-            'unit' => 'KB',
+            'numeric_value' => '2665858',
+            'unit' => 'bytes',
+            'type' => 'Uncompressed Primary Data Size',
         ]);
         Format::create([
             'resource_id' => $resource->id,
@@ -1340,15 +1341,19 @@ describe('DataCiteXmlExporter - Sizes & Formats', function () {
             'resource_id' => $resource->id,
             'value' => 'text/csv',
         ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'application/zip',
+        ]);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<sizes>')
-            ->and($xml)->toContain('<size>335.01 KB</size>')
+            ->and($xml)->toContain('<size>2665858 Uncompressed Primary Data Size [bytes]</size>')
             ->and($xml)->toContain('<formats>')
             ->and($xml)->toContain('<format>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</format>')
             ->and($xml)->toContain('<format>text/csv</format>')
-            ->and($xml)->not->toContain('<format>application/zip</format>');
+            ->and($xml)->toContain('<format>application/zip</format>');
     });
 
     test('skips sizes and formats when none exist', function () {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Console\Commands\BackfillMetadataAccessAndContent;
 use App\Enums\AccessLevel;
 use App\Models\IgsnMetadata;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use Illuminate\Console\Command;
@@ -15,6 +16,7 @@ covers(BackfillMetadataAccessAndContent::class);
 
 test('command defaults to dry run writes a review CSV and applies only on request', function (): void {
     $resource = Resource::factory()->create(['access_level' => null]);
+    LandingPage::factory()->create(['resource_id' => $resource->id, 'ftp_url' => 'https://downloads.example.org/data.zip']);
     $physicalObject = ResourceType::firstOrCreate(
         ['slug' => 'physical-object'],
         ['name' => 'Physical Object', 'is_active' => true],

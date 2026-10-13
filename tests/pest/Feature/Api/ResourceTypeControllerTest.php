@@ -40,11 +40,12 @@ test('returns only active resource types for Ernie with description', function (
     expect($response->json('0.description'))->toBe('Alpha description');
 });
 
-test('returns only active and elmo-active resource types with description', function () {
+test('returns only ELMO-enabled independently of ERNIE resource types with description', function () {
     $response = $this->getJson('/api/v1/resource-types/elmo', ['X-API-Key' => 'test-api-key'])->assertOk();
-    expect($response->json())->toHaveCount(1);
+    expect($response->json())->toHaveCount(2);
     expect(array_column($response->json(), 'name'))->toBe([
         'Alpha',
+        'Charlie',
     ]);
     expect($response->json('0.description'))->toBe('Alpha description');
 });

@@ -125,9 +125,9 @@ class RorDiscoveryService
      * Uses a database transaction with row-level locking to prevent race conditions
      * when multiple curators accept suggestions concurrently.
      *
-     * @return array{success: bool, synced_dois: array<int, string>, message: string, replaced_identifier: string|null, bulk_affiliation_match?: array{available: bool, count: int, bulk_token: string, creator_name: string, affiliation: string, suggested_ror_id: string}}
+     * @return array<string, mixed>
      */
-    public function acceptRor(SuggestedRor $suggestion): array
+    public function acceptRor(SuggestedRor $suggestion, bool $syncDataCite = true): array
     {
         $entityType = $suggestion->entity_type;
         $entityId = $suggestion->entity_id;
@@ -237,14 +237,17 @@ class RorDiscoveryService
         }
 
         // Sync affected resources with DataCite (outside transaction)
-        $syncedDois = $this->syncResourcesForEntity($suggestion);
+        $resourceIds = $this->getResourceIdsForEntity($suggestion);
+        $syncedDois = $syncDataCite ? $this->syncResourcesForEntity($resourceIds) : [];
         $bulkAffiliationMatch = $this->affiliationBulkAcceptanceService->createPreviewForAcceptedSuggestion($suggestion);
         $this->invalidateAssistanceCache();
 
         $syncCount = count($syncedDois);
-        $message = $syncCount > 0
-            ? "ROR-ID accepted. {$syncCount} resource(s) synced with DataCite."
-            : 'ROR-ID accepted. No resources required DataCite sync.';
+        $message = ! $syncDataCite
+            ? 'ROR-ID accepted. DataCite synchronization deferred.'
+            : ($syncCount > 0
+                ? "ROR-ID accepted. {$syncCount} resource(s) synced with DataCite."
+                : 'ROR-ID accepted. No resources required DataCite sync.');
 
         $response = [
             'success' => true,
@@ -252,6 +255,11 @@ class RorDiscoveryService
             'message' => $message,
             'replaced_identifier' => $replacedIdentifier,
         ];
+
+        if (! $syncDataCite) {
+            $response['datacite_sync_deferred'] = true;
+            $response['datacite_sync_resource_ids'] = $resourceIds;
+        }
 
         if ($bulkAffiliationMatch !== null) {
             $response['bulk_affiliation_match'] = $bulkAffiliationMatch;
@@ -927,12 +935,11 @@ class RorDiscoveryService
     /**
      * Sync resources affected by an entity update with DataCite.
      *
+     * @param  array<int, int>  $resourceIds
      * @return array<int, string>
      */
-    private function syncResourcesForEntity(SuggestedRor $suggestion): array
+    private function syncResourcesForEntity(array $resourceIds): array
     {
-        $resourceIds = $this->getResourceIdsForEntity($suggestion);
-
         $syncedDois = [];
 
         $resources = Resource::whereIn('id', $resourceIds)

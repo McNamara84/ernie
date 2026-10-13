@@ -107,6 +107,8 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
      */
     public function updateMetadata(Resource $resource): array
     {
+        $resource = Resource::query()->with('landingPage')->findOrFail($resource->id);
+
         // Validate resource has a DOI (same as real service)
         if (! $resource->doi) {
             throw new \RuntimeException(
@@ -116,14 +118,17 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
 
         // Check if resource has a landing page (same as real service)
         $resource->load('landingPage');
-        if (! $resource->landingPage) {
+        $landingPage = $resource->landingPage;
+        if ($landingPage === null) {
             throw new \RuntimeException(
                 "Resource #{$resource->id} must have a landing page to update metadata."
             );
         }
 
+        app(EmbargoService::class)->assertCanUpdateMetadata($resource);
+
         // Use the landing page's computed public_url accessor
-        $publicUrl = $resource->landingPage->public_url;
+        $publicUrl = $landingPage->public_url;
 
         // Return DataCite API response format
         return [

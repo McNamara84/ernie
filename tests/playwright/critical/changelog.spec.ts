@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
 
+import { loginAsTestUser } from '../helpers/test-helpers';
+
 test.describe('Changelog Page', () => {
     test.beforeEach(async ({ page }) => {
+        await loginAsTestUser(page);
         await page.addInitScript(() => {
             window.__enableChangelogTestHelpers = true;
         });
@@ -40,7 +43,13 @@ test.describe('Changelog Page', () => {
     });
 
     test('links changelog entries to their related GitHub context in a new tab', async ({ page }) => {
-        const currentRelease = page.locator('#release-0');
+        const releaseButton = page.getByRole('button', { name: /^Version 1\.0\.9\b/i });
+        await releaseButton.click();
+
+        const panelId = await releaseButton.getAttribute('aria-controls');
+        expect(panelId).toBeTruthy();
+
+        const currentRelease = page.locator(`#${panelId as string}`);
         const issueGroup = currentRelease.getByRole('group', {
             name: 'Related GitHub references for Traceable Changelog Entries',
         });
@@ -100,36 +109,39 @@ test.describe('Changelog Page', () => {
         // Skip on mobile
         test.skip(!viewport || viewport.width < 768, 'Desktop-only test');
 
-        // Check if the fixed timeline navigation is visible
+        // Check that the sidebar layout includes the version navigation
         const timelineNav = page.locator('nav[aria-label="Version timeline navigation"]');
         await expect(timelineNav).toBeVisible();
+        await expect(timelineNav.getByText('Major')).toBeVisible();
+        await expect(timelineNav.getByText('Minor')).toBeVisible();
+        await expect(timelineNav.getByText('Patch')).toBeVisible();
+        await expect(timelineNav.getByRole('button', { name: /navigate to version/i }).first()).toContainText(/^v/);
+        await expect(page.getByRole('link', { name: 'Changelog' }).first()).toHaveAttribute('aria-current', 'page');
 
-        // Check if there are dots/buttons in the navigation
+        // Check the labeled navigation buttons
         const navButtons = timelineNav.getByRole('button');
         const count = await navButtons.count();
         expect(count).toBeGreaterThan(0);
     });
 
-    test('timeline navigation dots navigate to versions', async ({ page, viewport }) => {
+    test('version buttons navigate to releases', async ({ page, viewport }) => {
         // Skip on mobile
         test.skip(!viewport || viewport.width < 768, 'Desktop-only test');
 
         const timelineNav = page.locator('nav[aria-label="Version timeline navigation"]');
         const navButtons = timelineNav.getByRole('button');
 
-        // Click on the third dot (assuming it exists)
         const count = await navButtons.count();
-        if (count >= 3) {
-            await navButtons.nth(2).click();
+        expect(count).toBeGreaterThanOrEqual(3);
 
-            // Wait for scroll animation
-            await page.waitForTimeout(500);
+        const version = await page.locator('#release-trigger-2').getAttribute('data-version');
+        expect(version).toBeTruthy();
+        await navButtons.nth(2).click();
 
-            // The page should have scrolled, we can verify by checking if a different version is in view
-            // This is a basic check - the exact version depends on your data
-            const timeline = page.locator('[aria-label="Changelog Timeline"]');
-            await expect(timeline).toBeVisible();
-        }
+        await expect(page.locator('#release-trigger-2')).toHaveAttribute('aria-expanded', 'true');
+        await expect(page.locator('#release-trigger-0')).toHaveAttribute('aria-expanded', 'false');
+        await expect(navButtons.nth(2)).toHaveAttribute('aria-current', 'true');
+        expect(new URL(page.url()).hash).toBe(`#v${version}`);
     });
 
     test('visual highlighting changes on scroll without auto-expanding', async ({ page, viewport }) => {
@@ -236,6 +248,8 @@ test.describe('Changelog Page', () => {
 
         // And its content panel should be visible
         await expect(page.locator(`#${panelId as string}`)).toBeVisible();
+        // The initial panel has no enter animation; its release must still be scrolled into view.
+        await expect(targetButton.locator('xpath=ancestor::li[1]')).toBeInViewport();
     });
 
     test('displays gradient backgrounds for different version types', async ({ page }) => {
@@ -282,11 +296,7 @@ test.describe('Changelog Page', () => {
         const count = await navButtons.count();
 
         if (count >= 2) {
-            // Trigger navigation via the explicitly enabled test helper because
-            // the animated dots can still be flaky to click in headless browsers.
-            await page.evaluate(() => {
-                window.__testHelper_expandRelease?.(1);
-            });
+            await navButtons.nth(1).click();
 
             // URL should have a hash
             await expect(page).toHaveURL(/#v/);
@@ -309,11 +319,10 @@ test.describe('Changelog Page', () => {
         await expect(errorMessage).toContainText(/unable to load changelog/i);
     });
 
-    test('mobile floating button navigation', async ({ page, viewport }) => {
-        // Only test on mobile
-        test.skip(!viewport || viewport.width >= 768, 'Mobile-only test');
+    test('mobile version menu navigation', async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
 
-        // Look for the floating button
+        // Open the version menu
         const floatingButton = page.getByRole('button', { name: /toggle timeline navigation/i });
         await expect(floatingButton).toBeVisible();
 
@@ -358,4 +367,50 @@ test.describe('Changelog Page', () => {
             await expect(region).toHaveRole('region');
         }
     });
+});
+
+test('unverified users can open the changelog from the sidebar and footer', async ({ page }) => {
+    const dashboardResponse = page.waitForResponse(
+        (response) => new URL(response.url()).pathname === '/dashboard' && response.request().method() === 'GET',
+    );
+    await loginAsTestUser(page, 'changelog-unverified@example.com', 'password');
+    const dashboard = await (await dashboardResponse).json();
+    expect(dashboard.props.auth.user.email_verified_at).toBeNull();
+
+    // Wait for scheduled onboarding before navigating: it starts asynchronously and covers the sidebar.
+    if (dashboard.props.guidedTour?.autostart) {
+        await page.locator('.ernie-guided-tour').getByRole('button', { name: 'Close', exact: true }).click();
+        await expect(page.locator('.driver-overlay')).toHaveCount(0);
+    }
+
+    // The regression was reported when following the sidebar link after login.
+    await page.locator('[data-sidebar="sidebar"]').getByRole('link', { name: 'Changelog', exact: true }).click();
+    await expect(page).toHaveURL(/\/changelog(?:#.*)?$/);
+    await expect(page.getByRole('heading', { name: 'Changelog', exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Changelog Timeline' })).toBeVisible();
+    await expect(page.locator('#release-trigger-0')).toHaveAttribute('aria-expanded', 'true');
+
+    const response = await page.request.get('/api/changelog', { headers: { Accept: 'application/json' } });
+    expect(response.status()).toBe(200);
+    expect(response.headers()['cache-control']).toBe('no-store, private');
+    expect(await response.json()).toEqual(expect.arrayContaining([expect.objectContaining({ version: expect.any(String) })]));
+
+    await page.goto('/about');
+    await page
+        .getByRole('contentinfo')
+        .getByRole('link', { name: /view changelog for version/i })
+        .click();
+    await expect(page).toHaveURL(/\/changelog(?:#.*)?$/);
+    await expect(page.getByRole('list', { name: 'Changelog Timeline' })).toBeVisible();
+});
+
+test('guests cannot read the changelog page or JSON', async ({ page, request }) => {
+    await page.goto('/changelog');
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
+    await expect(page.getByText(/^ERNIE v/)).toBeVisible();
+    await expect(page.getByRole('link', { name: /view changelog/i })).toHaveCount(0);
+
+    const response = await request.get('/api/changelog', { headers: { Accept: 'application/json' } });
+    expect(response.status()).toBe(401);
+    expect(await response.text()).not.toContain('Internal Changelog Navigation');
 });

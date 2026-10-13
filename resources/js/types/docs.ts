@@ -70,12 +70,25 @@ export interface DataCiteDocsSettings {
     /** DataCite production API endpoint */
     productionEndpoint: string;
 }
+export interface DocsCapabilities {
+    registerDoi: boolean;
+    sendReviewLinks: boolean;
+    deleteResources: boolean;
+    deletePublishedResources: boolean;
+    manageLandingPages: boolean;
+    importFromDataCite: boolean;
+    updateDataCiteUrls: boolean;
+    manageUsers: boolean;
+    accessEditorSettings: boolean;
+}
+
 /**
  * Props passed to the documentation page from DocsController
  */
 export interface DocsPageProps {
     /** Current user's role */
     userRole: import('@/types').UserRole;
+    capabilities: DocsCapabilities;
     /** Editor settings for dynamic content */
     editorSettings: EditorSettings;
     /** DataCite settings for role-aware DOI documentation */
@@ -94,6 +107,8 @@ export interface DocSection {
     icon: React.ComponentType<{ className?: string }>;
     /** Minimum role required to see this section */
     minRole: import('@/types').UserRole;
+    /** Optional permission required for this section */
+    capability?: keyof DocsCapabilities;
     /** Optional condition to show section based on editor settings */
     showIf?: (settings: EditorSettings) => boolean;
     /** Section content */

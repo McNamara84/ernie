@@ -383,6 +383,7 @@ export default function AuthorItem({
                         }}
                         data-testid={`author-${index}-affiliations-input`}
                         tagifySettings={tagifySettings}
+                        ror={{ suggestions: affiliationSuggestions, section: 'authors' }}
                         aria-describedby={affiliationsDescriptionId}
                     />
 

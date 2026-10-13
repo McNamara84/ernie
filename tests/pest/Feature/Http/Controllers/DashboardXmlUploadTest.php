@@ -190,6 +190,7 @@ it('can load editor with xml session parameter', function () {
     $response = $this->get('/editor?xmlSession='.$sessionKey);
 
     $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page->component('editor')->where('hasUnpersistedPrefill', true));
 
     // Session should be cleared after loading
     expect(Session::has($sessionKey))->toBeFalse();

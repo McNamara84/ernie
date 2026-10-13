@@ -87,6 +87,19 @@ describe('ResourcesBulkActionsToolbar', () => {
         expect(screen.getByTestId('resources-action-delete')).toHaveAttribute('data-variant', 'destructive');
     });
 
+    it('shows DOI consequences before selection and links to the full guide', async () => {
+        render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions()} />);
+        expect(screen.getByRole('link', { name: 'What do these actions do?' })).toHaveAttribute(
+            'href',
+            '/docs?tab=datasets&section=resources-actions',
+        );
+
+        await openActionsMenu();
+        expect(screen.getByTestId('resources-action-register-doi')).toHaveTextContent('creates and publishes one new DOI at DataCite');
+        expect(screen.getByTestId('resources-action-update-metadata')).toHaveTextContent('No new DOI');
+        expect(screen.getByTestId('resources-action-delete')).toHaveTextContent('DataCite records remain');
+    });
+
     it('hides actions marked as not visible', async () => {
         render(
             <ResourcesBulkActionsToolbar
@@ -124,11 +137,11 @@ describe('ResourcesBulkActionsToolbar', () => {
         expect(onAction).toHaveBeenCalledWith('edit');
     });
 
-    it('uses the action label as the title for available actions', async () => {
+    it('explains the effect of available actions', async () => {
         render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions({ edit: { available: true } })} />);
 
         const item = screen.getByTestId('resources-action-edit');
-        expect(item).toHaveAttribute('title', 'Edit');
+        expect(item).toHaveAttribute('title', 'Opens selected records in the editor; this click saves nothing.');
         expect(item).not.toHaveAttribute('aria-disabled');
     });
 

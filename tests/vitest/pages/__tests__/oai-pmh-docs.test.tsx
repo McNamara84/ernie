@@ -13,6 +13,11 @@ vi.mock('@inertiajs/react', () => ({
 
 const defaultProps = {
     baseUrl: 'https://ernie.gfz.de/oai-pmh',
+    projectSet: {
+        spec: 'epos-msl',
+        name: 'EPOS-MSL Project',
+        description: 'Published resources with the complete free keyword EPOS or MSL (or both).',
+    },
     adminEmail: 'datapub@gfz.de',
     metadataFormats: {
         oai_dc: {
@@ -95,5 +100,41 @@ describe('OaiPmhDocs', () => {
     it('renders OAI identifier example', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         expect(screen.getByText(`${defaultProps.identifierPrefix}:10.5880/GFZ.1.2.2024.001`)).toBeInTheDocument();
+    });
+
+    it('documents the project keyword rules and complete inventory formats', () => {
+        render(<OaiPmhDocs {...defaultProps} />);
+        const project = screen.getByLabelText('EPOS-MSL project set');
+        expect(project).toHaveTextContent('EPOS-MSL Project');
+        expect(project).toHaveTextContent(defaultProps.projectSet.description);
+        expect(project).toHaveTextContent('Resources with both keywords appear once');
+        expect(project).toHaveTextContent('Blank subject attributes count as absent');
+        expect(project).toHaveTextContent('subject language does not affect membership');
+        expect(project).toHaveTextContent('EPOS-MSL and EPOS project do not');
+        expect(project).toHaveTextContent('Controlled EPOS-MSL vocabulary terms do not');
+        expect(project).toHaveTextContent('noRecordsMatch');
+        expect(project).toHaveTextContent('iso19115_3 covers only eligible resources');
+        expect(project).toHaveTextContent('<setSpec>epos-msl</setSpec>');
+    });
+
+    it('uses the configured base URL and project spec in copyable requests', () => {
+        const baseUrl = 'https://example.org/harvest';
+        render(<OaiPmhDocs {...defaultProps} baseUrl={baseUrl} />);
+        expect(screen.getByText(`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=epos-msl`)).toBeInTheDocument();
+        expect(screen.getAllByText(`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=epos-msl`)).toHaveLength(2);
+    });
+
+    it('documents safe reconciliation and set exits without false deletions', () => {
+        render(<OaiPmhDocs {...defaultProps} />);
+        expect(screen.getByText('Keeping an EPOS-MSL Harvest in Sync')).toBeInTheDocument();
+        expect(screen.getByText(/daily incremental updates and a weekly complete/)).toBeInTheDocument();
+        expect(screen.getByText(/Never remove local records based on an incomplete or failed harvest/)).toBeInTheDocument();
+        expect(screen.getByText(/Technical errors do not confirm removal/)).toBeInTheDocument();
+        expect(screen.getByText(/Keyword removal does not generate a deleted header/)).toBeInTheDocument();
+        expect(screen.getByText(/later pages do not extend it/)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'OAI-PMH 2.0 sets' })).toHaveAttribute(
+            'href',
+            'https://www.openarchives.org/OAI/openarchivesprotocol.html#Set',
+        );
     });
 });

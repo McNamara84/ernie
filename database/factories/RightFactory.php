@@ -38,6 +38,7 @@ class RightFactory extends Factory
             'scheme_uri' => 'https://spdx.org/licenses/',
             'is_active' => true,
             'is_elmo_active' => true,
+            'is_elmo_msl_active' => true,
             'usage_count' => 0,
         ];
     }

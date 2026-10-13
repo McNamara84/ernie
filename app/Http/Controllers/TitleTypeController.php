@@ -34,8 +34,24 @@ class TitleTypeController extends Controller
     public function elmo(): JsonResponse
     {
         $types = TitleType::query()
-            ->active()
             ->elmoActive()
+            ->orderByName()
+            ->get(['id', 'name', 'slug']);
+
+        return response()->json(
+            $types->map(fn (TitleType $type): array => [
+                'id' => $type->id,
+                'name' => $type->name,
+                'slug' => Str::kebab($type->slug),
+            ])
+        );
+    }
+
+    /** Return entries independently enabled for ELMO-MSL. */
+    public function elmoMsl(): JsonResponse
+    {
+        $types = TitleType::query()
+            ->elmoMslActive()
             ->orderByName()
             ->get(['id', 'name', 'slug']);
 

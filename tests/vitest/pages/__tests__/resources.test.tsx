@@ -8,6 +8,7 @@ import ResourcesPage, { appendUniqueResources, mergeLoadMorePagination, mergeLoa
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
+const handleXmlFilesMock = vi.hoisted(() => vi.fn());
 const buildCurationQueryFromResourceMock = vi.hoisted(() => vi.fn());
 const editorRouteMock = vi.hoisted(() =>
     vi.fn(({ query }: { query?: Record<string, string | number> } = {}) => ({
@@ -54,6 +55,7 @@ vi.mock('axios', () => ({
 vi.mock('@/lib/curation-query', () => ({
     buildCurationQueryFromResource: buildCurationQueryFromResourceMock,
 }));
+vi.mock('@/lib/datacite-upload', () => ({ handleXmlFiles: handleXmlFilesMock }));
 
 vi.mock('@/routes', () => ({
     editor: editorRouteMock,
@@ -112,7 +114,9 @@ vi.mock('@/components/resources-filters', () => ({
         </div>
     ),
 }));
-vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
+vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    default: ({ isOpen, context }: { isOpen: boolean; context: string }) => (isOpen ? <div data-testid="setup-lp-context">{context}</div> : null),
+}));
 vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
@@ -157,6 +161,7 @@ describe('ResourcesPage', () => {
         routerMock.reload.mockClear();
         routerMock.visit.mockClear();
         axiosGetMock.mockReset();
+        handleXmlFilesMock.mockReset();
         axiosGetMock.mockResolvedValue({ data: {} });
         localStorage.clear();
         window.history.replaceState({}, '', '/resources');
@@ -196,6 +201,47 @@ describe('ResourcesPage', () => {
                 takeRecords: vi.fn(() => []),
             };
         }) as unknown as typeof IntersectionObserver;
+    });
+
+    it('lets a curator upload XML from the list and opens the created draft', async () => {
+        handleXmlFilesMock.mockResolvedValue({ resourceId: '42', editorUrl: '/editor?resourceId=42' });
+        const props = {
+            resources: [],
+            pagination: { per_page: 25, total: 0, from: null, to: null, has_more: false },
+            sort: { key: 'id' as const, direction: 'desc' as const },
+            canCreateResource: true,
+            canImportFromDataCite: false,
+        };
+
+        render(<ResourcesPage {...props} />);
+        expect(screen.getByTestId('resources-xml-upload')).toBeInTheDocument();
+        expect(screen.queryByText('Import all old Resources')).not.toBeInTheDocument();
+
+        const file = new File(['<resource/>'], 'dataset.xml', { type: 'application/xml' });
+        fireEvent.change(screen.getByTestId('resources-xml-upload-input'), { target: { files: [file] } });
+
+        await waitFor(() => expect(handleXmlFilesMock).toHaveBeenCalledWith([file]));
+        await waitFor(() => expect(routerMock.visit).toHaveBeenCalledWith('/editor?resourceId=42'));
+    });
+
+    it('keeps the list open when XML upload fails or returns no draft', async () => {
+        handleXmlFilesMock
+            .mockRejectedValueOnce(new Error('Duplicate DOI'))
+            .mockResolvedValueOnce({ resourceId: null, editorUrl: '/editor?xmlSession=old' });
+        render(
+            <ResourcesPage
+                resources={[]}
+                pagination={{ per_page: 25, total: 0, from: null, to: null, has_more: false }}
+                sort={{ key: 'id', direction: 'desc' }}
+                canCreateResource
+            />,
+        );
+        const input = screen.getByTestId('resources-xml-upload-input');
+        fireEvent.change(input, { target: { files: [new File(['x'], 'first.xml')] } });
+        await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Duplicate DOI'));
+        fireEvent.change(input, { target: { files: [new File(['x'], 'second.xml')] } });
+        await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('The XML upload did not return a draft resource.'));
+        expect(routerMock.visit).not.toHaveBeenCalled();
     });
 
     it('retains asynchronous count state while advancing a cursor', () => {
@@ -773,6 +819,9 @@ describe('ResourcesPage', () => {
         expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
         expect(buildCurationQueryFromResourceMock).not.toHaveBeenCalled();
         expect(routerMock.get).not.toHaveBeenCalled();
+
+        await clickResourceAction('resources-action-setup-landing-page');
+        expect(await screen.findByTestId('setup-lp-context')).toHaveTextContent('resource-list');
     });
 
     it('opens the curation editor in a new tab when a resource row is clicked', () => {

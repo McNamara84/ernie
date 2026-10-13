@@ -82,7 +82,7 @@ describe('SortableFundingReferenceItem', () => {
         );
 
         // ROR identifier is shown as a badge
-        expect(screen.getByText(/ROR/)).toBeInTheDocument();
+        expect(screen.getByText(/ROR:/)).toBeInTheDocument();
     });
 
     it('renders the funding heading', () => {

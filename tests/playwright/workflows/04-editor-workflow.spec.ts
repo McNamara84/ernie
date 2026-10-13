@@ -66,6 +66,197 @@ test.describe('Editor Form', () => {
         await expect(page).toHaveURL(/\/editor/);
     });
 
+    test('warns before reloading or closing unsaved editor changes', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved title before reload');
+
+        const dialogPromise = page.waitForEvent('dialog');
+        const reloadPromise = page.evaluate(() => window.location.reload());
+        const dialog = await dialogPromise;
+        expect(dialog.type()).toBe('beforeunload');
+        await dialog.dismiss();
+        await reloadPromise;
+
+        await expect(page).toHaveURL(/\/editor$/);
+        await expect(titleInput).toHaveValue('Unsaved title before reload');
+
+        const closeDialogPromise = page.waitForEvent('dialog');
+        const closePromise = page.close({ runBeforeUnload: true });
+        const closeDialog = await closeDialogPromise;
+        expect(closeDialog.type()).toBe('beforeunload');
+        await closeDialog.dismiss();
+        await closePromise;
+        expect(page.isClosed()).toBe(false);
+    });
+
+    test('requires confirmation before following an internal link with unsaved changes', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved title before leaving');
+        const resourcesLink = page.getByRole('link', { name: 'Resources List' });
+
+        const cancelDialogPromise = page.waitForEvent('dialog');
+        const cancelClickPromise = resourcesLink.click();
+        const cancelDialog = await cancelDialogPromise;
+        expect(cancelDialog.type()).toBe('confirm');
+        expect(cancelDialog.message()).toContain('unsaved changes');
+        await cancelDialog.dismiss();
+        await cancelClickPromise;
+        await expect(page).toHaveURL(/\/editor$/);
+        await expect(titleInput).toHaveValue('Unsaved title before leaving');
+
+        const acceptedDialogTypes: string[] = [];
+        page.on('dialog', async (dialog) => {
+            acceptedDialogTypes.push(dialog.type());
+            await dialog.accept();
+        });
+        await resourcesLink.click();
+        await expect(page).toHaveURL(/\/resources$/);
+        expect(acceptedDialogTypes).toEqual(['confirm']);
+    });
+
+    test('cancels POST logout when unsaved editor changes are kept', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved title before logout');
+        const userMenu = page.getByRole('button', { name: /Test User/ });
+        const logoutItem = page.getByRole('menuitem', { name: 'Log out' });
+        const logoutRequests: string[] = [];
+        page.on('request', (request) => {
+            if (request.method() === 'POST' && new URL(request.url()).pathname === '/logout') logoutRequests.push(request.url());
+        });
+
+        await userMenu.click();
+        const cancelDialogPromise = page.waitForEvent('dialog');
+        const cancelClickPromise = logoutItem.click();
+        const cancelDialog = await cancelDialogPromise;
+        expect(cancelDialog.type()).toBe('confirm');
+        await cancelDialog.dismiss();
+        await cancelClickPromise;
+        await expect(page).toHaveURL(/\/editor$/);
+        await expect(titleInput).toHaveValue('Unsaved title before logout');
+        expect(logoutRequests).toHaveLength(0);
+    });
+
+    test('keeps a saved draft in the editor and reloads the same resource', async ({ page }) => {
+        test.setTimeout(150_000);
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        const draftButton = page.getByTestId('save-draft-button');
+        const title = `Issue 1370 draft ${Date.now()}`;
+        await expect(titleInput).toBeVisible({ timeout: 30_000 });
+        await titleInput.fill(title);
+        const originalTitleInput = await titleInput.elementHandle();
+        const initialTabCount = page.context().pages().length;
+        const resourceEditorGets: string[] = [];
+        page.on('request', (request) => {
+            if (
+                request.method() === 'GET' &&
+                new URL(request.url()).pathname === '/editor' &&
+                new URL(request.url()).searchParams.has('resourceId')
+            ) {
+                resourceEditorGets.push(request.url());
+            }
+        });
+
+        const firstSavePromise = page.waitForResponse(
+            (response) => response.url().endsWith('/editor/resources/draft') && response.request().method() === 'POST',
+        );
+        await draftButton.click();
+        const firstSave = await firstSavePromise;
+        expect(firstSave.status()).toBe(201);
+        const saved = (await firstSave.json()) as { resource: { id: number } };
+        await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        await expect(titleInput).toHaveValue(title);
+        expect(await originalTitleInput?.evaluate((element) => element.isConnected)).toBe(true);
+        expect(resourceEditorGets).toEqual([]);
+        expect(page.context().pages()).toHaveLength(initialTabCount);
+
+        await titleInput.fill(`${title} revised`);
+        const secondSavePromise = page.waitForResponse(
+            (response) => response.url().endsWith('/editor/resources/draft') && response.request().method() === 'POST',
+        );
+        await draftButton.click();
+        const secondSave = await secondSavePromise;
+        expect(secondSave.status()).toBe(200);
+        expect(secondSave.request().postDataJSON().resourceId).toBe(saved.resource.id);
+        await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        expect(resourceEditorGets).toEqual([]);
+
+        await page.getByRole('link', { name: 'Resources List' }).click();
+        await expect(page).toHaveURL(/\/resources$/);
+        const restoredEditorLoad = page.waitForRequest(
+            (request) =>
+                request.method() === 'GET' &&
+                request.isNavigationRequest() &&
+                new URL(request.url()).pathname === '/editor' &&
+                new URL(request.url()).searchParams.get('resourceId') === String(saved.resource.id),
+        );
+        await page.goBack();
+        await restoredEditorLoad;
+        await expect(page).toHaveURL(new RegExp(`/editor\\?resourceId=${saved.resource.id}$`));
+        await expect(titleInput).toHaveValue(`${title} revised`, { timeout: 60_000 });
+
+        await page.reload();
+        await expect(page.getByTestId('main-title-input')).toHaveValue(`${title} revised`, { timeout: 60_000 });
+    });
+
+    test('opens action guidance separately and preserves unsaved editor input', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const titleInput = page.getByTestId('main-title-input');
+        await expect(titleInput).toBeVisible();
+        await titleInput.fill('Unsaved metadata before opening help');
+
+        const helpLink = page.getByTestId('editor-floating-actions').getByRole('link', {
+            name: 'Details (opens in a new tab)',
+        });
+        const popupPromise = page.waitForEvent('popup');
+        await helpLink.click();
+        const docsPage = await popupPromise;
+
+        await expect(docsPage.locator('#editor-validate')).toBeVisible();
+        await expect(docsPage).toHaveURL((url) => url.pathname === '/docs'
+            && url.searchParams.get('tab') === 'datasets'
+            && url.searchParams.get('section') === 'editor-validate');
+        await expect(page).toHaveURL(/\/editor/);
+        await expect(titleInput).toHaveValue('Unsaved metadata before opening help');
+        await docsPage.close();
+    });
+
     test('keeps resource information fields in complete responsive rows', async ({ page }) => {
         await page.setViewportSize({ width: 1600, height: 900 });
         await gotoWithLocalTlsRetry(page, '/login');
@@ -546,5 +737,50 @@ test.describe('Editor Form', () => {
                 await editorPage.close();
             }
         }
+    });
+});
+
+test.describe('Localized editor dates', () => {
+    test.use({ locale: 'de-DE' });
+
+    test('accepts a German date, offers years from 1900, and reloads the saved ISO value', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        await expect(page.getByTestId('resource-info-section')).toBeVisible({ timeout: 30_000 });
+        await page.getByRole('textbox', { name: /Title/ }).first().fill(`Issue 1351 localized date ${Date.now()}`);
+
+        const datesTrigger = page.locator('[data-slot="accordion-trigger"]', { hasText: 'Dates' });
+        if ((await datesTrigger.getAttribute('aria-expanded')) !== 'true') await datesTrigger.click();
+        await page.getByRole('button', { name: 'Add Date' }).click();
+
+        const dateInput = page.locator('input[id$="-date"]').first();
+        await dateInput.fill('24.09.2020');
+        await dateInput.blur();
+        await expect(dateInput).toHaveValue('24.09.2020');
+
+        await page.getByRole('button', { name: 'Choose date' }).first().click();
+        const yearSelect = page.locator('select:has(option[value="1900"])');
+        await expect(yearSelect).toBeVisible();
+        await yearSelect.selectOption('1900');
+        await expect(yearSelect).toHaveValue('1900');
+        await page.keyboard.press('Escape');
+
+        const saveResponsePromise = page.waitForResponse(
+            (response) => response.url().endsWith('/editor/resources/draft') && response.request().method() === 'POST',
+        );
+        await page.getByTestId('save-draft-button').click();
+        const saveResponse = await saveResponsePromise;
+        expect(saveResponse.ok()).toBeTruthy();
+        expect(saveResponse.request().postDataJSON().dates[0].startDate).toBe('2020-09-24');
+        const saved = (await saveResponse.json()) as { resource: { id: number } };
+
+        await gotoWithLocalTlsRetry(page, `/editor?resourceId=${saved.resource.id}`);
+        if ((await datesTrigger.getAttribute('aria-expanded')) !== 'true') await datesTrigger.click();
+        await expect(page.locator('input[id$="-date"]').first()).toHaveValue('24.09.2020', { timeout: 60_000 });
     });
 });

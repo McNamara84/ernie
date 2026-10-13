@@ -10,107 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { EmptyState } from '@/components/ui/empty-state';
 import { type DataCiteUploadResult, UnifiedDropzone } from '@/components/unified-dropzone';
 import AppLayout from '@/layouts/app-layout';
-import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { handleJsonFiles, handleXmlFiles } from '@/lib/datacite-upload';
 import { type GuidedTourAutostartPayload } from '@/lib/tours/definitions';
 import { cn } from '@/lib/utils';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
-import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import type { UploadErrorResponse } from '@/types/upload';
-
-type UploadSessionResponse = {
-    resourceId?: number | string | null;
-    sessionKey?: string | null;
-};
-
-/**
- * Shared helper for file uploads (XML, JSON, JSON-LD).
- * New uploads return the persisted draft target so the dashboard can stay in place.
- */
-async function uploadSessionFile(file: File, route: { url: () => string }, sessionQueryKey: string): Promise<DataCiteUploadResult> {
-    const csrfHeaders = buildCsrfHeaders();
-
-    if (!csrfHeaders['X-CSRF-TOKEN'] && !csrfHeaders['X-XSRF-TOKEN']) {
-        throw new Error('CSRF token not found. Please reload the page (Ctrl+F5) and try again.');
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    const filename = file.name;
-
-    try {
-        const response = await fetch(route.url(), {
-            method: 'POST',
-            body: formData,
-            headers: csrfHeaders,
-            credentials: 'same-origin',
-        });
-
-        if (!response.ok) {
-            if (response.status === 419) {
-                console.warn('CSRF token expired, reloading page...');
-                window.location.reload();
-                throw new Error('Session expired. Reloading page...');
-            }
-
-            let message = `Failed to upload ${filename}`;
-            try {
-                const errorData: UploadErrorResponse = await response.json();
-                if (errorData.message) {
-                    message = errorData.message;
-                }
-            } catch {
-                // Response body is not valid JSON (e.g. HTML error page) - use generic message
-            }
-            throw new Error(message);
-        }
-
-        const data: UploadSessionResponse = await response.json();
-        const resourceId = data.resourceId !== undefined && data.resourceId !== null ? String(data.resourceId).trim() : '';
-        const sessionKey = data.sessionKey ? String(data.sessionKey).trim() : '';
-
-        if (resourceId !== '') {
-            return {
-                success: true,
-                uploadKind: 'datacite',
-                filename,
-                resourceId,
-                sessionKey: sessionKey || null,
-                editorUrl: editorRoute({ query: { resourceId } }).url,
-            };
-        }
-
-        if (sessionKey !== '') {
-            return {
-                success: true,
-                uploadKind: 'datacite',
-                filename,
-                resourceId: null,
-                sessionKey,
-                editorUrl: editorRoute({ query: { [sessionQueryKey]: sessionKey } }).url,
-            };
-        }
-
-        throw new Error('Upload completed but no editor target was returned for ' + filename + '.');
-    } catch (error) {
-        console.error(`${sessionQueryKey} upload failed`, error);
-        if (error instanceof Error) {
-            throw error;
-        }
-        throw new Error(`Failed to upload ${filename}`, { cause: error });
-    }
-}
-
-export const handleXmlFiles = async (files: File[]): Promise<DataCiteUploadResult | undefined> => {
-    if (!files.length) return undefined;
-    return uploadSessionFile(files[0], uploadXmlRoute, 'xmlSession');
-};
-
-export const handleJsonFiles = async (files: File[]): Promise<DataCiteUploadResult | undefined> => {
-    if (!files.length) return undefined;
-    return uploadSessionFile(files[0], uploadJsonRoute, 'jsonSession');
-};
+import type { ResourcePublicStatus } from '@/types/resources';
+export { handleJsonFiles, handleXmlFiles } from '@/lib/datacite-upload';
 
 type DashboardProps = {
     onXmlFiles?: (files: File[]) => Promise<DataCiteUploadResult | undefined>;
@@ -134,8 +41,10 @@ type DashboardPageProps = SharedData & {
         id: number;
         title: string;
         updated_at: string | null;
-        status?: 'draft' | 'curation' | 'review' | 'published';
+        status?: ResourcePublicStatus;
     }>;
+    dueEmbargos?: Array<{ id: number; title: string; availableDate: string }>;
+    dueEmbargoCount?: number;
     guidedTour?: GuidedTourAutostartPayload | null;
     phpVersion?: string;
     laravelVersion?: string;
@@ -235,6 +144,8 @@ function formatResourceStatus(status?: RecentResource['status']) {
             return 'Review';
         case 'published':
             return 'Published';
+        case 'dead':
+            return 'Dead';
         default:
             return null;
     }
@@ -272,6 +183,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         igsnInstitutionCount,
         draftCount,
         recentResources,
+        dueEmbargos = [],
+        dueEmbargoCount = 0,
         pendingAssistanceTotalCount,
         guidedTour = null,
         phpVersion = '8.4.12',
@@ -517,6 +430,24 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
             <Head title="Dashboard" />
             <GuidedTourAutostart guidedTour={guidedTour} />
             <div data-testid="dashboard-page" className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4 lg:p-6">
+                {dueEmbargoCount > 0 && (
+                    <Card className="border-amber-400" data-testid="due-embargos">
+                        <CardHeader>
+                            <CardTitle>Embargos ready for manual release ({dueEmbargoCount})</CardTitle>
+                            <CardDescription>The Available date has passed. Review each resource before registering it at DataCite.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {dueEmbargos.map((resource) => (
+                                <p key={resource.id}>
+                                    <Link href={editorRoute({ query: { resourceId: resource.id } }).url} className="underline">
+                                        {resource.title}
+                                    </Link>{' '}
+                                    — Available {resource.availableDate}
+                                </p>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.95fr)]">
                     <div className="grid gap-4">
                         <Card

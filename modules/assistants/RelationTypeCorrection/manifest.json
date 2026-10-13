@@ -1,0 +1,24 @@
+{
+    "id": "relation-type-correction",
+    "name": "Relation Type Correction",
+    "description": "Review existing related identifiers whose relation type conflicts with explicit primary metadata.",
+    "icon": "GitCompareArrows",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\RelationTypeCorrection\\Assistant",
+    "route_prefix": "relation-type-correction",
+    "lock_key": "relation_type_correction_running",
+    "cache_key_prefix": "relation_type_correction",
+    "sort_order": 11,
+    "status_labels": {
+        "checking": "Checking existing relation types...",
+        "completed_with_results": "Relation type check completed: {count} new proposal(s) found.",
+        "completed_empty": "Relation type check completed: No new proposals. Unavailable metadata is not evidence that existing relations are wrong.",
+        "failed": "Relation type check failed: {error}",
+        "already_running": "A relation type check is already running."
+    },
+    "empty_state": {
+        "title": "No pending relation type corrections",
+        "description": "Run a check to compare existing DOI relations with current DataCite and Crossref metadata."
+    },
+    "card_component": "relation-type-correction-card"
+}

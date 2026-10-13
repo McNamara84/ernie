@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    buildDataCentreSearchUrl,
     buildPortalCountUrl,
     buildPortalFilterUrl,
     buildPortalMapClusterMembersUrl,
@@ -27,6 +28,29 @@ const filters: PortalFilters = {
 };
 
 describe('portal filter URL builders', () => {
+    it.each(['FID GEO', 'GFZ German Research Centre for Geosciences', 'A+B & <rocks> / 地球', 'Centre?query=#1'])('starts a clean DOI search for the exact datacenter %s', (name) => {
+        const url = new URL(buildDataCentreSearchUrl(name), 'https://ernie.test');
+        expect(url.pathname).toBe('/doi-search');
+        expect([...url.searchParams.entries()]).toEqual([['datacenter[]', name]]);
+        expect(url.hash).toBe('');
+    });
+    it('retains the science topic for pagination, counts, maps and cluster members', () => {
+        const selected = { ...filters, topic: { slug: 'scientific-drilling', label: 'Scientific Drilling' } };
+        const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };
+        for (const href of [
+            buildPortalFilterUrl(selected, '/doi-search', 3),
+            buildPortalMapUrl(selected, viewport, true, '/doi-search', 18),
+            buildPortalMapClusterMembersUrl(selected, viewport, 'z18:1:1', 2, '/doi-search'),
+            buildPortalCountUrl('?topic=scientific-drilling&page=3'),
+        ]) {
+            expect(new URL(href, 'https://ernie.test').searchParams.get('topic')).toBe('scientific-drilling');
+        }
+        expect(mergePortalFilters(selected, { query: 'cores' }).topic).toEqual(selected.topic);
+        expect(buildPortalFilterUrl(mergePortalFilters(selected, { topic: null }))).not.toContain('topic=');
+        expect(buildPortalFilterUrl(selected, '/igsn-search')).not.toContain('topic=');
+        expect(buildPortalCountUrl('?topic=scientific-drilling&topic[]=other', '/igsn-search')).not.toContain('topic');
+    });
+
     it('serializes all list filters without empty defaults', () => {
         const url = new URL(buildPortalFilterUrl(filters), 'https://ernie.test');
 
@@ -170,9 +194,14 @@ describe('portal filter URL builders', () => {
     it('clamps map requests while member requests rely on the cluster ID zoom', () => {
         const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };
         const mapUrl = new URL(buildPortalMapUrl(filters, viewport, false, '/doi-search', 7), 'https://ernie.test');
+        const minimumMapUrl = new URL(
+            buildPortalMapUrl(filters, { ...viewport, zoom: 0 }, false, '/doi-search', 0),
+            'https://ernie.test',
+        );
         const membersUrl = new URL(buildPortalMapClusterMembersUrl(filters, viewport, 'z7:1:2', 1, '/doi-search'), 'https://ernie.test');
 
         expect(mapUrl.searchParams.get('zoom')).toBe('7');
+        expect(minimumMapUrl.searchParams.get('zoom')).toBe('1');
         expect(membersUrl.searchParams.has('zoom')).toBe(false);
     });
 

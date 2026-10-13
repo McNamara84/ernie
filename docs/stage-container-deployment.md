@@ -1,29 +1,30 @@
 # Stage deployment from prebuilt container images
 
 Stage does not build ERNIE images on RZ-VM182. GitHub Actions builds the
-application and Nginx images, publishes them to GitHub Container Registry
+application, Nginx, and F-UJI images, publishes them to GitHub Container Registry
 (GHCR), and creates a machine-managed `deploy/stage` commit whose Compose file
-pins both images by immutable digest.
+pins all three images by immutable digest.
 
 Production promotion remains separate from this workflow. It promotes a
-published latest stable release only after locating the exact digest pair in
+published latest stable release only after locating the exact image digests in
 Stage deployment history. See
 [production-container-deployment.md](production-container-deployment.md).
 
 ## Deployment flow
 
 1. Feature and fix branches are reviewed and merged into `main`.
-2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
-   the merged commit. The security gate builds and scans both deployable
-   runtime targets (`app` and `nginx`) for HIGH and CRITICAL vulnerabilities.
-3. `Publish Stage Images` verifies that all five workflows succeeded for the
+2. The Security, Pest, MySQL, Vitest, lint/PHPStan, and Playwright workflows validate
+   the merged commit. The security gate builds and scans all three deployable
+   runtime images (`app`, `nginx`, and F-UJI with Chromium) for fixable HIGH and
+   CRITICAL vulnerabilities. F-UJI also gets a dependency and browser smoke check.
+3. `Publish Stage Images` verifies that all six workflows succeeded for the
    exact current `main` commit, then builds and pushes the images under
    traceable `sha-<full-commit-sha>` tags.
-4. The publication job scans the exact pushed application and Nginx digest
-   references. A HIGH or CRITICAL vulnerability in either published image
+4. The publication job scans the exact pushed application, Nginx, and F-UJI digest
+   references. A HIGH or CRITICAL vulnerability in any published image
    stops the workflow before it can change `deploy/stage`.
 5. The workflow creates a deployment commit derived from that source commit.
-   Its Stage Compose file pins the application and Nginx images as
+   Its Stage Compose file pins the application, Nginx, and F-UJI images as
    `ghcr.io/...@sha256:<digest>`.
 6. If the source commit is still the head of `main`, the workflow advances
    `deploy/stage` to the digest-pinned deployment commit.
@@ -40,6 +41,7 @@ The published images are:
 
 - `ghcr.io/mcnamara84/ernie-app:sha-<full-commit-sha>`
 - `ghcr.io/mcnamara84/ernie-nginx:sha-<full-commit-sha>`
+- `ghcr.io/mcnamara84/ernie-fuji:sha-<full-commit-sha>` (F-UJI 4.0.1 with Chromium)
 
 The generated deployment Compose file does not use mutable `stage` tags. It
 references the exact digest produced by each image build. Therefore a manual
@@ -51,7 +53,7 @@ The Compose file on `main` contains the deliberately unpublished
 direct Portainer deployment target. The workflow requires and replaces every
 marker before advancing `deploy/stage`.
 
-The `app`, `queue`, `assessment-queue`, and `scheduler` services share
+The `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler` services share
 the same application image. `webserver` uses the Nginx image.
 
 ## One-time rollout
@@ -79,11 +81,11 @@ existing Stage stack. Do not delete the stack or its volumes.
 
 Merge the implementation into `main`. Wait for:
 
-1. `Security Checks`, `Pest PHP Unit Tests`, `Vitest TS integration Tests`,
+1. `Security Checks`, `Pest PHP Unit Tests`, `MySQL Compatibility Tests`, `Vitest TS integration Tests`,
    `Linter Tests`, and `Playwright UI Tests` to succeed;
 2. `Publish Stage Images` to publish the validated commit.
 
-The second workflow creates the two GHCR packages and the digest-pinned
+The second workflow creates the three GHCR packages and the digest-pinned
 `deploy/stage` branch. It intentionally has no `workflow_dispatch` trigger:
 manual dispatch can target another branch and would execute that branch's
 workflow definition with the publish job's write-scoped token.
@@ -97,19 +99,20 @@ receives HTTP 403, verify the repository or organization policy under
 requested write scopes.
 
 Before the publish job creates or advances `deploy/stage`, it scans the exact
-application and Nginx digest references it just pushed. This closes the gap
+application, Nginx, and F-UJI digest references it just pushed. This closes the gap
 between the earlier validation build and the artifacts that Portainer will
 actually deploy, including when package repositories changed between the two
 builds.
 
 ### 4. Choose GHCR visibility
 
-After their first publication, open both package settings on GitHub:
+After their first publication, open all three package settings on GitHub:
 
 - `ernie-app`;
-- `ernie-nginx`.
+- `ernie-nginx`;
+- `ernie-fuji`.
 
-Either make both packages public or keep both private.
+Either make all three packages public or keep all three private.
 
 For private packages, add `ghcr.io` as a custom registry in Portainer. Use
 the GitHub username and a classic personal access token with at least
@@ -140,13 +143,31 @@ exact validated manifests.
 Save and redeploy the stack, then re-enable automatic polling if changing the
 Git reference did not already enable it.
 
+The public homepage, Find overview and both data-centre pages are enabled by
+default on Stage.
+Set `PUBLIC_HOME_ENABLED`, `PUBLIC_FIND_ENABLED`, `PUBLIC_DATA_CENTRES_ENABLED`, or
+`PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` individually to `false` in the Portainer
+stack environment to preview the temporary TYPO3 fallback, then redeploy.
+Production defaults all four to `false`. See [public page routing and feature
+switches](production-container-deployment.md#public-page-routing-and-feature-switches)
+for the route mapping and release procedure.
+
+The portal basemap uses the keyless OpenFreeMap public instance by default. No account, API key, or additional Stage variable is required. To use a compatible self-hosted instance instead, configure its style URL in the Stage stack environment:
+
+```dotenv
+PORTAL_MAP_BASEMAP_STYLE_URL=https://maps.example.org/styles/liberty
+```
+
+The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does not provide an SLA; keep the default for ordinary use or self-host when operational guarantees are required.
+
 ### 6. Verify the first deployment
 
 Portainer must show these image references:
 
-- `app`, `queue`, `assessment-queue`, and `scheduler`:
+- `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
-- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`.
+- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
+- `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
 
 There must be no local ERNIE Docker build in the Portainer deployment log.
 Verify that:
@@ -159,6 +180,15 @@ Verify that:
 
 ## Normal operation
 
+If `Scan exact published image digests` fails, inspect the findings for each
+image before retrying. A repeat run against the same pinned dependencies will
+not remove a finding. The failed runs on 26 and 28 September 2026 both reported
+`msgpack 1.1.2` and `setuptools 70.3.0` bundled inside F-UJI's pip installer,
+while the app and Nginx scans passed. `Dockerfile.fuji` now removes pip and its
+ensurepip bootstrap after installing and checking runtime dependencies. The
+Security Checks workflow also builds, tests, and scans F-UJI before publication,
+so a failing F-UJI image blocks the earlier validation gate as well.
+
 After the one-time rollout, the normal developer process remains unchanged:
 
 1. create a feature or fix branch from `main`;
@@ -170,29 +200,30 @@ After the one-time rollout, the normal developer process remains unchanged:
 If another commit reaches `main` while images are building, the final head
 guard normally skips the older deployment and the newer validated workflow
 replaces it. Even if `main` changes at the final update boundary, every
-deployment commit remains internally consistent because it pins both image
+deployment commit remains internally consistent because it pins all image
 digests; a later pull can never silently substitute images from another
 commit.
 
 ## Manual retry
 
-Open any one of the five successful deployment-blocking workflow runs for the
+Open any one of the six successful deployment-blocking workflow runs for the
 current `main` commit and choose **Re-run all jobs**. Its successful completion
 triggers the default-branch `Publish Stage Images` workflow again. Do not add a
 manual trigger to the privileged publishing workflow or dispatch it against a
-feature branch. The retry still verifies successful Security, Pest, Vitest,
+feature branch. The retry still verifies successful Security, Pest, MySQL, Vitest,
 lint/PHPStan, and Playwright push workflows for that exact commit.
 
 ## Rollback
 
 Every deployment commit records immutable image digests. To restore a previous
-pair, read both digest references from the corresponding `deploy/stage` commit
-and set these two Stage stack variables in Portainer:
+deployment, read all digest references from the corresponding `deploy/stage` commit
+and set these three Stage stack variables in Portainer:
 
 - `ERNIE_STAGE_APP_IMAGE=ghcr.io/mcnamara84/ernie-app@sha256:<good-digest>`
+- `ERNIE_STAGE_FUJI_IMAGE=ghcr.io/mcnamara84/ernie-fuji@sha256:<good-digest>`
 - `ERNIE_STAGE_NGINX_IMAGE=ghcr.io/mcnamara84/ernie-nginx@sha256:<good-digest>`
 
-Use both digests from the same deployment commit and manually pull/redeploy
+Use all three digests from the same deployment commit and manually pull/redeploy
 the stack. Remove the overrides to return to the automatically maintained,
 digest-pinned deployment branch.
 
@@ -209,13 +240,14 @@ workflow uses the repository's built-in `GITHUB_TOKEN`.
 
 ### Portainer reports manifest unknown or unauthorized
 
-Confirm that both pinned digests exist. For private packages, verify the
-Portainer GHCR username, the token's `read:packages` scope, package access, and
-that the registry is selected for the stack.
+Confirm that all three pinned digests exist in `ernie-app`, `ernie-nginx`, and
+`ernie-fuji`. For private packages, verify the Portainer GHCR username, the
+token's `read:packages` scope, access to each package, and that the registry is
+selected for the stack.
 
 ### The deploy branch does not move
 
-Inspect the five deployment-blocking validation workflows and `Publish Stage
+Inspect the six deployment-blocking validation workflows and `Publish Stage
 Images`. Any missing, running, or failed validation for the exact commit
 prevents publication. A superseded run intentionally skips promotion when a
 newer `main` commit exists.
@@ -234,7 +266,7 @@ such as `null`. `stack.env` is excluded from the Docker build context. Before
 building, both image workflows reject credential-like values in
 `.env.production` but otherwise keep this sanitized Production template
 unchanged. The resulting image therefore retains Production-safe defaults such
-as `LOG_STACK=daily` and `LOG_LEVEL=error`; Portainer overrides only the values
+as `LOG_STACK=daily` and `LOG_LEVEL=info`; Portainer overrides only the values
 explicitly supplied by the stack environment or Compose service definition.
 
 Previously committed values remain in Git history. Rotate any application key,
@@ -248,3 +280,35 @@ Plan the Laravel `APP_KEY` rotation separately. Changing it without a
 transition can invalidate encrypted cookies and make application-encrypted
 values unreadable. Audit encrypted data first and use Laravel's previous-key
 support during the transition.
+
+
+## ELMO cache refresh worker
+
+The `elmo-cache-refresh` service runs from the same pinned application image as
+`queue`, using the dedicated persistent `elmo` connection and
+`elmo-cache-refresh` queue. The defaults are `https://env.rz-vm182.gfz.de/elmo` and
+`https://env.rz-vm182.gfz.de/elmo-msl`; Stage also uses `APP_ENV=production`, so target URLs come from
+the Compose configuration rather than the Laravel environment name.
+
+Provide `ELMO_API_KEY` and `ELMO_MSL_API_KEY` through the stack environment, matching
+the keys of these ELMO instances. `ELMO_BASE_URL` and `ELMO_MSL_BASE_URL` optionally
+override the addresses. Deploy the matching authenticated ELMO admin endpoint
+before explicitly setting `ELMO_CACHE_REFRESH_ENABLED=true`. Automatic refresh is
+disabled by default, including when credentials have already been provisioned.
+Keep `ELMO_MSL_CACHE_REFRESH_READY=false` until the MSL instance uses the correct
+ERNIE ELMO-MSL source routes; only then set it to `true`. Both switches are required
+for MSL refreshes and are rechecked for queued jobs. Turning either switch off
+skips the affected dispatch/execution without blocking settings saves.
+
+The inherited queue environment is shared with the web app and data-update
+workers. After changing configuration, redeploy the app and queue services so
+both dispatch and execution use current values. Keep the HTTP timeout (310s),
+job/worker timeout (330s) and reservation window (390s) in increasing order, with
+a container stop grace period exceeding the job timeout. The worker has three
+attempts and remains separate from the general queue.
+
+Inspect logs and Laravel failed jobs for unsuccessful refreshes. Check ELMO and
+ELMO-MSL independently, including deactivations and completed vocabulary updates.
+The ELMO source must use the appropriate ERNIE editor routes. See
+[local-development.md](local-development.md#automatic-elmo-cache-refresh) for the
+configuration variables, retry policy, upstream dependencies and recovery steps.

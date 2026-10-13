@@ -157,7 +157,7 @@ return new class extends Migration
         }
 
         foreach (Schema::getForeignKeys(self::TABLE) as $foreignKey) {
-            $columns = $foreignKey['columns'] ?? [];
+            $columns = $foreignKey['columns'];
 
             if (in_array($column, $columns, true)) {
                 $name = $foreignKey['name'] ?? null;

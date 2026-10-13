@@ -1,8 +1,27 @@
 import type { PortalBasePath, PortalFilters, PortalMapViewport } from '@/types/portal';
 
+import { clampPortalMapZoom } from './portal-map-zoom';
+
 function appendArrayParams(params: URLSearchParams, key: string, values: string[]): void {
     values.forEach((value) => {
         params.append(`${key}[]`, value);
+    });
+}
+
+/** Start a fresh DOI search with exactly this stored datacenter name. */
+export function buildDataCentreSearchUrl(datacenterName: string): string {
+    return buildPortalFilterUrl({
+        query: null,
+        type: [],
+        keywords: [],
+        sampleTypes: [],
+        materials: [],
+        classifications: [],
+        geologicalAges: [],
+        geologicalUnits: [],
+        datacenter: [datacenterName],
+        bounds: null,
+        temporal: null,
     });
 }
 
@@ -50,6 +69,10 @@ export function mergePortalFilters(filters: PortalFilters, nextFilters: Partial<
 export function buildPortalFilterUrl(filters: PortalFilters, basePath: PortalBasePath = '/doi-search', page: number | null = null): string {
     const params = new URLSearchParams();
     const hasSplitKeywordFilters = (filters.freeKeywords?.length ?? 0) > 0 || (filters.thesaurusKeywords?.length ?? 0) > 0;
+
+    if (basePath === '/doi-search' && filters.topic) {
+        params.set('topic', filters.topic.slug);
+    }
 
     if (filters.query && filters.query.trim() !== '') {
         params.set('q', filters.query.trim());
@@ -114,6 +137,8 @@ export function buildPortalCountUrl(currentSearch: string, basePath: PortalBaseP
 
     if (basePath === '/igsn-search') {
         params.delete('type');
+        params.delete('topic');
+        params.delete('topic[]');
         params.delete('type[]');
         params.delete('thesaurus_keywords');
         params.delete('thesaurus_keywords[]');
@@ -133,7 +158,7 @@ export function buildPortalMapUrl(
     maxZoom: number,
 ): string {
     const params = buildPortalMapParams(filters, viewport, basePath);
-    params.set('zoom', String(Math.max(0, Math.min(maxZoom, Math.round(viewport.zoom)))));
+    params.set('zoom', String(clampPortalMapZoom(viewport.zoom, maxZoom)));
 
     if (includeExtent) {
         params.set('include_extent', '1');

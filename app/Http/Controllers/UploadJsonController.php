@@ -11,6 +11,7 @@ use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteJsonImportNormalizerService;
+use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\Imports\Subjects\ImportedSubjectData;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
@@ -20,6 +21,7 @@ use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
 use App\Services\TemporalCoverageValueService;
 use App\Services\UploadLogService;
+use App\Services\Uploads\DataCiteRelatedItemNormalizerService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\LanguageTag;
@@ -82,6 +84,7 @@ class UploadJsonController extends Controller
         private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
         private readonly RelatedIdentifierCitationLabelService $citationLabelService,
         private readonly UploadedResourceDraftService $uploadedResourceDraftService,
+        private readonly DataCiteRelatedItemNormalizerService $relatedItemNormalizer,
         private readonly MslLaboratoryService $mslLaboratoryService,
         private readonly RorLookupService $rorLookupService,
         private readonly SubjectImportNormalizer $subjectImportNormalizer,
@@ -217,6 +220,7 @@ class UploadJsonController extends Controller
             $instruments = $relatedResult['instruments'];
 
             $fundingReferences = $this->extractFundingReferences($attributes['fundingReferences'] ?? []);
+            $relatedItems = $this->relatedItemNormalizer->normalize($attributes['relatedItems'] ?? []);
         } catch (\Throwable $e) {
             $error = UploadError::withMessage(
                 UploadErrorCode::UNEXPECTED_ERROR,
@@ -249,6 +253,7 @@ class UploadJsonController extends Controller
             'dates' => $dates,
             'coverages' => $coverages,
             'relatedWorks' => $relatedWorks,
+            'relatedItems' => $relatedItems,
             'instruments' => $instruments,
             'controlledKeywords' => $subjects->controlledKeywords,
             'freeKeywords' => $subjects->freeKeywords,
@@ -256,6 +261,13 @@ class UploadJsonController extends Controller
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
         ];
+
+        if ($request->routeIs('editor.upload-json.preview')) {
+            return response()->json([
+                'success' => true,
+                'metadata' => $sessionPayload,
+            ]);
+        }
 
         try {
             $resource = $this->uploadedResourceDraftService->storeFromPayload(
@@ -349,10 +361,12 @@ class UploadJsonController extends Controller
     private function extractAttributes(array $decoded): array
     {
         // Check for JSON-LD format (@context key present)
-        if (isset($decoded['@context'])) {
+        if (array_key_exists('@context', $decoded)) {
             Log::info('Detected DataCite JSON-LD format, converting to JSON');
 
             try {
+                app(DataCiteJsonLdContextService::class)->assertSupportedDocument($decoded);
+
                 return $this->jsonLdConverter->convert($decoded);
             } catch (\Throwable $e) {
                 Log::warning('JSON-LD conversion failed', ['error' => $e->getMessage()]);
@@ -428,7 +442,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $titles
-     * @return array<int, array{title: string, titleType: string}>
+     * @return array<int, array{title: string, titleType: string, language: string|null}>
      */
     private function extractTitles(array $titles): array
     {
@@ -445,6 +459,7 @@ class UploadJsonController extends Controller
             $result[] = [
                 'title' => $titleText,
                 'titleType' => $normalizedType,
+                'language' => LanguageTag::validOrNull($title['lang'] ?? null),
             ];
         }
 

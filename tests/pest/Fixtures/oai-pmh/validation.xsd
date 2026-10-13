@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Official schemas, with only their import locations adapted for offline tests:
+     https://www.openarchives.org/OAI/2.0/OAI-PMH.xsd
+     https://www.openarchives.org/OAI/2.0/oai_dc.xsd
+     https://www.dublincore.org/schemas/xmls/simpledc20021212.xsd
+     https://www.w3.org/2001/xml.xsd -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:import namespace="http://www.openarchives.org/OAI/2.0/" schemaLocation="OAI-PMH.xsd"/>
+    <xs:import namespace="http://www.openarchives.org/OAI/2.0/oai_dc/" schemaLocation="oai_dc.xsd"/>
+</xs:schema>

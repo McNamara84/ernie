@@ -108,11 +108,29 @@ describe('ResourceHero', () => {
             expect(screen.getByText('Draft')).toBeInTheDocument();
         });
 
+        it('displays Embargo with a crossed-out eye and the existing styling', () => {
+            render(<ResourceHero {...defaultProps} status="embargo" />);
+
+            const label = screen.getByText('Embargo');
+            const icon = label.parentElement?.querySelector('svg');
+
+            expect(label).toHaveClass('text-purple-700');
+            expect(icon).toHaveClass('lucide-eye-off', 'h-8', 'w-8', 'text-purple-600');
+            expect(icon).toHaveAttribute('stroke-width', '1.5');
+            expect(icon).not.toHaveClass('lucide-eye');
+            expect(screen.queryByText('In Review:')).not.toBeInTheDocument();
+        });
+
         it('displays Preview status with label', () => {
             render(<ResourceHero {...defaultProps} status="preview" />);
 
             // StatusConfig shows "Review Preview" for preview status
-            expect(screen.getByText('Review Preview')).toBeInTheDocument();
+            const label = screen.getByText('Review Preview');
+            const icon = label.parentElement?.querySelector('svg');
+
+            expect(label).toBeInTheDocument();
+            expect(icon).toHaveClass('lucide-eye');
+            expect(icon).not.toHaveClass('lucide-eye-off');
         });
     });
 

@@ -23,6 +23,11 @@ use App\Models\User;
  */
 class LandingPagePolicy
 {
+    public function manageTombstone(User $user): bool
+    {
+        return in_array($user->role, self::DELETE_ROLES, true);
+    }
+
     /**
      * Roles that are allowed to create and update landing pages.
      *

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\ArdcApiService;
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
 use App\Support\ChronostratVocabularyParser;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -38,6 +39,7 @@ class GetChronostratTimescale extends Command
             $this->info('Extracted '.count($concepts).' interval concepts');
 
             // Build hierarchical structure
+            (new SubjectHierarchyCacheService)->validateFlat($concepts, 'International Chronostratigraphic Chart', 'http://resource.geosciml.org/vocabulary/timescale/gts2020');
             $this->info('Building hierarchical structure...');
             $hierarchicalData = $parser->buildHierarchy($concepts);
 
@@ -54,7 +56,7 @@ class GetChronostratTimescale extends Command
                 return Command::FAILURE;
             }
 
-            Storage::put(self::OUTPUT_FILE, $json);
+            (new SubjectHierarchyCacheService)->publishFlat(self::OUTPUT_FILE, $json, $concepts, 'International Chronostratigraphic Chart', 'http://resource.geosciml.org/vocabulary/timescale/gts2020');
 
             // Invalidate vocabulary caches
             $this->call('cache:clear-app', ['category' => 'vocabularies']);

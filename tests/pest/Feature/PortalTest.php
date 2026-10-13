@@ -78,13 +78,41 @@ describe('Portal Page Display', function () {
             ->assertInertia(fn (Assert $page) => $page->component('portal'));
     });
 
-    it('exposes the configured map zoom limit to the frontend', function () {
-        config(['portal_map.max_zoom' => 7]);
+    it('exposes the configured English OpenFreeMap basemap to both portals', function () {
+        config([
+            'portal_map.max_zoom' => 7,
+            'portal_map.basemap_style_url' => 'https://maps.example.test/styles/test-liberty',
+        ]);
+
+        foreach ([route('portal.doi'), route('portal.igsn')] as $route) {
+            $this->get($route)
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->where('mapConfig.maxZoom', 7)
+                    ->where('mapConfig.basemap.provider', 'openfreemap')
+                    ->where('mapConfig.basemap.styleUrl', 'https://maps.example.test/styles/test-liberty')
+                    ->where('mapConfig.basemap.language', 'en')
+                );
+        }
+    });
+
+    it('exposes a blank basemap style URL as a deterministic frontend error state', function () {
+        config(['portal_map.basemap_style_url' => '']);
 
         $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('mapConfig.maxZoom', 7)
+                ->where('mapConfig.basemap.styleUrl', '')
+            );
+    });
+
+    it('normalizes a legacy zero map zoom limit for the MapLibre Leaflet adapter', function () {
+        config(['portal_map.max_zoom' => 0]);
+
+        $this->get(route('portal.doi'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('mapConfig.maxZoom', 1)
             );
     });
 

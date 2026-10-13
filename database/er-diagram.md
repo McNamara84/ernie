@@ -13,6 +13,7 @@ erDiagram
         text description "nullable"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -23,6 +24,7 @@ erDiagram
         varchar slug UK
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -32,6 +34,8 @@ erDiagram
         varchar name
         varchar slug UK
         boolean is_active
+        boolean is_elmo_active "default true"
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -42,6 +46,7 @@ erDiagram
         varchar slug UK
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -53,6 +58,7 @@ erDiagram
         varchar category "20, default: both"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -64,6 +70,7 @@ erDiagram
         text description "nullable, official DataCite 4.7 definition"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -86,6 +93,7 @@ erDiagram
         text description "nullable, official DataCite 4.7 definition"
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -105,6 +113,7 @@ erDiagram
         varchar name
         boolean active
         boolean elmo_active
+        boolean elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -117,6 +126,7 @@ erDiagram
         varchar scheme_uri
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         int usage_count
         timestamp created_at
         timestamp updated_at
@@ -249,6 +259,8 @@ erDiagram
         timestamp legacy_description_breaks_normalized_at "nullable"
         boolean force_review_status "default false"
         varchar workflow_status_override "20, nullable, indexed"
+        timestamp embargo_registration_started_at "nullable"
+        varchar embargo_registration_prefix "64, nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -276,8 +288,15 @@ erDiagram
         varchar updated_sort "40, indexed"
         text search_text
         text party_search_text "nullable"
+        text party_name_search_text "nullable"
         timestamp created_at
         timestamp updated_at
+    }
+
+    resource_party_name_terms {
+        bigint id PK
+        bigint resource_id FK "indexed, cascade delete"
+        text term "normalized public party name"
     }
 
     %% =========================================================================
@@ -436,6 +455,7 @@ erDiagram
         bigint resource_id FK
         varchar related_item_type "DataCite resourceTypeGeneral (PascalCase)"
         bigint relation_type_id FK
+        text relation_type_information "nullable"
         smallint publication_year "nullable"
         varchar volume "nullable"
         varchar issue "nullable"
@@ -578,6 +598,24 @@ erDiagram
         text error_message "nullable"
         json payload "nullable"
         timestamp assessed_at "nullable"
+        timestamp assessment_started_at "nullable, microsecond precision for result ordering"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    resource_assessment_refreshes {
+        bigint resource_id PK, FK "1:1 with resources, cascade delete"
+        varchar status "20, indexed"
+        int generation "unsigned, default 1"
+        uuid claim_token "nullable"
+        bigint queue_job_id "nullable, queued database job ID"
+        smallint attempts "unsigned, default 0"
+        smallint service_attempts "unsigned, default 0"
+        timestamp requested_at "microsecond precision for publication ordering"
+        timestamp available_at "nullable, indexed"
+        timestamp lease_expires_at "nullable, indexed"
+        timestamp completed_at "nullable"
+        text last_error "nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -722,11 +760,43 @@ erDiagram
         boolean is_published
         varchar preview_token UK
         timestamp published_at
+        boolean is_tombstone "default false, indexed"
+        varchar tombstone_reason "40, nullable"
+        text tombstone_statement "nullable"
+        timestamp tombstoned_at "nullable"
+        bigint tombstoned_by_user_id FK "nullable, null on user deletion"
+        int tombstone_revision "unsigned, default 0"
         int view_count
         timestamp last_viewed_at
         timestamp created_at
         timestamp updated_at
     }
+
+    resource_tombstone_transitions {
+        bigint id PK
+        bigint resource_id FK "cascade delete"
+        bigint user_id FK "nullable, null on user deletion"
+        json activity_actor "nullable, initiator identity snapshot"
+        int revision "unsigned"
+        varchar action "30"
+        varchar reason "40, nullable"
+        text statement "nullable"
+        json snapshot "nullable"
+        varchar doi
+        boolean test_mode
+        varchar previous_state "20, nullable"
+        text previous_url "nullable"
+        varchar target_state "20"
+        text target_url
+        varchar status "20, default pending"
+        smallint attempts "unsigned, default 0"
+        timestamp available_at "nullable"
+        timestamp completed_at "nullable"
+        text last_error "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+    %% resource_tombstone_transitions unique(resource_id, revision), index(status, available_at)
 
     landing_page_files {
         bigint id PK
@@ -817,6 +887,7 @@ erDiagram
         varchar display_name
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         varchar version "nullable"
         timestamp created_at
         timestamp updated_at
@@ -826,9 +897,11 @@ erDiagram
         bigint id PK
         bigint right_id FK
         bigint resource_type_id FK
+        varchar editor "16, default: ernie, UK(right_id, resource_type_id, editor)"
         timestamp created_at
         timestamp updated_at
     }
+    %% unique_editor_exclusion: UNIQUE(right_id, resource_type_id, editor)
 
     landing_page_domains {
         bigint id PK
@@ -857,6 +930,7 @@ erDiagram
         varchar display_name
         boolean is_active
         boolean is_elmo_active
+        boolean is_elmo_msl_active "default true"
         timestamp created_at
         timestamp updated_at
     }
@@ -898,6 +972,13 @@ erDiagram
         bigint igsn_landing_page_template_id FK "nullable"
         timestamp created_at
         timestamp updated_at
+    }
+
+    datacenter_name_aliases {
+        bigint id PK
+        bigint datacenter_id FK
+        varchar name
+        varchar name_key UK
     }
     %% =========================================================================
     %% LARAVEL FRAMEWORK TABLES
@@ -1159,6 +1240,7 @@ erDiagram
         varchar active_marker UK "20, nullable"
         bigint initiated_by_user_id FK "nullable"
         bigint last_controlled_by_user_id FK "nullable"
+        json activity_actor "nullable, initiator identity snapshot"
         boolean test_mode
         varchar datacite_endpoint "500"
         varchar target_base_url "500"
@@ -1200,6 +1282,7 @@ erDiagram
         uuid id PK
         bigint initiated_by_user_id FK "nullable"
         bigint last_controlled_by_user_id FK "nullable"
+        json activity_actor "nullable, initiator identity snapshot"
         varchar status "30, indexed"
         boolean test_mode
         varchar datacite_endpoint "500"
@@ -1248,6 +1331,22 @@ erDiagram
         timestamp updated_at
     }
 
+    oai_pmh_harvests {
+        bigint id PK
+        bigint_unsigned item_count
+        timestamp expires_at "indexed"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    oai_pmh_harvest_items {
+        bigint harvest_id PK, FK "cascade on delete"
+        bigint_unsigned position PK "zero-based ordered position"
+        varchar kind "resource or deleted"
+        bigint_unsigned identity_id "no FK; retained after resource deletion"
+    }
+    %% oai_pmh_harvest_items composite primary key (harvest_id, position) supports indexed page ranges.
+
     oai_pmh_resumption_tokens {
         bigint id PK
         varchar token UK "64 chars"
@@ -1258,6 +1357,8 @@ erDiagram
         timestamp until_date "nullable"
         bigint_unsigned cursor
         bigint_unsigned complete_list_size
+        bigint harvest_id FK "nullable; cascade on delete"
+        int_unsigned harvest_position "nullable; next snapshot position"
         timestamp expires_at
         timestamp created_at
         timestamp updated_at
@@ -1292,6 +1393,20 @@ erDiagram
         timestamp updated_at
     }
 
+    relation_type_correction_reviews {
+        bigint id PK
+        bigint resource_id FK "nullable, ON DELETE SET NULL"
+        bigint related_identifier_id FK "nullable, ON DELETE SET NULL"
+        bigint actor_id FK "nullable, ON DELETE SET NULL"
+        bigint_unsigned suggestion_id UK "snapshot ID, no FK"
+        varchar decision "16"
+        varchar reason "255, nullable"
+        char context_fingerprint "64"
+        char review_fingerprint "64"
+        json snapshot
+        timestamp reviewed_at
+    }
+
     %% =========================================================================
     %% RELATIONSHIPS
     %% =========================================================================
@@ -1299,6 +1414,9 @@ erDiagram
     %% Assistant module relationships
     resources ||--o{ assistant_suggestions : "has"
     users ||--o{ assistant_dismissed : "dismissed by"
+    resources |o--o{ relation_type_correction_reviews : "reviewed resource"
+    related_identifiers |o--o{ relation_type_correction_reviews : "reviewed identifier"
+    users |o--o{ relation_type_correction_reviews : "reviewed by"
 
     %% Guided tour relationships
     users ||--o{ guided_tours : "creates"
@@ -1331,6 +1449,7 @@ erDiagram
 
     %% Resource core relationships
     resources ||--o| resource_listing_projections : "has listing projection"
+    resources ||--o{ resource_party_name_terms : "has searchable party names"
     resources ||--o{ titles : "has"
     resources ||--o{ resource_creators : "has"
     resources ||--o{ resource_contributors : "has"
@@ -1345,7 +1464,11 @@ erDiagram
     resources ||--o{ sizes : "has"
     resources ||--o{ formats : "has"
     resources ||--o| resource_assessments : "has latest assessment"
+    resources ||--o| resource_assessment_refreshes : "has publication refresh"
     resources ||--o| landing_pages : "has"
+    resources ||--o{ resource_tombstone_transitions : "records tombstone lifecycle"
+    users |o--o{ resource_tombstone_transitions : "performs lifecycle change"
+    users |o--o{ landing_pages : "activates tombstone"
     resources ||--o{ alternate_identifiers : "has"
 
     %% Lookup table relationships
@@ -1404,6 +1527,7 @@ erDiagram
 
     %% Datacenter relationships
     resources }o--o| datacenters : "assigned to"
+    datacenters ||--o{ datacenter_name_aliases : "has names"
     datacenters }o--o| landing_page_templates : "inherits resource template"
     datacenters }o--o| landing_page_templates : "inherits IGSN template"
 
@@ -1435,6 +1559,10 @@ erDiagram
     igsn_methods }o--|| resources : "for sample"
     igsn_measurements }o--|| resources : "for sample"
     igsn_metadata_values }o--|| resources : "for sample"
+
+    %% OAI-PMH snapshot relationships
+    oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
+    oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 
     %% Suggested/Dismissed relations (Assistance feature)
     suggested_relations }o--|| resources : "for resource"

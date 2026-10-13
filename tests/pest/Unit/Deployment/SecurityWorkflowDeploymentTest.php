@@ -16,12 +16,15 @@ it('scans every deployed runtime image while retaining the dated build caches', 
     $refreshStep = $steps->get('Resolve system package refresh date');
     $applicationBuildStep = $steps->get('Build application image');
     $nginxBuildStep = $steps->get('Build Nginx image');
+    $fujiBuildStep = $steps->get('Build F-UJI image with Chromium');
+    $fujiRuntimeStep = $steps->get('Check F-UJI runtime and Chromium');
     $exportStep = $steps->get('Export runtime images');
     $trivyCacheStep = $steps->get('Cache Trivy databases');
     $trivyScanStep = $steps->get('Run Trivy vulnerability scanner');
     $sarifCheckStep = $steps->get('Check Trivy SARIF output');
     $applicationSarifUploadStep = $steps->get('Upload application Trivy scan results');
     $nginxSarifUploadStep = $steps->get('Upload Nginx Trivy scan results');
+    $fujiSarifUploadStep = $steps->get('Upload F-UJI Trivy scan results');
     $sarifArtifactStep = $steps->get('Upload Trivy SARIF artifact');
     $vulnerabilityGateStep = $steps->get('Fail on high or critical image vulnerabilities');
     $cacheOwnershipStep = $steps->get('Restore Trivy cache ownership');
@@ -54,12 +57,22 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->toBeString()
         ->toContain('type=gha,scope=security-app')
         ->toContain('type=gha,scope=security-nginx')
+        ->and($fujiBuildStep)->toBeArray()
+        ->and($fujiBuildStep['with']['file'] ?? null)->toBe('Dockerfile.fuji')
+        ->and($fujiBuildStep['with']['load'] ?? null)->toBeTrue()
+        ->and($fujiBuildStep['with']['tags'] ?? null)->toBe('ernie-fuji-security-scan:${{ github.sha }}')
+        ->and($fujiBuildStep['with']['build-args'] ?? null)
+        ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}')
+        ->and($fujiBuildStep['with']['cache-from'] ?? null)->toContain('type=gha,scope=security-fuji')
+        ->and($fujiBuildStep['with']['cache-to'] ?? null)->toContain('scope=security-fuji')
+        ->and($fujiRuntimeStep['run'] ?? null)->toContain('scripts/check-fuji-runtime.py')
         ->and($exportStep)
         ->toBeArray()
         ->and($exportStep['run'] ?? null)
         ->toBeString()
         ->toContain('docker save -o ernie-app-security-scan.tar')
         ->toContain('docker save -o ernie-nginx-security-scan.tar')
+        ->toContain('docker save -o ernie-fuji-security-scan.tar')
         ->and($trivyCacheStep)
         ->toBeArray()
         ->and($trivyCacheStep['with']['key'] ?? null)
@@ -68,7 +81,7 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->toBeArray()
         ->and($trivyScanStep['run'] ?? null)
         ->toBeString()
-        ->toContain('for target in app nginx')
+        ->toContain('for target in app nginx fuji; do')
         ->toContain('--input "/work/ernie-${target}-security-scan.tar"')
         ->toContain('--output "/work/trivy-results/${target}.sarif"')
         ->and($sarifCheckStep)
@@ -77,7 +90,7 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->and($sarifCheckStep['if'] ?? null)->toBe('always()')
         ->and($sarifCheckStep['run'] ?? null)
         ->toBeString()
-        ->toContain('for target in app nginx')
+        ->toContain('for target in app nginx fuji; do')
         ->toContain('[ -s "trivy-results/${target}.sarif" ]')
         ->toContain('echo "${target}_non_empty=true"')
         ->toContain('$GITHUB_OUTPUT')
@@ -95,11 +108,18 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->and($nginxSarifUploadStep)->not->toHaveKey('continue-on-error')
         ->and($nginxSarifUploadStep['with']['sarif_file'] ?? null)->toBe('trivy-results/nginx.sarif')
         ->and($nginxSarifUploadStep['with']['category'] ?? null)->toBe('trivy-nginx-image')
+        ->and($fujiSarifUploadStep)->toBeArray()
+        ->not->toHaveKey('continue-on-error')
+        ->and($fujiSarifUploadStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.fuji_non_empty == 'true'")
+        ->and($fujiSarifUploadStep['with']['sarif_file'] ?? null)->toBe('trivy-results/fuji.sarif')
+        ->and($fujiSarifUploadStep['with']['category'] ?? null)->toBe('trivy-fuji-image')
         ->and($sarifArtifactStep)
         ->toBeArray()
         ->and($sarifArtifactStep['if'] ?? null)
         ->toContain("steps.trivy-sarif.outputs.app_non_empty == 'true'")
         ->toContain("steps.trivy-sarif.outputs.nginx_non_empty == 'true'")
+        ->toContain("steps.trivy-sarif.outputs.fuji_non_empty == 'true'")
         ->and($sarifArtifactStep['with']['path'] ?? null)->toBe('trivy-results')
         ->and($vulnerabilityGateStep)
         ->toBeArray()
@@ -107,9 +127,10 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->toContain('always()')
         ->toContain("hashFiles('ernie-app-security-scan.tar') != ''")
         ->toContain("hashFiles('ernie-nginx-security-scan.tar') != ''")
+        ->toContain("hashFiles('ernie-fuji-security-scan.tar') != ''")
         ->and($vulnerabilityGateStep['run'] ?? null)
         ->toBeString()
-        ->toContain('for target in app nginx')
+        ->toContain('for target in app nginx fuji; do')
         ->toContain('--input "/work/ernie-${target}-security-scan.tar"')
         ->toContain('--exit-code 1')
         ->toContain('exit "$scan_status"')

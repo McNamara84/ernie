@@ -12,8 +12,10 @@ use App\Models\IgsnRegistrationRun;
 use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationFactoryService;
+use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunService;
+use App\Services\UserActivityService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -175,10 +177,23 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 // before ERNIE persisted success. On a resumed attempt, reconcile
                 // that remote identifier with a metadata update instead of sending
                 // a second create request.
-                $resource->publication_year = (int) date('Y');
-                $response = $service->updateMetadata($resource);
+                $resource->publication_year = now(config('app.timezone'))->year;
+                if (app(EmbargoService::class)->isEmbargoed($resource)) {
+                    // Verify the remote URL, Findable state, and Open access right
+                    // before completing a release interrupted after DataCite POST.
+                    if ($resource->embargo_registration_started_at === null) {
+                        app(EmbargoService::class)->claimRegistration(
+                            $resource,
+                            explode('/', (string) $resource->doi, 2)[0],
+                        );
+                    }
+                    $response = $service->registerIgsn($resource);
+                } else {
+                    $response = $service->updateMetadata($resource);
+                }
             } else {
-                $resource->publication_year = (int) date('Y');
+                $resource->publication_year = now(config('app.timezone'))->year;
+                app(EmbargoService::class)->assertCanRegister($resource);
                 $response = $service->registerIgsn($resource);
             }
 
@@ -187,8 +202,25 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 $resource->doi = $doi;
             }
 
-            $resource->save();
-            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+            $wasEmbargoed = $operation === 'register'
+                && app(EmbargoService::class)->isEmbargoed($resource);
+            DB::transaction(function () use ($resource, $metadata, $operation, $wasEmbargoed): void {
+                $resource->save();
+                if ($operation === 'register' && $wasEmbargoed) {
+                    app(EmbargoService::class)->completeRelease($resource);
+                }
+                $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+            });
+            if ($wasEmbargoed && $resource->doi !== null) {
+                try {
+                    $service->updateLandingPageUrl($resource->doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
+                } catch (Throwable $exception) {
+                    Log::warning('IGSN URL update failed; stable dataset alias remains available.', [
+                        'resource_id' => $resource->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
 
             $status = $operation === 'update'
                 ? IgsnRegistrationItemStatus::UPDATED
@@ -266,6 +298,15 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 'processed_at' => now(),
             ]);
 
+            if (in_array($status, [IgsnRegistrationItemStatus::REGISTERED, IgsnRegistrationItemStatus::UPDATED], true)) {
+                $resource = Resource::find($lockedItem->resource_id);
+                if ($resource !== null) {
+                    $activities = app(UserActivityService::class);
+                    $activities->record($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'igsnregistration.completed',
+                        $status === IgsnRegistrationItemStatus::REGISTERED ? 'registered at DataCite' : 'updated DataCite metadata for', $activities->subject($resource), operationId: (string) $run->id, testMode: $run->test_mode);
+                }
+            }
+
             $lockedRun = IgsnRegistrationRun::query()->lockForUpdate()->findOrFail($run->id);
             $lockedRun->increment('processed');
             if ($status === IgsnRegistrationItemStatus::REGISTERED) {
@@ -299,11 +340,17 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
 
     private function complete(IgsnRegistrationRun $run): void
     {
+        $recordSummary = $run->completed_at === null && $run->registered + $run->updated > 0;
         $run->update([
             'status' => IgsnRegistrationRunStatus::COMPLETED,
             'completed_at' => now(),
             'pause_reason' => null,
         ]);
+        if ($recordSummary) {
+            $activities = app(UserActivityService::class);
+            $activities->summary($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'IGSN registration', (string) $run->id,
+                ['registered' => $run->registered, 'updated' => $run->updated, 'failed' => $run->failed, 'cancelled' => $run->cancelled], $run->test_mode);
+        }
     }
 
     private function cancel(IgsnRegistrationRun $run, IgsnRegistrationRunService $runs): void
@@ -325,6 +372,11 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             'cancelled_at' => now(),
             'pause_reason' => null,
         ]);
+        if ($run->registered + $run->updated > 0) {
+            $activities = app(UserActivityService::class);
+            $activities->summary($run->activity_actor ?? $activities->actor($run->initiated_by_user_id), 'IGSN registration (cancelled)', (string) $run->id,
+                ['registered' => $run->registered, 'updated' => $run->updated, 'failed' => $run->failed, 'cancelled' => $run->cancelled], $run->test_mode);
+        }
     }
 
     private function pause(IgsnRegistrationRun $run, string $reason): void

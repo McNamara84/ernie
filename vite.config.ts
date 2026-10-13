@@ -1,10 +1,20 @@
+import { readFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
+import { resolve } from 'node:path';
 
 import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
+
+const releases = JSON.parse(readFileSync(resolve(process.cwd(), 'resources/data/changelog.json'), 'utf8')) as unknown;
+
+if (!Array.isArray(releases) || typeof releases[0]?.version !== 'string' || releases[0].version.length === 0) {
+    throw new Error('The changelog must start with a release version.');
+}
+
+const latestVersion: string = releases[0].version;
 
 export function resolveVitestMaxWorkers(
     isCi = Boolean(process.env.CI),
@@ -68,6 +78,7 @@ export default defineConfig(({ command }) => {
         },
         define: {
             global: 'globalThis',
+            __ERNIE_VERSION__: JSON.stringify(latestVersion),
         },
         resolve: {
             alias: {

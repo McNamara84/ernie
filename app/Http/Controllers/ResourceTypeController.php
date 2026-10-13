@@ -27,8 +27,18 @@ class ResourceTypeController extends Controller
     public function elmo(): JsonResponse
     {
         $types = ResourceType::query()
-            ->active()
             ->elmoActive()
+            ->orderByName()
+            ->get(['id', 'name', 'description']);
+
+        return response()->json($types);
+    }
+
+    /** Return entries independently enabled for ELMO-MSL. */
+    public function elmoMsl(): JsonResponse
+    {
+        $types = ResourceType::query()
+            ->elmoMslActive()
             ->orderByName()
             ->get(['id', 'name', 'description']);
 

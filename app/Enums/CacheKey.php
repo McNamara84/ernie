@@ -47,6 +47,9 @@ enum CacheKey: string
     // Editor settings cache key
     case DOCS_EDITOR_SETTINGS = 'docs:editor_settings';
 
+    // Repository-wide editor option usage, independent of resource invalidation
+    case EDITOR_DATE_TYPE_USAGE = 'editor:date_type_usage:v1';
+
     // Portal cache keys
     case PORTAL_FREE_KEYWORD_SUGGESTIONS = 'portal:free_keyword_suggestions';
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
@@ -85,6 +88,10 @@ enum CacheKey: string
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
     case ASSISTANCE_DATACENTER_OPTIONS = 'assistance:datacenter_options';
 
+    // Relation correction source metadata (provider and hashed DOI suffixes)
+    case RELATION_CORRECTION_RAW = 'relation-correction:raw:v1';
+    case RELATION_CORRECTION_SUPPORT = 'relation-correction:support:v1';
+
     // Assessment summary metrics
     case ASSESSMENT_AVERAGE_SUMMARY = 'assessment:average_summary';
 
@@ -98,10 +105,14 @@ enum CacheKey: string
     case FUJI_ASSESSMENT_LIMITER_LOCK = 'fuji:assessment:request-limiter-lock';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v9';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v13';
 
     // Landing page setup modal download URL suggestions
-    case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions';
+    case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions:v2';
+
+    // Import activity deduplication (independent of resource caches)
+    case USER_ACTIVITY_IMPORT_SYNC = 'activity:import-sync';
+    case USER_ACTIVITY_IMPORT_SUMMARY = 'activity:import-summary';
 
     /**
      * Get the full cache key with optional suffix.
@@ -162,6 +173,9 @@ enum CacheKey: string
             // Editor settings for docs - 1 hour (settings rarely change)
             self::DOCS_EDITOR_SETTINGS => 3600,
 
+            // Global date type ordering changes slowly - 7 days
+            self::EDITOR_DATE_TYPE_USAGE => 604800,
+
             // Portal keyword facets - 1 hour
             self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS,
@@ -206,6 +220,10 @@ enum CacheKey: string
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => 120,
 
+            // Successful source reads - 24 hours; failed reads use a short retry TTL.
+            self::RELATION_CORRECTION_RAW,
+            self::RELATION_CORRECTION_SUPPORT => 86400,
+
             // Assessment average summary - 2 minutes (invalidated on assessment save/delete)
             self::ASSESSMENT_AVERAGE_SUMMARY => 120,
 
@@ -224,6 +242,10 @@ enum CacheKey: string
             // Download URL suggestions use rememberForever and explicit invalidation.
             // This TTL acts only as a safe default if the enum is reused elsewhere.
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => 86400,
+
+            // Keep import retry activity idempotent for 2 days.
+            self::USER_ACTIVITY_IMPORT_SYNC,
+            self::USER_ACTIVITY_IMPORT_SUMMARY => 172800,
         };
     }
 
@@ -264,6 +286,8 @@ enum CacheKey: string
 
             self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
 
+            self::EDITOR_DATE_TYPE_USAGE => ['vocabularies', 'editor_date_type_usage'],
+
             self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
 
@@ -301,6 +325,9 @@ enum CacheKey: string
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => ['assistance'],
 
+            self::RELATION_CORRECTION_RAW,
+            self::RELATION_CORRECTION_SUPPORT => ['assistance', 'relation_correction'],
+
             self::ASSESSMENT_AVERAGE_SUMMARY => ['assessments'],
 
             self::FUJI_HEALTH_STATUS => ['assessments'],
@@ -313,6 +340,9 @@ enum CacheKey: string
             self::LANDING_PAGE_RENDER_DATA => ['resources', 'landing_pages'],
 
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => [],
+
+            self::USER_ACTIVITY_IMPORT_SYNC,
+            self::USER_ACTIVITY_IMPORT_SUMMARY => [],
         };
     }
 

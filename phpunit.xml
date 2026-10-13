@@ -27,6 +27,7 @@
             <directory suffix=".php">config</directory>
             <directory suffix=".php">database</directory>
             <directory suffix=".php">routes</directory>
+            <directory suffix=".php">modules/assistants/RelationTypeCorrection</directory>
         </include>
         <exclude>
             <!-- Metaworks legacy DB: only reachable from GFZ VPN, cannot be tested in CI -->
@@ -55,6 +56,7 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="INERTIA_SSR_ENABLED" value="false"/>
         <env name="ERNIE_API_KEY" value="test-api-key"/>
+        <env name="ELMO_CACHE_REFRESH_ENABLED" value="false" force="true"/>
         <env name="DATACITE_URL_UPDATE_MINIMUM_INTERVAL_MS" value="0"/>
     </php>
 </phpunit>

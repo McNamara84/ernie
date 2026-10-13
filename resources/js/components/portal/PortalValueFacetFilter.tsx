@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import type { PortalValueFacet } from '@/types/portal';
 
 interface PortalValueFacetFilterProps {
@@ -16,6 +17,7 @@ interface PortalValueFacetFilterProps {
     helperText: string;
     searchable?: boolean;
     searchPlaceholder?: string;
+    wrapLabels?: boolean;
 }
 
 export function PortalValueFacetFilter({
@@ -27,6 +29,7 @@ export function PortalValueFacetFilter({
     helperText,
     searchable = false,
     searchPlaceholder = 'Search values...',
+    wrapLabels = false,
 }: PortalValueFacetFilterProps) {
     const [search, setSearch] = useState('');
     const selected = useMemo(() => new Set(selectedValues), [selectedValues]);
@@ -43,17 +46,25 @@ export function PortalValueFacetFilter({
     };
 
     return (
-        <div className="space-y-3">
+        <div className={cn('space-y-3', wrapLabels && 'max-w-full min-w-0')}>
             {selectedValues.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className={cn('flex flex-wrap gap-1.5', wrapLabels && 'max-w-full min-w-0')}>
                     {selectedValues.map((value) => (
-                        <Badge key={value} variant="secondary" className="gap-1 pr-1 text-xs">
-                            {labels.get(value) ?? value}
+                        <Badge
+                            key={value}
+                            variant="secondary"
+                            className={cn('gap-1 pr-1 text-xs', wrapLabels && 'max-w-full min-w-0 justify-between whitespace-normal')}
+                        >
+                            {wrapLabels ? (
+                                <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">{labels.get(value) ?? value}</span>
+                            ) : (
+                                (labels.get(value) ?? value)
+                            )}
                             <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-4 w-4 p-0 hover:bg-transparent"
+                                className={cn('h-4 w-4 p-0 hover:bg-transparent', wrapLabels && 'shrink-0')}
                                 onClick={() => toggle(value)}
                                 aria-label={`Remove ${labels.get(value) ?? value}`}
                             >
@@ -82,16 +93,32 @@ export function PortalValueFacetFilter({
             ) : visibleOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No matching values.</p>
             ) : (
-                <div role="group" aria-label={ariaLabel} className="space-y-1">
+                <div role="group" aria-label={ariaLabel} className={cn('space-y-1', wrapLabels && 'max-w-full min-w-0')}>
                     {visibleOptions.map((option) => (
-                        <label key={option.value} className="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/60">
+                        <label
+                            key={option.value}
+                            className={cn(
+                                'flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/60',
+                                wrapLabels && 'max-w-full min-w-0 items-start',
+                            )}
+                        >
                             <Checkbox
                                 checked={selected.has(option.value)}
                                 onCheckedChange={() => toggle(option.value)}
                                 aria-label={`Select ${option.label}`}
+                                className={wrapLabels ? 'mt-0.5' : undefined}
                             />
-                            <span className="min-w-0 flex-1 truncate text-sm">{option.label}</span>
-                            <span className="text-xs text-muted-foreground tabular-nums">{option.count.toLocaleString('en-US')}</span>
+                            <span
+                                className={cn(
+                                    'min-w-0 flex-1',
+                                    wrapLabels ? 'text-xs [overflow-wrap:anywhere] whitespace-normal' : 'truncate text-sm',
+                                )}
+                            >
+                                {option.label}
+                            </span>
+                            <span className={cn('text-xs text-muted-foreground tabular-nums', wrapLabels && 'mt-0.5 shrink-0')}>
+                                {option.count.toLocaleString('en-US')}
+                            </span>
                         </label>
                     ))}
                 </div>

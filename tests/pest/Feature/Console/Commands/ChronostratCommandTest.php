@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Console\Commands\GetChronostratTimescale;
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
+use App\Services\SubjectHierarchy\SubjectHierarchyVocabularyService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -177,14 +179,55 @@ describe('handle', function (): void {
             ->and($json['data'][0]['text'])->toBe('Cambrian');
     });
 
-    it('handles orphaned concepts as root nodes', function (): void {
+    it('returns failure and keeps the previous readable snapshot when replacing the editor cache fails', function (bool $throws): void {
         Storage::fake('local');
+        $concept = static fn (string $label): array => [
+            '_about' => 'http://resource.geosciml.org/classifier/ics/ischart/'.$label,
+            'prefLabel' => ['_value' => $label, '_lang' => 'en'], 'broader' => [],
+        ];
+        Http::fake([
+            'vocabs.ardc.edu.au/*' => Http::sequence()
+                ->push(['result' => ['items' => [$concept('Cambrian')]]])
+                ->push(['result' => ['items' => [$concept('Triassic')]]]),
+        ]);
+        $this->artisan('get-chronostrat-timescale')->assertExitCode(0);
+        $file = 'chronostrat-timescale.json';
+        $cache = new SubjectHierarchyCacheService;
+        $before = $cache->readSnapshot($file);
+        $disk = Storage::disk('local');
+        $manager = Storage::getFacadeRoot();
+        $proxy = Mockery::mock($manager);
+        $proxy->shouldReceive('move')->andReturnUsing(function (string $source, string $target) use ($disk, $file, $throws): bool {
+            if ($target === $file && str_ends_with($source, '.tmp')) {
+                if ($throws) {
+                    throw new RuntimeException('Editor cache move failed.');
+                }
+
+                return false;
+            }
+
+            return $disk->move($source, $target);
+        });
+        Storage::swap($proxy);
+        try {
+            $this->artisan('get-chronostrat-timescale')->assertExitCode(1);
+        } finally {
+            Storage::swap($manager);
+        }
+        expect($cache->readSnapshot($file))->toBe($before)
+            ->and(app(SubjectHierarchyVocabularyService::class)->graph('International Chronostratigraphic Chart')
+                ->concept('http://resource.geosciml.org/classifier/ics/ischart/Cambrian')['label'])->toBe('Cambrian');
+    })->with([true, false]);
+
+    it('rejects an incomplete hierarchy and preserves the previous cache', function (): void {
+        Storage::fake('local');
+        Storage::put('chronostrat-timescale.json', '{"data":[],"lastUpdated":"previous"}');
 
         $items = [
             [
                 '_about' => 'http://resource.geosciml.org/classifier/ics/ischart/Triassic',
                 'prefLabel' => ['_value' => 'Triassic', '_lang' => 'en'],
-                // Parent not in dataset → should become root
+                // A missing source parent cannot establish a complete hierarchy.
                 'broader' => 'http://resource.geosciml.org/classifier/ics/ischart/NotInDataset',
             ],
             [
@@ -200,15 +243,8 @@ describe('handle', function (): void {
             ], 200),
         ]);
 
-        $this->artisan('get-chronostrat-timescale')
-            ->assertExitCode(0);
-
-        $json = json_decode(Storage::get('chronostrat-timescale.json'), true);
-
-        // Both should be root nodes
-        expect($json['data'])->toHaveCount(2);
-        $texts = array_column($json['data'], 'text');
-        expect($texts)->toContain('Triassic')
-            ->and($texts)->toContain('Cretaceous');
+        $this->artisan('get-chronostrat-timescale')->assertExitCode(1);
+        expect(Storage::get('chronostrat-timescale.json'))->toBe('{"data":[],"lastUpdated":"previous"}')
+            ->and(Storage::exists('subject-hierarchies/chronostrat-timescale.json'))->toBeFalse();
     });
 });

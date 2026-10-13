@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Enums\IgsnRegistrationItemStatus;
 use App\Enums\IgsnRegistrationRunStatus;
 use App\Jobs\ProcessIgsnRegistrationRunJob;
+use App\Models\DateType;
 use App\Models\IgsnMetadata;
 use App\Models\IgsnRegistrationItem;
 use App\Models\IgsnRegistrationRun;
@@ -18,9 +20,11 @@ use App\Services\IgsnRegistrationRunService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -162,6 +166,25 @@ test('batch registration creates a persistent run and queues it', function (): v
     ]);
     Queue::assertPushedOn('datacite', ProcessIgsnRegistrationRunJob::class);
     Http::assertNothingSent();
+});
+
+test('activity retains the original actor without an auth session and does not duplicate completed items', function (): void {
+    $this->curator->update(['name' => 'Original Initiator']);
+    $resource = createQueuedIgsn();
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    $this->curator->update(['name' => 'Renamed Initiator']);
+    Auth::logout();
+    Log::spy();
+    Http::fake(fn (Request $request) => Http::response(['data' => [
+        'id' => $request->data()['data']['attributes']['doi'], 'type' => 'dois', 'attributes' => ['state' => 'findable'],
+    ]], 201));
+    runQueuedIgsnRegistrationStep($run->id);
+    runQueuedIgsnRegistrationStep($run->id);
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'igsnregistration.completed'
+        && $context['activity']['actor']['name'] === 'Original Initiator'
+        && $context['activity']['operation_id'] === $run->id && $context['activity']['test_mode'] === true)->once();
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
+    Http::assertSentCount(1);
 });
 
 test('batch registration accepts and persists exactly 1000 ordered items', function (): void {
@@ -579,4 +602,58 @@ test('failed job pauses the run and releases a processing item for resume', func
     expect($run->fresh()->status)->toBe(IgsnRegistrationRunStatus::PAUSED)
         ->and($item->fresh()->status)->toBe(IgsnRegistrationItemStatus::PENDING)
         ->and($run->fresh()->last_error)->toBe('worker stopped');
+});
+
+test('a queued update cannot publish a registered IGSN with an embargo draft', function (): void {
+    $resource = createQueuedIgsn(
+        ['access_level' => AccessLevel::EMBARGOED],
+        ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
+    );
+    $resource->landingPage->update(['is_published' => false, 'published_at' => null]);
+    $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+    $resource->dates()->create(['date_type_id' => $available->id, 'date_value' => '2099-01-01']);
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    Http::fake();
+
+    runQueuedIgsnRegistrationStep($run->id);
+
+    expect($run->fresh()->failed)->toBe(1)
+        ->and($resource->fresh()->landingPage->is_published)->toBeFalse();
+    Http::assertNothingSent();
+});
+
+test('a queued IGSN rechecks Available immediately before its DataCite POST', function (): void {
+    $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
+    $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+    $resource->dates()->create(['date_type_id' => $available->id, 'date_value' => '2099-01-01']);
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    Http::fake();
+
+    runQueuedIgsnRegistrationStep($run->id);
+
+    expect($run->fresh()->failed)->toBe(1)
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED);
+    Http::assertNotSent(fn (Request $request): bool => $request->method() === 'POST');
+});
+
+test('a due queued IGSN releases its embargo after a confirmed DataCite create', function (): void {
+    config(['app.timezone' => 'Europe/Berlin']);
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
+    $resource->landingPage->update(['is_published' => false, 'published_at' => null]);
+    $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+    $resource->dates()->create(['date_type_id' => $available->id, 'date_value' => '2027-01-01']);
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    Http::fake(fn (Request $request) => Http::response([
+        'data' => ['id' => $resource->doi, 'type' => 'dois'],
+    ], $request->method() === 'POST' ? 201 : 200));
+
+    runQueuedIgsnRegistrationStep($run->id);
+
+    expect($run->fresh()->registered)->toBe(1)
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+        ->and($resource->fresh()->embargo_registration_started_at)->toBeNull()
+        ->and($resource->landingPage->fresh()->is_published)->toBeTrue();
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+        && $request->data()['data']['attributes']['url'] === url('/datasets/'.$resource->id));
 });

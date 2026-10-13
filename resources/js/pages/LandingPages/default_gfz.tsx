@@ -24,6 +24,7 @@ import { LocationSection } from './components/LocationSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
 import { ResourceRelationHighlightSections } from './components/ResourceRelationHighlightSections';
+import { TombstoneNotice } from './components/TombstoneNotice';
 import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
@@ -50,6 +51,9 @@ interface DefaultGfzTemplatePageProps {
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
+    embargoDate?: string | null;
+    embargoPending?: boolean;
+    embargoDue?: boolean;
     supportsIso19115?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
@@ -102,6 +106,9 @@ export default function DefaultGfzTemplate() {
         documentTitle,
         landingPage,
         isPreview,
+        embargoDate = null,
+        embargoPending = false,
+        embargoDue = false,
         supportsIso19115 = false,
         metadataLinks,
         sectionOrder,
@@ -129,6 +136,7 @@ export default function DefaultGfzTemplate() {
               right: RIGHT_COLUMN_SECTIONS as ResourceSection[],
           };
     const downloadsUnavailable = landingPage?.downloads_unavailable === true;
+    const isTombstone = landingPage?.is_tombstone === true;
     const leftMetadataOrder = metadataOrderForColumn(orders.left);
     const rightMetadataOrder = metadataOrderForColumn(orders.right);
     const partitionedRelatedWork = useMemo(
@@ -165,26 +173,27 @@ export default function DefaultGfzTemplate() {
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {
-            files: downloadsUnavailable ? (
-                <DataRequestSection
-                    key="files"
-                    contactPersons={resource.contact_persons || []}
-                    datasetTitle={mainTitle}
-                    hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
-                />
-            ) : (
-                <FilesSection
-                    key="files"
-                    downloadUrl={landingPage?.ftp_url}
-                    trackedDownloadUrl={landingPage?.tracked_ftp_url}
-                    downloadLabel={landingPage?.primary_download_label}
-                    downloadFiles={landingPage?.files}
-                    contactPersons={resource.contact_persons || []}
-                    datasetTitle={mainTitle}
-                    hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
-                    additionalLinks={landingPage?.links}
-                />
-            ),
+            files:
+                isTombstone || embargoPending ? null : downloadsUnavailable ? (
+                    <DataRequestSection
+                        key="files"
+                        contactPersons={resource.contact_persons || []}
+                        datasetTitle={mainTitle}
+                        hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
+                    />
+                ) : (
+                    <FilesSection
+                        key="files"
+                        downloadUrl={landingPage?.ftp_url}
+                        trackedDownloadUrl={landingPage?.tracked_ftp_url}
+                        downloadLabel={landingPage?.primary_download_label}
+                        downloadFiles={landingPage?.files}
+                        contactPersons={resource.contact_persons || []}
+                        datasetTitle={mainTitle}
+                        hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
+                        additionalLinks={landingPage?.links}
+                    />
+                ),
             licenses: (
                 <Fragment key="licenses">
                     <LicenseAndRightsSection licenses={resource.licenses || []} />
@@ -221,6 +230,8 @@ export default function DefaultGfzTemplate() {
         landingPage,
         mainTitle,
         downloadsUnavailable,
+        isTombstone,
+        embargoPending,
         citationStyles,
         peopleDisplayLimits.citationAuthors,
         isDark,
@@ -243,14 +254,31 @@ export default function DefaultGfzTemplate() {
                 hero={
                     <ResourceHero
                         resourceType={resourceType}
-                        status={status}
+                        status={isTombstone ? 'dead' : embargoPending && embargoDate ? 'embargo' : status}
                         mainTitle={mainTitle}
                         subtitle={subtitle}
                         citation={citation}
                         citationPresentation={citationPresentation}
                     />
                 }
-                notice={<VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />}
+                notice={
+                    <>
+                        {isTombstone && landingPage && <TombstoneNotice landingPage={landingPage} isPreview={isPreview} />}
+                        {embargoPending && (
+                            <div
+                                role="status"
+                                className="mx-4 rounded-lg border-2 border-purple-500 bg-purple-50 p-4 text-center font-semibold text-purple-900 sm:mx-0 dark:bg-purple-950 dark:text-purple-100"
+                            >
+                                {!embargoDate
+                                    ? 'Embargo date is missing or invalid; publication is blocked.'
+                                    : embargoDue
+                                      ? `Embargo expired on ${embargoDate}; publication is pending manual release.`
+                                      : `Under embargo until ${embargoDate}`}
+                            </div>
+                        )}
+                        <VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />
+                    </>
+                }
                 rightColumnSections={rightColumnSections}
                 leftColumnSections={leftColumnSections}
             />

@@ -6,6 +6,22 @@ use App\Enums\CacheKey;
 
 covers(CacheKey::class);
 
+it('retains editor date type usage for seven days independently of resource caches', function () {
+    expect(CacheKey::EDITOR_DATE_TYPE_USAGE->key())->toBe('editor:date_type_usage:v1')
+        ->and(CacheKey::EDITOR_DATE_TYPE_USAGE->ttl())->toBe(604800)
+        ->and(CacheKey::EDITOR_DATE_TYPE_USAGE->tags())->toBe(['vocabularies', 'editor_date_type_usage'])
+        ->and(CacheKey::vocabularyKeys())->not->toContain(CacheKey::EDITOR_DATE_TYPE_USAGE);
+});
+
+it('preserves import activity namespaces and centralizes their retention', function (CacheKey $key, string $suffix, string $expected) {
+    expect($key->key($suffix))->toBe($expected)
+        ->and($key->ttl())->toBe(172800)
+        ->and($key->tags())->toBe([]);
+})->with([
+    [CacheKey::USER_ACTIVITY_IMPORT_SYNC, 'operation:42', 'activity:import-sync:operation:42'],
+    [CacheKey::USER_ACTIVITY_IMPORT_SUMMARY, 'operation', 'activity:import-summary:operation'],
+]);
+
 it('generates correct cache keys without suffix', function () {
     expect(CacheKey::RESOURCE_LIST->key())->toBe('resources:list');
     expect(CacheKey::RESOURCE_DETAIL->key())->toBe('resources:detail');
@@ -37,8 +53,8 @@ it('generates correct cache keys with integer suffix', function () {
 });
 
 it('versions landing page render data cache keys', function () {
-    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v9')
-        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v9:123');
+    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v13')
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v13:123');
 });
 
 it('returns correct TTL for resources', function () {
@@ -163,6 +179,10 @@ it('all cache keys have unique values', function () {
 
     expect($values)->toHaveCount(count(array_unique($values)));
 });
+
+it('defines successful relation correction cache lifetimes and ownership', function (CacheKey $key) {
+    expect($key->ttl())->toBe(86400)->and($key->tags())->toBe(['assistance', 'relation_correction']);
+})->with([CacheKey::RELATION_CORRECTION_RAW, CacheKey::RELATION_CORRECTION_SUPPORT]);
 
 it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();

@@ -1,6 +1,7 @@
 import { Database, FlaskConical, Rocket } from 'lucide-react';
+import type { ReactNode } from 'react';
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 export type DocsTabId = 'getting-started' | 'datasets' | 'physical-samples';
@@ -12,6 +13,7 @@ interface DocsTabsProps {
     onTabChange: (tab: DocsTabId) => void;
     /** Additional CSS classes */
     className?: string;
+    children?: ReactNode;
 }
 
 /**
@@ -42,9 +44,9 @@ const tabConfig = [
  * Documentation tabs navigation component with icons and descriptions.
  * Provides three main sections: Getting Started, Datasets (DOI), and Physical Samples (IGSN).
  *
- * Note: This is a pure navigation component. Content rendering is handled by the parent component.
+ * Renders the active documentation content in the corresponding tab panel.
  */
-export function DocsTabs({ activeTab, onTabChange, className }: DocsTabsProps) {
+export function DocsTabs({ activeTab, onTabChange, className, children }: DocsTabsProps) {
     return (
         <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as DocsTabId)} className={cn('w-full', className)}>
             <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-2 bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto">
@@ -74,6 +76,12 @@ export function DocsTabs({ activeTab, onTabChange, className }: DocsTabsProps) {
                     </TabsTrigger>
                 ))}
             </TabsList>
+            {children &&
+                tabConfig.map((tab) => (
+                    <TabsContent key={tab.id} value={tab.id} forceMount hidden={tab.id !== activeTab} className="mt-0">
+                        {tab.id === activeTab ? children : null}
+                    </TabsContent>
+                ))}
         </Tabs>
     );
 }

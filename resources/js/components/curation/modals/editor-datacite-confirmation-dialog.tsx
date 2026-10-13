@@ -120,8 +120,8 @@ export function EditorDataCiteConfirmationDialog({
                     </DialogTitle>
                     <DialogDescription>
                         {isUpdate
-                            ? `Are you sure you want to update ${doi ?? 'this DOI'} at DataCite? Your current editor changes will be saved first.`
-                            : 'Are you sure you want to register this dataset at DataCite? Your current editor changes will be saved first.'}
+                            ? `Confirm to save your editor changes in ERNIE, then update existing DOI ${doi ?? 'metadata'} at DataCite. No new DOI is created. If DataCite fails, the local save may remain.`
+                            : 'Confirm to save your editor changes in ERNIE, prepare a landing page if needed, then create and publish a DOI at DataCite. In production, the DOI becomes publicly resolvable. If DataCite fails, the local save may remain.'}
                     </DialogDescription>
                 </DialogHeader>
 

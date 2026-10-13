@@ -291,6 +291,7 @@ Host-side frontend validation requires local `node_modules` in the repository ch
 Recommended validation entry points:
 
 - `npm run check:backend`
+- `npm run test:php:mysql-sensitive:relation-correction` verifies relation correction transactions and durable audit references against the pinned MySQL 9.7 test schema. See [the rule and review documentation](docs/relation-type-correction.md) for deployment cache requirements and focused tests.
 - `npm run check:frontend`
 - `npm run check:parity`
 

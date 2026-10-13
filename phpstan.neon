@@ -9,6 +9,7 @@ parameters:
         - config
         - database
         - routes
+        - modules/assistants/RelationTypeCorrection
         # Pest's first-party PHPStan rules are enabled incrementally. This
         # initial slice is clean at level 8; expand it as legacy test typing is
         # repaired instead of hiding the existing findings in a baseline.

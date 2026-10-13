@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@tests/vitest/utils/render';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Docs from '@/pages/docs';
 import type { UserRole } from '@/types';
@@ -112,6 +112,7 @@ const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) 
 };
 
 describe('Docs page', () => {
+    beforeEach(() => window.history.replaceState(null, '', '/'));
     it('renders documentation for beginner role', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Check for sections visible in Getting Started tab (default)
@@ -138,7 +139,7 @@ describe('Docs page', () => {
         const heading = screen.getByRole('heading', { name: 'Review Release Changes and Their GitHub Context' });
         const sectionContent = heading.parentElement;
 
-        expect(sectionContent?.textContent).toMatch(/changelog is public/i);
+        expect(sectionContent?.textContent).toMatch(/after signing in, open Changelog/i);
         expect(sectionContent?.textContent).toMatch(/Related row lists every associated issue and pull request/i);
         expect(sectionContent?.textContent).toMatch(/Issue # link to review the original requirement or problem report/i);
         expect(sectionContent?.textContent).toMatch(/PR # link to review the implementation and code discussion/i);
@@ -273,6 +274,23 @@ describe('Docs page', () => {
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
     });
 
+    it.each(['group_leader', 'admin'] as const)('documents subject hierarchy review for %s', (userRole) => {
+        render(<Docs userRole={userRole} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        expect(screen.getByRole('heading', { name: 'Subject Hierarchy Correction' })).toBeInTheDocument();
+        expect(screen.getByText('Choose narrower terms')).toBeInTheDocument();
+        expect(screen.getByText('Review the preview and confirm')).toBeInTheDocument();
+        expect(screen.getByText('Keep broader tagging with a reason')).toBeInTheDocument();
+        expect(screen.getByText(/selects the entire subtree even while search hides some terms/)).toBeInTheDocument();
+        expect(screen.getByText(/Selecting every offered terminal term retains the broader term/)).toBeInTheDocument();
+        expect(screen.getByText(/this reason is recorded only for hierarchy suggestions/)).toBeInTheDocument();
+    });
+
+    it.each(['beginner', 'curator'] as const)('hides subject hierarchy review documentation for %s', (userRole) => {
+        render(<Docs userRole={userRole} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        expect(screen.queryByRole('heading', { name: 'Subject Hierarchy Correction' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Keep broader tagging with a reason')).not.toBeInTheDocument();
+    });
+
     it('documents DOI, Datacenter, and indirect Assistance filtering for group leaders', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
@@ -372,10 +390,7 @@ describe('Docs page', () => {
 
                 const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return (
-                    text.includes('For Admins, Group Leaders, and Curators') &&
-                    text.includes('Assessment entry also shows the current average FAIR score summary in the format Resources / IGSNs')
-                );
+                return text.includes('Assessment entry shows the current average FAIR score summary in the format Resources / IGSNs');
             }),
         ).toBeInTheDocument();
     });
@@ -400,7 +415,13 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByText(/Resource and IGSN rankings are always displayed as separate cards, one below the other/)).toBeInTheDocument();
-        expect(document.body).not.toHaveTextContent('F-UJI');
+        expect(
+            screen.getByText(
+                (_, element) =>
+                    element?.tagName === 'P' &&
+                    (element.textContent?.includes('A DOI assessment before its landing page is published is marked') ?? false),
+            ),
+        ).toHaveTextContent('F-UJI details');
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -560,9 +581,34 @@ describe('Docs page', () => {
 
                 const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Admins and Group Leaders now see a Curation / Administration switcher at the top of the sidebar.');
+                return text.includes('Workspace Switcher: Use Curation for day-to-day metadata work');
             }),
         ).toBeInTheDocument();
+    });
+
+    it('does not explain restricted workspace navigation to beginners', () => {
+        renderDocsPage('beginner');
+        expect(screen.queryByText(/Workspace Switcher:/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Assessment entry shows/)).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Validate and save in ERNIE without DataCite' })).toHaveAttribute(
+            'href',
+            '/docs?tab=datasets&section=editor-validate',
+        );
+    });
+
+    it('hides privileged guidance throughout the beginner documentation', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        expect(screen.queryByText(/Admins and Group Leaders also have an Editor Settings entry/)).not.toBeInTheDocument();
+
+        await openDatasetsTab(user);
+        expect(screen.queryByText(/Administrators can configure which resource types/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Administrators and Group Leaders can manage the list of available datacenters/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Curators and above can also delete draft landing pages/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Selecting the badge opens and copies the tokenized landing-page preview link/)).not.toBeInTheDocument();
+
+        await openPhysicalSamplesTab(user);
+        expect(screen.queryByText(/Administrators can delete the selected IGSNs/)).not.toBeInTheDocument();
     });
 
     it('describes the current authenticated header navigation behavior', () => {
@@ -603,11 +649,11 @@ describe('Docs page', () => {
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
-    it('mentions the OpenAPI 3.2 API documentation', () => {
+    it('mentions API 1.1 and OpenAPI 3.2.1', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
-        expect(screen.getByText(/OpenAPI 3\.2 specifications/i)).toBeInTheDocument();
-        expect(screen.getByText(/validated with Redocly/i)).toBeInTheDocument();
+        expect(screen.getByText(/OpenAPI 3\.2\.1/i)).toBeInTheDocument();
+        expect(screen.getByText(/API 1\.1/i)).toBeInTheDocument();
     });
 
     it('documents personal settings through the user menu and route-specific settings pages', () => {
@@ -686,10 +732,7 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return (
-                    text.includes('When multiple resources are selected') &&
-                    text.includes('fallback dialog with direct links for only the blocked resources')
-                );
+                return text.includes('browser blocks editor tabs') && text.includes('direct links for the blocked resources');
             }),
         ).toBeInTheDocument();
     });
@@ -770,6 +813,10 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Page Layout and Saving' })).toBeInTheDocument();
         expect(screen.getByText(/All sections start collapsed/i)).toBeInTheDocument();
+        expect(screen.getByText(/All sections start collapsed/i)).toHaveTextContent('on each new visit or full page reload');
+        expect(screen.getByText(/Multiple sections can stay open independently/i)).toBeInTheDocument();
+        expect(screen.getByText(/expand or collapse all settings cards/i)).toHaveTextContent('same icons and tooltips as the editor');
+        expect(screen.getByText(/Open sections remain open after saving and partial updates/i)).toBeInTheDocument();
         expect(screen.getByText(/Unsaved values remain intact when you switch sections/i)).toBeInTheDocument();
         expect(screen.getByText(/editor tables and activation controls use the sticky/i)).toHaveTextContent('Save changes');
         expect(screen.getByText(/Adding or deleting/i)).toHaveTextContent('Landing Page Domains');
@@ -835,6 +882,9 @@ describe('Docs page', () => {
         // Beginners can set up landing pages as part of the training workflow
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
         expect(screen.getByText(/Beginner users can create, edit, preview, and publish landing pages/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Tombstone Landing Pages', level: 3 })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Activating a Tombstone', level: 4 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Restoring a Resource', level: 4 })).not.toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Expanding Citation Authors', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/keyboard focus stays on the control in both states/i)).toBeInTheDocument();
         expect(screen.getByText(/copy action uses whichever compact or expanded citation is currently visible/i)).toBeInTheDocument();
@@ -873,15 +923,17 @@ describe('Docs page', () => {
         expect(sectionContent).toMatch(/same control consistently reads Show less/i);
     });
 
-    it('shows landing pages documentation for curator', async () => {
+    it.each(['curator', 'group_leader', 'admin'] as const)('shows landing page and tombstone workflows for %s', async (userRole) => {
         const user = userEvent.setup();
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        render(<Docs userRole={userRole} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Switch to Datasets tab
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched and curator sees Landing Pages
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Activating a Tombstone', level: 4 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Restoring a Resource', level: 4 })).toBeInTheDocument();
     });
 
     it('documents the landing page preview action in the Data Editor', async () => {
@@ -959,10 +1011,10 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Edit and Set up landing page appear as quick actions directly in the selection toolbar.');
+                return text.includes('Edit appears in the selection toolbar');
             }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Delete Selected Resources (Curator and above)')).toBeInTheDocument();
+        expect(screen.getByText('Delete Selected Resources')).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -1138,15 +1190,15 @@ describe('Docs page', () => {
         expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
         expect(screen.getByText(/Beginners do not receive that link in the Resources list/i)).toBeInTheDocument();
         expect(screen.queryByText('Send Review Links (Curator and above)')).not.toBeInTheDocument();
-        expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Delete Selected Resources')).not.toBeInTheDocument();
     });
     it('documents beginner test-only bulk DOI actions', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText('Bulk Register / Update DOI (all roles, Beginner test-only)')).toBeInTheDocument();
-        expect(screen.getByText(/Beginner users can run the same training action/i)).toBeInTheDocument();
+        expect(screen.getByText('Register one DOI or update selected metadata')).toBeInTheDocument();
+        expect(screen.getByText(/Beginners use the DataCite test environment for both actions/i)).toBeInTheDocument();
     });
 
     it('shows landing page templates for group leaders', async () => {
@@ -1160,7 +1212,9 @@ describe('Docs page', () => {
         expect(sectionContent).toMatch(/Use drag & drop to rearrange modules within a column or move them between the left and right columns/i);
         expect(screen.getByText(/Every Resource module can be placed in either column/i)).toBeInTheDocument();
         expect(screen.getByText(/Each template type only offers the modules intended for its landing pages/i)).toBeInTheDocument();
-        expect(sectionContent).toMatch(/For IGSN landing pages, each module renders in its own card and can be placed in either column or in Hidden cards/i);
+        expect(sectionContent).toMatch(
+            /For IGSN landing pages, each module renders in its own card and can be placed in either column or in Hidden cards/i,
+        );
         expect(screen.getByText(/Sample Image displays the locally managed or approved external legacy photo/i)).toBeInTheDocument();
         expect(sectionContent).toMatch(/On ICDP IGSN landing pages, a dedicated Drilling card/i);
         expect(sectionContent).toMatch(/Drilling and Sample Image start in Hidden cards/i);
@@ -1401,6 +1455,38 @@ describe('Docs page', () => {
         expect(screen.getByText('Award Title:')).toBeInTheDocument();
     });
 
+    it('documents the Save Draft editor URL in the dataset workflow', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const saveDraft = screen.getByText('"Save Draft"', { selector: 'strong' }).closest('li');
+        expect(saveDraft).toHaveTextContent('The editor stays open');
+        expect(saveDraft).toHaveTextContent('/editor?resourceId=...');
+        expect(saveDraft).toHaveTextContent('bookmark or share it');
+        expect(saveDraft).toHaveTextContent('Save Draft becomes available again after');
+    });
+
+    it.each(['beginner', 'curator', 'group_leader', 'admin'] as const)(
+        'documents unsaved editor changes and autosave recovery for %s',
+        async (role) => {
+            const { user } = renderDocsPage(role);
+            await openDatasetsTab(user);
+
+            expect(screen.getByRole('heading', { name: 'Unsaved Changes and Automatic Drafts' })).toBeInTheDocument();
+            const autosave = screen.getByText(/After you enter a Main Title, the editor attempts to save/).closest('p');
+            expect(autosave).toHaveTextContent('about every minute');
+            expect(autosave).toHaveTextContent('/editor?resourceId=...');
+            expect(autosave).toHaveTextContent('first successful automatic save');
+
+            const warning = screen.getByText(/If metadata or landing-page setup changes are still unsaved/).closest('p');
+            expect(warning).toHaveTextContent('log out');
+            expect(warning).toHaveTextContent('Closing the tab or reloading');
+            expect(warning).toHaveTextContent('failed saves');
+            expect(warning).toHaveTextContent('landing-page setup is saving, its fields are temporarily locked');
+            expect(warning).toHaveTextContent('If the save fails, your entries remain');
+        },
+    );
+
     it('documents how to manage description language versions', async () => {
         const { user } = renderDocsPage('beginner');
 
@@ -1425,7 +1511,7 @@ describe('Docs page', () => {
         const authors = screen.getByRole('heading', { name: 'Managing Authors & Contributors', level: 3 });
         const descriptions = screen.getByRole('heading', { name: 'Descriptions', level: 3 });
         const relatedIdentifiers = screen.getByRole('heading', { name: 'Linking Related Resources', level: 3 });
-        const relatedItems = screen.getByRole('heading', { name: /Related Items/i, level: 3 });
+        const relatedItems = screen.getByRole('heading', { name: /Related Items \(DataCite/i, level: 3 });
         const funding = screen.getByRole('heading', { name: 'Acknowledging Funding Sources', level: 3 });
         const portal = screen.getByRole('heading', { name: 'Searching Published Records in the Portal', level: 3 });
 
@@ -1444,6 +1530,35 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/normal text search also finds Authors, Contributors, and Contact Persons by person or institution name/i),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/stored contact email addresses are not part of the public search/i)).toBeInTheDocument();
+        const partyLabelsHelp = screen.getByText((_, element) => {
+            if (element?.tagName !== 'P') return false;
+
+            const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+            return (
+                text.includes('full labels Contact Person, Author, and Contributor') &&
+                text.includes('Results found only through another metadata field do not show a party label')
+            );
+        });
+        expect(partyLabelsHelp).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('The IGSN Portal also searches Local accession number and Local sample name values') &&
+                    text.includes('result row shows its field label and the matching value') &&
+                    text.includes('Geo*12') &&
+                    text.includes('An asterisk alone shows all published IGSNs')
+                );
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByText(/All controlled vocabularies share one hierarchy/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Filter Order and Active Selections', level: 4 })).toBeInTheDocument();
         expect(
@@ -1468,6 +1583,52 @@ describe('Docs page', () => {
                 return element.textContent?.includes('open the filters in the Filters drawer') ?? false;
             }),
         ).toBeInTheDocument();
+    });
+
+    it('makes the Find overview and homepage topic workflows available to beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Finding the Right Service', level: 4 })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Find overview' })).toHaveAttribute('href', '/find');
+        expect(screen.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
+        expect(screen.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
+        expect(screen.getByRole('heading', { name: 'Exploring Data Centres', level: 4 })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Data Centres overview' })).toHaveAttribute('href', '/data-centres');
+        expect(screen.getByRole('link', { name: 'Data Centre Descriptions' })).toHaveAttribute('href', '/data-centres/description');
+        const heading = screen.getByRole('heading', { name: 'Starting with a Science Topic', level: 4 });
+        expect(screen.getByRole('link', { name: 'GFZ Data Services homepage' })).toHaveAttribute('href', '/');
+        expect(screen.getByRole('link', { name: 'Volcanism' })).toHaveAttribute('href', '/doi-search?topic=volcanism');
+        const content = heading.parentElement?.textContent?.replace(/\s+/g, ' ');
+        expect(content).toContain('open Find and select Overview');
+        expect(content).toContain('Data Portal, Data Centres, and IGSN Portal');
+        expect(content).toContain('Each hexagon opens the Data Portal with that data centre selected');
+        expect(content).toContain('several descriptions can stay open together');
+        expect(content).toContain('opens and focuses the corresponding heading automatically');
+        expect(content).toContain('On smaller screens, open the menu and select Overview in the Find group');
+        expect(content).toContain('Science topic panel below the search field');
+        expect(content).toContain('open the Filters drawer to find this panel');
+        expect(content).toContain('the topic remains active and combines with those selections');
+        expect(content).toContain('Result counts, map features, and cluster members use the same active topic');
+        expect(content).toContain('panning and zooming the map keeps the topic selected');
+        expect(content).toContain('remove only the topic while keeping the search and other filters');
+        expect(content).toContain('Use Clear to reset all filters, including the topic');
+        expect(content).toContain('they are not filters in the IGSN Portal');
+    });
+
+    it('documents the English portal basemap and its unavailable state for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        const heading = screen.getByRole('heading', { name: 'Exploring Results on the Map', level: 4 });
+        const sectionContent = heading.parentElement;
+
+        expect(sectionContent?.textContent).toMatch(/background map is provided by OpenFreeMap/i);
+        expect(sectionContent?.textContent).toMatch(/prefers English labels for countries, regions, cities, roads/i);
+        expect(sectionContent?.textContent).toMatch(/Where no English label is available, the local OpenStreetMap name is shown/i);
+        expect(sectionContent?.textContent).toMatch(/reload the page later or contact support/i);
     });
 
     it('documents the current schema version for IGSN exports', async () => {
@@ -1514,5 +1675,62 @@ describe('Docs page', () => {
         expect(screen.getByText('Check for updates by comparing local vs. remote counts')).toBeInTheDocument();
         expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
         expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();
+    });
+    it('explains editor registration and resource metadata updates as separate external actions', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const register = screen.getByRole('heading', { name: 'Register', level: 3 }).closest('article');
+        expect(register?.textContent).toMatch(/This click does not save for this action or contact DataCite/);
+        expect(register?.textContent).toMatch(/sends metadata to DataCite to create and publish a DOI/);
+        expect(register?.textContent).toMatch(/a failed remote step does not undo a successful local save/);
+
+        const update = screen.getByRole('heading', { name: 'Update metadata', level: 3 }).closest('article');
+        expect(update?.textContent).toMatch(/It does not mint new DOIs/);
+        expect(update?.textContent).toMatch(/batch may report partial success/);
+    });
+
+    it('filters action content, navigation, and search with the supplied capabilities', async () => {
+        const capabilities = {
+            registerDoi: false,
+            sendReviewLinks: false,
+            deleteResources: false,
+            deletePublishedResources: false,
+            manageLandingPages: false,
+            importFromDataCite: false,
+            updateDataCiteUrls: false,
+            manageUsers: false,
+            accessEditorSettings: false,
+        };
+        const user = userEvent.setup();
+        render(<Docs userRole="beginner" capabilities={capabilities} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+        await openDatasetsTab(user);
+
+        expect(screen.queryByRole('heading', { name: 'Register', level: 3 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Update metadata', level: 3 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Send review link', level: 3 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Import old resources', level: 3 })).not.toBeInTheDocument();
+
+        await user.type(screen.getByRole('searchbox', { name: 'Search documentation' }), 'Notify changed review link');
+        expect(screen.getByRole('status')).toHaveTextContent('0 results');
+        expect(screen.queryByRole('link', { name: 'Notify changed review link' })).not.toBeInTheDocument();
+    });
+
+    it('opens a permitted action deep link in its tab and focuses its heading', async () => {
+        window.history.replaceState(null, '', '/docs?tab=datasets&section=resources-update-metadata');
+        renderDocsPage('curator');
+
+        expect(screen.getByRole('tab', { name: /Datasets/i })).toHaveAttribute('aria-selected', 'true');
+        const heading = screen.getByRole('heading', { name: 'Update metadata', level: 3 });
+        await waitFor(() => expect(heading).toHaveFocus());
+        expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby');
+    });
+
+    it('redirects an inaccessible action deep link to a visible section', async () => {
+        window.history.replaceState(null, '', '/docs?tab=datasets&section=resources-review-migration');
+        renderDocsPage('beginner');
+
+        await waitFor(() => expect(window.location.search).toContain('section=editor-actions'));
+        expect(screen.queryByRole('heading', { name: 'Notify changed review link', level: 3 })).not.toBeInTheDocument();
     });
 });

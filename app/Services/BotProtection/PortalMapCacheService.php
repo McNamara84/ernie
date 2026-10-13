@@ -28,6 +28,7 @@ final class PortalMapCacheService
     private const EXTENT_FILTER_KEYS = [
         'portal_scope',
         'query',
+        'topic',
         'type',
         'exclude_type',
         'keywords',

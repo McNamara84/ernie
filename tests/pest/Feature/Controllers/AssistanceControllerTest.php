@@ -23,6 +23,8 @@ use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantRegistrar;
+use App\Services\DataCiteSyncResult;
+use App\Services\DataCiteSyncService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -909,6 +911,44 @@ describe('batch suggestions', function () {
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['resource_id', 'suggestions']);
+    });
+});
+
+describe('DataCite sync retry', function () {
+    it('retries synchronization for an accepted resource', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create(['doi' => '10.5880/gfz.test.2026.001']);
+        $syncService = Mockery::mock(DataCiteSyncService::class);
+        $syncService->shouldReceive('syncIfRegistered')
+            ->once()
+            ->with(Mockery::on(fn (Resource $candidate): bool => $candidate->is($resource)))
+            ->andReturn(DataCiteSyncResult::succeeded((string) $resource->doi));
+        app()->instance(DataCiteSyncService::class, $syncService);
+
+        $this->actingAs($user)
+            ->postJson("/assistance/resources/{$resource->id}/retry-datacite-sync")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('datacite_sync.attempted', true)
+            ->assertJsonPath('datacite_sync.doi', $resource->doi);
+    });
+
+    it('reports a failed retry without rolling back local metadata', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create(['doi' => '10.5880/gfz.test.2026.002']);
+        $syncService = Mockery::mock(DataCiteSyncService::class);
+        $syncService->shouldReceive('syncIfRegistered')
+            ->once()
+            ->andReturn(DataCiteSyncResult::failed((string) $resource->doi, 'DataCite unavailable'));
+        app()->instance(DataCiteSyncService::class, $syncService);
+
+        $this->actingAs($user)
+            ->postJson("/assistance/resources/{$resource->id}/retry-datacite-sync")
+            ->assertStatus(502)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('datacite_sync.errorMessage', 'DataCite unavailable');
+
+        expect($resource->fresh())->not->toBeNull();
     });
 });
 

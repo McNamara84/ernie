@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
+use App\Enums\ScienceTopic;
 use App\Models\Resource;
 use App\Models\Subject;
 use App\Models\ThesaurusSetting;
@@ -136,6 +137,52 @@ class KeywordSuggestionService
     }
 
     /**
+     * Select the highest matching GCMD branches, preserving the homepage's
+     * legacy wildcard semantics without requiring every branch simultaneously.
+     *
+     * @return list<string>
+     */
+    public function scienceTopicNodeIds(ScienceTopic $topic): array
+    {
+        $pattern = $topic->scienceKeywordPattern();
+        if ($pattern === null) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($this->getThesaurusFacets(PortalScope::DOI) as $facet) {
+            if (PortalSubjectNormalizer::normalizeScheme($facet['scheme']) === 'Science Keywords') {
+                $ids = [...$ids, ...$this->matchingScienceTopicNodes($facet['roots'], $pattern)];
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @param  array<int, mixed>  $nodes
+     * @return list<string>
+     */
+    private function matchingScienceTopicNodes(array $nodes, string $pattern, string $parentPath = ''): array
+    {
+        $ids = [];
+        foreach ($nodes as $node) {
+            if (! is_array($node)) {
+                continue;
+            }
+            $path = $parentPath.' > '.(string) ($node['text'] ?? '');
+            $id = (string) ($node['id'] ?? '');
+            if ($id !== '' && preg_match($pattern, $path) === 1) {
+                $ids[] = $id;
+            } else {
+                $ids = [...$ids, ...$this->matchingScienceTopicNodes($this->childrenOfNode($node), $pattern, $path)];
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
      * Resolve selected thesaurus node IDs to the descendant IDs/text values
      * used for query building.
      *
@@ -229,7 +276,7 @@ class KeywordSuggestionService
             ->whereHas('resource', function (Builder $query) use ($scope): void {
                 /** @var Builder<Resource> $query */
                 $query->whereHas('landingPage', function ($q): void {
-                    $q->where('is_published', true);
+                    $q->where('is_published', true)->where('is_tombstone', false);
                 });
                 $this->applyPortalScope($query, $scope);
             })
@@ -360,7 +407,7 @@ class KeywordSuggestionService
             ->whereHas('resource', function (Builder $query) use ($scope): void {
                 /** @var Builder<Resource> $query */
                 $query->whereHas('landingPage', function ($q): void {
-                    $q->where('is_published', true);
+                    $q->where('is_published', true)->where('is_tombstone', false);
                 });
                 $this->applyPortalScope($query, $scope);
             })

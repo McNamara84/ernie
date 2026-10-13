@@ -787,7 +787,7 @@ it('selects exact published landing-page platform wording', function (
             landingPageUsesHttps: true,
         ),
         'resource-searchable-metadata-export',
-        'Make the published ERNIE landing page\'s Schema.org metadata crawlable in the initial server response.',
+        'F-UJI did not recognize searchable Schema.org metadata for the published ERNIE landing page. Check the DOI resolver target and F-UJI harvest details.',
     ],
     'external IGSN searchable export' => [
         'igsn',
@@ -813,7 +813,7 @@ it('selects exact published landing-page platform wording', function (
             landingPageUsesHttps: true,
         ),
         'igsn-searchable-metadata-export',
-        'Correct the published ERNIE sample landing page\'s IGSN JSON-LD export so search engines can index it.',
+        'F-UJI did not recognize searchable IGSN metadata for the published sample page. Check the DOI resolver target and F-UJI harvest details.',
     ],
     'Resource retrievable metadata endpoint' => [
         'resource',

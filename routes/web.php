@@ -8,6 +8,7 @@ use App\Http\Controllers\BatchIgsnController;
 use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
+use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\CsrfCookieController;
 use App\Http\Controllers\DashboardController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
+use App\Http\Controllers\JsonLdContextController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPageDomainController;
 use App\Http\Controllers\LandingPageDownloadRedirectController;
@@ -50,6 +52,7 @@ use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
 use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
+use App\Http\Controllers\ResourceTombstoneController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\StaticPageController;
@@ -64,9 +67,16 @@ use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 Route::get('/health', HealthController::class)->name('health');
+
+Route::get('/metadata/contexts/datacite-4.7-v1.jsonld', JsonLdContextController::class)
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('metadata.context.datacite');
 
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
 // Sanctum itself is not installed – this lightweight route provides the
@@ -82,13 +92,16 @@ if (app()->environment('local', 'testing')) {
     Route::get('/debug', DebugController::class)->name('debug');
 }
 
-Route::redirect('/', 'https://dataservices.gfz-potsdam.de')->name('home');
+Route::get('/', [StaticPageController::class, 'home'])->name('home');
+
+Route::get('/find', [StaticPageController::class, 'find'])->name('find');
+
+Route::get('/data-centres', [StaticPageController::class, 'dataCentres'])->name('data-centres.index');
+Route::get('/data-centres/description', [StaticPageController::class, 'dataCentreDescription'])->name('data-centres.description');
 
 Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
 Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');
-
-Route::get('/changelog', [StaticPageController::class, 'changelog'])->name('changelog');
 
 // Public Portals (DOI and IGSN discovery)
 // ===========================================================
@@ -257,6 +270,11 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
             ->name('test.landing-page-by-slug');
     });
 }
+
+Route::middleware('auth')->group(function () {
+    Route::get('/changelog', [StaticPageController::class, 'changelog'])->name('changelog');
+    Route::get('/api/changelog', [ChangelogController::class, 'index'])->name('api.changelog');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Assistance routes are registered dynamically by AssistantServiceProvider.
@@ -502,6 +520,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('datacite.import.retry-sync');
 
     // Landing Page Management (Admin)
+    Route::get('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'show'])->name('landing-page.tombstone.show');
+    Route::post('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'activate'])->name('landing-page.tombstone.activate');
+    Route::patch('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'update'])->name('landing-page.tombstone.update');
+    Route::delete('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'restore'])->name('landing-page.tombstone.restore');
+    Route::post('resources/{resource}/landing-page/tombstone/retry-sync', [ResourceTombstoneController::class, 'retry'])->name('landing-page.tombstone.retry');
+
     Route::post('resources/{resource}/landing-page', [LandingPageController::class, 'store'])
         ->name('landing-page.store');
 
@@ -568,6 +592,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('dashboard/upload-json', UploadJsonController::class)
         ->name('dashboard.upload-json');
+
+    Route::post('editor/upload-xml/preview', UploadXmlController::class)
+        ->name('editor.upload-xml.preview');
+
+    Route::post('editor/upload-json/preview', UploadJsonController::class)
+        ->name('editor.upload-json.preview');
 
     Route::post('dashboard/upload-igsn-csv', UploadIgsnCsvController::class)
         ->name('dashboard.upload-igsn-csv');

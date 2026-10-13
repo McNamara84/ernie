@@ -99,6 +99,9 @@ export class DataCiteFormPage {
      * Navigate to the editor page
      */
     async goto() {
+        // Validation contexts restore a session whose worker already completed
+        // real UI login and CSRF warmup. The editor's optional background refresh
+        // is not a prerequisite for these form-validation scenarios.
         await this.page.goto('/editor');
     }
 
@@ -106,8 +109,8 @@ export class DataCiteFormPage {
      * Wait for the form to be fully loaded
      */
     async waitForFormLoad() {
-        await this.resourceInfoSection.waitFor({ state: 'visible', timeout: 10000 });
-        await this.saveButton.waitFor({ state: 'visible' });
+        await expect(this.resourceInfoSection).toBeVisible({ timeout: 10_000 });
+        await expect(this.saveButton).toBeVisible();
     }
 
     /**
@@ -117,9 +120,8 @@ export class DataCiteFormPage {
         const isExpanded = await accordion.getAttribute('aria-expanded');
         if (isExpanded !== 'true') {
             await accordion.click();
-            // Wait for animation
-            await this.page.waitForTimeout(300);
         }
+        await expect(accordion).toHaveAttribute('aria-expanded', 'true');
     }
 
     /**
@@ -129,8 +131,8 @@ export class DataCiteFormPage {
         const isExpanded = await accordion.getAttribute('aria-expanded');
         if (isExpanded === 'true') {
             await accordion.click();
-            await this.page.waitForTimeout(300);
         }
+        await expect(accordion).toHaveAttribute('aria-expanded', 'false');
     }
 
     /**
@@ -145,6 +147,10 @@ export class DataCiteFormPage {
             return null;
         }
         return await badge.getAttribute('aria-label');
+    }
+
+    async expectSectionStatus(section: Locator, status: 'Section complete' | 'Section incomplete or has errors' | 'Optional section') {
+        await expect.poll(() => this.getSectionStatusBadge(section)).toBe(status);
     }
 
     /**
@@ -205,8 +211,6 @@ export class DataCiteFormPage {
     async fillMainTitle(title: string) {
         await this.mainTitleInput.fill(title);
         await this.mainTitleInput.blur();
-        // Wait for debounced validation
-        await this.page.waitForTimeout(400);
     }
 
     /**
@@ -215,7 +219,6 @@ export class DataCiteFormPage {
     async fillYear(year: string) {
         await this.yearInput.fill(year);
         await this.yearInput.blur();
-        await this.page.waitForTimeout(400);
     }
 
     /**
@@ -224,8 +227,9 @@ export class DataCiteFormPage {
     async fillAbstract(text: string) {
         await this.expandAccordion(this.descriptionsAccordion);
         await this.abstractTextarea.fill(text);
+        await expect(this.abstractCharacterCount).toContainText(`${text.trim().length.toLocaleString('en-US')} characters`);
         await this.abstractTextarea.blur();
-        await this.page.waitForTimeout(400);
+        await expect(this.abstractTextarea).toHaveValue(text);
     }
 
     /**
@@ -250,7 +254,7 @@ export class DataCiteFormPage {
         // The button is wrapped in a tooltip trigger, hover over the trigger span
         const tooltipTrigger = this.page.locator('[data-slot="tooltip-trigger"]', { has: this.saveButton });
         await tooltipTrigger.hover({ force: true });
-        await this.page.waitForTimeout(300);
+        await expect(this.saveButtonTooltip).toBeVisible();
     }
 
     /**
@@ -299,94 +303,57 @@ export class DataCiteFormPage {
         return text?.trim() || '';
     }
 
-    /**
-     * Fill all required fields with valid data
-     */
-    async fillAllRequiredFields() {
-        // Resource Info
-        await this.mainTitleInput.fill('Test Dataset for Validation E2E');
-        await this.yearInput.fill('2024');
+    private async selectOption(trigger: Locator, option: Locator, method: 'keyboard' | 'pointer' = 'pointer') {
+        await trigger.click();
+        await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        await expect(option).toBeVisible();
+        if (method === 'keyboard') {
+            // Radix Select options can receive focus; Enter also avoids pointer
+            // races when Firefox repositions or scrolls the open list.
+            await option.focus();
+            await expect(option).toBeFocused();
+            await option.press('Enter');
+        } else {
+            // Command search-list items keep focus on their search input.
+            await option.click();
+        }
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        // Radix restores focus after its closing animation. Starting another
+        // interaction earlier can close the next dropdown or interrupt input.
+        await expect(trigger).toBeFocused();
+    }
 
-        // Resource Type Select
-        await this.resourceTypeSelect.scrollIntoViewIfNeeded();
-        await this.resourceTypeSelect.click();
-        await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
-        const datasetOption = this.page.getByRole('option', { name: /Dataset/i }).first();
-        await datasetOption.waitFor({ state: 'visible', timeout: 10000 });
-        await datasetOption.click();
-
-        // Language Select
-        await this.languageSelect.scrollIntoViewIfNeeded();
-        await this.languageSelect.click();
-        await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
-        const englishOption = this.page.getByRole('option', { name: /English/i }).first();
-        await englishOption.waitFor({ state: 'visible', timeout: 10000 });
-        await englishOption.click();
-
-        // License - needs extra robustness
-        await this.expandAccordion(this.licensesAccordion);
-        await this.page.waitForTimeout(500); // Wait for accordion animation
-        await this.primaryLicenseSelect.scrollIntoViewIfNeeded();
-        await this.primaryLicenseSelect.click();
-
-        // Wait for the listbox to appear (the container for options)
-        await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
-
-        // Now wait for and click the specific option
-        // Note: SPDX license name is the full name, not the identifier
-        const ccByOption = this.page.getByRole('option', { name: /Creative Commons Attribution 4\.0/i }).first();
-        await ccByOption.waitFor({ state: 'visible', timeout: 10000 });
-        await ccByOption.click();
-
-        // Abstract (50+ characters required)
-        await this.expandAccordion(this.descriptionsAccordion);
-        await this.abstractTextarea.fill(
-            'This is a comprehensive test abstract that contains more than fifty characters to meet the minimum length requirement for validation.',
+    async fillResourceInfo(title = 'Test Dataset for Validation E2E') {
+        await this.fillMainTitle(title);
+        await this.fillYear('2024');
+        await this.selectOption(this.resourceTypeSelect, this.page.getByRole('option', { name: /Dataset/i }).first(), 'keyboard');
+        await this.selectOption(this.languageSelect, this.page.getByRole('option', { name: /English/i }).first(), 'keyboard');
+        await this.selectOption(
+            this.page.getByTestId('datacenter-select'),
+            this.page.getByRole('option').filter({ hasNotText: 'Clear selection' }).first(),
         );
+        await this.expectSectionStatus(this.resourceInfoSection, 'Section complete');
+    }
 
-        // Authors (at least one required with lastName)
+    /** Fill real UI fixtures without adding duplicate empty author/date rows. */
+    async fillAllRequiredFields() {
+        await this.fillResourceInfo();
+        await this.expandAccordion(this.licensesAccordion);
+        await this.selectOption(this.primaryLicenseSelect, this.page.getByRole('option', { name: /Creative Commons Attribution 4\.0/i }).first());
+        await this.fillAbstract('This is a comprehensive test abstract for validating a complete metadata submission.');
         await this.expandAccordion(this.authorsAccordion);
-
-        // Button text is "Add First Author" when no authors exist, "Add author" for subsequent ones
-        const addAuthorButton = this.page.getByRole('button', { name: /Add.*Author/i }).first();
-        if (await addAuthorButton.isVisible()) {
-            await addAuthorButton.click();
-            await this.page.waitForTimeout(500);
-
-            // The lastName input has ID like "{uuid}-lastName", so we search by ID pattern
-            const lastNameInput = this.page.locator('input[id$="-lastName"]').first();
-            await lastNameInput.scrollIntoViewIfNeeded();
-            await lastNameInput.fill('Testauthor');
-            await lastNameInput.blur();
-            await this.page.waitForTimeout(500);
+        const lastName = this.page.locator('input[id$="-lastName"]').first();
+        if ((await lastName.count()) === 0) {
+            await this.page.getByRole('button', { name: /Add.*Author/i }).first().click();
         }
+        await lastName.fill('Testauthor');
+        await lastName.blur();
 
-        // Created Date (required) - Note: First date entry already exists with type "Created"
-        // We just need to fill in the date value
-        await this.expandAccordion(this.datesAccordion);
-
-        // The first date should already exist with type "Created"
-        // Find the first date input (type="date") and fill it
-        const firstDateInput = this.page.locator('input[type="date"]').first();
-        if (await firstDateInput.isVisible()) {
-            await firstDateInput.scrollIntoViewIfNeeded();
-            await firstDateInput.fill('2024-01-01');
-            await firstDateInput.blur();
-            await this.page.waitForTimeout(500);
+        for (const section of [this.licensesAccordion, this.descriptionsAccordion, this.authorsAccordion]) {
+            await this.expectSectionStatus(section, 'Section complete');
         }
-
-        // Wait for all validations to complete and form state to update
-        // The areRequiredFieldsFilled memo needs time to recompute
-        await this.page.waitForTimeout(2000);
-
-        // Wait for Save button to become enabled (with timeout)
-        try {
-            await this.saveButton.waitFor({ state: 'attached', timeout: 3000 });
-            // Give React time to update the disabled state
-            await this.page.waitForTimeout(500);
-        } catch {
-            // Button might already be attached, that's fine
-        }
+        await this.expectSectionStatus(this.datesAccordion, 'Optional section');
+        await expect(this.saveButton).toBeEnabled();
     }
 
     /**
@@ -404,6 +371,6 @@ export class DataCiteFormPage {
         await this.expandAccordion(this.descriptionsAccordion);
         await this.abstractTextarea.clear();
 
-        await this.page.waitForTimeout(500);
+        await expect(this.abstractTextarea).toHaveValue('');
     }
 }

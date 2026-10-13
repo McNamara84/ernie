@@ -72,28 +72,46 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
+    Use Node **26.10.0** from `.node-version` and npm **12.2.0** from
+    `package.json`. After switching Node, install the pinned npm version:
+
     ```bash
+    npm install --global npm@12.2.0
     npm ci
     ```
 
     This installs the local `node_modules` required by Oxlint, Oxfmt, TypeScript, Vitest, OpenAPI linting, and Playwright.
 
-4. Start Fast Mode.
+4. Install the repository's Git pre-commit hook for this checkout.
+
+    ```bash
+    npm run hooks:install
+    ```
+
+    The hook checks staged whitespace, PHP style with Pint, frontend lint and formatting, and OpenAPI changes when applicable. PHP checks start the Docker backend. It rejects partially staged files that need checking because the tools read the worktree. Full tests remain in the validation commands and CI.
+
+    On Windows, the hook uses `npm.cmd` so commits from GitHub Desktop do not depend on Bash or WSL. If an older hook reports `WSL ... execvpe(/bin/bash) failed`, update `.githooks/pre-commit` to the current version.
+
+    Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
+
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.10.0** and npm **12.2.0** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+
+5. Start Fast Mode.
 
     ```bash
     npm run docker:dev:up
     ```
 
-5. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
+6. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
 
-6. Open the application.
+7. Open the application.
 
     - Main URL: `https://ernie.localhost:3333`
     - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
 
     If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
-7. Create the first administrator account.
+8. Create the first administrator account.
 
     ```bash
     npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword
@@ -106,6 +124,24 @@ For day-to-day Laravel commands, use the npm wrappers. They run inside the app c
 ```bash
 npm run artisan -- make:controller TestController
 ```
+
+### Download URL suggestion default
+
+Until an order has been saved in **Settings / Download URL suggestions**, the
+installation offers `https://datapub.gfz.de/download` first, even with no existing
+downloads. This also applies to upgrades without a stored order; no extra seeder
+or manual setup is required.
+
+Other installations can set `LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX` in their
+environment (`.env.docker` for local Docker) to another HTTP(S) prefix. An empty
+value disables this default. The development, stage and production Compose files
+pass this variable through and preserve explicit empty values. Apply environment
+changes by recreating the affected containers; refresh Laravel's config cache if
+the deployment caches configuration.
+
+A saved order always takes precedence, including an explicitly empty list. Later
+configuration changes or deployments do not overwrite it. Domains observed in
+existing download URLs still follow the configured suggestions.
 
 ## Profiles And Services
 
@@ -152,6 +188,23 @@ The relevant settings are documented in `.env.docker.example`. Keep these relati
 
 The default HTTP timeout is 300 seconds. A cURL 28 response timeout that consumes this full window becomes a service error after one attempt instead of blocking the worker for three identical attempts. Short DNS/connect failures and retryable HTTP responses remain bounded by `FUJI_ASSESSMENT_MAX_ATTEMPTS`. The run UI reports service errors separately and can retry only those items after a run completes.
 
+The local assessment profile builds `Dockerfile.fuji` from the pinned F-UJI 4.0.1 base image. That build installs Chromium because the upstream image starts Playwright but does not include its browser executable. The first build therefore downloads browser packages. Stage and Production receive the same derived image through the digest-pinned image publication workflow.
+
+The derived image refreshes Debian packages, applies the compatible Python updates
+in `docker/fuji/requirements.txt`, and checks Python dependency consistency
+before removing the build-only `pip` installer and `ensurepip` bootstrap archive.
+This removes the old libraries bundled inside pip; updating F-UJI's installed
+`setuptools` alone would not replace those copies. Runtime dependencies, including
+the `setuptools` package used by Tika, remain installed. Change dependencies through
+the Dockerfile and rebuild the image. CI checks that F-UJI dependencies import and
+Chromium launches without the installers, then scans the complete image alongside
+the application and Nginx images before Stage publication.
+
+F-UJI 4.0.1 restricts Pandas, Levenshtein, Tika, and Uvicorn to specific release
+lines; Playwright also fixes its supported Pyee major. Their newer incompatible
+releases require an upstream compatibility update. The image build keeps these
+constraints and fails if the installed Python packages become inconsistent.
+
 For a one-worker local load comparison, run:
 
 ```bash
@@ -173,6 +226,7 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 | Composer                                         | npm wrapper into app container | `npm run composer:app -- <command>`                 |
 | Pest (2 GB, optimized complete suite)            | Host shell via npm wrapper     | `npm run test:php`                                  |
 | Pest deprecation details                         | Host shell via npm wrapper     | `npm run test:php:deprecations`                     |
+| Offline DataCite / Schema.org JSON-LD semantics    | Host shell via npm wrapper     | `npm run test:jsonld`                               |
 | MySQL-sensitive Pest slice                       | Host shell via npm wrapper     | `npm run test:php:mysql-sensitive`                  |
 | PHPStan                                          | Host shell via npm wrapper     | `npm run phpstan:check`                             |
 | Vitest                                           | Host shell                     | `npm run test:run`                                  |
@@ -191,20 +245,43 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 
 ## Environment Files
 
+JSON-LD exports use `APP_URL` as their canonical public origin. The versioned context
+is served anonymously at `/metadata/contexts/datacite-4.7-v1.jsonld`. Leave
+`DATACITE_LINKED_DATA_CONTEXT_URL` unset unless an independently verified compatible
+mirror is required. Docker forwards this optional override from `.env.docker` to
+the app and workers; recreate them after changing it. See
+[the JSON-LD profile and release checks](jsonld-profile.md).
+`npm run check:backend` includes the offline semantic check; its Node step needs the
+host dependencies installed with `npm ci`.
+
 - `.env.docker` is the Docker-oriented local environment file.
 - `.env` is the Laravel application environment used inside the containers.
+
+### Portal basemap
+
+The DOI and IGSN portal maps use the keyless OpenFreeMap vector basemap so geographic labels can prefer English and fall back to the local name when no English value exists. No account or API key is required. The public OpenFreeMap Liberty style is the default:
+
+```dotenv
+PORTAL_MAP_BASEMAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
+```
+
+Override the URL only to use a compatible style served by a self-hosted OpenFreeMap instance. Arbitrary MapLibre styles are not supported because the portal displays the fixed OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution required by this basemap. The public service has no SLA, so self-hosting remains available if operational guarantees become necessary.
+
+If the configured style or its tiles cannot be loaded, the portal remains usable and its ERNIE data overlays can still load, but the map shows the notice “The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.” instead of falling back to a differently labelled map.
 - The development entrypoint copies `.env.docker` to `.env` when `.env` does not already exist.
 - The npm Docker wrappers always pass `--env-file .env.docker` so Compose and Laravel use the same source of truth.
 - Docker-managed `node_modules` live in the named Docker volume, not in your host checkout.
 - Complete Pest runs copy the current checkout into the Docker-managed
   `ernie-pest-workspace` volume before execution. This avoids repeated
   Windows/macOS bind-mount reads while leaving the development source mount and
-  focused test workflow unchanged.
+  focused test workflow unchanged. Read-only `--list-tests` discovery uses a
+  freshly synchronized native workspace as well.
 
 ### MySQL version and existing local data
 
 The local database service is pinned to MySQL 9.7, and its healthcheck verifies
-the `9.7.x` server series. MySQL-backed tests use this same service. Do not
+the `9.7.x` server series. MySQL-sensitive tests use the same pinned image in
+the disposable `db-test` service. Do not
 downgrade the service to MySQL 8 when an existing data directory fails to start.
 
 The Compose volume is named `ernie-db-data-mysql-9-7` so an older
@@ -220,6 +297,32 @@ needed to export the external MySQL 5.6 IGSN database. It never runs as ERNIE's
 database server.
 
 ### Log retention and downloads
+
+The **Application Logs** card at `/logs` also records successful user actions on
+resources, IGSNs and their landing pages at `INFO` level. English entries identify
+the user and dataset, name changed fields, and offer dataset and DOI links when
+available. This includes metadata and landing-page edits, tombstones, imports,
+registrations, metadata exports and review-link emails queued for delivery.
+Batch actions have individual successful-record entries and a correlated summary.
+Unchanged saves and failed actions do not create success entries; existing
+technical warnings and errors remain available.
+
+The viewer reads both single and daily application logs, newest first. It uses
+one shared 50 MB window across log files and shows a notice when older history
+falls outside that window. Downloads can include retained history outside it.
+Activities follow the same administrator access, deletion and rotation rules as
+other application logs; there is no separate permanent audit database and no
+retroactive reconstruction of earlier activity. Queue processing retains the
+initiating user's identity; file logging remains best effort after database commit.
+Run migrations before deploying the activity writer; background runs store a
+nullable actor snapshot. Resource links open the editor; IGSN links search for
+the recorded identifier. Deleted datasets retain their recorded identity and DOI.
+
+Stage/Production images now default to `LOG_LEVEL=info`; development keeps
+`debug`. Existing Portainer installations with an explicit `LOG_LEVEL=error`
+override must set it to `info` to record activities, recreate the affected app and
+worker services, and refresh Laravel's configuration cache using their normal
+deployment procedure. A threshold above `info` suppresses activity entries.
 
 The administration log viewer can download the application log for the last
 24 hours, 7 days, or 30 days. It reads both `storage/logs/laravel.log` and
@@ -668,6 +771,72 @@ npm run artisan -- rights:update-usage-count
 
 Restarting the scheduler also performs this refresh before `schedule:work` starts. A failed startup refresh leaves the previous complete counter snapshot in place and causes the scheduler container to restart instead of silently serving a partially updated ranking.
 
+## Public Page Feature Switches
+
+Each of the four new public pages can be enabled independently in `.env.docker`:
+
+| Environment variable | Route |
+| --- | --- |
+| `PUBLIC_HOME_ENABLED` | `/` |
+| `PUBLIC_FIND_ENABLED` | `/find` |
+| `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` |
+| `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` |
+
+Local development and Stage default to `true`; Production defaults to `false`.
+Use the literal `true` to serve the ERNIE page or `false` to temporarily redirect
+to its existing TYPO3 counterpart. Run `npm run docker:dev:backend:d` after
+changing `.env.docker` to recreate the app container with the new values. The
+switches apply equally to direct visits and Inertia navigation, including
+signed-in users. They do not disable the search portals or other public pages.
+
+For the exact fallback URLs and Portainer instructions, see [public page routing
+and feature switches](production-container-deployment.md#public-page-routing-and-feature-switches).
+
+## Maintaining the Public Data Centres Catalogue
+
+The public `/data-centres` and `/data-centres/description` pages use
+`DataCentreCatalogService` to join the local DOI portal's published datacenter
+facets with `resources/data/data-centres.json`. Only centres with published DOI
+resources appear; IGSN-only, unpublished, or empty centres are omitted. New names
+automatically receive a neutral text tile and description. There are no runtime
+requests to the production portal or TYPO3.
+
+To update the editorial content:
+
+1. Compare the Datacenters facet at <https://dataservices.gfz.de/doi-search> with
+   `tests/fixtures/data-centres-production.json`. Update the dated snapshot when
+   the production selection changes; do not copy resource counts.
+2. Keep `datacenterName` as the original portal name used to attach reviewed
+   editorial content. The catalogue resolves that historical name to the current
+   Datacenter ID, and links use the current name as their DOI filter value. Use
+   `displayName` and `shortName` for curated public labels. Preserve existing
+   `slug` values so shared description links continue to work.
+   The `datacenter-` slug prefix is reserved for automatic fallbacks.
+3. Write English plain-text description paragraphs and HTTPS links using official
+   project or institution sources. Record `sources`, `reviewedAt`, and `logoSource`
+   for review. These provenance fields are not sent to the browser. Use a null
+   logo and a `logoNote` if no suitable official asset is available.
+4. Store original logo assets in `public/images/data-centres/`, preserving their
+   proportions, and record their real pixel dimensions. Refresh the Find preview
+   at `public/images/find/data-centres.png` when the page appearance changes.
+5. Run the focused checks below, then the normal frontend/backend validation.
+
+```bash
+npm run test:php -- tests/pest/Feature/DataCentresTest.php
+npm run test:run -- tests/vitest/pages/__tests__/data-centres.test.tsx
+npm run test:e2e:devstack -- critical/data-centres.spec.ts accessibility/data-centres-a11y.spec.ts
+```
+
+Browser layout and accessibility tests inject the repository catalogue into the
+real page response, so all reviewed entries are exercised even on a small local
+database. Separate browser tests use the live local catalogue and DOI portal;
+backend integration tests cover publication visibility, exact filters, and facet
+cache invalidation.
+
+A later administration interface can replace the repository content source
+behind the service. Keep its public `DataCentre` contract, stable name resolution,
+stable slugs, and publication-based selection unchanged.
+
 ## MySQL-Sensitive Pest Slice
 
 The default local Pest loop remains SQLite-backed.
@@ -680,9 +849,181 @@ npm run test:php:mysql-sensitive
 
 This command:
 
-- starts the backend containers if needed
-- verifies and uses the MySQL 9.7 service from `docker-compose.dev.yml`
-- creates an isolated `ernie_test` schema inside that local MySQL container
-- runs the current explicit MySQL-sensitive migration file slice with a schema reset before each file
+- starts the backend and optional `test` profile once
+- verifies MySQL 9.7 before resetting a schema; `db-test` uses the exact image pinned for `db`
+- uses `ernie_test` on the disposable `db-test` server, backed by a bounded 2 GiB tmpfs without a host port
+- runs the manifest in `tests/mysql-sensitive-slices.json`, preserving all 25 existing serial reset boundaries
+- copies the checkout into the Linux-native Pest workspace for the complete run; focused aliases keep using the checkout
 
-It does not reuse the regular development schema. For broader testing guidance, see [testing.md](testing.md).
+The development server and its versioned data volume are preserved. Focused
+aliases, `db:dev:test:prepare`, `db:dev:test:reset`, and the raw MySQL test wrapper
+all address the disposable test server. `--slice <name>` selects a manifest block;
+`--filter` and other Pest arguments can follow it. MySQL slices remain serial
+because they share the isolated test schema. To stop the optional server and
+release its tmpfs:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml --profile test stop db-test
+```
+
+Stopping it discards test data; the next wrapper call starts and initializes it
+again. For broader testing and optional timing reports, see [testing.md](testing.md).
+
+### Digital resource access metadata
+
+Resource landing pages and the DataCite JSON/XML exports resolve access from the curated `access_level` first. When it is empty, an internal digital-resource landing page with an active usable primary Download URL or imported file URL implies Open access. An internal page without automatic downloads exposes Metadata only access, including pages whose saved download links are still hidden. External landing pages and resources without a landing page remain unresolved unless a curator provides a reliable access level. This inference does not apply to Physical Objects or resources with IGSN metadata.
+
+The effective level appears in Schema.org `conditionsOfAccess`, Dublin Core `DC.accessRights`, and DataCite `rightsList` with the COAR Access Rights URI. Digital Metadata only access omits `isAccessibleForFree`: emitting `false` would let F-UJI infer Restricted access even though the absence of a download does not establish that restriction. Download availability and the resource license remain separate metadata. The inference is computed from current configuration without persisting it during public requests, so adding or removing downloads updates the output immediately.
+
+`npm run artisan -- metadata:backfill-access-content` audits missing stored access levels without writes; `--apply` persists unambiguous candidates and reports unresolved resources for review. Existing curated levels are preserved. Earlier versions initialized digital resources to Open even without internal download evidence; those stored values cannot be distinguished from curated Open values and need review when the actual access is unknown.
+
+### Embargo workflow (issue #1350)
+
+ERNIE uses `Embargo` only as an internal workflow status. DataCite 4.7 metadata keeps `dateType=Available` and the COAR `Embargoed access` right. A valid embargo needs exactly one day-precision `Available` date (`YYYY-MM-DD`). The configured `APP_TIMEZONE` determines when that date becomes due at 00:00. The status remains Embargo until a curator manually registers the DOI or IGSN; successful registration changes the access right to Open and publishes the internal landing page. The dashboard lists due resources for every curator. Unpublished preview URLs require their token and omit stored download destinations. The XML schema snapshot under `resources/data/scheme/datacite-4.7/` comes from the official DataCite 4.7 schema and is used by the schema regression test.
+
+An uncertain DataCite create response leaves a durable registration attempt on the resource. A retry first reads DataCite by the stable `/datasets/{id}` target (or by the known IGSN) and completes the local release only when the remote record is Findable and has the expected Open access right. It never sends a second POST while the attempt is pending; editor saves are blocked until reconciliation. If the retry reports that no matching record exists, an operator must inspect the correct DataCite environment and prefix before clearing `embargo_registration_started_at` and `embargo_registration_prefix` for that resource in MySQL. Keep the marker when the remote outcome is uncertain or when multiple records match.
+
+### Subject hierarchy correction (issue #1050)
+
+The Subject Hierarchy Correction assistant reads version 1 caches under `storage/app/private/subject-hierarchies/`. Each cache preserves all source parent relations and is bound by SHA-256 to the corresponding editor vocabulary JSON. Existing editor caches alone are insufficient. Update the enabled vocabularies through Editor Settings or their existing artisan commands (`get-gcmd-science-keywords`, `get-gcmd-platforms`, `get-gcmd-instruments`, `get-msl-keywords`, `get-gemet-thesaurus`, `get-chronostrat-timescale`, `get-analytical-methods`, `get-euroscivoc`, `get-cgi-simple-lithology`). For Docker development use `npm run artisan -- <command>`.
+
+GEMET updates additionally download the official EEA SKOS concept relation export. Navigation groups are recorded as non-indexable hints and do not supply concept hierarchy edges. Invalid graphs, missing parents and incomplete exports fail the update before publication. Discovery and acceptance never fetch vocabulary data remotely; unavailable or mismatched caches are reported in the check result and cannot be used for corrections.
+
+Rebuild the assistant manifest and route caches using the deployment's normal cache procedure after adding the module. Vocabulary updates do not change resource subjects. Admins and Group Leaders must confirm the terms that describe each resource. Retaining the broader concept when every terminal descendant is chosen is an ERNIE curation rule; it is not a general thesaurus requirement. A reasoned decline supports broader scopes that should remain unchanged. Registered resources use the existing DataCite synchronization and retry flow after a confirmed correction.
+
+Publishers and hierarchy readers share a persistent per-vocabulary filesystem lock, so concurrent updates cannot interleave the two cache files and discovery or acceptance cannot read a partially replaced pair. Both existing files are backed up before either replacement. A failed write or rename restores the previous files under the same lock; files that did not previously exist are removed. Backups are restored by rename without rewriting their contents. If filesystem errors also prevent rollback, the failure reports this and retains the `.bak` files beside the original caches for recovery.
+
+### Tombstone landing pages
+
+Curators, Group Leaders and Admins can activate, edit and restore resource tombstones in **Setup Landing Page**. Activation verifies a registered or findable DOI through the authenticated DataCite Member API and requires a reason, a public explanation and confirmation. The default resource template retains bibliographic metadata and contact information while disabling data downloads and requests. Internal listings show **Dead**; public portal discovery excludes these resources. The workflow follows [DataCite's tombstone guidance](https://support.datacite.org/docs/tombstone-pages).
+
+Run migrations before using this feature. Keep the `queue` worker (including the configured DataCite queue) and `scheduler` services running: each lifecycle change stores a durable `resource_tombstone_transitions` record before queue dispatch. The scheduler recovers due work every minute, including jobs interrupted for more than six minutes. Transient failures retry up to five times with increasing delays; the setup modal shows progress and permits an explicit retry after failure. A failed DataCite write leaves the local tombstone publicly accessible. Only the desired DOI URL and the Registered/Findable transition are sent by these jobs; they use the DataCite environment recorded at activation.
+
+Restoration requires confirmation and restores the saved landing page configuration and previous DOI state/URL. If no landing page existed, choose explicitly whether to publish the restored default page. After synchronization completes, normal metadata updates can intentionally publish a restored DOI again. Revisions prevent stale modal saves and queued changes from replacing newer lifecycle decisions. Audit records retain the actor, public explanation and configuration snapshot. Metadata corrections remain possible while a tombstone is active. Retrying synchronization preserves unsaved reason and explanation drafts. Jobs are unique per transition through the database cache; recovery releases abandoned worker locks and failed queue pushes release their owned locks.
+
+Seed `PlaywrightTestSeeder` before the browser slice, as in CI. It automatically calls `TombstonePlaywrightSeeder`; the tombstone fixture represents a completed synchronization and sends no DataCite requests.
+
+Focused regression checks:
+
+```bash
+npm run test:php -- tests/pest/Feature/LandingPages/ResourceTombstoneTest.php tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php
+npm run test:php:mysql-sensitive:tombstones
+npm run test:run -- tests/vitest/components/landing-pages/modals/__tests__/TombstoneLandingPageControls.test.tsx tests/vitest/pages/LandingPages/__tests__/default_gfz.test.tsx
+npm run test:e2e:devstack -- critical/tombstone-pages.spec.ts --project=chromium
+```
+
+### Editor date type usage ordering
+
+The Data Editor's **Dates** dropdown orders ERNIE-enabled date types by their repository-wide usage, descending, with alphabetical ties. Each saved entry in `dates` counts once, including multiple entries of the same type on one resource and date ranges. All resource types, datacenters, imports and publication states contribute except `PhysicalObject`, identified by the stable `physical-object` slug. Resources without an assigned type also contribute.
+
+Only the usage counts are cached for seven days under `editor:date_type_usage:v1`. The next request after expiry refreshes the counts; changes to enabled types and display names take effect on the next editor load. The Dates section continues to exclude system-managed dates and Coverage. New date rows select the first editable option in this order, while saved or imported date selections are preserved.
+
+Redis resource-cache invalidation does not clear this usage snapshot. To refresh it manually before expiry, use the existing vocabulary cache reset, which also clears the other vocabulary caches:
+
+```bash
+npm run artisan -- cache:clear-app vocabularies
+```
+
+The complete `cache:clear-app all` reset also clears the snapshot. Cache stores without tags use the existing fallback; their global resource-cache flushes can clear the snapshot earlier than seven days.
+
+
+### Automatic ELMO cache refresh
+
+When explicitly enabled, saving Editor Settings queues a refresh for each affected
+external editor whose upstream implementation is ready. Changes
+to ELMO and ELMO-MSL activations and license exclusions remain independent.
+Shared names, contributor categories and identifier patterns refresh the editors
+whose API data changes. Unchanged values, request ordering, timestamps and
+ERNIE-only settings do not trigger a refresh. Successful thesaurus/PID downloads
+and genuine thesaurus version changes also request a refresh for active editors.
+
+Local development and Stage both target:
+
+- ELMO: `https://env.rz-vm182.gfz.de/elmo`
+- ELMO-MSL: `https://env.rz-vm182.gfz.de/elmo-msl`
+
+Set `ELMO_API_KEY` and `ELMO_MSL_API_KEY` in `.env.docker` to the corresponding
+Stage ELMO admin keys. These authenticate outgoing `POST /api/v2/admin/cache/refresh`
+requests through `X-API-KEY`; `ERNIE_API_KEY` authenticates ELMO requests to ERNIE.
+`ELMO_BASE_URL` and `ELMO_MSL_BASE_URL` override the deployment's default URLs.
+The `/elmo` or `/elmo-msl` path must be retained in the base URL.
+
+Automatic refresh is **disabled by default** in configuration, environment examples
+and every Compose stack. After deploying and validating the matching regular ELMO
+admin endpoint, set `ELMO_CACHE_REFRESH_ENABLED=true` explicitly. Provisioning keys
+alone does not enable refreshes.
+
+ELMO-MSL additionally requires `ELMO_MSL_CACHE_REFRESH_READY=true`, default `false`.
+Set it only after the MSL instance refreshes from the correct ERNIE ELMO-MSL source
+routes. The reviewed ELMO PR still hard-codes regular ELMO routes, so leave this
+flag disabled for that version. Readiness is checked after commit and again before
+HTTP execution, including for jobs queued before a rollout or flag change. MSL
+settings remain saved while its refresh is gated.
+
+Start or recreate the workers after configuring the environment:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml up -d queue elmo-cache-refresh
+```
+
+The web application must receive the same configuration; recreate `app` if its
+environment changed. Incomplete target configuration is logged and skips only that
+target. `ELMO_CACHE_REFRESH_ENABLED=false` disables automatic dispatch and skips
+already queued jobs. Automated tests force this switch off and enable simulated
+integration explicitly in their own tests.
+
+`elmo-cache-refresh` uses the persistent `elmo` database queue connection and the
+`elmo-cache-refresh` queue. Each job calls one target and makes at most three
+attempts, with 30/120-second retry delays. Network failures, HTTP 408/429 and 5xx
+responses are retried; valid `Retry-After` values on HTTP 429 are capped at 300
+seconds. Other HTTP errors and invalid success responses fail immediately.
+Success requires all 16 vocabulary result keys from the reviewed ELMO contract,
+with strictly `true` values: resourceTypes, titleTypes, descriptionTypes, languages,
+contributorPersonRoles, contributorInstitutionRoles, relationTypes, identifierTypes,
+pid4instInstruments, mslLabs, gcmdScienceKeywords, gcmdPlatforms, gcmdInstruments,
+chronostratTimescale, gemet and thesauriAvailability. A partial all-true map is a
+contract error. Additional successful result keys are accepted; review this list
+when the upstream contract changes.
+Redirects are rejected and TLS verification remains enabled.
+
+Default limits are 10 seconds to connect, 310 seconds for the HTTP request,
+330 seconds for the job and 390 seconds for the queue reservation. Configure them
+with `ELMO_CACHE_REFRESH_CONNECT_TIMEOUT`, `ELMO_CACHE_REFRESH_TIMEOUT`,
+`ELMO_CACHE_REFRESH_JOB_TIMEOUT` and `ELMO_CACHE_REFRESH_RETRY_AFTER`. Keep
+`connect_timeout <= HTTP timeout < job timeout < retry_after`; invalid settings
+skip dispatch. Increase the worker's 360-second container stop grace period if
+increasing its job timeout. The general worker does not consume this queue.
+
+Saved settings and completed local data updates remain successful when ELMO or
+queue insertion fails. Logs identify the editor, trigger and correlation ID.
+Failed jobs can be inspected and retried with the existing Artisan wrapper:
+
+```bash
+npm run artisan -- queue:failed
+npm run artisan -- queue:retry <failed-job-uuid>
+```
+
+If insertion into the queue itself failed, no failed job exists. After resolving
+the queue error, invoke the authenticated ELMO admin refresh manually. The
+post-commit dispatch does not provide an outbox guarantee across process crashes.
+
+A refresh triggered locally makes Stage ELMO read from its configured ERNIE
+source; it does not upload local database contents. Thesaurus version changes
+remove the old local file, so a subsequent successful vocabulary download is
+needed to make the new data available and requests another refresh.
+
+The matching ELMO endpoint is introduced by
+[ELMO PR #1270](https://github.com/McNamara84/elmo/pull/1270). Its reviewed version
+still needs complete cache coverage, the correct MSL source routes and handling
+for empty/disabled vocabularies. Check the actual ELMO UI and vocabulary data as
+well as `GET /api/v2/admin/cache/status` after deployment; a successful request
+alone does not establish support for every ERNIE setting.
+
+Focused regression checks:
+
+```bash
+npm run test:php -- tests/pest/Feature/ElmoCacheRefresh --parallel
+npm run test:php -- tests/pest/Unit/Deployment/ElmoCacheRefreshDeploymentTest.php
+npm run test:php:mysql-sensitive:editor-settings
+npm run check:backend
+```

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\LandingPage;
+use App\Models\ResourceTombstoneTransition;
 use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -113,14 +115,34 @@ class DataCiteMemberApiClient
         );
     }
 
-    /** @param array<string, mixed> $payload */
-    public function createDoi(array $payload): Response
+    /** Find a previously accepted create by its resource-specific stable target. */
+    public function findDoisByUrl(string $targetUrl, string $prefix): Response
     {
+        $query = http_build_query([
+            'query' => 'url:"'.str_replace('"', '\\"', $targetUrl).'"',
+            'prefix' => $prefix,
+            'page' => ['size' => 10],
+            'disable-facets' => 'true',
+        ], encoding_type: PHP_QUERY_RFC3986);
+
+        return $this->send(
+            'GET',
+            "{$this->endpoint}/dois?{$query}",
+            maxAttempts: $this->transientAttempts(),
+            credentialIdentifier: $prefix,
+        );
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createDoi(array $payload, bool $allowRetry = true): Response
+    {
+        // An embargo create uses a durable reconciliation marker. A timed-out
+        // create may already have minted a DOI, so that path gets one POST.
         return $this->send(
             'POST',
             "{$this->endpoint}/dois",
             $payload,
-            $this->transientAttempts(),
+            $allowRetry ? $this->transientAttempts() : 1,
             credentialIdentifier: $this->payloadIdentifier($payload),
         );
     }
@@ -128,18 +150,18 @@ class DataCiteMemberApiClient
     /** @param array<string, mixed> $payload */
     public function updateDoi(string $identifier, array $payload): Response
     {
-        return $this->send(
+        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send(
             'PUT',
             $this->doiUrl($identifier),
-            $payload,
+            $this->protectTombstonePayload($identifier, $payload),
             $this->transientAttempts(),
             credentialIdentifier: $identifier,
-        );
+        ));
     }
 
     public function updateLandingPageUrl(string $identifier, string $targetUrl, bool $deferWhenLimited = false): Response
     {
-        return $this->send('PUT', $this->doiUrl($identifier), [
+        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send('PUT', $this->doiUrl($identifier), $this->protectTombstonePayload($identifier, [
             'data' => [
                 'id' => $identifier,
                 'type' => 'dois',
@@ -147,7 +169,40 @@ class DataCiteMemberApiClient
                     'url' => $targetUrl,
                 ],
             ],
-        ], 1, $deferWhenLimited, $identifier);
+        ]), 1, $deferWhenLimited, $identifier));
+    }
+
+    /**
+     * Applies the latest lifecycle state inside the DOI lock, even for stale queued payloads.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function protectTombstonePayload(string $identifier, array $payload): array
+    {
+        $transition = ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->first();
+        if ($transition === null) {
+            return $payload;
+        }
+        $page = LandingPage::where('resource_id', $transition->resource_id)->first();
+        if (! $page?->is_tombstone && in_array($transition->status, ['succeeded', 'superseded'], true)) {
+            return $payload;
+        }
+        if ($transition->test_mode !== $this->testMode) {
+            throw new \RuntimeException('The DOI lifecycle belongs to a different DataCite environment.');
+        }
+        $payload['data']['attributes']['url'] = $transition->target_url;
+        if ($transition->target_state === 'registered' && ($payload['data']['attributes']['event'] ?? null) === 'publish') {
+            $response = $this->getDoi($identifier);
+            $response->throw();
+            if ($response->json('data.attributes.state') === 'findable') {
+                $payload['data']['attributes']['event'] = 'hide';
+            } else {
+                unset($payload['data']['attributes']['event']);
+            }
+        }
+
+        return $payload;
     }
 
     /**

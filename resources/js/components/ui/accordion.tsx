@@ -30,24 +30,29 @@ function AccordionTrigger({
   className,
   children,
   actions,
+  headingLevel = 3,
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Trigger> & {
   actions?: React.ReactNode
+  headingLevel?: 2 | 3 | 4
 }) {
+  const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
   return (
-    <AccordionPrimitive.Header className={cn("flex items-start", actions && "gap-1")}>
-      <AccordionPrimitive.Trigger
-        data-slot="accordion-trigger"
-        className={cn(
-          "flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        <ChevronDownIcon className="pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200" />
-      </AccordionPrimitive.Trigger>
-      {actions ? <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">{actions}</div> : null}
+    <AccordionPrimitive.Header asChild>
+      <Heading className={cn("flex items-start", actions && "gap-1")}>
+        <AccordionPrimitive.Trigger
+          data-slot="accordion-trigger"
+          className={cn(
+            "flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
+            className
+          )}
+          {...props}
+        >
+          {children}
+          <ChevronDownIcon className="pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200" />
+        </AccordionPrimitive.Trigger>
+        {actions ? <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">{actions}</div> : null}
+      </Heading>
     </AccordionPrimitive.Header>
   )
 }

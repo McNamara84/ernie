@@ -84,14 +84,15 @@ describe('FundingReferenceItem', () => {
         expect(card).not.toHaveClass('bg-muted/30');
     });
 
-    it('calls onFunderNameChange when typing in funder name field', async () => {
+    it('commits a plain funder name on blur rather than saving an unfinished input', async () => {
         const user = userEvent.setup();
         render(<FundingReferenceItem {...defaultProps} />);
 
         const input = screen.getByLabelText(/Funder Name/i);
         await user.type(input, 'Test Funder');
-
-        expect(mockOnFunderNameChange).toHaveBeenCalled();
+        expect(mockOnFunderNameChange).not.toHaveBeenCalled();
+        await user.tab();
+        expect(mockOnFunderNameChange).toHaveBeenCalledWith('Test Funder');
     });
 
     it('shows remove button when canRemove is true', () => {
@@ -272,6 +273,7 @@ describe('FundingReferenceItem', () => {
 
         const input = screen.getByLabelText(/Funder Name/i);
         await user.type(input, 'X');
+        await user.tab();
 
         expect(mockOnFieldsChange).toHaveBeenCalledWith({
             funderName: 'Deutsche ForschungsgemeinschaftX',
@@ -308,7 +310,7 @@ describe('FundingReferenceItem', () => {
 
         const input = screen.getByLabelText(/Funder Name/i);
         expect(input).toHaveAttribute('aria-invalid', 'true');
-        expect(input).toHaveAttribute('aria-describedby', 'funding-1-funder-name-error');
+        expect(input.getAttribute('aria-describedby')?.split(' ')).toContain('funding-1-funder-name-error');
         expect(screen.getByText('Funder name is required')).toBeInTheDocument();
     });
 

@@ -12,11 +12,14 @@ use App\Models\LandingPage;
 use App\Models\LandingPageLink;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Services\EmbargoService;
 use App\Services\KeywordSuggestionService;
 use App\Services\LandingPageContentDescriptorOptionsService;
+use App\Services\LandingPageDownloadAvailabilityService;
+use App\Services\LandingPageDownloadUrlSuggestionService;
 use App\Services\LandingPageTemplateResolverService;
+use App\Services\UserActivityService;
 use App\Support\Traits\ChecksCacheTagging;
-use App\Support\UrlNormalizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -24,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -106,9 +110,9 @@ class LandingPageController extends Controller
             ];
         }
 
-        if (array_key_exists('downloads_unavailable', $validated) && ! self::templateSupportsDownloadsUnavailable($template)) {
-            $unsupportedFields['downloads_unavailable'] = [
-                'The downloads_unavailable field is not supported for this landing page template.',
+        if (array_key_exists('activate_downloads', $validated) && ! self::templateSupportsDownloadsUnavailable($template)) {
+            $unsupportedFields['activate_downloads'] = [
+                'The activate_downloads field is not supported for this landing page template.',
             ];
         }
 
@@ -221,6 +225,13 @@ class LandingPageController extends Controller
         $validated = $request->validated();
 
         $resource->loadMissing(['resourceType', 'formats', 'sizes']);
+        if (app(EmbargoService::class)->isEmbargoed($resource)
+            && (($validated['status'] ?? null) === 'published' || ($validated['is_published'] ?? false) || $validated['template'] === 'external')) {
+            return response()->json([
+                'message' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                'error' => 'embargo_pending',
+            ], 422);
+        }
 
         if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
             return response()->json([
@@ -260,7 +271,7 @@ class LandingPageController extends Controller
         // try to create, causing a constraint violation on resource_id unique index.
         // The try-catch handles both resource_id and slug uniqueness violations.
         try {
-            $landingPage = DB::transaction(function () use ($validated, $resource) {
+            $landingPage = DB::transaction(function () use ($validated, $resource, $request) {
                 /** @var Resource $lockedResource */
                 $lockedResource = Resource::query()
                     ->lockForUpdate()
@@ -290,6 +301,13 @@ class LandingPageController extends Controller
                     $isPublished = $validated['is_published'];
                 }
 
+                if (app(EmbargoService::class)->isEmbargoed($lockedResource)
+                    && ($isPublished || $validated['template'] === 'external')) {
+                    throw ValidationException::withMessages([
+                        'status' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                    ]);
+                }
+
                 // Create landing page.
                 // Note: slug and doi_prefix are set automatically in the model's boot() method.
                 // The model will load titles.titleType if needed for slug generation.
@@ -314,9 +332,7 @@ class LandingPageController extends Controller
                         && ! empty($validated['ftp_url'])
                         ? ($validated['ftp_size_id'] ?? null)
                         : null,
-                    'downloads_unavailable' => self::templateSupportsDownloadsUnavailable($validated['template'])
-                        ? ($validated['downloads_unavailable'] ?? false)
-                        : false,
+                    'downloads_unavailable' => false,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
                 ];
@@ -338,6 +354,8 @@ class LandingPageController extends Controller
                 if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
                     $landingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
                 }
+
+                app(UserActivityService::class)->landingChange($request->user(), $lockedResource, [], 'landing-page.store');
 
                 return $landingPage;
             });
@@ -462,7 +480,7 @@ class LandingPageController extends Controller
         // values are derived from the current serialized state rather than the
         // route-bound snapshot used for the initial authorization check.
         /** @var JsonResponse|array{resource: Resource, landing_page: LandingPage, became_published: bool} $updateResult */
-        $updateResult = DB::transaction(function () use ($resource, $validated): JsonResponse|array {
+        $updateResult = DB::transaction(function () use ($resource, $validated, $request): JsonResponse|array {
             /** @var Resource $lockedResource */
             $lockedResource = Resource::query()
                 ->with('resourceType')
@@ -474,6 +492,13 @@ class LandingPageController extends Controller
                 ->where('resource_id', $lockedResource->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $activityBefore = app(UserActivityService::class)->snapshot($lockedResource, true);
+
+            abort_if($lockedLandingPage->is_tombstone, 409, 'Restore the tombstone page before changing its landing page configuration.');
+            if (isset($validated['tombstone_revision'])) {
+                abort_if($lockedLandingPage->tombstone_revision !== (int) $validated['tombstone_revision'], 409, 'The landing page changed. Reload the setup modal.');
+            }
 
             if (isset($validated['template'])) {
                 if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $lockedResource->resourceType?->slug)) {
@@ -489,7 +514,7 @@ class LandingPageController extends Controller
                 : LandingPageTemplate::normalizeBuiltInTemplateForResource($lockedLandingPage->template, $lockedResource->resourceType?->slug);
             $templateChanged = $effectiveTemplate !== $lockedLandingPage->template;
 
-            if (array_key_exists('template', $validated) || $templateChanged) {
+            if (array_key_exists('template', $validated) || $templateChanged || array_key_exists('activate_downloads', $validated)) {
                 $unsupportedFields = self::unsupportedFieldErrorsForTemplate($validated, $effectiveTemplate);
 
                 if ($unsupportedFields !== []) {
@@ -528,6 +553,14 @@ class LandingPageController extends Controller
                 $requestedStatus = $validated['is_published'];
             }
 
+            if (app(EmbargoService::class)->isEmbargoed($lockedResource)
+                && (($requestedStatus === true && ! $lockedLandingPage->isPublished()) || $effectiveTemplate === 'external')) {
+                return response()->json([
+                    'message' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                    'error' => 'embargo_pending',
+                ], 422);
+            }
+
             $currentlyPublished = $lockedLandingPage->isPublished();
 
             // Published landing pages cannot be unpublished because DOIs are
@@ -540,6 +573,12 @@ class LandingPageController extends Controller
             }
 
             $becamePublished = $requestedStatus !== null && $requestedStatus && ! $currentlyPublished;
+
+            $downloadAvailability = app(LandingPageDownloadAvailabilityService::class);
+            $downloadAvailability->normalizeEmptySuppression($lockedLandingPage);
+            if (self::templateSupportsDownloadsUnavailable($effectiveTemplate) && ($validated['activate_downloads'] ?? false)) {
+                $lockedLandingPage->downloads_unavailable = false;
+            }
 
             // Update template and ftp_url if provided
             // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
@@ -581,14 +620,6 @@ class LandingPageController extends Controller
                 $lockedLandingPage->ftp_size_id = null;
             }
 
-            if (self::templateSupportsDownloadsUnavailable($effectiveTemplate)) {
-                if (array_key_exists('downloads_unavailable', $validated)) {
-                    $lockedLandingPage->downloads_unavailable = $validated['downloads_unavailable'];
-                }
-            } else {
-                $lockedLandingPage->downloads_unavailable = false;
-            }
-
             // Update external landing page fields
             if (self::templateSupportsExternalFields($effectiveTemplate)) {
                 if (array_key_exists('external_domain_id', $validated)) {
@@ -602,7 +633,6 @@ class LandingPageController extends Controller
                 $lockedLandingPage->primary_download_label = null;
                 $lockedLandingPage->ftp_format_id = null;
                 $lockedLandingPage->ftp_size_id = null;
-                $lockedLandingPage->downloads_unavailable = false;
             } else {
                 // Clear external fields when switching away from external template
                 $lockedLandingPage->external_domain_id = null;
@@ -640,12 +670,21 @@ class LandingPageController extends Controller
                 }
             }
 
+            // Relations may have been replaced above. Clear only a now-empty legacy hold.
+            $lockedLandingPage->unsetRelation('files')->unsetRelation('links');
+            $downloadAvailability->normalizeEmptySuppression($lockedLandingPage);
+            if ($lockedLandingPage->isDirty('downloads_unavailable')) {
+                $lockedLandingPage->save();
+            }
+
             // Keep publication in the resource-locked transaction so a concurrent
             // DOI mutation either finishes before publication or re-checks the
             // newly published state after acquiring the same lock.
             if ($becamePublished) {
                 $lockedLandingPage->publish();
             }
+
+            app(UserActivityService::class)->landingChange($request->user(), $lockedResource, $activityBefore, 'landing-page.update');
 
             return [
                 'resource' => $lockedResource,
@@ -750,10 +789,7 @@ class LandingPageController extends Controller
     public function downloadUrlSuggestions(): JsonResponse
     {
         return response()->json([
-            'suggestions' => Cache::rememberForever(
-                CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key(),
-                static fn (): array => self::buildDownloadUrlSuggestionPayload(self::loadDownloadUrlSuggestionSourceCounts()),
-            ),
+            'suggestions' => app(LandingPageDownloadUrlSuggestionService::class)->suggestions(),
         ]);
     }
 
@@ -799,9 +835,11 @@ class LandingPageController extends Controller
         $payload['primary_download_label'] = self::templateSupportsFtpUrl($effectiveTemplate)
             ? $landingPage->primary_download_label
             : null;
+        $availability = app(LandingPageDownloadAvailabilityService::class);
+        $payload['download_activation_required'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
+            && $availability->requiresActivation($landingPage);
         $payload['downloads_unavailable'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
-            ? $landingPage->downloads_unavailable
-            : false;
+            && ! $availability->isAvailable($landingPage);
         $payload['files'] = self::templateSupportsFtpUrl($effectiveTemplate)
             ? $landingPage->files->values()->toArray()
             : [];
@@ -839,147 +877,6 @@ class LandingPageController extends Controller
         return $label === '' ? null : $label;
     }
 
-    /**
-     * @param  array<string, int>  $sourceUrlCounts
-     * @return array{
-     *     domains: list<array{value: string, usage_count: int}>,
-     *     urls: list<array{value: string, usage_count: int}>
-     * }
-     */
-    private static function buildDownloadUrlSuggestionPayload(array $sourceUrlCounts): array
-    {
-        /** @var array<string, int> $domainCounts */
-        $domainCounts = [];
-        /** @var array<string, int> $urlCounts */
-        $urlCounts = [];
-
-        foreach ($sourceUrlCounts as $sourceUrl => $sourceUsageCount) {
-            $normalizedUrl = self::normalizeDownloadSuggestionUrl($sourceUrl);
-
-            if ($normalizedUrl === null) {
-                continue;
-            }
-
-            $urlCounts[$normalizedUrl] = ($urlCounts[$normalizedUrl] ?? 0) + $sourceUsageCount;
-
-            $domain = self::extractDownloadSuggestionDomain($normalizedUrl);
-
-            if ($domain !== null) {
-                $domainCounts[$domain] = ($domainCounts[$domain] ?? 0) + $sourceUsageCount;
-            }
-        }
-
-        return [
-            'domains' => self::sortDownloadSuggestionCounts($domainCounts),
-            'urls' => self::sortDownloadSuggestionCounts($urlCounts),
-        ];
-    }
-
-    /**
-     * @return array<string, int>
-     */
-    private static function loadDownloadUrlSuggestionSourceCounts(): array
-    {
-        /** @var list<object{value: string, usage_count: int|string}> $groupedSources */
-        $groupedSources = [
-            ...DB::table('landing_pages')
-                ->selectRaw('ftp_url as value, COUNT(*) as usage_count')
-                ->whereNotNull('ftp_url')
-                ->whereRaw("TRIM(ftp_url) <> ''")
-                ->groupBy('ftp_url')
-                ->get()
-                ->all(),
-            ...DB::table('landing_page_files')
-                ->selectRaw('url as value, COUNT(*) as usage_count')
-                ->whereRaw("TRIM(url) <> ''")
-                ->groupBy('url')
-                ->get()
-                ->all(),
-        ];
-
-        $sourceCounts = [];
-
-        foreach ($groupedSources as $groupedSource) {
-            $sourceCounts[$groupedSource->value] = ($sourceCounts[$groupedSource->value] ?? 0) + (int) $groupedSource->usage_count;
-        }
-
-        return $sourceCounts;
-    }
-
-    private static function normalizeDownloadSuggestionUrl(string $url): ?string
-    {
-        $normalizedUrl = UrlNormalizer::normalizeAppUrl($url);
-
-        if ($normalizedUrl === null) {
-            return null;
-        }
-
-        $parts = parse_url($normalizedUrl);
-
-        if ($parts === false) {
-            return null;
-        }
-
-        /** @var array<string, int|string> $parts */
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower((string) ($parts['host'] ?? ''));
-
-        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
-            return null;
-        }
-
-        $port = isset($parts['port']) ? ':'.(string) $parts['port'] : '';
-        $path = (string) ($parts['path'] ?? '');
-        $query = isset($parts['query']) ? '?'.(string) $parts['query'] : '';
-
-        return sprintf('%s://%s%s%s%s', $scheme, $host, $port, $path !== '' ? $path : '/', $query);
-    }
-
-    private static function extractDownloadSuggestionDomain(string $normalizedUrl): ?string
-    {
-        $parts = parse_url($normalizedUrl);
-
-        if ($parts === false) {
-            return null;
-        }
-
-        /** @var array<string, int|string> $parts */
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower((string) ($parts['host'] ?? ''));
-
-        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
-            return null;
-        }
-
-        $port = isset($parts['port']) ? ':'.(string) $parts['port'] : '';
-
-        return sprintf('%s://%s%s/', $scheme, $host, $port);
-    }
-
-    /**
-     * @param  array<string, int>  $counts
-     * @return list<array{value: string, usage_count: int}>
-     */
-    private static function sortDownloadSuggestionCounts(array $counts): array
-    {
-        $suggestions = [];
-
-        foreach ($counts as $value => $usageCount) {
-            $suggestions[] = [
-                'value' => $value,
-                'usage_count' => $usageCount,
-            ];
-        }
-
-        usort(
-            $suggestions,
-            static fn (array $left, array $right): int => ($right['usage_count'] <=> $left['usage_count'])
-                ?: ($left['value'] <=> $right['value'])
-        );
-
-        return array_slice($suggestions, 0, 20);
-    }
-
     private function forgetLandingPageCache(int $resourceId): void
     {
         Cache::forget("landing-page.{$resourceId}");
@@ -987,7 +884,7 @@ class LandingPageController extends Controller
 
     private function forgetDownloadUrlSuggestionsCache(): void
     {
-        CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
+        LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
     }
 
     /**

@@ -15,6 +15,7 @@ use App\Models\Resource;
 use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\User;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
@@ -179,6 +180,7 @@ function crc806ImportJobPage(string $doi = '10.5880/sfb806.80'): string
 
 describe('ImportFromDataCiteJob', function () {
     it('updates cache with progress during import', function () {
+        Log::spy();
         $this->importService
             ->shouldReceive('getTotalDoiCount')
             ->once()
@@ -216,6 +218,8 @@ describe('ImportFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $originalName = $this->user->name;
+        $this->user->update(['name' => 'Renamed after dispatch']);
         $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         // Check final cache state
@@ -224,6 +228,10 @@ describe('ImportFromDataCiteJob', function () {
         expect($status['processed'])->toBe(2);
         expect($status['imported'])->toBe(2);
         expect($status['failed'])->toBe(0);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'resource.imported'
+            && $context['activity']['actor']['name'] === $originalName
+            && $context['activity']['operation_id'] === $importId)->twice();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
     });
 
     it('adds SUMARIO pending import results to the bulk progress summary', function () {
@@ -1256,6 +1264,9 @@ describe('ImportFromDataCiteJob', function () {
 
     it('prefers a specialized portal datacenter during a single DOI import', function () {
         $doi = '10.5880/icdp.5069.001';
+        $renamedDatacenter = app(DatacenterNameService::class)
+            ->findOrCreate(LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER);
+        app(DatacenterNameService::class)->rename($renamedDatacenter, 'Scientific Drilling Centre');
         $doiRecord = [
             'id' => $doi,
             'attributes' => [
@@ -1303,8 +1314,9 @@ describe('ImportFromDataCiteJob', function () {
                 'imported' => 1,
                 'failed' => 0,
             ])
-            ->and($resource->fresh()->datacenter?->name)
-            ->toBe(LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER);
+            ->and($resource->fresh()->datacenter_id)->toBe($renamedDatacenter->id)
+            ->and($resource->fresh()->datacenter?->name)->toBe('Scientific Drilling Centre')
+            ->and(Datacenter::query()->count())->toBe(1);
     });
 
     it('keeps a new DataCite import successful when coverage enrichment unexpectedly fails', function () {
@@ -2518,7 +2530,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->template)->toBe('default_gfz')
             ->and($landingPage->ftp_url)->toBeNull()
-            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->downloads_unavailable)->toBeFalse()
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull()
             ->and(LandingPageDomain::count())->toBe(0)
@@ -2590,7 +2602,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
 
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBeNull()
-            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->downloads_unavailable)->toBeFalse()
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull();
     });

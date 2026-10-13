@@ -21,6 +21,7 @@ use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
@@ -137,6 +138,22 @@ function postReviewMailMigrationRequest(User $user, array $ids): TestResponse
         'ids' => $ids,
     ]);
 }
+
+it('logs queued review emails and their actor without recipient addresses or preview tokens', function (bool $migration): void {
+    $resource = createReviewMailResource();
+    addReviewMailContributor($resource, 'private-recipient@example.test');
+    $user = User::factory()->curator()->create();
+    Log::spy();
+    ($migration ? postReviewMailMigrationRequest($user, [$resource->id]) : postReviewMailRequest($user, [$resource->id]))->assertOk();
+    Log::shouldHaveReceived('info')->withArgs(function (string $message, array $context) use ($user, $resource): bool {
+        return str_contains($message, 'queued review-link') && str_contains($message, 'delivery to 1 recipients')
+            && ($context['activity']['actor']['id'] ?? null) === $user->id
+            && ($context['activity']['subject']['id'] ?? null) === $resource->id
+            && ! str_contains(json_encode($context), 'private-recipient')
+            && ! str_contains(json_encode($context), 'token-');
+    })->once();
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
+})->with([false, true]);
 
 describe('authorization and request validation', function (): void {
     it('allows Admin, Group Leader and Curator roles', function (UserRole $role): void {

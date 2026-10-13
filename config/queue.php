@@ -43,6 +43,15 @@ return [
             'after_commit' => false,
         ],
 
+        'elmo' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'elmo-cache-refresh',
+            'retry_after' => (int) env('ELMO_CACHE_REFRESH_RETRY_AFTER', 390),
+            'after_commit' => false,
+        ],
+
         'assessment' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),

@@ -43,6 +43,7 @@ class LanguageFactory extends Factory
             'name' => $language['name'],
             'active' => true,
             'elmo_active' => true,
+            'elmo_msl_active' => true,
         ];
     }
 }

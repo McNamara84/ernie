@@ -5,9 +5,13 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
 use App\Http\Controllers\PortalController;
+use App\Models\ContributorType;
 use App\Models\GeoLocation;
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
@@ -62,6 +66,20 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page->component('portal'));
     });
 
+    it('keeps the basemap runtime configuration outside the cached portal payload', function () {
+        config(['portal_map.basemap_style_url' => 'https://maps.example.test/styles/first']);
+
+        $this->get('/doi-search')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.styleUrl', 'https://maps.example.test/styles/first'));
+
+        config(['portal_map.basemap_style_url' => 'https://maps.example.test/styles/second']);
+
+        $this->get('/doi-search')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.styleUrl', 'https://maps.example.test/styles/second'));
+    });
+
     it('returns empty results when no published resources exist', function () {
         $response = $this->get('/doi-search');
 
@@ -85,6 +103,52 @@ describe('index', function () {
                     ->component('portal')
                     ->has('resources', 1)
             );
+    });
+
+    it('returns one public-safe party annotation with all matching roles', function (): void {
+        $resource = ($this->createPublishedPortalResource)('Unrelated publication');
+        $person = Person::factory()->create(['given_name' => 'Peter', 'family_name' => 'Hans']);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'position' => 0,
+            'is_contact' => true,
+            'email' => 'private-author@example.test',
+        ]);
+        $researcher = ContributorType::query()->create(['name' => 'Researcher', 'slug' => 'Researcher']);
+        $contactPerson = ContributorType::query()->create(['name' => 'Contact Person', 'slug' => 'ContactPerson']);
+        $contributor = ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'position' => 0,
+            'email' => 'private-contributor@example.test',
+        ]);
+        $contributor->contributorTypes()->sync([$researcher->id, $contactPerson->id]);
+
+        $this->get('/doi-search?q=HansPeter')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('resources', 1)
+                ->where('resources.0.id', $resource->id)
+                ->where('resources.0.searchMatches', [[
+                    'display_value' => 'Hans, Peter',
+                    'matched_field' => 'name',
+                    'roles' => ['contact_person', 'author', 'contributor'],
+                ]]));
+    });
+
+    it('does not expose an email annotation when another resource field matches', function (): void {
+        $resource = ($this->createPublishedPortalResource)('Ocean observations');
+        $person = Person::factory()->create(['given_name' => 'Unrelated', 'family_name' => 'Researcher']);
+        ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'email' => 'ocean@example.test',
+        ]);
+
+        $this->get('/doi-search?q=ocean')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('resources', 1)
+                ->where('resources.0.id', $resource->id)
+                ->where('resources.0.searchMatches', []));
     });
 
     it('excludes unpublished resources', function () {

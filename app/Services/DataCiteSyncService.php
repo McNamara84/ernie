@@ -66,6 +66,12 @@ class DataCiteSyncService
             );
         }
 
+        // Imported IGSNs can have an identifier while their embargo page is
+        // still a draft. There is nothing public to synchronize yet.
+        if (! app(EmbargoService::class)->canUpdateMetadata($resource)) {
+            return DataCiteSyncResult::notRequired();
+        }
+
         return $this->performSync($resource);
     }
 
@@ -167,7 +173,7 @@ class DataCiteSyncService
 
             return DataCiteSyncResult::failed($doi, $errorMessage);
 
-        } catch (\RuntimeException $e) {
+        } catch (\InvalidArgumentException|\RuntimeException $e) {
             Log::error('DataCite sync failed (runtime error)', [
                 'resource_id' => $resource->id,
                 'doi' => $doi,

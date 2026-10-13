@@ -1,3 +1,5 @@
+import { canonicalRorId, parseRorInput } from '@/lib/ror-input';
+
 import type { RorFunder } from './types';
 
 // Note: The ROR data file is loaded dynamically via fetch in the component
@@ -13,6 +15,9 @@ import type { RorFunder } from './types';
  * @returns Array of matching ROR funders
  */
 export function searchRorFunders(funders: RorFunder[], query: string, limit: number = 10): RorFunder[] {
+    const input = parseRorInput(query);
+    if (input.kind === 'invalid') return [];
+    if (input.kind === 'ror') return funders.filter((funder) => canonicalRorId(funder.rorId) === input.rorId).slice(0, limit);
     if (!query || query.trim().length < 2) {
         return [];
     }

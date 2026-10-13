@@ -151,6 +151,7 @@ class ContactMessageController extends Controller
             'sender_email' => 'required|email|max:255',
             'message' => 'required|string|min:10|max:5000',
             'send_to_all' => 'boolean',
+            'data_request' => 'boolean',
             'copy_to_sender' => 'boolean',
             'resource_creator_id' => $sendToAll ? ['exclude'] : ['nullable', 'integer', 'exists:resource_creators,id'],
             'resource_contributor_id' => $sendToAll ? ['exclude'] : ['nullable', 'integer', 'exists:resource_contributors,id'],
@@ -182,6 +183,8 @@ class ContactMessageController extends Controller
             'titles',
             'igsnMetadata',
         ])->findOrFail($resourceId);
+
+        abort_if($request->boolean('data_request') && $resource->landingPage?->is_tombstone, 410, 'Data requests are unavailable for this resource.');
 
         // Determine recipients
         $recipients = $this->deduplicateRecipientsByEmail(

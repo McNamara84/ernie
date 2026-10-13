@@ -13,15 +13,20 @@ use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\DatacenterNameService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
+use App\Services\Resources\ResourcePartySearchNormalizerService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 covers(PortalSearchService::class);
 
@@ -80,7 +85,11 @@ function createPortalSearchServiceWithResolvedThesaurusNodes(array $resolvedNode
                 $this->resolvedNodes,
             );
         }
-    }, app(IgsnMaterialHierarchyService::class));
+    },
+        app(IgsnMaterialHierarchyService::class),
+        app(ResourcePartySearchNormalizerService::class),
+        app(ResourceListingProjectionRefreshService::class),
+    );
 }
 
 // =========================================================================
@@ -309,6 +318,88 @@ describe('full-text search', function () {
         $results = $this->service->search(['query' => 'GFZ Potsdam']);
 
         expect($results->total())->toBe(1);
+    });
+
+    it('finds DOI resources by normalized contributor person names', function (string $search): void {
+        $resource = createPublishedResourceForSearch('Unrelated publication', $this->titleType);
+        $person = Person::factory()->create(['given_name' => 'Peter', 'family_name' => 'Hans']);
+        ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'position' => 0,
+        ]);
+
+        $results = $this->service->search([
+            'portal_scope' => PortalScope::DOI->value,
+            'query' => $search,
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+    })->with(['Hans', 'Hans Peter', 'Peter Hans', 'HansPeter', 'hANS, pETER']);
+
+    it('finds compact resource-specific creator names and contributor institutions in the DOI portal', function (): void {
+        $creatorResource = createPublishedResourceForSearch('Creator snapshot publication', $this->titleType);
+        $person = Person::factory()->create(['given_name' => 'Stale', 'family_name' => 'Global']);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $creatorResource->id,
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        $institutionResource = createPublishedResourceForSearch('Institution publication', $this->titleType);
+        $institution = Institution::factory()->create(['name' => 'GFZ Data Services']);
+        ResourceContributor::factory()->forInstitution($institution)->create([
+            'resource_id' => $institutionResource->id,
+        ]);
+
+        $snapshotResults = $this->service->search([
+            'portal_scope' => PortalScope::DOI->value,
+            'query' => 'SommerPhilippS',
+        ]);
+        $institutionResults = $this->service->search([
+            'portal_scope' => PortalScope::DOI->value,
+            'query' => 'DataServices',
+        ]);
+
+        expect($snapshotResults->total())->toBe(1)
+            ->and($snapshotResults->items()[0]->id)->toBe($creatorResource->id)
+            ->and($institutionResults->total())->toBe(1)
+            ->and($institutionResults->items()[0]->id)->toBe($institutionResource->id);
+    });
+
+    it('does not use party emails or typo correction in the DOI portal', function (string $search): void {
+        $resource = createPublishedResourceForSearch('Unrelated publication', $this->titleType);
+        $person = Person::factory()->create(['given_name' => 'Peter', 'family_name' => 'Hans']);
+        ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'email' => 'hidden-person@example.test',
+        ]);
+
+        $results = $this->service->search([
+            'portal_scope' => PortalScope::DOI->value,
+            'query' => $search,
+        ]);
+
+        expect($results->total())->toBe(0);
+    })->with(['hidden-person', 'hidden-person@example.test', 'Hnas']);
+
+    it('finds contributor names in the IGSN portal', function (): void {
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE,
+        ]);
+        $resource = createPublishedResourceForSearch('Unrelated sample', $this->titleType, $physicalObjectType);
+        $person = Person::factory()->create(['given_name' => 'Iggy', 'family_name' => 'Contributor']);
+        ResourceContributor::factory()->forPerson($person)->create(['resource_id' => $resource->id]);
+
+        $results = $this->service->search([
+            'portal_scope' => PortalScope::IGSN->value,
+            'query' => 'Iggy Contributor',
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
     });
 
     it('finds resources by subject value', function () {
@@ -1347,6 +1438,41 @@ describe('datacenter filtering', function () {
         $results = $this->service->search(['datacenter' => ['GFZ Data Services', 'GEOFON']]);
 
         expect($results->total())->toBe(2);
+    });
+
+    it('resolves historical, current and case-insensitive names with a fixed number of lookup queries', function () {
+        $renamed = Datacenter::create(['name' => 'Original Centre']);
+        app(DatacenterNameService::class)->rename($renamed, 'Renamed Centre');
+        $direct = Datacenter::create(['name' => 'Second Centre']);
+
+        $first = createPublishedResourceForSearch('First Centre Paper', $this->titleType);
+        $first->update(['datacenter_id' => $renamed->id]);
+        $second = createPublishedResourceForSearch('Second Centre Paper', $this->titleType);
+        $second->update(['datacenter_id' => $direct->id]);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        try {
+            $results = $this->service->search([
+                'datacenter' => [
+                    'ORIGINAL CENTRE',
+                    'Renamed Centre',
+                    'second centre',
+                    ...array_map(static fn (int $number): string => "Missing Centre {$number}", range(1, 100)),
+                ],
+            ]);
+            $lookupQueries = array_filter(
+                DB::getQueryLog(),
+                static fn (array $entry): bool => str_contains($entry['query'], 'datacenter_name_aliases')
+                    || preg_match('/from\s+[`"]?datacenters[`"]?/i', $entry['query']) === 1,
+            );
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        expect($results->total())->toBe(2)
+            ->and(count($lookupQueries))->toBe(2);
     });
 
     it('returns all resources when datacenter filter is empty', function () {

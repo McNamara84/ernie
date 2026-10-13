@@ -20,6 +20,7 @@ function createMockResource(overrides: Partial<PortalResource> = {}): PortalReso
         year: 2024,
         landingPageUrl: '/landing/test-slug',
         creators: [{ name: 'Smith' }],
+        searchMatches: [],
         geoLocations: [],
         ...overrides,
     };
@@ -94,6 +95,88 @@ describe('PortalResultCard', () => {
             renderCard(createMockResource({ isIgsn: true, resourceType: 'PhysicalObject' }), '/igsn-search');
 
             expect(screen.getByText('IGSN')).toBeInTheDocument();
+        });
+
+        it('omits the party-match area when the search did not match a party name', () => {
+            renderCard(createMockResource({ searchMatches: [] }));
+
+            expect(screen.queryByTestId('portal-party-search-matches')).not.toBeInTheDocument();
+        });
+
+        it('shows matching identities with stable, public role labels', () => {
+            renderCard(
+                createMockResource({
+                    searchMatches: [
+                        {
+                            display_value: 'Hans, Peter',
+                            matched_field: 'name',
+                            roles: ['contributor', 'contact_person', 'author'],
+                        },
+                        {
+                            display_value: 'GFZ Data Services',
+                            matched_field: 'name',
+                            roles: ['contributor'],
+                        },
+                    ],
+                }),
+            );
+
+            const matches = screen.getByTestId('portal-party-search-matches');
+            expect(within(matches).getByText('Contact Person & Author & Contributor:')).toBeInTheDocument();
+            expect(within(matches).getByText('Hans, Peter')).toHaveAttribute('title', 'Hans, Peter');
+            expect(within(matches).getByText('Contributor:')).toBeInTheDocument();
+            expect(within(matches).getByText('GFZ Data Services')).toBeInTheDocument();
+            expect(screen.getByRole('link')).toHaveAccessibleName(
+                /Contact Person & Author & Contributor: Hans, Peter\. Contributor: GFZ Data Services/,
+            );
+        });
+
+        it('renders a matching party name as text', () => {
+            renderCard(
+                createMockResource({
+                    searchMatches: [
+                        {
+                            display_value: '<script>window.hacked = true</script>',
+                            matched_field: 'name',
+                            roles: ['author'],
+                        },
+                    ],
+                }),
+            );
+
+            const matches = screen.getByTestId('portal-party-search-matches');
+            expect(within(matches).getByText('<script>window.hacked = true</script>')).toBeInTheDocument();
+            expect(matches.querySelector('script')).toBeNull();
+        });
+
+        it('shows each matching sample-name type and value in the accessible result link', () => {
+            renderCard(
+                createMockResource({
+                    isIgsn: true,
+                    sampleNameMatches: [
+                        { label: 'Local accession number', display_value: 'Geo-12' },
+                        { label: 'Local sample name', display_value: 'Basalt Sample 12' },
+                    ],
+                }),
+                '/igsn-search',
+            );
+
+            const matches = screen.getByTestId('portal-sample-name-matches');
+            expect(within(matches).getByText('Local accession number:')).toBeInTheDocument();
+            expect(within(matches).getByText('Geo-12')).toHaveAttribute('title', 'Geo-12');
+            expect(within(matches).getByText('Local sample name:')).toBeInTheDocument();
+            expect(within(matches).getByText('Basalt Sample 12')).toBeInTheDocument();
+            expect(screen.getByRole('link')).toHaveAccessibleName(/Local accession number: Geo-12\. Local sample name: Basalt Sample 12/);
+        });
+
+        it('renders matching sample names as text', () => {
+            renderCard(createMockResource({
+                sampleNameMatches: [{ label: 'Local sample name', display_value: '<script>unsafe()</script>' }],
+            }));
+
+            const matches = screen.getByTestId('portal-sample-name-matches');
+            expect(within(matches).getByText('<script>unsafe()</script>')).toBeInTheDocument();
+            expect(matches.querySelector('script')).toBeNull();
         });
     });
 

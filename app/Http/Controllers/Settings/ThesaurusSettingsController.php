@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateThesaurusVersionRequest;
 use App\Jobs\UpdateThesaurusJob;
 use App\Models\ThesaurusSetting;
+use App\Services\ElmoCacheRefreshDispatcherService;
 use App\Services\ThesaurusStatusService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
@@ -43,6 +44,7 @@ class ThesaurusSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
+                'isElmoMslActive' => $thesaurus->is_elmo_msl_active,
                 'version' => $thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES
                     ? ($localStatus['version'] ?? $thesaurus->version)
                     : $thesaurus->version,
@@ -217,12 +219,15 @@ class ThesaurusSettingsController extends Controller
         /** @var array{version: string} $validated */
         $validated = $request->validated();
 
-        $thesaurus->update(['version' => $validated['version']]);
+        if ($thesaurus->version !== $validated['version']) {
+            $thesaurus->update(['version' => $validated['version']]);
 
-        // Invalidate cache and remove local vocabulary file to prevent
-        // serving stale data that belongs to the previous version.
-        app(VocabularyCacheService::class)->invalidateVocabularyCache($thesaurus->getCacheKey());
-        Storage::delete($thesaurus->getFilePath());
+            // Invalidate cache and remove local vocabulary file to prevent
+            // serving stale data that belongs to the previous version.
+            app(VocabularyCacheService::class)->invalidateVocabularyCache($thesaurus->getCacheKey());
+            Storage::delete($thesaurus->getFilePath());
+            app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($thesaurus);
+        }
 
         return response()->json([
             'type' => $type,

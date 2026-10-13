@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
+import { EditorMetadataUpload } from '@/components/curation/editor-metadata-upload';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { DoiRegistrationSuccessDialog } from '@/components/curation/modals/doi-registration-success-dialog';
 import {
@@ -19,32 +20,48 @@ import {
     RELATED_ITEMS_SECTION_LABEL,
 } from '@/components/curation/related-items-section-copy';
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
+import { snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curation/utils/editor-content-snapshot';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { hasMslLaboratoryTrigger } from '@/components/curation/utils/msl-laboratories';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
-import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
+import SetupLandingPageModal, { hasStoredLandingPageDraft } from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
+import { docsActionHref } from '@/data/docs-actions';
 import { useDoiValidation } from '@/hooks/use-doi-validation';
+import { useEditorLeaveGuard } from '@/hooks/use-editor-leave-guard';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
+import { useResourceTypeLicenses } from '@/hooks/use-resource-type-licenses';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import { RorInputDraftContext, useRorInputDrafts } from '@/hooks/use-ror-input-drafts';
 import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS, isCurationAccordionItemValue } from '@/lib/curation-accordion';
 import { type DoiRegistrationResponse, isOrcidPreflightPayload, type OrcidPreflightIssue } from '@/lib/datacite-registration';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
+import {
+    type EditorDateLocale,
+    isEditorDateRangeReversed,
+    parseEditorDate,
+    requireEditorDateIso,
+    resolveEditorDateLocale,
+    todayLocalIso,
+    validateEditorDate,
+} from '@/lib/editor-date';
 import { feedback } from '@/lib/feedback';
-import { resources } from '@/routes';
+import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
+import { toImportedFormParts } from '@/lib/imported-metadata-form';
+import { indexRorSuggestions } from '@/lib/ror-input';
+import { editor, resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { LandingPageConfig } from '@/types/landing-page';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
-    validateDate,
     validateDOIFormat,
     validateRequired,
     validateTextLength,
@@ -67,6 +84,7 @@ import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import MSLLaboratoriesField from './fields/msl-laboratories-field';
 import { RelatedWorkField } from './fields/related-work';
+import { RorCatalogContext } from './fields/ror-input-feedback';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
@@ -89,7 +107,7 @@ import {
     type SerializedContributor,
     type TitleEntry,
 } from './types/datacite-form-types';
-import { type DateMode, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
+import { type DateMode, isAvailableDateType, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
 import { ABSTRACT_MAX_LENGTH } from './utils/description-rules';
 import {
     canAddDate,
@@ -183,6 +201,7 @@ function toEditorLandingPageSummary(landingPage: LandingPageConfig): EditorLandi
     return {
         id: landingPage.id,
         is_published: landingPage.status === 'published',
+        is_tombstone: landingPage.is_tombstone,
         status: landingPage.status,
         public_url: landingPage.public_url,
         preview_url: landingPage.preview_url,
@@ -223,12 +242,17 @@ function hasDescriptionPayloadValue(description: DescriptionEntry): boolean {
     return description.value.trim() !== '';
 }
 
-function isRawRightsOnlyLicenseEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
-    return entry.mode === 'custom' && entry.rawRight !== undefined && entry.uri.trim() === '' && entry.name.trim() !== '';
+function isRawRightsPayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
+    return (
+        entry.mode === 'custom' &&
+        entry.rawRight !== undefined &&
+        entry.name.trim() !== '' &&
+        (entry.uri.trim() === '' || Boolean(entry.rawRight.rightsIdentifier?.trim()))
+    );
 }
 
 function isCustomLicensePayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
-    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsOnlyLicenseEntry(entry);
+    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsPayloadEntry(entry);
 }
 
 function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<LicenseEntry, { mode: 'catalog' }> {
@@ -236,18 +260,18 @@ function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<Lic
 }
 
 function hasLicenseEntryEvidence(entry: LicenseEntry | undefined): boolean {
-    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsOnlyLicenseEntry(entry));
+    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsPayloadEntry(entry));
 }
 
 function canAddLicenseEntry(licenseEntries: LicenseEntry[]): boolean {
     return licenseEntries.length > 0 && hasLicenseEntryEvidence(licenseEntries[licenseEntries.length - 1]);
 }
 
-function serializeRawRightsOnlyLicenseEntry(entry: CustomLicenseEntry): RawRightsInput {
+function serializeRawRightsPayloadEntry(entry: CustomLicenseEntry): RawRightsInput {
     return {
         ...entry.rawRight,
         rights: entry.name.trim(),
-        rightsUri: null,
+        rightsUri: entry.uri.trim() || null,
         sourceResourceRightId: entry.sourceResourceRightId ?? entry.rawRight?.sourceResourceRightId ?? null,
     };
 }
@@ -281,6 +305,7 @@ export default function DataCiteForm({
     initialLicenses = [],
     initialRawRights = [],
     initialResourceId,
+    hasUnpersistedPrefill = false,
     initialPublicStatus = 'draft',
     initialLandingPage = null,
     initialAuthors = [],
@@ -303,7 +328,10 @@ export default function DataCiteForm({
     activeRelationTypes,
     activeIdentifierTypes,
 }: DataCiteFormProps) {
-    const { auth, curationAccordionOpenItems, curationAccordionRevision } = usePage<SharedData>().props;
+    const {
+        url: currentPageUrl,
+        props: { auth, curationAccordionOpenItems, curationAccordionRevision },
+    } = usePage<SharedData>();
     // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
     const dateTypeOptions = useMemo(
@@ -311,7 +339,7 @@ export default function DataCiteForm({
             dateTypes
                 .filter((dt) => isEditableDateType(dt.slug))
                 .map((dt) => ({
-                    value: dt.slug,
+                    value: normalizeDateTypeSlug(dt.slug),
                     label: dt.name,
                     description: dt.description ?? '',
                 })),
@@ -319,6 +347,7 @@ export default function DataCiteForm({
     );
 
     const errorRef = useRef<HTMLDivElement | null>(null);
+    const editorFormRef = useRef<HTMLFormElement | null>(null);
     const controlledVocabulariesRef = useRef<HTMLDivElement | null>(null);
 
     // Tracking refs for MSL notification
@@ -330,11 +359,11 @@ export default function DataCiteForm({
     const accordionPreferenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [form, setForm] = useState<DataCiteFormData>({
-        doi: initialDoi,
-        year: initialYear,
-        resourceType: initialResourceType,
-        version: initialVersion,
-        language: resolveInitialLanguageCode(languages, initialLanguage),
+        doi: initialDoi ?? '',
+        year: initialYear ?? '',
+        resourceType: initialResourceType ?? '',
+        version: initialVersion ?? '',
+        language: resolveInitialLanguageCode(languages, initialLanguage ?? ''),
         accessLevel: initialAccessLevel,
     });
 
@@ -371,6 +400,8 @@ export default function DataCiteForm({
             };
         });
     });
+
+    const resourceTypeLicenses = useResourceTypeLicenses(licenses, form.resourceType);
 
     const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(() => {
         const entries: LicenseEntry[] = [];
@@ -487,7 +518,7 @@ export default function DataCiteForm({
 
                     return {
                         id: crypto.randomUUID(),
-                        dateType: date.dateType,
+                        dateType: normalizeDateTypeSlug(date.dateType),
                         dateMode,
                         startDate: parsedStart.date || null,
                         endDate: dateMode === 'range' ? parsedEnd.date || null : null,
@@ -502,6 +533,11 @@ export default function DataCiteForm({
         // Start with an empty Dates section when no editable imported dates exist.
         return [];
     });
+    const [persistedSubmittedDateIds, setPersistedSubmittedDateIds] = useState(
+        () => new Set(initialResourceId ? dates.filter((date) => date.dateType === 'submitted').map((date) => date.id) : []),
+    );
+    const hasSubmittedDate = dates.some((date) => date.dateType === 'submitted');
+    const selectableDateTypeOptions = dateTypeOptions.filter((option) => option.value !== 'submitted' || !hasSubmittedDate);
 
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
         const combined = [...(initialGcmdKeywords ?? []), ...(initialGemetKeywords ?? [])];
@@ -557,6 +593,7 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const [relatedItems, setRelatedItems] = useState<Array<Record<string, unknown>>>(initialRelatedItems);
     const [fundingReferences, setFundingReferences] = useState<FundingReferenceEntry[]>(() => {
         if (initialFundingReferences && initialFundingReferences.length > 0) {
             return initialFundingReferences;
@@ -575,6 +612,125 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const importInFlightRef = useRef(false);
+    const [isImportingMetadata, setIsImportingMetadata] = useState(false);
+    const [hasPendingTagInput, setHasPendingTagInput] = useState(false);
+    const updatePendingTagInput = useCallback(() => {
+        // Run from bubbling form handlers so field changes are processed before
+        // this microtask can trigger a render of controlled inputs.
+        queueMicrotask(() => {
+            const inputs = editorFormRef.current?.querySelectorAll<HTMLElement>('.tagify__input');
+            setHasPendingTagInput(
+                Array.from(inputs ?? []).some((input) => Boolean((input instanceof HTMLInputElement ? input.value : input.textContent)?.trim())),
+            );
+        });
+    }, []);
+
+    const handleImportedMetadata = useCallback(
+        (metadata: ImportedMetadata) => {
+            const imported = toImportedFormParts(metadata, languages, licenses);
+            setForm((current) => ({
+                ...current,
+                doi: current.doi.trim() || imported.scalar.doi?.trim() || '',
+                year: current.year.trim() || imported.scalar.year?.trim() || '',
+                resourceType: current.resourceType.trim() || imported.scalar.resourceType?.trim() || '',
+                version: current.version.trim() || imported.scalar.version?.trim() || '',
+                language: current.language.trim() || imported.scalar.language.trim(),
+            }));
+            setTitles((current) => {
+                const merged = mergeImportedEntries(
+                    current,
+                    imported.titles,
+                    (item) =>
+                        item.titleType === MAIN_TITLE_SLUG
+                            ? MAIN_TITLE_SLUG
+                            : [identityPart(item.titleType), identityPart(item.title), identityPart(item.language)].join('|'),
+                    (item) => item.title.trim() === '',
+                );
+                if (merged.some((item) => item.titleType === MAIN_TITLE_SLUG)) return merged;
+                const placeholder = current.find((item) => item.titleType === MAIN_TITLE_SLUG && item.title.trim() === '');
+                return [placeholder ?? { id: crypto.randomUUID(), title: '', titleType: MAIN_TITLE_SLUG }, ...merged];
+            });
+            setLicenseEntries((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.licenses,
+                    (item) => (item.mode === 'catalog' ? `catalog:${identityPart(item.license)}` : `custom:${identityPart(item.uri || item.name)}`),
+                    (item) => (item.mode === 'catalog' ? item.license.trim() === '' : item.name.trim() === '' && item.uri.trim() === ''),
+                ),
+            );
+            setAuthors((current) =>
+                mergeImportedEntries(current, imported.authors, (item) =>
+                    item.type === 'institution'
+                        ? `institution:${identityPart(item.institutionName)}`
+                        : `person:${identityPart(item.orcid || `${item.lastName}|${item.firstName}`)}`,
+                ),
+            );
+            setContributors((current) =>
+                mergeImportedEntries(current, imported.contributors, (item) =>
+                    item.type === 'institution'
+                        ? `institution:${identityPart(item.institutionName)}`
+                        : `person:${identityPart(item.orcid || `${item.lastName}|${item.firstName}`)}`,
+                ),
+            );
+            setDescriptions((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.descriptions,
+                    (item) => [identityPart(item.type), identityPart(item.value), identityPart(item.language)].join('|'),
+                    (item) => item.value.trim() === '',
+                ),
+            );
+            setDates((current) =>
+                mergeImportedEntries(current, imported.dates, (item) =>
+                    [identityPart(item.dateType), item.startDate, item.endDate, item.startTime, item.endTime].join('|'),
+                ),
+            );
+            setGcmdKeywords((current) =>
+                mergeImportedEntries(current, imported.keywords, (item) => `${identityPart(item.scheme)}|${identityPart(item.id || item.path)}`),
+            );
+            setFreeKeywords((current) => mergeImportedEntries(current, imported.freeKeywords, (item) => identityPart(item.value)));
+            setSpatialTemporalCoverages((current) =>
+                mergeImportedEntries(current, imported.coverages, (item) =>
+                    JSON.stringify([
+                        item.type,
+                        item.latMin,
+                        item.lonMin,
+                        item.latMax,
+                        item.lonMax,
+                        item.polygonPoints,
+                        item.startDate,
+                        item.endDate,
+                        item.temporalMode,
+                        item.startTime,
+                        item.endTime,
+                        item.timezone,
+                    ]),
+                ),
+            );
+            setRelatedWorks((current) =>
+                mergeImportedEntries(
+                    current,
+                    imported.relatedWorks,
+                    (item) => [identityPart(item.identifier), identityPart(item.identifier_type), identityPart(item.relation_type)].join('|'),
+                    (item) => item.identifier.trim() === '',
+                ),
+            );
+            setRelatedItems((current) => mergeImportedEntries(current, imported.relatedItems, (item) => JSON.stringify(item)));
+            setFundingReferences((current) =>
+                mergeImportedEntries(current, imported.fundingReferences, (item) =>
+                    [identityPart(item.funderIdentifier || item.funderName), identityPart(item.awardNumber || item.awardUri || item.awardTitle)].join(
+                        '|',
+                    ),
+                ),
+            );
+            setMslLaboratories((current) =>
+                mergeImportedEntries(current, imported.mslLaboratories, (item) => identityPart(item.identifier || item.name)),
+            );
+            setInstruments((current) => mergeImportedEntries(current, imported.instruments, (item) => identityPart(item.pid)));
+        },
+        [languages, licenses],
+    );
     const [selectedDatacenterId, setSelectedDatacenterId] = useState<number | null>(initialDatacenterId);
     const [datacenterTouched, setDatacenterTouched] = useState(false);
     const [openAccordionItems, setOpenAccordionItems] = useState<CurationAccordionItemValue[]>(() =>
@@ -611,7 +767,7 @@ export default function DataCiteForm({
     } = useDoiValidation({
         excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
         onSuccess: () => {
-            toast.success('DOI ist verfügbar', { duration: 2000 });
+            toast.success('DOI is available', { duration: 2000 });
         },
     });
 
@@ -653,7 +809,7 @@ export default function DataCiteForm({
             // Clear any existing DOI conflict state since this is a verified available DOI
             resetDoiValidation();
             // Show success toast to confirm the DOI was accepted
-            toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+            toast.success('Suggested DOI applied', { duration: 2000 });
             // Note: 'form' is intentionally excluded - we use functional update for setForm
             // and only need the new DOI value for validation
         },
@@ -850,6 +1006,7 @@ export default function DataCiteForm({
         analytical_methods: boolean;
         euroscivoc: boolean;
         msl_laboratories: boolean;
+        msl_keywords: boolean;
         simple_lithology: boolean;
     }>({
         science_keywords: true,
@@ -860,6 +1017,7 @@ export default function DataCiteForm({
         analytical_methods: true,
         euroscivoc: true,
         msl_laboratories: true,
+        msl_keywords: true,
         simple_lithology: false,
     });
     const [pid4instAvailability, setPid4instAvailability] = useState<'checking' | 'available' | 'unavailable'>('checking');
@@ -918,6 +1076,7 @@ export default function DataCiteForm({
                     analytical_methods: true,
                     euroscivoc: true,
                     msl_laboratories: true,
+                    msl_keywords: true,
                     simple_lithology: false,
                 };
                 try {
@@ -933,6 +1092,7 @@ export default function DataCiteForm({
                             analytical_methods: availabilityData.analytical_methods?.available ?? true,
                             euroscivoc: availabilityData.euroscivoc?.available ?? true,
                             msl_laboratories: availabilityData.msl_laboratories?.available ?? true,
+                            msl_keywords: availabilityData.msl_keywords?.available ?? true,
                             simple_lithology: availabilityData.simple_lithology?.available ?? false,
                         };
                         setThesauriAvailability(availability);
@@ -1188,7 +1348,7 @@ export default function DataCiteForm({
 
     // Load the controlled MSL keyword vocabulary when an MSL trigger is present.
     useEffect(() => {
-        if (hasMslTrigger && gcmdVocabularies.msl.length === 0) {
+        if (hasMslTrigger && thesauriAvailability.msl_keywords && gcmdVocabularies.msl.length === 0) {
             const loadMslVocabulary = async () => {
                 try {
                     const response = await fetch('/vocabularies/msl');
@@ -1215,7 +1375,7 @@ export default function DataCiteForm({
 
             void loadMslVocabulary();
         }
-    }, [hasMslTrigger, gcmdVocabularies.msl.length]);
+    }, [hasMslTrigger, gcmdVocabularies.msl.length, thesauriAvailability.msl_keywords]);
 
     // Automatically open MSL section when it becomes visible
     // Also notify user with toast, scroll to section, and switch to MSL tab
@@ -1325,18 +1485,47 @@ export default function DataCiteForm({
         return `${allButLast}, and ${last}`;
     }, [authorRoleNames]);
     const authorRolesDescriptionId = authorRoleNames.length > 0 ? 'author-roles-description' : undefined;
-    const { suggestions: affiliationSuggestions } = useRorAffiliations();
+    const rorCatalog = useRorAffiliations();
+    const affiliationSuggestions = rorCatalog.suggestions;
+    const rorCatalogValue = useMemo(
+        () => ({ ...rorCatalog, index: indexRorSuggestions(affiliationSuggestions) }),
+        [rorCatalog, affiliationSuggestions],
+    );
+    const rorDrafts = useRorInputDrafts();
+    const { current: rorDraftsRef, retain: retainRorDrafts } = rorDrafts;
+    useEffect(() => {
+        retainRorDrafts(
+            new Set([
+                ...authors.map((author) => `${author.id}-affiliations`),
+                ...contributors.map((contributor) => `${contributor.id}-affiliations`),
+                ...fundingReferences.map((funding) => `${funding.id}-funder-name`),
+            ]),
+        );
+    }, [authors, contributors, fundingReferences, retainRorDrafts]);
+    const hasRorDrafts = Object.keys(rorDrafts.drafts).length > 0;
 
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
     const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
     const draftAutosaveInFlightRef = useRef(false);
+    const manualDraftSaveInFlightRef = useRef(false);
+    const [isDraftAutosaveInFlight, setIsDraftAutosaveInFlight] = useState(false);
     const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
     const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+    const [editorDateLocale, setEditorDateLocale] = useState<EditorDateLocale>('iso');
+    const [activeDateInputId, setActiveDateInputId] = useState<string | null>(null);
+
+    useEffect(() => {
+        setEditorDateLocale(resolveEditorDateLocale(navigator.language));
+    }, []);
+
+    const handleDateInputEditingChange = useCallback((id: string, editing: boolean) => {
+        setActiveDateInputId((current) => (editing ? id : current === id ? null : current));
+    }, []);
 
     // Compute author validation issues
     const authorValidationIssues = useMemo(() => {
@@ -1386,43 +1575,32 @@ export default function DataCiteForm({
                 }
             }
 
-            // Validate start date if provided
-            if (date.startDate && date.startDate.trim() !== '') {
-                const startDateValidation = validateDate(date.startDate, {
-                    allowFuture: false,
-                    minDate: new Date('1900-01-01'),
-                });
+            const startValidation = date.startDate?.trim()
+                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), isAvailableDateType(date.dateType))
+                : null;
+            const endValidation = date.endDate?.trim() ? validateEditorDate(date.endDate, editorDateLocale) : null;
 
-                if (!startDateValidation.isValid) {
-                    issues.push(`Date ${dateIndex} (Start): ${startDateValidation.error}`);
-                }
-            }
+            if (startValidation?.error) issues.push(`Date ${dateIndex} (Start): ${startValidation.error}`);
+            if (endValidation?.error) issues.push(`Date ${dateIndex} (End): ${endValidation.error}`);
 
-            // Validate end date if provided
-            if (date.endDate && date.endDate.trim() !== '') {
-                const endDateValidation = validateDate(date.endDate, {
-                    allowFuture: false,
-                    minDate: new Date('1900-01-01'),
-                });
-
-                if (!endDateValidation.isValid) {
-                    issues.push(`Date ${dateIndex} (End): ${endDateValidation.error}`);
-                }
-            }
-
-            // Validate that end date is after start date (if both provided)
-            if (date.startDate && date.endDate && date.startDate.trim() !== '' && date.endDate.trim() !== '') {
-                const start = new Date(date.startDate);
-                const end = new Date(date.endDate);
-
-                if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end < start) {
-                    issues.push(`Date ${dateIndex}: End date must be after start date`);
-                }
+            if (
+                date.startDate &&
+                date.endDate &&
+                !startValidation?.error &&
+                !endValidation?.error &&
+                isEditorDateRangeReversed(date.startDate, date.endDate, editorDateLocale, {
+                    startTime: date.startTime,
+                    endTime: date.endTime,
+                    startTimezone: date.startTimezone,
+                    endTimezone: date.endTimezone,
+                })
+            ) {
+                issues.push(`Date ${dateIndex}: End date must be after start date`);
             }
         });
 
         return issues;
-    }, [dates]);
+    }, [dates, editorDateLocale]);
 
     // Draft save only requires a Main Title (Issue #548)
     const isDraftSaveable = useMemo(() => {
@@ -1455,8 +1633,17 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'accessLevel', 'Access Level is required.');
         }
 
-        if (form.accessLevel === 'embargoed' && !dates.some((date) => date.dateType === 'available' && Boolean(date.startDate?.trim()))) {
-            appendValidationMessage(errors, 'accessLevel', 'Embargoed access requires an Available date.');
+        const availableDates = dates.filter((date) => isAvailableDateType(date.dateType));
+        if (
+            form.accessLevel === 'embargoed' &&
+            (availableDates.length !== 1 ||
+                !/^\d{4}-\d{2}-\d{2}$/.test(availableDates[0].startDate?.trim() ?? '') ||
+                Boolean(availableDates[0].endDate))
+        ) {
+            appendValidationMessage(errors, 'accessLevel', 'Embargoed access requires exactly one day-precision Available date.');
+        }
+        if (form.accessLevel !== 'embargoed' && availableDates.some((date) => (date.startDate ?? '') > todayLocalIso())) {
+            appendValidationMessage(errors, 'accessLevel', 'A future Available date requires Embargoed access.');
         }
 
         if (!licenseEntries.some(hasLicenseEntryEvidence)) {
@@ -1959,10 +2146,13 @@ export default function DataCiteForm({
         });
     };
 
-    const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string) => {
+    const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string, committed = false) => {
         setDates((prev) => {
             const current = prev[index];
-            if (!current) return prev;
+            if (!current || persistedSubmittedDateIds.has(current.id)) return prev;
+            if (field === 'dateType' && value === 'submitted' && prev.some((date, i) => i !== index && date.dateType === 'submitted')) {
+                return prev;
+            }
 
             const next = [...prev];
             let updated: DateEntry = { ...current };
@@ -1977,7 +2167,7 @@ export default function DataCiteForm({
                     updated.endTimezone = null;
                 }
             } else if (field === 'dateType') {
-                updated = { ...updated, dateType: value };
+                updated = { ...updated, dateType: normalizeDateTypeSlug(value) };
 
                 if (!isDateRangeCapable(value)) {
                     updated.dateMode = 'single';
@@ -1989,6 +2179,15 @@ export default function DataCiteForm({
                 updated = { ...updated, [field]: value === 'none' ? null : value };
             } else {
                 updated = { ...updated, [field]: value };
+                if (committed && (field === 'startDate' || field === 'endDate') && parseEditorDate(value, editorDateLocale)?.precision !== 'day') {
+                    if (field === 'startDate') {
+                        updated.startTime = null;
+                        updated.startTimezone = null;
+                    } else {
+                        updated.endTime = null;
+                        updated.endTimezone = null;
+                    }
+                }
             }
 
             next[index] = updated;
@@ -1997,7 +2196,8 @@ export default function DataCiteForm({
     };
 
     const addDate = () => {
-        const availableType = dateTypeOptions[0]?.value ?? 'other';
+        const availableType = selectableDateTypeOptions[0]?.value;
+        if (!availableType) return;
         setDates((prev) => [
             ...prev,
             {
@@ -2016,7 +2216,7 @@ export default function DataCiteForm({
     };
 
     const removeDate = (index: number) => {
-        setDates((prev) => prev.filter((_, i) => i !== index));
+        setDates((prev) => prev.filter((date, i) => i !== index || persistedSubmittedDateIds.has(date.id)));
     };
 
     useEffect(() => {
@@ -2043,14 +2243,70 @@ export default function DataCiteForm({
     });
     const [currentPublicStatus, setCurrentPublicStatus] = useState<ResourcePublicStatus>(initialPublicStatus);
     const [currentCanEditDoi, setCurrentCanEditDoi] = useState(canEditDoi ?? isAdmin);
-    const isDoiReadonly = Boolean(resolvedResourceId !== null && (!currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)));
+    const isDoiReadonly = Boolean(
+        resolvedResourceId !== null && (currentPublicStatus === 'dead' || !currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)),
+    );
 
     const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
     const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);
     const [pendingLandingPageSetupResource, setPendingLandingPageSetupResource] = useState<LandingPagePreviewSetupResource | null>(null);
     const [isLandingPageSetupOpen, setIsLandingPageSetupOpen] = useState(false);
     const [landingPageSetupPurpose, setLandingPageSetupPurpose] = useState<LandingPageSetupPurpose | null>(null);
+    const [hasLandingPageDraft, setHasLandingPageDraft] = useState(() =>
+        resolvedResourceId === null ? false : hasStoredLandingPageDraft(resolvedResourceId),
+    );
 
+    useEffect(() => {
+        if (resolvedResourceId !== null && hasStoredLandingPageDraft(resolvedResourceId)) setHasLandingPageDraft(true);
+    }, [resolvedResourceId]);
+
+    const editorSnapshot = useMemo(
+        () =>
+            snapshotEditorContent({
+                form,
+                titles,
+                licenseEntries,
+                authors,
+                contributors,
+                descriptions,
+                dates,
+                gcmdKeywords,
+                freeKeywords,
+                spatialTemporalCoverages,
+                relatedWorks,
+                relatedItems,
+                fundingReferences,
+                mslLaboratories,
+                instruments,
+                selectedDatacenterId,
+            }),
+        [
+            form,
+            titles,
+            licenseEntries,
+            authors,
+            contributors,
+            descriptions,
+            dates,
+            gcmdKeywords,
+            freeKeywords,
+            spatialTemporalCoverages,
+            relatedWorks,
+            relatedItems,
+            fundingReferences,
+            mslLaboratories,
+            instruments,
+            selectedDatacenterId,
+        ],
+    );
+    const [savedEditorSnapshot, setSavedEditorSnapshot] = useState(editorSnapshot);
+    const currentEditorSnapshotRef = useRef(editorSnapshot);
+    currentEditorSnapshotRef.current = editorSnapshot;
+    const [hasUnpersistedInitialData, setHasUnpersistedInitialData] = useState(hasUnpersistedPrefill);
+    const markEditorSaved = useCallback((snapshot: string) => {
+        setSavedEditorSnapshot(snapshot);
+        setHasUnpersistedInitialData(false);
+    }, []);
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
     const resourcesUrl = useMemo(() => resources.url(), []);
@@ -2090,6 +2346,7 @@ export default function DataCiteForm({
         }
     }, []);
     const draftAutosaveMessage = useMemo(() => {
+        if (hasRorDrafts) return 'Autosave paused: finish the institution or funder input.';
         if (draftAutosaveStatus === 'idle') {
             return null;
         }
@@ -2104,7 +2361,7 @@ export default function DataCiteForm({
 
         const savedAt = lastDraftAutosaveAt?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return savedAt ? 'Draft autosaved at ' + savedAt : 'Draft autosaved';
-    }, [draftAutosaveStatus, lastDraftAutosaveAt]);
+    }, [draftAutosaveStatus, lastDraftAutosaveAt, hasRorDrafts]);
 
     // Shared payload builder for both Save & Validate and Save Draft (Issue #548)
     const buildPayload = useCallback(() => {
@@ -2260,6 +2517,7 @@ export default function DataCiteForm({
             }[];
             datacenter_id: number | null;
             resourceId?: number;
+            relatedItems?: Array<Record<string, unknown>>;
             rawRights: DataCiteFormProps['initialRawRights'];
         } = {
             doi: form.doi?.trim() || null,
@@ -2279,7 +2537,7 @@ export default function DataCiteForm({
                 uri: entry.uri.trim(),
                 ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
             })),
-            rawRights: licenseEntries.filter(isRawRightsOnlyLicenseEntry).map(serializeRawRightsOnlyLicenseEntry),
+            rawRights: licenseEntries.filter(isRawRightsPayloadEntry).map(serializeRawRightsPayloadEntry),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -2296,8 +2554,16 @@ export default function DataCiteForm({
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
                 dateMode: date.dateMode,
-                startDate: buildDateTime(date.startDate ?? '', date.startTime, date.startTimezone) || null,
-                endDate: date.dateMode === 'range' ? buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null : null,
+                startDate:
+                    buildDateTime(
+                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, isAvailableDateType(date.dateType)),
+                        date.startTime,
+                        date.startTimezone,
+                    ) || null,
+                endDate:
+                    date.dateMode === 'range'
+                        ? buildDateTime(requireEditorDateIso(date.endDate ?? '', editorDateLocale), date.endTime, date.endTimezone) || null
+                        : null,
                 ...(date.dateInformation ? { dateInformation: date.dateInformation } : {}),
             })),
             freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
@@ -2345,7 +2611,7 @@ export default function DataCiteForm({
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
             // CitationManagerModal owns the data.
-            ...(initialRelatedItems && initialRelatedItems.length > 0 ? { relatedItems: initialRelatedItems } : {}),
+            ...(resolvedResourceId === null && relatedItems.length > 0 ? { relatedItems } : {}),
             fundingReferences: fundingReferences.map((funding) => ({
                 funderName: funding.funderName,
                 funderIdentifier: funding.funderIdentifier,
@@ -2371,6 +2637,7 @@ export default function DataCiteForm({
         authors,
         contributors,
         dates,
+        editorDateLocale,
         submittedDescriptions,
         form.doi,
         form.accessLevel,
@@ -2381,7 +2648,7 @@ export default function DataCiteForm({
         freeKeywords,
         fundingReferences,
         gcmdKeywords,
-        initialRelatedItems,
+        relatedItems,
         instruments,
         licenseEntries,
         mslLaboratories,
@@ -2400,6 +2667,7 @@ export default function DataCiteForm({
     const [orcidBlockers, setOrcidBlockers] = useState<OrcidPreflightIssue[]>([]);
     const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
     const [pendingDataCitePayload, setPendingDataCitePayload] = useState<ReturnType<typeof buildPayload> | null>(null);
+    const [pendingDataCiteSnapshot, setPendingDataCiteSnapshot] = useState<string | null>(null);
     const [pendingDataCiteResourceId, setPendingDataCiteResourceId] = useState<number | null>(null);
     const [pendingDataCiteSubmission, setPendingDataCiteSubmission] = useState<EditorDataCiteSubmission>({
         prefix: '',
@@ -2407,29 +2675,86 @@ export default function DataCiteForm({
         submittingAction: 'submit',
     });
     const [registrationSuccess, setRegistrationSuccess] = useState<{ doi: string; counts: PublishedRecordCounts } | null>(null);
+    const hasUnsavedChanges =
+        editorSnapshot !== savedEditorSnapshot ||
+        hasUnpersistedInitialData ||
+        hasRorDrafts ||
+        hasPendingTagInput ||
+        hasLandingPageDraft ||
+        isImportingMetadata ||
+        isSaving ||
+        isSavingDraft ||
+        isDraftAutosaveInFlight ||
+        isPreparingLandingPagePreview ||
+        isSubmittingDataCite;
+    const { allowNextInternalVisit } = useEditorLeaveGuard(hasUnsavedChanges);
 
-    const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
-        const savedPayload = resourceId ? { ...payload, resourceId } : payload;
+    const recordSavedPayload = useCallback(
+        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+            const savedPayload = resourceId ? { ...payload, resourceId } : payload;
+            if (resourceId) delete savedPayload.relatedItems;
 
-        try {
-            lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
-        } catch (error) {
-            console.error('Failed to serialize draft autosave signature', error);
-            lastDraftAutosaveSignatureRef.current = null;
-        }
-    }, []);
+            try {
+                lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
+            } catch (error) {
+                console.error('Failed to serialize draft autosave signature', error);
+                lastDraftAutosaveSignatureRef.current = null;
+            }
+
+            const savedSubmittedDate = dates.find((date) => date.dateType === 'submitted' && date.startDate?.trim());
+            if (
+                savedSubmittedDate &&
+                payload.dates.some((date) => date.dateType === 'submitted') &&
+                !persistedSubmittedDateIds.has(savedSubmittedDate.id)
+            ) {
+                setPersistedSubmittedDateIds((current) => new Set([...current, savedSubmittedDate.id]));
+                setActiveDateInputId((current) => (current === `${savedSubmittedDate.id}-date` ? null : current));
+                // Keep the saved value even if this row changed while the request was in flight.
+                setDates((current) => {
+                    const remaining = current.filter((date) => date.id === savedSubmittedDate.id || date.dateType !== 'submitted');
+                    return remaining.some((date) => date.id === savedSubmittedDate.id)
+                        ? remaining.map((date) => (date.id === savedSubmittedDate.id ? savedSubmittedDate : date))
+                        : [...remaining, savedSubmittedDate];
+                });
+            }
+        },
+        [dates, persistedSubmittedDateIds],
+    );
+
+    const replaceSavedDraftUrl = useCallback(
+        (resourceId: number) => {
+            if (!Number.isSafeInteger(resourceId)) return;
+            const editorUrl = editor.url({ query: { resourceId } });
+            router.replace({
+                url: editorUrl,
+                // History props predate the save. A restored editor must fetch its saved values.
+                props: (props) => ({
+                    ...props,
+                    resourceId: String(resourceId),
+                    refreshSavedDraftOnRestore: true,
+                    ...(!new URLSearchParams(currentPageUrl.split('?')[1]).has('resourceId') && currentPageUrl !== editorUrl
+                        ? { draftSaveTransition: { fromUrl: currentPageUrl, resourceId: String(resourceId) } }
+                        : {}),
+                }),
+                preserveState: true,
+                preserveScroll: true,
+            });
+        },
+        [currentPageUrl],
+    );
 
     const markDraftAutosaveSaved = useCallback(
-        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
-            updateDraftAutosaveSignature(payload, resourceId);
+        (payload: ReturnType<typeof buildPayload>, snapshot: string, resourceId?: number) => {
+            recordSavedPayload(payload, resourceId);
+            markEditorSaved(snapshot);
             setLastDraftAutosaveAt(new Date());
             setDraftAutosaveStatus('saved');
         },
-        [updateDraftAutosaveSignature],
+        [markEditorSaved, recordSavedPayload],
     );
 
     useEffect(() => {
-        if (resolvedResourceId === null || lastDraftAutosaveSignatureRef.current !== null) {
+        if (resolvedResourceId === null || lastDraftAutosaveSignatureRef.current !== null || dateValidationIssues.length > 0) {
             return;
         }
 
@@ -2439,19 +2764,23 @@ export default function DataCiteForm({
             console.error('Failed to initialize draft autosave signature', error);
             lastDraftAutosaveSignatureRef.current = null;
         }
-    }, [buildPayload, resolvedResourceId]);
+    }, [buildPayload, dateValidationIssues.length, resolvedResourceId]);
 
     const saveDraftSilently = useCallback(async () => {
+        if (Object.keys(rorDraftsRef.current).length > 0) return;
         if (
             !isDraftSaveable ||
             dateValidationIssues.length > 0 ||
+            activeDateInputId !== null ||
             isSaving ||
             isSavingDraft ||
             isPreparingLandingPagePreview ||
             isDataCiteConfirmationOpen ||
             isLandingPageSetupOpen ||
             isSubmittingDataCite ||
+            importInFlightRef.current ||
             registrationSuccess !== null ||
+            manualDraftSaveInFlightRef.current ||
             draftAutosaveInFlightRef.current
         ) {
             return;
@@ -2474,6 +2803,7 @@ export default function DataCiteForm({
         }
 
         draftAutosaveInFlightRef.current = true;
+        setIsDraftAutosaveInFlight(true);
         setDraftAutosaveStatus('saving');
 
         try {
@@ -2491,8 +2821,13 @@ export default function DataCiteForm({
             const data = response.data as DraftSaveResponse | null;
             const savedResourceId = data?.resource?.id;
 
+            if (resolvedResourceId === null && !savedResourceId) {
+                throw new Error('Autosave did not return a resource ID for the new draft.');
+            }
+
             if (savedResourceId) {
                 setResolvedResourceId(savedResourceId);
+                if (resolvedResourceId === null) replaceSavedDraftUrl(savedResourceId);
             }
             if (data?.resource?.publicStatus) {
                 setCurrentPublicStatus(data.resource.publicStatus);
@@ -2501,17 +2836,20 @@ export default function DataCiteForm({
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
 
-            markDraftAutosaveSaved(payload, savedResourceId);
+            markDraftAutosaveSaved(payload, editorSnapshot, savedResourceId);
         } catch (error) {
             console.error('Failed to autosave draft', error);
             setDraftAutosaveStatus('error');
         } finally {
             draftAutosaveInFlightRef.current = false;
+            setIsDraftAutosaveInFlight(false);
         }
     }, [
+        activeDateInputId,
         buildPayload,
         dateValidationIssues.length,
         draftSaveUrl,
+        editorSnapshot,
         isDraftSaveable,
         isDataCiteConfirmationOpen,
         isLandingPageSetupOpen,
@@ -2520,7 +2858,10 @@ export default function DataCiteForm({
         isSavingDraft,
         isSubmittingDataCite,
         markDraftAutosaveSaved,
+        replaceSavedDraftUrl,
         registrationSuccess,
+        resolvedResourceId,
+        rorDraftsRef,
     ]);
 
     useEffect(() => {
@@ -2532,10 +2873,22 @@ export default function DataCiteForm({
     }, [saveDraftSilently]);
 
     const revealValidationErrors = useCallback(
-        (errors: Record<string, string[]>, headerMessage: string, descriptionIds = descriptionEntryIds) => {
+        (
+            errors: Record<string, string[]>,
+            headerMessage: string,
+            descriptionIds = descriptionEntryIds,
+            fieldSelectors: Record<string, string> = {},
+        ) => {
             const mapped = mapBackendErrors(errors, {
                 descriptionIds,
+                dateEntries: dates.filter(hasValidDateValue).map((entry) => ({
+                    id: entry.id,
+                    isRange: isDateRangeCapable(entry.dateType) && entry.dateMode === 'range',
+                })),
             });
+            for (const error of mapped) {
+                error.fieldSelector = fieldSelectors[error.backendKey] ?? error.fieldSelector;
+            }
             setMappedValidationErrors(mapped);
             setValidationAlertHeader(headerMessage);
 
@@ -2562,7 +2915,7 @@ export default function DataCiteForm({
 
             setErrorMessage(headerMessage);
         },
-        [descriptionEntryIds, setFieldErrors, updateOpenAccordionItems],
+        [dates, descriptionEntryIds, setFieldErrors, updateOpenAccordionItems],
     );
 
     const datacenterErrorMessage = useMemo(() => {
@@ -2616,7 +2969,23 @@ export default function DataCiteForm({
         [revealValidationErrors, submittedDescriptionIds],
     );
 
+    const checkRorInputs = useCallback(() => {
+        const drafts = Object.entries(rorDraftsRef.current);
+        if (!drafts.length) return true;
+        const errors: Record<string, string[]> = {};
+        const fieldSelectors: Record<string, string> = {};
+        for (const [id, draft] of drafts) {
+            errors[draft.section] = ['Confirm the ROR suggestion, use a name without an ID, or discard the unfinished input.'];
+            fieldSelectors[draft.section] ??= draft.section === 'fundingReferences' ? `[id="${id}"]` : `[data-testid="${id}-tagify"] .tagify__input`;
+        }
+        setHasAttemptedSubmit(true);
+        revealValidationErrors(errors, 'Please finish the institution or funder input before saving.', undefined, fieldSelectors);
+        return false;
+    }, [revealValidationErrors, rorDraftsRef]);
+
     const prepareValidatedPayload = async (): Promise<ReturnType<typeof buildPayload> | null> => {
+        if (importInFlightRef.current) return null;
+        if (!checkRorInputs()) return null;
         setHasAttemptedSubmit(true);
         setErrorMessage(null);
         setMappedValidationErrors([]);
@@ -2645,10 +3014,15 @@ export default function DataCiteForm({
             }
         }
 
+        if (importInFlightRef.current) return null;
         return buildPayload();
     };
 
-    const persistValidatedResource = async (payload: ReturnType<typeof buildPayload>): Promise<ValidatedSaveResponse | null> => {
+    const persistValidatedResource = async (
+        payload: ReturnType<typeof buildPayload>,
+        submittedSnapshot: string,
+    ): Promise<ValidatedSaveResponse | null> => {
+        if (importInFlightRef.current) return null;
         try {
             const response = await axios.post(saveUrl, payload, {
                 headers: {
@@ -2660,6 +3034,7 @@ export default function DataCiteForm({
 
             if (data?.resource?.id) {
                 setResolvedResourceId(data.resource.id);
+                if (resolvedResourceId === null) replaceSavedDraftUrl(data.resource.id);
             }
             if (data?.resource?.publicStatus) {
                 setCurrentPublicStatus(data.resource.publicStatus);
@@ -2669,7 +3044,8 @@ export default function DataCiteForm({
             }
 
             setHasAttemptedSubmit(false);
-            updateDraftAutosaveSignature(payload, data?.resource?.id);
+            recordSavedPayload(payload, data?.resource?.id);
+            markEditorSaved(submittedSnapshot);
 
             return data;
         } catch (error) {
@@ -2714,13 +3090,15 @@ export default function DataCiteForm({
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (importInFlightRef.current) return;
+        const submittedSnapshot = editorSnapshot;
         setIsSaving(true);
 
         try {
             const payload = await prepareValidatedPayload();
             if (!payload) return;
 
-            const data = await persistValidatedResource(payload);
+            const data = await persistValidatedResource(payload, submittedSnapshot);
             if (!data) return;
 
             toast.success(data.message || 'Resource is valid and has been saved.');
@@ -2737,11 +3115,14 @@ export default function DataCiteForm({
         setOrcidBlockers([]);
         setOrcidWarnings([]);
         setPendingDataCitePayload(null);
+        setPendingDataCiteSnapshot(null);
         setPendingDataCiteResourceId(null);
         setPendingDataCiteSubmission({ prefix: '', force: false, submittingAction: 'submit' });
     };
 
     const handleRequestDataCiteAction = async () => {
+        if (importInFlightRef.current) return;
+        const submittedSnapshot = editorSnapshot;
         setIsSaving(true);
 
         try {
@@ -2750,6 +3131,7 @@ export default function DataCiteForm({
 
             setDataCiteAction(form.doi?.trim() ? 'update' : 'register');
             setPendingDataCitePayload(payload);
+            setPendingDataCiteSnapshot(submittedSnapshot);
             setPendingDataCiteResourceId(null);
             setDataCiteError(null);
             setOrcidBlockers([]);
@@ -2766,6 +3148,7 @@ export default function DataCiteForm({
         force: boolean,
         submittingAction: Exclude<EditorDataCiteSubmittingAction, null>,
     ) => {
+        if (importInFlightRef.current) return;
         setIsSubmittingDataCite(true);
         setDataCiteSubmittingAction(submittingAction);
         setDataCiteError(null);
@@ -2778,6 +3161,12 @@ export default function DataCiteForm({
             const { doi, mode, publishedRecordCounts, updated } = response.data;
             const modeLabel = mode === 'test' ? 'Test' : 'Production';
 
+            const savedSnapshotWithDoi = snapshotWithSavedDoi(pendingDataCiteSnapshot ?? editorSnapshot, doi);
+            const currentSnapshotWithDoi = snapshotWithSavedDoi(currentEditorSnapshotRef.current, doi);
+            markEditorSaved(savedSnapshotWithDoi);
+            const canLeaveWithoutWarning =
+                currentSnapshotWithDoi === savedSnapshotWithDoi && !hasRorDrafts && !hasPendingTagInput && !hasLandingPageDraft;
+
             setForm((current) => ({ ...current, doi }));
             setOrcidBlockers([]);
             setOrcidWarnings([]);
@@ -2787,6 +3176,7 @@ export default function DataCiteForm({
                     description: `${modeLabel} DOI: ${doi}`,
                 });
                 resetDataCiteWorkflow();
+                if (canLeaveWithoutWarning) allowNextInternalVisit(resourcesUrl);
                 router.visit(resourcesUrl);
                 return;
             }
@@ -2796,6 +3186,7 @@ export default function DataCiteForm({
                 setRegistrationSuccess({ doi, counts: publishedRecordCounts });
             } else {
                 toast.success('DOI registered successfully', { description: `${modeLabel} DOI: ${doi}` });
+                if (canLeaveWithoutWarning) allowNextInternalVisit(resourcesUrl);
                 router.visit(resourcesUrl);
             }
         } catch (error) {
@@ -2819,6 +3210,7 @@ export default function DataCiteForm({
     };
 
     const handleConfirmDataCiteAction = async (submission: EditorDataCiteSubmission) => {
+        if (importInFlightRef.current) return;
         setPendingDataCiteSubmission(submission);
 
         let resourceId = pendingDataCiteResourceId;
@@ -2830,7 +3222,7 @@ export default function DataCiteForm({
 
             setIsSubmittingDataCite(true);
             setDataCiteSubmittingAction(submission.submittingAction);
-            const saved = await persistValidatedResource(pendingDataCitePayload);
+            const saved = await persistValidatedResource(pendingDataCitePayload, pendingDataCiteSnapshot ?? editorSnapshot);
             setIsSubmittingDataCite(false);
             setDataCiteSubmittingAction(null);
 
@@ -2856,7 +3248,16 @@ export default function DataCiteForm({
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
-        if (!isDraftSaveable) return;
+        if (!checkRorInputs()) return;
+        const submittedSnapshot = editorSnapshot;
+        if (
+            !isDraftSaveable ||
+            importInFlightRef.current ||
+            isDraftAutosaveInFlight ||
+            draftAutosaveInFlightRef.current ||
+            manualDraftSaveInFlightRef.current
+        )
+            return;
 
         setIsSavingDraft(true);
         setErrorMessage(null);
@@ -2871,6 +3272,7 @@ export default function DataCiteForm({
         }
 
         const payload = buildPayload();
+        manualDraftSaveInFlightRef.current = true;
 
         try {
             const response = await axios.post(
@@ -2898,19 +3300,15 @@ export default function DataCiteForm({
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            updateDraftAutosaveSignature(payload, savedResourceId);
+            recordSavedPayload(payload, savedResourceId);
+            markEditorSaved(submittedSnapshot);
 
             setHasAttemptedSubmit(false);
-
-            // Show toast before redirect so feedback is visible even if navigation fails
             toast.success(successMsg);
 
-            // Redirect to resources list (Issue #624)
-            router.visit(resourcesUrl, {
-                onError: () => {
-                    toast.warning('Could not navigate to the resources list. Your draft has been saved.');
-                },
-            });
+            // Keep the current form mounted while making a newly saved draft reloadable.
+            const resourceIdForUrl = savedResourceId ?? resolvedResourceId;
+            if (resourceIdForUrl) replaceSavedDraftUrl(resourceIdForUrl);
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
@@ -2937,12 +3335,15 @@ export default function DataCiteForm({
             console.error('Failed to save draft', error);
             setErrorMessage('A network error prevented saving the draft. Please try again.');
         } finally {
+            manualDraftSaveInFlightRef.current = false;
             setIsSavingDraft(false);
         }
     };
 
     const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
-        if (!isDraftSaveable) return null;
+        if (!checkRorInputs()) return null;
+        if (!isDraftSaveable || importInFlightRef.current) return null;
+        const submittedSnapshot = editorSnapshot;
 
         setIsPreparingLandingPagePreview(true);
         setErrorMessage(null);
@@ -2982,13 +3383,15 @@ export default function DataCiteForm({
             }
 
             setResolvedResourceId(savedResourceId);
+            if (resolvedResourceId === null) replaceSavedDraftUrl(savedResourceId);
             if (data?.resource?.publicStatus) {
                 setCurrentPublicStatus(data.resource.publicStatus);
             }
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            updateDraftAutosaveSignature(payload, savedResourceId);
+            recordSavedPayload(payload, savedResourceId);
+            markEditorSaved(submittedSnapshot);
             setHasAttemptedSubmit(false);
 
             return { resourceId: savedResourceId };
@@ -3027,10 +3430,14 @@ export default function DataCiteForm({
         clearBackendErrors,
         dateValidationIssues,
         draftSaveUrl,
+        editorSnapshot,
+        checkRorInputs,
         isDraftSaveable,
+        markEditorSaved,
+        replaceSavedDraftUrl,
         resolvedResourceId,
         revealValidationErrors,
-        updateDraftAutosaveSignature,
+        recordSavedPayload,
     ]);
 
     const handleShowLandingPagePreview = useCallback(async () => {
@@ -3063,7 +3470,7 @@ export default function DataCiteForm({
     }, [buildLandingPageSetupResource, landingPageForPreview, openLandingPagePreview, saveDraftForLandingPagePreview]);
 
     const handleLandingPageAction = useCallback(() => {
-        if (currentPublicStatus === 'published') {
+        if (currentPublicStatus === 'published' || currentPublicStatus === 'dead') {
             if (!landingPageForPreview) {
                 toast.error('Unable to open landing page. No published landing page is configured.');
                 return;
@@ -3090,8 +3497,9 @@ export default function DataCiteForm({
     const handleLandingPageSetupSuccess = async (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => {
         const summary = landingPage ? toEditorLandingPageSummary(landingPage) : null;
         setLandingPageForPreview(summary);
+        setHasLandingPageDraft(resolvedResourceId !== null && hasStoredLandingPageDraft(resolvedResourceId));
         if (summary?.is_published && form.doi?.trim()) {
-            setCurrentPublicStatus('published');
+            setCurrentPublicStatus(summary.is_tombstone ? 'dead' : 'published');
         }
         setIsLandingPageSetupOpen(false);
         setPendingLandingPageSetupResource(null);
@@ -3183,8 +3591,9 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
-    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite;
-    const isPublishedResource = currentPublicStatus === 'published';
+    const isEditorActionInFlight =
+        isSaving || isSavingDraft || isDraftAutosaveInFlight || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
+    const isPublishedResource = currentPublicStatus === 'published' || currentPublicStatus === 'dead';
     const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
     const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
@@ -3320,8 +3729,15 @@ export default function DataCiteForm({
         [updateOpenAccordionItems],
     );
 
-    return (
-        <form onSubmit={handleSubmit} noValidate className="space-y-6 pb-36 sm:pb-28 lg:pb-24">
+    const editorForm = (
+        <form
+            ref={editorFormRef}
+            onSubmit={handleSubmit}
+            onInput={updatePendingTagInput}
+            onBlur={updatePendingTagInput}
+            noValidate
+            className="space-y-6 pb-36 sm:pb-28 lg:pb-24"
+        >
             {mappedValidationErrors.length > 0 ? (
                 <ClickableValidationAlert
                     ref={errorRef}
@@ -3341,6 +3757,17 @@ export default function DataCiteForm({
                     focusable
                     className="p-4"
                     data-testid="global-validation-alert"
+                />
+            )}
+            {resolvedResourceId === null && (
+                <EditorMetadataUpload
+                    onImported={handleImportedMetadata}
+                    disabled={isDraftAutosaveInFlight || isEditorActionInFlight}
+                    canStartImport={() => !draftAutosaveInFlightRef.current && !importInFlightRef.current && !isEditorActionInFlight}
+                    onImportingChange={(importing) => {
+                        importInFlightRef.current = importing;
+                        setIsImportingMetadata(importing);
+                    }}
                 />
             )}
             <section
@@ -3385,9 +3812,11 @@ export default function DataCiteForm({
                             placeholder="10.xxxx/xxxxx"
                             labelTooltip={
                                 isDoiReadonly
-                                    ? currentPublicStatus === 'published'
-                                        ? 'Published DOIs can only be changed by administrators.'
-                                        : 'You do not have permission to change this saved DOI.'
+                                    ? currentPublicStatus === 'dead'
+                                        ? 'Restore the tombstone before changing its DOI.'
+                                        : currentPublicStatus === 'published'
+                                          ? 'Published DOIs can only be changed by administrators.'
+                                          : 'You do not have permission to change this saved DOI.'
                                     : initialResourceId && initialDoi
                                       ? currentPublicStatus === 'published'
                                           ? 'As an administrator, you can edit this published DOI. Changing it can break existing links.'
@@ -3528,6 +3957,16 @@ export default function DataCiteForm({
                     </AccordionTrigger>
                     <AccordionContent>
                         <div className="space-y-4">
+                            {resourceTypeLicenses.loading && (
+                                <p role="status" className="text-sm text-muted-foreground">
+                                    Loading license choices…
+                                </p>
+                            )}
+                            {resourceTypeLicenses.error && (
+                                <p role="alert" className="text-sm text-destructive">
+                                    License choices could not be loaded. Select the resource type again to retry.
+                                </p>
+                            )}
                             {licenseEntries.map((entry, index) => {
                                 const customLicensePayloadIndex =
                                     entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
@@ -3537,10 +3976,16 @@ export default function DataCiteForm({
                                         key={entry.id}
                                         id={entry.id}
                                         entry={entry}
-                                        options={licenses.map((l) => ({
-                                            value: l.identifier,
-                                            label: l.name,
-                                        }))}
+                                        options={licenses
+                                            .filter(
+                                                (license) =>
+                                                    resourceTypeLicenses.choices.some((choice) => choice.id === license.id) ||
+                                                    (entry.mode === 'catalog' && entry.license === license.identifier),
+                                            )
+                                            .map((l) => ({
+                                                value: l.identifier,
+                                                label: l.name,
+                                            }))}
                                         onModeChange={(mode) => handleLicenseModeChange(index, mode)}
                                         onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
                                         onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
@@ -3550,7 +3995,7 @@ export default function DataCiteForm({
                                         canAdd={canAddLicenseEntry(licenseEntries)}
                                         required={index === 0}
                                         customNameRequired={index === 0}
-                                        customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
+                                        customUriRequired={index === 0 && !isRawRightsPayloadEntry(entry)}
                                         validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
                                         touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                         onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
@@ -3673,7 +4118,7 @@ export default function DataCiteForm({
                                 simpleLithologyVocabulary={gcmdVocabularies.simple_lithology}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
-                                showMslTab={hasMslTrigger}
+                                showMslTab={hasMslTrigger && thesauriAvailability.msl_keywords}
                                 showChronostratTab={thesauriAvailability.chronostratigraphy}
                                 showGemetTab={thesauriAvailability.gemet}
                                 showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
@@ -3782,6 +4227,12 @@ export default function DataCiteForm({
                                     const selectedDateType = dateTypeOptions.find(
                                         (dt) => normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType),
                                     );
+                                    const entryDateTypeOptions = dateTypeOptions.filter(
+                                        (option) => option.value !== 'submitted' || entry.dateType === 'submitted' || !hasSubmittedDate,
+                                    );
+                                    if (entry.dateType === 'submitted' && !entryDateTypeOptions.some((option) => option.value === 'submitted')) {
+                                        entryDateTypeOptions.push({ value: 'submitted', label: 'Submitted', description: '' });
+                                    }
                                     return (
                                         <DateField
                                             key={entry.id}
@@ -3795,9 +4246,12 @@ export default function DataCiteForm({
                                             startTimezone={entry.startTimezone}
                                             endTimezone={entry.endTimezone}
                                             dateTypeDescription={selectedDateType?.description}
-                                            options={dateTypeOptions}
-                                            onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
-                                            onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
+                                            options={entryDateTypeOptions}
+                                            readOnly={persistedSubmittedDateIds.has(entry.id)}
+                                            onStartDateChange={(val, committed) => handleDateChange(index, 'startDate', val, committed)}
+                                            onEditingChange={handleDateInputEditingChange}
+                                            locale={editorDateLocale}
+                                            onEndDateChange={(val, committed) => handleDateChange(index, 'endDate', val, committed)}
                                             onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
                                             onEndTimeChange={(val) => handleDateChange(index, 'endTime', val)}
                                             onStartTimezoneChange={(val) => handleDateChange(index, 'startTimezone', val)}
@@ -3807,7 +4261,7 @@ export default function DataCiteForm({
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}
                                             isFirst={index === 0}
-                                            canAdd={canAddDate(dates)}
+                                            canAdd={canAddDate(dates) && selectableDateTypeOptions.length > 0}
                                         />
                                     );
                                 })
@@ -3909,6 +4363,32 @@ export default function DataCiteForm({
                 data-testid="editor-floating-actions"
                 className="group fixed right-2 bottom-2 z-40 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 p-2 sm:right-4 sm:bottom-4 sm:max-w-[calc(100vw-2rem)] lg:right-6 lg:bottom-6 lg:p-0"
             >
+                <div className="max-w-md rounded-md border bg-background p-2 text-right text-xs text-foreground shadow-sm">
+                    {!isPublishedResource && (
+                        <p>
+                            <strong>Validate</strong> saves in ERNIE only.{' '}
+                            <a className="underline" href={docsActionHref('editor-validate')} target="_blank" rel="noopener noreferrer">
+                                Details (opens in a new tab)
+                            </a>
+                        </p>
+                    )}
+                    {canRegisterDoi && (
+                        <p>
+                            <strong>{hasExistingDoi ? 'Update Metadata' : 'Register'}</strong>{' '}
+                            {hasExistingDoi
+                                ? 'saves locally, then updates the existing DOI at DataCite after confirmation.'
+                                : 'saves locally, then publishes a DOI at DataCite after confirmation.'}{' '}
+                            <a
+                                className="underline"
+                                href={docsActionHref(hasExistingDoi ? 'editor-update-metadata' : 'editor-register')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                What happens? (opens in a new tab)
+                            </a>
+                        </p>
+                    )}
+                </div>
                 <div
                     data-testid="editor-floating-actions-panel"
                     className="flex max-w-full flex-wrap justify-end gap-2 opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100 hover:opacity-100 sm:gap-3 lg:opacity-100 [@media(hover:none)]:opacity-100"
@@ -3927,10 +4407,12 @@ export default function DataCiteForm({
             </div>
             {pendingLandingPageSetupResource && (
                 <SetupLandingPageModal
+                    context={landingPageSetupPurpose === 'preview' ? 'editor-preview' : 'editor-registration'}
                     resource={pendingLandingPageSetupResource}
                     isOpen={isLandingPageSetupOpen}
                     onClose={handleCloseLandingPageSetup}
                     onSuccess={handleLandingPageSetupSuccess}
+                    onDirtyChange={setHasLandingPageDraft}
                     openPreviewOnSuccess={landingPageSetupPurpose === 'preview'}
                 />
             )}
@@ -3975,5 +4457,10 @@ export default function DataCiteForm({
                 />
             )}
         </form>
+    );
+    return (
+        <RorInputDraftContext.Provider value={rorDrafts}>
+            <RorCatalogContext.Provider value={rorCatalogValue}>{editorForm}</RorCatalogContext.Provider>
+        </RorInputDraftContext.Provider>
     );
 }

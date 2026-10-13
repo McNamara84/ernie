@@ -7,9 +7,9 @@ namespace App\Jobs;
 use App\Enums\AccessLevel;
 use App\Enums\CitationLabelResolutionMode;
 use App\Exceptions\AmbiguousLegacyResourceException;
-use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Services\Crc806LegacyRightsService;
+use App\Services\DatacenterNameService;
 use App\Services\DataCiteCreatorNameMergeService;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteLandingPageImportService;
@@ -28,6 +28,7 @@ use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use App\Services\SumarioPmdCoverageEnrichmentService;
+use App\Services\UserActivityService;
 use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
 use App\Support\LegacyDescriptionBreakNormalizer;
 use Illuminate\Bus\Queueable;
@@ -85,12 +86,17 @@ class ImportFromDataCiteJob implements ShouldQueue
      *
      * @throws \InvalidArgumentException If importId is not a valid UUID
      */
+    /** @var array{id: int, name: string}|null */
+    private ?array $activityActor = null;
+
     public function __construct(
         private int $userId,
         private string $importId,
         private ?string $singleDoi = null,
         private ?string $datacenterId = null,
     ) {
+        $this->activityActor = app(UserActivityService::class)->actor($userId);
+
         // Validate UUID format to prevent cache key collisions or unexpected behavior.
         // The importId is used as part of the cache key and must be unique.
         // We enforce lowercase UUIDs for consistency (RFC 4122 recommends lowercase).
@@ -278,6 +284,13 @@ class ImportFromDataCiteJob implements ShouldQueue
             if ($this->determineFinalStatus() !== 'cancelled') {
                 try {
                     $pendingSummary = $pendingImportService->importAllPending($this->userId, $maxStoredDois);
+                    foreach (array_chunk($pendingSummary['imported_resource_ids'] ?? [], 250) as $ids) {
+                        foreach (Resource::query()->whereIn('id', $ids)->with(['titles.titleType', 'igsnMetadata', 'resourceType'])->get() as $resource) {
+                            $activities = app(UserActivityService::class);
+                            $activities->record($this->activityActor, 'resource.imported', 'imported from SUMARIO legacy metadata',
+                                $activities->subject($resource), operationId: $this->importId);
+                        }
+                    }
 
                     $processed += $pendingSummary['processed'];
                     $imported += $pendingSummary['imported'];
@@ -350,7 +363,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->updateProgress([
+            $this->updateProgressKeys([
                 'status' => 'failed',
                 'error' => $e->getMessage(),
                 'completed_at' => now()->toIso8601String(),
@@ -586,6 +599,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                     );
 
                     if ($fallbackResult['status'] === 'imported') {
+                        if ($fallbackResult['resource'] !== null) {
+                            $activities = app(UserActivityService::class);
+                            $activities->record($this->activityActor, 'resource.imported', 'imported from SUMARIO legacy metadata',
+                                $activities->subject($fallbackResult['resource']), operationId: $this->importId);
+                        }
                         if ($portalDatacenterNames !== [] && $fallbackResult['resource'] !== null) {
                             $this->syncPortalDatacenters(
                                 $fallbackResult['resource'],
@@ -1148,6 +1166,10 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $this->resourceIdsForFullDataCiteSync[] = (int) $importedResource->id;
             }
 
+            $activities = app(UserActivityService::class);
+            $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
+                $activities->subject($importedResource), operationId: $this->importId);
+
             Log::debug('Imported DOI', ['doi' => $doi]);
 
             return [
@@ -1211,6 +1233,8 @@ class ImportFromDataCiteJob implements ShouldQueue
         array $datacenterNames = [],
     ): array {
         Log::debug('Repairing existing DOI import enrichment', ['doi' => $doi]);
+        $activities = app(UserActivityService::class);
+        $before = $activities->snapshot($resource, true);
 
         $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed(
             $resource,
@@ -1228,6 +1252,11 @@ class ImportFromDataCiteJob implements ShouldQueue
 
         if ($dataCiteLandingPageSync['sync_eligible'] || $legacyDownloadSync['sync_eligible']) {
             $this->resourceIdsForDataCiteSync[] = (int) $resource->id;
+        }
+        $fields = $activities->changedFields($before, $activities->snapshot($resource, true));
+        if ($fields !== []) {
+            $activities->record($this->activityActor, 'resource.import_enriched', 'enriched the landing page during a DataCite import for',
+                $activities->subject($resource), $fields, $this->importId);
         }
 
         return [
@@ -1410,14 +1439,14 @@ class ImportFromDataCiteJob implements ShouldQueue
                 return $this->emptyDataCiteLandingPageSyncResult();
             }
 
-            $assignedDatacenterName = $resource->datacenter()->value('name');
-
-            if (! is_string($assignedDatacenterName)
-                || ! $decisionService->shouldImportDataCiteUrlAsExternal(
-                    $doi,
-                    $attributes,
-                    [$assignedDatacenterName],
-                )) {
+            if (! app(DatacenterNameService::class)->matches(
+                $resource->datacenter,
+                LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+            ) || ! $decisionService->shouldImportDataCiteUrlAsExternal(
+                $doi,
+                $attributes,
+                [LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER],
+            )) {
                 return $this->emptyDataCiteLandingPageSyncResult();
             }
         }
@@ -1587,7 +1616,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         if (isset($this->portalDatacenterIds[$selectedName])) {
             $datacenterId = $this->portalDatacenterIds[$selectedName];
         } else {
-            $datacenterId = (int) Datacenter::firstOrCreate(['name' => $selectedName])->id;
+            $datacenterId = (int) app(DatacenterNameService::class)->findOrCreate($selectedName)->id;
             $this->portalDatacenterIds[$selectedName] = $datacenterId;
         }
 
@@ -1615,9 +1644,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             return;
         }
 
-        foreach (Datacenter::query()->whereIn('name', $names)->get(['id', 'name']) as $datacenter) {
-            $this->portalDatacenterIds[$datacenter->name] = (int) $datacenter->id;
-        }
+        $this->portalDatacenterIds = app(DatacenterNameService::class)->idsForNames($names);
     }
 
     /**
@@ -1729,11 +1756,8 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     private function updateProgress(array $data): void
     {
-        Cache::put(
-            $this->getCacheKey(),
-            $data,
-            now()->addHours(24)
-        );
+        $data['activity_actor'] = $this->activityActor;
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_RESOURCE, $this->importId, $data, replace: true);
     }
 
     /**
@@ -1746,18 +1770,8 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     private function updateProgressKeys(array $data): void
     {
-        $currentProgress = Cache::get($this->getCacheKey(), []);
-
-        // Directly assign new values to avoid array_merge overhead
-        foreach ($data as $key => $value) {
-            $currentProgress[$key] = $value;
-        }
-
-        Cache::put(
-            $this->getCacheKey(),
-            $currentProgress,
-            now()->addHours(24)
-        );
+        $data['activity_actor'] = $this->activityActor;
+        app(ImportProgressService::class)->update(ImportProgressService::TYPE_RESOURCE, $this->importId, $data);
     }
 
     /**

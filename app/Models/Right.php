@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\EditorContext;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -24,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $uri
  * @property string|null $scheme_uri
  * @property bool $is_active
+ * @property bool $is_elmo_msl_active
  * @property bool $is_elmo_active
  * @property int $usage_count
  * @property Carbon|null $created_at
@@ -31,7 +33,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/rights/
  */
-#[Fillable(['identifier', 'name', 'uri', 'scheme_uri', 'is_active', 'is_elmo_active', 'usage_count'])]
+#[Fillable(['identifier', 'name', 'uri', 'scheme_uri', 'is_active', 'is_elmo_active', 'is_elmo_msl_active', 'usage_count'])]
 class Right extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -40,6 +42,7 @@ class Right extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_elmo_active' => 'boolean',
+        'is_elmo_msl_active' => 'boolean',
         'usage_count' => 'integer',
     ];
 
@@ -59,6 +62,15 @@ class Right extends Model
     public function scopeElmoActive(Builder $query): Builder
     {
         return $query->where('is_elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<Right>  $query
+     * @return Builder<Right>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_msl_active', true);
     }
 
     /**
@@ -110,7 +122,7 @@ class Right extends Model
      *
      * @return BelongsToMany<ResourceType, static, Pivot, 'pivot'>
      */
-    public function excludedResourceTypes(): BelongsToMany
+    public function excludedResourceTypes(EditorContext $editor = EditorContext::ERNIE): BelongsToMany
     {
         /** @var BelongsToMany<ResourceType, static, Pivot, 'pivot'> $relation */
         $relation = $this->belongsToMany(
@@ -118,7 +130,17 @@ class Right extends Model
             'right_resource_type_exclusions',
             'right_id',
             'resource_type_id'
-        )->withTimestamps();
+        )->withPivotValue('editor', $editor->value)->withTimestamps();
+
+        return $relation;
+    }
+
+    /** @return BelongsToMany<ResourceType, static, Pivot, 'pivot'> */
+    public function allExcludedResourceTypes(): BelongsToMany
+    {
+        /** @var BelongsToMany<ResourceType, static, Pivot, 'pivot'> $relation */
+        $relation = $this->belongsToMany(ResourceType::class, 'right_resource_type_exclusions', 'right_id', 'resource_type_id')
+            ->withPivot('editor')->withTimestamps();
 
         return $relation;
     }
@@ -126,9 +148,9 @@ class Right extends Model
     /**
      * Check if this license is available for a given resource type.
      */
-    public function isAvailableForResourceType(int $resourceTypeId): bool
+    public function isAvailableForResourceType(int $resourceTypeId, EditorContext $editor = EditorContext::ERNIE): bool
     {
-        return ! $this->excludedResourceTypes()
+        return ! $this->excludedResourceTypes($editor)
             ->where('resource_types.id', $resourceTypeId)
             ->exists();
     }
@@ -141,10 +163,11 @@ class Right extends Model
      * @param  Builder<Right>  $query
      * @return Builder<Right>
      */
-    public function scopeAvailableForResourceType(Builder $query, int $resourceTypeId): Builder
+    public function scopeAvailableForResourceType(Builder $query, int $resourceTypeId, EditorContext $editor = EditorContext::ERNIE): Builder
     {
-        return $query->whereDoesntHave('excludedResourceTypes', function (Builder $q) use ($resourceTypeId): void {
-            $q->where('resource_types.id', $resourceTypeId);
+        return $query->whereDoesntHave('allExcludedResourceTypes', function (Builder $q) use ($resourceTypeId, $editor): void {
+            $q->where('resource_types.id', $resourceTypeId)
+                ->where('right_resource_type_exclusions.editor', $editor->value);
         });
     }
 }

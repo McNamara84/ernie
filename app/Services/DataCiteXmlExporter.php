@@ -464,7 +464,7 @@ class DataCiteXmlExporter
                 $subject->setAttribute('valueURI', htmlspecialchars($subjectModel->value_uri));
             }
 
-            if ($subjectModel->classification_code) {
+            if ($subjectModel->classification_code !== null && $subjectModel->classification_code !== '') {
                 $subject->setAttribute('classificationCode', htmlspecialchars($subjectModel->classification_code));
             }
 
@@ -748,7 +748,7 @@ class DataCiteXmlExporter
             $dateElement = $this->dom->createElement('date', htmlspecialchars($dateValue));
             $dateElement->setAttribute('dateType', $date->dateType->slug);
 
-            if ($date->date_information) {
+            if ($date->date_information !== null && $date->date_information !== '') {
                 $dateElement->setAttribute('dateInformation', htmlspecialchars($date->date_information));
             }
 
@@ -870,7 +870,7 @@ class DataCiteXmlExporter
             $relatedElement->setAttribute('relationType', $relatedIdentifier->relationType->slug ?? 'References');
 
             // Add relationTypeInformation if available (DataCite 4.7, property 12.g)
-            if ($relatedIdentifier->relation_type_information) {
+            if ($relatedIdentifier->relation_type_information !== null && $relatedIdentifier->relation_type_information !== '') {
                 $relatedElement->setAttribute(
                     'relationTypeInformation',
                     $relatedIdentifier->relation_type_information
@@ -922,6 +922,9 @@ class DataCiteXmlExporter
             $itemEl = $this->dom->createElement('relatedItem');
             $itemEl->setAttribute('relatedItemType', $item->related_item_type);
             $itemEl->setAttribute('relationType', $item->relationType->slug ?? 'References');
+            if (is_string($item->relation_type_information) && $item->relation_type_information !== '') {
+                $itemEl->setAttribute('relationTypeInformation', $item->relation_type_information);
+            }
 
             // relatedItemIdentifier (optional)
             if (is_string($item->identifier) && $item->identifier !== ''
@@ -1156,7 +1159,7 @@ class DataCiteXmlExporter
      */
     private function buildVersion(Resource $resource): void
     {
-        if ($resource->version) {
+        if ($resource->version !== null && $resource->version !== '') {
             $version = $this->dom->createElement('version', htmlspecialchars($resource->version));
             $this->root->appendChild($version);
         }
@@ -1175,7 +1178,8 @@ class DataCiteXmlExporter
             ->sortBy('id')
             ->values();
 
-        if ($resourceRights->isEmpty() && $resource->access_level === null) {
+        $accessLevel = app(ResourceAccessLevelResolverService::class)->resolve($resource);
+        if ($resourceRights->isEmpty() && $accessLevel === null) {
             return;
         }
 
@@ -1238,8 +1242,8 @@ class DataCiteXmlExporter
             $rightsList->appendChild($rightsElement);
         }
 
-        if ($resource->access_level !== null) {
-            $accessUri = $resource->access_level->coarUri();
+        if ($accessLevel !== null) {
+            $accessUri = $accessLevel->coarUri();
             $alreadyPresent = $resourceRights->contains(function ($resourceRight) use ($accessUri): bool {
                 $uri = $resourceRight->right->uri ?? $resourceRight->rights_uri;
 
@@ -1250,10 +1254,10 @@ class DataCiteXmlExporter
             if (! $alreadyPresent) {
                 $accessElement = $this->dom->createElement(
                     'rights',
-                    htmlspecialchars($resource->access_level->label()),
+                    htmlspecialchars($accessLevel->label()),
                 );
                 $accessElement->setAttribute('rightsURI', $accessUri);
-                $accessElement->setAttribute('rightsIdentifier', $resource->access_level->coarIdentifier());
+                $accessElement->setAttribute('rightsIdentifier', $accessLevel->coarIdentifier());
                 $accessElement->setAttribute('rightsIdentifierScheme', AccessLevel::coarScheme());
                 $accessElement->setAttribute('schemeURI', AccessLevel::coarSchemeUri());
                 $rightsList->appendChild($accessElement);

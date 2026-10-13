@@ -18,9 +18,8 @@ function resolveHref(href: unknown): string {
 }
 
 vi.mock('@inertiajs/react', () => ({
-    Link: ({ href, children }: { href: unknown; children?: React.ReactNode }) => (
-        <a href={resolveHref(href)}>{children}</a>
-    ),
+    usePage: () => ({ props: { auth: { user: null } } }),
+    Link: ({ href, children }: { href: unknown; children?: React.ReactNode }) => <a href={resolveHref(href)}>{children}</a>,
 }));
 
 function createRoute(path: string) {
@@ -50,4 +49,3 @@ describe('AuthSimpleLayout', () => {
         expect(screen.getByText('Child content')).toBeInTheDocument();
     });
 });
-

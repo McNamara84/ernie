@@ -52,6 +52,7 @@ class DataCiteUrlUpdateRunService
                     'status' => DataCiteUrlUpdateRunStatus::PREPARING,
                     'active_marker' => DataCiteUrlUpdateRun::ACTIVE_MARKER,
                     'initiated_by_user_id' => $user->id,
+                    'activity_actor' => app(UserActivityService::class)->actor($user),
                     'test_mode' => $this->client->isTestMode(),
                     'datacite_endpoint' => $this->client->endpoint(),
                     'target_base_url' => $this->target->targetBaseUrl(),

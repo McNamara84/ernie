@@ -277,9 +277,9 @@ class OrcidDiscoveryService
      * (e.g., manually added after the suggestion was generated), the suggestion is
      * deleted and an error is returned instead of overwriting.
      *
-     * @return array{success: bool, synced_dois: array<int, string>, message: string}
+     * @return array<string, mixed>
      */
-    public function acceptOrcid(SuggestedOrcid $suggestion): array
+    public function acceptOrcid(SuggestedOrcid $suggestion, bool $syncDataCite = true): array
     {
         $orcid = $suggestion->suggested_orcid;
         $personId = $suggestion->person_id;
@@ -372,9 +372,23 @@ class OrcidDiscoveryService
 
         // Sync all affected resources with DataCite (outside transaction)
         $person = Person::find($personId);
-        $syncedDois = $person !== null ? $this->syncAffectedResources($person) : [];
+        $resourceIds = $person !== null
+            ? ($this->impactResolver->forPersons([$person->id])[$person->id] ?? [])
+            : [];
 
         $this->invalidateAssistanceCache();
+
+        if (! $syncDataCite) {
+            return [
+                'success' => true,
+                'synced_dois' => [],
+                'datacite_sync_deferred' => true,
+                'datacite_sync_resource_ids' => $resourceIds,
+                'message' => 'ORCID accepted. DataCite synchronization deferred.',
+            ];
+        }
+
+        $syncedDois = $this->syncAffectedResources($resourceIds);
 
         $syncCount = count($syncedDois);
         $message = $syncCount > 0
@@ -623,12 +637,12 @@ class OrcidDiscoveryService
     /**
      * Sync all resources where a person is a creator or contributor.
      *
+     * @param  array<int, int>  $resourceIds
      * @return array<int, string> List of DOIs that were synced
      */
-    private function syncAffectedResources(Person $person): array
+    private function syncAffectedResources(array $resourceIds): array
     {
         $syncedDois = [];
-        $resourceIds = $this->impactResolver->forPersons([$person->id])[$person->id] ?? [];
 
         $resources = Resource::whereIn('id', $resourceIds)
             ->whereNotNull('doi')

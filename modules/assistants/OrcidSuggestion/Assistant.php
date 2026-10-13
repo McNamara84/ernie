@@ -275,6 +275,20 @@ class Assistant extends AbstractAssistant
         return $this->service->acceptOrcid($suggestion);
     }
 
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    #[\Override]
+    protected function acceptWithInput(Model $suggestion, array $input): array
+    {
+        /** @var SuggestedOrcid $suggestion */
+        if (($input['defer_datacite_sync'] ?? false) === true) {
+            return $this->service->acceptOrcid($suggestion, false);
+        }
+
+        return $this->accept($suggestion);
+    }
+
     #[\Override]
     protected function decline(Model $suggestion, User $user, ?string $reason): void
     {

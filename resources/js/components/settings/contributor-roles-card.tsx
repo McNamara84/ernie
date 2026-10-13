@@ -13,6 +13,7 @@ export interface ContributorRoleRow {
     category: 'person' | 'institution' | 'both';
     active: boolean;
     elmo_active: boolean;
+    elmo_msl_active?: boolean;
 }
 
 interface ContributorRolesCardProps {
@@ -21,12 +22,13 @@ interface ContributorRolesCardProps {
     description: string;
     roles: ContributorRoleRow[];
     dataKey: string;
-    onRoleChange: (index: number, field: 'active' | 'elmo_active' | 'category', value: boolean | string) => void;
+    onRoleChange: (index: number, field: 'active' | 'elmo_active' | 'elmo_msl_active' | 'category', value: boolean | string) => void;
     onSetAll: (roles: ContributorRoleRow[]) => void;
 }
 
 export function ContributorRolesCard({ value, title, description, roles, dataKey, onRoleChange, onSetAll }: ContributorRolesCardProps) {
     const ernieState = getSelectAllState(roles.map((r) => r.active));
+    const elmoMslState = getSelectAllState(roles.map((r) => r.elmo_msl_active ?? false));
     const elmoState = getSelectAllState(roles.map((r) => r.elmo_active));
 
     return (
@@ -40,6 +42,7 @@ export function ContributorRolesCard({ value, title, description, roles, dataKey
                         pluralizedCount(roles.length, 'role'),
                         `${roles.filter((role) => role.active).length} ERNIE`,
                         `${roles.filter((role) => role.elmo_active).length} ELMO`,
+                        `${roles.filter((role) => role.elmo_msl_active).length} ELMO-MSL`,
                     ]}
                 />
             }
@@ -82,6 +85,21 @@ export function ContributorRolesCard({ value, title, description, roles, dataKey
                                     />
                                 </div>
                             </TableHead>
+                            <TableHead className="text-center">
+                                ELMO-MSL
+                                <br />
+                                active
+                                <div className="mt-1">
+                                    <Checkbox
+                                        checked={elmoMslState.allChecked}
+                                        indeterminate={elmoMslState.indeterminate}
+                                        onCheckedChange={(checked) => {
+                                            onSetAll(roles.map((r) => ({ ...r, elmo_msl_active: checked === true })));
+                                        }}
+                                        aria-label={`Select all ELMO-MSL active for ${title}`}
+                                    />
+                                </div>
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -120,6 +138,16 @@ export function ContributorRolesCard({ value, title, description, roles, dataKey
                                         id={`${dataKey}-elmo-active-${role.id}`}
                                         checked={role.elmo_active}
                                         onCheckedChange={(checked) => onRoleChange(index, 'elmo_active', checked === true)}
+                                    />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Label htmlFor={`${dataKey}-elmo-msl-active-${role.id}`} className="sr-only">
+                                        ELMO-MSL active
+                                    </Label>
+                                    <Checkbox
+                                        id={`${dataKey}-elmo-msl-active-${role.id}`}
+                                        checked={role.elmo_msl_active ?? false}
+                                        onCheckedChange={(checked) => onRoleChange(index, 'elmo_msl_active', checked === true)}
                                     />
                                 </TableCell>
                             </TableRow>

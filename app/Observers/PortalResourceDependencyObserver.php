@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Enums\PortalCacheArea;
+use App\Models\AlternateIdentifier;
+use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\RelatedIdentifier;
+use App\Models\ResourceContributor;
+use App\Models\ResourceContributorTypePivot;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\Title;
 use App\Services\PortalCacheInvalidationService;
 use Illuminate\Database\Eloquent\Model;
 
@@ -40,7 +46,11 @@ final class PortalResourceDependencyObserver
 
     private function schedule(Model $model): void
     {
-        $resourceId = $model->getAttribute('resource_id');
+        $resourceId = $model instanceof ResourceContributorTypePivot
+            ? ResourceContributor::query()
+                ->whereKey($model->getAttribute('resource_contributor_id'))
+                ->value('resource_id')
+            : $model->getAttribute('resource_id');
         if (! is_numeric($resourceId)) {
             return;
         }
@@ -55,6 +65,9 @@ final class PortalResourceDependencyObserver
     private function areasFor(Model $model): array
     {
         return match (true) {
+            $model instanceof ResourceContributorTypePivot => [
+                PortalCacheArea::PAGE,
+            ],
             $model instanceof GeoLocation => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
@@ -80,11 +93,17 @@ final class PortalResourceDependencyObserver
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ],
-            $model instanceof ResourceCreator => [
+            $model instanceof ResourceCreator,
+            $model instanceof ResourceContributor,
+            $model instanceof AlternateIdentifier,
+            $model instanceof RelatedIdentifier,
+            $model instanceof Title,
+            $model instanceof Description => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
                 PortalCacheArea::IGSN_FACETS,
                 PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
             ],
             default => [
                 PortalCacheArea::PAGE,

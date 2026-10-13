@@ -86,6 +86,48 @@ describe('Logs/Index', () => {
         vi.clearAllMocks();
     });
 
+    it('renders safe clickable dataset and DOI links without expanding the row', async () => {
+        const user = userEvent.setup();
+        render(
+            <Index
+                {...defaultProps}
+                logs={[
+                    {
+                        ...defaultLogs[0],
+                        entry_id: 'source-entry-1',
+                        activity: { dataset_path: '/editor?resourceId=42', doi_url: 'https://doi.org/10.5880/example' },
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByRole('link', { name: 'Open dataset' })).toHaveAttribute('href', '/editor?resourceId=42');
+        expect(screen.getByRole('link', { name: 'DOI' })).toHaveAttribute('href', 'https://doi.org/10.5880/example');
+        expect(screen.getByRole('link', { name: 'DOI' })).toHaveAttribute('rel', 'noopener noreferrer');
+        await user.click(screen.getByRole('link', { name: 'DOI' }));
+        expect(screen.getByText('Click to expand stack trace')).toBeInTheDocument();
+    });
+
+    it('links IGSN activities to their identifier search', () => {
+        render(<Index {...defaultProps} logs={[{ ...defaultLogs[0], activity: { dataset_path: '/igsns?search=10.60510%2Fexample' } }]} />);
+        expect(screen.getByRole('link', { name: 'Open dataset' })).toHaveAttribute('href', '/igsns?search=10.60510%2Fexample');
+    });
+
+    it.each(['javascript:alert(1)', 'https://evil.example', 'https://doi.org.evil.example/10.5880/test', 'https://user@doi.org/test'])(
+        'rejects an unsafe activity DOI URL: %s',
+        (doi_url) => {
+            render(<Index {...defaultProps} logs={[{ ...defaultLogs[0], activity: { dataset_path: '//evil.example', doi_url } }]} />);
+            expect(screen.queryByRole('link', { name: 'DOI' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: 'Open dataset' })).not.toBeInTheDocument();
+        },
+    );
+
+    it('escapes hostile titles and displays the bounded log window notice', () => {
+        render(<Index {...defaultProps} truncated logs={[{ ...defaultLogs[0], message: '<script>alert(1)</script>', activity: {} }]} />);
+        expect(screen.getByText('<script>alert(1)</script>')).toBeInTheDocument();
+        expect(document.querySelector('script')).toBeNull();
+        expect(screen.getByText(/Showing the most recent 50 MB/)).toBeInTheDocument();
+    });
+
     it('renders the logs page', () => {
         render(<Index {...defaultProps} />);
 

@@ -117,8 +117,20 @@ test.describe('Portal Page', () => {
 
         test('clear search button clears the draft query', async ({ page }) => {
             await searchInput(page).fill('something');
+
+            await page.evaluate(() => {
+                document.documentElement.dataset.playwrightInertiaFinished = 'false';
+                document.addEventListener(
+                    'inertia:finish',
+                    () => {
+                        document.documentElement.dataset.playwrightInertiaFinished = 'true';
+                    },
+                    { once: true },
+                );
+            });
             await page.getByRole('button', { name: 'Search', exact: true }).click();
             await expect(page).toHaveURL(/q=something/);
+            await expect(page.locator('html')).toHaveAttribute('data-playwright-inertia-finished', 'true');
 
             await page.getByRole('button', { name: 'Clear search' }).click();
 
@@ -216,8 +228,10 @@ test.describe('Portal Page', () => {
             await expect(page.locator('.leaflet-container').first()).toBeVisible();
         });
 
-        test('map shows OpenStreetMap attribution', async ({ page }) => {
-            await expect(page.getByRole('link', { name: 'OpenStreetMap' }).first()).toBeVisible();
+        test('map shows OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution', async ({ page }) => {
+            await expect(page.getByRole('link', { name: /OpenFreeMap/ }).first()).toBeVisible();
+            await expect(page.getByRole('link', { name: /OpenMapTiles/ }).first()).toBeVisible();
+            await expect(page.getByRole('link', { name: /OpenStreetMap/ }).first()).toBeVisible();
         });
     });
 
@@ -383,7 +397,7 @@ for (const portal of [
 ] as const) {
     test(`${portal.path} cluster navigation stays monotone and exposes colocated records`, async ({ page }) => {
         const requestedZooms: number[] = [];
-        let releaseDelayedResponse: (() => void) | null = null;
+        const delayedResponseControl: { release?: () => void } = {};
         let delayedResponseReleased = false;
 
         await page.route(`**${portal.path}/map**`, async (route) => {
@@ -430,7 +444,7 @@ for (const portal of [
             requestedZooms.push(zoom);
             if (zoom === 8 && !delayedResponseReleased) {
                 await new Promise<void>((resolve) => {
-                    releaseDelayedResponse = resolve;
+                    delayedResponseControl.release = resolve;
                 });
             }
 
@@ -488,6 +502,10 @@ for (const portal of [
         }
         expect(currentZoom).toBe(4);
 
+        // Recording the request does not mean its replacement clusters are ready.
+        await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
+        await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
+        await expect(cluster()).toHaveClass(/leaflet-interactive/);
         await cluster().dispatchEvent('click');
         await expect.poll(() => requestedZooms.at(-1)).toBe(8);
         await expect(cluster()).not.toHaveClass(/leaflet-interactive/);
@@ -496,7 +514,10 @@ for (const portal of [
         expect(requestedZooms).toHaveLength(requestsWhileStale);
 
         delayedResponseReleased = true;
-        releaseDelayedResponse?.();
+        expect(delayedResponseControl.release).toBeDefined();
+        delayedResponseControl.release?.();
+        await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
+        await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
         await expect(cluster()).toHaveClass(/leaflet-interactive/);
 
         const navigationZooms = [4, 8];
@@ -508,6 +529,8 @@ for (const portal of [
             currentZoom = requestedZooms.at(-1)!;
             expect(currentZoom).toBeLessThanOrEqual(Math.min(18, previousZoom + 4));
             navigationZooms.push(currentZoom);
+            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
+            await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
             await expect(cluster()).toHaveClass(/leaflet-interactive/);
         }
 

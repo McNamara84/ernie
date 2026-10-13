@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
@@ -67,6 +68,57 @@ function validStorePayload(int $relationTypeId): array
 }
 
 describe('RelatedItemController', function () {
+    test('round-trips relation information through create, list, update and clear', function (string $information, ?string $clear) {
+        [, $relationType] = seedRelatedItemPrereqs();
+        $this->actingAs(User::factory()->create());
+        $resource = Resource::factory()->create();
+        $endpoint = "/resources/{$resource->id}/related-items";
+        $payload = validStorePayload($relationType->id);
+        $payload['relation_type_information'] = $information;
+
+        $created = $this->postJson($endpoint, $payload)->assertCreated()
+            ->assertJsonPath('data.relation_type_information', $information);
+        $id = $created->json('data.id');
+        $this->getJson($endpoint)->assertOk()->assertJsonPath('data.0.relation_type_information', $information);
+
+        unset($payload['relation_type_information']);
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk()
+            ->assertJsonPath('data.relation_type_information', $information);
+        expect(RelatedItem::findOrFail($id)->relation_type_information)->toBe($information);
+
+        $payload['relation_type_information'] = 'Updated relation information';
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk()
+            ->assertJsonPath('data.relation_type_information', 'Updated relation information');
+        $this->getJson($endpoint)->assertOk()->assertJsonPath('data.0.relation_type_information', 'Updated relation information');
+        expect(RelatedItem::findOrFail($id)->relation_type_information)->toBe('Updated relation information');
+
+        $payload['relation_type_information'] = $clear;
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk()
+            ->assertJsonStructure(['data' => ['relation_type_information']])
+            ->assertJsonPath('data.relation_type_information', null);
+        $this->getJson($endpoint)->assertOk()->assertJsonStructure(['data' => [['relation_type_information']]])
+            ->assertJsonPath('data.0.relation_type_information', null);
+        expect(RelatedItem::findOrFail($id)->relation_type_information)->toBeNull();
+    })->with(['Conference presentation', '0'])->with([null, '']);
+
+    test('logs related-item changes without logging semantic replacement saves', function () {
+        [, $relationType] = seedRelatedItemPrereqs();
+        $user = User::factory()->admin()->create();
+        $resource = Resource::factory()->create();
+        $payload = validStorePayload($relationType->id);
+        Log::spy();
+        $endpoint = "/resources/{$resource->id}/related-items";
+        $id = $this->actingAs($user)->postJson($endpoint, $payload)->assertCreated()->json('data.id');
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk();
+        $payload['titles'][0]['title'] = 'A different title';
+        $this->putJson($endpoint.'/'.$id, $payload)->assertOk();
+        $this->deleteJson($endpoint.'/'.$id)->assertNoContent();
+        foreach (['store', 'update', 'destroy'] as $action) {
+            Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'resources.related-items.'.$action
+                && $context['activity']['changed_fields'] === ['related_items'])->once();
+        }
+    });
+
     test('unauthenticated requests are redirected / rejected', function () {
         $resource = Resource::factory()->create();
 

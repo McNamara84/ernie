@@ -90,16 +90,16 @@ describe('GET /api/v1/identifier-types/ernie', function (): void {
 });
 
 describe('GET /api/v1/identifier-types/elmo', function (): void {
-    test('returns only active and elmo-active identifier types with valid API key', function (): void {
+    test('returns only ELMO-enabled independently of ERNIE identifier types with valid API key', function (): void {
         $response = $this->getJson('/api/v1/identifier-types/elmo', [
             'X-API-Key' => 'test-api-key',
         ])->assertOk();
 
-        expect($response->json())->toHaveCount(1);
+        expect($response->json())->toHaveCount(2);
 
         $slugs = collect($response->json())->pluck('slug')->all();
-        expect($slugs)->toContain('DOI')
-            ->not->toContain('URL', 'Handle', 'CustomIdentifier');
+        expect($slugs)->toContain('DOI', 'Handle')
+            ->not->toContain('URL', 'CustomIdentifier');
 
         expect($response->json('0.description'))->toBe('A character string used to uniquely identify an object.');
     });

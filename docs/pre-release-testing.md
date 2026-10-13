@@ -201,7 +201,37 @@ Stop immediately if:
 
 - [ ] The curator test account and synthetic test data are available.
 
+- [ ] Record `PUBLIC_HOME_ENABLED`, `PUBLIC_FIND_ENABLED`,
+      `PUBLIC_DATA_CENTRES_ENABLED`, and `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED`
+      for this deployment. Stage
+      defaults to `true`; Production defaults to `false`. Enable the relevant
+      switch before testing an ERNIE page's content, and redeploy after changes.
+
 ### 2.3 Public Availability
+
+- [ ] `/` returns the GFZ Data Services homepage, including the welcome text,
+      ELMO news, Submit Metadata link, DOI search, 25 science-topic hexagons,
+      and all three service/guide/external-link groups. Check desktop and mobile.
+
+- [ ] A topic opens `/doi-search?topic=...`; its label is visible in the filters,
+      can be removed, and remains selected during search and map interactions.
+      Scientific Drilling filters the SDDB datacenter. Keyboard focus reveals
+      topic labels, and touch devices show them without requiring a first tap.
+
+- [ ] On Production, after deploying the updated Traefik labels, `/` follows
+      `PUBLIC_HOME_ENABLED`: `true` returns the ERNIE page with HTTP 200, and
+      `false` temporarily redirects to `https://dataservices.gfz-potsdam.de/`
+      with HTTP 302. `/web/` and ELMO still reach their existing applications.
+
+- [ ] On Production, GET requests for `/portal`, `/portal/` and all their
+      subpaths return HTTP 301 with exactly
+      `Location: https://dataservices.gfz.de/doi-search`. `/igsn-new`,
+      `/igsn-new/` and all their subpaths similarly redirect to
+      `https://dataservices.gfz.de/igsn-search`. Old query parameters and
+      subpaths are discarded, including `/portal/index.php?q=granite` and
+      `/igsn-new/portal/results?page=2`. The targets return HTTP 200 without a
+      redirect loop. Similar paths such as `/portals` and `/igsn-newer` are not
+      captured. Use GET with `curl -D - -o /dev/null` rather than HEAD (`curl -I`).
 
 - [ ] <https://ernie.rz-vm182.gfz.de/> opens without certificate, gateway, server,
       or blank-page errors.
@@ -304,20 +334,11 @@ disabled functions as `N/A` and provide a reason.
 
 ### 3.2 Public Pages
 
-- [ ] The home/login page, `About`, `Legal Notice`, and `Changelog` open directly
-      by URL without errors.
+- [ ] The home/login page, `About`, and `Legal Notice` open directly by URL
+      without errors.
 
 - [ ] Header and footer links lead to the expected destinations; external links
       open safely without losing the ERNIE state.
-
-- [ ] The `Changelog` shows the current version, meaningful categories, and
-      expandable/collapsible entries.
-
-- [ ] Changelog entries with related GitHub issues or pull requests show every
-      expected reference; each link opens the correct GitHub page safely in a new
-      tab, while entries without references retain their normal layout.
-
-- [ ] The changelog timeline/jump navigation works with mouse and keyboard.
 
 - [ ] A known public landing page opens directly and does not request
       authentication.
@@ -325,6 +346,22 @@ disabled functions as `N/A` and provide a reason.
 ### 3.3 Authentication, Session, and Access Control
 
 Run with both test roles where applicable.
+
+- [ ] Guests cannot read `/changelog` or `/api/changelog`. The public footer
+      shows the version as text without a Changelog link.
+- [ ] A signed-in user can open Changelog from the active left sidebar and the
+      footer, with or without a verified email address. Test all internal roles,
+      including an account created through the invitation or `add-user` flow.
+      `/api/changelog` loads successfully with the same session. The newest
+      release is expanded alone by default; other releases can be opened and
+      closed using mouse or keyboard.
+- [ ] The right-side version list shows large labeled buttons and the Major,
+      Minor, and Patch color legend. Mobile users can open the version menu.
+      Direct `#v...` links select the requested release.
+- [ ] Changelog entries with related GitHub issues or pull requests show every
+      expected reference; each link opens the correct GitHub page safely in a
+      new tab.
+
 
 - [ ] An incorrect password displays an understandable error and does not log the
       user in.
@@ -382,6 +419,12 @@ Run as curator using a new test resource.
 
 - [ ] A draft with incomplete data can be saved and reopened later when the UI
       offers that action.
+
+- [ ] `Save Draft` keeps the current resource in the editor. A newly saved
+      draft gets an `/editor?resourceId=...` URL that reopens the same draft
+      after a page reload; saving it again updates that resource. Navigating
+      to the Resources List and using Back reloads the saved metadata before
+      the editor becomes usable again.
 
 - [ ] An unpublished record shows exactly `Save Draft`, `Validate`, `Register`,
       and `Preview LP`; a published record shows exactly `Update Metadata` and
@@ -557,6 +600,25 @@ verify them after reopening:
       false success status.
 
 ### 3.10 Portal and Public Discovery
+
+- [ ] Disable each public-page switch independently and redeploy. Its route
+      redirects to the corresponding [TYPO3 target](production-container-deployment.md#public-page-routing-and-feature-switches)
+      both on direct visits and when following an ERNIE navigation link, for
+      guests and signed-in users. The other three routes keep their configured
+      behavior and both search portals remain available. Restore the intended
+      switch values before continuing the content checks.
+
+- [ ] `Find → Data Centres` opens `/data-centres` on desktop and mobile. The
+      homepage and Find overview link to the same local page. Every tile opens
+      `/doi-search` with exactly its datacenter selected; GEOFON Events and
+      GEOFON Networks remain separate. Compare the catalogue with the portal's
+      published DOI datacenter facet.
+
+- [ ] `/data-centres/description` starts with collapsed descriptions. Keyboard
+      users can open several panels independently. An individual Direct link
+      opens and focuses its heading after reload and browser Back/Forward. Check
+      logos, visible labels, focus indicators, and text at narrow widths, enlarged
+      font sizes, and in both light and dark themes.
 
 - [ ] The portal opens without login and shows result count, result list, and map
       or an understandable empty state.
@@ -752,6 +814,13 @@ Modify only purpose-created `MANUAL-TEST` users.
 ### 3.15 Editor Settings and External Vocabularies
 
 - [ ] Editor Settings loads all visible cards and current values.
+
+- [ ] All Editor Settings cards start collapsed on a new visit and full reload.
+      Multiple cards, including all three Contributor Roles cards, stay open
+      independently. Every card heading offers the appropriate actions to expand
+      or collapse all cards. These actions preserve unsaved values, and saving
+      preserves the open cards. Keyboard focus returns to the same card heading
+      after a bulk action.
 
 - [ ] A clearly labelled temporary setting, domain, or data centre can be created,
       selected in the editor, and then removed.

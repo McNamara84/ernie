@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\AccessLevel;
+use App\Enums\SchemaOrgProfile;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\SchemaOrg\CreativeWorkMetadataService;
+use App\Services\SchemaOrg\DatasetMetadataService;
+use App\Services\SchemaOrg\DescribedObjectMetadataService;
+use App\Services\SchemaOrg\MediaObjectMetadataService;
+use App\Services\SchemaOrg\SoftwareMetadataService;
 use App\Support\OrcidNormalizer;
 
 /**
@@ -20,6 +26,15 @@ use App\Support\OrcidNormalizer;
  */
 class SchemaOrgJsonLdExporter
 {
+    public function __construct(
+        private readonly SchemaOrgResourceTypeMappingService $typeMapping,
+        private readonly CreativeWorkMetadataService $creativeWork,
+        private readonly DatasetMetadataService $dataset,
+        private readonly SoftwareMetadataService $software,
+        private readonly MediaObjectMetadataService $media,
+        private readonly DescribedObjectMetadataService $describedObject,
+    ) {}
+
     /**
      * Controlled vocabulary subject schemes that should be emitted as Schema.org DefinedTerm.
      *
@@ -49,15 +64,22 @@ class SchemaOrgJsonLdExporter
         $dataCiteJson = $jsonExporter->export($resource, serializeDescriptionsForDataCite: false);
         $attributes = $dataCiteJson['data']['attributes'];
 
-        $isSoftware = $resource->resourceType?->slug === 'software';
+        $mapping = $this->typeMapping->resolve($resource);
         $jsonLd = [
             '@context' => 'https://schema.org/',
-            '@type' => $isSoftware ? ['SoftwareSourceCode', 'SoftwareApplication'] : 'Dataset',
+            '@type' => $mapping->jsonLdType(),
         ];
+        if ($mapping->additionalType !== null) {
+            $jsonLd['additionalType'] = $mapping->additionalType;
+        }
 
-        if ($resource->access_level !== null) {
-            $jsonLd['conditionsOfAccess'] = $resource->access_level->label();
-            $jsonLd['isAccessibleForFree'] = $resource->access_level->isAccessibleForFree();
+        $accessLevel = app(ResourceAccessLevelResolverService::class)->resolve($resource, $landingPage);
+        if ($accessLevel !== null) {
+            $jsonLd['conditionsOfAccess'] = $accessLevel->label();
+            // No download does not establish a restriction on the digital data.
+            if ($accessLevel !== AccessLevel::METADATA_ONLY || $resource->isIgsn() || $resource->igsnMetadata !== null) {
+                $jsonLd['isAccessibleForFree'] = $accessLevel->isAccessibleForFree();
+            }
         }
 
         // @id and url from DOI
@@ -79,6 +101,12 @@ class SchemaOrgJsonLdExporter
         $description = $this->extractAbstract($attributes['descriptions'] ?? []);
         if ($description !== null) {
             $jsonLd['description'] = $description;
+        }
+
+        if ($landingPage?->is_tombstone) {
+            $jsonLd['conditionsOfAccess'] = 'This resource is no longer available.';
+            $jsonLd['isAccessibleForFree'] = false;
+            $jsonLd['description'] = trim('This resource is no longer available. '.($landingPage->tombstone_statement ?? '').' '.($description ?? ''));
         }
 
         // Creators with @list for order preservation
@@ -116,10 +144,6 @@ class SchemaOrgJsonLdExporter
             }
         }
 
-        if ($content !== null) {
-            $this->applyLandingPageContent($jsonLd, $content, $isSoftware);
-        }
-
         // Spatial coverage
         if (! empty($attributes['geoLocations'])) {
             $spatial = $this->transformSpatialCoverage($attributes['geoLocations']);
@@ -134,11 +158,11 @@ class SchemaOrgJsonLdExporter
         }
 
         // Version
-        if (! empty($attributes['version'])) {
+        if (isset($attributes['version']) && $attributes['version'] !== '') {
             $jsonLd['version'] = $attributes['version'];
         }
 
-        // Citation: related items become schema:citation CreativeWork entries
+        // Citation follows the outgoing DataCite citation/reference direction.
         if (! empty($attributes['relatedItems'])) {
             $citations = $this->transformCitations($attributes['relatedItems']);
             if ($citations !== []) {
@@ -151,61 +175,18 @@ class SchemaOrgJsonLdExporter
             $jsonLd['subjectOf'] = $this->buildSubjectOf($attributes['doi']);
         }
 
-        return $jsonLd;
-    }
-
-    /**
-     * @param  array<string, mixed>  $jsonLd
-     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string, contentSize: string|null}>, repositories: list<string>}  $content
-     */
-    private function applyLandingPageContent(array &$jsonLd, array $content, bool $isSoftware): void
-    {
-        $contentUrls = array_map(
-            static fn (array $link): string => $link['url'],
-            $content['contentLinks'],
-        );
-        $downloads = array_map(
-            static function (array $link): array {
-                $download = [
-                    '@type' => 'DataDownload',
-                    'contentUrl' => $link['url'],
-                    'encodingFormat' => $link['mimeType'],
-                ];
-
-                if ($link['contentSize'] !== null) {
-                    $download['contentSize'] = $link['contentSize'];
-                }
-
-                return $download;
-            },
-            $content['contentLinks'],
-        );
-
-        if ($isSoftware) {
-            if ($content['repositories'] !== []) {
-                $jsonLd['codeRepository'] = $this->singleOrList($content['repositories']);
-            }
-
-            if ($contentUrls !== []) {
-                $jsonLd['downloadUrl'] = $this->singleOrList($contentUrls);
-                $jsonLd['associatedMedia'] = $downloads;
-            }
-
-            return;
+        // A caller-supplied content descriptor must never bypass the tombstone policy.
+        if ($landingPage?->is_tombstone) {
+            $content = null;
         }
 
-        if ($content['contentLinks'] !== []) {
-            $jsonLd['distribution'] = $downloads;
-        }
-    }
-
-    /**
-     * @param  list<string>  $values
-     * @return string|list<string>
-     */
-    private function singleOrList(array $values): string|array
-    {
-        return count($values) === 1 ? $values[0] : $values;
+        return match ($mapping->profile) {
+            SchemaOrgProfile::CREATIVE_WORK => $this->creativeWork->map($jsonLd, $content),
+            SchemaOrgProfile::DATASET => $this->dataset->map($jsonLd, $content),
+            SchemaOrgProfile::SOFTWARE => $this->software->map($jsonLd, $content),
+            SchemaOrgProfile::MEDIA => $this->media->map($jsonLd, $content),
+            SchemaOrgProfile::DESCRIBED_OBJECT => $this->describedObject->map($jsonLd, $content),
+        };
     }
 
     /**
@@ -628,6 +609,10 @@ class SchemaOrgJsonLdExporter
     {
         $citations = [];
         foreach ($relatedItems as $ri) {
+            if (! in_array($ri['relationType'] ?? null, ['Cites', 'References'], true)) {
+                continue;
+            }
+
             $entry = ['@type' => 'CreativeWork'];
 
             // Name (MainTitle preferred — explicit MainTitle wins, missing

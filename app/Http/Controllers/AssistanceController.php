@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Contracts\AcceptsDeclineInput;
 use App\Exceptions\BatchSuggestionValidationException;
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\AcceptSuggestionRequest;
@@ -11,9 +12,11 @@ use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Assistance\IndexAssistanceRequest;
 use App\Models\RelationType;
+use App\Models\Resource;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\BatchSuggestionActionService;
+use App\Services\DataCiteSyncService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,6 +37,7 @@ class AssistanceController extends Controller
         private readonly AssistantRegistrar $registrar,
         private readonly BatchSuggestionActionService $batchActionService,
         private readonly RorDiscoveryService $rorDiscoveryService,
+        private readonly DataCiteSyncService $dataCiteSyncService,
     ) {}
 
     /**
@@ -195,6 +199,22 @@ class AssistanceController extends Controller
     }
 
     /**
+     * Retry a failed automatic DataCite synchronization after local acceptance.
+     */
+    public function retryDataCiteSync(Resource $resource): JsonResponse
+    {
+        $result = $this->dataCiteSyncService->syncIfRegistered($resource);
+
+        return response()->json([
+            'success' => $result->success,
+            'datacite_sync' => $result->toArray(),
+            'message' => $result->hasFailed()
+                ? 'DataCite synchronization failed: '.$result->errorMessage
+                : ($result->attempted ? 'DataCite synchronization completed.' : 'No DataCite synchronization was required.'),
+        ], $result->hasFailed() ? 502 : 200);
+    }
+
+    /**
      * @param  'accept'|'decline'  $action
      */
     private function batchAction(BatchSuggestionsRequest $request, string $action): JsonResponse
@@ -254,7 +274,9 @@ class AssistanceController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $result = $assistant->declineSuggestion($suggestion, $user, $request->input('reason'));
+        $result = $assistant instanceof AcceptsDeclineInput
+            ? $assistant->declineSuggestionWithInput($suggestion, $user, $request->input('reason'), $request->validated())
+            : $assistant->declineSuggestion($suggestion, $user, $request->input('reason'));
 
         return response()->json($result);
     }

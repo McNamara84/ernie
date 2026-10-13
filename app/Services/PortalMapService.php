@@ -14,7 +14,6 @@ use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMapPresentationService;
 use App\Support\CircularLongitudeCoverage;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Facades\DB;
 
 class PortalMapService
 {
@@ -154,16 +153,13 @@ class PortalMapService
             ];
         }
 
-        $eligibleResources = $this->portalSearchService
+        // Keep the shared filters at the top level: wrapping their legacy
+        // keyword normalization in a derived table overflows older SQLite parsers.
+        $query = $this->portalSearchService
             ->buildFilteredResourceQuery($resourceFilters, ($resourceFilters['bounds'] ?? null) !== null)
-            ->select('resources.id');
-
-        $query = DB::table('geo_locations as map_locations')
-            ->joinSub($eligibleResources, 'eligible_resources', function ($join) {
-                $join->on('eligible_resources.id', '=', 'map_locations.resource_id');
-            })
-            ->join('resources as map_resources', 'map_resources.id', '=', 'map_locations.resource_id')
-            ->leftJoin('resource_types as map_resource_types', 'map_resource_types.id', '=', 'map_resources.resource_type_id')
+            ->toBase()
+            ->join('geo_locations as map_locations', 'map_locations.resource_id', '=', 'resources.id')
+            ->leftJoin('resource_types as map_resource_types', 'map_resource_types.id', '=', 'resources.resource_type_id')
             ->select([
                 'map_locations.id as location_id',
                 'map_locations.resource_id',
@@ -182,7 +178,7 @@ class PortalMapService
 
         if ($includeIgsnMaterial) {
             $query
-                ->leftJoin('igsn_metadata as map_igsn_metadata', 'map_igsn_metadata.resource_id', '=', 'map_resources.id')
+                ->leftJoin('igsn_metadata as map_igsn_metadata', 'map_igsn_metadata.resource_id', '=', 'resources.id')
                 ->addSelect('map_igsn_metadata.material as igsn_material');
         }
 

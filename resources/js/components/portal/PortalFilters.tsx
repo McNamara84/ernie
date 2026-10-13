@@ -44,6 +44,7 @@ interface PortalFiltersProps {
     onGeologicalAgesChange?: (values: string[]) => void;
     onGeologicalUnitsChange?: (values: string[]) => void;
     onClearFilters: () => void;
+    onClearTopic?: () => void;
     hasActiveFilters: boolean;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
@@ -100,6 +101,7 @@ export function PortalFilters({
     onGeologicalAgesChange = () => undefined,
     onGeologicalUnitsChange = () => undefined,
     onClearFilters,
+    onClearTopic,
     hasActiveFilters,
     isCollapsed,
     onToggleCollapse,
@@ -211,6 +213,27 @@ export function PortalFilters({
             </div>
 
             <ScrollArea className="min-h-0 flex-1">
+                {!isIgsnPortal && filters.topic && (
+                    <div
+                        className="mx-3 mt-3 flex items-center justify-between gap-2 rounded-md border bg-muted/50 p-3"
+                        data-testid="portal-topic-filter"
+                    >
+                        <div className="min-w-0 text-sm">
+                            <p className="text-xs text-muted-foreground">Science topic</p>
+                            <p className="font-medium">{filters.topic.label}</p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            onClick={onClearTopic}
+                            aria-label={`Remove topic: ${filters.topic.label}`}
+                        >
+                            <X className="size-4" aria-hidden="true" />
+                        </Button>
+                    </div>
+                )}
                 <Accordion
                     type="multiple"
                     value={openSections}

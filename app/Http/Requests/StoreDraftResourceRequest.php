@@ -8,10 +8,12 @@ use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Concerns\AuthorizesResourceDoiChanges;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
+use App\Http\Requests\Concerns\ValidatesRelatedItems;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\RelatedIdentifier;
 use App\Models\ResourceCreator;
 use App\Models\TitleType;
+use App\Rules\EditorDate;
 use App\Rules\SafeUrl;
 use App\Rules\TemporalCoverageDate;
 use App\Rules\TemporalCoverageTimezone;
@@ -35,6 +37,7 @@ class StoreDraftResourceRequest extends FormRequest
 {
     use AuthorizesResourceDoiChanges;
     use ValidatesEditorDates;
+    use ValidatesRelatedItems;
     use ValidatesTemporalCoverages;
 
     /**
@@ -145,8 +148,8 @@ class StoreDraftResourceRequest extends FormRequest
                 Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
-            'dates.*.startDate' => ['nullable', 'date'],
-            'dates.*.endDate' => ['nullable', 'date'],
+            'dates.*.startDate' => ['nullable', new EditorDate(allowFuture: true)],
+            'dates.*.endDate' => ['nullable', app(EditorDate::class)],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
@@ -202,6 +205,7 @@ class StoreDraftResourceRequest extends FormRequest
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
             'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in(RelatedIdentifier::INTERNAL_SOURCES)],
+            ...$this->relatedItemRules(),
             'fundingReferences' => ['nullable', 'array', 'max:'.self::MAX_REPEATABLE_METADATA_ITEMS],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],

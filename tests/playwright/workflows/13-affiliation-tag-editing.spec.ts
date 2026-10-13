@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
-import { loginAsTestUser } from '../helpers/test-helpers';
+import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 
 const ORIGINAL_AFFILIATION = 'GFZ Helmholtz Centre for Geosciences';
 const EDITED_AFFILIATION = 'GFZ Helmholtz Centre for Geosciences, Potsdam, Germany';
@@ -147,9 +147,19 @@ async function expectEditedAffiliation(page: Page, section: AffiliationSection, 
 
 test.describe('Affiliation tag editing', () => {
   test.beforeEach(async ({ page }) => {
+    page.setDefaultNavigationTimeout(60_000);
     await mockRorAffiliations(page);
-    await loginAsTestUser(page);
-    await page.goto('/editor');
+    const login = () => page.goto('/login', { waitUntil: 'domcontentloaded' });
+    await login().catch((error: unknown) => {
+      // Windows WebKit can reject the local certificate on its first handshake.
+      if (!(error instanceof Error) || !error.message.includes('SSL connect error')) throw error;
+      return login();
+    });
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 60_000 });
+    await page.goto('/editor', { waitUntil: 'domcontentloaded' });
   });
 
   for (const section of sections) {

@@ -26,22 +26,26 @@ import {
     Upload,
     Users,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { DocsActionReference } from '@/components/docs/docs-action-reference';
 import { DocsCodeBlock } from '@/components/docs/docs-code-block';
 import { DocsSection } from '@/components/docs/docs-section';
 import { DocsSidebar, DocsSidebarMobile } from '@/components/docs/docs-sidebar';
 import { type DocsTabId, DocsTabs } from '@/components/docs/docs-tabs';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
+import { Input } from '@/components/ui/input';
+import { DOCS_ACTIONS, docsActionHref } from '@/data/docs-actions';
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, UserRole } from '@/types';
-import type { DataCiteDocsSettings, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
+import type { DataCiteDocsSettings, DocsCapabilities, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
 
 interface DocsProps {
     userRole: UserRole;
     editorSettings: EditorSettings;
     dataCite: DataCiteDocsSettings;
+    capabilities?: DocsCapabilities;
 }
 
 /**
@@ -62,8 +66,37 @@ function formatConfiguredList(values: string[]): string {
     return values.length > 0 ? values.join(', ') : NOT_CONFIGURED_LABEL;
 }
 
-export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) {
-    const [activeTab, setActiveTab] = useState<DocsTabId>('getting-started');
+export default function Docs({ userRole, editorSettings, dataCite, capabilities }: DocsProps) {
+    const permissions = useMemo<DocsCapabilities>(
+        () =>
+            capabilities ?? {
+                registerDoi: true,
+                sendReviewLinks: userRole !== 'beginner',
+                deleteResources: userRole !== 'beginner',
+                deletePublishedResources: userRole === 'admin' || userRole === 'group_leader',
+                manageLandingPages: true,
+                importFromDataCite: userRole === 'admin' || userRole === 'group_leader',
+                updateDataCiteUrls: userRole === 'admin',
+                manageUsers: userRole === 'admin' || userRole === 'group_leader',
+                accessEditorSettings: userRole === 'admin' || userRole === 'group_leader',
+            },
+        [capabilities, userRole],
+    );
+    const initialParams = new URLSearchParams(window.location.search);
+    const requestedTab = initialParams.get('tab');
+    const [activeTab, setActiveTab] = useState<DocsTabId>(
+        requestedTab === 'datasets' || requestedTab === 'physical-samples' ? requestedTab : 'getting-started',
+    );
+    const [navigationTarget, setNavigationTarget] = useState<string | null>(initialParams.get('section'));
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        const previousLanguage = document.documentElement.lang;
+        document.documentElement.lang = 'en';
+        return () => {
+            document.documentElement.lang = previousLanguage;
+        };
+    }, []);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -73,6 +106,9 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
     ];
 
     const userRoleLevel = roleHierarchy[userRole] ?? 1;
+    const visibleActions = useMemo(() => DOCS_ACTIONS.filter((action) => !action.capability || permissions[action.capability]), [permissions]);
+    const editorActions = useMemo(() => visibleActions.filter((action) => action.area === 'editor'), [visibleActions]);
+    const resourceActions = useMemo(() => visibleActions.filter((action) => action.area === 'resources'), [visibleActions]);
 
     // ===========================================
     // TAB 1: Getting Started Sections
@@ -111,33 +147,44 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             <li>Reaching the import hub immediately from the first screen area instead of scrolling past large cards</li>
                         </ul>
 
-                        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
-                            <p className="text-sm text-emerald-900 dark:text-emerald-100">
-                                <strong>Guided Tours:</strong> Beginners now receive a role-specific product tour the first time they return to the
-                                Dashboard after logging in. The tour highlights the dashboard, the main navigation, the upload area, the resources
-                                list, and the IGSN tools. Closing the tour does not mark it as completed, so it can be assigned again later.
-                            </p>
-                        </div>
+                        {userRole === 'beginner' && (
+                            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+                                <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                                    <strong>Guided Tours:</strong> Beginners receive a role-specific product tour when they return to the Dashboard
+                                    after logging in. Closing the tour does not mark it as completed, so it can be assigned again later.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources List</strong> and{' '}
-                                <strong>IGSNs List</strong>. The <strong>Assistance</strong> entry continues to show the number of pending
-                                suggestions. For Admins, Group Leaders, and Curators, the <strong>Assessment</strong> entry also shows the current
-                                average FAIR score summary in the format <strong>Resources / IGSNs</strong>.
+                                <strong>IGSNs List</strong>.
+                                {roleHierarchy[userRole] >= roleHierarchy.group_leader && (
+                                    <>
+                                        {' '}
+                                        The <strong>Assistance</strong> entry shows the number of pending suggestions.
+                                    </>
+                                )}
+                                {roleHierarchy[userRole] >= roleHierarchy.curator && (
+                                    <>
+                                        {' '}
+                                        The <strong>Assessment</strong> entry shows the current average FAIR score summary in the format{' '}
+                                        <strong>Resources / IGSNs</strong>.
+                                    </>
+                                )}
                             </p>
                         </div>
 
-                        <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
-                            <p className="text-sm text-violet-900 dark:text-violet-100">
-                                <strong>Workspace Switcher:</strong> Admins and Group Leaders now see a <strong>Curation</strong> /{' '}
-                                <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for day-to-day
-                                metadata work such as the Dashboard, Resources List, and IGSN tools. Use <strong>Administration</strong> for
-                                privileged destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment, and Logs.
-                                Curators do not use this workspace switcher and reach Assessment from their <strong>Tools</strong> section instead.
-                                ERNIE remembers the last selected workspace locally.
-                            </p>
-                        </div>
+                        {(userRole === 'admin' || userRole === 'group_leader') && (
+                            <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+                                <p className="text-sm text-violet-900 dark:text-violet-100">
+                                    <strong>Workspace Switcher:</strong> Use <strong>Curation</strong> for day-to-day metadata work and{' '}
+                                    <strong>Administration</strong> for destinations such as Users, Statistics, Editor Settings, Landing Pages,
+                                    Assistance, and Assessment. ERNIE remembers your last selected workspace locally.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm text-slate-900 dark:text-slate-100">
@@ -159,6 +206,48 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                 ),
             },
             {
+                id: 'choose-an-action',
+                title: 'Choose an action',
+                icon: ClipboardCheck,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Start with the result you need</h3>
+                        <ul className="list-disc space-y-2 pl-5">
+                            <li>
+                                <a className="text-primary underline" href={docsActionHref('editor-save-draft')}>
+                                    Save an incomplete draft in ERNIE
+                                </a>
+                            </li>
+                            <li>
+                                <a className="text-primary underline" href={docsActionHref('editor-validate')}>
+                                    Validate and save in ERNIE without DataCite
+                                </a>
+                            </li>
+                            {permissions.registerDoi && (
+                                <>
+                                    <li>
+                                        <a className="text-primary underline" href={docsActionHref('editor-register')}>
+                                            Register and publish a new DOI at DataCite
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a className="text-primary underline" href={docsActionHref('resources-update-metadata')}>
+                                            Update existing DOI metadata at DataCite
+                                        </a>
+                                    </li>
+                                </>
+                            )}
+                            <li>
+                                <a className="text-primary underline" href={docsActionHref('resources-actions')}>
+                                    Review all Resources List actions
+                                </a>
+                            </li>
+                        </ul>
+                    </>
+                ),
+            },
+            {
                 id: 'changelog',
                 title: 'Changelog',
                 icon: BookOpen,
@@ -167,8 +256,8 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                     <>
                         <h3>Review Release Changes and Their GitHub Context</h3>
                         <p>
-                            Open <strong>Changelog</strong> from the ERNIE navigation or visit <code>/changelog</code> to review the changes in each
-                            release. The changelog is public, so it is also available without signing in.
+                            After signing in, open <strong>Changelog</strong> from the ERNIE sidebar or visit <code>/changelog</code> to review the
+                            changes in each release. Use the version list to jump to an entry.
                         </p>
 
                         <h4>Related GitHub References</h4>
@@ -235,10 +324,12 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             Open the user menu from your avatar in the page header and choose <strong>Settings</strong>. This opens your personal
                             profile settings at <code>/settings/profile</code>.
                         </p>
-                        <p>
-                            Admins and Group Leaders also have an <strong>Editor Settings</strong> entry at <code>/settings</code>. That page controls
-                            ERNIE configuration and is separate from your personal settings.
-                        </p>
+                        {permissions.accessEditorSettings && (
+                            <p>
+                                Admins and Group Leaders also have an <strong>Editor Settings</strong> entry at <code>/settings</code>. That page
+                                controls ERNIE configuration and is separate from your personal settings.
+                            </p>
+                        )}
 
                         <h4>Profile Settings</h4>
                         <p>
@@ -310,6 +401,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
             },
             {
                 id: 'user-management',
+                capability: 'manageUsers',
                 title: 'User Management',
                 icon: Users,
                 minRole: 'group_leader',
@@ -388,6 +480,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
             },
             {
                 id: 'editor-settings',
+                capability: 'accessEditorSettings',
                 title: 'Editor Settings',
                 icon: Settings,
                 minRole: 'group_leader',
@@ -402,9 +495,11 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
 
                         <h4>Page Layout and Saving</h4>
                         <p>
-                            Settings are organized in a full-width accordion. All sections start collapsed, and opening a section closes the
-                            previously open section. Unsaved values remain intact when you switch sections. Each section heading shows the summaries
-                            relevant to its controls, such as item totals and ERNIE or ELMO activation counts where available.
+                            Settings are organized in a full-width accordion. All sections start collapsed on each new visit or full page reload.
+                            Multiple sections can stay open independently. Each section heading offers actions to expand or collapse all settings
+                            cards, using the same icons and tooltips as the editor. Unsaved values remain intact when you switch sections or collapse
+                            all cards. Open sections remain open after saving and partial updates. Each section heading shows the summaries relevant
+                            to its controls, such as item totals and ERNIE or ELMO activation counts where available.
                         </p>
                         <p>
                             Changes to the editor tables and activation controls use the sticky <strong>Save changes</strong> action. Adding or
@@ -461,6 +556,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                         <ul className="list-inside list-disc space-y-1">
                             <li>Add new datacenters by entering a name and clicking &quot;Add&quot;</li>
                             <li>View how many resources are assigned to each datacenter</li>
+                            <li>Rename any datacenter, including one already assigned to resources or IGSNs. The assignments stay with it.</li>
                             <li>Delete datacenters that have no assigned resources (the delete button is disabled otherwise)</li>
                         </ul>
 
@@ -736,6 +832,27 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             and provides level and text filters for investigating the visible table.
                         </p>
 
+                        <h4>Review user activity</h4>
+                        <p>
+                            The <strong>Application Logs</strong> card includes successful user actions on resources, IGSNs, and landing pages as
+                            English <strong>Info</strong> entries. These cover metadata edits, imports, identifier registration, landing-page and FTP
+                            changes, tombstones, metadata exports, and review-link emails queued for delivery. Each record identifies the user and
+                            dataset and names changed fields. Batch operations include individual successful records and a summary.
+                        </p>
+                        <p>
+                            Select <strong>Info</strong> in the level filter and search for a user, dataset title, or DOI. Use{' '}
+                            <strong>Open dataset</strong> beside an entry to return to the editor or the matching IGSN search, and{' '}
+                            <strong>DOI</strong> to open the production DOI resolver when available. Deleted datasets have no dataset link; DataCite
+                            test-mode events have no production DOI link. Unchanged saves and failed actions do not create success activity entries;
+                            failures remain visible in ordinary warning and error logs.
+                        </p>
+                        <p>
+                            The table combines single and daily application logs, newest first, within a shared <strong>50 MB</strong> window. A
+                            notice appears when older retained history falls outside this viewer limit. Filters apply within that window. Use the
+                            download menu to inspect retained entries outside the window; downloads follow the selected period and are independent of
+                            the table filters and viewer limit.
+                        </p>
+
                         <h4>Review VM utilization</h4>
                         <p>
                             Use <strong>Last 24 hours</strong> or <strong>Last 7 days</strong> to switch both percentage charts. Current values and
@@ -911,6 +1028,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Available Assistants</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
+                                <strong>Relation Type Correction</strong> – Compares existing DOI relations with current DataCite and Crossref
+                                registration metadata. Review the current and proposed types from the resource&apos;s perspective, the rationale,
+                                confidence, and source evidence. Accept changes only that related identifier&apos;s type; linked local resources are
+                                reviewed independently. Decline suppresses the same material context, while changed metadata may produce a new
+                                proposal. Both actions retain a permanent review record. Changed previews must be checked again before acting.
+                            </li>
+                            <li>
                                 <strong>Suggested Relations</strong> – Discovers missing related identifiers between resources using the ScholExplorer
                                 API
                             </li>
@@ -947,12 +1071,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 metadata before export
                             </li>
                             <li>
-                                <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose missing
-                                DataCite size and file-format metadata
+                                <strong>Size and Format Suggestions</strong> – Inspects configured primary and additional download URLs to propose
+                                missing DataCite size and file-format metadata
                             </li>
                             <li>
                                 <strong>Subject Metadata Enrichment</strong> - Completes DataCite Subject metadata from supported local vocabulary
                                 caches while preserving imported subject text
+                            </li>
+                            <li>
+                                <strong>Subject Hierarchy Correction</strong> - Reviews explicitly assigned broader subject terms and offers more
+                                specific terminal concepts from the nine supported hierarchical vocabularies
                             </li>
                             <li>
                                 <strong>Description Segmentation Suggestions</strong> - Reviews long legacy Abstract descriptions and proposes
@@ -986,9 +1114,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     unchanged and dismisses the suggestion.
                                 </p>
                                 <p className="mt-2">
-                                    Size and format suggestions show the detected value, source URL, probe method, and confidence level. Size values
-                                    use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
-                                    a suggestion when a resource has multiple download locations.
+                                    Size and format suggestions use the landing page&apos;s configured primary download URL and Additional Download
+                                    Links. ZIP files contribute both their container format and detected content formats. Complete totals are stored
+                                    as exact bytes; ZIP totals are marked as uncompressed primary-data size. Data Description files are listed as
+                                    excluded evidence and do not contribute size or format. Ambiguous multiple download locations do not produce a
+                                    total-size suggestion, and differing existing byte sizes require explicit replacement.
                                 </p>
                                 <p className="mt-2">
                                     Crossref Funder ROR suggestions compare the current Crossref Funder ID with the proposed ROR identifier,
@@ -1020,6 +1150,47 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field and
                                     removes the pending suggestion. Description language suggestions follow the same review workflow and never
                                     overwrite an existing language.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <h4>Subject Hierarchy Correction</h4>
+                        <p>
+                            Admins and Group Leaders can review broader subject tags using the Subject Hierarchy Correction assistant. Run its{' '}
+                            <strong>Check</strong> or <strong>Check all</strong> to find resources with an explicitly assigned broader term whose
+                            terminal descendants are not all assigned. If a vocabulary is reported as unavailable, update that vocabulary in{' '}
+                            <strong>Editor Settings</strong> and run the check again.
+                        </p>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Choose narrower terms">
+                                <p>
+                                    Expand branches to inspect the complete descendant tree. Only terminal concepts can be selected; already assigned
+                                    terms are checked and cannot be removed here. Search helps locate terms, and concept links identify their source.
+                                    <strong> Select all narrower terms</strong> selects the entire subtree even while search hides some terms. Choose
+                                    only terms that accurately describe the resource.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Review the preview and confirm">
+                                <p>
+                                    The preview lists additions and shows whether the broader term will remain. Selecting every offered terminal term
+                                    retains the broader term; selecting a subset removes the explicitly assigned broader term. This is an ERNIE
+                                    curation rule. Accept saves the reviewed selection and synchronizes a registered DOI with DataCite; a failed
+                                    remote synchronization offers a retry after the local changes are saved.
+                                </p>
+                                <p className="mt-2">
+                                    In resource review, select the hierarchy suggestion explicitly: <strong>Select all compatible</strong> does not
+                                    select it automatically. A batch can accept at most one hierarchy correction per resource and vocabulary. If
+                                    relevant subjects or vocabulary terms change, refresh the suggestions and review the new selection before
+                                    accepting.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Keep broader tagging with a reason">
+                                <p>
+                                    If the broader scope describes the resource correctly, click <strong>Decline</strong>, enter a nonblank reason of
+                                    up to 255 characters, and confirm <strong>Keep with reason</strong>. The current subjects remain unchanged. The
+                                    same case stays dismissed until relevant assignments or hierarchy terms change. In a mixed resource batch, this
+                                    reason is recorded only for hierarchy suggestions. Navigation-group hints cannot be accepted; follow their link to
+                                    review the resource in the editor.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -1143,6 +1314,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             dash identifies either a zero-gap assessment or guidance that cannot be calculated from the stored details; its accessible
                             explanation states which case applies.
                         </p>
+                        <p>
+                            A DOI assessment before its landing page is published is marked <strong>Provisional</strong>. When an existing assessed
+                            Resource landing page is published, ERNIE waits until the DOI resolver points to that page and automatically queues a
+                            fresh F-UJI assessment. The row shows when that reassessment is pending or running and updates after it finishes. If the
+                            automatic check fails, the previous score remains visible and the row marks the failure. Admins can expand
+                            <strong> F-UJI details</strong> to inspect the resolved URL, F4 test status, reported software and metric versions, and
+                            harvested metadata sources. A failed F4 check means F-UJI did not recognize searchable metadata; it does not by itself
+                            prove that the published page lacks Schema.org JSON-LD.
+                        </p>
+                        <p>
+                            Assessments from an older F-UJI version are marked as needing reassessment. After upgrading the service, an Admin or Group
+                            Leader can use <strong>Check Resources</strong> and <strong>Check IGSNs</strong> to refresh previously published records
+                            in a controlled run.
+                        </p>
 
                         <h4>Workflow</h4>
                         {userRole === 'admin' || userRole === 'group_leader' ? (
@@ -1211,7 +1396,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>REST API</h3>
-                        <p>ERNIE provides a comprehensive REST API following OpenAPI 3.2 specifications.</p>
+                        <p>ERNIE API 1.1 follows OpenAPI 3.2.1. Existing API URLs remain under /api/v1/.</p>
 
                         <p>The published specification is linted and validated with Redocly during local quality checks and CI runs.</p>
 
@@ -1226,6 +1411,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <BookOpen className="size-4" />
                                 View API Documentation
                             </a>
+                        </p>
+
+                        <h4>Independent Editor Settings</h4>
+                        <p>
+                            Admins and Group Leaders configure ERNIE, ELMO and ELMO-MSL independently under Editor Settings. Each editor has its own
+                            selections for metadata types, dates, languages, contributor roles, thesauri and PID offerings. Licenses also have
+                            separate Resource Type exclusions. Abstract remains enabled for every editor. ELMO-MSL starts with a one-time copy of the
+                            ELMO selections; subsequent changes affect only the selected editor.
+                        </p>
+                        <p>
+                            Use <code>/api/v1/resource-types/elmo</code> for ELMO and <code>/api/v1/resource-types/elmo-msl</code> for ELMO-MSL.
+                            ELMO-MSL vocabularies and availability endpoints use <code>/api/v1/elmo-msl/vocabularies/</code>. Both external editors
+                            accept the existing API key through <code>X-API-Key</code> or <code>Authorization: Bearer</code>. Disabling an entry for
+                            ERNIE no longer disables it for ELMO or ELMO-MSL.
                         </p>
 
                         <h4>Key Endpoints</h4>
@@ -1269,7 +1468,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
         ],
-        [userRole],
+        [userRole, permissions],
     );
 
     // ===========================================
@@ -1277,6 +1476,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
     // ===========================================
     const datasetsSections: DocSection[] = useMemo(
         () => [
+            {
+                id: 'editor-actions',
+                title: 'Data Editor buttons',
+                icon: Edit3,
+                minRole: 'beginner',
+                content: <DocsActionReference actions={editorActions} mode={dataCite.currentMode} />,
+            },
+            {
+                id: 'resources-actions',
+                title: 'Resources List actions',
+                icon: Database,
+                minRole: 'beginner',
+                content: <DocsActionReference actions={resourceActions} mode={dataCite.currentMode} />,
+            },
             {
                 id: 'xml-upload',
                 title: 'File Upload (XML / JSON)',
@@ -1295,10 +1508,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>DataCite XML v4.x</li>
                             <li>DataCite JSON (standard API format)</li>
                             <li>
-                                DataCite JSON-LD (linked data format with <code>@context</code>)
+                                ERNIE DataCite JSON-LD (versioned profile or supported legacy export with <code>@context</code>)
                             </li>
                             <li>ELMO's legacy DataCite {LEGACY_ELMO_ENVELOPE_SCHEMA_VERSION} + ISO envelope format</li>
                         </ul>
+                        <p>
+                            JSON-LD uploads must use ERNIE&apos;s versioned profile, a compatible mirror configured by the administrator, or one of
+                            the two legacy ERNIE contexts listed under <em>JSON-LD Export</em>. Unsupported profiles produce an upload error (HTTP
+                            422) before a draft is created. Use DataCite JSON or XML for metadata in other formats.
+                        </p>
 
                         <h4>Upload Process</h4>
                         <WorkflowSteps>
@@ -1324,6 +1542,29 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+                    </>
+                ),
+            },
+            {
+                id: 'curator-file-upload',
+                title: 'Creating Resources from Metadata Files',
+                icon: Upload,
+                minRole: 'curator',
+                content: (
+                    <>
+                        <h3>Upload from the Resources list</h3>
+                        <p>
+                            In <strong>Resources</strong>, choose the XML upload action to create a draft from a DataCite XML file. After the upload,
+                            the new draft opens directly in the editor so you can check and complete its metadata.
+                        </p>
+
+                        <h3>Add metadata while creating a resource</h3>
+                        <p>
+                            When you open a new resource in the editor, expand <strong>Upload DataCite metadata</strong> and select an XML, JSON, or
+                            JSON-LD file. The editor fills empty fields and adds distinct list entries, including inline citations, while preserving
+                            values you already entered. An existing DOI stays in place. Review the merged fields and save the draft as usual; this
+                            upload alone does not create a resource. The upload area is available only when creating a resource.
+                        </p>
                     </>
                 ),
             },
@@ -1363,8 +1604,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                                 <ul>
                                     <li>
-                                        <strong>"Save Draft"</strong> – Save an incomplete dataset with just a Main Title. You can return later to
-                                        complete it. Drafts are shown with an amber badge in the resource list and on the dashboard.
+                                        <strong>"Save Draft"</strong> – Save an incomplete dataset with just a Main Title. The editor stays open so
+                                        you can keep working. The URL changes to <code>/editor?resourceId=...</code>; you can bookmark or share it to
+                                        return to the same draft later. If an automatic save is in progress, Save Draft becomes available again after
+                                        it finishes. Drafts are shown with an amber badge in the resource list and on the dashboard.
                                     </li>
                                     <li>
                                         <strong>"Validate"</strong> – Validate and save the complete dataset locally without contacting DataCite or
@@ -1389,6 +1632,45 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+
+                        <h4>Unsaved Changes and Automatic Drafts</h4>
+                        <p>
+                            After you enter a Main Title, the editor attempts to save changed draft metadata automatically about every minute. The
+                            first successful automatic save adds <code>/editor?resourceId=...</code> to the URL, so reloading or bookmarking the page
+                            opens that same draft. A successful <strong>Save Draft</strong>, <strong>Validate</strong>, or <strong>Preview LP</strong>{' '}
+                            save also makes a newly created resource available at that URL.
+                        </p>
+                        <p>
+                            If metadata or landing-page setup changes are still unsaved, the editor asks before you follow an ERNIE link or log out.
+                            Closing the tab or reloading shows your browser&apos;s own leave-page warning. Imported metadata is also protected until
+                            it has been saved. A successful save clears the warning for the values it saved; edits made while a save is running,
+                            failed saves, and unfinished inputs remain protected. You can stay in the editor to finish or save your work. While
+                            landing-page setup is saving, its fields are temporarily locked. If the save fails, your entries remain and you can edit
+                            them again.
+                        </p>
+
+                        <h4>Embargo and Manual Release</h4>
+                        <p>
+                            Choose <strong>Embargoed access</strong> and enter exactly one full calendar <strong>Available</strong> date. Keep an
+                            internal landing page unpublished. ERNIE blocks registration before that date and does not release the resource
+                            automatically.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                The Resources List shows an <strong>Embargo</strong> badge. Use the <strong>Status</strong> filter to find embargoed
+                                resources.
+                                {permissions.sendReviewLinks && ' Selecting the badge opens and copies the tokenized landing-page preview link.'}
+                            </li>
+                            <li>
+                                The preview shows the embargo date but hides file, link, and FTP downloads. The landing page remains unpublished, even
+                                when the Available date has passed.
+                            </li>
+                            <li>
+                                From the Available date onward, the Dashboard lists resources ready for manual release. Review the record, then use{' '}
+                                <strong>Register</strong> in the editor or the IGSN registration action. After DataCite accepts the registration,
+                                ERNIE changes access to Open, publishes the landing page, and shows <strong>Published</strong> status.
+                            </li>
+                        </ul>
 
                         <WorkflowSuccess>
                             Your curated dataset is now saved and available under <code>/resources</code> for further processing.
@@ -1435,11 +1717,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </div>
                         </div>
 
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Tip:</strong> Administrators can configure which resource types are available in Editor Settings.
-                            </p>
-                        </div>
+                        {permissions.accessEditorSettings && (
+                            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                                <p className="text-sm text-blue-900 dark:text-blue-100">
+                                    <strong>Tip:</strong> Administrators can configure which resource types are available in Editor Settings.
+                                </p>
+                            </div>
+                        )}
                     </>
                 ),
             },
@@ -1478,7 +1762,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Note:</strong> Datacenters are for internal categorization only and are not included in DataCite metadata
-                                exports. Administrators and Group Leaders can manage the list of available datacenters in Editor Settings.
+                                exports.
+                                {permissions.accessEditorSettings &&
+                                    ' Administrators and Group Leaders can manage the list of available datacenters in Editor Settings.'}
                             </p>
                         </div>
                     </>
@@ -1575,8 +1861,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>ROR Affiliations</h4>
                         <p>Institution affiliations use the Research Organization Registry (ROR):</p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Search institutions by name</li>
-                            <li>Auto-complete with official ROR data</li>
+                            <li>Search author and contributor affiliations by name, ROR ID, ROR URL, or Name (ROR ID).</li>
+                            <li>Confirm the matching local ROR record by clicking the suggestion or selecting it with the keyboard.</li>
+                            <li>
+                                Names supplied together with an ID are preserved, including department and location details. The directory name is
+                                shown for comparison.
+                            </li>
+                            <li>
+                                Unknown IDs must be corrected, discarded, or explicitly replaced with a name without a ROR ID. No external ROR lookup
+                                is performed.
+                            </li>
+                            <li>
+                                Finish pending institution and funder inputs before saving, previewing or registering metadata. Autosave pauses until
+                                the input is resolved.
+                            </li>
                             <li>Multiple affiliations per author supported</li>
                         </ul>
 
@@ -1857,29 +2155,45 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Valid:</strong> Time period for which the data is valid
                             </li>
                             <li>
-                                <strong>Available:</strong> When the resource became publicly available
+                                <strong>Available:</strong> When the resource becomes publicly available. For Embargoed access, enter exactly one full
+                                calendar date (YYYY-MM-DD); DataCite uses Available as the embargo end date.
                             </li>
                             <li>
                                 <strong>Submitted:</strong> When the resource was submitted
                             </li>
                         </ul>
 
-                        <h4>Date Formats</h4>
-                        <p>ERNIE supports various date formats following ISO 8601:</p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <code>YYYY</code> – Year only (e.g., 2024)
-                            </li>
-                            <li>
-                                <code>YYYY-MM</code> – Year and month (e.g., 2024-06)
-                            </li>
-                            <li>
-                                <code>YYYY-MM-DD</code> – Full date (e.g., 2024-06-15)
-                            </li>
-                            <li>
-                                <code>YYYY-MM-DD/YYYY-MM-DD</code> – Date range (e.g., 2020-01-01/2024-12-31)
-                            </li>
-                        </ul>
+                        <h4>Entering Dates in the Editor</h4>
+                        <p>
+                            The <strong>Date Type</strong> dropdown lists the most frequently used types first, based on all date entries across ERNIE
+                            resources except those with the PhysicalObject resource type. Multiple entries of the same type in one resource each count
+                            separately. Types with equal usage, including unused types, appear alphabetically. Changes in usage can take up to seven
+                            days to affect the order.
+                        </p>
+                        <p>
+                            When you click <strong>Add Date</strong>, the new row selects the most frequently used type available in the dropdown. You
+                            can choose a different type before saving. Existing and imported date type selections are preserved when the order
+                            changes.
+                        </p>
+                        <p>
+                            <strong>Submitted</strong> records the original submission date, including dates provided by ELMO or DataCite XML imports.
+                            Each resource can have at most one Submitted entry. When an import provides several, only the first valid entry is stored.
+                            If Submitted is missing, you can add it once. After saving, its date, time, timezone, and type are fixed, and the entry
+                            cannot be removed. Submitted is then unavailable for additional rows. Other editable date types can still be changed after
+                            saving.
+                        </p>
+                        <p>
+                            In the <strong>Dates</strong> section, type a year (<code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full
+                            date (<code>YYYY-MM-DD</code>) directly into the date field. Year-only and year-month values remain editable without
+                            adding a day. With a German browser language, you can also enter a full date as <code>DD.MM.YYYY</code>; ERNIE displays
+                            full dates in that order and saves them in ISO format.
+                        </p>
+                        <p>
+                            Use the calendar button to choose a day. Its month and year menus reach back to 1900. For Created, Collected, Valid, or
+                            Other dates, select <strong>Period</strong> and enter the start and end dates in separate fields; do not type a
+                            slash-delimited range into one field. Time and timezone apply only to full dates and are cleared when you change that date
+                            to a year or year-month. Invalid dates show a field error and must be corrected before saving.
+                        </p>
                     </>
                 ),
             },
@@ -2024,6 +2338,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Select the relation type (e.g. <em>IsCitedBy</em>, <em>IsSupplementTo</em>) and the related item type (
                                     <em>JournalArticle</em>, <em>Book</em>, <em>Dataset</em>, …).
                                 </p>
+                                <p>
+                                    Use the optional <em>Relation type information</em> field to explain the relationship, especially when choosing
+                                    <em> Other</em>. Imported information appears when you edit the item. Edit it or clear the field and save to
+                                    remove it. This information is included in DataCite exports.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Enter Titles, Creators & Contributors">
                                 <p>
@@ -2070,9 +2389,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Export &amp; Import</h4>
                         <p>
                             Related items are included in all DataCite exports (XML, JSON, JSON-LD) as <code>&lt;relatedItems&gt;</code>/
-                            <code>relatedItems</code> and in the Schema.org landing page markup (<code>citation</code> block). XML uploads with{' '}
-                            <code>&lt;relatedItems&gt;</code> blocks are parsed on import and pre-filled in the editor. The DataCite JSON import path
-                            imports related items automatically.
+                            <code>relatedItems</code>. The Schema.org landing page <code>citation</code> block includes only outgoing{' '}
+                            <code>Cites</code> and <code>References</code> related items. Incoming and structural relationships remain in the DataCite
+                            exports and the landing page relation sections. XML uploads with <code>&lt;relatedItems&gt;</code> blocks are parsed on
+                            import and pre-filled in the editor. The DataCite JSON import path imports related items automatically.
                         </p>
 
                         <h4>On the Landing Page</h4>
@@ -2107,7 +2427,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Editor Fields</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Funder Name:</strong> Official name of the funding organization. Start typing to search matching ROR funders.
+                                <strong>Funder Name:</strong> Search by organization name, ROR ID, ROR URL, or Name (ROR ID). Select a matching local
+                                directory record to confirm the identifier. A supplied name is preserved; entering only an ID uses the directory name.
                             </li>
                             <li>
                                 <strong>Funder Identifier:</strong> ROR, Crossref Funder ID, ISNI, GRID, or Other identifier shown as a badge after a
@@ -2128,7 +2449,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
 
                         <h4>Common Funders</h4>
-                        <p>Search for your funder by name - the system will suggest matching organizations with their official identifiers.</p>
+                        <p>
+                            Search for your funder by name or ROR identifier. Review the organization and ID, then confirm the suggestion by mouse or
+                            keyboard. If an ID is not in the local directory, correct it or explicitly use the institution name without an identifier.
+                        </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
@@ -2153,6 +2477,59 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             filter state is stored in the URL, so filtered views can be bookmarked and shared.
                         </p>
 
+                        <h4>Finding the Right Service</h4>
+                        <p>
+                            The public <a href="/find">Find overview</a> at <code>/find</code> introduces the <a href="/doi-search">Data Portal</a>{' '}
+                            for research data and scientific software, the <a href="/igsn-search">IGSN Portal</a> for physical samples, Data Centres,
+                            and Research Infrastructures at GFZ. Follow the links on the overview to open the service you need. No sign-in is required
+                            to use the overview or either portal.
+                        </p>
+                        <p>
+                            On the public homepage and in either portal, open <strong>Find</strong> and select <strong>Overview</strong>. Overview is
+                            the first entry, followed by Data Portal, Data Centres, and IGSN Portal. On smaller screens, open the menu and select
+                            Overview in the Find group. You can return to the overview from either portal using the same navigation.
+                        </p>
+
+                        <h4>Exploring Data Centres</h4>
+                        <p>
+                            Select <strong>Find → Data Centres</strong> to open the <a href="/data-centres">Data Centres overview</a>. Each hexagon
+                            opens the Data Portal with that data centre selected in the Datacenters filter. You can refine the search while keeping
+                            the selection, share its URL, or use Clear to reset the filters. The overview includes centres with published DOI
+                            resources.
+                        </p>
+                        <p>
+                            Follow About this data centre or open the <a href="/data-centres/description">Data Centre Descriptions</a> to learn about
+                            the participating communities. Select a heading to open or close its description; several descriptions can stay open
+                            together. Use Direct link to bookmark or share an individual description. Following that link opens and focuses the
+                            corresponding heading automatically. These pages are public and require no sign-in.
+                        </p>
+
+                        <h4>Starting with a Science Topic</h4>
+                        <p>
+                            Open the <a href="/">GFZ Data Services homepage</a> and choose a subject under <strong>Explore by science topic</strong>.
+                            Topics appear as hexagons on tablets and desktops and as labelled image cards on smartphones. Selecting a topic, such as{' '}
+                            <a href="/doi-search?topic=volcanism">Volcanism</a>, opens the Data Portal with that topic already applied.
+                        </p>
+                        <p>
+                            The selected subject appears in the <strong>Science topic</strong> panel below the search field. On smaller screens, open
+                            the <strong>Filters</strong> drawer to find this panel. Science topics apply to the DOI Data Portal; they are not filters
+                            in the IGSN Portal.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Refine the text search or add other filters: the topic remains active and combines with those selections. The URL
+                                preserves the topic so you can bookmark or share the filtered view.
+                            </li>
+                            <li>
+                                Result counts, map features, and cluster members use the same active topic. Switching between Results and Map or
+                                panning and zooming the map keeps the topic selected.
+                            </li>
+                            <li>
+                                Use the X button beside the topic name to remove only the topic while keeping the search and other filters. The result
+                                list returns to its first page. Use Clear to reset all filters, including the topic.
+                            </li>
+                        </ul>
+
                         <h4>Filter Order and Active Selections</h4>
                         <p>
                             Filter groups without an active URL filter start collapsed. Below the <strong>Search</strong> field, the Data Portal
@@ -2169,6 +2546,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             combined into numbered, color-coded clusters to keep large result sets easy to navigate. The Data Portal uses colors for
                             Resource Types. In the IGSN Portal, colors represent the top-level Material category instead, and each cluster segment
                             shows that material&apos;s share of the locations in the cluster.
+                        </p>
+                        <p>
+                            The background map is provided by OpenFreeMap and prefers English labels for countries, regions, cities, roads, water
+                            features, terrain, and points of interest. Where no English label is available, the local OpenStreetMap name is shown. If
+                            the background is temporarily unavailable, the portal displays a separate notice; reload the page later or contact support
+                            if the problem continues. Search results, filters, and ERNIE&apos;s record markers and shapes remain separate from the
+                            background service.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Click a cluster, or zoom in, to separate it into smaller clusters and individual records</li>
@@ -2191,6 +2575,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             you enter at least two characters. Choose a suggestion to add it as an exact keyword chip, or submit the typed value with
                             Enter or the magnifying-glass button to run a normal full-text search. Text and multiple exact keyword chips can be
                             combined, and each chip can be removed independently.
+                        </p>
+                        <p>
+                            In both the DOI Data Portal and the IGSN Portal, normal text search also finds Authors, Contributors, and Contact Persons
+                            by person or institution name. Name matching is case-insensitive and accepts partial names, given-name/family-name order
+                            in either direction, and compact forms without spaces or punctuation. For example, <code>Hans Peter</code>,{' '}
+                            <code>Peter Hans</code>, and <code>HansPeter</code> can find the same person. Spelling mistakes are not corrected, and
+                            stored contact email addresses are not part of the public search.
+                        </p>
+                        <p>
+                            When a name matches, the result row identifies the matching party with the full labels <strong>Contact Person</strong>,{' '}
+                            <strong>Author</strong>, and <strong>Contributor</strong>. Several roles for the same identity are combined, while several
+                            matching identities appear separately. Results found only through another metadata field do not show a party label.
+                        </p>
+                        <p>
+                            The IGSN Portal also searches <strong>Local accession number</strong> and <strong>Local sample name</strong> values. When
+                            either matches, the result row shows its field label and the matching value. Enter <code>*</code> anywhere in an IGSN text
+                            query to replace any number of characters, including none; multiple asterisks are allowed. For example,{' '}
+                            <code>Geo*12</code> can match <code>Geo-Access-12</code>, and <code>Han*Peter</code> can match a person name. Without an
+                            asterisk, the IGSN Portal keeps its usual partial-text search. An asterisk alone shows all published IGSNs allowed by the
+                            active filters. Free-keyword suggestions and exact keyword chips work as before.
                         </p>
 
                         <h4>DOI Thesaurus Keywords</h4>
@@ -2258,8 +2662,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Creating Landing Pages</h3>
                         <p>
                             Landing pages are public-facing pages for your datasets. A published landing page is <strong>required</strong> before DOI
-                            registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow; deleting
-                            draft landing pages remains available only to Curators and above.
+                            registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow.
+                            {permissions.deleteResources && ' Curators and above can also delete draft landing pages.'}
                         </p>
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
@@ -2294,24 +2698,31 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <strong>Show less</strong>; activate it again to return to the shortened list.
                         </p>
                         <p>
-                            In the landing page setup modal, the primary <strong>Download URL</strong> field now suggests frequently reused base
-                            domains and full URLs from existing landing pages. Click into the field to open the suggestions, pick a base domain such
-                            as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
+                            Choose <strong>Add Download URL</strong> to enter the primary download address. On a normal landing page, without a
+                            primary URL or imported download files, the landing page automatically offers the data request section. Adding a URL
+                            switches to automatic downloads; removing the last primary URL switches back. Additional Links alone do not replace the
+                            request section. An active tombstone disables both downloads and data requests.
                         </p>
                         <p>
-                            When no imported download files are available, the <strong>Button label</strong> field below the primary Download URL
-                            controls the text of the main download button. It is optional; an empty field falls back to{' '}
-                            <strong>Download data and description</strong>. If imported files are available, each URL appears under{' '}
-                            <strong>Imported Download Files</strong> with its own editable Button label. Imported URLs remain read-only. An empty
-                            imported-file label falls back to <strong>Download data and description</strong> for a single file, or to numbered labels
-                            such as <strong>Download (1)</strong> when several files are shown.
+                            The URL field suggests domains and full URLs from existing downloads. Admins and Group Leaders can add URL prefixes and
+                            arrange the domain suggestions under <strong>Settings / Download URL suggestions</strong>, using drag and drop or the move
+                            buttons, then <strong>Save Changes</strong>. New domains follow the configured order. Fresh GFZ installations offer{' '}
+                            <code>https://datapub.gfz.de/download</code> first automatically. Saved changes, including an empty list, replace this
+                            default. Other repositories can configure their own prefixes. You can always type another valid URL.
                         </p>
                         <p>
-                            If a generated GFZ landing page should not offer automated downloads, enable{' '}
-                            <strong>No data available for automatic download</strong> in the same Download URL section. ERNIE keeps the saved primary
-                            URL, imported legacy files, and additional download links in the setup modal, but replaces their public download actions
-                            with a request form until the option is disabled again. Requests go to all designated contact persons and the configured
-                            data publication team; if no contact person has an email address, the team receives the request directly. The independent{' '}
+                            The optional <strong>Button label</strong> defaults to <strong>Download data and description</strong>. Imported files take
+                            precedence over the primary URL and retain their read-only URLs, editable labels, formats and sizes. Empty labels use the
+                            default label for a single file or numbered labels such as <strong>Download (1)</strong> for several files.
+                        </p>
+                        <p>
+                            Previously hidden downloads remain hidden. For these records, choose <strong>Activate downloads</strong> and save to make
+                            them available. Opening the dialog, editing other fields or importing metadata does not activate them. Preview shows your
+                            proposed changes without changing the published page. The former general availability checkbox is no longer needed.
+                        </p>
+                        <p>
+                            Data requests go to the designated contact persons and the configured data publication team. If no email recipient is
+                            available, ERNIE displays that information instead of an unusable contact form. The independent{' '}
                             <strong>License &amp; Rights</strong> section remains visible whenever rights metadata exists.
                         </p>
                         <h4>Legacy Creator and Contact Consolidation</h4>
@@ -2356,9 +2767,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             From an unpublished record in the Data Editor, click <strong>Preview LP</strong> in the bottom-right action bar to save
-                            the current metadata while preserving its workflow state and open the landing-page flow. Published records use{' '}
-                            <strong>Show LP</strong> to open the public or external page. If an unpublished resource has no landing page, ERNIE opens
-                            the setup modal and automatically opens the preview after you create it.
+                            the current metadata while preserving its workflow state and open the landing-page flow. Published and Dead records use{' '}
+                            <strong>Show LP</strong> to open the existing public landing page or external page directly. If an unpublished resource
+                            has no landing page, ERNIE opens the setup modal and automatically opens the preview after you create it.
                         </p>
 
                         <WorkflowSteps>
@@ -2388,10 +2799,76 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
                             <p className="text-sm text-red-900 dark:text-red-100">
-                                <strong>Important:</strong> Once published, landing pages cannot be unpublished. DOIs are persistent identifiers that
-                                must always resolve.
+                                <strong>Important:</strong> A registered DOI should continue to resolve to a landing page. If its data becomes
+                                permanently unavailable, activate a tombstone page to keep a public explanation, citation, and metadata available.
                             </p>
                         </div>
+
+                        <h3>Tombstone Landing Pages</h3>
+                        <p>
+                            Use a tombstone when a Resource is permanently unavailable, for example because its data was lost, retracted, or removed
+                            for legal reasons. Curators, Group Leaders, and Admins can activate and restore tombstones. Activation requires an
+                            existing Resource DOI that is already Registered or Findable in the configured DataCite repository, plus a title,
+                            creators, publication year, and publisher for the citation. Tombstones are not available for IGSNs. The option is shown
+                            only after DataCite confirms registration, regardless of the local workflow status. Preview LP and the registration setup
+                            in the Data Editor do not offer tombstone settings.
+                        </p>
+                        <p>
+                            The public tombstone uses the default Resource landing page design and retains the DOI, citation, metadata, and contact
+                            information. It shows the reason, public explanation, and activation date. All data access is disabled, including primary
+                            download URLs, imported files, additional download links, and data requests. The Resource automatically becomes{' '}
+                            <strong>Dead</strong> and is hidden from public portal discovery, while its tombstone remains publicly accessible.
+                        </p>
+                        <p>
+                            On <code>/resources</code>, choose <strong>Dead</strong> in the <strong>Status</strong> filter to find Resources with an
+                            active tombstone. In the Data Editor, <strong>Show LP</strong> opens the public tombstone directly. Its DOI remains
+                            read-only while the tombstone is active; metadata corrections remain possible. The setup section opens automatically for
+                            active tombstones and remains accessible if DataCite verification is temporarily unavailable.
+                        </p>
+                        {userRole !== 'beginner' && permissions.manageLandingPages && (
+                            <>
+                                <h4>Activating a Tombstone</h4>
+                                <WorkflowSteps>
+                                    <WorkflowSteps.Step number={1} title="Open Tombstone Settings">
+                                        <p>
+                                            Select exactly one Resource on <code>/resources</code>, click <strong>Set up landing page</strong>, and
+                                            expand the <strong>Tombstone page</strong> section at the bottom of the{' '}
+                                            <strong>Setup Landing Page</strong> modal.
+                                        </p>
+                                    </WorkflowSteps.Step>
+                                    <WorkflowSteps.Step number={2} title="Explain the Unavailability">
+                                        <p>
+                                            Choose a <strong>Reason</strong> and enter the required <strong>Public explanation</strong>. Use{' '}
+                                            <strong>Preview tombstone page</strong> to review the explanation before publishing it.
+                                        </p>
+                                    </WorkflowSteps.Step>
+                                    <WorkflowSteps.Step number={3} title="Confirm Activation">
+                                        <p>
+                                            Check the confirmation describing the change to Dead, disabled data access, portal removal, and DataCite
+                                            update. Then click <strong>Activate tombstone page</strong>.
+                                        </p>
+                                    </WorkflowSteps.Step>
+                                </WorkflowSteps>
+                                <p>
+                                    DataCite synchronization runs in the background, sets the DOI to <strong>Registered</strong>, and points it to the
+                                    tombstone URL. The modal shows its progress and any failure. A failed synchronization does not undo the saved
+                                    landing page change. Use <strong>Retry DataCite sync</strong> to retry the saved change; unsaved reason and
+                                    explanation edits are preserved. Use <strong>Save tombstone explanation</strong> to save those edits separately.
+                                </p>
+                                <h4>Restoring a Resource</h4>
+                                <p>
+                                    When the Resource is available again, reopen the same setup modal, confirm that it is available, and click{' '}
+                                    <strong>Restore landing page</strong>. ERNIE restores the previous landing page configuration, including its
+                                    published or draft status, and synchronizes the previous DOI state and target URL with DataCite. The Resource
+                                    leaves Dead and returns to the status determined by its restored configuration.
+                                </p>
+                                <p>
+                                    If no landing page existed before activation, choose whether to{' '}
+                                    <strong>Publish the restored default landing page</strong> before confirming restoration. After restoration
+                                    synchronization completes, normal DOI publication becomes available again.
+                                </p>
+                            </>
+                        )}
 
                         <h3>Additional Download Links</h3>
                         <p>
@@ -2607,6 +3084,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'doi-registration',
+                capability: 'registerDoi',
                 title: 'DOI Registration',
                 icon: Link2,
                 minRole: 'beginner',
@@ -2614,8 +3092,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Registering DOIs</h3>
                         <p>
-                            Once your landing page is public, you can register a DOI through DataCite. Beginner users follow the same workflow, but
-                            ERNIE forces their requests to the DataCite test API.
+                            Once a landing page is configured, you can register a DOI through DataCite. Embargoed resources need an unpublished
+                            internal landing page and can be registered only from their Available date onward. Beginner users follow the same
+                            workflow, but ERNIE forces their requests to the DataCite test API.
                         </p>
                         <p>
                             In the Data Editor, <strong>Register</strong> and <strong>Update Metadata</strong> first run local completeness checks and
@@ -2642,7 +3121,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 Once a resource has both a DOI and a public landing page, only Admins can change or remove that DOI. Changing it can
-                                break existing citations, bookmarks, and public links.
+                                break existing citations, bookmarks, and public links. Changing or removing a published DOI also invalidates affected
+                                OAI-PMH harvest tokens and retains the previous OAI identifier as deleted.
                             </li>
                         </ul>
 
@@ -2741,6 +3221,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'datacite-landing-page-url-migration',
+                capability: 'updateDataCiteUrls',
                 title: 'DataCite Landing-Page URL Migration',
                 icon: Link2,
                 minRole: 'admin',
@@ -2904,14 +3385,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Quick Resource Actions</h4>
                         <p>
-                            <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
-                            Edit opens every selected resource in the Data Editor. When multiple resources are selected and the browser blocks one or
-                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page
-                            stays visible as a quick action and reports the standard single-record message when more than one row is selected.
+                            <strong>Edit</strong> appears in the selection toolbar and opens every selected resource in the Data Editor. When the
+                            browser blocks editor tabs, ERNIE shows direct links for the blocked resources.
+                            {permissions.manageLandingPages && (
+                                <>
+                                    {' '}
+                                    <strong>Set up landing page</strong> is also shown; it requires exactly one selected resource.
+                                </>
+                            )}
                         </p>
                         <p>
-                            The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related
-                            items, and deletion remain grouped together.
+                            Additional actions available to your role are in the <strong>Actions</strong> menu. The reference above explains their
+                            requirements and effects.
                         </p>
 
                         <h4>Bulk Export (all roles)</h4>
@@ -2930,18 +3415,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             need schema-validated output.
                         </p>
 
-                        <h4>Bulk Register / Update DOI (all roles, Beginner test-only)</h4>
-                        <p>
-                            Open the <strong>Actions</strong> menu and choose <strong>Register DOI</strong> or <strong>Update metadata</strong> to
-                            push selected resources to DataCite in one batch. Beginner users can run the same training action, but ERNIE always routes
-                            their requests to DataCite test mode. The bulk flow <strong>only updates resources that already have a DOI</strong>; the
-                            action is unavailable when the selection contains any DOI-less resource so you never accidentally mint a DOI without
-                            picking a prefix. To mint a new DOI, open the resource in the editor and use the single-resource register action there.
-                            Resources without a landing page or that are physical samples (IGSNs) are skipped and reported in the response toast.
-                        </p>
-                        <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
+                        {permissions.registerDoi && (
+                            <>
+                                <h4>Register one DOI or update selected metadata</h4>
+                                <p>
+                                    <strong>Register DOI</strong> is available only for exactly one selected resource without a DOI and with a landing
+                                    page. It opens a prefix dialog; after confirmation, ERNIE sends the saved metadata to DataCite to create and
+                                    publish a new DOI. It is not a bulk registration action.
+                                </p>
+                                <p>
+                                    <strong>Update metadata</strong> is available for selected resources that each already have a DOI and a landing
+                                    page. After confirmation, ERNIE updates existing DataCite records one by one from the saved metadata. It does not
+                                    save unsaved editor changes or mint a new DOI. Some updates may succeed while others fail; review each result.
+                                    Beginners use the DataCite test environment for both actions.
+                                </p>
+                                <p className="text-sm text-muted-foreground">Update limit: up to 25 resources per batch.</p>
+                            </>
+                        )}
 
-                        {roleHierarchy[userRole] >= roleHierarchy.curator && (
+                        {permissions.sendReviewLinks && (
                             <>
                                 <h4>Send Review Links (Curator and above)</h4>
                                 <p>
@@ -2973,8 +3465,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p className="text-sm text-muted-foreground">
                                     Limit: up to 100 resources per batch and up to 10 send requests per user per minute.
                                 </p>
+                            </>
+                        )}
 
-                                <h4>Delete Selected Resources (Curator and above)</h4>
+                        {permissions.deleteResources && (
+                            <>
+                                <h4>Delete Selected Resources</h4>
                                 <p>
                                     Use <strong>Delete</strong> from the <strong>Actions</strong> menu to remove selected resources. Curators can
                                     delete draft, curation, and preview resources. Admins and Group Leaders can additionally delete published
@@ -3009,50 +3505,58 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             essential columns (Title, Author/Year, Status, Actions) remain readable without horizontal scrolling.
                         </p>
 
-                        <h4>Import Existing GFZ Legacy Resources</h4>
-                        <p>
-                            Admins and Group Leaders see three import actions to the right of the bulk toolbar on the <code>/resources</code> page:
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
-                            </li>
-                            <li>
-                                <strong>Import all Resources from a Datacenter</strong> loads the current datacenter list from the GFZ Data Services
-                                portal and imports resources for one selected datacenter.
-                            </li>
-                            <li>
-                                <strong>Import old single Resource</strong> opens a dialog for a single DOI.
-                            </li>
-                        </ul>
-                        <p>
-                            The datacenter import uses the portal assignment for visible resources. It also includes matching pending SUMARIO
-                            resources, whose datacenter is determined from the legacy databases and the established DOI rules. Pending resources
-                            without a more specific assignment remain part of the general GFZ datacenter through the existing fallback.
-                        </p>
-                        <p>
-                            Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist in ERNIE
-                            are not re-imported or overwritten, and their current datacenter assignments are preserved. Where applicable, the job may
-                            still enrich them with missing legacy download links or an external landing page URL from DataCite.
-                        </p>
-                        <p>
-                            The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL such as{' '}
-                            <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database before the
-                            import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the current record.
-                        </p>
-                        <p>
-                            GEOFON seismic-event records retain a published external landing page when their findable DataCite record points to a
-                            trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to <code>https://</code>; this
-                            applies to both single-resource and datacenter imports. Because the target remains externally hosted, the import does not
-                            write that normalized URL back to DataCite; automatic post-import DataCite URL updates are reserved for published landing
-                            pages hosted by ERNIE.
-                        </p>
-                        <p>
-                            ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation cache
-                            before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup resolves a label,
-                            the valid related DOI is still imported without one instead of failing the complete resource import; its label can be
-                            curated later in the Data Editor.
-                        </p>
+                        {permissions.importFromDataCite && (
+                            <>
+                                <h4>Import Existing GFZ Legacy Resources</h4>
+                                <p>
+                                    Admins and Group Leaders see three import actions to the right of the bulk toolbar on the <code>/resources</code>{' '}
+                                    page:
+                                </p>
+                                <ul className="list-inside list-disc space-y-1">
+                                    <li>
+                                        <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
+                                    </li>
+                                    <li>
+                                        <strong>Import all Resources from a Datacenter</strong> loads the current datacenter list from the GFZ Data
+                                        Services portal and imports resources for one selected datacenter.
+                                    </li>
+                                    <li>
+                                        <strong>Import old single Resource</strong> opens a dialog for a single DOI.
+                                    </li>
+                                </ul>
+                                <p>
+                                    The datacenter import uses the portal assignment for visible resources. It also includes matching pending SUMARIO
+                                    resources, whose datacenter is determined from the legacy databases and the established DOI rules. Pending
+                                    resources without a more specific assignment remain part of the general GFZ datacenter through the existing
+                                    fallback.
+                                </p>
+                                <p>
+                                    Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist
+                                    in ERNIE are not re-imported or overwritten, and their current datacenter assignments are preserved. Where
+                                    applicable, the job may still enrich them with missing legacy download links or an external landing page URL from
+                                    DataCite.
+                                </p>
+                                <p>
+                                    The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL
+                                    such as <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database
+                                    before the import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the
+                                    current record.
+                                </p>
+                                <p>
+                                    GEOFON seismic-event records retain a published external landing page when their findable DataCite record points
+                                    to a trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to{' '}
+                                    <code>https://</code>; this applies to both single-resource and datacenter imports. Because the target remains
+                                    externally hosted, the import does not write that normalized URL back to DataCite; automatic post-import DataCite
+                                    URL updates are reserved for published landing pages hosted by ERNIE.
+                                </p>
+                                <p>
+                                    ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation
+                                    cache before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup
+                                    resolves a label, the valid related DOI is still imported without one instead of failing the complete resource
+                                    import; its label can be curated later in the Data Editor.
+                                </p>
+                            </>
+                        )}
                     </>
                 ),
             },
@@ -3090,8 +3594,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>JSON-LD (Linked Data) Export</h3>
                         <p>
-                            Export metadata as <strong>DataCite Linked Data JSON-LD</strong> from the
-                            <code>/resources</code> page or from GFZ landing pages.
+                            Export metadata using <strong>ERNIE&apos;s DataCite 4.7 JSON-LD profile</strong> from the <code>/resources</code> page or
+                            from GFZ landing pages.
                         </p>
 
                         <h4>From the Resources List</h4>
@@ -3109,22 +3613,65 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>What is JSON-LD?</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>A W3C standard for linked data on the web</li>
-                            <li>Uses the official DataCite Linked Data vocabulary</li>
+                            <li>Uses ERNIE&apos;s versioned DataCite 4.7 profile with a public JSON-LD 1.1 context</li>
                             <li>Machine-readable semantic metadata for interoperability</li>
-                            <li>Embedded Schema.org follows ESIP Science-on-Schema.org v1.3</li>
+                            <li>Embedded Schema.org follows the applicable ESIP Science-on-Schema.org v1.3.2 recommendations</li>
                         </ul>
+
+                        <h4>Importing JSON-LD Files</h4>
+                        <p>
+                            Uploads accept these <code>@context</code> references when the file also follows ERNIE&apos;s DataCite structure:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                This ERNIE installation&apos;s versioned context at <code>/metadata/contexts/datacite-4.7-v1.jsonld</code>, referenced
+                                in its JSON-LD downloads
+                            </li>
+                            <li>A compatible context mirror configured by the administrator</li>
+                            <li>
+                                The legacy ERNIE context <code>https://schema.stage.datacite.org/linked-data/context/fullcontext.jsonld</code>
+                            </li>
+                            <li>
+                                The legacy ERNIE context <code>https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld</code>
+                            </li>
+                        </ul>
+                        <p>
+                            Schema.org JSON-LD, null, unrecognized or inline contexts, and <code>@graph</code> documents produce an upload error (HTTP
+                            422) before a draft is created. Use an ERNIE JSON-LD export or DataCite JSON/XML for import. The legacy context URLs are
+                            recognized offline and are not used for new downloads. Ordinary DataCite JSON files must omit <code>@context</code>. The
+                            versioned context is publicly accessible without signing in and its responses set no cookies.
+                        </p>
+                        <p>
+                            If the file includes <code>@id</code>, it must contain a valid DOI, either as a bare DOI or an HTTP(S) resolver URL at{' '}
+                            <code>doi.org</code> or <code>dx.doi.org</code>. Invalid IDs produce an upload error (HTTP 422) before a draft is created.
+                            For a draft without a DOI, omit <code>@id</code>.
+                        </p>
+                        <p>
+                            If both <code>@id</code> and a DOI <code>identifier</code> are present, they must identify the same DOI. Resolver URLs and
+                            differences in letter casing are treated as equivalent. Conflicting DOI values produce an upload error (HTTP 422) before a
+                            draft is created.
+                        </p>
+                        <p>
+                            Supply <code>identifier</code> as an object with <code>value</code> and optional <code>attrs</code>, for example{' '}
+                            <code>{'{"value":"10.5880/example","attrs":{"identifierType":"DOI"}}'}</code>. Plain strings and null identifiers are
+                            rejected. For a draft without a DOI, omit <code>identifier</code> and <code>@id</code>.
+                        </p>
+                        <p>
+                            Literal value objects must include a non-null scalar <code>value</code>. Omit optional fields and attributes instead of
+                            setting them to <code>null</code>, including nested metadata. Missing literal values and null scalar fields or attributes
+                            produce an upload error (HTTP 422) before a draft is created. Zero values and valid empty strings remain accepted.
+                        </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Tip:</strong> JSON-LD exports do not require validation — they are generated directly from the stored
-                                metadata.
+                                <strong>Tip:</strong> You can download stored metadata as JSON-LD before running DOI registration validation.
                             </p>
                         </div>
                     </>
                 ),
             },
         ],
-        [userRole, editorSettings, dataCite],
+        [userRole, editorSettings, dataCite, editorActions, resourceActions, permissions],
     );
 
     // ===========================================
@@ -3349,11 +3896,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
 
                         <h4>Bulk Actions for up to 1000 IGSNs</h4>
-                        <p>
-                            A complete 1000-row page can be selected and processed at once. Administrators can delete the selected IGSNs as one
-                            all-or-nothing operation. If any selected record is missing or is not an IGSN, ERNIE leaves the complete selection
-                            unchanged.
-                        </p>
+                        <p>A complete 1000-row page can be selected and processed at once.</p>
+                        {userRole === 'admin' && (
+                            <p>
+                                Administrators can delete the selected IGSNs as one all-or-nothing operation. If any selected record is missing or is
+                                not an IGSN, ERNIE leaves the complete selection unchanged.
+                            </p>
+                        )}
                         <p>
                             <strong>Register Selected</strong> starts a persistent background run for new registrations and metadata updates. The
                             progress dialog distinguishes registered, updated, failed, cancelled, and remaining items and identifies whether the run
@@ -3465,24 +4014,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>JSON-LD (Linked Data) Export for IGSNs</h3>
                         <p>
-                            Export IGSN metadata as <strong>DataCite Linked Data JSON-LD</strong> by clicking the JSON-LD button (braces icon) on any
-                            IGSN row.
+                            Export IGSN metadata using <strong>ERNIE&apos;s DataCite 4.7 JSON-LD profile</strong> by clicking the JSON-LD button
+                            (braces icon) on any IGSN row. The same context and upload compatibility rules documented under{' '}
+                            <em>Datasets → JSON-LD Export</em> apply.
                         </p>
 
                         <h4>Format Details</h4>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Uses the official DataCite Linked Data vocabulary</li>
+                            <li>Uses the same versioned, public JSON-LD 1.1 context as Resource exports</li>
                             <li>
                                 Downloaded as <code>.jsonld</code> file
                             </li>
-                            <li>Includes all IGSN-specific metadata fields</li>
+                            <li>Includes the stored DataCite metadata for the physical sample</li>
                             <li>No validation required — generated directly from stored data</li>
                         </ul>
                     </>
                 ),
             },
         ],
-        [],
+        [userRole],
     );
 
     // ===========================================
@@ -3493,11 +4043,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             return sections.filter((section) => {
                 const sectionRoleLevel = roleHierarchy[section.minRole] ?? 1;
                 if (sectionRoleLevel > userRoleLevel) return false;
+                if (section.capability && !permissions[section.capability]) return false;
                 if (section.showIf && !section.showIf(editorSettings)) return false;
                 return true;
             });
         },
-        [userRoleLevel, editorSettings],
+        [userRoleLevel, editorSettings, permissions],
     );
 
     const filteredGettingStarted = useMemo(() => filterSections(gettingStartedSections), [filterSections, gettingStartedSections]);
@@ -3518,36 +4069,105 @@ DATACITE_TEST_PASSWORD=your_test_password`}
         }
     }, [activeTab, filteredGettingStarted, filteredDatasets, filteredPhysicalSamples]);
 
-    // Sidebar items
+    // Navigation and search share the same permission-filtered section list.
     const sidebarItems: DocsSidebarItem[] = useMemo(
         () =>
             currentSections.map((section) => ({
                 id: section.id,
                 label: section.title,
                 icon: section.icon,
+                children:
+                    section.id === 'editor-actions'
+                        ? editorActions.map((action) => ({ id: action.id, label: action.label }))
+                        : section.id === 'resources-actions'
+                          ? resourceActions.map((action) => ({ id: action.id, label: action.label }))
+                          : undefined,
             })),
-        [currentSections],
+        [currentSections, editorActions, resourceActions],
     );
 
-    // Scroll-spy
-    const sectionIds = useMemo(() => currentSections.map((s) => s.id), [currentSections]);
+    const sectionIds = useMemo(() => sidebarItems.flatMap((item) => [item.id, ...(item.children?.map((child) => child.id) ?? [])]), [sidebarItems]);
     const activeId = useScrollSpy(sectionIds);
 
-    // Scroll to section
-    const scrollToSection = useCallback((id: string) => {
+    const scrollToAndFocus = useCallback((id: string) => {
         const element = document.getElementById(id);
-        if (element) {
-            const elementPosition = element.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.scrollY - SCROLL_TO_SECTION_OFFSET;
-            window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-        }
+        if (!element) return;
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+        const top = element.getBoundingClientRect().top + window.scrollY - SCROLL_TO_SECTION_OFFSET;
+        window.scrollTo({ top, behavior: reducedMotion ? 'instant' : 'smooth' });
+        const heading = element.matches('h1, h2, h3') ? element : element.querySelector('h2, h3');
+        if (heading instanceof HTMLElement) heading.focus({ preventScroll: true });
     }, []);
 
-    // Tab change handler
+    const navigateToSection = useCallback(
+        (id: string, tab: DocsTabId = activeTab) => {
+            window.history.pushState(null, '', `/docs?tab=${tab}&section=${encodeURIComponent(id)}`);
+            setActiveTab(tab);
+            setNavigationTarget(id);
+            if (tab === activeTab) scrollToAndFocus(id);
+        },
+        [activeTab, scrollToAndFocus],
+    );
+
     const handleTabChange = useCallback((tab: DocsTabId) => {
+        window.history.pushState(null, '', `/docs?tab=${tab}`);
+        setNavigationTarget(null);
         setActiveTab(tab);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+        window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
     }, []);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            setActiveTab(tab === 'datasets' || tab === 'physical-samples' ? tab : 'getting-started');
+            setNavigationTarget(params.get('section'));
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    useEffect(() => {
+        if (!navigationTarget) return;
+        if (!sectionIds.includes(navigationTarget)) {
+            const fallback = currentSections[0]?.id;
+            if (fallback) {
+                window.history.replaceState(null, '', `/docs?tab=${activeTab}&section=${fallback}`);
+                setNavigationTarget(fallback);
+            }
+            return;
+        }
+        const frame = window.requestAnimationFrame(() => scrollToAndFocus(navigationTarget));
+        return () => window.cancelAnimationFrame(frame);
+    }, [activeTab, currentSections, navigationTarget, scrollToAndFocus, sectionIds]);
+
+    const searchResults = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return [];
+        const sections = [
+            ...filteredGettingStarted.map((section) => ({
+                id: section.id,
+                label: section.title,
+                tab: 'getting-started' as const,
+                text: section.title,
+            })),
+            ...filteredDatasets.map((section) => ({ id: section.id, label: section.title, tab: 'datasets' as const, text: section.title })),
+            ...filteredPhysicalSamples.map((section) => ({
+                id: section.id,
+                label: section.title,
+                tab: 'physical-samples' as const,
+                text: section.title,
+            })),
+            ...visibleActions.map((action) => ({
+                id: action.id,
+                label: action.label,
+                tab: 'datasets' as const,
+                text: [action.label, action.requirements, action.onClick, action.afterConfirmation, action.externalEffect].join(' '),
+            })),
+        ];
+        return sections.filter((result) => result.text.toLowerCase().includes(query));
+    }, [searchQuery, filteredGettingStarted, filteredDatasets, filteredPhysicalSamples, visibleActions]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -3561,28 +4181,70 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     </p>
                 </div>
 
-                {/* Tabs */}
-                <DocsTabs activeTab={activeTab} onTabChange={handleTabChange} />
-
-                {/* Mobile Sidebar */}
-                <DocsSidebarMobile items={sidebarItems} activeId={activeId} onSectionClick={scrollToSection} />
-
-                {/* Main Content with Sidebar */}
-                <div className="flex gap-8">
-                    {/* Desktop Sidebar */}
-                    <DocsSidebar items={sidebarItems} activeId={activeId} onSectionClick={scrollToSection} />
-
-                    {/* Content */}
-                    <main className="min-w-0 flex-1">
-                        <div className="space-y-12">
-                            {currentSections.map((section) => (
-                                <DocsSection key={section.id} id={section.id} title={section.title} icon={section.icon}>
-                                    {section.content}
-                                </DocsSection>
-                            ))}
+                <div role="search" className="mb-6 max-w-xl">
+                    <label htmlFor="docs-search" className="mb-2 block font-medium">
+                        Search documentation
+                    </label>
+                    <Input
+                        id="docs-search"
+                        type="search"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className="bg-background text-foreground"
+                        placeholder="Search actions and topics"
+                    />
+                    {searchQuery.trim() && (
+                        <div className="mt-2 rounded-md border bg-card p-3">
+                            <p className="text-sm text-muted-foreground" role="status">
+                                {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                            </p>
+                            {searchResults.length > 0 && (
+                                <nav aria-label="Documentation search results" className="mt-2 max-h-64 overflow-y-auto">
+                                    <ul className="space-y-1">
+                                        {searchResults.map((result) => (
+                                            <li key={result.id}>
+                                                <a
+                                                    href={`/docs?tab=${result.tab}&section=${encodeURIComponent(result.id)}`}
+                                                    className="block rounded px-2 py-1.5 text-sm text-primary underline-offset-2 hover:underline focus-visible:outline-2"
+                                                    onClick={(event) => {
+                                                        event.preventDefault();
+                                                        navigateToSection(result.id, result.tab);
+                                                        setSearchQuery('');
+                                                    }}
+                                                >
+                                                    {result.label}
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </nav>
+                            )}
                         </div>
-                    </main>
+                    )}
                 </div>
+
+                {/* Tabs */}
+                <DocsTabs activeTab={activeTab} onTabChange={handleTabChange}>
+                    {/* Mobile Sidebar */}
+                    <DocsSidebarMobile items={sidebarItems} activeId={activeId} onSectionClick={navigateToSection} />
+
+                    {/* Main Content with Sidebar */}
+                    <div className="flex gap-8">
+                        {/* Desktop Sidebar */}
+                        <DocsSidebar items={sidebarItems} activeId={activeId} onSectionClick={navigateToSection} />
+
+                        {/* Content */}
+                        <div id="docs-content" className="min-w-0 flex-1">
+                            <div className="space-y-12">
+                                {currentSections.map((section) => (
+                                    <DocsSection key={section.id} id={section.id} title={section.title} icon={section.icon}>
+                                        {section.content}
+                                    </DocsSection>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </DocsTabs>
             </div>
         </AppLayout>
     );

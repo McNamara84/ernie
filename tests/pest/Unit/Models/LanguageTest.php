@@ -16,6 +16,7 @@ describe('Language model attributes', function (): void {
             'name',
             'active',
             'elmo_active',
+            'elmo_msl_active',
         ]);
     });
 

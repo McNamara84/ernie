@@ -10,6 +10,7 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\DataCiteJsonLdContextService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -42,7 +43,8 @@ describe('Resource JSON-LD Export', function () {
         expect($contentDisposition)->toContain('.jsonld');
 
         $json = json_decode($response->content(), true);
-        expect($json)->toHaveKey('@context');
+        expect($json['@context'])->toBe(app(DataCiteJsonLdContextService::class)->url());
+        expect($json['@type'])->toBe('Resource');
         expect($json)->toHaveKey('titles');
         expect($json)->toHaveKey('publicationYear');
     });
@@ -92,7 +94,8 @@ describe('IGSN JSON-LD Export', function () {
         expect($contentDisposition)->toContain('.jsonld');
 
         $json = json_decode($response->streamedContent(), true);
-        expect($json)->toHaveKey('@context');
+        expect($json['@context'])->toBe(app(DataCiteJsonLdContextService::class)->url());
+        expect($json['@type'])->toBe('Resource');
         expect($json)->toHaveKey('titles');
     });
 
@@ -132,7 +135,8 @@ describe('Landing Page JSON-LD Export', function () {
         expect($response->headers->get('Content-Type'))->toContain('application/ld+json');
 
         $json = json_decode($response->content(), true);
-        expect($json)->toHaveKey('@context');
+        expect($json['@context'])->toBe(app(DataCiteJsonLdContextService::class)->url());
+        expect($json['@type'])->toBe('Resource');
         expect($json['@id'])->toBe('https://doi.org/10.5880/test.jsonld.lp');
     });
 

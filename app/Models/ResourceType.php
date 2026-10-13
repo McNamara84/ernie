@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\EditorContext;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -14,7 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'slug', 'description', 'is_active', 'is_elmo_active'])]
+/** @property bool $is_elmo_msl_active */
+#[Fillable(['name', 'slug', 'description', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])]
 class ResourceType extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -23,6 +25,7 @@ class ResourceType extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_elmo_active' => 'boolean',
+        'is_elmo_msl_active' => 'boolean',
     ];
 
     /**
@@ -41,6 +44,15 @@ class ResourceType extends Model
     public function scopeElmoActive(Builder $query): Builder
     {
         return $query->where('is_elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<ResourceType>  $query
+     * @return Builder<ResourceType>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_msl_active', true);
     }
 
     /**
@@ -125,7 +137,7 @@ class ResourceType extends Model
      *
      * @return BelongsToMany<Right, static, Pivot, 'pivot'>
      */
-    public function excludedFromRights(): BelongsToMany
+    public function excludedFromRights(EditorContext $editor = EditorContext::ERNIE): BelongsToMany
     {
         /** @var BelongsToMany<Right, static, Pivot, 'pivot'> $relation */
         $relation = $this->belongsToMany(
@@ -133,7 +145,7 @@ class ResourceType extends Model
             'right_resource_type_exclusions',
             'resource_type_id',
             'right_id'
-        )->withTimestamps();
+        )->withPivotValue('editor', $editor->value)->withTimestamps();
 
         return $relation;
     }

@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['name', 'slug', 'is_active', 'is_elmo_active'])]
+/** @property bool $is_elmo_msl_active */
+#[Fillable(['name', 'slug', 'is_active', 'is_elmo_active', 'is_elmo_msl_active'])]
 class TitleType extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -19,6 +20,7 @@ class TitleType extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_elmo_active' => 'boolean',
+        'is_elmo_msl_active' => 'boolean',
     ];
 
     /**
@@ -37,6 +39,15 @@ class TitleType extends Model
     public function scopeElmoActive(Builder $query): Builder
     {
         return $query->where('is_elmo_active', true);
+    }
+
+    /**
+     * @param  Builder<TitleType>  $query
+     * @return Builder<TitleType>
+     */
+    public function scopeElmoMslActive(Builder $query): Builder
+    {
+        return $query->where('is_elmo_msl_active', true);
     }
 
     /**

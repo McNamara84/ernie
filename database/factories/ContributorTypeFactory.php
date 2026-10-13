@@ -40,6 +40,7 @@ class ContributorTypeFactory extends Factory
             'category' => ContributorCategory::PERSON,
             'is_active' => true,
             'is_elmo_active' => true,
+            'is_elmo_msl_active' => true,
         ];
     }
 

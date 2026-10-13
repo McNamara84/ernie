@@ -126,6 +126,7 @@ class EditorController extends Controller
         return Inertia::render('editor', array_merge(
             $this->transformer->getCommonProps(),
             [
+                'hasUnpersistedPrefill' => true,
                 'doi' => $sessionData['doi'] ?? '',
                 'year' => $sessionData['year'] ?? '',
                 'version' => $sessionData['version'] ?? '',
@@ -190,6 +191,7 @@ class EditorController extends Controller
         return Inertia::render('editor', array_merge(
             $this->transformer->getCommonProps(),
             [
+                'hasUnpersistedPrefill' => true,
                 'doi' => $sessionData['doi'] ?? '',
                 'year' => $sessionData['year'] ?? '',
                 'version' => $sessionData['version'] ?? '',
@@ -410,9 +412,23 @@ class EditorController extends Controller
         $gemetKeywordsRaw = $request->query('gemetKeywords', []);
         $gemetKeywords = $this->decodeJsonArrayParam($gemetKeywordsRaw);
 
+        $prefillValues = [
+            $request->query('doi'), $request->query('year'), $request->query('version'),
+            $request->query('language'), $request->query('resourceType'), $request->query('titles', []),
+            $request->query('licenses', []), $request->query('rawRights', []), $request->query('authors', []),
+            $request->query('contributors', []), $request->query('descriptions', []), $request->query('dates', []),
+            $request->query('gcmdKeywords', []), $request->query('freeKeywords', []), $mslKeywords,
+            $gemetKeywords, $request->query('coverages', []), $relatedWorks, $fundingReferences,
+            $mslLaboratories,
+        ];
+        $hasUnpersistedPrefill = array_any($prefillValues, fn (mixed $value): bool => is_array($value)
+            ? $value !== []
+            : is_scalar($value) && trim((string) $value) !== '');
+
         return Inertia::render('editor', array_merge(
             $this->transformer->getCommonProps(),
             [
+                'hasUnpersistedPrefill' => $hasUnpersistedPrefill,
                 'doi' => $request->query('doi'),
                 'year' => $request->query('year'),
                 'version' => $request->query('version'),

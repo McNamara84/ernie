@@ -50,6 +50,8 @@ interface LogEntry {
     message: string;
     context: string;
     line_number: number;
+    entry_id?: string;
+    activity?: { dataset_path?: string | null; doi_url?: string | null } | null;
 }
 
 interface Pagination {
@@ -72,6 +74,23 @@ interface LogsIndexProps {
     available_levels: string[];
     can_delete: boolean;
     can_delete_all_resources: boolean;
+    truncated?: boolean;
+}
+
+const entryKey = (entry: LogEntry) => entry.entry_id ?? String(entry.line_number);
+
+function safeDatasetPath(value?: string | null): boolean {
+    return !!value && (/^\/editor\?resourceId=[1-9][0-9]*$/.test(value) || /^\/igsns\?search=[A-Za-z0-9%._~-]+$/.test(value));
+}
+
+function safeDoiUrl(value?: string | null): string | null {
+    if (!value) return null;
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && url.host === 'doi.org' && !url.username && !url.password ? url.href : null;
+    } catch {
+        return null;
+    }
 }
 
 const levelColors: Record<string, string> = {
@@ -96,17 +115,25 @@ const levelIcons: Record<string, React.ReactNode> = {
     debug: <Info className="size-4" />,
 };
 
-export default function Index({ logs, pagination, filters, available_levels, can_delete, can_delete_all_resources }: LogsIndexProps) {
+export default function Index({
+    logs,
+    pagination,
+    filters,
+    available_levels,
+    can_delete,
+    can_delete_all_resources,
+    truncated = false,
+}: LogsIndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [level, setLevel] = useState(filters.level ?? '');
-    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
     const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [systemMetricsRefreshKey, setSystemMetricsRefreshKey] = useState(0);
     // Preserve expanded rows across refreshes by tracking them in a ref
-    const preservedExpandedRows = useRef<Set<number>>(new Set());
+    const preservedExpandedRows = useRef<Set<string>>(new Set());
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -150,7 +177,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
         applyFilters({ page });
     };
 
-    const toggleRowExpansion = (lineNumber: number) => {
+    const toggleRowExpansion = (lineNumber: string) => {
         const newExpanded = new Set(expandedRows);
         if (newExpanded.has(lineNumber)) {
             newExpanded.delete(lineNumber);
@@ -165,6 +192,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
             data: {
                 line_number: entry.line_number,
                 timestamp: entry.timestamp,
+                ...(entry.entry_id ? { entry_id: entry.entry_id } : {}),
             },
             preserveScroll: true,
             onSuccess: () => {
@@ -197,7 +225,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
             onFinish: () => {
                 setIsLoading(false);
                 // Restore expanded rows after refresh (only for entries that still exist)
-                const validLineNumbers = new Set(logs.map((log) => log.line_number));
+                const validLineNumbers = new Set(logs.map(entryKey));
                 const restoredRows = new Set([...preservedExpandedRows.current].filter((ln) => validLineNumbers.has(ln)));
                 setExpandedRows(restoredRows);
             },
@@ -303,6 +331,14 @@ export default function Index({ logs, pagination, filters, available_levels, can
                     </CardHeader>
 
                     <CardContent className="min-w-0 px-4 sm:px-6">
+                        {truncated && (
+                            <Alert className="mb-4">
+                                <AlertDescription>
+                                    Showing the most recent 50 MB of application logs. Older entries are available in log downloads while retained on
+                                    disk.
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         {/* Security Warning */}
                         <Alert variant="default" className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
                             <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400" />
@@ -371,9 +407,9 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                     <TableBody>
                                         {logs.map((log) => (
                                             <TableRow
-                                                key={log.line_number}
+                                                key={entryKey(log)}
                                                 className={log.context ? 'cursor-pointer' : ''}
-                                                onClick={() => log.context && toggleRowExpansion(log.line_number)}
+                                                onClick={() => log.context && toggleRowExpansion(entryKey(log))}
                                             >
                                                 <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
                                                 <TableCell>
@@ -388,13 +424,37 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="max-w-2xl">
-                                                        <p className="truncate font-medium">{log.message}</p>
-                                                        {expandedRows.has(log.line_number) && log.context && (
+                                                        <p className={cn('font-medium', log.activity ? 'break-words' : 'truncate')}>{log.message}</p>
+                                                        {log.activity && (
+                                                            <div className="mt-1 flex flex-wrap gap-3 text-sm">
+                                                                {log.activity.dataset_path && safeDatasetPath(log.activity.dataset_path) && (
+                                                                    <a
+                                                                        className="text-primary underline"
+                                                                        href={log.activity.dataset_path}
+                                                                        onClick={(event) => event.stopPropagation()}
+                                                                    >
+                                                                        Open dataset
+                                                                    </a>
+                                                                )}
+                                                                {safeDoiUrl(log.activity.doi_url) && (
+                                                                    <a
+                                                                        className="text-primary underline"
+                                                                        href={safeDoiUrl(log.activity.doi_url)!}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        onClick={(event) => event.stopPropagation()}
+                                                                    >
+                                                                        DOI
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {expandedRows.has(entryKey(log)) && log.context && (
                                                             <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 font-mono text-xs whitespace-pre-wrap">
                                                                 {log.context}
                                                             </pre>
                                                         )}
-                                                        {log.context && !expandedRows.has(log.line_number) && (
+                                                        {log.context && !expandedRows.has(entryKey(log)) && (
                                                             <p className="text-xs text-muted-foreground">Click to expand stack trace</p>
                                                         )}
                                                     </div>

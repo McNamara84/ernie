@@ -1,0 +1,24 @@
+{
+    "id": "subject-hierarchy-correction",
+    "name": "Subject Hierarchy Correction",
+    "description": "Review broad subject terms and choose the narrower terms that accurately describe each resource.",
+    "icon": "Tags",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\SubjectHierarchyCorrection\\Assistant",
+    "route_prefix": "subject-hierarchy-correction",
+    "lock_key": "subject_hierarchy_correction_running",
+    "cache_key_prefix": "subject_hierarchy_correction",
+    "sort_order": 55,
+    "status_labels": {
+        "checking": "Checking subject hierarchies...",
+        "completed_with_results": "Subject hierarchy check completed: {count} new suggestion(s) found.",
+        "completed_empty": "Subject hierarchy check completed: No new suggestions found. Review the check details for unavailable vocabularies.",
+        "failed": "Subject hierarchy check failed: {error}",
+        "already_running": "A subject hierarchy check is already running."
+    },
+    "empty_state": {
+        "title": "No pending hierarchy reviews",
+        "description": "Run a check to find broad subject terms that could be made more specific."
+    },
+    "card_component": "subject-hierarchy-correction-card"
+}

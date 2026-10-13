@@ -7,9 +7,8 @@
     <link rel="icon" type="image/png" href="{{ asset('favicon-96x96.png') }}">
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link rel="icon" href="{{ asset('favicon.ico') }}">
-    @unless(app()->environment('testing'))
-        @vite('resources/css/app.css')
-    @endunless
+    @viteReactRefresh
+    @vite('resources/css/app.css')
 </head>
 <body>
     <main id="main-content" class="min-h-screen bg-zinc-50 p-6 dark:bg-zinc-900">
@@ -40,9 +39,7 @@
             </noscript>
         </div>
         <script>window.__spec__ = @json($spec);</script>
-        @unless(app()->environment('testing'))
-            @vite('resources/js/swagger.tsx')
-        @endunless
+        @vite('resources/js/swagger.tsx')
     </main>
 </body>
 </html>

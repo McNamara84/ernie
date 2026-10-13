@@ -33,6 +33,7 @@ use App\Services\Entities\PersonService;
 use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Service for storing IGSN data from parsed CSV.
@@ -68,14 +69,18 @@ class IgsnStorageService
     public function storeFromCsv(array $parsedRows, string $filename, ?int $userId = null): array
     {
         $this->loadLookupIds();
+        $operationId = (string) Str::uuid();
+        $activities = app(UserActivityService::class);
+        $actor = $activities->actor($userId);
 
-        return DB::transaction(function () use ($parsedRows, $filename, $userId): array {
+        return DB::transaction(function () use ($parsedRows, $filename, $userId, $operationId, $activities, $actor): array {
             $created = 0;
             $errors = [];
 
             foreach ($parsedRows as $row) {
                 try {
-                    $this->createIgsnResource($row, $filename, $userId);
+                    $resource = DB::transaction(fn () => $this->createIgsnResource($row, $filename, $userId));
+                    $activities->record($actor, 'igsn.imported', 'imported from CSV', $activities->subject($resource), operationId: $operationId);
                     $created++;
                 } catch (\Exception $e) {
                     Log::error('IGSN storage failed', [
@@ -90,6 +95,10 @@ class IgsnStorageService
                         'message' => $e->getMessage(),
                     ];
                 }
+            }
+
+            if ($created > 0) {
+                $activities->summary($actor, 'IGSN CSV import', $operationId, ['created' => $created, 'failed' => count($errors)]);
             }
 
             return ['created' => $created, 'errors' => $errors];

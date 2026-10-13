@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -423,9 +423,13 @@ describe('RegisterDoiModal', () => {
 
     it('disables buttons while submitting', async () => {
         const user = userEvent.setup();
+        let completeSubmission = () => {};
 
         mockPost.mockImplementation(
-            () => new Promise((resolve) => setTimeout(resolve, 1000))
+            () =>
+                new Promise((resolve) => {
+                    completeSubmission = () => resolve({ data: { doi: '10.83279/new-doi-123', mode: 'test', updated: false } });
+                }),
         );
 
         render(<RegisterDoiModal {...defaultProps} />);
@@ -444,6 +448,9 @@ describe('RegisterDoiModal', () => {
         expect(loadingButton).toBeDisabled();
         expect(loadingButton).toHaveAttribute('aria-busy', 'true');
         expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+
+        await act(async () => completeSubmission());
+        expect(loadingButton).not.toBeDisabled();
     });
 
     // --- Issue #610: ORCID preflight ---

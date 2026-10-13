@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePortalResourcePreview } from '@/hooks/use-portal-resource-preview';
 import { cn } from '@/lib/utils';
-import type { PortalBasePath, PortalCreator, PortalResource } from '@/types/portal';
+import type { PartySearchMatch, PartySearchRole } from '@/types/party-search';
+import type { PortalBasePath, PortalCreator, PortalResource, PortalSampleNameMatch } from '@/types/portal';
 
 interface PortalResultCardProps {
     resource: PortalResource;
@@ -44,6 +45,62 @@ function getTypeBadgeVariant(isIgsn: boolean): 'default' | 'secondary' | 'outlin
     return isIgsn ? 'secondary' : 'default';
 }
 
+const PORTAL_PARTY_ROLE_LABELS: Record<PartySearchRole, string> = {
+    contact_person: 'Contact Person',
+    author: 'Author',
+    contributor: 'Contributor',
+};
+
+function formatPartyRoles(roles: PartySearchRole[]): string {
+    const roleSet = new Set(roles);
+
+    return (['contact_person', 'author', 'contributor'] as const)
+        .filter((role) => roleSet.has(role))
+        .map((role) => PORTAL_PARTY_ROLE_LABELS[role])
+        .join(' & ');
+}
+
+function formatPartyMatch(match: PartySearchMatch): string {
+    return `${formatPartyRoles(match.roles)}: ${match.display_value}`;
+}
+
+function PortalPartySearchMatches({ matches }: { matches: PartySearchMatch[] }) {
+    if (matches.length === 0) return null;
+
+    return (
+        <div className="min-w-0 space-y-0.5" data-testid="portal-party-search-matches">
+            {matches.map((match, index) => (
+                <div key={`${match.display_value}-${index}`} className="flex min-w-0 items-baseline gap-1 text-xs text-muted-foreground">
+                    <span className="shrink-0 font-semibold text-foreground">{formatPartyRoles(match.roles)}:</span>
+                    <span className="min-w-0 truncate" title={match.display_value}>
+                        {match.display_value}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function PortalSampleNameMatches({ matches }: { matches: PortalSampleNameMatch[] }) {
+    if (matches.length === 0) return null;
+
+    return (
+        <div className="min-w-0 space-y-0.5" data-testid="portal-sample-name-matches">
+            {matches.map((match, index) => (
+                <div
+                    key={`${match.label}-${match.display_value}-${index}`}
+                    className="flex min-w-0 items-baseline gap-1 text-xs text-muted-foreground"
+                >
+                    <span className="shrink-0 font-semibold text-foreground">{match.label}:</span>
+                    <span className="min-w-0 truncate" title={match.display_value}>
+                        {match.display_value}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /** A compact portal result with explicitly requested citation and abstract details. */
 export function PortalResultCard({ resource, basePath }: PortalResultCardProps) {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -54,6 +111,12 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
     const authors = formatAuthors(resource.creators);
     const landingPageUrl = resource.landingPageUrl;
     const hasLandingPage = landingPageUrl !== null;
+    const searchMatches = resource.searchMatches ?? [];
+    const sampleNameMatches = resource.sampleNameMatches ?? [];
+    const searchMatchLabel = [
+        ...searchMatches.map(formatPartyMatch),
+        ...sampleNameMatches.map((match) => `${match.label}: ${match.display_value}`),
+    ].join('. ');
 
     const clearCopyTimeout = useCallback(() => {
         if (copyTimeoutRef.current !== null) {
@@ -112,18 +175,23 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
                 <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:block sm:max-w-[180px] sm:truncate">{resource.doi}</span>
             )}
 
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span
-                    data-testid="portal-result-title"
-                    className={cn('min-w-0 flex-1 truncate text-sm font-medium', hasLandingPage && 'group-hover:text-primary')}
-                >
-                    {resource.title}
-                </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex min-w-0 items-center gap-3">
+                    <span
+                        data-testid="portal-result-title"
+                        className={cn('min-w-0 flex-1 truncate text-sm font-medium', hasLandingPage && 'group-hover:text-primary')}
+                    >
+                        {resource.title}
+                    </span>
 
-                <div data-testid="portal-result-meta" className="flex shrink-0 items-center gap-2">
-                    <span className="hidden max-w-[220px] truncate text-sm text-muted-foreground md:block">{authors}</span>
-                    {resource.year && <span className="shrink-0 text-sm text-muted-foreground">{resource.year}</span>}
+                    <div data-testid="portal-result-meta" className="flex shrink-0 items-center gap-2">
+                        <span className="hidden max-w-[220px] truncate text-sm text-muted-foreground md:block">{authors}</span>
+                        {resource.year && <span className="shrink-0 text-sm text-muted-foreground">{resource.year}</span>}
+                    </div>
                 </div>
+
+                <PortalPartySearchMatches matches={searchMatches} />
+                <PortalSampleNameMatches matches={sampleNameMatches} />
             </div>
         </>
     );
@@ -154,7 +222,7 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
                         href={landingPageUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={`View ${resource.title} (opens in new tab)`}
+                        aria-label={[`View ${resource.title}`, searchMatchLabel, 'opens in new tab'].filter(Boolean).join('. ')}
                         className="flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-sm px-1.5 py-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none"
                     >
                         {rowContent}

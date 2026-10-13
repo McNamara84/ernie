@@ -27,22 +27,28 @@ class DataCiteJsonLdToJsonConverterService
      */
     public function convert(array $jsonLd): array
     {
+        $jsonLd = $this->normalizeUriAliases($jsonLd);
         $attributes = [];
+        $context = app(DataCiteJsonLdContextService::class);
 
         // Extract DOI from @id
-        if (isset($jsonLd['@id']) && is_string($jsonLd['@id'])) {
-            $doi = preg_replace('#^https?://doi\.org/#', '', $jsonLd['@id']);
-            if ($doi !== null && $doi !== '') {
-                $attributes['doi'] = $doi;
-                $attributes['identifiers'] = [
-                    ['identifier' => $doi, 'identifierType' => 'DOI'],
-                ];
-            }
+        if (array_key_exists('@id', $jsonLd)) {
+            $doi = $context->doiFromId($jsonLd['@id']);
+            $attributes['doi'] = $doi;
+            $attributes['identifiers'] = [
+                ['identifier' => $doi, 'identifierType' => 'DOI'],
+            ];
         }
 
         // Identifier (may override from @id)
-        if (isset($jsonLd['identifier'])) {
+        if (array_key_exists('identifier', $jsonLd)) {
             $attributes['identifiers'] = $this->convertIdentifiers($jsonLd['identifier']);
+            foreach ($attributes['identifiers'] as $index => $identifier) {
+                if (isset($attributes['doi']) && strcasecmp($identifier['identifierType'], 'DOI') === 0) {
+                    $context->assertDoiMatches($attributes['doi'], $identifier['identifier']);
+                    $attributes['identifiers'][$index]['identifier'] = $attributes['doi'];
+                }
+            }
         }
 
         // Creators
@@ -144,6 +150,28 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
+     * Normalize historical URI aliases consistently at every nesting level.
+     *
+     * @param  array<array-key, mixed>  $node
+     * @return array<array-key, mixed>
+     */
+    private function normalizeUriAliases(array $node): array
+    {
+        $aliases = ['schemeURI' => 'schemeUri', 'rightsURI' => 'rightsUri', 'valueURI' => 'valueUri', 'awardURI' => 'awardUri'];
+        $normalized = [];
+        foreach ($node as $key => $value) {
+            $target = $aliases[$key] ?? $key;
+            $value = is_array($value) ? $this->normalizeUriAliases($value) : $value;
+            if (array_key_exists($target, $normalized) && $normalized[$target] !== $value) {
+                throw new JsonLdConversionException('Conflicting DataCite JSON-LD URI aliases: '.$target.'.');
+            }
+            $normalized[$target] = $value;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Unwrap a value from {value: "..."} or return plain string.
      *
      * Handles three patterns:
@@ -215,24 +243,34 @@ class DataCiteJsonLdToJsonConverterService
     private function convertIdentifiers(mixed $data): array
     {
         // Single identifier: {attrs: {identifierType: "DOI"}, value: "10.5880/..."}
-        if (is_array($data) && isset($data['attrs'])) {
-            return [[
-                'identifier' => (string) ($data['value'] ?? ''),
-                'identifierType' => (string) ($data['attrs']['identifierType'] ?? 'DOI'),
-            ]];
+        if (is_array($data) && (isset($data['attrs']) || array_key_exists('value', $data))) {
+            return [$this->convertIdentifier($data)];
         }
 
         // Multiple identifiers wrapped: {identifier: [{...}, {...}]}
         if (is_array($data) && isset($data['identifier'])) {
             $items = $this->ensureList($data['identifier']);
 
-            return array_map(fn (array $item): array => [
-                'identifier' => (string) ($item['value'] ?? ''),
-                'identifierType' => (string) ($item['attrs']['identifierType'] ?? 'DOI'),
-            ], $items);
+            return array_map($this->convertIdentifier(...), $items);
         }
 
-        return [];
+        throw new JsonLdConversionException('Invalid DataCite JSON-LD identifier: expected a value object.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $identifier
+     * @return array<string, string>
+     */
+    private function convertIdentifier(array $identifier): array
+    {
+        if (! array_key_exists('value', $identifier) || ! is_scalar($identifier['value'])) {
+            throw new JsonLdConversionException('Invalid DataCite JSON-LD identifier: expected a scalar value.');
+        }
+
+        return [
+            'identifier' => (string) $identifier['value'],
+            'identifierType' => (string) ($identifier['attrs']['identifierType'] ?? 'DOI'),
+        ];
     }
 
     /**
@@ -594,7 +632,7 @@ class DataCiteJsonLdToJsonConverterService
             $attrs = is_array($item['attrs'] ?? null) ? $item['attrs'] : [];
             $value = is_array($item['value'] ?? null) ? $item['value'] : $item;
 
-            foreach (['relatedItemType', 'relationType'] as $key) {
+            foreach (['relatedItemType', 'relationType', 'relationTypeInformation'] as $key) {
                 if (isset($attrs[$key])) {
                     $result[$key] = $attrs[$key];
                 } elseif (isset($value[$key])) {

@@ -38,7 +38,7 @@ describe('landing-page-modal-helpers', () => {
         });
     });
 
-    it('includes downloads unavailable for generated resource setup payloads', () => {
+    it('includes explicit download activation for generated resource setup payloads', () => {
         expect(
             buildLandingPageSetupPayload({
                 template: 'default_gfz',
@@ -46,8 +46,8 @@ describe('landing-page-modal-helpers', () => {
                 isPublished: false,
                 supportsFtpUrl: true,
                 ftpUrl: 'https://datapub.example.org/download',
-                supportsDownloadsUnavailable: true,
-                downloadsUnavailable: true,
+                supportsDownloadActivation: true,
+                activateDownloads: true,
                 supportsLinks: true,
                 links: [{ url: 'https://example.org/repository', label: 'Repository', position: 0 }],
                 isExternal: false,
@@ -60,7 +60,7 @@ describe('landing-page-modal-helpers', () => {
             primary_download_label: null,
             ftp_format_id: null,
             ftp_size_id: null,
-            downloads_unavailable: true,
+            activate_downloads: true,
             links: [
                 {
                     url: 'https://example.org/repository',
@@ -155,15 +155,15 @@ describe('landing-page-modal-helpers', () => {
         });
     });
 
-    it('includes downloads unavailable in generated resource preview payloads', () => {
+    it('includes explicit download activation in generated resource preview payloads', () => {
         expect(
             buildLandingPagePreviewPayload({
                 template: 'default_gfz',
                 landingPageTemplateId: null,
                 supportsFtpUrl: true,
                 ftpUrl: 'https://datapub.example.org/download',
-                supportsDownloadsUnavailable: true,
-                downloadsUnavailable: true,
+                supportsDownloadActivation: true,
+                activateDownloads: true,
                 supportsLinks: true,
                 links: [],
                 isExternal: false,
@@ -175,7 +175,7 @@ describe('landing-page-modal-helpers', () => {
             primary_download_label: null,
             ftp_format_id: null,
             ftp_size_id: null,
-            downloads_unavailable: true,
+            activate_downloads: true,
         });
     });
 

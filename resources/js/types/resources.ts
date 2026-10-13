@@ -3,6 +3,10 @@
  * These types are used across components and tests to ensure consistency.
  */
 
+import type { PartySearchMatch, PartySearchRole } from '@/types/party-search';
+
+export type ResourcePublicStatus = 'draft' | 'curation' | 'review' | 'embargo' | 'published' | 'dead';
+
 export type ResourceSortKey =
     | 'id'
     | 'doi'
@@ -68,13 +72,9 @@ export interface ResourceListLandingPage {
     preview_url?: string | null;
 }
 
-export type ResourcePartySearchRole = 'contact_person' | 'author' | 'contributor';
+export type ResourcePartySearchRole = PartySearchRole;
 
-export interface ResourcePartySearchMatch {
-    display_value: string;
-    matched_field: 'name' | 'email';
-    roles: ResourcePartySearchRole[];
-}
+export type ResourcePartySearchMatch = PartySearchMatch;
 
 export interface ResourceListItem {
     id: number;
@@ -100,5 +100,7 @@ export interface ResourceDoiActionItem extends Pick<ResourceListItem, 'id' | 'do
 export function shouldUseUpdateMetadataLabel(resource: Pick<ResourceListItem, 'doi' | 'publicstatus' | 'landingPage'>): boolean {
     const hasExistingDoi = Boolean(resource.doi);
 
-    return hasExistingDoi && (resource.publicstatus === 'published' || resource.landingPage?.is_published === true);
+    return (
+        hasExistingDoi && (resource.publicstatus === 'published' || resource.publicstatus === 'dead' || resource.landingPage?.is_published === true)
+    );
 }

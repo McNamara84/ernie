@@ -27,8 +27,18 @@ class LanguageController extends Controller
     public function elmo(): JsonResponse
     {
         $languages = Language::query()
-            ->active()
             ->elmoActive()
+            ->orderByName()
+            ->get(['id', 'code', 'name']);
+
+        return response()->json($languages);
+    }
+
+    /** Return entries independently enabled for ELMO-MSL. */
+    public function elmoMsl(): JsonResponse
+    {
+        $languages = Language::query()
+            ->elmoMslActive()
             ->orderByName()
             ->get(['id', 'code', 'name']);
 

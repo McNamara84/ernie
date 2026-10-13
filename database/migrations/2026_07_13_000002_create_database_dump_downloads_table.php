@@ -129,13 +129,13 @@ return new class extends Migration
     private function hasIndex(array $columns): bool
     {
         return collect(Schema::getIndexes(self::TABLE))
-            ->contains(fn (array $index): bool => array_values($index['columns'] ?? []) === $columns);
+            ->contains(fn (array $index): bool => $index['columns'] === $columns);
     }
 
     private function hasForeignKey(string $column, string $foreignTable): bool
     {
         return collect(Schema::getForeignKeys(self::TABLE))
-            ->contains(fn (array $foreignKey): bool => in_array($column, $foreignKey['columns'] ?? [], true)
-                && ($foreignKey['foreign_table'] ?? null) === $foreignTable);
+            ->contains(fn (array $foreignKey): bool => in_array($column, $foreignKey['columns'], true)
+                && $foreignKey['foreign_table'] === $foreignTable);
     }
 };

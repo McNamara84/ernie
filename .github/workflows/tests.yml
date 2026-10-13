@@ -53,32 +53,11 @@ jobs:
           path: ~/.composer/cache
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
 
-      - name: Setup Node
-        if: ${{ matrix.slice != 'architecture' }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
-
-      - name: Setup npm
-        if: ${{ matrix.slice != 'architecture' }}
-        run: npm install --global npm@12.0.2
-
-      - name: Install Node dependencies
-        if: ${{ matrix.slice != 'architecture' }}
-        run: npm ci
-
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Build assets
-        if: ${{ matrix.slice != 'architecture' }}
-        run: npm run build
-        env:
-          NODE_ENV: production
-          APP_ENV: testing
-          APP_URL: http://localhost
-          ASSET_URL: http://localhost
+      # Non-browser tests disable Vite. Manifest-specific tests create their
+      # own complete fixtures, so these PHP slices need no frontend build.
 
       - name: Copy environment file
         run: cp .env.example .env
@@ -107,6 +86,23 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate
 
+      - name: Setup Node for JSON-LD validation
+        if: ${{ matrix.slice == 'serial' }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install JSON-LD validation dependencies
+        if: ${{ matrix.slice == 'serial' }}
+        run: |
+          npm install --global npm@12.2.0
+          npm ci
+
+      - name: Validate actual DataCite and Schema.org JSON-LD exports offline
+        if: ${{ matrix.slice == 'serial' }}
+        run: npm run test:jsonld
+
       - name: Verify migrations and seeders
         if: ${{ matrix.slice == 'serial' }}
         run: |
@@ -128,7 +124,7 @@ jobs:
 
       - name: Upload coverage result
         if: ${{ matrix.slice != 'architecture' && success() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pest-coverage-${{ matrix.slice }}
           path: coverage-${{ matrix.slice }}.xml
@@ -150,15 +146,26 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download coverage results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: pest-coverage-*
           merge-multiple: true
 
+      - name: Verify complete coverage artifacts
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          for name in ('serial', 'parallel-1', 'parallel-2'):
+              root = ET.parse(f'coverage-{name}.xml').getroot()
+              assert root.tag == 'coverage' and root.findall('.//file'), f'Missing coverage in {name}'
+          PY
+
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage-serial.xml,coverage-parallel-1.xml,coverage-parallel-2.xml
           flags: backend
-          fail_ci_if_error: false
+          fail_ci_if_error: true
+          override_commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          disable_search: true

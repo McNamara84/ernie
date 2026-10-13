@@ -9,10 +9,9 @@ use App\Models\Resource;
 /**
  * Transforms DataCite JSON export into DataCite Linked Data JSON-LD format.
  *
- * Uses the DataCite fullcontext.jsonld context to express metadata as Linked Data
- * with the attrs/value nesting pattern defined by the DataCite LD schema.
+ * Uses ERNIE's versioned DataCite 4.7 context for the attrs/value profile.
  *
- * @see https://schema.stage.datacite.org/linked-data/context/fullcontext.jsonld
+ * @see DataCiteJsonLdContextService
  */
 class DataCiteLinkedDataExporter
 {
@@ -27,8 +26,20 @@ class DataCiteLinkedDataExporter
         $dataCiteJson = $jsonExporter->export($resource, serializeDescriptionsForDataCite: false);
         $attributes = $dataCiteJson['data']['attributes'];
 
+        return $this->exportAttributes($attributes);
+    }
+
+    /**
+     * Encode the same canonical DataCite attributes used by resource exports.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public function exportAttributes(array $attributes): array
+    {
         $jsonLd = [
-            '@context' => config('datacite.linked_data.context_url'),
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
+            '@type' => 'Resource',
         ];
 
         $doi = trim((string) ($attributes['doi'] ?? ''));
@@ -113,7 +124,7 @@ class DataCiteLinkedDataExporter
         }
 
         // Version
-        if (! empty($attributes['version'])) {
+        if (isset($attributes['version']) && $attributes['version'] !== '') {
             $jsonLd['version'] = ['value' => $attributes['version']];
         }
 
@@ -138,6 +149,17 @@ class DataCiteLinkedDataExporter
         }
 
         return $jsonLd;
+    }
+
+    /**
+     * Keep valid literal values such as "0"; only missing attributes are omitted.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function filterAttributes(array $attributes): array
+    {
+        return array_filter($attributes, fn (mixed $value): bool => $value !== null);
     }
 
     /**
@@ -197,7 +219,7 @@ class DataCiteLinkedDataExporter
         // Name identifiers
         if (! empty($creator['nameIdentifiers'])) {
             $nameIds = array_map(fn (array $ni): array => [
-                'attrs' => array_filter([
+                'attrs' => $this->filterAttributes([
                     'nameIdentifierScheme' => $ni['nameIdentifierScheme'] ?? null,
                     'schemeUri' => $ni['schemeUri'] ?? null,
                 ]),
@@ -221,7 +243,7 @@ class DataCiteLinkedDataExporter
      */
     private function transformAffiliation(array $affiliation): array
     {
-        $attrs = array_filter([
+        $attrs = $this->filterAttributes([
             'affiliationIdentifier' => $affiliation['affiliationIdentifier'] ?? null,
             'affiliationIdentifierScheme' => $affiliation['affiliationIdentifierScheme'] ?? null,
             'schemeURI' => $affiliation['schemeUri'] ?? null,
@@ -242,7 +264,7 @@ class DataCiteLinkedDataExporter
     private function transformTitles(array $titles): array
     {
         $transformed = array_map(function (array $title): array {
-            $attrs = array_filter([
+            $attrs = $this->filterAttributes([
                 'titleType' => $title['titleType'] ?? null,
                 'lang' => $title['lang'] ?? null,
             ]);
@@ -264,7 +286,7 @@ class DataCiteLinkedDataExporter
      */
     private function transformPublisher(array $publisher): array
     {
-        $attrs = array_filter([
+        $attrs = $this->filterAttributes([
             'publisherIdentifier' => $publisher['publisherIdentifier'] ?? null,
             'publisherIdentifierScheme' => $publisher['publisherIdentifierScheme'] ?? null,
             'schemeUri' => $publisher['schemeUri'] ?? null,
@@ -298,7 +320,7 @@ class DataCiteLinkedDataExporter
     private function transformSubjects(array $subjects): array
     {
         $transformed = array_map(function (array $subject): array {
-            $attrs = array_filter([
+            $attrs = $this->filterAttributes([
                 'subjectScheme' => $subject['subjectScheme'] ?? null,
                 'schemeUri' => $subject['schemeUri'] ?? null,
                 'valueUri' => $subject['valueUri'] ?? null,
@@ -355,7 +377,7 @@ class DataCiteLinkedDataExporter
             // Name identifiers
             if (! empty($contributor['nameIdentifiers'])) {
                 $nameIds = array_map(fn (array $ni): array => [
-                    'attrs' => array_filter([
+                    'attrs' => $this->filterAttributes([
                         'nameIdentifierScheme' => $ni['nameIdentifierScheme'] ?? null,
                         'schemeUri' => $ni['schemeUri'] ?? null,
                     ]),
@@ -387,7 +409,7 @@ class DataCiteLinkedDataExporter
     private function transformDates(array $dates): array
     {
         $transformed = array_map(function (array $date): array {
-            $attrs = array_filter([
+            $attrs = $this->filterAttributes([
                 'dateType' => $date['dateType'] ?? null,
                 'dateInformation' => $date['dateInformation'] ?? null,
             ]);
@@ -424,7 +446,7 @@ class DataCiteLinkedDataExporter
     private function transformRelatedIdentifiers(array $relatedIdentifiers): array
     {
         $transformed = array_map(function (array $ri): array {
-            $attrs = array_filter([
+            $attrs = $this->filterAttributes([
                 'relatedIdentifierType' => $ri['relatedIdentifierType'] ?? null,
                 'relationType' => $ri['relationType'] ?? null,
                 'relatedMetadataScheme' => $ri['relatedMetadataScheme'] ?? null,
@@ -452,9 +474,10 @@ class DataCiteLinkedDataExporter
     private function transformRelatedItems(array $relatedItems): array
     {
         $transformed = array_map(function (array $ri): array {
-            $attrs = array_filter([
+            $attrs = $this->filterAttributes([
                 'relatedItemType' => $ri['relatedItemType'] ?? null,
                 'relationType' => $ri['relationType'] ?? null,
+                'relationTypeInformation' => $ri['relationTypeInformation'] ?? null,
             ]);
 
             $value = [];
@@ -470,7 +493,7 @@ class DataCiteLinkedDataExporter
             }
             if (isset($ri['relatedItemIdentifier']) && is_array($ri['relatedItemIdentifier'])) {
                 $identifier = $ri['relatedItemIdentifier'];
-                $identifierAttrs = array_filter([
+                $identifierAttrs = $this->filterAttributes([
                     'relatedItemIdentifierType' => $identifier['relatedItemIdentifierType'] ?? null,
                     'relatedMetadataScheme' => $identifier['relatedMetadataScheme'] ?? null,
                     'schemeURI' => $identifier['schemeUri'] ?? null,
@@ -489,7 +512,7 @@ class DataCiteLinkedDataExporter
             }
             if (array_key_exists('number', $ri)) {
                 $value['number'] = [
-                    'attrs' => array_filter(['numberType' => $ri['numberType'] ?? null]),
+                    'attrs' => $this->filterAttributes(['numberType' => $ri['numberType'] ?? null]),
                     'value' => $ri['number'],
                 ];
             }
@@ -537,7 +560,7 @@ class DataCiteLinkedDataExporter
     private function transformRightsList(array $rightsList): array
     {
         $transformed = array_map(function (array $rights): array {
-            $attrs = array_filter([
+            $attrs = $this->filterAttributes([
                 'rightsURI' => $rights['rightsUri'] ?? null,
                 'rightsIdentifier' => $rights['rightsIdentifier'] ?? null,
                 'rightsIdentifierScheme' => $rights['rightsIdentifierScheme'] ?? null,
@@ -563,7 +586,7 @@ class DataCiteLinkedDataExporter
     private function transformDescriptions(array $descriptions): array
     {
         $transformed = array_map(function (array $desc): array {
-            $attrs = array_filter([
+            $attrs = $this->filterAttributes([
                 'descriptionType' => $desc['descriptionType'] ?? null,
                 'lang' => $desc['lang'] ?? null,
             ]);
@@ -655,7 +678,7 @@ class DataCiteLinkedDataExporter
             ];
 
             if (isset($funding['funderIdentifier'])) {
-                $attrs = array_filter([
+                $attrs = $this->filterAttributes([
                     'funderIdentifierType' => $funding['funderIdentifierType'] ?? null,
                     'schemeUri' => $funding['schemeUri'] ?? null,
                 ]);

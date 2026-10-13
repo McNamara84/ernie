@@ -210,3 +210,17 @@ describe('ThesaurusStatusService', function () {
         });
     });
 });
+
+it('counts MSL keyword trees with and without the legacy wrapper', function (bool $wrapped): void {
+    Storage::fake();
+    $tree = [['text' => 'Materials', 'children' => [['text' => 'Rock']]]];
+    Storage::put('msl-vocabulary.json', json_encode($wrapped ? ['lastUpdated' => '2026-10-05T10:00:00Z', 'data' => $tree] : $tree));
+    $setting = new ThesaurusSetting(['type' => ThesaurusSetting::TYPE_MSL_KEYWORDS]);
+    $status = (new ThesaurusStatusService)->getLocalStatus($setting);
+    expect($status['exists'])->toBeTrue()->and($status['conceptCount'])->toBe(2)->and($status['lastUpdated'])->not->toBeNull();
+    if ($wrapped) {
+        expect($status['lastUpdated'])->toBe('2026-10-05T10:00:00Z');
+    }
+    Http::fake(['raw.githubusercontent.com/*' => Http::response([['text' => 'New', 'children' => [['text' => 'Child']]]])]);
+    expect((new ThesaurusStatusService)->getRemoteConceptCount($setting))->toBe(2);
+})->with([false, true]);

@@ -35,7 +35,7 @@ class GcmdVocabularyParser
     /**
      * Extract concepts from RDF content
      *
-     * @return array<int, array<string, string|null>>
+     * @return list<array{id: string, text: string, language: string, description: string, broaderId: string|null, broaderIds: list<string>}>
      */
     public function extractConcepts(string $rdfContent): array
     {
@@ -86,12 +86,22 @@ class GcmdVocabularyParser
                 }
             }
 
+            $broaderIds = [];
+            foreach ($skosNs->broader ?? [] as $broader) {
+                $attributes = $broader->attributes('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+                $parent = (string) ($attributes['resource'] ?? '');
+                if ($parent !== '') {
+                    $broaderIds[] = str_starts_with($parent, 'http') ? $parent : 'https://gcmd.earthdata.nasa.gov/kms/concept/'.$parent;
+                }
+            }
+
             $concepts[] = [
                 'id' => $id,
                 'text' => $prefLabel,
                 'language' => $language,
                 'description' => $definition,
                 'broaderId' => $broaderId,
+                'broaderIds' => $broaderIds,
             ];
         }
 
@@ -101,7 +111,7 @@ class GcmdVocabularyParser
     /**
      * Build hierarchical structure from flat concept array
      *
-     * @param  array<int, array<string, string|null>>  $concepts
+     * @param  list<array{id: string|null, text: string|null, language: string|null, description: string|null, broaderId: string|null, broaderIds?: list<string>}>  $concepts
      * @param  string  $schemeTitle  The title of the vocabulary scheme (e.g., "NASA/GCMD Earth Science Keywords")
      * @param  string  $schemeURI  The URI of the vocabulary scheme (e.g., "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords")
      * @return array<string, mixed>

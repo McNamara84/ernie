@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\ThesaurusSetting;
+use App\Services\ElmoCacheRefreshDispatcherService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -109,6 +110,11 @@ class UpdateThesaurusJob implements ShouldQueue
             $exitCode = Artisan::call($command);
 
             if ($exitCode === 0) {
+                $setting = ThesaurusSetting::where('type', $this->thesaurusType)->first();
+                if ($setting !== null) {
+                    app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting);
+                }
+
                 Log::info('Thesaurus update completed successfully', [
                     'job_id' => $this->jobId,
                     'thesaurus_type' => $this->thesaurusType,
@@ -164,6 +170,7 @@ class UpdateThesaurusJob implements ShouldQueue
     private function getProgressMessage(): string
     {
         return match ($this->thesaurusType) {
+            ThesaurusSetting::TYPE_MSL_KEYWORDS => 'Fetching EPOS MSL keywords from GitHub...',
             ThesaurusSetting::TYPE_CHRONOSTRAT, ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'Fetching data from ARDC Linked Data API...',
             ThesaurusSetting::TYPE_GEMET => 'Fetching data from GEMET REST API...',
             ThesaurusSetting::TYPE_EUROSCIVOC => 'Fetching data from EU Publications Office SPARQL endpoint...',

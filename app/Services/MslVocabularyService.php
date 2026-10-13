@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\SubjectHierarchy\SubjectHierarchyCacheService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -59,7 +60,7 @@ class MslVocabularyService
                 return false;
             }
 
-            Storage::put(self::STORAGE_PATH, $jsonEncoded);
+            (new SubjectHierarchyCacheService)->publishTree(self::STORAGE_PATH, $jsonEncoded, $transformedData);
 
             $totalConcepts = $this->countConcepts($transformedData);
 
@@ -109,6 +110,19 @@ class MslVocabularyService
         }
 
         return $data;
+    }
+
+    /** Fetch the concept count without changing the locally published vocabulary. */
+    public function getRemoteConceptCount(): int
+    {
+        $response = Http::timeout(30)->get(self::VOCABULARY_URL);
+        $data = $response->json();
+
+        if (! $response->successful() || ! is_array($data)) {
+            throw new \RuntimeException('Unable to retrieve the MSL keyword vocabulary.');
+        }
+
+        return $this->countConcepts($this->transformVocabularyTree($data));
     }
 
     /**

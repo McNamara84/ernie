@@ -33,6 +33,14 @@ describe('ror-search', () => {
     ];
 
     describe('searchRorFunders', () => {
+        it.each(['018mejw64', 'http://ror.org/018mejw64/', 'Custom (https://ror.org/018mejw64)'])('finds only the exact ROR for %s', (query) => {
+            expect(searchRorFunders(mockFunders, query)).toEqual([mockFunders[0]]);
+        });
+
+        it.each(['DFG (012345678)', 'DFG (https://ror.org/invalid)', 'https://ror.org.evil.example/018mejw64'])('does not fall back to name search for %s', (query) => {
+            expect(searchRorFunders(mockFunders, query)).toEqual([]);
+        });
+
         it('returns empty array for empty query', () => {
             const result = searchRorFunders(mockFunders, '');
             expect(result).toEqual([]);

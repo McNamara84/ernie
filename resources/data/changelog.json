@@ -1,5 +1,352 @@
 [
     {
+        "version": "1.1.0",
+        "date": "2026-10-13",
+        "features": [
+            {
+                "title": "Automatic ELMO Cache Refresh After Editor Settings Changes",
+                "description": "ELMO and ELMO-MSL can automatically pick up changes to their editor settings, vocabularies and persistent identifier data. Refreshes run in the background, and saved settings are retained if an external service is temporarily unavailable. Automatic refresh requires administrator enablement and a compatible ELMO endpoint."
+            },
+            {
+                "title": "Date Types Ordered by Repository Usage",
+                "description": "The Dates dropdown now lists the most frequently used date types first, based on saved ERNIE resources other than Physical Objects. New rows select the most frequent available type, while existing selections are preserved. Equally used and unused types are ordered alphabetically."
+            },
+            {
+                "title": "EPOS-MSL OAI-PMH Project Set",
+                "description": "OAI-PMH harvesters can use the epos-msl set to retrieve published resources tagged with the free keyword EPOS or MSL, regardless of letter case. Resources with both keywords appear once. Keyword changes are included in incremental harvests, and deleted or depublished records retain their project membership in deletion headers."
+            },
+            {
+                "title": "ELMO-MSL API and Independent Editor Settings",
+                "description": "ELMO-MSL now has dedicated API endpoints for metadata types, languages, licenses, roles, vocabularies and persistent identifiers. Editor Settings independently control ERNIE, ELMO and ELMO-MSL, including date types, MSL keywords and license exclusions by resource type. ELMO-MSL initially inherits the existing ELMO settings. Saved and imported rights remain available when license choices are filtered. The API documentation explains API-key header and Bearer authentication."
+            },
+            {
+                "title": "Related Identifier Relation Type Correction Assistant",
+                "description": "Admins and Group Leaders can review suggested corrections to DOI relation types based on DataCite and Crossref metadata. Each suggestion includes a before/after preview, an explanation and its sources. Corrections can be reviewed individually or per resource and synchronized with DataCite, with a retry option if synchronization fails. Declined suggestions stay hidden until relevant metadata changes; ambiguous evidence does not produce a correction.",
+                "references": [
+                    { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
+                    { "type": "issue", "number": 790, "url": "https://github.com/McNamara84/ernie/issues/790" },
+                    { "type": "issue", "number": 791, "url": "https://github.com/McNamara84/ernie/issues/791" },
+                    { "type": "issue", "number": 792, "url": "https://github.com/McNamara84/ernie/issues/792" },
+                    { "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }
+                ]
+            },
+            {
+                "title": "Subject Hierarchy Correction Assistant",
+                "description": "Admins and Group Leaders can refine broad subject tags across all nine supported hierarchical vocabularies. A tree view shows the available narrower terms and previews the changes. Selecting all offered terms retains the broad concept; choosing a subset replaces it. Reviews can be completed individually or per resource and synchronized with DataCite. Declined suggestions stay hidden until the tagging changes.",
+                "references": [{ "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" }]
+            },
+            {
+                "title": "Tombstone Landing Pages for Unavailable Resources",
+                "description": "Curators, Group Leaders and Admins can replace the landing page of a resource with a registered DOI with a tombstone explaining why its data is unavailable. The page retains the citation, DOI, metadata and contact details while disabling downloads and data requests. The resource becomes Dead, remains available in the internal Resources list and leaves public portal search. DataCite points the DOI to the tombstone. Confirmed restoration recovers the previous landing page configuration and DOI state."
+            },
+            {
+                "title": "Automatic Access Conditions in Resource Metadata",
+                "description": "Digital resources without a stored access level now report Open access when their landing page offers active downloads or imported files, and Metadata only access when it does not. Explicitly stored access levels take priority. Access conditions appear consistently in Schema.org, Dublin Core and DataCite metadata. Resources with external landing pages require a stored access level.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1383,
+                        "url": "https://github.com/McNamara84/ernie/pull/1383"
+                    }
+                ]
+            },
+            {
+                "title": "Rename Datacenters Without Losing Assignments",
+                "description": "Admins and Group Leaders can rename any Datacenter in Editor Settings, including one assigned to Resources or IGSNs. Existing assignments and landing page template selections stay with the same Datacenter. Earlier names remain linked to it for later DOI and IGSN imports, and public portal filters continue to accept existing links."
+            },
+            {
+                "title": "Warnings for Unsaved Editor Changes",
+                "description": "The resource editor now warns before a tab is closed, a page is reloaded or an internal link is followed when metadata or landing page setup changes have not been saved. Successful draft saves and autosaves clear the warning for the saved version, while edits made during a save remain protected. The first autosave of a new resource also updates the editor URL so the saved draft can be reopened after a reload.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1371,
+                        "url": "https://github.com/McNamara84/ernie/issues/1371"
+                    }
+                ]
+            },
+            {
+                "title": "Direct ROR Entry for Affiliations and Funders",
+                "description": "Authors, contributors and funding references now accept a ROR ID, ROR URL or Name (ROR ID). Curators confirm the matching local directory record by mouse or keyboard; supplied names and institutional details are preserved alongside the canonical identifier in saved metadata and DataCite JSON/XML. Unknown IDs remain editable and can be explicitly replaced with an unlinked name. Unfinished inputs pause autosave and are highlighted before saving, previewing or sending metadata to DataCite.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1367,
+                        "url": "https://github.com/McNamara84/ernie/issues/1367"
+                    }
+                ]
+            },
+            {
+                "title": "Public Data Centres and Description Pages",
+                "description": "The new Data Centres overview presents the projects, networks and services represented in the DOI Data Portal, with English descriptions and logos. Selecting a centre opens the portal with its datacenter filter applied. Description pages support keyboard navigation and shareable links to individual centres. The pages are accessible through the Find menu on desktop and mobile."
+            },
+            {
+                "title": "Metadata File Uploads While Creating Resources",
+                "description": "Curators can upload DataCite XML from the resource list and open the resulting draft directly in the editor. New resources also have a collapsible XML, JSON and JSON-LD upload area in the editor. Imported metadata fills empty fields and adds unique entries while preserving values already entered; the editor upload does not create a draft until the normal save or autosave runs.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1366,
+                        "url": "https://github.com/McNamara84/ernie/issues/1366"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1372,
+                        "url": "https://github.com/McNamara84/ernie/pull/1372"
+                    }
+                ]
+            },
+            {
+                "title": "Automatic Landing Page Downloads and Configurable URL Suggestions",
+                "description": "Landing page setup now starts with Add Download URL and automatically offers downloads or a data request based on the available URLs and imported files. Previously hidden downloads require explicit activation. Admins and Group Leaders can configure URL prefix suggestions and reorder them using drag and drop or the keyboard.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1363,
+                        "url": "https://github.com/McNamara84/ernie/issues/1363"
+                    }
+                ]
+            },
+            {
+                "title": "Public Find Overview",
+                "description": "The new public Find overview introduces the DOI Data Portal, IGSN Portal, Data Centres and Research Infrastructures at GFZ, with previews and direct links to their search tools. It is available as Overview in the Find menu on desktop and mobile and supports keyboard navigation and light and dark themes."
+            },
+            {
+                "title": "Embargo Workflow and DataCite Available Dates",
+                "description": "Embargoed resources now use one day-precision DataCite Available date as their release boundary. Tokenized previews show the embargo date without download links, new DOI and IGSN registrations wait until the date, and due resources appear on every curator dashboard. Manual registration publishes the landing page and changes the DataCite access right to Open access while preserving schema-compliant Available metadata.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1350,
+                        "url": "https://github.com/McNamara84/ernie/issues/1350"
+                    }
+                ]
+            },
+            {
+                "title": "Direct Date Entry in the Editor",
+                "description": "Dates in the editor can now be typed directly or chosen from a calendar with month and year selection back to 1900. German browser settings also accept and display day-month-year dates, while saved values remain in ISO format. Year-only and year-month dates can be edited without losing their precision, and invalid entries are highlighted before a draft or resource is saved.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1351,
+                        "url": "https://github.com/McNamara84/ernie/issues/1351"
+                    }
+                ]
+            },
+            {
+                "title": "People and Sample Name Search in the IGSN Portal",
+                "description": "The public IGSN Portal now finds published samples by partial names of authors, contributors, contact persons, and institutions, as well as Local accession numbers and Local sample names. An asterisk can replace any number of characters anywhere in a search term; searches without an asterisk retain substring matching. Result cards show matching party roles and sample name values. Search results, counts, facets, and maps stay in sync after metadata changes, while email addresses remain excluded from public search.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1348,
+                        "url": "https://github.com/McNamara84/ernie/issues/1348"
+                    }
+                ]
+            },
+            {
+                "title": "GFZ Data Services Homepage",
+                "description": "GFZ Data Services now welcomes visitors directly in ERNIE with shared portal navigation and links to metadata submission, DOI search, guides and external catalogues. All 25 science topics are available as labeled cards on smartphones and a hexagonal grid on tablets and desktops. Selecting a topic filters the DOI portal results and map, with keyboard and touch support.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1345,
+                        "url": "https://github.com/McNamara84/ernie/pull/1345"
+                    }
+                ]
+            },
+            {
+                "title": "People Search in the DOI Data Portal",
+                "description": "The public DOI Data Portal now finds published resources by case-insensitive partial names of authors, contact persons, contributors, and their institutions. Searches support both personal-name orders and compact forms without punctuation, while matching result cards identify the person or institution with the full Contact Person, Author, and Contributor role labels. Email addresses remain excluded from public search and display, and the IGSN Portal retains its existing search behavior.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1343,
+                        "url": "https://github.com/McNamara84/ernie/issues/1343"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1346,
+                        "url": "https://github.com/McNamara84/ernie/pull/1346"
+                    }
+                ]
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Independent Editor Settings Cards and Bulk Controls",
+                "description": "Admins and Group Leaders can keep multiple Editor Settings cards open and expand or collapse all cards from their headings. Saving preserves open cards, and collapsing them retains unsaved values and running vocabulary updates. Bulk actions return keyboard focus to the card heading.",
+                "references": [{ "type": "issue", "number": 1409, "url": "https://github.com/McNamara84/ernie/issues/1409" }]
+            },
+            {
+                "title": "Permanent Redirects for Legacy Search URLs",
+                "description": "Existing links to /portal and /igsn-new on dataservices.gfz.de now redirect permanently to the ERNIE DOI Data Portal at /doi-search and IGSN Portal at /igsn-search. Links to subpages also open the corresponding search start page, with old URL parameters discarded."
+            },
+            {
+                "title": "Resource-specific Schema.org Metadata",
+                "description": "Public landing pages now describe all 34 DataCite resource types with appropriate Schema.org types and matching Signposting links. Publications, images, audio, events, projects and services no longer appear as datasets. Physical objects and other non-publication resources retain their bibliographic metadata in a linked description. Dataset and software metadata remain supported, and unknown resource types use a safe generic fallback.",
+                "references": [{ "type": "issue", "number": 1065, "url": "https://github.com/McNamara84/ernie/issues/1065" }]
+            },
+            {
+                "title": "Stay in the Editor After Saving a Draft",
+                "description": "Saving a draft now keeps the current resource open in the editor. Newly saved drafts receive a reusable editor URL, so curators can continue editing, reload the page, or return to the same draft without accumulating resources-list tabs.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1370,
+                        "url": "https://github.com/McNamara84/ernie/issues/1370"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1373,
+                        "url": "https://github.com/McNamara84/ernie/pull/1373"
+                    }
+                ]
+            },
+            {
+                "title": "FAIR Reassessments After Landing Page Publication",
+                "description": "FAIR assessments use F-UJI 4.0.1 and automatically refresh after an ERNIE landing page is published and the DOI resolves to it. The previous score remains available while reassessment is pending or retried. Assessment rows distinguish provisional, pending, current and failed results, and Admins can inspect detailed findings."
+            },
+            {
+                "title": "Clear, Role-Aware Action Guidance",
+                "description": "The English user guide explains when editor and Resources List actions save locally, send metadata to DataCite or publish a resource, including what happens if an action fails. Searchable guidance and direct links reflect the current user's permissions and editor settings. DOI conflict and CSV import messages now use consistent English."
+            },
+            {
+                "title": "Internal Changelog Navigation",
+                "description": "Signed-in users can browse the Changelog through the regular sidebar and a version menu with a Major, Minor and Patch color legend. The newest release starts expanded, and direct links open individual versions. Guests continue to see the current version number.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1069,
+                        "url": "https://github.com/McNamara84/ernie/issues/1069"
+                    }
+                ]
+            },
+            {
+                "title": "Reliable Size and Format Suggestions",
+                "description": "The Size and Format Suggestions assistant checks the resource's FTP URL and Additional Download Links. It reports primary-data sizes and archive contents, excludes Data Description documents and highlights conflicting existing sizes. Accepted changes synchronize with DataCite, with a retry option that preserves locally saved metadata if synchronization fails."
+            },
+            {
+                "title": "More Accessible Homepage Navigation",
+                "description": "Homepage navigation now offers more reliable skip links, clearer keyboard focus indicators, better menu contrast and consistent Escape handling. Science-topic labels remain readable with enlarged text."
+            },
+            {
+                "title": "English Labels on Portal Maps",
+                "description": "The DOI Data Portal and IGSN Portal maps now prefer English place labels, retaining local names where no English label is available. Resource clusters, popups and spatial filters remain available, and map-background failures are reported separately from resource-data errors.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1308,
+                        "url": "https://github.com/McNamara84/ernie/issues/1308"
+                    }
+                ]
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Clickable Calendar Month and Year Dropdowns",
+                "description": "Month and year dropdowns in the Data Editor calendar can now be clicked reliably. Previous and next month buttons continue to work, and the date is applied only after a day is selected.",
+                "references": [
+                    { "type": "issue", "number": 1461, "url": "https://github.com/McNamara84/ernie/issues/1461" },
+                    { "type": "pull_request", "number": 1462, "url": "https://github.com/McNamara84/ernie/pull/1462" }
+                ]
+            },
+            {
+                "title": "Reliable DataCite JSON-LD Exports and Imports",
+                "description": "DataCite JSON-LD downloads now use a publicly available context. Conversion preserves creator and polygon order, metadata values, languages and identifier schemes. Historical ERNIE exports remain importable, and invalid or unsupported files are rejected before creating a draft. Related-item relation information survives JSON, XML and JSON-LD imports and exports and can be edited in the Related Item Manager. Schema.org citations now follow the direction of DataCite relationships."
+            },
+            {
+                "title": "Stable OAI-PMH Identities During DOI Changes",
+                "description": "When a resource DOI changes or is removed, affected OAI-PMH harvests request a restart so retries cannot silently return a different identifier. Previously published identifiers remain available as deletion headers with their original metadata sets. Unrelated harvests continue normally.",
+                "references": [{ "type": "pull_request", "number": 1398, "url": "https://github.com/McNamara84/ernie/pull/1398" }]
+            },
+            {
+                "title": "Reliable Interactive API Documentation",
+                "description": "Interactive API documentation now loads consistently, and endpoint copy buttons no longer prevent endpoint details from appearing."
+            },
+            {
+                "title": "Update Assistance Counts and Filters After Relation Corrections",
+                "description": "The pending-count badge and datacenter filter update after relation correction discovery creates or removes proposals and after accepting or declining a correction, without waiting for cached summaries to expire.",
+                "references": [
+                    { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
+                    { "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }
+                ]
+            },
+            {
+                "title": "Refresh Relation Correction Sources When Assistance Caches Are Cleared",
+                "description": "Clearing the assistance cache now refreshes DataCite, Crossref, Event Data and ScholExplorer metadata used for relation type corrections, preventing old source records from surviving a cache reset.",
+                "references": [
+                    { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
+                    { "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }
+                ]
+            },
+            {
+                "title": "Preserve Rapid Keyboard Input in the Metadata Editor",
+                "description": "Typing quickly in metadata fields preserves every character while the editor continues to warn about uncommitted keyword text and unsaved changes.",
+                "references": [{ "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }]
+            },
+            {
+                "title": "Reliable Relation Correction Batch Review",
+                "description": "Single relation type corrections are included by Select all compatible without appearing as competing alternatives. Incomplete previews cannot be selected, accepted or declined in resource batches, and malformed citation labels show the incomplete-proposal state instead of crashing the card.",
+                "references": [
+                    { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
+                    { "type": "pull_request", "number": 1390, "url": "https://github.com/McNamara84/ernie/pull/1390" }
+                ]
+            },
+            {
+                "title": "Preserve Vocabulary Caches When Updates Fail",
+                "description": "If a vocabulary update fails, the editor retains the previous vocabulary and subject hierarchy so existing keyword choices, hierarchy checks and corrections remain usable.",
+                "references": [
+                    { "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" },
+                    { "type": "pull_request", "number": 1387, "url": "https://github.com/McNamara84/ernie/pull/1387" }
+                ]
+            },
+            {
+                "title": "Validated ROR Funder Suggestions",
+                "description": "Funding autocomplete shows only organizations with valid ROR identifiers. Selecting an organization by name or alias stores its canonical ROR URL, and malformed directory entries no longer interrupt lookup.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1367,
+                        "url": "https://github.com/McNamara84/ernie/issues/1367"
+                    }
+                ]
+            },
+            {
+                "title": "Funding ROR Lookup Fallback",
+                "description": "Funding references automatically retry loading the local ROR directory when the shared catalog fails or contains no usable entries. Recovered records support both name suggestions and explicit ROR ID confirmation; failed fallback requests can be retried without losing existing funding metadata.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1367,
+                        "url": "https://github.com/McNamara84/ernie/issues/1367"
+                    }
+                ]
+            },
+            {
+                "title": "Readable Datacenter Filters in Both Portals",
+                "description": "The Data and IGSN portal filters now show datacenter options in smaller text and wrap long names and selected values across lines, including names with long unbroken parts. Checkboxes, result counts, and remove controls remain visible in desktop sidebars and mobile filter drawers.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1347,
+                        "url": "https://github.com/McNamara84/ernie/issues/1347"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1353,
+                        "url": "https://github.com/McNamara84/ernie/pull/1353"
+                    }
+                ]
+            },
+            {
+                "title": "Reliable Maps for Science Topic Filters",
+                "description": "Portal maps now load reliably with science-topic and thesaurus filters. Map extents and cluster members follow the same filters as the search results, including older breadcrumb keywords.",
+                "references": []
+            }
+        ]
+    },
+    {
         "version": "1.0.9",
         "date": "2026-09-16",
         "features": [],

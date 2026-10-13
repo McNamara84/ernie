@@ -107,11 +107,11 @@ describe('Session Preview Creation', function () {
             ->and($file->fresh()->label)->toBe('Original label');
     });
 
-    test('stores downloads unavailable preview data while retaining submitted download values in session', function () {
+    test('stores an explicit activation draft while retaining submitted download values in session', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", [
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
-            'downloads_unavailable' => true,
+            'activate_downloads' => true,
             'links' => [
                 [
                     'url' => 'https://example.org/supporting-repository',
@@ -127,7 +127,7 @@ describe('Session Preview Creation', function () {
         $sessionData = Session::get($sessionKey);
 
         expect($sessionData)
-            ->toHaveKey('downloads_unavailable', true)
+            ->toHaveKey('activate_downloads', true)
             ->toHaveKey('ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
             ->and($sessionData['links'][0]['url'])->toBe('https://example.org/supporting-repository');
     });
@@ -300,6 +300,11 @@ describe('Session Preview Display', function () {
     });
 
     test('session preview hides download payloads when downloads are unavailable', function () {
+        LandingPage::factory()->create([
+            'resource_id' => $this->resource->id,
+            'ftp_url' => 'https://example.org/protected.zip',
+            'downloads_unavailable' => true,
+        ]);
         Session::put("landing_page_preview.{$this->resource->id}", [
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',

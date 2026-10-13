@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\RelationTypeCorrection\RelationTypeRules;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -73,7 +74,7 @@ class DataCiteEventDataService
     private const SOURCE_IDS = [
         'datacite-crossref',
         'crossref',
-        'datacite-datacite',
+        'datacite-related',
     ];
 
     /**
@@ -150,7 +151,8 @@ class DataCiteEventDataService
         }
 
         // Determine which side is the "other" identifier
-        $queriedDoiLower = mb_strtolower($queriedDoi);
+        $queriedDoiLower = mb_strtolower($this->extractDoiFromUrl($queriedDoi) ?? $queriedDoi);
+        $reversed = false;
 
         $subjDoi = $this->extractDoiFromUrl((string) $subjId);
         $objDoi = $this->extractDoiFromUrl((string) $objId);
@@ -161,6 +163,7 @@ class DataCiteEventDataService
         } elseif ($objDoi !== null && mb_strtolower($objDoi) === $queriedDoiLower) {
             // Our DOI is the object → the subject is the related identifier
             $otherIdentifier = $subjDoi ?? (string) $subjId;
+            $reversed = true;
         } else {
             return null;
         }
@@ -172,6 +175,9 @@ class DataCiteEventDataService
 
         // Map relation type
         $relationType = self::RELATION_TYPE_MAP[$relationTypeId] ?? null;
+        if ($relationType !== null && $reversed) {
+            $relationType = RelationTypeRules::inverse($relationType);
+        }
         if ($relationType === null) {
             return null;
         }

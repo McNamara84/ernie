@@ -69,6 +69,11 @@ final readonly class RelatedItemSectionParser
                 'position' => $position,
             ];
 
+            $relationInformation = $item->getAttribute('relationTypeInformation');
+            if (is_string($relationInformation)) {
+                $entry['relation_type_information'] = XmlElementHelpers::stringOrNull($relationInformation);
+            }
+
             $numberElement = XmlElementHelpers::firstChildElement($item, 'number');
             if ($numberElement !== null) {
                 $numberValue = XmlElementHelpers::stringValue($numberElement);
@@ -108,7 +113,7 @@ final readonly class RelatedItemSectionParser
     }
 
     /**
-     * @return array<int, array{title: string, title_type: string}>
+     * @return array<int, array{title: string, title_type: string, language: string|null}>
      */
     private function extractTitles(Element $item): array
     {
@@ -121,9 +126,11 @@ final readonly class RelatedItemSectionParser
                 }
                 $typeAttr = $t->getAttribute('titleType');
                 $titleType = is_string($typeAttr) && trim($typeAttr) !== '' ? trim($typeAttr) : 'MainTitle';
+                $languageAttr = $t->getAttribute('xml:lang');
                 $titles[] = [
                     'title' => trim($value),
                     'title_type' => $titleType,
+                    'language' => is_string($languageAttr) && trim($languageAttr) !== '' ? trim($languageAttr) : null,
                 ];
             }
         }

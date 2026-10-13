@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
+import { warmUpSession } from '../helpers/session-readiness';
+import { loginAsTestUser } from '../helpers/test-helpers';
 
 // XML Upload Tests
 // Based on working tests from main branch.
@@ -17,25 +18,27 @@ function resolveDatasetExample(filename: string): string {
 
 test.describe('XML Upload', () => {
     test.beforeEach(async ({ page }) => {
-        // Login as test user
-        await page.goto('/login');
-        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
-        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
-
-        const loginButton = page.getByRole('button', { name: 'Log in' });
-        await expect(loginButton).toBeEnabled({ timeout: 15000 });
-        await loginButton.click();
-
-        await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+        await loginAsTestUser(page);
+        await warmUpSession(page);
     });
 
     test('uploads XML file, shows confirmation, and opens editor with populated form', async ({ page }) => {
-        await page.goto('/dashboard');
         await expect(page.getByTestId('unified-dropzone')).toBeVisible();
 
         const fileInput = page.getByTestId('unified-file-input');
         const xmlFilePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
-        await fileInput.setInputFiles(xmlFilePath);
+        const [uploadResponse] = await Promise.all([
+            // The full XML fixture performs real parsing and draft persistence;
+            // use the same backend budget as the critical XML smoke test.
+            page.waitForResponse((response) => response.request().method() === 'POST'
+                && new URL(response.url()).pathname === '/dashboard/upload-xml', { timeout: 30000 }),
+            fileInput.setInputFiles(xmlFilePath),
+        ]);
+        expect(uploadResponse.status()).toBe(200);
+        const result = await uploadResponse.json();
+        expect(result.success).toBe(true);
+        expect(Number.isSafeInteger(result.resourceId)).toBe(true);
+        expect(result.resourceId).toBeGreaterThan(0);
 
         await expect(page.getByTestId('dropzone-success-state')).toBeVisible({ timeout: 10000 });
         await expect(page.getByTestId('dropzone-success-alert')).toContainText('DataCite upload complete');
@@ -51,16 +54,18 @@ test.describe('XML Upload', () => {
         const resourceId = urlParams.get('resourceId');
         expect(resourceId).toBeTruthy();
         expect(resourceId).toMatch(/^\d+$/);
+        expect(resourceId).toBe(String(result.resourceId));
         // Verify editor page loaded successfully with form fields
         // Check for DOI input field (id="doi"), which is unique and stable
         await expect(page.locator('#doi')).toBeVisible();
 
         // Verify form has loaded by checking for Year field (has id="year")
         await expect(page.locator('#year')).toBeVisible();
+        await expect(page.locator('#year')).toHaveValue('2009');
+        await expect(page.getByTestId('main-title-input')).toHaveValue('Test Dataset Software');
     });
 
     test('handles invalid XML files gracefully', async ({ page }) => {
-        await page.goto('/dashboard');
         await expect(page.getByTestId('unified-dropzone')).toBeVisible();
 
         const fileInput = page.getByTestId('unified-file-input');
@@ -69,23 +74,17 @@ test.describe('XML Upload', () => {
         const invalidXml = '<invalid>Not a proper DataCite XML</invalid>';
         const buffer = Buffer.from(invalidXml, 'utf-8');
 
-        await fileInput.setInputFiles({
-            name: 'invalid.xml',
-            mimeType: 'application/xml',
-            buffer: buffer,
-        });
-
-        // Should show error or stay on dashboard
-        await page.waitForTimeout(2000);
-
-        // Should either show error message or stay on dashboard
-        const url = page.url();
-        const isOnDashboard = url.includes('/dashboard');
-        const hasError = await page
-            .getByText(/error|invalid|failed/i)
-            .isVisible()
-            .catch(() => false);
-
-        expect(isOnDashboard || hasError).toBeTruthy();
+        const [uploadResponse] = await Promise.all([
+            page.waitForResponse((response) => response.request().method() === 'POST'
+                && new URL(response.url()).pathname === '/dashboard/upload-xml'),
+            fileInput.setInputFiles({ name: 'invalid.xml', mimeType: 'application/xml', buffer }),
+        ]);
+        expect(uploadResponse.status()).toBe(422);
+        const result = await uploadResponse.json();
+        expect(result.success).toBe(false);
+        expect(result.error.code).toBeTruthy();
+        await expect(page.getByTestId('dropzone-error-state')).toBeVisible();
+        await expect(page.getByTestId('dropzone-error-alert')).toContainText(result.message);
+        await expect(page).toHaveURL(/\/dashboard/);
     });
 });

@@ -1,6 +1,9 @@
-import { Children, createContext, isValidElement, type ReactNode, useContext } from 'react';
+import { ChevronsDown, ChevronsUp } from 'lucide-react';
+import { Children, createContext, isValidElement, type ReactNode, useContext, useRef } from 'react';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export const EDITOR_SETTINGS_SECTION_ORDER = [
@@ -18,16 +21,25 @@ export const EDITOR_SETTINGS_SECTION_ORDER = [
     'thesauri',
     'persistent-identifiers',
     'landing-page-domains',
+    'download-url-suggestions',
     'datacenters',
 ] as const;
 
 interface EditorSettingsAccordionProps {
-    value: string;
-    onValueChange: (value: string) => void;
+    value: string[];
+    onValueChange: (value: string[]) => void;
     children: ReactNode;
 }
 
-const OpenEditorSettingsSectionContext = createContext('');
+interface EditorSettingsAccordionContextValue {
+    openSections: string[];
+    allClosed: boolean;
+    allOpen: boolean;
+    collapseAll: () => void;
+    expandAll: () => void;
+}
+
+const EditorSettingsAccordionContext = createContext<EditorSettingsAccordionContextValue | null>(null);
 
 export function EditorSettingsAccordion({ value, onValueChange, children }: EditorSettingsAccordionProps) {
     const orderByValue = new Map<string, number>(EDITOR_SETTINGS_SECTION_ORDER.map((sectionValue, index) => [sectionValue, index]));
@@ -39,16 +51,64 @@ export function EditorSettingsAccordion({ value, onValueChange, children }: Edit
     });
 
     return (
-        <Accordion
-            type="single"
-            collapsible
-            value={value}
-            onValueChange={onValueChange}
-            className="flex flex-col gap-4"
-            data-testid="settings-accordion"
-        >
-            <OpenEditorSettingsSectionContext.Provider value={value}>{orderedSections}</OpenEditorSettingsSectionContext.Provider>
+        <Accordion type="multiple" value={value} onValueChange={onValueChange} className="flex flex-col gap-4" data-testid="settings-accordion">
+            <EditorSettingsAccordionContext.Provider
+                value={{
+                    openSections: value,
+                    allClosed: value.length === 0,
+                    allOpen: EDITOR_SETTINGS_SECTION_ORDER.every((sectionValue) => value.includes(sectionValue)),
+                    collapseAll: () => onValueChange([]),
+                    expandAll: () => onValueChange([...EDITOR_SETTINGS_SECTION_ORDER]),
+                }}
+            >
+                {orderedSections}
+            </EditorSettingsAccordionContext.Provider>
         </Accordion>
+    );
+}
+
+function EditorSettingsSectionActions({ accordion, onAction }: { accordion: EditorSettingsAccordionContextValue; onAction: () => void }) {
+    return (
+        <div className="flex items-center gap-1 pr-4 sm:pr-6">
+            {!accordion.allClosed && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label="Collapse all settings cards"
+                            onClick={() => {
+                                accordion.collapseAll();
+                                onAction();
+                            }}
+                        >
+                            <ChevronsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Collapse all settings cards</TooltipContent>
+                </Tooltip>
+            )}
+            {!accordion.allOpen && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label="Expand all settings cards"
+                            onClick={() => {
+                                accordion.expandAll();
+                                onAction();
+                            }}
+                        >
+                            <ChevronsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Expand all settings cards</TooltipContent>
+                </Tooltip>
+            )}
+        </div>
     );
 }
 
@@ -73,15 +133,20 @@ export function EditorSettingsSection({
     className,
     forceMount = false,
 }: EditorSettingsSectionProps) {
-    const openSection = useContext(OpenEditorSettingsSectionContext);
-    const isOpen = openSection === value;
+    const accordion = useContext(EditorSettingsAccordionContext);
+    const isOpen = accordion?.openSections.includes(value) ?? false;
+    const triggerRef = useRef<HTMLButtonElement>(null);
 
     return (
         <AccordionItem
             value={value}
             className={cn('overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm last:border-b', className)}
         >
-            <AccordionTrigger className="items-center gap-3 px-4 py-4 hover:no-underline sm:px-6">
+            <AccordionTrigger
+                ref={triggerRef}
+                className="min-w-0 items-center gap-3 py-4 pr-2 pl-4 hover:no-underline sm:pl-6"
+                actions={accordion ? <EditorSettingsSectionActions accordion={accordion} onAction={() => triggerRef.current?.focus()} /> : undefined}
+            >
                 <span className="flex min-w-0 flex-1 flex-col gap-2 text-left">
                     <span className="flex min-w-0 items-center gap-2 text-base leading-none font-semibold tracking-tight">
                         {icon ? (

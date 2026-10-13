@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Enums\AccessLevel;
 use App\Enums\UserRole;
 use App\Models\AlternateIdentifier;
-use App\Models\Datacenter;
 use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\IdentifierType;
@@ -19,6 +18,7 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\DatacenterNameService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -156,6 +156,18 @@ class PlaywrightTestSeeder extends Seeder
             ]
         );
 
+        // Keep a dedicated account unverified to cover real account provisioning.
+        User::updateOrCreate(
+            ['email' => 'changelog-unverified@example.com'],
+            [
+                'name' => 'Unverified Changelog Reader',
+                'password' => $this->hashedPassword,
+                'role' => UserRole::BEGINNER,
+                'is_active' => true,
+                'email_verified_at' => null,
+            ]
+        );
+
         $this->seedPlaywrightE2eResources($testUser);
 
         // Seed comprehensive test resources for landing page tests
@@ -164,6 +176,9 @@ class PlaywrightTestSeeder extends Seeder
         // - Geo-locations, funding references, related identifiers
         // - Files with/without download URLs, contact persons
         $this->call(ResourceTestDataSeeder::class);
+
+        // Include the completed tombstone fixture in the shared local/CI setup.
+        $this->call(TombstonePlaywrightSeeder::class);
 
         $this->command->info('Playwright test users created successfully!');
     }
@@ -217,9 +232,7 @@ class PlaywrightTestSeeder extends Seeder
             ]);
         }
 
-        $portalDatacenter = Datacenter::query()->firstOrCreate([
-            'name' => 'Playwright: Portal Datacenter',
-        ]);
+        $portalDatacenter = app(DatacenterNameService::class)->findOrCreate('Playwright: Portal Datacenter');
         $publishedResource->update(['datacenter_id' => $portalDatacenter->id]);
 
         // Use updateOrCreate to ensure doi_prefix is correctly set on every seeder run.

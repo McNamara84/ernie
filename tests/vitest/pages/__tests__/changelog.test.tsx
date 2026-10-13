@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
@@ -18,9 +18,10 @@ const pageMocks = vi.hoisted(() => ({
     skipListItemRefAssignment: false,
     reducedMotionMatches: false,
     reducedMotionListeners: new Set<(event: MediaQueryListEvent) => void>(),
+    panelAnimations: new Map<string, () => void>(),
 }));
 
-vi.mock('@/layouts/changelog-layout', () => ({
+vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
@@ -49,6 +50,7 @@ type MotionDivProps = React.HTMLAttributes<HTMLDivElement> & {
     animate?: unknown;
     exit?: unknown;
     transition?: unknown;
+    onAnimationComplete?: () => void;
 };
 
 type MotionLiProps = React.HTMLAttributes<HTMLLIElement> & {
@@ -68,8 +70,9 @@ const sanitizeButtonMotionProps = ({ whileHover, whileTap, ...rest }: MotionButt
     return rest;
 };
 
-const sanitizeDivMotionProps = ({ initial, animate, exit, transition, ...rest }: MotionDivProps) => {
+const sanitizeDivMotionProps = ({ initial, animate, exit, transition, onAnimationComplete, ...rest }: MotionDivProps) => {
     consumeMotionOnlyProps(initial, animate, exit, transition);
+    if (rest.id && onAnimationComplete) pageMocks.panelAnimations.set(rest.id, onAnimationComplete);
     return rest;
 };
 
@@ -161,6 +164,7 @@ describe('Changelog', () => {
         pageMocks.skipListItemRefAssignment = false;
         pageMocks.reducedMotionMatches = false;
         pageMocks.reducedMotionListeners.clear();
+        pageMocks.panelAnimations.clear();
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
@@ -339,9 +343,9 @@ describe('Changelog', () => {
     it('colors anchors based on version changes', async () => {
         render(<Changelog />);
         const anchors = await screen.findAllByTestId('version-anchor');
-        expect(anchors[0]).toHaveClass('ring-green-500');
-        expect(anchors[1]).toHaveClass('ring-red-500');
-        expect(anchors[2]).toHaveClass('ring-blue-500');
+        expect(anchors[0]).toHaveClass('ring-red-500');
+        expect(anchors[1]).toHaveClass('ring-blue-500');
+        expect(anchors[2]).toHaveClass('ring-green-500');
     });
 
     it('shows an error message when fetch fails', async () => {
@@ -370,6 +374,18 @@ describe('Changelog', () => {
         expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+        [401, /session has expired/i],
+        [403, /unable to load changelog/i],
+    ])('explains a %i response from the protected changelog API', async (status, message) => {
+        (global.fetch as unknown as Mock).mockResolvedValueOnce({ ok: false, status, json: vi.fn() });
+
+        render(<Changelog />);
+
+        const alert = await screen.findByRole('alert');
+        expect(alert.textContent).toMatch(message);
+    });
+
     it('fetches releases from /api/changelog', async () => {
         const fetchSpy = global.fetch as unknown as Mock;
 
@@ -378,7 +394,7 @@ describe('Changelog', () => {
         await screen.findByRole('list', { name: /changelog timeline/i });
 
         await vi.waitFor(() => {
-            expect(fetchSpy).toHaveBeenCalledWith('/api/changelog');
+            expect(fetchSpy).toHaveBeenCalledWith('/api/changelog', { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
         });
     });
 
@@ -532,6 +548,7 @@ describe('Changelog', () => {
 
     it('clears a pending scroll when the target element ref is missing', async () => {
         pageMocks.skipListItemRefAssignment = true;
+        setReducedMotion(true);
         window.history.replaceState(null, '', '/changelog#v0.1.1');
         const user = userEvent.setup();
 
@@ -548,6 +565,120 @@ describe('Changelog', () => {
 
         expect(targetButton).toHaveAttribute('aria-expanded', 'false');
         expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    describe('scrolling after panel transitions', () => {
+        let frames: Map<number, FrameRequestCallback>;
+        let nextFrame: number;
+
+        beforeEach(() => {
+            frames = new Map();
+            nextFrame = 0;
+            vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+                frames.set(++nextFrame, callback);
+                return nextFrame;
+            });
+            vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+                frames.delete(id);
+            });
+        });
+
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        const completePanel = (button: HTMLElement) => {
+            const callback = pageMocks.panelAnimations.get(button.getAttribute('aria-controls')!);
+            expect(callback).toBeDefined();
+            act(() => callback!());
+        };
+
+        const renderFrame = () => {
+            const callbacks = [...frames.values()];
+            frames.clear();
+            act(() => callbacks.forEach((callback) => callback(0)));
+        };
+
+        it('waits for the target panel animation and layout after timeline navigation', async () => {
+            render(<Changelog />);
+            const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+            const targetButton = screen.getByRole('button', { name: /version 0.1.1/i });
+            const oldCompletion = pageMocks.panelAnimations.get(firstButton.getAttribute('aria-controls')!);
+
+            act(() => pageMocks.timelineNavProps?.onNavigate(1));
+
+            expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+            expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+            if (oldCompletion) act(() => oldCompletion());
+            expect(frames.size).toBe(0);
+
+            completePanel(targetButton);
+            completePanel(targetButton);
+            expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+            expect(frames.size).toBe(1);
+            renderFrame();
+
+            expect(Element.prototype.scrollIntoView).toHaveBeenCalledExactlyOnceWith({ behavior: 'smooth', block: 'center' });
+            expect((Element.prototype.scrollIntoView as Mock).mock.instances[0]).toBe(targetButton.closest('li'));
+        });
+
+        it('scrolls to an initial deep link without waiting for its disabled enter animation', async () => {
+            window.history.replaceState(null, '', '/changelog#v0.1.1');
+            render(<Changelog />);
+            const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+
+            expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+            await waitFor(() => {
+                expect(Element.prototype.scrollIntoView).toHaveBeenCalledExactlyOnceWith({ behavior: 'smooth', block: 'center' });
+            });
+            expect(frames.size).toBe(0);
+            expect((Element.prototype.scrollIntoView as Mock).mock.instances[0]).toBe(targetButton.closest('li'));
+        });
+
+        it('ignores a completed or queued scroll after another release is selected', async () => {
+            render(<Changelog />);
+            const secondButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+            const thirdButton = screen.getByRole('button', { name: /version 0.2.0/i });
+
+            act(() => pageMocks.timelineNavProps?.onNavigate(1));
+            completePanel(secondButton);
+            act(() => pageMocks.timelineNavProps?.onNavigate(2));
+            renderFrame();
+            completePanel(secondButton);
+
+            expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+            expect(frames.size).toBe(0);
+            completePanel(thirdButton);
+            renderFrame();
+            expect(Element.prototype.scrollIntoView).toHaveBeenCalledOnce();
+            expect((Element.prototype.scrollIntoView as Mock).mock.instances[0]).toBe(thirdButton.closest('li'));
+        });
+
+        it('does not scroll to a release collapsed before the layout frame', async () => {
+            const user = userEvent.setup();
+            render(<Changelog />);
+            const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+            act(() => pageMocks.timelineNavProps?.onNavigate(1));
+            completePanel(targetButton);
+            await user.click(targetButton);
+            renderFrame();
+
+            expect(targetButton).toHaveAttribute('aria-expanded', 'false');
+            expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+        });
+
+        it('cancels the pending layout frame when the page is unmounted', async () => {
+            const page = render(<Changelog />);
+            const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+            act(() => pageMocks.timelineNavProps?.onNavigate(1));
+            completePanel(targetButton);
+            expect(frames.size).toBe(1);
+
+            page.unmount();
+
+            expect(frames.size).toBe(0);
+            expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+        });
     });
 
     it('ignores navigation requests for an out-of-range release index', async () => {

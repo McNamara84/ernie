@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Models\OaiPmhHarvest;
 use App\Models\OaiPmhResumptionToken;
 use Illuminate\Support\Str;
 
@@ -25,6 +26,8 @@ class OaiPmhResumptionTokenService
         ?\DateTimeInterface $until,
         int $cursor,
         int $completeListSize,
+        ?OaiPmhHarvest $harvest = null,
+        ?int $harvestPosition = null,
     ): OaiPmhResumptionToken {
         $ttl = (int) config('oaipmh.resumption_token_ttl', 86400);
 
@@ -37,7 +40,9 @@ class OaiPmhResumptionTokenService
             'until_date' => $until,
             'cursor' => $cursor,
             'complete_list_size' => $completeListSize,
-            'expires_at' => now()->addSeconds($ttl),
+            'expires_at' => $harvest !== null ? $harvest->expires_at : now()->addSeconds($ttl),
+            'harvest_id' => $harvest?->id,
+            'harvest_position' => $harvestPosition,
         ]);
     }
 
@@ -54,7 +59,8 @@ class OaiPmhResumptionTokenService
             return null;
         }
 
-        if ($record->expires_at->isPast()) {
+        if ($record->expires_at->lessThanOrEqualTo(now())
+            || ($record->harvest_id !== null && ($record->harvest === null || $record->harvest->expires_at->lessThanOrEqualTo(now())))) {
             $record->delete();
 
             return null;
@@ -76,6 +82,9 @@ class OaiPmhResumptionTokenService
      */
     public function purgeExpired(): int
     {
-        return OaiPmhResumptionToken::where('expires_at', '<', now())->delete();
+        $count = OaiPmhResumptionToken::where('expires_at', '<=', now())->delete();
+        OaiPmhHarvest::where('expires_at', '<=', now())->delete();
+
+        return $count;
     }
 }

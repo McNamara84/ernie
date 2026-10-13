@@ -28,8 +28,18 @@ class RelationTypeController extends Controller
     public function elmo(): JsonResponse
     {
         $types = RelationType::query()
-            ->active()
             ->elmoActive()
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'description']);
+
+        return response()->json($this->formatResponse($types));
+    }
+
+    /** Return entries independently enabled for ELMO-MSL. */
+    public function elmoMsl(): JsonResponse
+    {
+        $types = RelationType::query()
+            ->elmoMslActive()
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
 

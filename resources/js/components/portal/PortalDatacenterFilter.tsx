@@ -22,6 +22,7 @@ export function PortalDatacenterFilter({ facets, selectedNames, onSelectionChang
             helperText="A result may match any selected datacenter."
             searchable
             searchPlaceholder="Search datacenters..."
+            wrapLabels
         />
     );
 }

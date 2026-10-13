@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int $resource_id
  * @property string $related_item_type
  * @property int $relation_type_id
+ * @property string|null $relation_type_information
  * @property int|null $publication_year
  * @property string|null $volume
  * @property string|null $issue
@@ -55,6 +56,7 @@ use Illuminate\Support\Carbon;
     'resource_id',
     'related_item_type',
     'relation_type_id',
+    'relation_type_information',
     'publication_year',
     'volume',
     'issue',

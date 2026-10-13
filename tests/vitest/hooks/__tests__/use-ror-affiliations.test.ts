@@ -1,4 +1,4 @@
-import { waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { fetchRorAffiliations, useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -65,6 +65,16 @@ describe('useRorAffiliations', () => {
         expect(result.current.suggestions).toEqual([]);
         expect(result.current.error).toBeInstanceOf(Error);
         expect(result.current.error?.message).toContain('Server exploded');
+    });
+
+    it('reloads the local directory after a failed request', async () => {
+        server.use(http.get(apiEndpoints.rorAffiliations, () => new HttpResponse(null, { status: 503 })));
+        const { result } = renderHookWithQueryClient(() => useRorAffiliations());
+        await waitFor(() => expect(result.current.error).toBeInstanceOf(Error));
+        server.use(http.get(apiEndpoints.rorAffiliations, () => HttpResponse.json([{ prefLabel: 'GFZ', rorId: 'https://ror.org/04z8jg394' }])));
+        act(() => result.current.retry());
+        await waitFor(() => expect(result.current.error).toBeNull());
+        expect(result.current.suggestions).toEqual([{ value: 'GFZ', rorId: 'https://ror.org/04z8jg394', searchTerms: ['GFZ'] }]);
     });
 
     it('returns an empty array when the payload is not an array', async () => {

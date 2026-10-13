@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $updated_sort
  * @property string $search_text
  * @property string|null $party_search_text
+ * @property string|null $party_name_search_text
  */
 final class ResourceListingProjection extends Model
 {

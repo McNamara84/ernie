@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\OaiPmh;
 
 use App\Models\OaiPmhDeletedRecord;
+use App\Models\OaiPmhHarvest;
 use App\Models\Resource;
 use App\Services\DataCiteXmlExporter;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
@@ -62,6 +63,7 @@ class OaiPmhService
         private readonly DublinCoreMapper $dcMapper,
         private readonly OaiPmhSetService $setService,
         private readonly OaiPmhResumptionTokenService $tokenService,
+        private readonly OaiPmhHarvestService $harvestService,
         private readonly DataCiteXmlExporter $dataCiteExporter,
         private readonly Iso19115ResourceProfileService $isoProfile,
         private readonly Iso19115XmlExporter $isoExporter,
@@ -447,8 +449,6 @@ class OaiPmhService
             $this->isoProfile->applyToResourceQuery($query);
         }
 
-        $totalCount = $query->count();
-
         // Also count deleted records matching the filters
         $deletedQuery = OaiPmhDeletedRecord::query()
             ->when($from !== null, fn ($q) => $q->where('datestamp', '>=', $from))
@@ -462,15 +462,21 @@ class OaiPmhService
             $this->isoProfile->applyToDeletedRecordQuery($deletedQuery);
         }
 
+        // Old tokens remain usable until their original TTL. New requests freeze
+        // identities so set exits, deletions and updates cannot shift later pages.
+        if (! is_string($resumptionToken) || $token->harvest_id !== null) {
+            return $this->listSnapshotItems(
+                $query, $deletedQuery, $verb, $headersOnly, $metadataPrefix, $setSpec,
+                $from, $until, $cursor, $pageSize, $requestAttrs,
+                is_string($resumptionToken) ? $token->harvest : null,
+                is_string($resumptionToken),
+                is_string($resumptionToken) ? (int) $token->harvest_position : 0,
+            );
+        }
+
         $deletedCount = $deletedQuery->count();
 
-        // In resumption token mode, use the stored complete_list_size for stable
-        // pagination across pages. For initial requests, calculate from current state.
-        if (is_string($resumptionToken)) {
-            $completeListSize = $token->complete_list_size;
-        } else {
-            $completeListSize = $totalCount + $deletedCount;
-        }
+        $completeListSize = $token->complete_list_size;
 
         if ($completeListSize === 0) {
             return $this->errorResponse('noRecordsMatch', 'No records match the given criteria', $verb, $requestAttrs);
@@ -523,9 +529,9 @@ class OaiPmhService
                 ->get();
 
             if (! $headersOnly) {
-                $resources->loadMissing(['landingPage', ...$this->getRelationsForMetadata($metadataPrefix)]);
+                $resources->loadMissing(['landingPage', 'subjects', ...$this->getRelationsForMetadata($metadataPrefix)]);
             } else {
-                $resources->loadMissing(['landingPage', 'resourceType']);
+                $resources->loadMissing(['landingPage', 'resourceType', 'subjects']);
             }
 
             foreach ($resources as $resource) {
@@ -567,6 +573,121 @@ class OaiPmhService
         } elseif ($resumptionToken !== null) {
             // Last page with a resumption token: emit empty token to signal end
             $builder->addResumptionToken($container, null, $completeListSize, $cursor);
+        }
+
+        return $builder->toXml();
+    }
+
+    /**
+     * @param  Builder<Resource>  $query
+     * @param  Builder<OaiPmhDeletedRecord>  $deletedQuery
+     * @param  array<string, string>  $requestAttrs
+     */
+    private function listSnapshotItems(
+        Builder $query,
+        Builder $deletedQuery,
+        string $verb,
+        bool $headersOnly,
+        string $metadataPrefix,
+        ?string $setSpec,
+        ?Carbon $from,
+        ?Carbon $until,
+        int $cursor,
+        int $pageSize,
+        array $requestAttrs,
+        ?OaiPmhHarvest $harvest,
+        bool $resuming,
+        int $position,
+    ): string {
+        $harvest ??= $this->harvestService->create($query, $deletedQuery);
+        $completeListSize = $harvest->item_count;
+        if ($completeListSize === 0) {
+            $harvest->delete();
+
+            return $this->errorResponse('noRecordsMatch', 'No records match the given criteria', $verb, $requestAttrs);
+        }
+
+        $builder = $this->xmlBuilder->createEnvelope($verb, $requestAttrs);
+        $container = $headersOnly ? $builder->beginListIdentifiers() : $builder->beginListRecords();
+        $nextPosition = $position;
+        $emitted = 0;
+
+        // Keep page boundaries fixed so a retry always includes unchanged records.
+        // The snapshot position can exceed the public cursor when items disappear.
+        $page = $this->harvestService->page($harvest, $nextPosition, $pageSize);
+        $nextPosition += count($page);
+        $resourceIds = array_column(array_filter($page, fn (array $item): bool => $item['kind'] === 'resource'), 'id');
+        $deletedIds = array_column(array_filter($page, fn (array $item): bool => $item['kind'] === 'deleted'), 'id');
+        $resources = (clone $query)->whereKey($resourceIds)->get()->keyBy('id');
+        $deletedRecords = (clone $deletedQuery)->whereKey($deletedIds)->get()->keyBy('id');
+        $resources->loadMissing($headersOnly
+            ? ['landingPage', 'resourceType', 'subjects']
+            : ['landingPage', 'subjects', ...$this->getRelationsForMetadata($metadataPrefix)]);
+
+        // A DOI edit can retire the inventory after resolving the token or
+        // reading its positions. Check again after loading live resource data.
+        if (! OaiPmhHarvest::whereKey($harvest->id)->where('expires_at', '>', now())->exists()) {
+            return $this->errorResponse(
+                $resuming ? 'badResumptionToken' : 'noRecordsMatch',
+                'Resource identities changed during harvesting; restart the list request', $verb, $requestAttrs,
+            );
+        }
+
+        foreach ($page as $item) {
+            if ($item['kind'] === 'deleted') {
+                $deleted = $deletedRecords->get($item['id']);
+                if ($deleted === null) {
+                    continue;
+                }
+                $identifier = $deleted->oai_identifier;
+                $datestamp = $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z');
+                $sets = array_values($deleted->sets ?? []);
+                if ($headersOnly) {
+                    $builder->addHeader($container, $identifier, $datestamp, $sets, deleted: true);
+                } else {
+                    $builder->addDeletedRecord($container, $identifier, $datestamp, $sets);
+                }
+            } else {
+                $resource = $resources->get($item['id']);
+                if ($resource === null) {
+                    continue;
+                }
+                $identifier = $this->buildOaiIdentifier($resource->doi);
+                $datestamp = $this->effectiveDatestamp($resource);
+                $sets = $this->setService->getSetsForResource($resource);
+                if ($headersOnly) {
+                    $builder->addHeader($container, $identifier, $datestamp, $sets);
+                } else {
+                    $builder->addRecord($container, $identifier, $datestamp, $sets, $this->buildMetadataXml($resource, $metadataPrefix));
+                }
+            }
+            $emitted++;
+        }
+
+        if ($emitted === 0) {
+            if (! $resuming) {
+                $harvest->delete();
+            }
+
+            return $this->errorResponse(
+                $resuming ? 'badResumptionToken' : 'noRecordsMatch',
+                'This page changed during harvesting; restart the list request', $verb, $requestAttrs,
+            );
+        }
+
+        if ($nextPosition < $completeListSize) {
+            $newToken = $this->tokenService->create(
+                $verb, $metadataPrefix, $setSpec, $from, $until, $cursor + $emitted, $completeListSize, $harvest, $nextPosition,
+            );
+            $builder->addResumptionToken(
+                $container, $newToken->token, $completeListSize, $cursor,
+                $newToken->expires_at->utc()->format('Y-m-d\TH:i:s\Z'),
+            );
+        } elseif ($resuming) {
+            $builder->addResumptionToken($container, null, $completeListSize, $cursor);
+        } else {
+            // A single-page response has no token that could reuse this inventory.
+            $harvest->delete();
         }
 
         return $builder->toXml();
@@ -650,7 +771,7 @@ class OaiPmhService
             ->where('doi', $doi)
             ->first();
 
-        $resource?->loadMissing(['landingPage', ...$this->getRelationsForMetadata($metadataPrefix)]);
+        $resource?->loadMissing(['landingPage', 'subjects', ...$this->getRelationsForMetadata($metadataPrefix)]);
 
         return $resource;
     }

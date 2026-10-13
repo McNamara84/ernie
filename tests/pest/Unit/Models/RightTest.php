@@ -19,6 +19,7 @@ describe('Right model attributes', function (): void {
             'scheme_uri',
             'is_active',
             'is_elmo_active',
+            'is_elmo_msl_active',
             'usage_count',
         ]);
     });

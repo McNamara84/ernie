@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
+use App\Services\DatacenterNameService;
 use App\Support\LegacyIgsnDatacenterCatalog;
 use Database\Seeders\DatacenterSeeder;
 use Database\Seeders\LandingPageTemplateSeeder;
@@ -17,6 +18,21 @@ it('seeds every canonical legacy IGSN datacenter without a duplicate GFZ Potsdam
     }
 
     expect(Datacenter::query()->where('name', 'GFZ Potsdam')->exists())->toBeFalse();
+});
+
+it('keeps renamed seeded datacenters on the same ID when seeding again', function (): void {
+    $this->seed(DatacenterSeeder::class);
+    $names = app(DatacenterNameService::class);
+    $original = $names->find('ICDP');
+    expect($original)->not->toBeNull();
+    $count = Datacenter::query()->count();
+    $names->rename($original, 'ICDP Editorial Name');
+
+    $this->seed(DatacenterSeeder::class);
+
+    expect(Datacenter::query()->count())->toBe($count)
+        ->and($names->find('ICDP')?->id)->toBe($original->id)
+        ->and($original->fresh()->name)->toBe('ICDP Editorial Name');
 });
 
 it('assigns both system templates to every seeded datacenter', function (): void {

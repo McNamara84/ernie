@@ -34,6 +34,7 @@ import {
     type TitleType,
 } from '@/types';
 import type { EditorClientLoadStage, EditorLoadContext } from '@/types/editor-load';
+import type { ResourcePublicStatus } from '@/types/resources';
 
 interface EditorProps {
     googleMapsApiKey: string;
@@ -46,7 +47,7 @@ interface EditorProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     resourceId?: string;
-    publicStatus?: 'draft' | 'curation' | 'review' | 'published';
+    publicStatus?: ResourcePublicStatus;
     canEditDoi?: boolean;
     landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];
@@ -67,6 +68,8 @@ interface EditorProps {
     initialDatacenterId?: number | null;
     availableDatacenters?: { id: number; name: string }[];
     editorLoad?: EditorLoadContext;
+    refreshSavedDraftOnRestore?: boolean;
+    hasUnpersistedPrefill?: boolean;
 }
 
 const CLIENT_VOCABULARY_COUNT = 8;
@@ -116,7 +119,12 @@ export default function Editor({
     initialDatacenterId = null,
     availableDatacenters = [],
     editorLoad,
+    refreshSavedDraftOnRestore = false,
+    hasUnpersistedPrefill = false,
 }: EditorProps) {
+    // Keep the live form mounted after Save Draft. A later history restoration
+    // mounts a new Editor instance and must load the saved resource from the server.
+    const [mustRefreshRestoredDraft] = useState(() => refreshSavedDraftOnRestore);
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
     const [dateTypes, setDateTypes] = useState<DateType[] | null>(null);
@@ -219,8 +227,12 @@ export default function Editor({
     }, [editorLoad]);
 
     useEffect(() => {
-        void loadEditorData();
-    }, [loadEditorData]);
+        if (!mustRefreshRestoredDraft) void loadEditorData();
+    }, [loadEditorData, mustRefreshRestoredDraft]);
+
+    useEffect(() => {
+        if (mustRefreshRestoredDraft) window.location.reload();
+    }, [mustRefreshRestoredDraft]);
 
     const isEditorReady =
         resourceTypes !== null &&
@@ -326,6 +338,7 @@ export default function Editor({
                         initialLicenses={initialLicenses}
                         initialRawRights={initialRawRights}
                         initialResourceId={resourceId}
+                        hasUnpersistedPrefill={hasUnpersistedPrefill}
                         initialPublicStatus={publicStatus}
                         canEditDoi={canEditDoi}
                         initialLandingPage={landingPage}

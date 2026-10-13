@@ -16,6 +16,7 @@ interface ResourceType {
 interface LicenseResourceTypePopoverProps {
     licenseId: number;
     licenseName: string;
+    editor?: 'ERNIE' | 'ELMO' | 'ELMO-MSL';
     resourceTypes: ResourceType[];
     excludedIds: number[];
     onExcludedChange: (excludedIds: number[]) => void;
@@ -24,6 +25,7 @@ interface LicenseResourceTypePopoverProps {
 export function LicenseResourceTypePopover({
     licenseId,
     licenseName,
+    editor,
     resourceTypes,
     excludedIds,
     onExcludedChange,
@@ -44,8 +46,14 @@ export function LicenseResourceTypePopover({
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1" aria-label={`Configure resource types for ${licenseName}`}>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1"
+                    aria-label={`Configure resource types for ${licenseName}${editor ? ` (${editor})` : ''}`}
+                >
                     <Filter className="h-3.5 w-3.5" />
+                    {editor && <span className="text-xs">{editor}</span>}
                     {excludedCount > 0 ? (
                         <Badge variant="secondary" className="rounded-sm px-1 font-normal">
                             {availableCount}/{resourceTypes.length}
@@ -67,11 +75,14 @@ export function LicenseResourceTypePopover({
                             return (
                                 <div key={rt.id} className="flex items-center space-x-2 rounded p-1 hover:bg-muted">
                                     <Checkbox
-                                        id={`rt-excl-${licenseId}-${rt.id}`}
+                                        id={`rt-excl-${editor ?? 'ERNIE'}-${licenseId}-${rt.id}`}
                                         checked={!isExcluded}
                                         onCheckedChange={() => toggleResourceType(rt.id)}
                                     />
-                                    <Label htmlFor={`rt-excl-${licenseId}-${rt.id}`} className="flex-1 cursor-pointer text-sm font-normal">
+                                    <Label
+                                        htmlFor={`rt-excl-${editor ?? 'ERNIE'}-${licenseId}-${rt.id}`}
+                                        className="flex-1 cursor-pointer text-sm font-normal"
+                                    >
                                         {rt.name}
                                     </Label>
                                     {isExcluded && (

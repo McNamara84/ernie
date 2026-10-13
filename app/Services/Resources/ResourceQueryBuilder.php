@@ -129,6 +129,7 @@ final readonly class ResourceQueryBuilder
                         'external_domain_id',
                         'external_path',
                         'is_published',
+                        'is_tombstone',
                         'published_at',
                         'preview_token',
                     ])->with(['externalDomain:id,domain']);

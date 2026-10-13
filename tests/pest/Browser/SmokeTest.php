@@ -28,7 +28,6 @@ describe('Public Pages Smoke Test', function (): void {
             '/login',
             '/about',
             '/legal-notice',
-            '/changelog',
         ]);
 
         $pages->assertNoSmoke();
@@ -45,6 +44,7 @@ describe('Authenticated Pages Smoke Test', function (): void {
 
         $pages = visit([
             '/dashboard',
+            '/changelog',
             '/editor',
             '/resources',
             '/settings',

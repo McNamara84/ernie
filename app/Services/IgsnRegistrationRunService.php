@@ -61,6 +61,7 @@ final class IgsnRegistrationRunService
             $run = DB::transaction(function () use ($ids, $resources, $user, $testMode, $endpoint): IgsnRegistrationRun {
                 $run = IgsnRegistrationRun::query()->create([
                     'initiated_by_user_id' => $user->id,
+                    'activity_actor' => app(UserActivityService::class)->actor($user),
                     'status' => IgsnRegistrationRunStatus::PREPARING,
                     'test_mode' => $testMode,
                     'datacite_endpoint' => $endpoint,

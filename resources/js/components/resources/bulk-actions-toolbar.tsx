@@ -5,6 +5,7 @@ import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { docsActionHref } from '@/data/docs-actions';
 import { cn } from '@/lib/utils';
 
 export type ResourcesActionKey =
@@ -39,62 +40,74 @@ interface ActionDefinition {
     label: string;
     icon: ReactNode;
     variant?: 'destructive';
+    consequence: string;
 }
 
 const ACTION_DEFINITIONS: ActionDefinition[] = [
     {
         key: 'edit',
         label: 'Edit',
+        consequence: 'Opens selected records in the editor; this click saves nothing.',
         icon: <PencilLine aria-hidden="true" className="size-4" />,
     },
     {
         key: 'setup-landing-page',
         label: 'Set up landing page',
+        consequence: 'Opens local landing-page setup for one record; no DOI is registered.',
         icon: <Eye aria-hidden="true" className="size-4" />,
     },
     {
         key: 'manage-related-items',
         label: 'Manage Related Items',
+        consequence: 'Opens the local relationship editor; DataCite is not updated.',
         icon: <Quote aria-hidden="true" className="size-4" />,
     },
     {
         key: 'export-datacite-json',
         label: 'Export DataCite JSON',
+        consequence: 'Downloads saved metadata; changes no records.',
         icon: <FileJsonIcon aria-hidden="true" className="size-4" />,
     },
     {
         key: 'export-datacite-xml',
         label: 'Export DataCite XML',
+        consequence: 'Downloads saved metadata; changes no records.',
         icon: <FileXmlIcon aria-hidden="true" className="size-4" />,
     },
     {
         key: 'export-jsonld',
         label: 'Export JSON-LD',
+        consequence: 'Downloads saved metadata; changes no records.',
         icon: <Braces aria-hidden="true" className="size-4" />,
     },
     {
         key: 'register-doi',
         label: 'Register DOI',
+        consequence: 'After confirmation, creates and publishes one new DOI at DataCite.',
         icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
     },
     {
         key: 'update-metadata',
         label: 'Update metadata',
+        consequence: 'After confirmation, updates existing DOI metadata at DataCite. No new DOI.',
         icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
     },
     {
         key: 'send-review-link',
         label: 'Send review link',
+        consequence: 'After confirmation, queues review invitation emails.',
         icon: <Mail aria-hidden="true" className="size-4" />,
     },
     {
         key: 'send-review-link-migration',
         label: 'Notify changed review link',
+        consequence: 'After confirmation, queues replacement review-link emails.',
         icon: <Mail aria-hidden="true" className="size-4" />,
     },
     {
         key: 'delete',
         label: 'Delete',
+        consequence: 'After confirmation, deletes selected ERNIE records and landing pages; DataCite records remain.',
         icon: <Trash2 aria-hidden="true" className="size-4" />,
         variant: 'destructive',
     },
@@ -139,11 +152,16 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
             data-testid="resources-bulk-actions-toolbar"
             className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-between"
         >
-            <span className="text-sm text-muted-foreground" aria-live="polite">
-                {hasSelection
-                    ? `${selectedCount} ${selectedCount === 1 ? 'resource' : 'resources'} selected`
-                    : 'Select rows to enable resource actions'}
-            </span>
+            <div className="text-sm">
+                <span className="text-muted-foreground" aria-live="polite">
+                    {hasSelection
+                        ? `${selectedCount} ${selectedCount === 1 ? 'resource' : 'resources'} selected`
+                        : 'Select rows to enable resource actions'}
+                </span>
+                <a href={docsActionHref('resources-actions')} className="ml-2 text-primary underline underline-offset-2">
+                    What do these actions do?
+                </a>
+            </div>
 
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 {visibleQuickActions.map((definition) => {
@@ -160,7 +178,8 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                             variant="outline"
                             className={cn('w-full justify-center gap-2 sm:w-auto', isUnavailable && hasSelection && !isLoading && 'opacity-70')}
                             disabled={!hasSelection || isLoading}
-                            title={!hasSelection ? actionMenuTitle : isUnavailable ? unavailableReason : definition.label}
+                            title={!hasSelection ? actionMenuTitle : isUnavailable ? unavailableReason : definition.consequence}
+                            aria-description={definition.consequence}
                             data-testid={`resources-action-${definition.key}`}
                             data-unavailable={isUnavailable && hasSelection && !isLoading ? 'true' : undefined}
                             onClick={() => executeAction(definition)}
@@ -186,7 +205,7 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                                 <ChevronDown aria-hidden="true" className="size-4" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-1rem)]">
                             {visibleMenuActions.map((definition) => {
                                 const state = actions[definition.key];
                                 const isUnavailable = !state.available;
@@ -199,7 +218,8 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                                         disabled={isLoading}
                                         aria-disabled={isLoading || undefined}
                                         data-unavailable={isUnavailable && !isLoading ? 'true' : undefined}
-                                        title={isUnavailable ? unavailableReason : definition.label}
+                                        title={isUnavailable ? unavailableReason : definition.consequence}
+                                        aria-description={definition.consequence}
                                         data-testid={`resources-action-${definition.key}`}
                                         variant={definition.variant ?? 'default'}
                                         className={cn(
@@ -209,7 +229,10 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                                         onSelect={() => executeAction(definition)}
                                     >
                                         {definition.icon}
-                                        <span className="min-w-0 flex-1 truncate">{isLoading ? 'Working...' : definition.label}</span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block">{isLoading ? 'Working...' : definition.label}</span>
+                                            <span className="block text-xs whitespace-normal text-muted-foreground">{definition.consequence}</span>
+                                        </span>
                                     </DropdownMenuItem>
                                 );
                             })}

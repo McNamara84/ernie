@@ -444,7 +444,7 @@ final class PortalMapClusterService
 
     private function maxZoom(): int
     {
-        return max(0, (int) config('portal_map.max_zoom', 18));
+        return max(1, (int) config('portal_map.max_zoom', 18));
     }
 
     private function circularLongitudeMean(float $sine, float $cosine, float $fallback): float

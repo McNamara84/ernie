@@ -43,6 +43,8 @@ class DateTypeFactory extends Factory
             'name' => $type['name'],
             'slug' => $type['slug'],
             'is_active' => true,
+            'is_elmo_active' => true,
+            'is_elmo_msl_active' => true,
         ];
     }
 

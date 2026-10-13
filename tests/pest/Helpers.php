@@ -7,6 +7,8 @@ use PHPUnit\Framework\Assert;
 use Tests\TestCase;
 
 require_once __DIR__.'/Helpers/ZipFixture.php';
+require_once __DIR__.'/Helpers/NativeSleep.php';
+require_once __DIR__.'/Helpers/NativeServiceDelays.php';
 
 /**
  * Complete the two-step Inertia handshake used for an existing resource.

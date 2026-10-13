@@ -129,6 +129,21 @@ describe('PortalDatacenterFilter', () => {
         expect(onSelectionChange).toHaveBeenCalledWith([]);
     });
 
+    it('keeps a long selected value absent from the facets readable and keyboard removable', async () => {
+        const user = userEvent.setup();
+        const onSelectionChange = vi.fn();
+        const longName = 'DatacenterWithAnUnbrokenIdentifierABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+        render(<PortalDatacenterFilter facets={[]} selectedNames={[longName]} onSelectionChange={onSelectionChange} />);
+
+        expect(screen.getByText(longName)).toBeVisible();
+        await user.tab();
+        expect(screen.getByRole('button', { name: `Remove ${longName}` })).toHaveFocus();
+        await user.keyboard('{Enter}');
+
+        expect(onSelectionChange).toHaveBeenCalledWith([]);
+    });
+
     it('describes the unchanged OR semantics', () => {
         render(<PortalDatacenterFilter {...defaultProps} />);
 

@@ -1,7 +1,7 @@
 # Production deployment from stable Stage artifacts
 
 Production does not build ERNIE images on its Portainer host. A published
-stable GitHub release promotes the exact application and Nginx image digests
+stable GitHub release promotes the exact application, Nginx, and F-UJI image digests
 that were previously deployed to Stage and creates a machine-managed
 `deploy/prod` commit. Portainer follows that branch and therefore deploys only
 immutable, release-approved images.
@@ -9,9 +9,9 @@ immutable, release-approved images.
 ## Deployment flow
 
 1. A normal pull request is merged into `main`.
-2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
+2. The Security, Pest, MySQL, Vitest, lint/PHPStan, and Playwright workflows validate
    the `main` commit.
-3. `Publish Stage Images` builds and scans the application and Nginx images,
+3. `Publish Stage Images` builds and scans the application, Nginx, and F-UJI images,
    pins their exact digests in `deploy/stage`, and Stage deploys them.
 4. A GitHub release such as `v1.0.9` is published for that commit.
 5. The read-only `Production Release Signal` workflow records the release
@@ -33,10 +33,83 @@ immutable, release-approved images.
 No developer works on or merges into `deploy/prod`. Its commits record the
 release tag and source SHA, retain the validated source commit as a parent,
 and form a linear deployment history. The generated Compose file references
-both images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
+the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
 `latest`, `production`, or version tag.
 
+## Public page routing and feature switches
+
+ERNIE handles the public `/`, `/find`, `/data-centres`, and
+`/data-centres/description` routes on `dataservices.gfz.de`. Each page has its own
+environment switch applied when the app container is deployed:
+
+| Portainer stack variable | ERNIE route | TYPO3 target when `false` |
+| --- | --- | --- |
+| `PUBLIC_HOME_ENABLED` | `/` | `https://dataservices.gfz-potsdam.de/` |
+| `PUBLIC_FIND_ENABLED` | `/find` | `https://dataservices.gfz-potsdam.de/web/find` |
+| `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` | `https://dataservices.gfz-potsdam.de/web/find/data-centres` |
+| `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` | `https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description` |
+
+Set each variable to the literal `true` or `false`. `true` serves the ERNIE page
+with HTTP 200; `false` returns a temporary HTTP 302 redirect to the corresponding
+TYPO3 page. Inertia navigation uses an HTTP 409 location response to perform the
+same full browser navigation. The switches apply to guests and signed-in users
+equally and are independent: disabling the overview does not disable the
+description page, or vice versa. Other pages and both search portals remain
+available.
+
+Production Compose defaults all four switches to `false`. Stage and development
+Compose default them to `true`; the image's `.env.production` template keeps
+them disabled unless the runtime environment enables them. Configure overrides
+in **Stacks → your stack → Edit stack settings → Environment variables**, save,
+and redeploy the stack. A restart of the existing container does not apply
+changed stack variables. After the feature is deployed once, switching values
+requires no image rebuild. The container entrypoint rebuilds Laravel's
+configuration and route caches during startup.
+
+Production Traefik labels permanently redirect GET requests for `/portal` and `/igsn-new`
+to `https://dataservices.gfz.de/doi-search` and
+`https://dataservices.gfz.de/igsn-search`, respectively, with HTTP 301. Both
+redirects include the trailing-slash variants and all subpaths, discarding the
+old subpath and every query parameter to open the corresponding search start
+page. Similar names such as `/portals` and `/igsn-newer` are not captured.
+These search segments are excluded from the legacy router; other confirmed
+legacy segments such as `/web/` continue to redirect temporarily to
+`dataservices.gfz-potsdam.de`. `/elmo` and `/elmo-msl` remain owned by their
+separate stacks.
+
+When releasing the homepage, deploy both the application and the updated
+`webserver` service definition so Traefik receives the new labels. Updating only
+the application image leaves the old root redirect active. Verify `/` returns
+the expected response for `PUBLIC_HOME_ENABLED`: HTTP 200 with local topic
+images when `true`, or HTTP 302 to the TYPO3 homepage when `false`. Also verify
+that `/find` and each data-centre route follow their individual switches,
+`/doi-search` and `/igsn-search` remain available, and legacy URLs still redirect
+correctly.
+
+Verify the search redirects with GET requests, including both base paths,
+trailing slashes, nested paths and query parameters. For example:
+
+```bash
+curl --silent --show-error --dump-header - --output /dev/null 'https://dataservices.gfz.de/portal/index.php?q=granite'
+curl --silent --show-error --dump-header - --output /dev/null 'https://dataservices.gfz.de/igsn-new/portal/results?page=2'
+```
+
+Expect HTTP 301 and the exact absolute search URL in `Location`, without a
+trailing slash, subpath or query. Each redirect must reach its search page in
+one step, and both search pages must return HTTP 200. Use GET rather than
+`curl -I`: Traefik's permanent redirect middleware returns HTTP 308 for HEAD
+and other non-GET methods. Deploy the updated `webserver` definition to apply
+the labels; changing only the application image does not apply routing changes.
+
+The initial news item lives in `resources/js/data/homepage.ts`. Administration
+through `/manage-news` is a separate future feature. Homepage topic definitions
+live in `App\Enums\ScienceTopic`; GCMD topics resolve against the current local
+Science Keywords vocabulary, preserving alternative matching branches. A missing
+or disabled vocabulary produces no matches rather than an unfiltered result set.
+
 ## Release eligibility
+
+### Promotion requirements
 
 Automatic Production promotion requires all of the following:
 
@@ -50,10 +123,11 @@ Automatic Production promotion requires all of the following:
   `deploy/prod` head, including when that deployed release was later deleted
   from GitHub;
 - the tag resolves to a commit contained in `main`;
-- all five deployment-blocking push workflows succeeded for that exact
+- all six deployment-blocking push workflows succeeded for that exact
   commit;
 - `deploy/stage` contains a deployment commit for that exact source SHA;
-- both Stage-pinned image manifests still exist and pass the new digest scan;
+- all three Stage-pinned image manifests (application, Nginx, and F-UJI) still
+  exist and pass the new digest scan;
 - the release remains latest immediately before `deploy/prod` is updated.
 
 Publishing a prerelease, an older release, or a release for an unvalidated or
@@ -68,7 +142,7 @@ A release workflow runs in the context of its tag, whereas the
 `workflow_run` promotion is loaded from the default branch. The promotion
 does not trust the signal workflow's code or artifacts: its read-only jobs
 query the latest release, resolve the tag, check `main` and all CI results,
-inspect the trusted Stage deployment history, and rescan both images before a
+inspect the trusted Stage deployment history, and rescan all three images before a
 separate job receives write access.
 
 Neither workflow offers `workflow_dispatch`. This prevents a branch copy of a
@@ -94,7 +168,7 @@ connection from GitHub to the Production Portainer server is required.
 ### 2. Merge and stage the intended release commit
 
 Merge the implementation through the normal pull-request process. Keep
-Production polling paused. Wait until all five validation workflows and
+Production polling paused. Wait until all six validation workflows and
 `Publish Stage Images` have succeeded for the exact commit that will receive
 the release tag. Confirm that Stage is healthy with that deployment.
 
@@ -137,8 +211,9 @@ Edit the existing stack; do not delete or recreate it:
 - repository reference: `refs/heads/deploy/prod`;
 - Compose path: `docker-compose.prod.yml`;
 - existing stack environment variables: retain them unchanged;
-- `ERNIE_PROD_APP_IMAGE` and `ERNIE_PROD_NGINX_IMAGE`: leave both unset during
-  normal operation; remove stale values because these variables override the
+- `ERNIE_PROD_APP_IMAGE`, `ERNIE_PROD_FUJI_IMAGE`, and
+  `ERNIE_PROD_NGINX_IMAGE`: leave all three unset during normal operation;
+  remove stale values because these variables override the
   release-managed digests and are reserved for an explicit rollback;
 - registry: reuse the GHCR registry already configured for Stage when the
   packages are private;
@@ -150,14 +225,26 @@ The Compose file also sets `pull_policy: always`. Its generated image
 references are immutable digests, so every actual stack update requests the
 exact promoted manifests.
 
+The portal basemap uses the keyless OpenFreeMap public instance by default. No account, API key, or additional Production variable is required. To use a compatible self-hosted instance instead, configure its style URL in the Production stack environment:
+
+```dotenv
+PORTAL_MAP_BASEMAP_STYLE_URL=https://maps.example.org/styles/liberty
+```
+
+The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does not provide an SLA; keep the default for ordinary use or self-host when operational guarantees are required.
+
 ### 5. Verify the first deployment
 
 Save the changes and manually select **Pull and redeploy** for the stack.
 Portainer must show:
 
-- `app`, `queue`, `assessment-queue`, and `scheduler`:
+- `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
-- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`.
+- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
+- `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
+
+Compare all three digests with the promoted references in the same
+`deploy/prod` commit before declaring the deployment complete.
 
 There must be no local ERNIE Docker build in the deployment log. Verify that:
 
@@ -187,7 +274,7 @@ If a newer stable release appears while an older promotion is running, the
 concurrency guard cancels the older run. The final latest-release check and
 compare-and-swap branch update prevent a superseded run from overwriting a
 newer deployment. Every deployment commit remains internally consistent
-because both image references are immutable digests from one Stage deployment.
+because all image references are immutable digests from one Stage deployment.
 
 ## Manual retry
 
@@ -202,15 +289,16 @@ create another release merely to retry an infrastructure failure.
 
 ## Rollback
 
-Every `deploy/prod` commit records a release tag and immutable digest pair. To
-restore a previous pair, read both references from the corresponding
+Every `deploy/prod` commit records a release tag and immutable image digests. To
+restore a previous deployment, read all references from the corresponding
 deployment commit and set these stack variables in Portainer:
 
 - `ERNIE_PROD_APP_IMAGE=ghcr.io/mcnamara84/ernie-app@sha256:<good-digest>`
+- `ERNIE_PROD_FUJI_IMAGE=ghcr.io/mcnamara84/ernie-fuji@sha256:<good-digest>`
 - `ERNIE_PROD_NGINX_IMAGE=ghcr.io/mcnamara84/ernie-nginx@sha256:<good-digest>`
 
-Use both digests from the same Production deployment commit, then manually
-pull/redeploy. The override persists across automatic Git updates; remove both
+Use all three digests from the same Production deployment commit, then manually
+pull/redeploy. The overrides persist across automatic Git updates; remove all three
 variables together to return to the release-managed `deploy/prod` branch.
 
 Database migrations are not automatically reversible. Check schema and data
@@ -228,7 +316,7 @@ creating a Git tag or saving a draft release is not sufficient.
 
 Open the `validate` job summary. Confirm that the signal came from a release,
 the release is GitHub's current latest stable `vMAJOR.MINOR.PATCH` release, and
-all five push workflows succeeded for the tagged commit on `main`.
+all six push workflows succeeded for the tagged commit on `main`.
 
 ### No Stage deployment commit exists for the release source
 
@@ -239,16 +327,23 @@ release through the normal release process.
 
 ### Image inspection or the digest scan fails
 
-Confirm that the two GHCR packages still contain the digests referenced by the
-matching `deploy/stage` commit. Check package access for the repository and the
-current vulnerability report. Promotion deliberately stops on a missing image
-or a HIGH/CRITICAL finding.
+Confirm that all three GHCR packages (`ernie-app`, `ernie-nginx`, and
+`ernie-fuji`) still contain the digests referenced by the matching
+`deploy/stage` commit. Check repository access to each package and inspect the
+vulnerability report for each image, including F-UJI. Promotion deliberately
+stops if any image is missing or has a fixable HIGH/CRITICAL finding.
+
+If F-UJI fails the scan, update the affected dependencies through the normal
+pull-request, Stage validation, and stable release process. Re-running the
+promotion with the same vulnerable digest does not fix the finding.
 
 ### Portainer reports unauthorized or manifest unknown
 
 For private packages, verify the existing Portainer custom registry for
 `ghcr.io`, the GitHub username, a classic token with `read:packages`, package
-access, and registry selection on the Production stack.
+access to all three packages (`ernie-app`, `ernie-nginx`, and `ernie-fuji`),
+and registry selection on the Production stack. Confirm that each promoted
+digest still exists; successful app and Nginx pulls do not verify F-UJI access.
 
 ### Portainer sees the commit but keeps the old image
 
@@ -256,3 +351,35 @@ Confirm that the stack follows `refs/heads/deploy/prod` and uses
 `docker-compose.prod.yml`. Remove stale rollback overrides if Production should
 return to automatic promotion, then manually pull/redeploy once to inspect the
 registry response.
+
+
+## ELMO cache refresh worker
+
+The `elmo-cache-refresh` service runs from the same pinned application image as
+`queue`, using the dedicated persistent `elmo` connection and
+`elmo-cache-refresh` queue. The defaults are `https://dataservices.gfz.de/elmo` and
+`https://dataservices.gfz.de/elmo-msl`; Stage also uses `APP_ENV=production`, so target URLs come from
+the Compose configuration rather than the Laravel environment name.
+
+Provide `ELMO_API_KEY` and `ELMO_MSL_API_KEY` through the stack environment, matching
+the keys of these ELMO instances. `ELMO_BASE_URL` and `ELMO_MSL_BASE_URL` optionally
+override the addresses. Deploy the matching authenticated ELMO admin endpoint
+before explicitly setting `ELMO_CACHE_REFRESH_ENABLED=true`. Automatic refresh is
+disabled by default, including when credentials have already been provisioned.
+Keep `ELMO_MSL_CACHE_REFRESH_READY=false` until the MSL instance uses the correct
+ERNIE ELMO-MSL source routes; only then set it to `true`. Both switches are required
+for MSL refreshes and are rechecked for queued jobs. Turning either switch off
+skips the affected dispatch/execution without blocking settings saves.
+
+The inherited queue environment is shared with the web app and data-update
+workers. After changing configuration, redeploy the app and queue services so
+both dispatch and execution use current values. Keep the HTTP timeout (310s),
+job/worker timeout (330s) and reservation window (390s) in increasing order, with
+a container stop grace period exceeding the job timeout. The worker has three
+attempts and remains separate from the general queue.
+
+Inspect logs and Laravel failed jobs for unsuccessful refreshes. Check ELMO and
+ELMO-MSL independently, including deactivations and completed vocabulary updates.
+The ELMO source must use the appropriate ERNIE editor routes. See
+[local-development.md](local-development.md#automatic-elmo-cache-refresh) for the
+configuration variables, retry policy, upstream dependencies and recovery steps.

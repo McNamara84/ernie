@@ -7,6 +7,10 @@ export function normalizeDateTypeSlug(value: string | null | undefined): string 
     return (value ?? '').trim().toLowerCase();
 }
 
+export function isAvailableDateType(dateType: string | null | undefined): boolean {
+    return normalizeDateTypeSlug(dateType) === 'available';
+}
+
 export function isDateRangeCapable(dateType: string | null | undefined): boolean {
     return DATE_RANGE_CAPABLE_TYPES.includes(normalizeDateTypeSlug(dateType) as (typeof DATE_RANGE_CAPABLE_TYPES)[number]);
 }

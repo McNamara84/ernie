@@ -585,6 +585,14 @@ app/Http/Controllers/
 
 ## FAQ
 
+### Subject Hierarchy Correction
+
+`SubjectHierarchyCorrection` uses `app/Services/SubjectHierarchy/` to separate local vocabulary graph validation, discovery and transactional acceptance. The graph identifies concepts by normalized scheme and canonical URI, preserves multiple parents, and offers only usable terminal descendants. GEMET navigation membership is not a broader/narrower relation; non-indexable groups appear as editor hints.
+
+Acceptance requires `selected_leaf_ids` and `subject_hierarchy_fingerprint` in both single and batch requests. The server recomputes the case under resource/subject locks, preserves existing leaf assignments, writes metadata from the current trusted graph and removes explicit broader subjects only for a partial selection. Complete selection retains the broader concept under ERNIE's agreed curation rule. Overlapping pending proposals are refreshed or removed transactionally when their case changes; an earlier fingerprint cannot accept the updated case. At most one correction per resource and vocabulary can be accepted in a batch.
+
+Declines require a nonblank reason of at most 255 characters. The dismissed value includes a semantic fingerprint, so ordinary timestamp updates and unrelated subjects do not restore the suggestion, while changed descendants or relevant assignments do. Subject writes use model events for cache invalidation. DataCite synchronization follows the existing single/batch and retry contracts. The assistant reports unavailable local sources instead of presenting an unchecked vocabulary as clean. See [local development](../../docs/local-development.md#subject-hierarchy-correction-issue-1050) for cache preparation.
+
 ### Q: Do I need to write a database migration?
 **No.** New assistants use the shared `assistant_suggestions` and `assistant_dismissed` tables. These already exist.
 

@@ -16,14 +16,17 @@ use Illuminate\Support\Carbon;
  * @property string $type
  * @property string $display_name
  * @property bool $is_active
+ * @property bool $is_elmo_msl_active
  * @property bool $is_elmo_active
  * @property string|null $version
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active', 'version'])]
+#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active', 'is_elmo_msl_active', 'version'])]
 class ThesaurusSetting extends Model
 {
+    public const TYPE_MSL_KEYWORDS = 'msl_keywords';
+
     public const TYPE_SCIENCE_KEYWORDS = 'science_keywords';
 
     public const TYPE_PLATFORMS = 'platforms';
@@ -50,6 +53,7 @@ class ThesaurusSetting extends Model
         return [
             'is_active' => 'boolean',
             'is_elmo_active' => 'boolean',
+            'is_elmo_msl_active' => 'boolean',
         ];
     }
 
@@ -59,6 +63,7 @@ class ThesaurusSetting extends Model
     public function getFilePath(): string
     {
         return match ($this->type) {
+            self::TYPE_MSL_KEYWORDS => 'msl-vocabulary.json',
             self::TYPE_SCIENCE_KEYWORDS => 'gcmd-science-keywords.json',
             self::TYPE_PLATFORMS => 'gcmd-platforms.json',
             self::TYPE_INSTRUMENTS => 'gcmd-instruments.json',
@@ -78,6 +83,7 @@ class ThesaurusSetting extends Model
     public function getArtisanCommand(): string
     {
         return match ($this->type) {
+            self::TYPE_MSL_KEYWORDS => 'get-msl-keywords',
             self::TYPE_SCIENCE_KEYWORDS => 'get-gcmd-science-keywords',
             self::TYPE_PLATFORMS => 'get-gcmd-platforms',
             self::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
@@ -113,6 +119,7 @@ class ThesaurusSetting extends Model
     public function getCacheKey(): CacheKey
     {
         return match ($this->type) {
+            self::TYPE_MSL_KEYWORDS => CacheKey::MSL_KEYWORDS,
             self::TYPE_SCIENCE_KEYWORDS => CacheKey::GCMD_SCIENCE_KEYWORDS,
             self::TYPE_PLATFORMS => CacheKey::GCMD_PLATFORMS,
             self::TYPE_INSTRUMENTS => CacheKey::GCMD_INSTRUMENTS,
@@ -156,6 +163,7 @@ class ThesaurusSetting extends Model
     public static function definitions(): array
     {
         return [
+            self::TYPE_MSL_KEYWORDS => 'EPOS MSL Keywords',
             self::TYPE_SCIENCE_KEYWORDS => 'GCMD Science Keywords',
             self::TYPE_PLATFORMS => 'GCMD Platforms',
             self::TYPE_INSTRUMENTS => 'GCMD Instruments',

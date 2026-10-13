@@ -2,12 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
+use App\Enums\PortalScope;
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceListingProjection;
+use App\Services\PortalCacheInvalidationService;
+use App\Services\PortalCacheVersionService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 uses()->group('database', 'mysql-sensitive');
@@ -16,6 +23,14 @@ function resourceListingProjectionPartySearchMigration(): Migration
 {
     /** @var Migration $migration */
     $migration = require database_path('migrations/2026_09_11_000002_add_party_search_text_to_resource_listing_projections.php');
+
+    return $migration;
+}
+
+function resourceListingProjectionPartyNameSearchMigration(): Migration
+{
+    /** @var Migration $migration */
+    $migration = require database_path('migrations/2026_09_18_000001_add_party_name_search_text_to_resource_listing_projections.php');
 
     return $migration;
 }
@@ -68,4 +83,87 @@ it('retries the backfill when the party search column already exists', function 
         ->and(ResourceListingProjection::query()->findOrFail($resource->id)->party_search_text)
         ->toContain('retry backfill')
         ->toContain('retry@example.test');
+});
+
+it('adds a name-only party projection without exposing emails and removes only that column on rollback', function (): void {
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create(['given_name' => 'Public', 'family_name' => 'Researcher']);
+    ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'name_snapshot' => 'Researcher, Public A.',
+        'given_name_snapshot' => 'Public A.',
+        'family_name_snapshot' => 'Researcher',
+        'email' => 'private-creator@example.test',
+    ]);
+    $institution = Institution::factory()->create(['name' => 'Public Data Institute']);
+    ResourceContributor::factory()->forInstitution($institution)->create([
+        'resource_id' => $resource->id,
+        'email' => 'private-contributor@example.test',
+    ]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $migration = resourceListingProjectionPartyNameSearchMigration();
+    $migration->down();
+
+    try {
+        expect(Schema::hasColumn('resource_listing_projections', 'party_name_search_text'))->toBeFalse();
+
+        $migration->up();
+
+        $projection = ResourceListingProjection::query()->findOrFail($resource->id);
+
+        expect(Schema::hasColumn('resource_listing_projections', 'party_name_search_text'))->toBeTrue()
+            ->and($projection->party_name_search_text)
+            ->toContain('public a researcher')
+            ->toContain('researcherpublica')
+            ->toContain('public data institute')
+            ->not->toContain('private-creator@example.test')
+            ->not->toContain('private-contributor@example.test')
+            ->and($projection->party_search_text)
+            ->toContain('private-creator@example.test')
+            ->toContain('private-contributor@example.test');
+
+        $migration->down();
+
+        expect(Schema::hasTable('resource_listing_projections'))->toBeTrue()
+            ->and(Schema::hasColumn('resource_listing_projections', 'party_search_text'))->toBeTrue()
+            ->and(Schema::hasColumn('resource_listing_projections', 'party_name_search_text'))->toBeFalse();
+    } finally {
+        $migration->up();
+    }
+});
+
+it('retries the name-only backfill when the column already exists', function (): void {
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create(['given_name' => 'Retry', 'family_name' => 'PublicName']);
+    ResourceContributor::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'email' => 'retry-private@example.test',
+    ]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    ResourceListingProjection::query()->whereKey($resource->id)->update(['party_name_search_text' => null]);
+
+    Cache::flush();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+    $versions = app(PortalCacheVersionService::class);
+    $cacheKeys = [
+        CacheKey::PORTAL_PAGE_PAYLOAD,
+        CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_MAP_PAYLOAD,
+        CacheKey::PORTAL_MAP_EXTENT,
+    ];
+    foreach ($cacheKeys as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(1);
+    }
+
+    resourceListingProjectionPartyNameSearchMigration()->up();
+    app(PortalCacheInvalidationService::class)->flushPending();
+
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->party_name_search_text)
+        ->toContain('retry publicname')
+        ->not->toContain('retry-private@example.test');
+    foreach ($cacheKeys as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(2);
+    }
 });

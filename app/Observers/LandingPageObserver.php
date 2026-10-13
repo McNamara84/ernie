@@ -7,7 +7,9 @@ namespace App\Observers;
 use App\Enums\PortalCacheArea;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
+use App\Services\Assessment\ResourceAssessmentRefreshService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\LandingPageDownloadUrlSuggestionService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
@@ -23,15 +25,19 @@ class LandingPageObserver
         private readonly LandingPageRenderDataCacheService $renderDataCache,
         private readonly ResourceCacheService $resourceCacheService,
         private readonly PortalCacheInvalidationService $portalCacheInvalidationService,
+        private readonly ResourceAssessmentRefreshService $assessmentRefresh,
     ) {}
 
     public function created(LandingPage $landingPage): void
     {
+        LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
+
         $this->invalidateIgsnFamily($landingPage);
 
         if ($landingPage->is_published) {
             $this->resourceCacheService->invalidatePublishedResourceCounts();
             $this->schedulePortalInvalidation($landingPage, PortalCacheArea::all());
+            $this->assessmentRefresh->request((int) $landingPage->resource_id);
         }
     }
 
@@ -48,8 +54,15 @@ class LandingPageObserver
      */
     public function updated(LandingPage $landingPage): void
     {
+        LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
+
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
+
+        if ($landingPage->wasChanged('is_tombstone')) {
+            $this->resourceCacheService->invalidatePublishedResourceCounts();
+            $this->schedulePortalInvalidation($landingPage, PortalCacheArea::all());
+        }
 
         if (! $landingPage->wasChanged('is_published')) {
             if ($landingPage->is_published && $landingPage->wasChanged([
@@ -82,7 +95,7 @@ class LandingPageObserver
 
         if (! $landingPage->is_published) {
             // Depublished → track as deleted in OAI-PMH (concurrency-safe)
-            $resource->loadMissing('resourceType');
+            $resource->load(['resourceType', 'subjects']);
             $sets = $this->oaiPmhSetService->getSetsForResource($resource);
 
             OaiPmhDeletedRecord::updateOrCreate(
@@ -96,11 +109,14 @@ class LandingPageObserver
         } else {
             // Republished → remove from deleted records
             OaiPmhDeletedRecord::where('oai_identifier', $oaiIdentifier)->delete();
+            $this->assessmentRefresh->request((int) $landingPage->resource_id);
         }
     }
 
     public function deleted(LandingPage $landingPage): void
     {
+        LandingPageDownloadUrlSuggestionService::forgetAfterCommit();
+
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
 

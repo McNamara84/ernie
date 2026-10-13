@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\OaiPmh;
 
 use App\Models\Resource;
+use App\Models\Subject;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,17 +16,26 @@ use Illuminate\Support\Str;
  * Sets are organized hierarchically:
  * - resourcetype:{slug} – By resource type slug (lowercase, e.g. dataset, physical-object)
  * - year:{YYYY} – By publication year
+ * - epos-msl – By the free project keywords EPOS or MSL
  */
 class OaiPmhSetService
 {
+    public function __construct(private readonly EposMslSetService $projectSet) {}
+
+    /** @return array{spec: string, name: string, description: string} */
+    public function projectSetDefinition(): array
+    {
+        return $this->projectSet->definition();
+    }
+
     /**
      * Get all available OAI-PMH sets.
      *
-     * @return list<array{spec: string, name: string}>
+     * @return list<array{spec: string, name: string, description?: string}>
      */
     public function listSets(): array
     {
-        $sets = [];
+        $sets = [$this->projectSetDefinition()];
 
         // Resource type sets via SQL join + distinct (avoids loading all models)
         $types = DB::table('resources')
@@ -79,6 +89,10 @@ class OaiPmhSetService
     public function applySetFilter(Builder $query, string $setSpec): Builder
     {
         return match (true) {
+            $setSpec === EposMslSetService::SPEC => $query->whereHas(
+                'subjects',
+                fn (Builder $q) => $this->projectSet->applyToSubjects($q),
+            ),
             str_starts_with($setSpec, 'resourcetype:') => $query->whereHas(
                 'resourceType',
                 fn (Builder $q) => $q->where('slug', Str::after($setSpec, 'resourcetype:')),
@@ -109,6 +123,10 @@ class OaiPmhSetService
             $sets[] = 'year:'.$resource->publication_year;
         }
 
+        if ($resource->subjects->contains(fn (Subject $subject): bool => $this->projectSet->matches($subject))) {
+            $sets[] = EposMslSetService::SPEC;
+        }
+
         return $sets;
     }
 
@@ -121,7 +139,8 @@ class OaiPmhSetService
      */
     public function isValidSetSpec(string $setSpec): bool
     {
-        return (bool) preg_match('/^resourcetype:[a-z0-9_-]+$/', $setSpec)
+        return $setSpec === EposMslSetService::SPEC
+            || (bool) preg_match('/^resourcetype:[a-z0-9_-]+$/', $setSpec)
             || (bool) preg_match('/^year:\d{4}$/', $setSpec);
     }
 }

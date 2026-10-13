@@ -14,15 +14,15 @@ class ChangelogController extends Controller
     {
         $path = resource_path('data/changelog.json');
         if (! File::exists($path)) {
-            return response()->json([]);
+            return response()->json([])->header('Cache-Control', 'private, no-store');
         }
 
         try {
             $content = json_decode(File::get($path), true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
-            return response()->json(['error' => 'Invalid changelog data'], 500);
+            return response()->json(['error' => 'Invalid changelog data'], 500)->header('Cache-Control', 'private, no-store');
         }
 
-        return response()->json($content);
+        return response()->json($content)->header('Cache-Control', 'private, no-store');
     }
 }

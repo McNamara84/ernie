@@ -44,6 +44,7 @@ describe('EditorController - JSON session loading', function () {
             ->component('editor')
             ->where('doi', '10.5880/test-json')
             ->where('year', '2025')
+            ->where('hasUnpersistedPrefill', true)
             ->where('freeKeywords', ['test'])
             ->has('titles', 1)
             ->has('authors', 1)

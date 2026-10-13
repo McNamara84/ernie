@@ -6,6 +6,7 @@ namespace App\Services\Resources;
 
 use App\Models\Institution;
 use App\Models\Person;
+use App\Support\PortalIgsnSearchPattern;
 
 final class ResourcePartySearchNormalizerService
 {
@@ -64,15 +65,22 @@ final class ResourcePartySearchNormalizerService
         ]);
     }
 
-    public function personNameMatches(?string $givenName, ?string $familyName, ?string $fullName, string $query): bool
-    {
+    public function personNameMatches(
+        ?string $givenName,
+        ?string $familyName,
+        ?string $fullName,
+        string $query,
+        bool $allowWildcard = false,
+    ): bool {
         if (str_contains($query, '@')) {
             return false;
         }
 
         foreach ($this->queryTerms($query) as $queryTerm) {
             foreach ($this->personNameTerms($givenName, $familyName, $fullName) as $partyTerm) {
-                if (str_contains($partyTerm, $queryTerm)) {
+                if ($allowWildcard
+                    ? (new PortalIgsnSearchPattern($queryTerm))->matches($partyTerm)
+                    : str_contains($partyTerm, $queryTerm)) {
                     return true;
                 }
             }
@@ -89,7 +97,7 @@ final class ResourcePartySearchNormalizerService
         return $email === '' ? [] : [$email];
     }
 
-    public function partyMatches(Person|Institution $party, string $query): bool
+    public function partyMatches(Person|Institution $party, string $query, bool $allowWildcard = false): bool
     {
         if (str_contains($query, '@')) {
             return false;
@@ -97,7 +105,9 @@ final class ResourcePartySearchNormalizerService
 
         foreach ($this->queryTerms($query) as $queryTerm) {
             foreach ($this->entityTerms($party) as $partyTerm) {
-                if (str_contains($partyTerm, $queryTerm)) {
+                if ($allowWildcard
+                    ? (new PortalIgsnSearchPattern($queryTerm))->matches($partyTerm)
+                    : str_contains($partyTerm, $queryTerm)) {
                     return true;
                 }
             }

@@ -95,6 +95,15 @@ describe('PortalSearchInput', () => {
         expect(axiosPostMock).toHaveBeenCalledWith('/igsn-search/search-analytics', { search_term: 'basalt sample' });
     });
 
+    it('explains the wildcard syntax only in the IGSN portal', () => {
+        const { unmount } = render(<Harness basePath="/igsn-search" />);
+        expect(screen.getByText(/Use \* to replace any number of characters/)).toBeInTheDocument();
+
+        unmount();
+        render(<Harness basePath="/doi-search" />);
+        expect(screen.queryByText(/Use \* to replace any number of characters/)).not.toBeInTheDocument();
+    });
+
     it('shows asynchronous suggestions and turns a chosen suggestion into an exact keyword', async () => {
         const user = userEvent.setup();
         const onKeywordSelect = vi.fn();

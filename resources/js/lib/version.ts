@@ -1,6 +1,4 @@
-import changelog from '@data/changelog.json';
+declare const __ERNIE_VERSION__: string;
 
-/**
- * Extract the latest application version from the changelog data.
- */
-export const latestVersion: string = Array.isArray(changelog) && changelog.length > 0 ? changelog[0].version : '0.0.0';
+/** The build exposes only the current version, never the full changelog data. */
+export const latestVersion: string = __ERNIE_VERSION__;

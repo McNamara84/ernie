@@ -17,24 +17,27 @@ function createElmoDateTypes(): DateType
         'name' => 'Accepted',
         'slug' => 'accepted',
         'is_active' => true,
+        'is_elmo_active' => true,
     ]);
 
     DateType::create([
         'name' => 'Available',
         'slug' => 'available',
         'is_active' => true,
+        'is_elmo_active' => true,
     ]);
 
     DateType::create([
         'name' => 'Inactive',
         'slug' => 'inactive',
         'is_active' => false,
+        'is_elmo_active' => false,
     ]);
 
     return $enabled;
 }
 
-it('returns only active date types for ELMO (same as Ernie)', function () {
+it('returns only ELMO-enabled date types', function () {
     createElmoDateTypes();
 
     $response = getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'test-api-key'])

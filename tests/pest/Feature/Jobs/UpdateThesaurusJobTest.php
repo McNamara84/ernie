@@ -331,3 +331,10 @@ describe('failed', function () {
             ->and($cached['error'])->toBe('Unknown error');
     });
 });
+
+it('updates MSL keywords with the existing command and completes its status', function (): void {
+    $uuid = (string) Str::uuid();
+    Artisan::shouldReceive('call')->with('get-msl-keywords')->once()->andReturn(0);
+    (new UpdateThesaurusJob(ThesaurusSetting::TYPE_MSL_KEYWORDS, $uuid))->handle();
+    expect(Cache::get(UpdateThesaurusJob::getCacheKey($uuid))['status'])->toBe('completed');
+});

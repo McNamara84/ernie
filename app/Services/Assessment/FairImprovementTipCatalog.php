@@ -642,7 +642,7 @@ final class FairImprovementTipCatalog
                 requiresTestDetails: false,
                 priority: 50,
                 text: $context->landingPageIsInternal
-                    ? 'Correct the published ERNIE sample landing page\'s IGSN JSON-LD export so search engines can index it.'
+                    ? 'F-UJI did not recognize searchable IGSN metadata for the published sample page. Check the DOI resolver target and F-UJI harvest details.'
                     : 'Configure the published external sample landing page to expose crawlable structured IGSN metadata.',
             );
         }
@@ -671,8 +671,8 @@ final class FairImprovementTipCatalog
             requiresTestDetails: false,
             priority: 50,
             text: $context->landingPageIsInternal
-                ? 'Make the published ERNIE landing page\'s Schema.org metadata crawlable in the initial server response.'
-                : 'Configure the published external landing page to expose crawlable Schema.org metadata for the digital resource.',
+                ? 'F-UJI did not recognize searchable Schema.org metadata for the published ERNIE landing page. Check the DOI resolver target and F-UJI harvest details.'
+                : 'F-UJI did not recognize searchable Schema.org metadata for the published external landing page. Check its DOI resolver target and harvest details.',
         );
     }
 
