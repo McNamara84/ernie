@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
 use App\Models\Institution;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -13,8 +14,11 @@ use App\Models\ResourceListingProjection;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalCacheVersionService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
+use App\Services\Resources\ResourceListingProjectorService;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 uses()->group('database', 'mysql-sensitive');
@@ -34,6 +38,59 @@ function resourceListingProjectionPartyNameSearchMigration(): Migration
 
     return $migration;
 }
+
+it('backfills party projections before the tombstone migration and recognizes tombstones afterwards', function (string $filename, string $column, bool $columnExists): void {
+    $published = Resource::factory()->create(['doi' => '10.5880/pre-tombstone-migration']);
+    $publishedPage = LandingPage::factory()->published()->create(['resource_id' => $published->id]);
+    $draft = Resource::factory()->create(['doi' => null, 'publication_year' => null]);
+    LandingPage::factory()->draft()->create(['resource_id' => $draft->id]);
+    $person = Person::factory()->create(['given_name' => 'Upgrade', 'family_name' => 'Researcher']);
+    ResourceCreator::factory()->forPerson($person)->create(['resource_id' => $published->id]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    /** @var Migration $migration */
+    $migration = require database_path('migrations/'.$filename);
+    if ($columnExists) {
+        ResourceListingProjection::query()->whereKey($published->id)->update([$column => null]);
+    } else {
+        $migration->down();
+    }
+
+    Schema::table('landing_pages', function (Blueprint $table): void {
+        $table->dropIndex(['is_tombstone']);
+        $table->dropColumn('is_tombstone');
+    });
+
+    try {
+        expect(Schema::hasColumn('resource_listing_projections', $column))->toBe($columnExists);
+
+        $migration->up();
+
+        expect(Schema::hasColumn('landing_pages', 'is_tombstone'))->toBeFalse()
+            ->and(Schema::hasColumn('resource_listing_projections', $column))->toBeTrue()
+            ->and(ResourceListingProjection::query()->findOrFail($published->id)->getAttribute($column))
+            ->toContain('upgrade researcher')
+            ->and(ResourceListingProjection::query()->findOrFail($published->id)->workflow_status)->toBe('published')
+            ->and(ResourceListingProjection::query()->findOrFail($draft->id)->workflow_status)->toBe('draft');
+    } finally {
+        Schema::table('landing_pages', function (Blueprint $table): void {
+            $table->boolean('is_tombstone')->default(false)->index();
+        });
+        $migration->up();
+    }
+
+    DB::table('landing_pages')->where('id', $publishedPage->id)->update(['is_tombstone' => true]);
+    app(ResourceListingProjectorService::class)->rebuildAll();
+
+    expect(ResourceListingProjection::query()->findOrFail($published->id)->workflow_status)->toBe('dead')
+        ->and(ResourceListingProjection::query()->findOrFail($published->id)->workflow_status_rank)->toBe(5);
+})->with([
+    'party search' => ['2026_09_11_000002_add_party_search_text_to_resource_listing_projections.php', 'party_search_text'],
+    'name-only party search' => ['2026_09_18_000001_add_party_name_search_text_to_resource_listing_projections.php', 'party_name_search_text'],
+])->with([
+    'first migration attempt' => false,
+    'retry after column creation' => true,
+]);
 
 it('adds and backfills the party search projection and removes it on rollback', function (): void {
     $resource = Resource::factory()->create();
