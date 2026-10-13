@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LineForm from '@/components/curation/fields/spatial-temporal-coverage/LineForm';
 import PolygonForm from '@/components/curation/fields/spatial-temporal-coverage/PolygonForm';
@@ -17,6 +17,11 @@ const shapes: Array<{ coordinates: DrawnCoordinate[] }> = [];
 const markers: Array<{ options: { position: DrawnCoordinate; label: { text: string } }; drag: () => void }> = [];
 const extendedBounds: DrawnCoordinate[] = [];
 const pathListeners: Array<() => void> = [];
+
+afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+});
 
 beforeEach(() => {
     vi.clearAllMocks();

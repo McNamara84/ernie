@@ -28,8 +28,8 @@ final class GeoLocationWriteSessionService
     /** @param Collection<int, GeoLocation> $locations */
     public function __construct(private readonly Resource $resource, private readonly GeoLocationIdentityService $identity, Collection $locations)
     {
-        $this->locations = $locations->keyBy('id');
-        foreach ($locations as $location) {
+        $this->locations = $locations->map(fn (GeoLocation $location): GeoLocation => clone $location)->keyBy('id');
+        foreach ($this->locations as $location) {
             $this->indexLocation($location);
         }
     }
@@ -37,7 +37,7 @@ final class GeoLocationWriteSessionService
     /** @return Collection<int, GeoLocation> */
     public function locations(): Collection
     {
-        return $this->locations->values();
+        return $this->locations->map(fn (GeoLocation $location): GeoLocation => clone $location)->values();
     }
 
     public function hasChanges(): bool
@@ -78,7 +78,7 @@ final class GeoLocationWriteSessionService
                         'retained_geo_location_id' => $location->id,
                     ]);
 
-                    return new GeoLocationWriteResult($location, true);
+                    return new GeoLocationWriteResult(clone $location, true);
                 }
             }
         }
@@ -90,8 +90,11 @@ final class GeoLocationWriteSessionService
         if ($current !== null && $this->fingerprints[$current->id] !== $fingerprint) {
             $this->removeFromIndex($current);
         }
-        $this->locations->put($candidate->id, $candidate);
-        $this->indexLocation($candidate);
+        // Callers may mutate their result model before save(); keep the index's
+        // committed snapshot independent from those in-flight changes.
+        $indexed = clone $candidate;
+        $this->locations->put($indexed->id, $indexed);
+        $this->indexLocation($indexed);
 
         return new GeoLocationWriteResult($candidate, false);
     }

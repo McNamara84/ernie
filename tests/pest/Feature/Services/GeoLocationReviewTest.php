@@ -162,6 +162,21 @@ it('updates the batch index when identities change or rows are manually deleted'
     expect($this->resource->geoLocations()->count())->toBe(2);
 });
 
+it('keeps the identity index independent from mutable result and collection models', function () {
+    app(GeoLocationWriterService::class)->batch($this->resource, function (GeoLocationWriteSessionService $session): void {
+        $first = $session->write(['place' => 'first'])->location;
+        $second = $session->write(['place' => 'second'])->location;
+        $first->place = 'second';
+        expect($session->save($first)->duplicate)->toBeTrue();
+        $copy = $session->locations()->find($second->id);
+        $copy->place = 'first';
+        expect($session->save($copy)->duplicate)->toBeTrue();
+        expect($session->write(['place' => 'first'])->location->id)->toBe($first->id)
+            ->and($session->write(['place' => 'second'])->location->id)->toBe($second->id);
+    });
+    expect($this->resource->geoLocations()->pluck('place')->all())->toBe(['first', 'second']);
+});
+
 it('rolls a whole batch back and does not retain its identity index for the next operation', function () {
     try {
         app(GeoLocationWriterService::class)->batch($this->resource, function (GeoLocationWriteSessionService $session): void {
