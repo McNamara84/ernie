@@ -929,7 +929,8 @@ The complete `cache:clear-app all` reset also clears the snapshot. Cache stores 
 
 ### Automatic ELMO cache refresh
 
-Saving Editor Settings queues a refresh for each affected external editor. Changes
+When explicitly enabled, saving Editor Settings queues a refresh for each affected
+external editor whose upstream implementation is ready. Changes
 to ELMO and ELMO-MSL activations and license exclusions remain independent.
 Shared names, contributor categories and identifier patterns refresh the editors
 whose API data changes. Unchanged values, request ordering, timestamps and
@@ -946,6 +947,18 @@ Stage ELMO admin keys. These authenticate outgoing `POST /api/v2/admin/cache/ref
 requests through `X-API-KEY`; `ERNIE_API_KEY` authenticates ELMO requests to ERNIE.
 `ELMO_BASE_URL` and `ELMO_MSL_BASE_URL` override the deployment's default URLs.
 The `/elmo` or `/elmo-msl` path must be retained in the base URL.
+
+Automatic refresh is **disabled by default** in configuration, environment examples
+and every Compose stack. After deploying and validating the matching regular ELMO
+admin endpoint, set `ELMO_CACHE_REFRESH_ENABLED=true` explicitly. Provisioning keys
+alone does not enable refreshes.
+
+ELMO-MSL additionally requires `ELMO_MSL_CACHE_REFRESH_READY=true`, default `false`.
+Set it only after the MSL instance refreshes from the correct ERNIE ELMO-MSL source
+routes. The reviewed ELMO PR still hard-codes regular ELMO routes, so leave this
+flag disabled for that version. Readiness is checked after commit and again before
+HTTP execution, including for jobs queued before a rollout or flag change. MSL
+settings remain saved while its refresh is gated.
 
 Start or recreate the workers after configuring the environment:
 
@@ -964,6 +977,13 @@ integration explicitly in their own tests.
 attempts, with 30/120-second retry delays. Network failures, HTTP 408/429 and 5xx
 responses are retried; valid `Retry-After` values on HTTP 429 are capped at 300
 seconds. Other HTTP errors and invalid success responses fail immediately.
+Success requires all 16 vocabulary result keys from the reviewed ELMO contract,
+with strictly `true` values: resourceTypes, titleTypes, descriptionTypes, languages,
+contributorPersonRoles, contributorInstitutionRoles, relationTypes, identifierTypes,
+pid4instInstruments, mslLabs, gcmdScienceKeywords, gcmdPlatforms, gcmdInstruments,
+chronostratTimescale, gemet and thesauriAvailability. A partial all-true map is a
+contract error. Additional successful result keys are accepted; review this list
+when the upstream contract changes.
 Redirects are rejected and TLS verification remains enabled.
 
 Default limits are 10 seconds to connect, 310 seconds for the HTTP request,

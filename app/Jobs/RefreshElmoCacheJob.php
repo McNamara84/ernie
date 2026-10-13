@@ -39,8 +39,8 @@ final class RefreshElmoCacheJob implements ShouldQueue
 
     public function handle(ElmoCacheRefreshService $service): void
     {
-        if (! $service->isEnabled()) {
-            Log::info('ELMO cache refresh skipped: integration is disabled.', $this->context());
+        if (! $service->isEnabled($this->editor)) {
+            Log::info('ELMO cache refresh skipped: target is not enabled.', $this->context());
 
             return;
         }

@@ -33,6 +33,12 @@ final class ElmoCacheRefreshDispatcherService
                 }
 
                 $context = ['editor' => $editor->value, 'trigger' => $trigger, 'correlation_id' => $correlationId];
+                if (! $this->service->isEnabled($editor)) {
+                    Log::info('ELMO cache refresh skipped: target is not enabled.', $context);
+
+                    continue;
+                }
+
                 if (! $this->service->isConfigured($editor)) {
                     Log::warning('ELMO cache refresh skipped: configuration is missing or invalid.', $context);
 

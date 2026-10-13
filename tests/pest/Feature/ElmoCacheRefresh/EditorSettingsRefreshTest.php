@@ -97,6 +97,17 @@ it('ignores ERNIE-only activation changes', function (string $group): void {
     Bus::assertNothingDispatched();
 })->with('refresh settings groups');
 
+it('saves MSL-only settings without dispatch while upstream MSL routes are not ready', function (): void {
+    config(['elmo.targets.elmo-msl.ready' => false]);
+    $payload = $this->payload;
+    $payload['resourceTypes'][0]['elmo_msl_active'] = ! $payload['resourceTypes'][0]['elmo_msl_active'];
+    $row = $payload['resourceTypes'][0];
+    $this->post('/settings', $payload)->assertSessionHasNoErrors()->assertSessionHas('success');
+    expect(ResourceType::findOrFail($row['id'])->is_elmo_msl_active)->toBe($row['elmo_msl_active']);
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+});
+
 it('ignores unchanged values and reordered request rows', function (): void {
     $payload = $this->payload;
     foreach ($payload as &$rows) {

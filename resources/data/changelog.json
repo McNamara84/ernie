@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Automatic ELMO Cache Refresh After Editor Settings Changes",
-                "description": "Saving changes that affect ELMO or ELMO-MSL now queues an authenticated cache refresh for the affected editor. Successful thesaurus and persistent identifier data updates also request a refresh. ERNIE-only changes and unchanged settings do not trigger it. Refreshes run in the background with bounded retries, preserving saved settings when an external service is unavailable. Each deployment configures its ELMO targets and credentials separately; local development and Stage refresh the Stage instances. Requires the corresponding ELMO admin cache endpoint to be deployed."
+                "description": "After explicit enablement, saving changes that affect ELMO or ELMO-MSL queues an authenticated cache refresh for the affected editor. Successful thesaurus and persistent identifier data updates also request a refresh. ERNIE-only changes and unchanged settings do not trigger it. Refreshes run in the background with bounded retries, preserving saved settings when an external service is unavailable. Each deployment configures its ELMO targets and credentials separately; local development and Stage refresh the Stage instances. Automatic refresh is disabled by default and requires explicit enablement after the matching ELMO admin endpoint is deployed. ELMO-MSL has an additional readiness switch for its own source routes. Success requires a complete set of vocabulary refresh results."
             },
             {
                 "title": "Date Types Ordered by Repository Usage",

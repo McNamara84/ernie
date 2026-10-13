@@ -293,8 +293,12 @@ the Compose configuration rather than the Laravel environment name.
 Provide `ELMO_API_KEY` and `ELMO_MSL_API_KEY` through the stack environment, matching
 the keys of these ELMO instances. `ELMO_BASE_URL` and `ELMO_MSL_BASE_URL` optionally
 override the addresses. Deploy the matching authenticated ELMO admin endpoint
-before enabling live refreshes. `ELMO_CACHE_REFRESH_ENABLED=false` temporarily
-disables dispatch and execution without blocking settings saves.
+before explicitly setting `ELMO_CACHE_REFRESH_ENABLED=true`. Automatic refresh is
+disabled by default, including when credentials have already been provisioned.
+Keep `ELMO_MSL_CACHE_REFRESH_READY=false` until the MSL instance uses the correct
+ERNIE ELMO-MSL source routes; only then set it to `true`. Both switches are required
+for MSL refreshes and are rechecked for queued jobs. Turning either switch off
+skips the affected dispatch/execution without blocking settings saves.
 
 The inherited queue environment is shared with the web app and data-update
 workers. After changing configuration, redeploy the app and queue services so

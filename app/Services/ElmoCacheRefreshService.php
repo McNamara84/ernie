@@ -12,17 +12,24 @@ use Throwable;
 
 final class ElmoCacheRefreshService
 {
-    private const CACHE_NAMES = [
-        'resourceTypes', 'titleTypes', 'dateTypes', 'descriptionTypes', 'languages', 'licenses',
+    // Complete refresh contract in ELMO PR #1270, commit 67081b8bbe3af868822ecafb6a3c28dfac64a690.
+    private const REQUIRED_CACHE_NAMES = [
+        'resourceTypes', 'titleTypes', 'descriptionTypes', 'languages',
         'contributorPersonRoles', 'contributorInstitutionRoles', 'relationTypes', 'identifierTypes',
         'pid4instInstruments', 'mslLabs', 'gcmdScienceKeywords', 'gcmdPlatforms', 'gcmdInstruments',
-        'chronostratTimescale', 'gemet', 'thesauriAvailability', 'pidAvailability', 'rorAffiliations',
+        'chronostratTimescale', 'gemet', 'thesauriAvailability',
+    ];
+
+    private const CACHE_NAMES = [
+        ...self::REQUIRED_CACHE_NAMES, 'dateTypes', 'licenses', 'pidAvailability', 'rorAffiliations',
         'raidProjects', 'mslKeywords', 'analyticalMethods', 'euroSciVoc', 'simpleLithology',
     ];
 
-    public function isEnabled(): bool
+    public function isEnabled(?EditorContext $editor = null): bool
     {
-        return (bool) config('elmo.enabled');
+        return (bool) config('elmo.enabled', false)
+            && $editor !== EditorContext::ERNIE
+            && ($editor !== EditorContext::ELMO_MSL || (bool) config('elmo.targets.elmo-msl.ready', false));
     }
 
     public function isConfigured(EditorContext $editor): bool
@@ -49,6 +56,10 @@ final class ElmoCacheRefreshService
 
     public function refresh(EditorContext $editor): void
     {
+        if (! $this->isEnabled($editor)) {
+            throw new ElmoCacheRefreshException('ELMO cache refresh target is not enabled.');
+        }
+
         if (! $this->isConfigured($editor)) {
             throw new ElmoCacheRefreshException('ELMO cache refresh configuration is missing or invalid.');
         }
@@ -97,6 +108,7 @@ final class ElmoCacheRefreshService
         $results = is_array($body) ? ($body['results'] ?? null) : null;
         if (! is_array($body) || ($body['success'] ?? null) !== true || ! empty($body['failed']) || ! is_array($results)
             || $results === [] || array_is_list($results)
+            || array_diff(self::REQUIRED_CACHE_NAMES, array_keys($results)) !== []
             || array_any($results, static fn (mixed $ok): bool => $ok !== true)) {
             throw new ElmoCacheRefreshException('ELMO cache refresh returned an invalid success response.', status: $status);
         }

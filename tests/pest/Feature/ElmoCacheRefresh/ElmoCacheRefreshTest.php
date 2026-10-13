@@ -29,7 +29,7 @@ it('posts to the correct subpath with the matching secret and bounded request op
     Http::fake(function (Request $request, array $requestOptions) use (&$options) {
         $options = $requestOptions;
 
-        return Http::response(['success' => true, 'results' => ['resourceTypes' => true]]);
+        return Http::response(elmoCacheRefreshSuccessResponse());
     });
 
     app(ElmoCacheRefreshService::class)->refresh($editor);
@@ -110,8 +110,87 @@ it('rejects success responses that do not confirm every cache', function (mixed 
     [['success' => true, 'results' => ['gemet' => false]]],
     [['success' => true, 'results' => ['gemet' => 1]]],
     [['success' => true, 'results' => 'wrong-type']],
+    [['success' => true, 'results' => ['gemet' => true]]],
+    [['success' => true, 'results' => ['unknownCache' => true]]],
     [['success' => true, 'results' => ['gemet' => true], 'failed' => ['gemet']]],
 ]);
+
+it('rejects a refresh missing any required vocabulary result', function (string $cache): void {
+    $body = elmoCacheRefreshSuccessResponse();
+    unset($body['results'][$cache]);
+    Http::fake(['*' => Http::response($body)]);
+    expect(fn () => app(ElmoCacheRefreshService::class)->refresh(EditorContext::ELMO))
+        ->toThrow(ElmoCacheRefreshException::class, 'invalid success response');
+})->with(array_keys(elmoCacheRefreshSuccessResponse()['results']));
+
+it('requires strictly true results even in an otherwise complete response', function (mixed $value): void {
+    $body = elmoCacheRefreshSuccessResponse();
+    $body['results']['gemet'] = $value;
+    Http::fake(['*' => Http::response($body)]);
+    expect(fn () => app(ElmoCacheRefreshService::class)->refresh(EditorContext::ELMO))
+        ->toThrow(ElmoCacheRefreshException::class, 'invalid success response');
+})->with([false, 1, 'true', null]);
+
+it('accepts complete responses in any order with successful additional vocabularies', function (): void {
+    $body = elmoCacheRefreshSuccessResponse();
+    $body['results'] = array_reverse($body['results'], true);
+    $body['results']['futureVocabulary'] = true;
+    Http::fake(['*' => Http::response($body)]);
+    app(ElmoCacheRefreshService::class)->refresh(EditorContext::ELMO);
+    Http::assertSentCount(1);
+});
+
+it('logs a truncated response as a failed job rather than a completed refresh', function (): void {
+    Http::fake(['*' => Http::response(['success' => true, 'results' => ['gemet' => true]])]);
+    Log::spy();
+    $job = (new RefreshElmoCacheJob(EditorContext::ELMO, 'test', 'correlation'))->withFakeQueueInteractions();
+    $job->handle(app(ElmoCacheRefreshService::class));
+    $job->assertFailedWith(ElmoCacheRefreshException::class);
+    Log::shouldNotHaveReceived('info');
+});
+
+it('requires both global enablement and MSL readiness for the MSL target', function (bool $enabled, bool $ready): void {
+    config(['elmo.enabled' => $enabled, 'elmo.targets.elmo-msl.ready' => $ready]);
+    $service = app(ElmoCacheRefreshService::class);
+    expect($service->isEnabled())->toBe($enabled)
+        ->and($service->isEnabled(EditorContext::ELMO))->toBe($enabled)
+        ->and($service->isEnabled(EditorContext::ELMO_MSL))->toBe($enabled && $ready)
+        ->and($service->isEnabled(EditorContext::ERNIE))->toBeFalse();
+})->with([[false, false], [false, true], [true, false], [true, true]]);
+
+it('blocks direct refreshes when the integration or MSL target is disabled', function (bool $enabled, EditorContext $editor): void {
+    config(['elmo.enabled' => $enabled, 'elmo.targets.elmo-msl.ready' => false]);
+    expect(fn () => app(ElmoCacheRefreshService::class)->refresh($editor))
+        ->toThrow(ElmoCacheRefreshException::class, 'target is not enabled');
+    Http::assertNothingSent();
+})->with([[false, EditorContext::ELMO], [false, EditorContext::ELMO_MSL], [true, EditorContext::ELMO_MSL]]);
+
+it('keeps configured but unready MSL out of the queue while refreshing ELMO', function (): void {
+    config(['elmo.targets.elmo-msl.ready' => false]);
+    Bus::fake();
+    app(ElmoCacheRefreshDispatcherService::class)->dispatch([EditorContext::ELMO, EditorContext::ELMO_MSL], 'settings');
+    Bus::assertDispatchedTimes(RefreshElmoCacheJob::class, 1);
+    Bus::assertDispatched(RefreshElmoCacheJob::class, fn ($job): bool => $job->editor === EditorContext::ELMO);
+    Bus::assertNotDispatched(RefreshElmoCacheJob::class, fn ($job): bool => $job->editor === EditorContext::ELMO_MSL);
+});
+
+it('rechecks enablement and readiness after commit', function (string $disabledFlag, int $count): void {
+    Bus::fake();
+    DB::beginTransaction();
+    app(ElmoCacheRefreshDispatcherService::class)->dispatch([EditorContext::ELMO, EditorContext::ELMO_MSL], 'settings');
+    config([$disabledFlag => false]);
+    DB::commit();
+    Bus::assertDispatchedTimes(RefreshElmoCacheJob::class, $count);
+    Bus::assertNotDispatched(RefreshElmoCacheJob::class, fn ($job): bool => $job->editor === EditorContext::ELMO_MSL);
+})->with([['elmo.enabled', 0], ['elmo.targets.elmo-msl.ready', 1]]);
+
+it('skips an already queued MSL job if readiness is revoked before execution', function (): void {
+    $job = (new RefreshElmoCacheJob(EditorContext::ELMO_MSL, 'settings', 'correlation'))->withFakeQueueInteractions();
+    config(['elmo.targets.elmo-msl.ready' => false]);
+    $job->handle(app(ElmoCacheRefreshService::class));
+    $job->assertNotFailed()->assertNotReleased();
+    Http::assertNothingSent();
+});
 
 it('sanitizes connection exceptions and permits queue retries', function (): void {
     Http::fake(['*' => Http::failedConnection('elmo-secret')]);
@@ -201,7 +280,7 @@ it('dispatches data updates only to currently active variants', function (bool $
 })->with([[true, false, 1], [false, true, 1], [true, true, 2], [false, false, 0]]);
 
 it('completes successful jobs without releasing or failing them', function (): void {
-    Http::fake(['*' => Http::response(['success' => true, 'results' => ['gemet' => true]])]);
+    Http::fake(['*' => Http::response(elmoCacheRefreshSuccessResponse())]);
     $job = (new RefreshElmoCacheJob(EditorContext::ELMO, 'test', 'correlation'))->withFakeQueueInteractions();
     $job->handle(app(ElmoCacheRefreshService::class));
     $job->assertNotFailed()->assertNotReleased();
@@ -246,7 +325,7 @@ it('logs a safe final failure for known and unknown exceptions', function (): vo
 });
 
 it('persists and executes a real queued refresh without serializing credentials', function (): void {
-    Http::fake(['*' => Http::response(['success' => true, 'results' => ['gemet' => true]])]);
+    Http::fake(['*' => Http::response(elmoCacheRefreshSuccessResponse())]);
     app(ElmoCacheRefreshDispatcherService::class)->dispatch([EditorContext::ELMO], 'test');
     $stored = DB::table('jobs')->where('queue', 'elmo-cache-refresh')->first();
     expect($stored)->not->toBeNull()

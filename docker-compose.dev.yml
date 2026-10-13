@@ -86,7 +86,8 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
       - ELMO_API_KEY=${ELMO_API_KEY:-}
       - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
@@ -348,7 +349,8 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
       - ELMO_API_KEY=${ELMO_API_KEY:-}
       - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
@@ -425,7 +427,8 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
       - ELMO_API_KEY=${ELMO_API_KEY:-}
       - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
@@ -501,7 +504,8 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-true}
+      - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
+      - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
       - ELMO_API_KEY=${ELMO_API_KEY:-}
       - ELMO_MSL_BASE_URL=${ELMO_MSL_BASE_URL:-https://env.rz-vm182.gfz.de/elmo-msl}
