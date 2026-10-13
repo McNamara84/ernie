@@ -115,11 +115,18 @@ final class ResourceListingProjectorService
     /** @return Builder<Resource> */
     private function query(): Builder
     {
+        // Earlier projection backfills run before the tombstone migration. Check
+        // each query because migrations can add the column within this process.
+        $tombstoneColumn = Schema::hasColumn('landing_pages', 'is_tombstone')
+            ? 'is_tombstone'
+            : DB::raw('0 as is_tombstone');
+
         return Resource::query()->with([
             'resourceType:id,name,slug',
             'createdBy:id,name',
             'updatedBy:id,name',
-            'landingPage:id,resource_id,is_published,published_at,is_tombstone',
+            'landingPage' => fn ($query) => $query
+                ->select(['id', 'resource_id', 'is_published', 'published_at', $tombstoneColumn]),
             'titles' => fn ($query) => $query
                 ->select(['id', 'resource_id', 'value', 'title_type_id'])
                 ->with('titleType:id,slug')
