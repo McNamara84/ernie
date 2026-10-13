@@ -2177,8 +2177,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             <strong>Submitted</strong> records the original submission date, including dates provided by ELMO or DataCite XML imports.
-                            If it is missing, you can add it once. After saving, its date, time, timezone, and type are fixed, and the entry cannot be
-                            removed. Submitted is then unavailable for additional rows. Other editable date types can still be changed after saving.
+                            Each resource can have at most one Submitted entry. When an import provides several, only the first valid entry is stored.
+                            If Submitted is missing, you can add it once. After saving, its date, time, timezone, and type are fixed, and the entry
+                            cannot be removed. Submitted is then unavailable for additional rows. Other editable date types can still be changed after
+                            saving.
                         </p>
                         <p>
                             In the <strong>Dates</strong> section, type a year (<code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full

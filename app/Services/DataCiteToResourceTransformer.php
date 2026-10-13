@@ -1434,6 +1434,8 @@ class DataCiteToResourceTransformer
      */
     private function transformDates(array $dates, Resource $resource): void
     {
+        $hasSubmittedDate = false;
+
         foreach ($dates as $dateData) {
             $date = $dateData['date'] ?? null;
 
@@ -1449,6 +1451,11 @@ class DataCiteToResourceTransformer
 
             // Skip if we couldn't resolve the date type (it's required)
             if ($dateTypeId === null) {
+                continue;
+            }
+
+            $isSubmittedDate = mb_strtolower((string) $dateType) === 'submitted';
+            if ($isSubmittedDate && $hasSubmittedDate) {
                 continue;
             }
 
@@ -1502,6 +1509,10 @@ class DataCiteToResourceTransformer
                 'date_type_id' => $dateTypeId,
                 'date_information' => $dateData['dateInformation'] ?? null,
             ]);
+
+            if ($isSubmittedDate) {
+                $hasSubmittedDate = true;
+            }
         }
     }
 
