@@ -1,5 +1,16 @@
 [
     {
+        "version": "1.1.1dev",
+        "date": "2026-10-13",
+        "fixes": [
+            {
+                "title": "Stable Landing Page Maps and GeoLocation Duplicate Prevention",
+                "description": "Landing pages and previews remain visible with coincident, near-polar or invalid historical locations. New identical GeoLocations are merged and reported when saving or importing, including IGSN legacy enrichment. Equality includes geometry, descriptions, time coverage, elevation and location details. Saves retain persisted IDs, hidden metadata and the submitted location order. Incomplete polygon and line vertices remain editable as blank fields and are excluded from maps; saving requires their correction. Existing duplicate or questionable locations remain stored for manual curation, including during unrelated saves.",
+                "references": [{ "type": "pull_request", "number": 1473, "url": "https://github.com/McNamara84/ernie/pull/1473" }]
+            }
+        ]
+    },
+    {
         "version": "1.1.0",
         "date": "2026-10-13",
         "features": [
@@ -243,10 +254,6 @@
             }
         ],
         "fixes": [
-            {
-                "title": "Stable Landing Page Maps and GeoLocation Duplicate Prevention",
-                "description": "Landing pages and previews remain visible when historical locations have identical coordinates, collapse near the poles, or contain invalid geometries. Map failures stay within the location section while other metadata remains available. New identical GeoLocation entries are automatically merged when saving or importing, comparing geometry, descriptions, time coverage, elevation and location details. Validated saves, drafts, file uploads and resource or IGSN DataCite imports report merges and retain persisted IDs and hidden metadata. Batch imports use one location load and an identity index per resource. Incomplete polygon and line coordinates remain editable as blank fields and are excluded from map drawing; incomplete vertices must be corrected before saving. Existing duplicate or questionable locations remain stored for manual curation, including when saving unrelated metadata."
-            },
             {
                 "title": "Clickable Calendar Month and Year Dropdowns",
                 "description": "Month and year dropdowns in the Data Editor calendar can now be clicked reliably. Previous and next month buttons continue to work, and the date is applied only after a day is selected.",

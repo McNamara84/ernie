@@ -1109,21 +1109,15 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         /** @var Resource $importedResource */
         $importedResource = $result['resource'];
         $geoReport = $result['geoReport'];
-        if ($geoReport->removedCount > 0) {
-            $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_IGSN, $this->importId);
-            $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
-            $mergeWarnings[] = $geoReport->mergeWarning($doi);
-            $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
-        }
         $igsnMetadata = $importedResource->igsnMetadata;
         $wasEnriched = false;
 
         if ($igsnMetadata instanceof IgsnMetadata) {
             if ($strictEnrichment) {
-                $wasEnriched = $enrichmentService->enrich($importedResource, $igsnMetadata);
+                $wasEnriched = $enrichmentService->enrich($importedResource, $igsnMetadata, $geoReport);
             } else {
                 try {
-                    $wasEnriched = $enrichmentService->enrich($importedResource, $igsnMetadata);
+                    $wasEnriched = $enrichmentService->enrich($importedResource, $igsnMetadata, $geoReport);
                 } catch (Throwable $e) {
                     Log::debug('IGSN enrichment failed (non-critical)', [
                         'doi' => $doi,
@@ -1151,6 +1145,16 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         $activities = app(UserActivityService::class);
         $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
             $activities->subject($importedResource), operationId: $this->importId);
+
+        if ($geoReport->removedCount > 0) {
+            // Atomic single imports can still roll back the complete family.
+            $importedResource->getConnection()->afterCommit(function () use ($geoReport, $doi): void {
+                $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_IGSN, $this->importId);
+                $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+                $mergeWarnings[] = $geoReport->mergeWarning($doi);
+                $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
+            });
+        }
 
         return [
             'status' => 'imported',

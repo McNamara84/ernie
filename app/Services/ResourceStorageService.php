@@ -1508,6 +1508,7 @@ class ResourceStorageService
                 throw ValidationException::withMessages(['spatialTemporalCoverages' => 'The copied location does not belong to this resource. Reload before saving.']);
             }
             if ($location !== null && $this->unchangedCoverage($coverage, $originalCoverages->get((string) $location->id, []))) {
+                $location = $session->write(['position' => $position], $location)->location;
                 $retainedIds[] = $location->id;
                 if ($inputId !== null) {
                     $changes['idMap'][$inputId] = (string) $location->id;

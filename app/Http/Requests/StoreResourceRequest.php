@@ -702,9 +702,7 @@ class StoreResourceRequest extends FormRequest
             if (in_array($type, ['polygon', 'line'], true) && isset($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
                 $polygonPoints = [];
                 foreach ($coverage['polygonPoints'] as $point) {
-                    if (! is_array($point)) {
-                        continue;
-                    }
+                    $point = is_array($point) ? $point : [];
 
                     $lat = isset($point['lat']) ? $point['lat'] : null;
                     $lon = isset($point['lon']) ? $point['lon'] : null;

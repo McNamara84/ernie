@@ -90,6 +90,61 @@ it('rejects incomplete vertices without silently changing stored geometry', func
     expect($old->fresh()->polygon_points)->toBe($points);
 })->with(['/editor/resources', '/editor/resources/draft']);
 
+it('rejects non-array vertices instead of saving a shorter shape', function (string $endpoint, string $type, mixed $malformed) {
+    $points = [['latitude' => 0, 'longitude' => 0], ['latitude' => 1, 'longitude' => 0], ['latitude' => 1, 'longitude' => 1]];
+    $old = GeoLocation::factory()->create(['resource_id' => $this->resource->id, 'geo_type' => $type, 'polygon_points' => $points]);
+    $coverage = app(EditorDataTransformer::class)->transformCoverages($this->resource->load('geoLocations'))[0];
+    $coverage['polygonPoints'][] = $malformed;
+
+    $this->actingAs($this->user)->postJson($endpoint, [...$this->payload, 'intent' => 'autosave', 'spatialTemporalCoverages' => [$coverage]])
+        ->assertUnprocessable()->assertJsonValidationErrors([
+            'spatialTemporalCoverages.0.polygonPoints.3.lat',
+            'spatialTemporalCoverages.0.polygonPoints.3.lon',
+        ]);
+    expect($old->fresh()->polygon_points)->toBe($points)
+        ->and($this->resource->geoLocations()->pluck('id')->all())->toBe([$old->id]);
+})->with(['/editor/resources', '/editor/resources/draft'])->with(['polygon', 'line'])->with([
+    'null vertex' => [null], 'string vertex' => ['invalid'], 'integer vertex' => [42], 'boolean vertex' => [false],
+]);
+
+it('persists reordered unchanged locations while retaining historical duplicates and hidden metadata', function (string $endpoint, bool $includeIds) {
+    $old = collect(range(0, 2))->map(fn (int $position): GeoLocation => GeoLocation::factory()->create([
+        'resource_id' => $this->resource->id, 'geo_type' => 'point',
+        'point_latitude' => 52.38, 'point_longitude' => 13.06,
+        'place' => $position === 2 ? 'Other place' : 'Duplicate place',
+        'country' => 'Stored country', 'elevation' => 42, 'position' => $position,
+    ]));
+    $scientificValues = $old->mapWithKeys(function (GeoLocation $location): array {
+        $values = $location->fresh()->getAttributes();
+        unset($values['position'], $values['updated_at']);
+
+        return [$location->id => $values];
+    });
+    $coverages = array_reverse(app(EditorDataTransformer::class)->transformCoverages($this->resource->load('geoLocations')));
+    if (! $includeIds) {
+        $coverages = array_map(function (array $coverage): array {
+            unset($coverage['id']);
+
+            return $coverage;
+        }, $coverages);
+    }
+    $response = $this->actingAs($this->user)->postJson($endpoint, [...$this->payload, 'intent' => 'autosave', 'spatialTemporalCoverages' => $coverages])
+        ->assertOk()->assertJsonPath('geoLocationChanges.removedCount', 0)->assertJsonPath('geoLocationChanges.removedIds', []);
+    // Older clients without IDs cannot distinguish two identical historical rows.
+    $expectedIds = $includeIds ? $old->pluck('id')->reverse()->values()->all() : [$old[2]->id, $old[0]->id, $old[1]->id];
+    $reloaded = app(EditorDataTransformer::class)->transformCoverages($this->resource->fresh()->load('geoLocations'));
+    expect(array_column($reloaded, 'id'))->toBe(array_map(strval(...), $expectedIds))
+        ->and($this->resource->geoLocations()->pluck('position')->all())->toBe([0, 1, 2]);
+    foreach ($old as $location) {
+        $values = $location->fresh()->getAttributes();
+        unset($values['position'], $values['updated_at']);
+        expect($values)->toBe($scientificValues[$location->id]);
+        if ($includeIds) {
+            $response->assertJsonPath("geoLocationChanges.idMap.{$location->id}", (string) $location->id);
+        }
+    }
+})->with(['/editor/resources', '/editor/resources/draft'])->with([true, false]);
+
 it('loads the location collection once for a large batch of unique and duplicate writes', function () {
     DB::enableQueryLog();
     DB::flushQueryLog();

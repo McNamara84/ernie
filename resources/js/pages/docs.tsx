@@ -3957,6 +3957,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             replacing, or removing its current datacenter. If the portal responds successfully but contains no assignment for a new
                             IGSN, the import continues, leaves the datacenter empty, and lists the IGSN in the result for manual curation.
                         </p>
+                        <p>
+                            The import result reports identical location entries merged from DataCite metadata and legacy enrichment together. Review
+                            the retained locations before publishing; locations with different scientific details remain separate.
+                        </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
