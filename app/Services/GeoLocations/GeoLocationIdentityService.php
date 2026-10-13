@@ -24,6 +24,11 @@ final class GeoLocationIdentityService
         return $this->values($left) === $this->values($right);
     }
 
+    public function fingerprint(GeoLocation $location): string
+    {
+        return hash('sha256', serialize($this->values($location)));
+    }
+
     public function samePoints(mixed $left, mixed $right): bool
     {
         return $this->canonicalPoints($left) === $this->canonicalPoints($right);

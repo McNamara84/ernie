@@ -1093,12 +1093,6 @@ class ImportFromDataCiteJob implements ShouldQueue
 
                 $geoReport = new GeoLocationWriteReport;
                 $resource = $transformer->transform($preparedDoiRecord, $this->userId, $geoReport);
-                if ($geoReport->removedCount > 0) {
-                    $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
-                    $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
-                    $mergeWarnings[] = sprintf('%s: %d identical GeoLocation entries were merged.', $doi, $geoReport->removedCount);
-                    $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
-                }
 
                 if ($legacyResourceId !== null) {
                     $resource->forceFill([
@@ -1109,7 +1103,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                     ])->save();
                 }
 
-                return ['status' => 'imported', 'resource' => $resource];
+                return ['status' => 'imported', 'resource' => $resource, 'geoReport' => $geoReport];
             });
 
             if ($result['status'] === 'skipped') {
@@ -1140,6 +1134,14 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             /** @var Resource $importedResource */
             $importedResource = $result['resource'];
+
+            $geoReport = $result['geoReport'];
+            if ($geoReport->removedCount > 0) {
+                $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
+                $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+                $mergeWarnings[] = $geoReport->mergeWarning($doi);
+                $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
+            }
 
             $this->enrichImportedResourceFromLegacyDatabases(
                 $importedResource,

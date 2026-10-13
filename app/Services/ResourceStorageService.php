@@ -31,6 +31,7 @@ use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
 use App\Services\GeoLocations\GeoLocationIdentityService;
 use App\Services\GeoLocations\GeoLocationWriterService;
+use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
@@ -1461,7 +1462,18 @@ class ResourceStorageService
         if (! array_key_exists('spatialTemporalCoverages', $data)) {
             return $changes;
         }
-        $existing = $resource->geoLocations()->get()->keyBy('id');
+
+        return app(GeoLocationWriterService::class)->batch($resource, fn (GeoLocationWriteSessionService $session): array => $this->synchronizeGeoLocations($resource, $data, $isUpdate, $session));
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}
+     */
+    private function synchronizeGeoLocations(Resource $resource, array $data, bool $isUpdate, GeoLocationWriteSessionService $session): array
+    {
+        $changes = ['removedCount' => 0, 'idMap' => [], 'removedIds' => []];
+        $existing = $session->locations()->keyBy('id');
         $resource->setRelation('geoLocations', $existing->values());
         $originalCoverages = collect(app(EditorDataTransformer::class)->transformCoverages($resource))->keyBy('id');
         $retainedIds = [];
@@ -1734,7 +1746,7 @@ class ResourceStorageService
                 if ($template !== null) {
                     $geoLocationData = [...$template->only(GeoLocationIdentityService::FIELDS), ...$geoLocationData];
                 }
-                $result = app(GeoLocationWriterService::class)->write($resource, $geoLocationData, $location);
+                $result = $session->write($geoLocationData, $location);
                 $retainedIds[] = $result->location->id;
                 if ($inputId !== null) {
                     $changes['idMap'][$inputId] = (string) $result->location->id;
@@ -1760,8 +1772,7 @@ class ResourceStorageService
         if ($isUpdate) {
             foreach ($existing as $location) {
                 if (! in_array($location->id, $retainedIds, true)) {
-                    $location->delete();
-                    app(GeoLocationWriterService::class)->metadataChanged($resource);
+                    $session->delete($location);
                 }
             }
         }

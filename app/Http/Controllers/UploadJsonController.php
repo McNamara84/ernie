@@ -154,7 +154,7 @@ class UploadJsonController extends Controller
         // Validate against DataCite 4.7 schema (non-strict: DOI optional)
         /** @var array<int, array{path: string, message: string, keyword: string, context: array<string, mixed>}>|null $validationErrors */
         $validationErrors = null;
-        if (! $this->jsonSchemaValidator->isValid($attributes, $validationErrors)) {
+        if (! $this->jsonSchemaValidator->isValid($this->jsonImportNormalizer->forValidation($attributes), $validationErrors)) {
             $errorMessages = array_map(
                 fn (array $e): string => $e['message'],
                 $validationErrors ?? []

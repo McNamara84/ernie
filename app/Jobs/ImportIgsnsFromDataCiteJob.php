@@ -20,6 +20,7 @@ use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\LegacyIgsnPortalService;
 use App\Services\UserActivityService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\IgsnIdentifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -1087,14 +1088,15 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             }
 
             $result = DB::transaction(function () use ($transformer, $igsnRecord, $datacenterId) {
-                $resource = $transformer->transform($igsnRecord, $this->userId);
+                $geoReport = new GeoLocationWriteReport;
+                $resource = $transformer->transform($igsnRecord, $this->userId, $geoReport);
 
                 if ($datacenterId !== null) {
                     $resource->datacenter_id = $datacenterId;
                     $resource->save();
                 }
 
-                return ['status' => 'imported', 'resource' => $resource];
+                return ['status' => 'imported', 'resource' => $resource, 'geoReport' => $geoReport];
             });
         } catch (QueryException $e) {
             if ($this->isDuplicateEntry($e)) {
@@ -1106,6 +1108,13 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
         /** @var Resource $importedResource */
         $importedResource = $result['resource'];
+        $geoReport = $result['geoReport'];
+        if ($geoReport->removedCount > 0) {
+            $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_IGSN, $this->importId);
+            $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+            $mergeWarnings[] = $geoReport->mergeWarning($doi);
+            $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
+        }
         $igsnMetadata = $importedResource->igsnMetadata;
         $wasEnriched = false;
 
@@ -1449,6 +1458,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      */
     private function updateProgress(array $data): void
     {
+        $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_IGSN, $this->importId);
+        $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+        $data['geo_location_merge_warnings'] = $mergeWarnings;
+        $data['warnings'] = array_values(array_unique([...($data['warnings'] ?? []), ...$mergeWarnings]));
         $data['activity_actor'] = $this->activityActor;
         app(ImportProgressService::class)->update(ImportProgressService::TYPE_IGSN, $this->importId, $data, replace: true);
     }

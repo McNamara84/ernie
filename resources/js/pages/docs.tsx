@@ -1540,6 +1540,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     After successful upload, the dashboard shows a confirmation. Use <strong>Open in editor</strong> when you are
                                     ready to review the pre-populated metadata.
                                 </p>
+                                <p>
+                                    If the file contains identical location entries, ERNIE keeps one entry and shows how many duplicates were merged.
+                                    Locations with different descriptions, time coverage, elevation, or location details remain separate. Review the
+                                    retained locations in the editor before publishing.
+                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
                     </>
@@ -2103,6 +2108,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>Latitude/Longitude in decimal degrees</li>
                             <li>North/South/East/West bounds for bounding boxes</li>
                         </ul>
+
+                        <p>
+                            Incomplete coordinates in stored polygons and lines appear as blank editable fields. Only valid points are drawn on the
+                            map. Correct or remove incomplete rows before saving; ERNIE keeps the stored geometry until a valid change is saved.
+                        </p>
 
                         <h4>CSV Import for Polygons and Lines</h4>
                         <p>

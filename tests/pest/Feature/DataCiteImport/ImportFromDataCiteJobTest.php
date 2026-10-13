@@ -235,7 +235,7 @@ describe('ImportFromDataCiteJob', function () {
         Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
     });
 
-    it('retains location merge warnings through bulk progress replacements without sharing reports', function () {
+    it('retains location merge warnings through bulk progress replacements without sharing reports', function (int $mergedCount, string $expectedWarning) {
         $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(2);
         $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () {
             foreach (['10.5880/geo-merge.first', '10.5880/geo-merge.second'] as $doi) {
@@ -246,10 +246,10 @@ describe('ImportFromDataCiteJob', function () {
             array $record,
             int $userId,
             GeoLocationWriteReport $report,
-        ): Resource {
+        ) use ($mergedCount): Resource {
             expect($userId)->toBe($this->user->id)->and($report->removedCount)->toBe(0);
             if ($record['id'] === '10.5880/geo-merge.first') {
-                $report->removedCount = 2;
+                $report->removedCount = $mergedCount;
             }
 
             return Resource::factory()->make(['doi' => $record['id']]);
@@ -260,13 +260,16 @@ describe('ImportFromDataCiteJob', function () {
             ->handle($this->importService, $this->transformer, $this->metaworksService);
 
         $status = Cache::get("datacite_import:{$importId}");
-        $warnings = ['10.5880/geo-merge.first: 2 identical GeoLocation entries were merged.'];
+        $warnings = [$expectedWarning];
         expect($status['status'])->toBe('completed')
             ->and($status['imported'])->toBe(2)
             ->and($status['failed'])->toBe(0)
             ->and($status['warnings'])->toBe($warnings)
             ->and($status['geo_location_merge_warnings'])->toBe($warnings);
-    });
+    })->with([
+        [1, '10.5880/geo-merge.first: 1 identical GeoLocation entry was merged.'],
+        [2, '10.5880/geo-merge.first: 2 identical GeoLocation entries were merged.'],
+    ]);
 
     it('adds SUMARIO pending import results to the bulk progress summary', function () {
         $this->importService

@@ -39,6 +39,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\GeoLocations\GeoLocationWriterService;
+use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use App\Services\Xml\Sections\RightsSectionParser;
@@ -1524,76 +1525,81 @@ class DataCiteToResourceTransformer
      */
     private function transformGeoLocations(array $geoLocations, Resource $resource, ?GeoLocationWriteReport $geoReport): void
     {
-        foreach ($geoLocations as $geoData) {
-            $point = $geoData['geoLocationPoint'] ?? null;
-            $box = $geoData['geoLocationBox'] ?? null;
-            $polygon = $geoData['geoLocationPolygon'] ?? null;
-
-            // Transform polygon points to storage format
-            $polygonPoints = null;
-            $inPolygonPointLon = null;
-            $inPolygonPointLat = null;
-
-            if (is_array($polygon)) {
-                $rawPolygonPoints = [];
-                foreach ($polygon as $entry) {
-                    if (! is_array($entry)) {
-                        continue;
-                    }
-
-                    if (is_array($entry['polygonPoint'] ?? null)) {
-                        $rawPolygonPoints[] = $entry['polygonPoint'];
-                    }
-
-                    if (is_array($entry['inPolygonPoint'] ?? null)) {
-                        $inPolygonPointLon = $this->normaliseCoordinate($entry['inPolygonPoint']['pointLongitude'] ?? null);
-                        $inPolygonPointLat = $this->normaliseCoordinate($entry['inPolygonPoint']['pointLatitude'] ?? null);
-                    }
-                }
-
-                // Filter out points with missing coordinates instead of coercing to 0
-                $validPoints = array_filter(
-                    $rawPolygonPoints,
-                    fn (array $p): bool => $this->normaliseCoordinate($p['pointLongitude'] ?? null) !== null
-                        && $this->normaliseCoordinate($p['pointLatitude'] ?? null) !== null,
-                );
-
-                // Only store polygon if at least 3 valid points remain
-                if (count($validPoints) >= 3) {
-                    $polygonPoints = array_values(array_map(fn (array $p): array => [
-                        'longitude' => $this->normaliseCoordinate($p['pointLongitude']),
-                        'latitude' => $this->normaliseCoordinate($p['pointLatitude']),
-                    ], $validPoints));
-                }
-
-            }
-
-            // Determine geo_type based on available (valid) data
-            $geoType = null;
-            if ($polygonPoints !== null) {
-                $geoType = 'polygon';
-            } elseif ($box !== null) {
-                $geoType = 'box';
-            } elseif ($point !== null) {
-                $geoType = 'point';
-            }
-
-            $result = app(GeoLocationWriterService::class)->write($resource, [
-                'resource_id' => $resource->id,
-                'geo_type' => $geoType,
-                'place' => $geoData['geoLocationPlace'] ?? null,
-                'point_longitude' => $this->normaliseCoordinate($point['pointLongitude'] ?? null),
-                'point_latitude' => $this->normaliseCoordinate($point['pointLatitude'] ?? null),
-                'west_bound_longitude' => $this->normaliseCoordinate($box['westBoundLongitude'] ?? null),
-                'east_bound_longitude' => $this->normaliseCoordinate($box['eastBoundLongitude'] ?? null),
-                'south_bound_latitude' => $this->normaliseCoordinate($box['southBoundLatitude'] ?? null),
-                'north_bound_latitude' => $this->normaliseCoordinate($box['northBoundLatitude'] ?? null),
-                'polygon_points' => $polygonPoints,
-                'in_polygon_point_longitude' => $inPolygonPointLon,
-                'in_polygon_point_latitude' => $inPolygonPointLat,
-            ]);
-            $geoReport?->record($result);
+        if ($geoLocations === []) {
+            return;
         }
+        app(GeoLocationWriterService::class)->batch($resource, function (GeoLocationWriteSessionService $session) use ($geoLocations, $resource, $geoReport): void {
+            foreach ($geoLocations as $geoData) {
+                $point = $geoData['geoLocationPoint'] ?? null;
+                $box = $geoData['geoLocationBox'] ?? null;
+                $polygon = $geoData['geoLocationPolygon'] ?? null;
+
+                // Transform polygon points to storage format
+                $polygonPoints = null;
+                $inPolygonPointLon = null;
+                $inPolygonPointLat = null;
+
+                if (is_array($polygon)) {
+                    $rawPolygonPoints = [];
+                    foreach ($polygon as $entry) {
+                        if (! is_array($entry)) {
+                            continue;
+                        }
+
+                        if (is_array($entry['polygonPoint'] ?? null)) {
+                            $rawPolygonPoints[] = $entry['polygonPoint'];
+                        }
+
+                        if (is_array($entry['inPolygonPoint'] ?? null)) {
+                            $inPolygonPointLon = $this->normaliseCoordinate($entry['inPolygonPoint']['pointLongitude'] ?? null);
+                            $inPolygonPointLat = $this->normaliseCoordinate($entry['inPolygonPoint']['pointLatitude'] ?? null);
+                        }
+                    }
+
+                    // Filter out points with missing coordinates instead of coercing to 0
+                    $validPoints = array_filter(
+                        $rawPolygonPoints,
+                        fn (array $p): bool => $this->normaliseCoordinate($p['pointLongitude'] ?? null) !== null
+                            && $this->normaliseCoordinate($p['pointLatitude'] ?? null) !== null,
+                    );
+
+                    // Only store polygon if at least 3 valid points remain
+                    if (count($validPoints) >= 3) {
+                        $polygonPoints = array_values(array_map(fn (array $p): array => [
+                            'longitude' => $this->normaliseCoordinate($p['pointLongitude']),
+                            'latitude' => $this->normaliseCoordinate($p['pointLatitude']),
+                        ], $validPoints));
+                    }
+
+                }
+
+                // Determine geo_type based on available (valid) data
+                $geoType = null;
+                if ($polygonPoints !== null) {
+                    $geoType = 'polygon';
+                } elseif ($box !== null) {
+                    $geoType = 'box';
+                } elseif ($point !== null) {
+                    $geoType = 'point';
+                }
+
+                $result = $session->write([
+                    'resource_id' => $resource->id,
+                    'geo_type' => $geoType,
+                    'place' => $geoData['geoLocationPlace'] ?? null,
+                    'point_longitude' => $this->normaliseCoordinate($point['pointLongitude'] ?? null),
+                    'point_latitude' => $this->normaliseCoordinate($point['pointLatitude'] ?? null),
+                    'west_bound_longitude' => $this->normaliseCoordinate($box['westBoundLongitude'] ?? null),
+                    'east_bound_longitude' => $this->normaliseCoordinate($box['eastBoundLongitude'] ?? null),
+                    'south_bound_latitude' => $this->normaliseCoordinate($box['southBoundLatitude'] ?? null),
+                    'north_bound_latitude' => $this->normaliseCoordinate($box['northBoundLatitude'] ?? null),
+                    'polygon_points' => $polygonPoints,
+                    'in_polygon_point_longitude' => $inPolygonPointLon,
+                    'in_polygon_point_latitude' => $inPolygonPointLat,
+                ]);
+                $geoReport?->record($result);
+            }
+        });
     }
 
     private function normaliseCoordinate(mixed $value): ?float

@@ -6,8 +6,8 @@ export type CoverageType = 'point' | 'box' | 'polygon' | 'line';
 export type TemporalCoverageMode = 'instant' | 'interval';
 
 export interface PolygonPoint {
-    lat: number;
-    lon: number;
+    lat: number | null;
+    lon: number | null;
 }
 
 export interface SpatialTemporalCoverageEntry {

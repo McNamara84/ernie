@@ -723,12 +723,11 @@ class StoreDraftResourceRequest extends FormRequest
                     $lat = $point['lat'] ?? null;
                     $lon = $point['lon'] ?? null;
 
-                    if ($lat !== null && $lon !== null) {
-                        $polygonPoints[] = [
-                            'lat' => is_numeric($lat) ? (float) $lat : null,
-                            'lon' => is_numeric($lon) ? (float) $lon : null,
-                        ];
-                    }
+                    // Preserve incomplete rows for validation instead of silently deleting vertices.
+                    $polygonPoints[] = [
+                        'lat' => is_numeric($lat) ? (float) $lat : null,
+                        'lon' => is_numeric($lon) ? (float) $lon : null,
+                    ];
                 }
             }
 

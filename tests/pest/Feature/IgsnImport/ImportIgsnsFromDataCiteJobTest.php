@@ -14,6 +14,7 @@ use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
 use App\Services\LegacyIgsnPortalService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
@@ -71,6 +72,37 @@ afterEach(function () {
 });
 
 describe('ImportIgsnsFromDataCiteJob', function () {
+    it('publishes singular and plural merge warnings without leaking reports between IGSNs', function (int $mergedCount, string $expectedWarning): void {
+        $this->importService->shouldReceive('getTotalIgsnCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllIgsns')->once()->andReturn((function () {
+            foreach (['10.60510/MERGE001', '10.60510/MERGE002'] as $doi) {
+                yield ['id' => $doi, 'attributes' => ['doi' => $doi]];
+            }
+        })());
+        $this->transformer->shouldReceive('transform')->twice()->andReturnUsing(function (
+            array $record,
+            int $userId,
+            GeoLocationWriteReport $report,
+        ) use ($mergedCount): Resource {
+            expect($userId)->toBe($this->user->id)->and($report->removedCount)->toBe(0);
+            if ($record['id'] === '10.60510/merge001') {
+                $report->removedCount = $mergedCount;
+            }
+
+            return createMockResourceWithIgsn($record['id']);
+        });
+        $this->enrichmentService->shouldReceive('enrich')->twice()->andReturn(false);
+        $importId = Str::uuid()->toString();
+        (new ImportIgsnsFromDataCiteJob($this->user->id, $importId))->handle($this->importService, $this->transformer, $this->enrichmentService);
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['status'])->toBe('completed')->and($status['imported'])->toBe(2)->and($status['failed'])->toBe(0)
+            ->and($status['geo_location_merge_warnings'])->toBe([$expectedWarning])
+            ->and($status['warnings'])->toContain($expectedWarning);
+    })->with([
+        [1, '10.60510/merge001: 1 identical GeoLocation entry was merged.'],
+        [2, '10.60510/merge001: 2 identical GeoLocation entries were merged.'],
+    ]);
+
     it('downloads managed images after metadata transactions and reports image progress independently', function (): void {
         Storage::fake('public');
         Config::set('igsn_images.disk', 'public');

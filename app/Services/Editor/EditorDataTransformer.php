@@ -715,7 +715,7 @@ class EditorDataTransformer
             $type = $geoLocation->geo_type;
 
             if ($type === null) {
-                if ($geoLocation->polygon_points !== null && count($geoLocation->polygon_points) >= 3) {
+                if (is_array($polygonPoints) && count($polygonPoints) >= 3) {
                     $type = 'polygon';
                 } elseif ($geoLocation->west_bound_longitude !== null) {
                     $type = 'box';

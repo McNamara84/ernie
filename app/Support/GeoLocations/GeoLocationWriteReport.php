@@ -13,4 +13,10 @@ final class GeoLocationWriteReport
     {
         $this->removedCount += (int) $result->duplicate;
     }
+
+    public function mergeWarning(string $identifier): string
+    {
+        return sprintf('%s: %d identical GeoLocation %s merged.', $identifier, $this->removedCount,
+            $this->removedCount === 1 ? 'entry was' : 'entries were');
+    }
 }

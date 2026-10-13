@@ -10,8 +10,8 @@ use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\DoiSuggestionService;
 use App\Services\GeoLocations\GeoLocationWriterService;
+use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -291,13 +291,13 @@ final class LegacyTemporalCoverageBackfillService
         }
 
         if ($apply && ($updates !== [] || $creates !== [])) {
-            DB::connection($resource->getConnectionName())->transaction(function () use ($resource, $updates, $creates): void {
+            app(GeoLocationWriterService::class)->batch($resource, function (GeoLocationWriteSessionService $session) use ($updates, $creates): void {
                 foreach ($updates as $update) {
-                    app(GeoLocationWriterService::class)->write($resource, $update['values'], $update['location']);
+                    $session->write($update['values'], $update['location']);
                 }
 
                 foreach ($creates as $attributes) {
-                    app(GeoLocationWriterService::class)->write($resource, $attributes);
+                    $session->write($attributes);
                 }
             });
 
