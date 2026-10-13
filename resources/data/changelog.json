@@ -1,27 +1,27 @@
 [
     {
-        "version": "1.1.0dev",
-        "date": "2026-10-06",
+        "version": "1.1.0",
+        "date": "2026-10-13",
         "features": [
             {
                 "title": "Automatic ELMO Cache Refresh After Editor Settings Changes",
-                "description": "After explicit enablement, saving changes that affect ELMO or ELMO-MSL queues an authenticated cache refresh for the affected editor. Successful thesaurus and persistent identifier data updates also request a refresh. ERNIE-only changes and unchanged settings do not trigger it. Refreshes run in the background with bounded retries, preserving saved settings when an external service is unavailable. Each deployment configures its ELMO targets and credentials separately; local development and Stage refresh the Stage instances. Automatic refresh is disabled by default and requires explicit enablement after the matching ELMO admin endpoint is deployed. ELMO-MSL has an additional readiness switch for its own source routes. Success requires a complete set of vocabulary refresh results."
+                "description": "ELMO and ELMO-MSL can automatically pick up changes to their editor settings, vocabularies and persistent identifier data. Refreshes run in the background, and saved settings are retained if an external service is temporarily unavailable. Automatic refresh requires administrator enablement and a compatible ELMO endpoint."
             },
             {
                 "title": "Date Types Ordered by Repository Usage",
-                "description": "The Dates dropdown in the Data Editor now lists the most frequently used date types first, counting every saved date entry across ERNIE resources except Physical Objects. Equal frequencies and unused types are ordered alphabetically. New date rows select the most frequent available type, while existing selections are preserved. Usage counts are cached for seven days; changes to enabled date types take effect on the next editor load."
+                "description": "The Dates dropdown now lists the most frequently used date types first, based on saved ERNIE resources other than Physical Objects. New rows select the most frequent available type, while existing selections are preserved. Equally used and unused types are ordered alphabetically."
             },
             {
                 "title": "EPOS-MSL OAI-PMH Project Set",
-                "description": "Harvesters can select the epos-msl set to retrieve published resources with the complete free keyword EPOS or MSL, ignoring letter case and surrounding whitespace. Resources with both keywords appear once; controlled vocabulary subjects are excluded. Project membership is included in record headers and retained when resources are deleted or depublished. Subject edits update harvesting timestamps, and paginated harvests preserve the identifier order when records change. The OAI-PMH documentation includes project requests and guidance for incremental updates with regular complete identifier reconciliation."
+                "description": "OAI-PMH harvesters can use the epos-msl set to retrieve published resources tagged with the free keyword EPOS or MSL, regardless of letter case. Resources with both keywords appear once. Keyword changes are included in incremental harvests, and deleted or depublished records retain their project membership in deletion headers."
             },
             {
                 "title": "ELMO-MSL API and Independent Editor Settings",
-                "description": "ERNIE API 1.1 adds 27 API-key-protected ELMO-MSL endpoints for metadata types, languages, licenses, roles, vocabularies, persistent identifiers and availability. Editor Settings now independently control ERNIE, ELMO and ELMO-MSL, including date types, MSL keywords and resource-type license exclusions. Existing ELMO settings are copied to ELMO-MSL once during migration; subsequent changes remain independent. The ERNIE editor filters new license choices by resource type while preserving saved and imported rights. The API documentation uses OpenAPI 3.2.1 and documents both API-key header and Bearer authentication."
+                "description": "ELMO-MSL now has dedicated API endpoints for metadata types, languages, licenses, roles, vocabularies and persistent identifiers. Editor Settings independently control ERNIE, ELMO and ELMO-MSL, including date types, MSL keywords and license exclusions by resource type. ELMO-MSL initially inherits the existing ELMO settings. Saved and imported rights remain available when license choices are filtered. The API documentation explains API-key header and Bearer authentication."
             },
             {
                 "title": "Related Identifier Relation Type Correction Assistant",
-                "description": "Admins and Group Leaders can review existing DOI relation types against explicit, directed DataCite and Crossref metadata. The assistant offers conservative corrections for reversed version, part/whole, derivation and further structural roles, with before/after previews, rationale and source provenance. Single and resource batch actions reject stale previews, preserve related identifier fields, record durable acceptance and decline audits and use the existing DataCite sync and retry workflow. Linked local resources are reviewed independently. Declined cases remain suppressed until material context changes; ambiguous or unavailable evidence does not trigger a correction.",
+                "description": "Admins and Group Leaders can review suggested corrections to DOI relation types based on DataCite and Crossref metadata. Each suggestion includes a before/after preview, an explanation and its sources. Corrections can be reviewed individually or per resource and synchronized with DataCite, with a retry option if synchronization fails. Declined suggestions stay hidden until relevant metadata changes; ambiguous evidence does not produce a correction.",
                 "references": [
                     { "type": "issue", "number": 768, "url": "https://github.com/McNamara84/ernie/issues/768" },
                     { "type": "issue", "number": 790, "url": "https://github.com/McNamara84/ernie/issues/790" },
@@ -32,16 +32,16 @@
             },
             {
                 "title": "Subject Hierarchy Correction Assistant",
-                "description": "Admins and Group Leaders can review broad subject tags across all nine supported hierarchical vocabularies. The assistant shows the complete descendant tree and lets reviewers choose applicable terminal concepts, with existing assignments protected and a preview of the changes. Selecting all offered terms retains the broader concept; choosing a subset removes it. A reasoned decline preserves the current tagging and suppresses the unchanged case. Single and resource batch actions reject stale proposals, preserve trusted vocabulary metadata and use the existing DataCite synchronization and retry workflow. GEMET uses actual concept relations rather than navigation groups; missing local hierarchy data is reported for vocabulary updates.",
+                "description": "Admins and Group Leaders can refine broad subject tags across all nine supported hierarchical vocabularies. A tree view shows the available narrower terms and previews the changes. Selecting all offered terms retains the broad concept; choosing a subset replaces it. Reviews can be completed individually or per resource and synchronized with DataCite. Declined suggestions stay hidden until the tagging changes.",
                 "references": [{ "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" }]
             },
             {
                 "title": "Tombstone Landing Pages for Unavailable Resources",
-                "description": "Curators, Group Leaders and Admins can activate a tombstone in Setup Landing Page for a resource with an existing registered DOI. The public page keeps its citation, DOI, metadata and contact details, explains why the data is unavailable, and disables downloads and data requests. Resources automatically become Dead and can be filtered in the internal Resources list while disappearing from public portal discovery. The editor opens their public tombstone directly. DataCite synchronization changes the DOI to Registered and points it to the tombstone, with visible progress and retries that preserve unsaved explanations and reasons. Recovery avoids duplicate jobs while recovering interrupted work. Confirmed restoration recovers the previous landing page configuration and DOI state and permits intentional publication again after synchronization completes."
+                "description": "Curators, Group Leaders and Admins can replace the landing page of a resource with a registered DOI with a tombstone explaining why its data is unavailable. The page retains the citation, DOI, metadata and contact details while disabling downloads and data requests. The resource becomes Dead, remains available in the internal Resources list and leaves public portal search. DataCite points the DOI to the tombstone. Confirmed restoration recovers the previous landing page configuration and DOI state."
             },
             {
                 "title": "Automatic Access Conditions in Resource Metadata",
-                "description": "Digital resource landing pages now infer missing access levels from their current download configuration: active Download URLs or imported files indicate Open access, while pages without automatic downloads expose Metadata only access. Stored access levels take priority, and external landing pages remain unresolved without a reliable stored value. Access conditions appear consistently in Schema.org JSON-LD, Dublin Core and DataCite JSON/XML with COAR Access Rights. Metadata-only pages omit isAccessibleForFree instead of implying Restricted access. Access backfill reports unresolved resources for review rather than defaulting to Open access. IGSN and Physical Object access behavior is preserved.",
+                "description": "Digital resources without a stored access level now report Open access when their landing page offers active downloads or imported files, and Metadata only access when it does not. Explicitly stored access levels take priority. Access conditions appear consistently in Schema.org, Dublin Core and DataCite metadata. Resources with external landing pages require a stored access level.",
                 "references": [
                     {
                         "type": "pull_request",
@@ -78,7 +78,7 @@
             },
             {
                 "title": "Public Data Centres and Description Pages",
-                "description": "The Data Centres overview at /data-centres now presents the projects, networks and services represented in the DOI Data Portal, with reviewed English descriptions and local logos. Each hexagon opens /doi-search with the exact datacenter filter selected. The descriptions at /data-centres/description support independent accordion panels, keyboard navigation and shareable links that open and focus the relevant centre. Find → Data Centres is available on desktop and mobile, and the homepage and Find overview now link to the new pages. The catalogue follows published DOI datacenters and provides a text fallback for newly added centres."
+                "description": "The new Data Centres overview presents the projects, networks and services represented in the DOI Data Portal, with English descriptions and logos. Selecting a centre opens the portal with its datacenter filter applied. Description pages support keyboard navigation and shareable links to individual centres. The pages are accessible through the Find menu on desktop and mobile."
             },
             {
                 "title": "Metadata File Uploads While Creating Resources",
@@ -98,7 +98,7 @@
             },
             {
                 "title": "Automatic Landing Page Downloads and Configurable URL Suggestions",
-                "description": "Landing page setup now starts with Add Download URL and automatically displays downloads or a data request based on usable primary URLs and imported files. Previously hidden downloads remain protected until explicitly activated, consistently across previews, imports, metadata exports, Signposting and assistants. Admins and Group Leaders can add and reorder URL prefixes using drag and drop or keyboard controls. The configurable default https://datapub.gfz.de/download is offered first until the order is explicitly changed; saving unrelated settings preserves the installation default.",
+                "description": "Landing page setup now starts with Add Download URL and automatically offers downloads or a data request based on the available URLs and imported files. Previously hidden downloads require explicit activation. Admins and Group Leaders can configure URL prefix suggestions and reorder them using drag and drop or the keyboard.",
                 "references": [
                     {
                         "type": "issue",
@@ -109,7 +109,7 @@
             },
             {
                 "title": "Public Find Overview",
-                "description": "The public Find page is now available at /find, with Overview as the first entry in the shared Find menu on desktop and mobile. Updated Data Portal and IGSN Portal introductions describe the available search tools and link directly to the ERNIE portals. Alternating image and text sections combine new screenshots of both portals with the original Data Centres and Research Infrastructures at GFZ previews, whose texts are preserved. ResearchInfrastructure@GFZ links to the discovery portal website. Images are served locally and stack above their descriptions on smaller screens. The page uses the homepage layout with accessible headings, keyboard navigation and responsive light and dark themes. User documentation available to all roles explains the overview and its navigation."
+                "description": "The new public Find overview introduces the DOI Data Portal, IGSN Portal, Data Centres and Research Infrastructures at GFZ, with previews and direct links to their search tools. It is available as Overview in the Find menu on desktop and mobile and supports keyboard navigation and light and dark themes."
             },
             {
                 "title": "Embargo Workflow and DataCite Available Dates",
@@ -146,7 +146,7 @@
             },
             {
                 "title": "GFZ Data Services Homepage",
-                "description": "GFZ Data Services now welcomes visitors directly in ERNIE with shared portal navigation, the ELMO announcement, and metadata submission and DOI search buttons using the shared GFZ branding token, now consistently set to #012965. All 25 original science-topic images appear as compact image cards with permanent labels on smartphones and retain the familiar hexagonal grid on tablets and desktops, with accessible hover, keyboard, and touch labels. Topic rows are balanced and centered at every screen size, forming a continuous five-by-five honeycomb on tablets and desktops without detached groups or an isolated left-aligned final topic. Topic links apply curated filters consistently to search results, counts, maps, and clusters, while the existing welcome references, service links, guides, and external catalogues remain available. The user guide explains topic selection, removal, and persistence; the public API specification documents all 25 DOI-only topic values.",
+                "description": "GFZ Data Services now welcomes visitors directly in ERNIE with shared portal navigation and links to metadata submission, DOI search, guides and external catalogues. All 25 science topics are available as labeled cards on smartphones and a hexagonal grid on tablets and desktops. Selecting a topic filters the DOI portal results and map, with keyboard and touch support.",
                 "references": [
                     {
                         "type": "pull_request",
@@ -175,7 +175,7 @@
         "improvements": [
             {
                 "title": "Independent Editor Settings Cards and Bulk Controls",
-                "description": "Admins and Group Leaders can keep multiple Editor Settings cards open, including all three Contributor Roles cards. Every card heading offers the same expand-all and collapse-all icons and tooltips as the editor, showing only applicable actions. Cards start collapsed on each new visit or full reload; saving preserves open cards, and collapsing cards preserves unsaved values and running vocabulary updates. Keyboard focus returns to the card heading after a bulk action.",
+                "description": "Admins and Group Leaders can keep multiple Editor Settings cards open and expand or collapse all cards from their headings. Saving preserves open cards, and collapsing them retains unsaved values and running vocabulary updates. Bulk actions return keyboard focus to the card heading.",
                 "references": [{ "type": "issue", "number": 1409, "url": "https://github.com/McNamara84/ernie/issues/1409" }]
             },
             {
@@ -204,16 +204,16 @@
                 ]
             },
             {
-                "title": "F-UJI 4.0.1 and Published Landing Page Reassessments",
-                "description": "FAIR assessments now use a verified, digest-pinned F-UJI 4.0.1 image with the Chromium runtime required for startup. Existing DOI assessments are automatically refreshed after their ERNIE landing page is published and the DOI resolver points to it, while the previous score remains available during retries. Assessment rows distinguish provisional, pending, current, and failed results; Admins can inspect F-UJI provenance and F4 test details. Guidance no longer assumes that a failed F4 test proves missing server-side Schema.org metadata."
+                "title": "FAIR Reassessments After Landing Page Publication",
+                "description": "FAIR assessments use F-UJI 4.0.1 and automatically refresh after an ERNIE landing page is published and the DOI resolves to it. The previous score remains available while reassessment is pending or retried. Assessment rows distinguish provisional, pending, current and failed results, and Admins can inspect detailed findings."
             },
             {
                 "title": "Clear, Role-Aware Action Guidance",
-                "description": "The English user guide now explains the exact effects of Data Editor and Resources List actions, including when ERNIE saves locally, when DataCite receives or publishes metadata, and what can remain after a failure. Action-specific deep links, searchable guidance, keyboard focus handling, and visible consequences in editor and resource controls make these workflows easier to understand. The guide follows current permissions and editor settings, while DOI conflict and CSV import messages now use consistent English."
+                "description": "The English user guide explains when editor and Resources List actions save locally, send metadata to DataCite or publish a resource, including what happens if an action fails. Searchable guidance and direct links reflect the current user's permissions and editor settings. DOI conflict and CSV import messages now use consistent English."
             },
             {
                 "title": "Internal Changelog Navigation",
-                "description": "The Changelog now uses the regular signed-in sidebar and a labeled version menu with a Major, Minor, and Patch color legend. Only the newest release starts expanded, and version links keep their direct navigation. The page and its release data require an authenticated ERNIE session, regardless of email verification; guests still see the version number without a link to the private Changelog.",
+                "description": "Signed-in users can browse the Changelog through the regular sidebar and a version menu with a Major, Minor and Patch color legend. The newest release starts expanded, and direct links open individual versions. Guests continue to see the current version number.",
                 "references": [
                     {
                         "type": "issue",
@@ -224,16 +224,15 @@
             },
             {
                 "title": "Reliable Size and Format Suggestions",
-                "description": "The Size and Format Suggestions assistant now inspects the configured FTP URL and Additional Download Links directly instead of scraping legacy DOI landing pages. It records exact primary-data byte counts, reports archive containers together with their contained formats, excludes Data Description documents from size and format calculations, detects conflicting existing digital sizes, removes stale suggestions only after complete checks, and shows detailed discovery diagnostics. Accepted changes synchronize registered resources with DataCite once per review action, with a retry option if synchronization fails while preserving the locally saved metadata."
+                "description": "The Size and Format Suggestions assistant checks the resource's FTP URL and Additional Download Links. It reports primary-data sizes and archive contents, excludes Data Description documents and highlights conflicting existing sizes. Accepted changes synchronize with DataCite, with a retry option that preserves locally saved metadata if synchronization fails."
             },
             {
-                "title": "Homepage Accessibility Regression Checks",
-                "description": "The homepage now has dedicated accessibility tests for desktop, tablet, and mobile layouts in light and dark mode, including open menus, keyboard navigation, text enlargement, text spacing, and high contrast. Fixes improve skip-link focus, menu contrast and Escape handling, visible focus indicators, and topic-label readability with enlarged text. These automated checks support ongoing accessibility work and do not replace a complete manual accessibility assessment.",
-                "references": []
+                "title": "More Accessible Homepage Navigation",
+                "description": "Homepage navigation now offers more reliable skip links, clearer keyboard focus indicators, better menu contrast and consistent Escape handling. Science-topic labels remain readable with enlarged text."
             },
             {
                 "title": "English Labels on Portal Maps",
-                "description": "The Data and IGSN portal maps now use a shared, keyless OpenFreeMap vector basemap that prefers English labels for countries, regions, cities, roads, water features, terrain, and points of interest while retaining local names wherever no English label is available. Existing resource clusters, shapes, popups, and spatial filters remain on the Leaflet map, and background-service failures are reported separately from ERNIE map-data errors.",
+                "description": "The DOI Data Portal and IGSN Portal maps now prefer English place labels, retaining local names where no English label is available. Resource clusters, popups and spatial filters remain available, and map-background failures are reported separately from resource-data errors.",
                 "references": [
                     {
                         "type": "issue",
@@ -258,16 +257,16 @@
             },
             {
                 "title": "Reliable DataCite JSON-LD Exports and Imports",
-                "description": "DataCite JSON-LD downloads now use a public, versioned JSON-LD 1.1 context instead of the unavailable staging context. The public context endpoint emits no session or CSRF cookies. Compatible context mirrors can be configured in all Docker environments. Creators and polygon vertices retain their order, while metadata values, language and identifier schemes survive conversion, including literal zero relation information on related identifiers. Historical ERNIE exports remain importable; unsupported JSON-LD profiles, explicit null contexts, invalid DOI ids, scalar identifiers, missing or null metadata values and conflicting DOI identifiers fail before a draft is created. Related-item relation information is preserved through JSON, XML and JSON-LD imports, storage and exports, and can be inspected, edited and cleared in the Related Item Manager. Schema.org citations now respect the direction of DataCite relationships. Automated offline checks validate actual exports for all 34 resource types."
+                "description": "DataCite JSON-LD downloads now use a publicly available context. Conversion preserves creator and polygon order, metadata values, languages and identifier schemes. Historical ERNIE exports remain importable, and invalid or unsupported files are rejected before creating a draft. Related-item relation information survives JSON, XML and JSON-LD imports and exports and can be edited in the Related Item Manager. Schema.org citations now follow the direction of DataCite relationships."
             },
             {
                 "title": "Stable OAI-PMH Identities During DOI Changes",
-                "description": "Changing or removing a resource DOI invalidates all tokens for snapshots containing that resource, so harvesters restart instead of receiving a different identifier on retry. Previous published identifiers remain available as deleted headers with their original metadata sets. Unrelated harvests remain usable, and failed resource transactions restore tokens and deletion records.",
+                "description": "When a resource DOI changes or is removed, affected OAI-PMH harvests request a restart so retries cannot silently return a different identifier. Previously published identifiers remain available as deletion headers with their original metadata sets. Unrelated harvests continue normally.",
                 "references": [{ "type": "pull_request", "number": 1398, "url": "https://github.com/McNamara84/ernie/pull/1398" }]
             },
             {
-                "title": "Swagger UI in Test Environments",
-                "description": "Fixed empty interactive API documentation on test servers by loading Swagger UI assets consistently in every application environment. Endpoint copy buttons now use the project's own icon instead of an unavailable Swagger component, preventing endpoint rendering failures in built assets."
+                "title": "Reliable Interactive API Documentation",
+                "description": "Interactive API documentation now loads consistently, and endpoint copy buttons no longer prevent endpoint details from appearing."
             },
             {
                 "title": "Update Assistance Counts and Filters After Relation Corrections",
@@ -300,26 +299,15 @@
             },
             {
                 "title": "Preserve Vocabulary Caches When Updates Fail",
-                "description": "Failed vocabulary updates restore the previous editor data and subject hierarchy together, keeping existing hierarchy checks and corrections usable. Incomplete files from a failed initial update are removed. Recovery backups remain available if restoration also fails.",
+                "description": "If a vocabulary update fails, the editor retains the previous vocabulary and subject hierarchy so existing keyword choices, hierarchy checks and corrections remain usable.",
                 "references": [
                     { "type": "issue", "number": 1050, "url": "https://github.com/McNamara84/ernie/issues/1050" },
                     { "type": "pull_request", "number": 1387, "url": "https://github.com/McNamara84/ernie/pull/1387" }
                 ]
             },
             {
-                "title": "Volta Support for Desktop Git Commit Checks",
-                "description": "On Linux and macOS, the pre-commit hook now finds an existing Volta installation when a desktop Git client's PATH omits Node or npm. An already usable Node/npm installation keeps priority, Windows continues to use npm.cmd, and missing tools produce an actionable error instead of silently skipping commit checks.",
-                "references": [
-                    {
-                        "type": "pull_request",
-                        "number": 1383,
-                        "url": "https://github.com/McNamara84/ernie/pull/1383"
-                    }
-                ]
-            },
-            {
                 "title": "Validated ROR Funder Suggestions",
-                "description": "Funding autocomplete excludes catalog records with missing or malformed ROR identifiers, including fallback data. Selecting a valid record by name or alias stores its canonical ROR URL. Malformed identifier types in cached records no longer interrupt ROR lookup.",
+                "description": "Funding autocomplete shows only organizations with valid ROR identifiers. Selecting an organization by name or alias stores its canonical ROR URL, and malformed directory entries no longer interrupt lookup.",
                 "references": [
                     {
                         "type": "issue",
@@ -357,7 +345,7 @@
             },
             {
                 "title": "Reliable Maps for Science Topic Filters",
-                "description": "Portal maps now load correctly with science-topic and thesaurus filters on SQLite installations with a bounded SQL parser stack. Legacy breadcrumb keywords, map extents, and cluster members retain the same filtering rules as search results.",
+                "description": "Portal maps now load reliably with science-topic and thesaurus filters. Map extents and cluster members follow the same filters as the search results, including older breadcrumb keywords.",
                 "references": []
             }
         ]
