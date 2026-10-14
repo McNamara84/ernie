@@ -3547,6 +3547,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     DataCite.
                                 </p>
                                 <p>
+                                    The import result reports identical location entries merged from DataCite metadata and SUMARIO coverage enrichment
+                                    together. Entries with different geometry, descriptions, time coverage, elevation, or location details remain
+                                    separate. Review the retained locations before publishing.
+                                </p>
+                                <p>
                                     The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL
                                     such as <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database
                                     before the import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the

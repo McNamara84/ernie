@@ -366,7 +366,7 @@ final class LandingPageResourceTransformer
             ->all();
 
         $resourceData['geo_locations'] = $resource->geoLocations
-            ->map(static fn ($geo): array => [
+            ->map(fn ($geo): array => [
                 'id' => $geo->id,
                 'place' => $geo->place,
                 'geo_type' => $geo->geo_type,
@@ -376,7 +376,7 @@ final class LandingPageResourceTransformer
                 'east_bound_longitude' => $geo->east_bound_longitude !== null ? (float) $geo->east_bound_longitude : null,
                 'south_bound_latitude' => $geo->south_bound_latitude !== null ? (float) $geo->south_bound_latitude : null,
                 'north_bound_latitude' => $geo->north_bound_latitude !== null ? (float) $geo->north_bound_latitude : null,
-                'polygon_points' => $geo->polygon_points,
+                'polygon_points' => $this->normalizeGeoLocationPath($geo->polygon_points),
                 'elevation' => $geo->elevation !== null ? (float) $geo->elevation : null,
                 'elevation_unit' => $geo->elevation_unit,
                 'location_type' => $geo->location_type,
@@ -900,6 +900,30 @@ final class LandingPageResourceTransformer
                     'end_unit' => is_string($measurement->end_unit) ? $measurement->end_unit : null,
                 ])
             ->all());
+    }
+
+    private function normalizeGeoLocationPath(mixed $points): mixed
+    {
+        if (! is_array($points)) {
+            return $points;
+        }
+
+        return array_map(static function (mixed $point): mixed {
+            if (! is_array($point)) {
+                return $point;
+            }
+            foreach (['latitude' => 90, 'longitude' => 180] as $field => $limit) {
+                $value = $point[$field] ?? null;
+                if (is_string($value) && is_numeric($value)) {
+                    $coordinate = (float) $value;
+                    if (is_finite($coordinate) && abs($coordinate) <= $limit) {
+                        $point[$field] = $coordinate;
+                    }
+                }
+            }
+
+            return $point;
+        }, $points);
     }
 
     private function sanitizeLandingPageHtml(?string $html, DescriptionFormattingService $descriptionFormattingService): ?string

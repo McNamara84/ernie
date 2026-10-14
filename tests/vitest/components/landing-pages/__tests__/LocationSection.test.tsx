@@ -105,6 +105,25 @@ describe('historical location failures', () => {
         expect(screen.getAllByTestId('marker')).toHaveLength(1);
         expect(screen.getByTestId('invalid-geolocation-message')).toBeInTheDocument();
     });
+    it.each(['polygon', 'line'])('omits a malformed %s while drawing a valid sibling location', (geo_type) => {
+        const invalidPath = {
+            ...point,
+            id: 2,
+            geo_type,
+            point_latitude: null,
+            point_longitude: null,
+            polygon_points: [
+                { latitude: '52,38', longitude: 13.06 },
+                { latitude: 53, longitude: 13 },
+                { latitude: 53, longitude: 14 },
+            ],
+        } as unknown as typeof point;
+        render(<LocationSection geoLocations={[point, invalidPath]} />);
+        expect(screen.getAllByTestId('marker')).toHaveLength(1);
+        expect(screen.queryByTestId('polygon')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('polyline')).not.toBeInTheDocument();
+        expect(screen.getByTestId('invalid-geolocation-message')).toBeInTheDocument();
+    });
     it('protects sample metadata formatting from missing coordinates', () => {
         render(<LocationSection geoLocations={[{ ...point, point_latitude: undefined } as unknown as typeof point]} samplingLocation />);
         expect(screen.getByTestId('invalid-geolocation-message')).toBeInTheDocument();

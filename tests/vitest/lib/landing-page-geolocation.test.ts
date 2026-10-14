@@ -54,6 +54,20 @@ describe('landing page geometry validation', () => {
         expect(hasLine({ ...empty, polygon_points: points })).toBe(false);
         expect(hasInvalidGeometry({ ...empty, polygon_points: [] })).toBe(true);
     });
+    it.each(['', '   ', false, null, 'bad', 'NaN', '1e309', 91, Infinity, NaN, []])(
+        'rejects a malformed coordinate in an otherwise complete path: %j',
+        (latitude) => {
+            const points = [
+                { latitude, longitude: 13.06 },
+                { latitude: 53, longitude: 13 },
+                { latitude: 53, longitude: 14 },
+            ];
+            const geo = { ...empty, geo_type: 'polygon', polygon_points: points } as unknown as GeoLocation;
+            expect(hasPolygon(geo)).toBe(false);
+            expect(hasLine({ ...geo, geo_type: 'line' })).toBe(false);
+            expect(hasInvalidGeometry(geo)).toBe(true);
+        },
+    );
     it('retains a valid point while identifying a malformed sibling geometry', () => {
         const geo = { ...empty, point_latitude: 52, point_longitude: 13, polygon_points: [] };
         expect(hasPoint(geo)).toBe(true);

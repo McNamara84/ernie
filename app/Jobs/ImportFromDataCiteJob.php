@@ -1136,16 +1136,10 @@ class ImportFromDataCiteJob implements ShouldQueue
             $importedResource = $result['resource'];
 
             $geoReport = $result['geoReport'];
-            if ($geoReport->removedCount > 0) {
-                $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
-                $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
-                $mergeWarnings[] = $geoReport->mergeWarning($doi);
-                $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
-            }
-
             $this->enrichImportedResourceFromLegacyDatabases(
                 $importedResource,
                 $doi,
+                $geoReport,
                 $portalDatacenterNames,
             );
 
@@ -1179,6 +1173,15 @@ class ImportFromDataCiteJob implements ShouldQueue
             $activities = app(UserActivityService::class);
             $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
                 $activities->subject($importedResource), operationId: $this->importId);
+
+            if ($geoReport->removedCount > 0) {
+                $importedResource->getConnection()->afterCommit(function () use ($geoReport, $doi): void {
+                    $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
+                    $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+                    $mergeWarnings[] = $geoReport->mergeWarning($doi);
+                    $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
+                });
+            }
 
             Log::debug('Imported DOI', ['doi' => $doi]);
 
@@ -1581,6 +1584,7 @@ class ImportFromDataCiteJob implements ShouldQueue
     private function enrichImportedResourceFromLegacyDatabases(
         Resource $resource,
         string $doi,
+        GeoLocationWriteReport $geoReport,
         ?array $portalDatacenterNames = null,
     ): void {
         if (! $resource->exists) {
@@ -1590,7 +1594,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         app(SumarioPmdContactEnrichmentService::class)->enrich($resource, $doi);
 
         try {
-            app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $doi);
+            app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $doi, $geoReport);
         } catch (\Throwable $exception) {
             Log::warning('Unexpected SUMARIO coverage enrichment failure; continuing DataCite import.', [
                 'doi' => $doi,
