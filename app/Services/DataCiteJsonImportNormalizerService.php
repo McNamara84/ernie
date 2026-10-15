@@ -124,6 +124,46 @@ final class DataCiteJsonImportNormalizerService
     }
 
     /**
+     * The schema requires unique GeoLocations; storage merges them and reports the
+     * original incoming copies. Validate one representative without discarding
+     * any data from the actual import or relaxing the remaining schema rules.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public function forValidation(array $attributes): array
+    {
+        $locations = $attributes['geoLocations'] ?? null;
+        if (! is_array($locations) || ! array_is_list($locations)) {
+            return $attributes;
+        }
+        $seen = [];
+        $unique = [];
+        foreach ($locations as $location) {
+            $key = json_encode($this->sortedObjectKeys($location), JSON_THROW_ON_ERROR);
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $location;
+            }
+        }
+        $attributes['geoLocations'] = $unique;
+
+        return $attributes;
+    }
+
+    private function sortedObjectKeys(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return array_map($this->sortedObjectKeys(...), $value);
+    }
+
+    /**
      * @param  array<int|string, mixed>  $value
      * @return array<int|string, mixed>
      */

@@ -3,16 +3,18 @@
  */
 import { render, screen, within } from '@tests/vitest/utils/render';
 import L from 'leaflet';
+import { MapContainer } from 'react-leaflet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fitBoundsMock = vi.hoisted(() => vi.fn());
 
 // Mock react-leaflet components since they require browser APIs
 vi.mock('react-leaflet', () => ({
-    MapContainer: vi.fn(({ children, maxBounds, maxBoundsViscosity, worldCopyJump }) => (
+    MapContainer: vi.fn(({ children, boundsOptions, maxBounds, maxBoundsViscosity, worldCopyJump }) => (
         <div
             data-testid="leaflet-map"
             data-max-bounds={JSON.stringify(maxBounds)}
+            data-bounds-options={JSON.stringify(boundsOptions)}
             data-max-bounds-viscosity={String(maxBoundsViscosity)}
             data-world-copy-jump={String(worldCopyJump)}
         >
@@ -80,6 +82,71 @@ vi.mock('leaflet/dist/images/marker-icon.png', () => ({ default: 'marker-icon.pn
 vi.mock('leaflet/dist/images/marker-shadow.png', () => ({ default: 'marker-shadow.png' }));
 
 import { LocationSection } from '@/pages/LandingPages/components/LocationSection';
+
+describe('historical location failures', () => {
+    const point = {
+        id: 1,
+        place: 'GFZ',
+        geo_type: 'point',
+        point_latitude: 52.38,
+        point_longitude: 13.06,
+        west_bound_longitude: null,
+        east_bound_longitude: null,
+        south_bound_latitude: null,
+        north_bound_latitude: null,
+        polygon_points: null,
+    };
+    it('renders historical repeated coordinates', () => {
+        render(<LocationSection geoLocations={[point, { ...point, id: 2 }, { ...point, id: 3 }]} />);
+        expect(screen.getAllByTestId('marker')).toHaveLength(3);
+    });
+    it('renders valid geometries while identifying invalid stored coordinates', () => {
+        render(<LocationSection geoLocations={[point, { ...point, id: 2, point_latitude: NaN }]} />);
+        expect(screen.getAllByTestId('marker')).toHaveLength(1);
+        expect(screen.getByTestId('invalid-geolocation-message')).toBeInTheDocument();
+    });
+    it.each(['polygon', 'line'])('omits a malformed %s while drawing a valid sibling location', (geo_type) => {
+        const invalidPath = {
+            ...point,
+            id: 2,
+            geo_type,
+            point_latitude: null,
+            point_longitude: null,
+            polygon_points: [
+                { latitude: '52,38', longitude: 13.06 },
+                { latitude: 53, longitude: 13 },
+                { latitude: 53, longitude: 14 },
+            ],
+        } as unknown as typeof point;
+        render(<LocationSection geoLocations={[point, invalidPath]} />);
+        expect(screen.getAllByTestId('marker')).toHaveLength(1);
+        expect(screen.queryByTestId('polygon')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('polyline')).not.toBeInTheDocument();
+        expect(screen.getByTestId('invalid-geolocation-message')).toBeInTheDocument();
+    });
+    it('protects sample metadata formatting from missing coordinates', () => {
+        render(<LocationSection geoLocations={[{ ...point, point_latitude: undefined } as unknown as typeof point]} samplingLocation />);
+        expect(screen.getByTestId('invalid-geolocation-message')).toBeInTheDocument();
+    });
+    it('contains unexpected map mount failures and recovers when locations change', () => {
+        const original = vi.mocked(MapContainer).getMockImplementation()!;
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.mocked(MapContainer).mockImplementation(() => {
+            throw new Error('map failed');
+        });
+        try {
+            const { rerender } = render(<LocationSection geoLocations={[point]} />);
+            expect(screen.getByRole('status')).toHaveTextContent('The location map is currently unavailable.');
+            expect(screen.getByText('Location')).toBeInTheDocument();
+            vi.mocked(MapContainer).mockImplementation(original);
+            rerender(<LocationSection geoLocations={[{ ...point, point_latitude: 53 }]} />);
+            expect(screen.getByTestId('leaflet-map')).toBeInTheDocument();
+        } finally {
+            vi.mocked(MapContainer).mockImplementation(original);
+            consoleError.mockRestore();
+        }
+    });
+});
 
 describe('LocationSection', () => {
     beforeEach(() => {
@@ -182,6 +249,7 @@ describe('LocationSection', () => {
 
             expect(screen.getByTestId('map-container')).toHaveClass('aspect-square');
             expect(screen.getByTestId('leaflet-map').dataset.maxBounds).toBe('[[-90,-180],[90,180]]');
+            expect(JSON.parse(screen.getByTestId('leaflet-map').dataset.boundsOptions || '{}')).toEqual({ padding: [20, 20], maxZoom: 2 });
             expect(screen.getByTestId('leaflet-map').dataset.maxBoundsViscosity).toBe('1');
             expect(screen.getByTestId('leaflet-map').dataset.worldCopyJump).toBe('false');
             expect(screen.getByTestId('tile-layer').dataset.noWrap).toBe('true');
@@ -548,7 +616,7 @@ describe('LocationSection', () => {
         });
 
         it('should not render Polygon with less than 3 points', () => {
-            const { container } = render(
+            render(
                 <LocationSection
                     geoLocations={[
                         {
@@ -570,8 +638,8 @@ describe('LocationSection', () => {
                 />,
             );
 
-            // Should not render since polygon has < 3 points
-            expect(container.firstChild).toBeNull();
+            expect(screen.queryByTestId('polygon')).not.toBeInTheDocument();
+            expect(screen.getByTestId('invalid-geolocation-message')).toBeInTheDocument();
         });
     });
 

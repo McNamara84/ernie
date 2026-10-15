@@ -6,6 +6,7 @@ use App\Models\GeoLocation;
 use App\Models\Resource;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\SumarioPmdCoverageEnrichmentService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -70,6 +71,52 @@ describe('SumarioPmdCoverageEnrichmentService', function () {
     afterEach(function () {
         DB::disconnect('metaworks');
         DB::purge('metaworks');
+    });
+
+    it('includes committed duplicate legacy lines in the operation report while retaining different descriptions', function (int $copies) {
+        issue1179CreateLegacyResource('10.5880/duplicate.lines');
+        foreach (range(1, $copies) as $id) {
+            issue1179CreateLegacyCoverage(['id' => $id]);
+        }
+        issue1179CreateLegacyCoverage(['id' => $copies + 1, 'description' => 'Different campaign']);
+        $resource = Resource::factory()->create(['doi' => '10.5880/duplicate.lines']);
+        $report = new GeoLocationWriteReport;
+        $report->removedCount = 2;
+
+        expect(app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $resource->doi, $report))->toBeTrue()
+            ->and($report->removedCount)->toBe(2 + $copies - 1)
+            ->and($resource->geoLocations()->pluck('place')->all())->toBe(['DEKORP KTB8501 seismic profile', 'Different campaign']);
+
+        $nextReport = new GeoLocationWriteReport;
+        expect(app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, '10.5880/missing', $nextReport))->toBeFalse()
+            ->and($nextReport->removedCount)->toBe(0);
+    })->with([2, 3]);
+
+    it('discards duplicate legacy line counts when enrichment rolls back', function () {
+        issue1179CreateLegacyResource('10.5880/rollback.lines');
+        issue1179CreateLegacyCoverage();
+        issue1179CreateLegacyCoverage(['id' => 2]);
+        issue1179CreateLegacyCoverage(['id' => 3, 'description' => 'Failing campaign']);
+        $resource = Resource::factory()->create(['doi' => '10.5880/rollback.lines']);
+        $old = GeoLocation::factory()->withPoint(13, 52)->create(['resource_id' => $resource->id]);
+        $report = new GeoLocationWriteReport;
+        $report->removedCount = 2;
+        Log::spy();
+        $dispatcher = GeoLocation::getEventDispatcher();
+        GeoLocation::setEventDispatcher(clone $dispatcher);
+        GeoLocation::creating(function (GeoLocation $location): void {
+            if ($location->place === 'Failing campaign') {
+                throw new RuntimeException('Failure after the duplicate write.');
+            }
+        });
+        try {
+            expect(app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $resource->doi, $report))->toBeFalse()
+                ->and($report->removedCount)->toBe(2)
+                ->and($resource->geoLocations()->pluck('id')->all())->toBe([$old->id]);
+            Log::shouldHaveReceived('info')->once()->with('Identical incoming GeoLocation was merged.', Mockery::type('array'));
+        } finally {
+            GeoLocation::setEventDispatcher($dispatcher);
+        }
     });
 
     it('imports the issue profile as an editor-compatible line and replaces only its matching box', function () {

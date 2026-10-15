@@ -6,12 +6,16 @@ export type CoverageType = 'point' | 'box' | 'polygon' | 'line';
 export type TemporalCoverageMode = 'instant' | 'interval';
 
 export interface PolygonPoint {
-    lat: number;
-    lon: number;
+    lat: number | null;
+    lon: number | null;
 }
 
 export interface SpatialTemporalCoverageEntry {
     id: string;
+    /** Save identifier, independent of the stable editor row key. */
+    storageId?: string;
+    /** Keep hidden metadata when editing a row merged by an in-flight save. */
+    copyFromId?: string;
 
     // Coverage Type
     type: CoverageType; // Required, determines which spatial data is used

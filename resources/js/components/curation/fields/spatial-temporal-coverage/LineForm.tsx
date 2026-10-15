@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import CoordinateCsvImport from './coordinate-csv-import';
+import { isValidPolygonPoint } from './coordinate-points';
 import type { PolygonPoint, SpatialTemporalCoverageEntry } from './types';
 
 interface LineFormProps {
@@ -41,15 +42,16 @@ function LineMapContent({ points, onPointsChange }: { points: PolygonPoint[]; on
             markersRef.current.forEach((marker) => marker.setMap(null));
             markersRef.current = [];
 
-            if (linePoints.length === 0) return;
+            const validPoints = linePoints.flatMap((point, index) => (isValidPolygonPoint(point) ? [{ point, index }] : []));
+            if (validPoints.length === 0) return;
 
             // Create polyline (open path, not closed)
             const polyline = new google.maps.Polyline({
-                path: linePoints.map((p) => ({ lat: p.lat, lng: p.lon })),
+                path: validPoints.map(({ point }) => ({ lat: point.lat, lng: point.lon })),
                 strokeColor: '#059669',
                 strokeOpacity: 0.9,
                 strokeWeight: 3,
-                editable: true,
+                editable: validPoints.length === linePoints.length,
                 draggable: false,
             });
 
@@ -57,7 +59,7 @@ function LineMapContent({ points, onPointsChange }: { points: PolygonPoint[]; on
             polylineRef.current = polyline;
 
             // Add markers for each vertex
-            linePoints.forEach((point, index) => {
+            validPoints.forEach(({ point, index }) => {
                 const marker = new google.maps.Marker({
                     position: { lat: point.lat, lng: point.lon },
                     map: mapInstance,
@@ -97,13 +99,16 @@ function LineMapContent({ points, onPointsChange }: { points: PolygonPoint[]; on
             // Handle polyline path changes (vertex dragging)
             google.maps.event.addListener(polyline.getPath(), 'set_at', () => {
                 const path = polyline.getPath();
-                const newPoints: PolygonPoint[] = [];
+                const allValid = validPoints.length === linePoints.length;
+                const newPoints: PolygonPoint[] = allValid ? [] : [...linePoints];
                 for (let i = 0; i < path.getLength(); i++) {
+                    const sourceIndex = allValid ? i : validPoints[i]?.index;
+                    if (sourceIndex === undefined) continue;
                     const point = path.getAt(i);
-                    newPoints.push({
+                    newPoints[sourceIndex] = {
                         lat: Number(point.lat().toFixed(6)),
                         lon: Number(point.lng().toFixed(6)),
-                    });
+                    };
                 }
                 onPointsChange(newPoints);
             });
@@ -111,7 +116,7 @@ function LineMapContent({ points, onPointsChange }: { points: PolygonPoint[]; on
             // Fit bounds if we have points
             if (linePoints.length > 0) {
                 const bounds = new google.maps.LatLngBounds();
-                linePoints.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lon }));
+                validPoints.forEach(({ point }) => bounds.extend({ lat: point.lat, lng: point.lon }));
                 mapInstance.fitBounds(bounds);
             }
         },
@@ -204,8 +209,8 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
     );
 
     const handlePointChange = (index: number, field: 'lat' | 'lon', value: string) => {
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) return;
+        const numValue = value.trim() === '' ? null : parseFloat(value);
+        if (numValue !== null && !Number.isFinite(numValue)) return;
 
         const newPoints = [...points];
         newPoints[index] = { ...newPoints[index], [field]: numValue };
@@ -298,7 +303,7 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
                                                 <Input
                                                     type="number"
                                                     step="0.000001"
-                                                    value={point.lat}
+                                                    value={point.lat ?? ''}
                                                     onChange={(e) => handlePointChange(idx, 'lat', e.target.value)}
                                                     className="h-8"
                                                 />
@@ -307,7 +312,7 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
                                                 <Input
                                                     type="number"
                                                     step="0.000001"
-                                                    value={point.lon}
+                                                    value={point.lon ?? ''}
                                                     onChange={(e) => handlePointChange(idx, 'lon', e.target.value)}
                                                     className="h-8"
                                                 />

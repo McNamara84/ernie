@@ -53,6 +53,7 @@ export interface UploadErrorResponse {
  * New responses include a persisted draft resource ID; sessionKey remains as fallback.
  */
 export interface XmlUploadSuccessResponse {
+    deduplicatedGeoLocations?: number;
     success?: true;
     /** Persisted draft resource ID for editor navigation */
     resourceId?: number | string | null;
@@ -80,6 +81,7 @@ export interface CsvUploadSuccessResponse {
  * Same structure as XML upload: persisted draft ID plus session fallback.
  */
 export interface JsonUploadSuccessResponse {
+    deduplicatedGeoLocations?: number;
     success?: true;
     /** Persisted draft resource ID for editor navigation */
     resourceId?: number | string | null;

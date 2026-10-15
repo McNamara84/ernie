@@ -16,6 +16,7 @@ use App\Services\DoiSuggestionService;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\ResourceStorageService;
 use App\Services\UserActivityService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Database\QueryException;
@@ -31,7 +32,7 @@ final class UploadedResourceDraftService
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function storeFromPayload(array $payload, string $filename, ?int $userId): Resource
+    public function storeFromPayload(array $payload, string $filename, ?int $userId, ?GeoLocationWriteReport $geoReport = null): Resource
     {
         $storagePayload = $this->buildStoragePayload($payload, $filename);
         $this->ensureControlledVocabularyRows($storagePayload);
@@ -48,7 +49,10 @@ final class UploadedResourceDraftService
         }
 
         try {
-            [$resource] = $this->resourceStorageService->store($storagePayload, $userId);
+            [$resource, , $changes] = $this->resourceStorageService->store($storagePayload, $userId);
+            if ($geoReport !== null) {
+                $geoReport->removedCount += $changes['removedCount'];
+            }
         } catch (QueryException $e) {
             $this->throwDuplicateDoiExceptionIfUniqueDoiViolation($e, $doi);
 

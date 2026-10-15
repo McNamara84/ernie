@@ -8685,6 +8685,57 @@ describe('DataCiteForm', () => {
             expect(secondPayload.resourceId).toBe(42);
         });
 
+        it('keeps the retained GeoLocation ID on the next draft save after merging a new copy', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const entry = {
+                id: 'new-first',
+                type: 'point' as const,
+                latMin: '52',
+                lonMin: '13',
+                latMax: '',
+                lonMax: '',
+                startDate: '',
+                endDate: '',
+                startTime: '',
+                endTime: '',
+                timezone: '',
+                description: 'GFZ',
+            };
+            const mockPost = vi.mocked(axios.post);
+            mockPost.mockResolvedValue({
+                status: 200,
+                data: {
+                    resource: { id: 99 },
+                    geoLocationChanges: {
+                        removedCount: 1,
+                        idMap: { 'new-first': '21', 'new-copy': '21' },
+                        removedIds: ['new-copy'],
+                    },
+                },
+            });
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Location draft', titleType: 'main-title' }],
+                initialSpatialTemporalCoverages: [entry, { ...entry, id: 'new-copy' }],
+            });
+            const spatialTrigger = screen.getByRole('button', { name: /^Spatial and Temporal Coverage/ });
+            if (spatialTrigger.getAttribute('aria-expanded') !== 'true') await user.click(spatialTrigger);
+            await user.click(screen.getByText('Coverage Entry #1'));
+            const descriptionField = document.getElementById('description-new-first');
+            expect(descriptionField).not.toBeNull();
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(toast.info).toHaveBeenCalledWith('1 identical location entry was merged.'));
+            expect(document.getElementById('description-new-first')).toBe(descriptionField);
+            mockPost.mockClear();
+            mockPost.mockResolvedValue({ status: 200, data: { resource: { id: 99 } } });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockPost).toHaveBeenCalled());
+            expect(mockPost.mock.calls[0][1]).toEqual(
+                expect.objectContaining({
+                    spatialTemporalCoverages: [expect.objectContaining({ id: '21', description: 'GFZ' })],
+                }),
+            );
+        });
+
         it('uses the saved resource ID on subsequent draft saves without leaving the editor', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 

@@ -24,13 +24,13 @@ final readonly class EditorResourceSaveService
 
     /**
      * @param  array<string, mixed>  $data
-     * @return array{0: Resource, 1: bool}
+     * @return array{0: Resource, 1: bool, 2: array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}}
      */
     public function saveValidated(array $data, ?User $user): array
     {
         return DB::transaction(function () use ($data, $user): array {
             $before = $user === null ? [] : $this->activitySnapshot($data);
-            [$resource, $isUpdate] = $this->storageService->store(
+            [$resource, $isUpdate, $changes] = $this->storageService->store(
                 $data,
                 $user?->id,
                 doiChangeActor: $user,
@@ -43,13 +43,13 @@ final readonly class EditorResourceSaveService
 
             $this->logSave($resource, $user, $before, $isUpdate);
 
-            return [$this->loadStatusRelations($resource), $isUpdate];
+            return [$this->loadStatusRelations($resource), $isUpdate, $changes];
         });
     }
 
     /**
      * @param  array<string, mixed>  $data
-     * @return array{0: Resource, 1: bool}
+     * @return array{0: Resource, 1: bool, 2: array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}}
      */
     public function saveRelaxed(array $data, ?User $user, EditorDraftSaveIntent $intent): array
     {
@@ -60,7 +60,7 @@ final readonly class EditorResourceSaveService
 
             $autosave = $intent === EditorDraftSaveIntent::AUTOSAVE;
             $before = $user === null ? [] : $this->activitySnapshot($data, $autosave);
-            [$resource, $isUpdate] = $this->storageService->store(
+            [$resource, $isUpdate, $changes] = $this->storageService->store(
                 $data,
                 $user?->id,
                 doiChangeActor: $user,
@@ -74,7 +74,7 @@ final readonly class EditorResourceSaveService
 
             $this->logSave($resource, $user, $before, $isUpdate, $autosave ? $data : null);
 
-            return [$this->loadStatusRelations($resource), $isUpdate];
+            return [$this->loadStatusRelations($resource), $isUpdate, $changes];
         });
     }
 

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Igsn;
 
-use App\Models\GeoLocation;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\LegacyIgsnPortalService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Database\Eloquent\Builder;
@@ -187,13 +187,13 @@ final class IgsnDescriptionBackfillService
 
             if ($localityChanged) {
                 if ($location === null) {
-                    GeoLocation::create([
+                    app(GeoLocationWriterService::class)->write($resource, [
                         'resource_id' => $resource->id,
                         'locality_description' => $incomingLocality,
                     ]);
                 } else {
                     $location->locality_description = $incomingLocality;
-                    $location->save();
+                    app(GeoLocationWriterService::class)->save($resource, $location);
                 }
             }
         });

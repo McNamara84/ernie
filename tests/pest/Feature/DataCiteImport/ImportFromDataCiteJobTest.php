@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
+use App\Models\GeoLocation;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
@@ -28,6 +29,7 @@ use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use App\Services\SumarioPmdCoverageEnrichmentService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Database\Seeders\ContributorTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
 use Database\Seeders\FunderIdentifierTypeSeeder;
@@ -233,6 +235,97 @@ describe('ImportFromDataCiteJob', function () {
             && $context['activity']['operation_id'] === $importId)->twice();
         Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
     });
+
+    it('publishes combined DataCite and SUMARIO coverage merge warnings after enrichment', function (string $mode, bool $dataCiteDuplicate) {
+        $this->seed([ResourceTypeSeeder::class, TitleTypeSeeder::class, LanguageSeeder::class, PublisherSeeder::class]);
+        $doi = '10.5880/review.sumario-geos';
+        $point = ['geoLocationPlace' => 'GFZ', 'geoLocationPoint' => ['pointLatitude' => 52.38, 'pointLongitude' => 13.06]];
+        $record = ['id' => $doi, 'attributes' => ['doi' => $doi, 'titles' => [['title' => 'Combined coverage report']],
+            'publicationYear' => 2026, 'types' => ['resourceTypeGeneral' => 'Dataset'],
+            'geoLocations' => $dataCiteDuplicate ? [$point, $point] : [$point]]];
+        $legacyConfig = config('database.connections.metaworks');
+        Config::set('database.connections.metaworks', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
+        DB::purge('metaworks');
+        try {
+            Schema::connection('metaworks')->create('resource', function (Blueprint $table): void {
+                $table->integer('id');
+                $table->string('identifier');
+            });
+            Schema::connection('metaworks')->create('coverage', function (Blueprint $table): void {
+                $table->integer('id');
+                $table->integer('resource_id');
+                foreach (['minlat', 'maxlat', 'minlon', 'maxlon'] as $bound) {
+                    $table->float($bound)->nullable();
+                }
+                $table->text('description');
+                $table->text('wkt');
+            });
+            DB::connection('metaworks')->table('resource')->insert(['id' => 1, 'identifier' => $doi]);
+            foreach (range(1, 3) as $id) {
+                DB::connection('metaworks')->table('coverage')->insert(['id' => $id, 'resource_id' => 1,
+                    'description' => $id === 3 ? 'Different campaign' : 'Legacy profile', 'wkt' => '13.06 52.38 13.08 52.4']);
+            }
+            $this->app->instance(SumarioPmdCoverageEnrichmentService::class, $this->app->build(SumarioPmdCoverageEnrichmentService::class));
+            if ($mode === 'single') {
+                $this->importService->shouldReceive('fetchSingleDoi')->once()->with($doi)->andReturn($record);
+            } else {
+                $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(1);
+                $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($record) {
+                    yield $record;
+                })());
+            }
+            $importId = Str::uuid()->toString();
+            (new ImportFromDataCiteJob($this->user->id, $importId, $mode === 'single' ? $doi : null))
+                ->handle($this->importService, new DataCiteToResourceTransformer, $this->metaworksService);
+
+            $status = Cache::get("datacite_import:{$importId}");
+            $count = $dataCiteDuplicate ? 2 : 1;
+            $warning = "{$doi}: {$count} identical GeoLocation ".($count === 1 ? 'entry was' : 'entries were').' merged.';
+            expect($status['status'])->toBe('completed')->and($status['imported'])->toBe(1)->and($status['failed'])->toBe(0)
+                ->and($status['geo_location_merge_warnings'])->toBe([$warning])->and($status['warnings'])->toContain($warning)
+                ->and(GeoLocation::where('resource_id', Resource::where('doi', $doi)->sole()->id)->pluck('place')->all())
+                ->toBe(['GFZ', 'Legacy profile', 'Different campaign']);
+        } finally {
+            DB::purge('metaworks');
+            Config::set('database.connections.metaworks', $legacyConfig);
+        }
+    })->with(['single', 'bulk'])->with([true, false]);
+
+    it('retains location merge warnings through bulk progress replacements without sharing reports', function (int $mergedCount, string $expectedWarning) {
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () {
+            foreach (['10.5880/geo-merge.first', '10.5880/geo-merge.second'] as $doi) {
+                yield ['id' => $doi, 'attributes' => ['doi' => $doi, 'types' => ['resourceTypeGeneral' => 'Dataset']]];
+            }
+        })());
+        $this->transformer->shouldReceive('transform')->twice()->andReturnUsing(function (
+            array $record,
+            int $userId,
+            GeoLocationWriteReport $report,
+        ) use ($mergedCount): Resource {
+            expect($userId)->toBe($this->user->id)->and($report->removedCount)->toBe(0);
+            if ($record['id'] === '10.5880/geo-merge.first') {
+                $report->removedCount = $mergedCount;
+            }
+
+            return Resource::factory()->make(['doi' => $record['id']]);
+        });
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        $warnings = [$expectedWarning];
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(2)
+            ->and($status['failed'])->toBe(0)
+            ->and($status['warnings'])->toBe($warnings)
+            ->and($status['geo_location_merge_warnings'])->toBe($warnings);
+    })->with([
+        [1, '10.5880/geo-merge.first: 1 identical GeoLocation entry was merged.'],
+        [2, '10.5880/geo-merge.first: 2 identical GeoLocation entries were merged.'],
+    ]);
 
     it('adds SUMARIO pending import results to the bulk progress summary', function () {
         $this->importService
@@ -452,7 +545,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($mergedDoiRecord, $this->user->id)
+            ->with($mergedDoiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => '10.5880/legacy-relations']));
 
         $importId = Str::uuid()->toString();
@@ -551,7 +644,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($preparedRecord, $this->user->id)
+            ->with($preparedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
 
         Http::fake();
@@ -653,7 +746,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($preparedRecord, $this->user->id)
+            ->with($preparedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
 
         Http::fake([
@@ -1195,7 +1288,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make());
 
         $importId = Str::uuid()->toString();
@@ -1250,7 +1343,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($expectedRecord, $this->user->id)
+            ->with($expectedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => $doi]));
 
         $importId = Str::uuid()->toString();
@@ -1293,7 +1386,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
         $this->coverageEnrichmentService
             ->shouldReceive('enrich')
@@ -1335,8 +1428,12 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
-            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
+            ->andReturnUsing(function (array $record, int $userId, GeoLocationWriteReport $report) use ($doi): Resource {
+                $report->removedCount = 1;
+
+                return Resource::factory()->create(['doi' => $doi]);
+            });
         $this->coverageEnrichmentService
             ->shouldReceive('enrich')
             ->once()
@@ -1353,7 +1450,9 @@ describe('ImportFromDataCiteJob', function () {
                 'failed' => 0,
             ])
             ->and(Resource::query()->where('doi', $doi)->exists())
-            ->toBeTrue();
+            ->toBeTrue()
+            ->and(Cache::get("datacite_import:{$importId}")['geo_location_merge_warnings'])
+            ->toBe(["{$doi}: 1 identical GeoLocation entry was merged."]);
     });
 
     it('uses the legacy datacenter fallback when the portal has no DOI assignment', function () {
@@ -1544,7 +1643,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($expectedDoiRecord, $this->user->id)
+            ->with($expectedDoiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
 
         $importId = Str::uuid()->toString();
@@ -1681,7 +1780,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
             ->andReturn(Resource::factory()->make(['doi' => '10.5880/incomplete-citations']));
 
         $importId = Str::uuid()->toString();

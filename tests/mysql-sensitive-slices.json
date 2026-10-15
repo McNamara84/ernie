@@ -40,7 +40,10 @@
     "subject-hierarchy": ["tests/pest/Feature/Services/SubjectHierarchy/SubjectHierarchyCorrectionTest.php"],
     "relation-correction": ["tests/pest/Feature/Services/RelationTypeCorrection"],
     "description-language": ["tests/pest/Feature/Database/WidenDescriptionLanguageMigrationTest.php"],
-    "temporal-coverage": ["tests/pest/Feature/Database/PreserveTemporalCoverageSemanticsMigrationTest.php"],
+    "temporal-coverage": [
+      "tests/pest/Feature/Database/PreserveTemporalCoverageSemanticsMigrationTest.php",
+      "tests/pest/Feature/Database/GeoLocationConcurrencyTest.php"
+    ],
     "oai-schema": ["tests/pest/Feature/Database/OaiPmhHarvestSchemaTest.php"],
     "oai-services": [
       "tests/pest/Unit/OaiPmh/OaiPmhSetServiceTest.php",

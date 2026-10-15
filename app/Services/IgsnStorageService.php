@@ -10,7 +10,6 @@ use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\FunderIdentifierType;
 use App\Models\FundingReference;
-use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
@@ -30,6 +29,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\PersonService;
+use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -511,7 +511,7 @@ class IgsnStorageService
             return;
         }
 
-        GeoLocation::create([
+        app(GeoLocationWriterService::class)->write($resource, [
             'resource_id' => $resource->id,
             'point_latitude' => $geo['latitude'],
             'point_longitude' => $geo['longitude'],
