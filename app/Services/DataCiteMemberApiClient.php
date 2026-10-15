@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\DataCiteRequestDeferredException;
 use App\Models\LandingPage;
 use App\Models\ResourceTombstoneTransition;
 use App\Models\User;
@@ -150,18 +151,18 @@ class DataCiteMemberApiClient
     /** @param array<string, mixed> $payload */
     public function updateDoi(string $identifier, array $payload): Response
     {
-        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send(
+        return $this->send(
             'PUT',
             $this->doiUrl($identifier),
-            $this->protectTombstonePayload($identifier, $payload),
+            $payload,
             $this->transientAttempts(),
             credentialIdentifier: $identifier,
-        ));
+        );
     }
 
     public function updateLandingPageUrl(string $identifier, string $targetUrl, bool $deferWhenLimited = false): Response
     {
-        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send('PUT', $this->doiUrl($identifier), $this->protectTombstonePayload($identifier, [
+        return $this->send('PUT', $this->doiUrl($identifier), [
             'data' => [
                 'id' => $identifier,
                 'type' => 'dois',
@@ -169,7 +170,7 @@ class DataCiteMemberApiClient
                     'url' => $targetUrl,
                 ],
             ],
-        ]), 1, $deferWhenLimited, $identifier));
+        ], 1, $deferWhenLimited, $identifier);
     }
 
     /**
@@ -219,13 +220,23 @@ class DataCiteMemberApiClient
         $maxAttempts = max(1, $maxAttempts);
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            if (app(InteractiveApiRequestContextService::class)->remainingMilliseconds() === 0) {
+                throw new DataCiteRequestDeferredException(1000);
+            }
             $this->limiter->waitForSlot($deferWhenLimited);
             $request = $this->request($credentialIdentifier);
 
             try {
-                $response = $payload === null
-                    ? $request->send($method, $url)
-                    : $request->send($method, $url, ['json' => $payload]);
+                // Reserve API capacity before taking the DOI lock. A queued
+                // writer waiting for quota must not lock out an editor update.
+                // Each retry releases the lock and rechecks current lifecycle
+                // state, so stale queued payloads cannot revive a tombstone.
+                $response = $method === 'PUT' && $credentialIdentifier !== null && $payload !== null
+                    ? DataCiteDoiWriteLockService::run($credentialIdentifier, $this->testMode,
+                        fn (): Response => $request->send($method, $url, ['json' => $this->protectTombstonePayload($credentialIdentifier, $payload)]))
+                    : ($payload === null
+                        ? $request->send($method, $url)
+                        : $request->send($method, $url, ['json' => $payload]));
             } catch (ConnectionException $exception) {
                 if ($attempt >= $maxAttempts) {
                     throw $exception;
@@ -250,7 +261,9 @@ class DataCiteMemberApiClient
 
     private function transientAttempts(): int
     {
-        return max(1, (int) config('datacite.transport_transient_attempts', 3));
+        $attempts = max(1, (int) config('datacite.transport_transient_attempts', 3));
+
+        return app(InteractiveApiRequestContextService::class)->isInteractive() ? min(2, $attempts) : $attempts;
     }
 
     private function retryAfterSeconds(Response $response): int
@@ -281,14 +294,18 @@ class DataCiteMemberApiClient
         }
         $userAgent .= ')';
 
+        $interactive = app(InteractiveApiRequestContextService::class)->isInteractive();
+
         return Http::withBasicAuth($username, $password)
             ->withHeaders([
                 'Content-Type' => 'application/vnd.api+json',
                 'Accept' => 'application/vnd.api+json',
                 'User-Agent' => $userAgent,
             ])
-            ->connectTimeout(max(1, (int) config('datacite.landing_page_url_update.connect_timeout_seconds', 10)))
-            ->timeout(max(1, (int) config('datacite.landing_page_url_update.timeout_seconds', 30)));
+            ->connectTimeout(min($interactive ? 5 : PHP_INT_MAX, max(1, (int) config('datacite.landing_page_url_update.connect_timeout_seconds', 10))))
+            ->timeout(min($interactive ? 20 : PHP_INT_MAX,
+                max(1, (int) ceil(app(InteractiveApiRequestContextService::class)->remainingMilliseconds() / 1000)),
+                max(1, (int) config('datacite.landing_page_url_update.timeout_seconds', 30))));
     }
 
     /**

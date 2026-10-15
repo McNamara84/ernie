@@ -9,6 +9,7 @@ use App\Models\RelationType;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Editor\EditorResourceSaveService;
 use App\Services\UserActivityService;
 use Database\Seeders\ContributorTypeSeeder;
@@ -35,6 +36,23 @@ beforeEach(function () {
         ]]],
     ];
 });
+
+it('prepares optional external labels before starting the editor transaction', function (bool $relaxed) {
+    $baseline = DB::transactionLevel();
+    $lookups = Mockery::mock(RelatedIdentifierCitationLabelService::class)->makePartial();
+    $lookups->shouldReceive('resolveBestEffortBatchForStorage')->once()->andReturnUsing(function (array $identifiers) use ($baseline): array {
+        expect(DB::transactionLevel())->toBe($baseline);
+
+        return $identifiers;
+    });
+    app()->instance(RelatedIdentifierCitationLabelService::class, $lookups);
+    $save = app(EditorResourceSaveService::class);
+    $payload = [...$this->payload, 'relatedIdentifiers' => []];
+    [$resource] = $relaxed
+        ? $save->saveRelaxed($payload, $this->actor, EditorDraftSaveIntent::AUTOSAVE)
+        : $save->saveValidated($payload, $this->actor);
+    expect($resource->exists)->toBeTrue()->and(DB::transactionLevel())->toBe($baseline);
+})->with([true, false]);
 
 it('records autosave creation and ignores equivalent replacement rows and generated dates', function () {
     Log::spy();

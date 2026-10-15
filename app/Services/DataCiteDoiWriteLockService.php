@@ -25,7 +25,9 @@ final class DataCiteDoiWriteLockService
             return $callback();
         }
 
-        return Cache::lock($key, 300)->block(10, static function () use ($key, $callback): mixed {
+        $waitSeconds = min(10, max(1, (int) ceil(app(InteractiveApiRequestContextService::class)->remainingMilliseconds() / 1000)));
+
+        return Cache::lock($key, 300)->block($waitSeconds, static function () use ($key, $callback): mixed {
             self::$held[$key] = true;
             try {
                 return $callback();

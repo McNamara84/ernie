@@ -11,6 +11,7 @@ use App\Models\ResourceCreator;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\OrcidService;
 use App\Support\OrcidNormalizer;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Date;
 
 /**
@@ -67,10 +68,11 @@ final readonly class OrcidPreflightValidator
         //
         // @var array<string, array<string, mixed>> $networkCache
         $networkCache = [];
+        $deadline = Date::now()->addSeconds(20);
 
         foreach ($resource->creators as $creator) {
             /** @var ResourceCreator $creator */
-            $issue = $this->checkCreatorOrContributor($creator, 'creator', $force, $networkCache);
+            $issue = $this->checkCreatorOrContributor($creator, 'creator', $force, $networkCache, $deadline);
             if ($issue === null) {
                 continue;
             }
@@ -83,7 +85,7 @@ final readonly class OrcidPreflightValidator
 
         foreach ($resource->contributors as $contributor) {
             /** @var ResourceContributor $contributor */
-            $issue = $this->checkCreatorOrContributor($contributor, 'contributor', $force, $networkCache);
+            $issue = $this->checkCreatorOrContributor($contributor, 'contributor', $force, $networkCache, $deadline);
             if ($issue === null) {
                 continue;
             }
@@ -119,7 +121,7 @@ final readonly class OrcidPreflightValidator
      *                                                             populated on first network call and reused for subsequent rows
      *                                                             sharing the same identifier.
      */
-    private function checkCreatorOrContributor(object $row, string $role, bool $force, array &$networkCache): ?OrcidPreflightIssue
+    private function checkCreatorOrContributor(object $row, string $role, bool $force, array &$networkCache, CarbonInterface $deadline): ?OrcidPreflightIssue
     {
         $person = $this->resolvePerson($row);
         if ($person === null) {
@@ -174,11 +176,13 @@ final readonly class OrcidPreflightValidator
         }
 
         $response = $networkCache[$bareId]
-            ?? $networkCache[$bareId] = $this->orcid->validateOrcid(
-                $bareId,
-                maxAttempts: OrcidService::PREFLIGHT_MAX_ATTEMPTS,
-                timeoutSeconds: OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
-            );
+            ?? $networkCache[$bareId] = (Date::now()->greaterThanOrEqualTo($deadline)
+                ? ['exists' => null, 'errorType' => 'timeout']
+                : $this->orcid->validateOrcid(
+                    $bareId,
+                    maxAttempts: OrcidService::PREFLIGHT_MAX_ATTEMPTS,
+                    timeoutSeconds: OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
+                ));
 
         // Successful confirmation → stamp verification timestamp and move on.
         if (($response['exists'] ?? null) === true) {

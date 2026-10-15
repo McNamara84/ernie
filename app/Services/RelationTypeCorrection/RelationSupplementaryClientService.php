@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\RelationTypeCorrection;
 
 use App\Enums\CacheKey;
+use App\Services\DataCitePublicApiLimiterService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -49,10 +50,22 @@ final class RelationSupplementaryClientService
         try {
             // Three pages, fixed endpoints, no following arbitrary next-page URLs.
             for ($page = 0; $page < 3; $page++) {
+                $publicLimiter = app(DataCitePublicApiLimiterService::class);
+                if ($provider === 'datacite_event_data' && ! $publicLimiter->tryAcquire()) {
+                    $record['status'] = 'incomplete';
+                    break;
+                }
                 $parameters = $provider === 'datacite_event_data'
                     ? ['doi' => $doi, 'page[size]' => 200, 'page[number]' => $page + 1, 'source-id' => 'datacite-related,datacite-crossref,crossref']
                     : ['sourcePid' => $doi, 'page' => $page, 'size' => 100];
-                $response = Http::acceptJson()->timeout(10)->connectTimeout(5)->get($url, $parameters);
+                $request = Http::acceptJson()->timeout(10)->connectTimeout(5);
+                if ($provider === 'datacite_event_data') {
+                    $request = $request->withUserAgent($publicLimiter->userAgent());
+                }
+                $response = $request->get($url, $parameters);
+                if ($provider === 'datacite_event_data') {
+                    $publicLimiter->observe($response);
+                }
                 $json = $response->json();
                 $rows = is_array($json) ? ($json[$provider === 'datacite_event_data' ? 'data' : 'result'] ?? null) : null;
                 if (! $response->successful() || ! is_array($rows)) {
@@ -71,6 +84,9 @@ final class RelationSupplementaryClientService
                 }
             }
         } catch (Throwable $exception) {
+            if ($provider === 'datacite_event_data') {
+                app(DataCitePublicApiLimiterService::class)->suspend(60);
+            }
             report($exception);
         }
 

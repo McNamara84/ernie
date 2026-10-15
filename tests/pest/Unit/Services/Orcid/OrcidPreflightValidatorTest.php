@@ -50,6 +50,29 @@ function mockOrcidService(callable $setup): OrcidService
     return tap(Mockery::mock(OrcidService::class), $setup);
 }
 
+it('bounds aggregate verification time while retaining offline blockers', function (bool $invalidChecksum) {
+    [$resource] = makeResourceWithCreatorOrcid(VALID_ORCID);
+    $other = Person::factory()->create([
+        'name_identifier' => $invalidChecksum ? INVALID_CHECKSUM_ORCID : '0000-0001-8619-0199',
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    ResourceCreator::factory()->forPerson($other)->position(1)->create(['resource_id' => $resource->id]);
+    $orcid = Mockery::mock(OrcidService::class);
+    $orcid->shouldReceive('validateOrcid')->once()->with(VALID_ORCID, 1, 4)->andReturnUsing(function (): array {
+        $this->travel(21)->seconds();
+
+        return ['valid' => true, 'exists' => true, 'errorType' => null];
+    });
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource->fresh());
+    expect($result->shouldBlock)->toBe($invalidChecksum)
+        ->and($result->needsConfirmation)->toBe(! $invalidChecksum);
+    if ($invalidChecksum) {
+        expect($result->invalid[0]->reason)->toBe('checksum');
+    } else {
+        expect($result->warnings[0]->reason)->toBe('timeout');
+    }
+})->with([true, false]);
+
 it('returns a clean result when no creators carry an ORCID', function () {
     $resource = Resource::factory()->create();
     $person = Person::factory()->create();

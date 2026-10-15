@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DataCiteRequestDeferredException;
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
@@ -13,6 +14,7 @@ use App\Services\EmbargoService;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceCacheService;
 use App\Services\ResourceStorageService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -162,6 +164,23 @@ class ResourceDoiRegistrationController extends Controller
             }
 
             return response()->json($registrationResponse);
+        } catch (LockTimeoutException $e) {
+            return response()->json([
+                'error' => 'doi_update_in_progress',
+                'message' => 'Your metadata is saved in ERNIE. Another update of this DOI is still in progress. Please retry shortly.',
+            ], 503)->header('Retry-After', '2');
+        } catch (DataCiteRequestDeferredException $e) {
+            $retryAfter = max(1, (int) ceil($e->retryAfterMilliseconds / 1000));
+            Log::notice('Interactive DOI update deferred by DataCite capacity', [
+                'resource_id' => $resource->id,
+                'retry_after_seconds' => $retryAfter,
+            ]);
+
+            return response()->json([
+                'error' => 'datacite_temporarily_busy',
+                'message' => 'Your metadata is saved in ERNIE. DataCite is temporarily busy; the external update has not been confirmed. Please retry shortly.',
+                'retry_after_seconds' => $retryAfter,
+            ], 503)->header('Retry-After', (string) $retryAfter);
         } catch (\InvalidArgumentException $e) {
             Log::warning('Invalid DOI registration request', [
                 'resource_id' => $resource->id,

@@ -173,6 +173,32 @@ npm run docker:dev:assessment
 npm run docker:dev:parity
 ```
 
+### Assistant discovery queue
+
+The standard stack includes `assistance-queue`, separate from the general queue
+and optional assessment workers. All generic and legacy discovery jobs use the
+persistent `assistance` connection. Its queue name defaults to `assistance` and
+can be changed with `ASSISTANCE_QUEUE`; the app and worker must use the same value.
+`ASSISTANCE_JOB_TIMEOUT` defaults to 3600 seconds, and the reservation window is
+always at least 60 seconds longer. `ASSISTANCE_WORKER_CPUS` defaults to 0.5 CPU.
+The general database queue reservation defaults to 7260 seconds in Compose to
+cover its existing longest worker timeout.
+
+After pulling this change, recreate the stack to start the new consumer. Existing
+discovery jobs on `default` are not moved and must finish on the general worker.
+Do not clear queued work to change routing. See the
+[production runtime notes](production-runtime-performance.md#editor-requests-during-background-checks)
+for interactive API budgets and provider cooldown behavior.
+
+Run the separate-process MySQL 9.7 regression checks with:
+
+```bash
+npm run test:php:mysql-sensitive -- --slice editor-background
+```
+
+These checks pause background work inside its HTTP call and save the same resource
+through an authenticated editor request on an independent database connection.
+
 ### Persistent FAIR assessment queue
 
 Resource and IGSN assessments use database-backed runs and one short queue job per resource. Closing the browser, restarting a worker, or deploying the application therefore does not discard the run snapshot or its progress. Opening `/assessment` again reconnects to an active run; pressing `Check` while a run is active returns that same run, and a paused run is resumed instead of replaced.

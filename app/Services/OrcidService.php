@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Support\OrcidNormalizer;
-use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -21,21 +20,9 @@ use Illuminate\Support\Facades\Log;
  */
 class OrcidService
 {
-    /**
-     * Cache key for the shared ORCID API rate limiter timestamp.
-     */
-    private const RATE_LIMIT_CACHE_KEY = 'orcid_api_last_call_ms';
-
-    /**
-     * Minimum delay between ORCID API calls in milliseconds.
-     */
-    private readonly int $rateLimitDelayMs;
-
     public function __construct(
         private readonly RorLookupService $rorLookupService,
-    ) {
-        $this->rateLimitDelayMs = (int) config('services.orcid.rate_limit_delay_ms', 2100);
-    }
+    ) {}
 
     /**
      * ORCID Public API Base URL
@@ -172,6 +159,10 @@ class OrcidService
             ];
         }
 
+        if (Cache::has('orcid:verified:'.$orcid)) {
+            return ['valid' => true, 'exists' => true, 'message' => 'Valid ORCID ID', 'errorType' => null];
+        }
+
         // Try API with retry logic for transient failures. Preflight call sites
         // may pass maxAttempts=1 to skip retries/backoff entirely (see issue #610).
         $retryDelay = self::RETRY_DELAY;
@@ -185,6 +176,8 @@ class OrcidService
                     ->get(self::API_BASE_URL.'/'.$orcid.'/person');
 
                 if ($response->successful()) {
+                    Cache::put('orcid:verified:'.$orcid, true, 300);
+
                     return [
                         'valid' => true,
                         'exists' => true,
@@ -685,33 +678,6 @@ class OrcidService
      */
     private function respectRateLimit(): void
     {
-        $maxAttempts = 3;
-
-        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            try {
-                Cache::lock(self::RATE_LIMIT_CACHE_KEY.':lock', 10)->block(10, function () {
-                    $lastCallMs = (float) Cache::get(self::RATE_LIMIT_CACHE_KEY, 0);
-                    $now = microtime(true) * 1000;
-                    $elapsed = $now - $lastCallMs;
-
-                    if ($lastCallMs > 0 && $elapsed < $this->rateLimitDelayMs) {
-                        $sleepMs = (int) ceil($this->rateLimitDelayMs - $elapsed);
-                        usleep($sleepMs * 1000);
-                    }
-
-                    Cache::put(self::RATE_LIMIT_CACHE_KEY, microtime(true) * 1000, 60);
-                });
-
-                return;
-            } catch (LockTimeoutException) {
-                if ($attempt === $maxAttempts) {
-                    Log::warning('ORCID rate limiter lock could not be acquired after retries, proceeding without throttle.');
-
-                    return;
-                }
-
-                usleep($attempt * 500_000); // 0.5s, 1s backoff
-            }
-        }
+        app(OrcidRequestLimiterService::class)->waitForSlot();
     }
 }
