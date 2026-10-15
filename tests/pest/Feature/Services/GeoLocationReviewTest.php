@@ -10,8 +10,10 @@ use App\Models\Right;
 use App\Models\User;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
+use App\Services\GeoLocations\GeoLocationIdentityService;
 use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\GeoLocations\GeoLocationWriteSessionService;
+use App\Services\LandingPageResourceTransformer;
 use App\Services\ResourceStorageService;
 use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Http\UploadedFile;
@@ -144,6 +146,57 @@ it('persists reordered unchanged locations while retaining historical duplicates
         }
     }
 })->with(['/editor/resources', '/editor/resources/draft'])->with([true, false]);
+
+it('persists the final submitted keeper order after an editor merge', function (string $endpoint, string $source, string $representative) {
+    $target = GeoLocation::factory()->create([
+        'resource_id' => $this->resource->id, 'geo_type' => 'point', 'place' => 'Target',
+        'point_latitude' => 52.38, 'point_longitude' => 13.06,
+        'country' => 'Stored country', 'elevation' => 42, 'position' => 7,
+    ]);
+    $other = GeoLocation::factory()->create([
+        'resource_id' => $this->resource->id, 'geo_type' => 'point', 'place' => 'Other',
+        'point_latitude' => 53.38, 'point_longitude' => 14.06, 'position' => 1,
+    ]);
+    $stored = collect(app(EditorDataTransformer::class)->transformCoverages($this->resource->load('geoLocations')))->keyBy('id');
+    $incoming = [...$stored[(string) $target->id], 'id' => 'incoming-alias', 'copyFromId' => (string) $target->id];
+    if ($source === 'changed') {
+        $changed = GeoLocation::factory()->create([
+            'resource_id' => $this->resource->id, 'geo_type' => 'point', 'place' => 'Before edit',
+            'point_latitude' => 54.38, 'point_longitude' => 15.06,
+            'country' => 'Stored country', 'elevation' => 42, 'position' => 9,
+        ]);
+        $incoming = [...$stored[(string) $target->id], 'id' => (string) $changed->id];
+    }
+    $submitted = match ($representative) {
+        'first' => [$stored[(string) $target->id], $stored[(string) $other->id], $incoming],
+        'last' => [$incoming, $stored[(string) $other->id], $stored[(string) $target->id]],
+        default => [$incoming, $stored[(string) $other->id]],
+    };
+    $expectedIds = $representative === 'last' ? [$other->id, $target->id] : [$target->id, $other->id];
+    $scientificValues = collect([$target, $other])->mapWithKeys(fn (GeoLocation $location): array => [
+        $location->id => $location->fresh()->only(GeoLocationIdentityService::FIELDS),
+    ]);
+
+    $this->actingAs($this->user)->postJson($endpoint, [...$this->payload, 'intent' => 'autosave', 'spatialTemporalCoverages' => $submitted])
+        ->assertOk()->assertJsonPath('geoLocationChanges.removedCount', 1)
+        ->assertJsonPath('geoLocationChanges.idMap.'.$incoming['id'], (string) $target->id)
+        ->assertJsonPath('geoLocationChanges.removedIds', $representative === 'omitted' ? [] : [$incoming['id']]);
+
+    $saved = $this->resource->fresh()->load('geoLocations');
+    expect($saved->geoLocations->pluck('id')->all())->toBe($expectedIds)
+        ->and($saved->geoLocations->pluck('position')->all())->toBe([0, 1]);
+    foreach ($saved->geoLocations as $location) {
+        expect($location->only(GeoLocationIdentityService::FIELDS))->toBe($scientificValues[$location->id]);
+    }
+    $reloadedCoverages = app(EditorDataTransformer::class)->transformCoverages($saved);
+    expect(array_column($reloadedCoverages, 'id'))->toBe(array_map(strval(...), $expectedIds))
+        ->and(array_column(app(LandingPageResourceTransformer::class)->transform($saved)['geo_locations'], 'id'))->toBe($expectedIds);
+
+    $this->postJson($endpoint, [...$this->payload, 'intent' => 'autosave', 'spatialTemporalCoverages' => $reloadedCoverages])
+        ->assertOk()->assertJsonPath('geoLocationChanges.removedCount', 0);
+    expect($this->resource->geoLocations()->pluck('id')->all())->toBe($expectedIds)
+        ->and($this->resource->geoLocations()->pluck('position')->all())->toBe([0, 1]);
+})->with(['/editor/resources', '/editor/resources/draft'])->with(['alias', 'changed'])->with(['omitted', 'first', 'last']);
 
 it('loads the location collection once for a large batch of unique and duplicate writes', function () {
     DB::enableQueryLog();

@@ -1,11 +1,11 @@
 [
     {
         "version": "1.1.1dev",
-        "date": "2026-10-14",
+        "date": "2026-10-15",
         "fixes": [
             {
                 "title": "Stable Landing Page Maps and GeoLocation Duplicate Prevention",
-                "description": "Landing pages and previews remain visible with coincident, near-polar or invalid historical locations. Valid numeric-string coordinates in stored polygons and lines are normalized for map display without rewriting data. New identical GeoLocations are merged and reported when saving or importing, including IGSN legacy and SUMARIO coverage enrichment. Equality includes geometry, descriptions, time coverage, elevation and location details. Saves retain persisted IDs, hidden metadata and the submitted location order. Incomplete polygon and line vertices remain editable as blank fields and are excluded from maps; saving requires their correction. Existing duplicate or questionable locations remain stored for manual curation, including during unrelated saves.",
+                "description": "Landing pages and previews remain visible with coincident, near-polar or invalid historical locations. Valid numeric-string coordinates in stored polygons and lines are normalized for map display without rewriting data. New identical GeoLocations are merged and reported when saving or importing, including IGSN legacy and SUMARIO coverage enrichment. Equality includes geometry, descriptions, time coverage, elevation and location details. Saves retain persisted IDs and hidden metadata, and preserve the order of the remaining editor entries after merges. Incomplete polygon and line vertices remain editable as blank fields and are excluded from maps; saving requires their correction. Existing duplicate or questionable locations remain stored for manual curation, including during unrelated saves.",
                 "references": [{ "type": "pull_request", "number": 1473, "url": "https://github.com/McNamara84/ernie/pull/1473" }]
             }
         ]

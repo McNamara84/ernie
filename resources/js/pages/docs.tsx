@@ -2113,6 +2113,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Incomplete coordinates in stored polygons and lines appear as blank editable fields. Only valid points are drawn on the
                             map. Correct or remove incomplete rows before saving; ERNIE keeps the stored geometry until a valid change is saved.
                         </p>
+                        <p>When saving merges identical locations, the remaining locations keep the order shown in the editor.</p>
 
                         <h4>CSV Import for Polygons and Lines</h4>
                         <p>

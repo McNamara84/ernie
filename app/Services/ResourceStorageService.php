@@ -1477,6 +1477,7 @@ class ResourceStorageService
         $resource->setRelation('geoLocations', $existing->values());
         $originalCoverages = collect(app(EditorDataTransformer::class)->transformCoverages($resource))->keyBy('id');
         $retainedIds = [];
+        $submittedLocations = [];
         $coverages = $data['spatialTemporalCoverages'] ?? [];
 
         foreach ($coverages as $position => $coverage) {
@@ -1510,6 +1511,7 @@ class ResourceStorageService
             if ($location !== null && $this->unchangedCoverage($coverage, $originalCoverages->get((string) $location->id, []))) {
                 $location = $session->write(['position' => $position], $location)->location;
                 $retainedIds[] = $location->id;
+                $submittedLocations[] = ['inputId' => $inputId, 'storedId' => $location->id];
                 if ($inputId !== null) {
                     $changes['idMap'][$inputId] = (string) $location->id;
                 }
@@ -1749,6 +1751,7 @@ class ResourceStorageService
                 }
                 $result = $session->write($geoLocationData, $location);
                 $retainedIds[] = $result->location->id;
+                $submittedLocations[] = ['inputId' => $inputId, 'storedId' => $result->location->id];
                 if ($inputId !== null) {
                     $changes['idMap'][$inputId] = (string) $result->location->id;
                 }
@@ -1775,6 +1778,21 @@ class ResourceStorageService
                 if (! in_array($location->id, $retainedIds, true)) {
                     $session->delete($location);
                 }
+            }
+        }
+
+        // Match the editor's surviving input rows before assigning contiguous positions.
+        $positions = [];
+        foreach ($submittedLocations as $submitted) {
+            $storedId = $submitted['storedId'];
+            if (isset($keepers[$storedId]) && $keepers[$storedId] !== $submitted['inputId']) {
+                continue;
+            }
+            $positions[$storedId] ??= count($positions);
+        }
+        foreach ($session->locations() as $location) {
+            if (isset($positions[$location->id]) && $location->position !== $positions[$location->id]) {
+                $session->write(['position' => $positions[$location->id]], $location);
             }
         }
 

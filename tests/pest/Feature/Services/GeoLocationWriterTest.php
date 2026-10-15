@@ -41,6 +41,23 @@ it('keeps resources independent', function () {
     expect(GeoLocation::count())->toBe(2);
 });
 
+it('preserves stored order when an import merges a duplicate with or without a position', function (bool $includePosition) {
+    $resource = Resource::factory()->create();
+    $target = GeoLocation::factory()->create(['resource_id' => $resource->id, ...pointLocationAttributes(), 'position' => 7]);
+    $other = GeoLocation::factory()->create(['resource_id' => $resource->id, ...pointLocationAttributes(), 'place' => 'Other', 'position' => 1]);
+    $before = $target->fresh()->getAttributes();
+    $incoming = pointLocationAttributes();
+    if ($includePosition) {
+        $incoming['position'] = 0;
+    }
+
+    $result = app(GeoLocationWriterService::class)->write($resource, $incoming);
+    expect($result->duplicate)->toBeTrue()->and($result->location->id)->toBe($target->id)
+        ->and($target->fresh()->getAttributes())->toBe($before)
+        ->and($resource->geoLocations()->pluck('id')->all())->toBe([$other->id, $target->id])
+        ->and($resource->geoLocations()->pluck('position')->all())->toBe([1, 7]);
+})->with([true, false]);
+
 it('includes every scientific field in the identity', function (string $field, mixed $value) {
     $resource = Resource::factory()->create();
     $writer = app(GeoLocationWriterService::class);

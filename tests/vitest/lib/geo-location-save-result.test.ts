@@ -24,6 +24,21 @@ it('removes only the incoming duplicate and adopts the persisted ID', () => {
     const submitted = [entry, { ...entry, id: 'copy' }];
     expect(applyGeoLocationChanges(submitted, submitted, changes)).toEqual([{ ...entry, id: '42' }]);
 });
+it.each([true, false])('keeps the surviving input order when the explicit stored row follows an alias: %s', (aliasFirst) => {
+    const target = { ...entry, id: 'editor-target', storageId: '42' };
+    const other = { ...entry, id: 'editor-other', storageId: '43', description: 'Other' };
+    const alias = { ...entry, id: 'incoming-alias' };
+    const submitted = aliasFirst ? [alias, other, target] : [target, other, alias];
+
+    expect(
+        applyGeoLocationChanges(
+            submitted,
+            submitted,
+            { removedCount: 1, idMap: { 'incoming-alias': '42', '42': '42', '43': '43' }, removedIds: ['incoming-alias'] },
+            true,
+        ),
+    ).toEqual(aliasFirst ? [other, target] : [target, other]);
+});
 it('keeps edits and new entries made while the save was in flight', () => {
     const submitted = [entry, { ...entry, id: 'copy' }];
     const current = [
