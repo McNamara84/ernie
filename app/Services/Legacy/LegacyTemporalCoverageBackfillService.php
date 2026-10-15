@@ -9,8 +9,9 @@ use App\Models\OldDataset;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\DoiSuggestionService;
+use App\Services\GeoLocations\GeoLocationWriterService;
+use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -290,13 +291,13 @@ final class LegacyTemporalCoverageBackfillService
         }
 
         if ($apply && ($updates !== [] || $creates !== [])) {
-            DB::connection($resource->getConnectionName())->transaction(function () use ($updates, $creates): void {
+            app(GeoLocationWriterService::class)->batch($resource, function (GeoLocationWriteSessionService $session) use ($updates, $creates): void {
                 foreach ($updates as $update) {
-                    $update['location']->fill($update['values'])->save();
+                    $session->write($update['values'], $update['location']);
                 }
 
                 foreach ($creates as $attributes) {
-                    GeoLocation::query()->create($attributes);
+                    $session->write($attributes);
                 }
             });
 

@@ -28,6 +28,7 @@ use App\Models\Size;
 use App\Services\DataCiteJsonExporter;
 use App\Services\IgsnDifXmlParser;
 use App\Services\LandingPageResourceTransformer;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -44,6 +45,53 @@ beforeEach(function () {
 });
 
 describe('IgsnDifXmlParser', function () {
+    it('records enrichment merges without deleting historical locations', function () {
+        $first = GeoLocation::create(['resource_id' => $this->resource->id, 'position' => 0,
+            'geo_type' => 'point', 'point_latitude' => 52, 'point_longitude' => 13]);
+        $second = GeoLocation::create(['resource_id' => $this->resource->id, 'position' => 1,
+            'geo_type' => 'point', 'point_latitude' => 52, 'point_longitude' => 13, 'place' => 'Germany']);
+        $report = new GeoLocationWriteReport;
+        $report->removedCount = 1;
+
+        expect($this->parser->enrichFromDifXml(
+            '<resource><sample><primary_location_name>Germany</primary_location_name></sample></resource>',
+            $this->resource, $this->igsnMetadata, geoReport: $report,
+        ))->toBeTrue()->and($report->removedCount)->toBe(2)
+            ->and($this->resource->geoLocations()->pluck('id')->all())->toBe([$first->id, $second->id]);
+    });
+
+    it('does not report merges from a rolled-back DIF enrichment', function () {
+        GeoLocation::create(['resource_id' => $this->resource->id, 'position' => 0,
+            'geo_type' => 'point', 'point_latitude' => 52, 'point_longitude' => 13]);
+        GeoLocation::create(['resource_id' => $this->resource->id, 'position' => 1,
+            'geo_type' => 'point', 'point_latitude' => 52, 'point_longitude' => 13, 'place' => 'Germany']);
+        $report = new GeoLocationWriteReport;
+        $report->removedCount = 1;
+        Log::spy();
+        $dispatcher = IgsnMetadata::getEventDispatcher();
+        IgsnMetadata::setEventDispatcher(clone $dispatcher);
+        IgsnMetadata::saving(fn () => throw new RuntimeException('Persistence failed after the location write.'));
+        try {
+            expect($this->parser->enrichFromDifXml(
+                '<resource><sample><primary_location_name>Germany</primary_location_name><collection_method>Core drilling</collection_method></sample></resource>',
+                $this->resource, $this->igsnMetadata, geoReport: $report,
+            ))->toBeFalse()->and($report->removedCount)->toBe(1)
+                ->and($this->igsnMetadata->fresh()->collection_method)->toBeNull();
+            Log::shouldHaveReceived('info')->once()->with('Identical incoming GeoLocation was merged.', Mockery::type('array'));
+        } finally {
+            IgsnMetadata::setEventDispatcher($dispatcher);
+        }
+    });
+
+    it('leaves the merge report unchanged for successful new location writes', function () {
+        $report = new GeoLocationWriteReport;
+        expect($this->parser->enrichFromDifXml(
+            '<resource><sample><latitude>52</latitude><longitude>13</longitude></sample></resource>',
+            $this->resource, $this->igsnMetadata, geoReport: $report,
+        ))->toBeTrue()->and($report->removedCount)->toBe(0)
+            ->and($this->resource->geoLocations()->count())->toBe(1);
+    });
+
     it('persists safe image source descriptors without publishing unvalidated external URLs', function () {
         $managed = <<<'XML'
         <resource><sample>

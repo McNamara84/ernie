@@ -422,6 +422,20 @@ describe('UnifiedDropzone', () => {
         });
     });
 
+    it('shows an imported GeoLocation merge notice in the upload result', async () => {
+        mockOnXmlUpload.mockResolvedValue({
+            success: true,
+            uploadKind: 'datacite',
+            filename: 'locations.xml',
+            resourceId: '42',
+            editorUrl: '/editor?resourceId=42',
+            message: '2 identical location entries were merged.',
+        });
+        render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+        await userEvent.upload(screen.getByTestId('unified-file-input'), new File(['<resource/>'], 'locations.xml', { type: 'application/xml' }));
+        expect(await screen.findByText('2 identical location entries were merged.')).toBeInTheDocument();
+    });
+
     describe('browse button', () => {
         it('clicks hidden file input when browse button is clicked', async () => {
             render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);

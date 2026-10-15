@@ -10,10 +10,16 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteToIgsnTransformer;
+use App\Services\DataCiteToResourceTransformer;
+use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\IgsnChildDiscoveryService;
+use App\Services\IgsnDifXmlParser;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
+use App\Services\IgsnLegacyDbEnrichmentService;
+use App\Services\IgsnSolrEnrichmentService;
 use App\Services\LegacyIgsnPortalService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
@@ -71,6 +77,81 @@ afterEach(function () {
 });
 
 describe('ImportIgsnsFromDataCiteJob', function () {
+    it('publishes a combined DataCite and DIF merge warning after enrichment', function (string $source): void {
+        $this->seed(['ResourceTypeSeeder', 'TitleTypeSeeder', 'LanguageSeeder', 'PublisherSeeder', 'DateTypeSeeder']);
+        $point = ['geoLocationPoint' => ['pointLatitude' => 52, 'pointLongitude' => 13]];
+        $record = ['id' => '10.60510/GFDIFMERGE001', 'attributes' => [
+            'doi' => '10.60510/GFDIFMERGE001', 'publicationYear' => 2026,
+            'types' => ['resourceTypeGeneral' => 'PhysicalObject'], 'titles' => [['title' => 'DIF merge report']],
+            'geoLocations' => [$point, [...$point, 'geoLocationPlace' => 'Germany'], $point],
+        ]];
+        $xml = '<resource><sample><primary_location_name>Germany</primary_location_name></sample></resource>';
+        Config::set('database.connections.igsn_legacy.configured', false);
+        Config::set('datacite.solr.host', $source === 'solr' ? 'solr.example.test' : null);
+        Config::set('datacite.solr.user', 'configured');
+        Config::set('datacite.solr.password', 'secret');
+        Config::set('datacite.legacy_igsn_portal.proxy_url', $source === 'solr' ? null : 'https://portal.test');
+        if ($source === 'solr') {
+            Http::fake(['solr.example.test*' => Http::response(['response' => ['docs' => [['has_dif' => true, 'dif' => base64_encode($xml)]]]])]);
+        } else {
+            $this->legacyPortalService->shouldReceive('difForHandles')->once()->with(['GFDIFMERGE001'])->andReturn(['GFDIFMERGE001' => $xml]);
+        }
+        $transformer = new DataCiteToIgsnTransformer(app(DataCiteToResourceTransformer::class));
+        $parser = new IgsnDifXmlParser;
+        $enrichment = new IgsnEnrichmentService(new IgsnSolrEnrichmentService($parser), new IgsnLegacyDbEnrichmentService($parser),
+            $this->legacyPortalService, $parser, new IgsnDifMetadataExtractor);
+        $childDiscovery = Mockery::mock(IgsnChildDiscoveryService::class);
+        if ($source === 'strict_portal') {
+            $this->importService->shouldReceive('fetchSingleIgsn')->once()->with('10.60510/gfdifmerge001')->andReturn($record);
+            $childDiscovery->shouldReceive('discoverDirectChildHandles')->once()->with('GFDIFMERGE001')->andReturn([]);
+        } else {
+            $this->importService->shouldReceive('getTotalIgsnCount')->once()->andReturn(1);
+            $this->importService->shouldReceive('fetchAllIgsns')->once()->andReturn((function () use ($record) {
+                yield $record;
+            })());
+        }
+        $importId = Str::uuid()->toString();
+        (new ImportIgsnsFromDataCiteJob($this->user->id, $importId, $source === 'strict_portal' ? 'GFDIFMERGE001' : null))
+            ->handle($this->importService, $transformer, $enrichment, $childDiscovery);
+
+        $status = Cache::get("igsn_import:{$importId}");
+        $warning = '10.60510/gfdifmerge001: 2 identical GeoLocation entries were merged.';
+        expect($status['status'])->toBe('completed')->and($status['imported'])->toBe(1)->and($status['enriched'])->toBe(1)
+            ->and($status['geo_location_merge_warnings'])->toBe([$warning])->and($status['warnings'])->toContain($warning)
+            ->and(Resource::where('doi', '10.60510/gfdifmerge001')->sole()->geoLocations()->count())->toBe(2);
+    })->with(['portal', 'strict_portal', 'solr']);
+
+    it('publishes singular and plural merge warnings without leaking reports between IGSNs', function (int $mergedCount, string $expectedWarning): void {
+        $this->importService->shouldReceive('getTotalIgsnCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllIgsns')->once()->andReturn((function () {
+            foreach (['10.60510/MERGE001', '10.60510/MERGE002'] as $doi) {
+                yield ['id' => $doi, 'attributes' => ['doi' => $doi]];
+            }
+        })());
+        $this->transformer->shouldReceive('transform')->twice()->andReturnUsing(function (
+            array $record,
+            int $userId,
+            GeoLocationWriteReport $report,
+        ) use ($mergedCount): Resource {
+            expect($userId)->toBe($this->user->id)->and($report->removedCount)->toBe(0);
+            if ($record['id'] === '10.60510/merge001') {
+                $report->removedCount = $mergedCount;
+            }
+
+            return createMockResourceWithIgsn($record['id']);
+        });
+        $this->enrichmentService->shouldReceive('enrich')->twice()->andReturn(false);
+        $importId = Str::uuid()->toString();
+        (new ImportIgsnsFromDataCiteJob($this->user->id, $importId))->handle($this->importService, $this->transformer, $this->enrichmentService);
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['status'])->toBe('completed')->and($status['imported'])->toBe(2)->and($status['failed'])->toBe(0)
+            ->and($status['geo_location_merge_warnings'])->toBe([$expectedWarning])
+            ->and($status['warnings'])->toContain($expectedWarning);
+    })->with([
+        [1, '10.60510/merge001: 1 identical GeoLocation entry was merged.'],
+        [2, '10.60510/merge001: 2 identical GeoLocation entries were merged.'],
+    ]);
+
     it('downloads managed images after metadata transactions and reports image progress independently', function (): void {
         Storage::fake('public');
         Config::set('igsn_images.disk', 'public');
@@ -1316,9 +1397,11 @@ describe('ImportIgsnsFromDataCiteJob', function () {
             ->andReturn(['GFATOMICCHILD']);
         $this->transformer->shouldReceive('transform')
             ->twice()
-            ->andReturnUsing(fn (array $record): Resource => createMockResourceWithIgsn(
-                strtolower((string) $record['attributes']['doi']),
-            ));
+            ->andReturnUsing(function (array $record, int $userId, GeoLocationWriteReport $report): Resource {
+                $report->removedCount = 1;
+
+                return createMockResourceWithIgsn(strtolower((string) $record['attributes']['doi']));
+            });
 
         $enrichmentCalls = 0;
         $this->enrichmentService->shouldReceive('enrich')
@@ -1351,7 +1434,8 @@ describe('ImportIgsnsFromDataCiteJob', function () {
             ->and(LandingPage::query()->count())->toBe(0)
             ->and($status['status'])->toBe('failed')
             ->and($status['error_code'])->toBe(LegacyIgsnPortalException::UNAVAILABLE)
-            ->and($status['imported'])->toBe(0);
+            ->and($status['imported'])->toBe(0)
+            ->and($status['geo_location_merge_warnings'] ?? [])->toBe([]);
     });
 
     it('skips an existing single IGSN', function () {

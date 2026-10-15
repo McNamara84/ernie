@@ -5,6 +5,7 @@ import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/ro
 import type { UploadErrorResponse } from '@/types/upload';
 
 type UploadSessionResponse = {
+    deduplicatedGeoLocations?: number;
     resourceId?: number | string | null;
     sessionKey?: string | null;
 };
@@ -47,6 +48,8 @@ async function uploadSessionFile(file: File, route: { url: () => string }, sessi
         }
 
         const data: UploadSessionResponse = await response.json();
+        const merged = data.deduplicatedGeoLocations ?? 0;
+        const mergeMessage = merged > 0 ? `${merged} identical location ${merged === 1 ? 'entry was' : 'entries were'} merged.` : null;
         const resourceId = data.resourceId !== undefined && data.resourceId !== null ? String(data.resourceId).trim() : '';
         const sessionKey = data.sessionKey ? String(data.sessionKey).trim() : '';
 
@@ -58,6 +61,7 @@ async function uploadSessionFile(file: File, route: { url: () => string }, sessi
                 resourceId,
                 sessionKey: sessionKey || null,
                 editorUrl: editorRoute({ query: { resourceId } }).url,
+                ...(mergeMessage ? { message: mergeMessage } : {}),
             };
         }
 
@@ -69,6 +73,7 @@ async function uploadSessionFile(file: File, route: { url: () => string }, sessi
                 resourceId: null,
                 sessionKey,
                 editorUrl: editorRoute({ query: { [sessionQueryKey]: sessionKey } }).url,
+                ...(mergeMessage ? { message: mergeMessage } : {}),
             };
         }
 

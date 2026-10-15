@@ -118,7 +118,7 @@ class ResourceController extends Controller
     public function store(StoreResourceRequest $request): JsonResponse
     {
         try {
-            [$resource, $isUpdate] = $this->editorResourceSaveService->saveValidated(
+            [$resource, $isUpdate, $changes] = $this->editorResourceSaveService->saveValidated(
                 $request->validated(),
                 $request->user(),
             );
@@ -152,6 +152,7 @@ class ResourceController extends Controller
 
         return response()->json([
             'message' => $message,
+            'geoLocationChanges' => $changes,
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
@@ -172,7 +173,7 @@ class ResourceController extends Controller
             $validated = $request->validated();
             $intent = EditorDraftSaveIntent::from($validated['intent']);
 
-            [$resource, $isUpdate] = $this->editorResourceSaveService->saveRelaxed(
+            [$resource, $isUpdate, $changes] = $this->editorResourceSaveService->saveRelaxed(
                 $validated,
                 $request->user(),
                 $intent,
@@ -209,6 +210,7 @@ class ResourceController extends Controller
 
         return response()->json([
             'message' => $message,
+            'geoLocationChanges' => $changes,
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),

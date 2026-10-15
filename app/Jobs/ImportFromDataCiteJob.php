@@ -30,6 +30,7 @@ use App\Services\SumarioPmdContactEnrichmentService;
 use App\Services\SumarioPmdCoverageEnrichmentService;
 use App\Services\UserActivityService;
 use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\LegacyDescriptionBreakNormalizer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -1090,7 +1091,8 @@ class ImportFromDataCiteJob implements ShouldQueue
                     return ['status' => 'skipped', 'resource' => null];
                 }
 
-                $resource = $transformer->transform($preparedDoiRecord, $this->userId);
+                $geoReport = new GeoLocationWriteReport;
+                $resource = $transformer->transform($preparedDoiRecord, $this->userId, $geoReport);
 
                 if ($legacyResourceId !== null) {
                     $resource->forceFill([
@@ -1101,7 +1103,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                     ])->save();
                 }
 
-                return ['status' => 'imported', 'resource' => $resource];
+                return ['status' => 'imported', 'resource' => $resource, 'geoReport' => $geoReport];
             });
 
             if ($result['status'] === 'skipped') {
@@ -1133,9 +1135,11 @@ class ImportFromDataCiteJob implements ShouldQueue
             /** @var Resource $importedResource */
             $importedResource = $result['resource'];
 
+            $geoReport = $result['geoReport'];
             $this->enrichImportedResourceFromLegacyDatabases(
                 $importedResource,
                 $doi,
+                $geoReport,
                 $portalDatacenterNames,
             );
 
@@ -1169,6 +1173,15 @@ class ImportFromDataCiteJob implements ShouldQueue
             $activities = app(UserActivityService::class);
             $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
                 $activities->subject($importedResource), operationId: $this->importId);
+
+            if ($geoReport->removedCount > 0) {
+                $importedResource->getConnection()->afterCommit(function () use ($geoReport, $doi): void {
+                    $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
+                    $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+                    $mergeWarnings[] = $geoReport->mergeWarning($doi);
+                    $this->updateProgressKeys(['geo_location_merge_warnings' => $mergeWarnings]);
+                });
+            }
 
             Log::debug('Imported DOI', ['doi' => $doi]);
 
@@ -1571,6 +1584,7 @@ class ImportFromDataCiteJob implements ShouldQueue
     private function enrichImportedResourceFromLegacyDatabases(
         Resource $resource,
         string $doi,
+        GeoLocationWriteReport $geoReport,
         ?array $portalDatacenterNames = null,
     ): void {
         if (! $resource->exists) {
@@ -1580,7 +1594,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         app(SumarioPmdContactEnrichmentService::class)->enrich($resource, $doi);
 
         try {
-            app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $doi);
+            app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $doi, $geoReport);
         } catch (\Throwable $exception) {
             Log::warning('Unexpected SUMARIO coverage enrichment failure; continuing DataCite import.', [
                 'doi' => $doi,
@@ -1756,6 +1770,10 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     private function updateProgress(array $data): void
     {
+        $progress = app(ImportProgressService::class)->get(ImportProgressService::TYPE_RESOURCE, $this->importId);
+        $mergeWarnings = $progress['geo_location_merge_warnings'] ?? [];
+        $data['geo_location_merge_warnings'] = $mergeWarnings;
+        $data['warnings'] = array_values(array_unique([...($data['warnings'] ?? []), ...$mergeWarnings]));
         $data['activity_actor'] = $this->activityActor;
         app(ImportProgressService::class)->update(ImportProgressService::TYPE_RESOURCE, $this->importId, $data, replace: true);
     }

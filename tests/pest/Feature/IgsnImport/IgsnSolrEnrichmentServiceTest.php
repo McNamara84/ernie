@@ -4,6 +4,7 @@ use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\IgsnDifXmlParser;
 use App\Services\IgsnSolrEnrichmentService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 
@@ -24,6 +25,17 @@ afterEach(function () {
 });
 
 describe('IgsnSolrEnrichmentService', function () {
+    it('passes the operation report to the DIF parser', function () {
+        $resource = Resource::factory()->create(['doi' => '10.60510/GFREPORT001']);
+        $metadata = IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_REGISTERED]);
+        $report = new GeoLocationWriteReport;
+        $xml = '<resource><sample><primary_location_name>Germany</primary_location_name></sample></resource>';
+        Http::fake(['solr.example.com*' => Http::response(['response' => ['docs' => [['has_dif' => true, 'dif' => base64_encode($xml)]]]])]);
+        $this->parser->shouldReceive('enrichFromDifXml')->once()->with($xml, $resource, $metadata, false, $report)->andReturn(true);
+
+        expect($this->service->enrich($resource, $metadata, 'GFREPORT001', $report))->toBeTrue();
+    });
+
     it('returns true when Solr has DIF data', function () {
         $resource = Resource::factory()->create(['doi' => '10.60510/GFTEST001']);
         $igsnMetadata = IgsnMetadata::create([
@@ -45,7 +57,7 @@ describe('IgsnSolrEnrichmentService', function () {
 
         $this->parser->shouldReceive('enrichFromDifXml')
             ->once()
-            ->with($difXml, $resource, $igsnMetadata)
+            ->with($difXml, $resource, $igsnMetadata, false, null)
             ->andReturn(true);
 
         $result = $this->service->enrich($resource, $igsnMetadata, 'GFTEST001');

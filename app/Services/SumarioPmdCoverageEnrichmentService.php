@@ -6,7 +6,10 @@ namespace App\Services;
 
 use App\Models\GeoLocation;
 use App\Models\Resource;
+use App\Services\GeoLocations\GeoLocationWriterService;
+use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\Legacy\LegacyCoverageGeometryParserService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,7 +24,7 @@ class SumarioPmdCoverageEnrichmentService
         private readonly LegacyCoverageGeometryParserService $geometryParser,
     ) {}
 
-    public function enrich(Resource $resource, string $doi): bool
+    public function enrich(Resource $resource, string $doi, ?GeoLocationWriteReport $geoReport = null): bool
     {
         $doi = trim($doi);
 
@@ -36,9 +39,12 @@ class SumarioPmdCoverageEnrichmentService
                 return false;
             }
 
-            return DB::connection($resource->getConnectionName())
-                ->transaction(function () use ($resource, $doi, $coverages): bool {
-                    $dataCiteBoxes = $this->loadDataCiteBoxes($resource);
+            $coverageReport = new GeoLocationWriteReport;
+            $enriched = app(GeoLocationWriterService::class)
+                ->batch($resource, function (GeoLocationWriteSessionService $session) use ($resource, $doi, $coverages, $coverageReport): bool {
+                    $dataCiteBoxes = $session->locations()->filter(fn (GeoLocation $location): bool => $location->geo_type === 'box'
+                        && $location->west_bound_longitude !== null && $location->east_bound_longitude !== null
+                        && $location->south_bound_latitude !== null && $location->north_bound_latitude !== null);
 
                     /** @var array<int, list<array{box: GeoLocation, coverage: array{coverage_id: int, legacy_resource_id: int}}>> $boxAssignments */
                     $boxAssignments = [];
@@ -46,11 +52,11 @@ class SumarioPmdCoverageEnrichmentService
                     foreach ($coverages as $coverage) {
                         $matchingBox = $this->findMatchingBox($dataCiteBoxes, $doi, $coverage);
 
-                        $resource->geoLocations()->create([
+                        $coverageReport->record($session->write([
                             'geo_type' => 'line',
                             'place' => $coverage['description'],
                             'polygon_points' => $coverage['points'],
-                        ]);
+                        ]));
 
                         if ($matchingBox !== null) {
                             $boxAssignments[$matchingBox->id][] = [
@@ -74,13 +80,20 @@ class SumarioPmdCoverageEnrichmentService
                             continue;
                         }
 
-                        $assignments[0]['box']->delete();
+                        $session->delete($assignments[0]['box']);
                     }
 
                     $resource->unsetRelation('geoLocations');
 
                     return true;
                 });
+
+            // Add enrichment counts after the batch has succeeded.
+            if ($geoReport !== null) {
+                $geoReport->removedCount += $coverageReport->removedCount;
+            }
+
+            return $enriched;
         } catch (\Throwable $exception) {
             Log::warning('SUMARIO coverage enrichment failed; preserving DataCite geolocation metadata.', [
                 'doi' => $doi,
@@ -167,20 +180,6 @@ class SumarioPmdCoverageEnrichmentService
         }
 
         return $coverages;
-    }
-
-    /**
-     * @return Collection<int, GeoLocation>
-     */
-    private function loadDataCiteBoxes(Resource $resource): Collection
-    {
-        return $resource->geoLocations()
-            ->where('geo_type', 'box')
-            ->whereNotNull('west_bound_longitude')
-            ->whereNotNull('east_bound_longitude')
-            ->whereNotNull('south_bound_latitude')
-            ->whereNotNull('north_bound_latitude')
-            ->get();
     }
 
     /**

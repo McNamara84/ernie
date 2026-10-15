@@ -149,6 +149,8 @@ class StoreResourceRequest extends FormRequest
             'gcmdKeywords.*.schemeURI' => ['nullable', 'string', 'max:512'],
             'gcmdKeywords.*.classificationCode' => ['nullable', 'string', 'max:255'],
             'spatialTemporalCoverages' => ['nullable', 'array'],
+            'spatialTemporalCoverages.*.id' => ['nullable', 'string', 'max:100'],
+            'spatialTemporalCoverages.*.copyFromId' => ['nullable', 'string', 'max:100'],
             'spatialTemporalCoverages.*.type' => ['required', Rule::in(['point', 'box', 'polygon', 'line'])],
             'spatialTemporalCoverages.*.latMin' => ['nullable', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.latMax' => ['nullable', 'numeric', 'between:-90,90'],
@@ -681,12 +683,12 @@ class StoreResourceRequest extends FormRequest
         }
 
         // Normalize spatial temporal coverages
-        /** @var array<int, array<string, mixed>|mixed> $rawCoverages */
+        $hasCoveragesInput = $this->exists('spatialTemporalCoverages');
         $rawCoverages = $this->input('spatialTemporalCoverages', []);
 
         $coverages = [];
 
-        foreach ($rawCoverages as $coverage) {
+        foreach (is_array($rawCoverages) ? $rawCoverages : [] as $coverage) {
             if (! is_array($coverage)) {
                 continue;
             }
@@ -700,23 +702,22 @@ class StoreResourceRequest extends FormRequest
             if (in_array($type, ['polygon', 'line'], true) && isset($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
                 $polygonPoints = [];
                 foreach ($coverage['polygonPoints'] as $point) {
-                    if (! is_array($point)) {
-                        continue;
-                    }
+                    $point = is_array($point) ? $point : [];
 
                     $lat = isset($point['lat']) ? $point['lat'] : null;
                     $lon = isset($point['lon']) ? $point['lon'] : null;
 
-                    if ($lat !== null && $lon !== null) {
-                        $polygonPoints[] = [
-                            'lat' => is_numeric($lat) ? (float) $lat : null,
-                            'lon' => is_numeric($lon) ? (float) $lon : null,
-                        ];
-                    }
+                    // Preserve incomplete rows for validation instead of silently deleting vertices.
+                    $polygonPoints[] = [
+                        'lat' => is_numeric($lat) ? (float) $lat : null,
+                        'lon' => is_numeric($lon) ? (float) $lon : null,
+                    ];
                 }
             }
 
             $coverages[] = [
+                'id' => $coverage['id'] ?? null,
+                'copyFromId' => $coverage['copyFromId'] ?? null,
                 'type' => $type,
                 'placeNames' => isset($coverage['placeNames']) && is_array($coverage['placeNames'])
                     ? array_values(array_filter(array_map('trim', $coverage['placeNames'])))
@@ -847,7 +848,7 @@ class StoreResourceRequest extends FormRequest
             'dates' => $dates,
             'keywords' => $keywords,
             'controlledKeywords' => $controlledKeywords,
-            'spatialTemporalCoverages' => $coverages,
+            ...($hasCoveragesInput ? ['spatialTemporalCoverages' => is_array($rawCoverages) || $rawCoverages === null ? $coverages : $rawCoverages] : []),
             'relatedIdentifiers' => $relatedIdentifiers,
             'fundingReferences' => $fundingReferences,
         ]);

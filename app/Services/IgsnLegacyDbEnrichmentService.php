@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -39,7 +40,7 @@ class IgsnLegacyDbEnrichmentService
      * @param  string  $igsnHandle  The IGSN handle suffix (e.g. GFBNO7002EC8H101)
      * @return bool True if enrichment was successful
      */
-    public function enrich(Resource $resource, IgsnMetadata $igsnMetadata, string $igsnHandle): bool
+    public function enrich(Resource $resource, IgsnMetadata $igsnMetadata, string $igsnHandle, ?GeoLocationWriteReport $geoReport = null): bool
     {
         if (! $this->available) {
             return false;
@@ -72,7 +73,7 @@ class IgsnLegacyDbEnrichmentService
                 }
             }
 
-            $result = $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata);
+            $result = $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata, false, $geoReport);
             if ($result) {
                 $this->consecutiveFailures = 0;
             }

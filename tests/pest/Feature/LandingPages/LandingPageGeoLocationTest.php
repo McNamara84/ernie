@@ -27,6 +27,25 @@ beforeEach(function () {
 });
 
 describe('Landing Page with GeoLocations', function () {
+    test('normalizes stored numeric-string paths in published and preview payloads without rewriting data', function (string $type, bool $preview) {
+        $points = [['latitude' => '52.38', 'longitude' => '13.06'],
+            ['latitude' => '52.40', 'longitude' => '13.08'], ['latitude' => 53.25, 'longitude' => '13.2']];
+        $location = GeoLocation::factory()->create(['resource_id' => $this->resource->id, 'geo_type' => $type, 'polygon_points' => $points]);
+        $url = $this->landingPageUrl;
+        if ($preview) {
+            $this->landingPage->update(['is_published' => false]);
+            $url .= '?preview='.$this->landingPage->preview_token;
+        }
+
+        $this->get($url)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('resource.geo_locations.0.geo_type', $type)
+            ->where('resource.geo_locations.0.polygon_points', [
+                ['latitude' => 52.38, 'longitude' => 13.06],
+                ['latitude' => 52.4, 'longitude' => 13.08], ['latitude' => 53.25, 'longitude' => 13.2],
+            ]));
+        expect($location->fresh()->polygon_points)->toBe($points);
+    })->with(['polygon', 'line'])->with([false, true]);
+
     test('returns geo_locations in resource data', function () {
         // Create a point location
         GeoLocation::factory()->withPoint(13.0661, 52.3806)->create([

@@ -313,8 +313,8 @@ describe('Polygon Validation', function () {
             ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(422);
-        // Validation catches invalid point and polygon ends up with fewer than 3 valid points
-        $response->assertJsonValidationErrors(['spatialTemporalCoverages.0.polygonPoints']);
+        // Keep the incomplete vertex and identify its missing coordinate.
+        $response->assertJsonValidationErrors(['spatialTemporalCoverages.0.polygonPoints.0.lat']);
     });
 
     test('rejects polygon with missing lon coordinate', function () {
@@ -339,8 +339,8 @@ describe('Polygon Validation', function () {
             ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(422);
-        // Validation catches invalid point and polygon ends up with fewer than 3 valid points
-        $response->assertJsonValidationErrors(['spatialTemporalCoverages.0.polygonPoints']);
+        // Keep the incomplete vertex and identify its missing coordinate.
+        $response->assertJsonValidationErrors(['spatialTemporalCoverages.0.polygonPoints.0.lon']);
     });
 
     test('rejects polygon with non-numeric coordinates', function () {
