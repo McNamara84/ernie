@@ -5,7 +5,7 @@
         "fixes": [
             {
                 "title": "Responsive Data Editor During Background Checks",
-                "description": "Assistant scans now run on a separate worker, and interactive DataCite updates and ORCID verification receive priority within shared API limits. Waiting background requests release their locks, while optional citation lookups run before the editor's save transaction. Temporary DataCite failures preserve locally saved metadata and clearly distinguish it from an unconfirmed external update. Event Data requests back off when the provider is unavailable or rate limited."
+                "description": "Assistant scans now run on a separate worker, and interactive DataCite updates and ORCID verification receive priority within shared API limits. Waiting background requests release their locks, while optional citation lookups run before the editor's save transaction. Superseded DOI updates cannot replay older metadata over a newer update. Temporary DataCite failures preserve locally saved metadata and clearly distinguish it from an unconfirmed external update. Event Data requests honor provider cooldowns across concurrent failures. Cached missing ORCIDs remain blocking when online checks time out or warnings are confirmed."
             },
             {
                 "title": "Stable Landing Page Maps and GeoLocation Duplicate Prevention",

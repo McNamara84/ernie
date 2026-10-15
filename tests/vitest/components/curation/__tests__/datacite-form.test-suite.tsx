@@ -9139,14 +9139,16 @@ describe('DataCiteForm', () => {
             expect(mockedAxios.post).not.toHaveBeenCalled();
         });
 
-        it.each(['success', 'temporary-busy'] as const)(
+        it.each(['success', 'temporary-busy', 'superseded'] as const)(
             'confirms, saves, and updates a published record after %s',
             { timeout: 60000 },
             async (outcome) => {
                 const user = userEvent.setup({ pointerEventsCheck: 0 });
                 const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
                 const busyMessage =
-                    'Your metadata is saved in ERNIE. DataCite is temporarily busy; the external update has not been confirmed. Please retry shortly.';
+                    outcome === 'superseded'
+                        ? 'A newer DOI update superseded this request. Reload the resource before retrying.'
+                        : 'Your metadata is saved in ERNIE. DataCite is temporarily busy; the external update has not been confirmed. Please retry shortly.';
                 let updateAttempts = 0;
 
                 mockedAxios.post.mockImplementation((url: string) => {
@@ -9158,8 +9160,17 @@ describe('DataCiteForm', () => {
                     }
 
                     if (url === '/resources/42/register-doi') {
-                        if (outcome === 'temporary-busy' && updateAttempts++ === 0) {
-                            return Promise.reject({ isAxiosError: true, response: { status: 503, data: { message: busyMessage } } });
+                        if (outcome !== 'success' && updateAttempts++ === 0) {
+                            return Promise.reject({
+                                isAxiosError: true,
+                                response: {
+                                    status: outcome === 'superseded' ? 409 : 503,
+                                    data: {
+                                        error: outcome === 'superseded' ? 'doi_update_superseded' : 'datacite_temporarily_busy',
+                                        message: busyMessage,
+                                    },
+                                },
+                            });
                         }
                         return Promise.resolve({
                             data: {
@@ -9209,7 +9220,7 @@ describe('DataCiteForm', () => {
                 await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
                 expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
                 expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/register-doi', { prefix: '', force: false }]);
-                if (outcome === 'temporary-busy') {
+                if (outcome !== 'success') {
                     expect(await screen.findByText(busyMessage)).toBeInTheDocument();
                     expect(mockRouterVisit).not.toHaveBeenCalled();
                     expect(screen.getByDisplayValue('Published Dataset')).toBeInTheDocument();

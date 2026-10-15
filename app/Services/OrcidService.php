@@ -150,17 +150,9 @@ class OrcidService
 
         // Check negative cache for known non-existent ORCIDs
         $negativeCacheKey = 'orcid:negative:'.$orcid;
-        if (Cache::has($negativeCacheKey)) {
-            return [
-                'valid' => true,
-                'exists' => false,
-                'message' => 'ORCID ID not found',
-                'errorType' => 'not_found',
-            ];
-        }
-
-        if (Cache::has('orcid:verified:'.$orcid)) {
-            return ['valid' => true, 'exists' => true, 'message' => 'Valid ORCID ID', 'errorType' => null];
+        $cached = app(OrcidValidationCacheService::class)->get($orcid);
+        if ($cached !== null) {
+            return $cached;
         }
 
         // Try API with retry logic for transient failures. Preflight call sites

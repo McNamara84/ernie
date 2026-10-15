@@ -70,6 +70,49 @@ final class ResourceTombstoneSyncService
         }
 
         try {
+            $writeRevision = DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition): ?string {
+                $transition->refresh();
+                $latest = ResourceTombstoneTransition::where('resource_id', $transition->resource_id)->latest('revision')->first();
+                if ($latest?->id !== $transition->id) {
+                    $transition->update(['status' => 'superseded']);
+
+                    return null;
+                }
+                if (in_array($transition->status, ['succeeded', 'superseded', 'failed'], true)
+                    || ($transition->status === 'pending' && $transition->available_at?->isFuture())) {
+                    return null;
+                }
+                $transition->update(['status' => 'running', 'attempts' => $transition->attempts + 1]);
+
+                return DataCiteDoiWriteLockService::observeWrite($transition->doi, $transition->test_mode);
+            });
+            if ($writeRevision === null) {
+                return;
+            }
+            // Network reads and capacity waits never retain the lifecycle lock.
+            // The client rechecks this transition under its final PUT lock.
+            $client = new DataCiteMemberApiClient(app(DataCiteRequestLimiter::class), $transition->test_mode);
+            $response = $client->getDoi($transition->doi);
+            $response->throw();
+            $state = $response->json('data.attributes.state');
+            $owner = $response->json('data.relationships.client.data.id');
+            if (! is_string($owner) || strtolower($owner) !== $client->repositoryClientId()) {
+                throw new \RuntimeException('The DOI repository ownership could not be verified.');
+            }
+            if (! in_array($state, ['registered', 'findable'], true)) {
+                throw new \RuntimeException('The DOI is no longer registered.');
+            }
+            if ($state !== $transition->target_state || $response->json('data.attributes.url') !== $transition->target_url) {
+                $attributes = ['url' => $transition->target_url];
+                if ($state !== $transition->target_state) {
+                    $attributes['event'] = $transition->target_state === 'registered' ? 'hide' : 'publish';
+                }
+                $response = $client->updateDoi($transition->doi, ['data' => ['type' => 'dois', 'id' => $transition->doi, 'attributes' => $attributes]], tombstoneTransitionId: $transition->id, expectedWriteRevision: $writeRevision);
+                $response->throw();
+                if ($response->json('data.attributes.state') !== $transition->target_state || $response->json('data.attributes.url') !== $transition->target_url) {
+                    throw new \RuntimeException('DataCite has not confirmed the requested state and URL.');
+                }
+            }
             DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition): void {
                 $transition->refresh();
                 $latest = ResourceTombstoneTransition::where('resource_id', $transition->resource_id)->latest('revision')->first();
@@ -78,32 +121,8 @@ final class ResourceTombstoneSyncService
 
                     return;
                 }
-                if (in_array($transition->status, ['succeeded', 'superseded', 'failed'], true)
-                    || ($transition->status === 'pending' && $transition->available_at?->isFuture())) {
+                if (in_array($transition->status, ['succeeded', 'superseded', 'failed'], true)) {
                     return;
-                }
-                $transition->update(['status' => 'running', 'attempts' => $transition->attempts + 1]);
-                $client = new DataCiteMemberApiClient(app(DataCiteRequestLimiter::class), $transition->test_mode);
-                $response = $client->getDoi($transition->doi);
-                $response->throw();
-                $state = $response->json('data.attributes.state');
-                $owner = $response->json('data.relationships.client.data.id');
-                if (! is_string($owner) || strtolower($owner) !== $client->repositoryClientId()) {
-                    throw new \RuntimeException('The DOI repository ownership could not be verified.');
-                }
-                if (! in_array($state, ['registered', 'findable'], true)) {
-                    throw new \RuntimeException('The DOI is no longer registered.');
-                }
-                if ($state !== $transition->target_state || $response->json('data.attributes.url') !== $transition->target_url) {
-                    $attributes = ['url' => $transition->target_url];
-                    if ($state !== $transition->target_state) {
-                        $attributes['event'] = $transition->target_state === 'registered' ? 'hide' : 'publish';
-                    }
-                    $response = $client->updateDoi($transition->doi, ['data' => ['type' => 'dois', 'id' => $transition->doi, 'attributes' => $attributes]]);
-                    $response->throw();
-                    if ($response->json('data.attributes.state') !== $transition->target_state || $response->json('data.attributes.url') !== $transition->target_url) {
-                        throw new \RuntimeException('DataCite has not confirmed the requested state and URL.');
-                    }
                 }
                 $transition->update(['status' => 'succeeded', 'completed_at' => now(), 'available_at' => null, 'last_error' => null]);
                 $resource = \App\Models\Resource::find($transition->resource_id);
@@ -115,13 +134,25 @@ final class ResourceTombstoneSyncService
             });
         } catch (Throwable $exception) {
             $status = $exception instanceof RequestException ? $exception->response->status() : null;
-            $retryable = $status === null || $status === 429 || $status >= 500;
-            $retry = $retryable && $transition->attempts < 5;
-            $transition->update([
-                'status' => $retry ? 'pending' : 'failed',
-                'available_at' => $retry ? now()->addSeconds(min(3600, 30 * 2 ** $transition->attempts)) : null,
-                'last_error' => $status !== null ? "DataCite request failed (HTTP {$status})." : 'DataCite synchronization could not be confirmed. Please retry.',
-            ]);
+            DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition, $status): void {
+                $transition->refresh();
+                $latest = ResourceTombstoneTransition::where('resource_id', $transition->resource_id)->latest('revision')->first();
+                if ($latest?->id !== $transition->id) {
+                    $transition->update(['status' => 'superseded']);
+
+                    return;
+                }
+                if (in_array($transition->status, ['succeeded', 'superseded', 'failed'], true)) {
+                    return;
+                }
+                $retryable = $status === null || $status === 429 || $status >= 500;
+                $retry = $retryable && $transition->attempts < 5;
+                $transition->update([
+                    'status' => $retry ? 'pending' : 'failed',
+                    'available_at' => $retry ? now()->addSeconds(min(3600, 30 * 2 ** $transition->attempts)) : null,
+                    'last_error' => $status !== null ? "DataCite request failed (HTTP {$status})." : 'DataCite synchronization could not be confirmed. Please retry.',
+                ]);
+            });
             Log::warning('Tombstone sync incomplete', ['transition_id' => $id, 'http_status' => $status]);
         }
     }

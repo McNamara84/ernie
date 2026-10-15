@@ -6,10 +6,25 @@ use App\Services\DataCiteEventDataService;
 use App\Services\DataCitePublicApiLimiterService;
 use App\Services\RelationTypeCorrection\RelationMetadataClientService;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(fn () => Cache::flush());
+
+it('never shortens a provider cooldown when another request fails later', function (int $laterSeconds) {
+    $limiter = app(DataCitePublicApiLimiterService::class);
+    $started = now()->getTimestamp();
+    $limiter->suspend(600);
+    $this->travel(10)->seconds();
+    (new DataCitePublicApiLimiterService)->suspend($laterSeconds);
+    $expiry = max($started + 600, now()->getTimestamp() + $laterSeconds);
+    expect(Cache::get('datacite:public-discovery:unavailable'))->toBe($expiry);
+    $this->travelTo(Carbon::createFromTimestamp($expiry - 1));
+    expect($limiter->tryAcquire())->toBeFalse();
+    $this->travel(2)->seconds();
+    expect($limiter->tryAcquire())->toBeTrue();
+})->with(['shorter network backoff' => 60, 'longer Retry-After' => 900]);
 
 it('shares provider cooldowns between assistant modules without blocking Crossref', function () {
     Http::fake([

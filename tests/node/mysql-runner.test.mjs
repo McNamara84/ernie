@@ -16,10 +16,14 @@ function recorder(version = '9.7.2', failSlice) {
     };
 }
 
-test('complete MySQL inventory retains 25 reset boundaries and every existing target', () => {
+test('complete MySQL inventory retains 26 reset boundaries and includes editor concurrency checks', () => {
     const slices = resolveMysqlSlices();
-    assert.equal(slices.length, 25);
-    assert.equal(new Set(slices.map(({ name }) => name)).size, 25);
+    assert.equal(slices.length, 26);
+    assert.equal(new Set(slices.map(({ name }) => name)).size, 26);
+    assert.deepEqual(
+        slices.find(({ name }) => name === 'editor-background'),
+        resolveMysqlSlices('editor-background')[0],
+    );
     for (const { paths } of slices) for (const path of paths) assert.ok(existsSync(path), path);
     assert.deepEqual(slices.at(-1), resolveMysqlSlices('oai-pmh').at(-1));
     assert.equal(resolveMysqlSlices('tombstones').length, 1);
@@ -27,7 +31,10 @@ test('complete MySQL inventory retains 25 reset boundaries and every existing ta
 });
 
 test('refuses unknown slices, parallel workers, and incompatible servers before any reset', () => {
-    for (const options of [{ selection: 'unknown' }, ...['--parallel', '-p', '--parallel=true', '--processes=2'].map((arg) => ({ pestArgs: [arg] }))]) {
+    for (const options of [
+        { selection: 'unknown' },
+        ...['--parallel', '-p', '--parallel=true', '--processes=2'].map((arg) => ({ pestArgs: [arg] })),
+    ]) {
         const recording = recorder();
         assert.throws(() => runMysqlTests({ ...options, execute: recording.execute }));
         assert.deepEqual(recording.calls, []);
@@ -44,7 +51,7 @@ test('starts services once and preserves isolated reset-before-test ordering and
     runMysqlTests({ execute: recording.execute });
     assert.equal(recording.calls.filter((args) => args[0] === 'up').length, 1);
     const tests = recording.calls.filter((args) => args.includes('./vendor/bin/pest'));
-    assert.equal(tests.length, 25);
+    assert.equal(tests.length, 26);
     for (const args of tests) {
         const reset = recording.calls[recording.calls.indexOf(args) - 1];
         assert.ok(reset.at(-1).startsWith('DROP DATABASE IF EXISTS ernie_test; CREATE DATABASE ernie_test;'));

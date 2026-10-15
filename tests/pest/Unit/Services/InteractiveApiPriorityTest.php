@@ -3,13 +3,16 @@
 declare(strict_types=1);
 
 use App\Exceptions\DataCiteRequestDeferredException;
+use App\Exceptions\DataCiteWriteSupersededException;
 use App\Http\Middleware\PrioritizeInteractiveApiRequests;
+use App\Services\DataCiteDoiWriteLockService;
 use App\Services\DataCiteMemberApiClient;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\InteractiveApiRequestContextService;
 use App\Services\OrcidRequestLimiterService;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -154,6 +157,107 @@ it('never holds the DOI lock while waiting for capacity, including retries', fun
     $response = $this->priority->run(fn () => $client->updateDoi('10.5880/interactive', ['data' => ['attributes' => ['titles' => []]]]));
     expect($response->successful())->toBeTrue()->and($waits)->toBeGreaterThanOrEqual(2);
     Http::assertSentCount(2);
+});
+
+it('rejects an older retry after another writer publishes newer metadata', function (bool $networkFailure, bool $urlOnly) {
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $clock = new InteractiveDataCiteClock;
+    $doi = '10.5880/superseded';
+    $sent = [];
+    Http::fake(function ($request) use (&$sent, $networkFailure) {
+        $sent[] = $request->data();
+        if (count($sent) === 1) {
+            if ($networkFailure) {
+                throw new ConnectionException('ambiguous first attempt');
+            }
+
+            return Http::response([], 503);
+        }
+
+        return Http::response([], 200);
+    });
+    $clock->duringWait = function () use ($clock, $doi, $urlOnly) {
+        $clock->duringWait = null;
+        $clock->milliseconds += 1000;
+        $newer = new DataCiteMemberApiClient($clock, true);
+        if ($urlOnly) {
+            $newer->updateLandingPageUrl($doi, 'https://example.test/new');
+        } else {
+            $newer->updateDoi($doi, ['data' => ['attributes' => ['titles' => [['title' => 'New metadata']]]]]);
+        }
+    };
+    $client = new DataCiteMemberApiClient($clock, true);
+    expect(fn () => $client->updateDoi($doi, ['data' => ['attributes' => ['titles' => [['title' => 'Old metadata']]]]]))
+        ->toThrow(DataCiteWriteSupersededException::class);
+    expect($sent)->toHaveCount(2);
+    expect($sent[1]['data']['attributes'])->toBe($urlOnly
+        ? ['url' => 'https://example.test/new']
+        : ['titles' => [['title' => 'New metadata']]]);
+})->with([false, true])->with([false, true]);
+
+it('admits writes at send time after waiting behind a slow DOI writer', function () {
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $clock = new InteractiveDataCiteClock;
+    $doi = '10.5880/contended';
+    $key = 'datacite:doi-write:'.hash('sha256', 'test:'.$doi);
+    $cache = Cache::getFacadeRoot();
+    $lock = Mockery::mock(Lock::class);
+    $first = true;
+    $lock->shouldReceive('block')->andReturnUsing(function ($seconds, $callback) use ($clock, &$first) {
+        if ($first) {
+            $clock->milliseconds += 9000;
+            $first = false;
+        }
+
+        return $callback();
+    });
+    Cache::shouldReceive('lock')->andReturnUsing(fn ($name, $seconds) => $name === $key ? $lock : $cache->lock($name, $seconds));
+    foreach (['get', 'put', 'has'] as $method) {
+        Cache::shouldReceive($method)->andReturnUsing(fn (...$args) => $cache->$method(...$args));
+    }
+    $sentAt = [];
+    Http::fake(function () use ($clock, &$sentAt) {
+        $sentAt[] = $clock->milliseconds;
+
+        return Http::response([], 200);
+    });
+    $client = new DataCiteMemberApiClient($clock, true);
+    $client->updateLandingPageUrl($doi, 'https://example.test/first');
+    $client->updateLandingPageUrl($doi, 'https://example.test/second');
+    expect($sentAt)->toBe([1_009_000, 1_010_000]);
+});
+
+it('does not let a merely waiting background writer supersede an editor request', function () {
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $clock = new InteractiveDataCiteClock;
+    $clock->reserveSlot();
+    $clock->duringWait = function () use ($clock) {
+        $clock->duringWait = null;
+        app()->instance(InteractiveApiRequestContextService::class, new InteractiveApiRequestContextService);
+        try {
+            expect(fn () => (new DataCiteMemberApiClient($clock, true))->updateLandingPageUrl('10.5880/editor-first', 'https://example.test/background', true))
+                ->toThrow(DataCiteRequestDeferredException::class);
+        } finally {
+            app()->instance(InteractiveApiRequestContextService::class, $this->priority);
+        }
+    };
+    Http::fake(['*' => Http::response([], 200)]);
+    $response = $this->priority->run(fn () => (new DataCiteMemberApiClient($clock, true))->updateDoi('10.5880/editor-first',
+        ['data' => ['attributes' => ['titles' => [['title' => 'Interactive correction']]]]]));
+    expect($response->successful())->toBeTrue();
+    Http::assertSentCount(1);
+});
+
+it('does not wait for capacity inside an enclosing lifecycle lock', function () {
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $clock = new InteractiveDataCiteClock;
+    $clock->reserveSlot();
+    Http::fake();
+    expect(fn () => DataCiteDoiWriteLockService::run('10.5880/lifecycle', true,
+        fn () => (new DataCiteMemberApiClient($clock, true))->getDoi('10.5880/lifecycle')))
+        ->toThrow(DataCiteRequestDeferredException::class);
+    Http::assertNothingSent();
+    expect($clock->milliseconds)->toBe(1_000_000);
 });
 
 it('yields ORCID background searches to interactive verification without holding a lock', function () {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\DataCiteRequestDeferredException;
+use App\Exceptions\DataCiteWriteSupersededException;
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
@@ -164,6 +165,8 @@ class ResourceDoiRegistrationController extends Controller
             }
 
             return response()->json($registrationResponse);
+        } catch (DataCiteWriteSupersededException $e) {
+            return response()->json(['error' => 'doi_update_superseded', 'message' => $e->getMessage()], 409);
         } catch (LockTimeoutException $e) {
             return response()->json([
                 'error' => 'doi_update_in_progress',

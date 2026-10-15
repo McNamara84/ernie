@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\DataCiteRequestDeferredException;
+use App\Exceptions\DataCiteWriteSupersededException;
 use App\Models\LandingPage;
 use App\Models\ResourceTombstoneTransition;
 use App\Models\User;
@@ -149,7 +150,7 @@ class DataCiteMemberApiClient
     }
 
     /** @param array<string, mixed> $payload */
-    public function updateDoi(string $identifier, array $payload): Response
+    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null): Response
     {
         return $this->send(
             'PUT',
@@ -157,6 +158,8 @@ class DataCiteMemberApiClient
             $payload,
             $this->transientAttempts(),
             credentialIdentifier: $identifier,
+            tombstoneTransitionId: $tombstoneTransitionId,
+            expectedWriteRevision: $expectedWriteRevision,
         );
     }
 
@@ -177,9 +180,10 @@ class DataCiteMemberApiClient
      * Applies the latest lifecycle state inside the DOI lock, even for stale queued payloads.
      *
      * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>
+     * @param  array{transition_id: int, state: mixed}|null  $lifecycleRead
+     * @return array<string, mixed>|null Null requests a lifecycle read outside the DOI lock.
      */
-    private function protectTombstonePayload(string $identifier, array $payload): array
+    private function protectTombstonePayload(string $identifier, array $payload, ?array $lifecycleRead): ?array
     {
         $transition = ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->first();
         if ($transition === null) {
@@ -194,9 +198,10 @@ class DataCiteMemberApiClient
         }
         $payload['data']['attributes']['url'] = $transition->target_url;
         if ($transition->target_state === 'registered' && ($payload['data']['attributes']['event'] ?? null) === 'publish') {
-            $response = $this->getDoi($identifier);
-            $response->throw();
-            if ($response->json('data.attributes.state') === 'findable') {
+            if (($lifecycleRead['transition_id'] ?? null) !== $transition->id) {
+                return null;
+            }
+            if ($lifecycleRead['state'] === 'findable') {
                 $payload['data']['attributes']['event'] = 'hide';
             } else {
                 unset($payload['data']['attributes']['event']);
@@ -216,27 +221,35 @@ class DataCiteMemberApiClient
         int $maxAttempts = 1,
         bool $deferWhenLimited = false,
         ?string $credentialIdentifier = null,
+        ?int $tombstoneTransitionId = null,
+        ?string $expectedWriteRevision = null,
     ): Response {
         $maxAttempts = max(1, $maxAttempts);
+        $writeRevision = $method === 'PUT' && $credentialIdentifier !== null && $payload !== null
+            ? DataCiteDoiWriteLockService::run($credentialIdentifier, $this->testMode, function () use ($credentialIdentifier, $tombstoneTransitionId, $expectedWriteRevision): string {
+                $this->assertTombstoneTransition($credentialIdentifier, $tombstoneTransitionId);
+                if ($expectedWriteRevision !== null) {
+                    DataCiteDoiWriteLockService::assertCurrentWrite($credentialIdentifier, $this->testMode, $expectedWriteRevision);
+                }
+
+                return DataCiteDoiWriteLockService::observeWrite($credentialIdentifier, $this->testMode);
+            }) : null;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             if (app(InteractiveApiRequestContextService::class)->remainingMilliseconds() === 0) {
                 throw new DataCiteRequestDeferredException(1000);
             }
-            $this->limiter->waitForSlot($deferWhenLimited);
-            $request = $this->request($credentialIdentifier);
-
             try {
-                // Reserve API capacity before taking the DOI lock. A queued
-                // writer waiting for quota must not lock out an editor update.
-                // Each retry releases the lock and rechecks current lifecycle
-                // state, so stale queued payloads cannot revive a tombstone.
-                $response = $method === 'PUT' && $credentialIdentifier !== null && $payload !== null
-                    ? DataCiteDoiWriteLockService::run($credentialIdentifier, $this->testMode,
-                        fn (): Response => $request->send($method, $url, ['json' => $this->protectTombstonePayload($credentialIdentifier, $payload)]))
-                    : ($payload === null
-                        ? $request->send($method, $url)
-                        : $request->send($method, $url, ['json' => $payload]));
+                $response = $writeRevision !== null && $credentialIdentifier !== null && $payload !== null
+                    ? $this->sendWrite($credentialIdentifier, $url, $payload, $writeRevision, $deferWhenLimited, $tombstoneTransitionId)
+                    : $this->limiter->runWhenReady(function () use ($method, $url, $payload, $credentialIdentifier): Response|int {
+                        $delay = $this->limiter->reserveSlot(DataCiteDoiWriteLockService::hasHeldLock());
+                        if ($delay > 0) {
+                            return $delay;
+                        }
+
+                        return $this->request($credentialIdentifier)->send($method, $url, $payload === null ? [] : ['json' => $payload]);
+                    }, $deferWhenLimited);
             } catch (ConnectionException $exception) {
                 if ($attempt >= $maxAttempts) {
                     throw $exception;
@@ -257,6 +270,52 @@ class DataCiteMemberApiClient
         }
 
         throw new \LogicException('The DataCite request loop ended without a response.');
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function sendWrite(string $identifier, string $url, array $payload, string &$revision, bool $deferWhenLimited, ?int $tombstoneTransitionId): Response
+    {
+        $lifecycleRead = null;
+        do {
+            $response = $this->limiter->runWhenReady(function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead): Response|int|null {
+                return DataCiteDoiWriteLockService::run($identifier, $this->testMode, function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead): Response|int|null {
+                    DataCiteDoiWriteLockService::assertCurrentWrite($identifier, $this->testMode, $revision);
+                    $this->assertTombstoneTransition($identifier, $tombstoneTransitionId);
+                    $prepared = $this->protectTombstonePayload($identifier, $payload, $lifecycleRead);
+                    if ($prepared === null) {
+                        return null;
+                    }
+                    // Nonblocking admission immediately before sending: a permit
+                    // cannot age while waiting for this DOI or a lifecycle GET.
+                    $delay = $this->limiter->reserveSlot(nonBlocking: true);
+                    if ($delay > 0) {
+                        return $delay;
+                    }
+
+                    $revision = DataCiteDoiWriteLockService::beginWrite($identifier, $this->testMode);
+
+                    return $this->request($identifier)->put($url, $prepared);
+                });
+            }, $deferWhenLimited);
+            if ($response instanceof Response) {
+                return $response;
+            }
+            $transitionId = (int) ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->value('id');
+            $state = $this->getDoi($identifier, $deferWhenLimited);
+            $state->throw();
+            $lifecycleRead = ['transition_id' => $transitionId, 'state' => $state->json('data.attributes.state')];
+        } while (true);
+    }
+
+    private function assertTombstoneTransition(string $identifier, ?int $transitionId): void
+    {
+        if ($transitionId === null) {
+            return;
+        }
+        $latest = ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->first();
+        if ($latest?->id !== $transitionId || in_array($latest->status, ['succeeded', 'superseded', 'failed'], true)) {
+            throw new DataCiteWriteSupersededException;
+        }
     }
 
     private function transientAttempts(): int

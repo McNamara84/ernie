@@ -63,10 +63,19 @@ Successful ORCID checks are reused for five minutes; invalid format/checksum and
 known missing identifiers remain blocking. The ORCID preflight has a twenty-second
 aggregate network budget, followed by the existing explicit warning confirmation
 when a provider cannot be checked. No sleeping process retains the ORCID limiter
-lock, and DataCite quota waits occur before acquiring a DOI write lock.
+lock. The editor-facing ORCID API endpoints use the same interactive budget;
+cached successful and missing identifiers are still checked after the network
+deadline and during warning confirmation.
+
+DataCite releases DOI locks before capacity waits. Lifecycle reads and final
+writes each obtain admission immediately before sending. A newer write invalidates
+older waiting operations and retries under the DOI lock; a superseded editor
+request returns HTTP 409 instead of replaying stale metadata. Tombstone outbox
+work also rechecks its lifecycle revision and remote-read version before writing.
 
 Public DataCite reads from relation discovery and correction share a separate
 300-request/five-minute budget and provider cooldown across their modules.
+Concurrent failures can extend an active cooldown but cannot shorten it.
 Other relation sources continue to be queried;
 a completed scan during such an outage may have incomplete Event Data suggestions.
 Retry discovery after provider recovery when complete supplementary results matter.

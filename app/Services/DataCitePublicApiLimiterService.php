@@ -43,7 +43,13 @@ final class DataCitePublicApiLimiterService
 
     public function suspend(int $seconds): void
     {
-        Cache::put(self::KEY.':unavailable', true, max(1, $seconds));
+        $until = now()->getTimestamp() + max(1, $seconds);
+        Cache::lock(self::KEY.':lock', 5)->block(1, function () use ($until): void {
+            $current = (int) Cache::get(self::KEY.':unavailable', 0);
+            if ($until > $current) {
+                Cache::put(self::KEY.':unavailable', $until, max(1, $until - now()->getTimestamp()));
+            }
+        });
     }
 
     public function userAgent(): string

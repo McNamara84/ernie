@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\DataCiteRequestDeferredException;
+use Closure;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 
@@ -29,21 +30,45 @@ class DataCiteRequestLimiter
 
     public function waitForSlot(bool $deferLongWait = false): void
     {
+        $this->runWhenReady(function (): bool|int {
+            $delay = $this->reserveSlot();
+
+            return $delay > 0 ? $delay : true;
+        }, $deferLongWait);
+    }
+
+    /**
+     * The attempt admits and sends atomically with its DOI checks. Positive
+     * delays are returned only after releasing all locks; they are not permits.
+     *
+     * @template T
+     *
+     * @param  Closure(): (T|int)  $attempt
+     * @return T
+     */
+    public function runWhenReady(Closure $attempt, bool $deferLongWait = false): mixed
+    {
         $interactive = app(InteractiveApiRequestContextService::class)->isInteractive();
         $deadline = $this->nowMs() + min(app(InteractiveApiRequestContextService::class)->remainingMilliseconds(),
             max(0, (int) config('datacite.interactive_max_wait_ms', 5000)));
         do {
-            $delayMs = $this->reserveSlot();
-
-            if ($delayMs > 0) {
-                if (($deferLongWait && $delayMs > 1000)
-                    || ($interactive && $this->nowMs() + $delayMs > $deadline)) {
-                    throw new DataCiteRequestDeferredException($delayMs);
-                }
-
-                $this->pause(min($delayMs, 1000));
+            if (app(InteractiveApiRequestContextService::class)->remainingMilliseconds() === 0) {
+                throw new DataCiteRequestDeferredException(1000);
             }
-        } while ($delayMs > 0);
+            $result = $attempt();
+            if (! is_int($result)) {
+                return $result;
+            }
+            $delayMs = max(1, $result);
+
+            if (DataCiteDoiWriteLockService::hasHeldLock()
+                || ($deferLongWait && $delayMs > 1000)
+                || ($interactive && $this->nowMs() + $delayMs > $deadline)) {
+                throw new DataCiteRequestDeferredException($delayMs);
+            }
+
+            $this->pause(min($delayMs, 1000));
+        } while (true);
     }
 
     public function imposeCooldown(int $seconds): void
@@ -74,10 +99,11 @@ class DataCiteRequestLimiter
      * can be reserved. Public so the hard limit can be verified without
      * sleeping in automated tests and health checks.
      */
-    public function reserveSlot(): int
+    public function reserveSlot(bool $nonBlocking = false): int
     {
         try {
-            return Cache::lock(self::LOCK_KEY, 10)->block(5, function (): int {
+            $lock = Cache::lock(self::LOCK_KEY, 10);
+            $reserve = function (): int {
                 $nowMs = $this->nowMs();
                 $cooldownUntilMs = (int) Cache::get(self::COOLDOWN_KEY, 0);
 
@@ -132,7 +158,10 @@ class DataCiteRequestLimiter
                 }
 
                 return 0;
-            });
+            };
+            $result = $nonBlocking ? $lock->get($reserve) : $lock->block(5, $reserve);
+
+            return is_int($result) ? $result : 1000;
         } catch (LockTimeoutException) {
             return 1000;
         }

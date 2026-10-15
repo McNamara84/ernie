@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\DataCiteWriteSupersededException;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -76,6 +77,16 @@ it('keeps saved metadata when another writer still owns the DOI lock', function 
     $this->actingAs($this->actor)->postJson(route('resources.register-doi', $this->resource), ['prefix' => ''])
         ->assertStatus(503)->assertHeader('Retry-After', '2')
         ->assertJson(['error' => 'doi_update_in_progress']);
+    expect($this->resource->fresh()->creators->first()->affiliations->first()->identifier)->toBe('https://ror.org/02be6w209')
+        ->and(app(InteractiveApiRequestContextService::class)->isInteractive())->toBeFalse();
+});
+
+it('reports a superseded DOI write without losing locally saved RORs', function () {
+    $service = Mockery::mock(DataCiteRegistrationService::class);
+    $service->shouldReceive('updateMetadata')->once()->andThrow(new DataCiteWriteSupersededException);
+    app()->instance(DataCiteRegistrationService::class, $service);
+    $this->actingAs($this->actor)->postJson(route('resources.register-doi', $this->resource), ['prefix' => ''])
+        ->assertStatus(409)->assertJson(['error' => 'doi_update_superseded']);
     expect($this->resource->fresh()->creators->first()->affiliations->first()->identifier)->toBe('https://ror.org/02be6w209')
         ->and(app(InteractiveApiRequestContextService::class)->isInteractive())->toBeFalse();
 });

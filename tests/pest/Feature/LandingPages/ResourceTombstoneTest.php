@@ -21,6 +21,7 @@ use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\DataCiteDoiWriteLockService;
 use App\Services\DataCiteMemberApiClient;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\KeywordSuggestionService;
@@ -32,12 +33,29 @@ use Illuminate\Bus\UniqueLock;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
+
+class TombstoneAdmissionClock extends DataCiteRequestLimiter
+{
+    public int $milliseconds = 1_000_000;
+
+    protected function nowMs(): int
+    {
+        return $this->milliseconds;
+    }
+
+    protected function pause(int $milliseconds): void
+    {
+        expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse('A lifecycle lock must not survive an API capacity wait.');
+        $this->milliseconds += $milliseconds;
+    }
+}
 
 beforeEach(function () {
     Queue::fake([SyncResourceTombstoneWithDataCiteJob::class]);
@@ -61,6 +79,65 @@ beforeEach(function () {
     Http::swap(new Factory);
     Http::fake(['*datacite.org/*' => Http::response(($this->remote)())]);
 });
+
+test('tombstone lifecycle reads and writes each obey final API admission', function (bool $sync) {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $clock = new TombstoneAdmissionClock;
+    app()->instance(DataCiteRequestLimiter::class, $clock);
+    $sentAt = [];
+    Http::swap(new Factory);
+    Http::fake(function ($request) use ($transition, $clock, &$sentAt) {
+        $sentAt[] = [$request->method(), $clock->milliseconds];
+        if ($request->method() === 'GET') {
+            expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse();
+
+            return Http::response(($this->remote)('findable'));
+        }
+        expect($request['data']['attributes']['event'])->toBe('hide');
+
+        return Http::response(($this->remote)('registered', $transition->target_url));
+    });
+    if ($sync) {
+        app(ResourceTombstoneSyncService::class)->sync($transition->id);
+        expect($transition->fresh()->status)->toBe('succeeded');
+    } else {
+        (new DataCiteMemberApiClient($clock, true))->updateDoi($transition->doi, ['data' => ['attributes' => ['event' => 'publish']]]);
+    }
+    expect($sentAt)->toBe([['GET', 1_000_000], ['PUT', 1_001_000]]);
+})->with(['metadata update' => false, 'outbox synchronization' => true]);
+
+test('a tombstone sync cannot write after its remote read becomes superseded', function (bool $newLifecycle) {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    $putCount = 0;
+    Http::swap(new Factory);
+    Http::fake(function ($request) use ($transition, $newLifecycle, &$putCount) {
+        if ($request->method() === 'PUT') {
+            $putCount++;
+
+            return Http::response(($this->remote)('registered', $transition->target_url));
+        }
+        expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse();
+        if ($newLifecycle) {
+            $newer = $transition->replicate();
+            $newer->fill(['revision' => $transition->revision + 1, 'action' => 'restore', 'target_state' => 'findable', 'target_url' => 'https://example.test/restored', 'status' => 'pending'])->save();
+        } else {
+            app(DataCiteMemberApiClient::class)->updateLandingPageUrl($transition->doi, $transition->target_url);
+        }
+
+        return Http::response(($this->remote)('findable'));
+    });
+    app(ResourceTombstoneSyncService::class)->sync($transition->id);
+    expect($putCount)->toBe($newLifecycle ? 0 : 1)
+        ->and($transition->fresh()->status)->toBe($newLifecycle ? 'superseded' : 'pending');
+})->with(['new lifecycle revision' => true, 'new metadata writer' => false]);
 
 test('curator roles activate a public tombstone without losing its URL or files', function (UserRole $role) {
     $this->user->update(['role' => $role]);

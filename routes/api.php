@@ -15,6 +15,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RorAffiliationController;
 use App\Http\Controllers\TitleTypeController;
 use App\Http\Controllers\VocabularyController;
+use App\Http\Middleware\PrioritizeInteractiveApiRequests;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/v1/resource-types', [ResourceTypeController::class, 'index']);
@@ -65,7 +66,7 @@ Route::middleware('throttle:60,1')->post('/v1/ror-resolve', RorResolveController
 
 // ORCID routes - rate limited to prevent API abuse
 // Allows 30 requests per minute per IP address
-Route::middleware('throttle:orcid-api')->group(function () {
+Route::middleware(['throttle:orcid-api', PrioritizeInteractiveApiRequests::class])->group(function () {
     Route::get('/v1/orcid/search', [OrcidController::class, 'search']);
     Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
     Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);

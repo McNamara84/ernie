@@ -10,6 +10,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\OrcidService;
+use App\Services\OrcidValidationCacheService;
 use App\Support\OrcidNormalizer;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Date;
@@ -166,17 +167,15 @@ final readonly class OrcidPreflightValidator
             );
         }
 
-        // When the curator has already overridden warnings via `force=true`,
-        // skip the throttled network validation. The offline format+checksum
-        // gates above still catch truly malformed identifiers, and any
-        // `not_found` that was detected on the first pass would have returned
-        // a 422 (blocking) rather than the 409 that leads to the force retry.
-        if ($force) {
+        // A deadline or force confirmation skips new HTTP only. In particular,
+        // cached missing identifiers must never become overridable warnings.
+        $cached = app(OrcidValidationCacheService::class)->get($bareId);
+        if ($force && $cached === null) {
             return null;
         }
 
         $response = $networkCache[$bareId]
-            ?? $networkCache[$bareId] = (Date::now()->greaterThanOrEqualTo($deadline)
+            ?? $networkCache[$bareId] = $cached ?? (Date::now()->greaterThanOrEqualTo($deadline)
                 ? ['exists' => null, 'errorType' => 'timeout']
                 : $this->orcid->validateOrcid(
                     $bareId,
