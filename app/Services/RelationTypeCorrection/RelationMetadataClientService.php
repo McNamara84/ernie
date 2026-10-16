@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\RelationTypeCorrection;
 
 use App\Enums\CacheKey;
+use App\Services\DataCitePublicApiLimiterService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -63,16 +64,26 @@ class RelationMetadataClientService
             return $cached;
         }
         $result = ['status' => 'unavailable', 'metadata' => [], 'fetched_at' => now()->toIso8601String()];
+        $publicLimiter = app(DataCitePublicApiLimiterService::class);
+        if ($provider === 'datacite' && ! $publicLimiter->tryAcquire()) {
+            return $result;
+        }
         try {
             $url = $this->url($provider, $doi);
-            $request = Http::acceptJson()->timeout(10)->connectTimeout(5)->retry(2, 100,
+            $request = Http::acceptJson()->timeout(10)->connectTimeout(5)->retry($provider === 'datacite' ? 1 : 2, 100,
                 static fn (Throwable $exception): bool => $exception instanceof ConnectionException
                     || ($exception instanceof RequestException && ($exception->response->status() === 429 || $exception->response->serverError())),
                 throw: false);
             if ($provider === 'crossref' && config('crossref.mailto')) {
                 $request = $request->withHeaders(['User-Agent' => 'ERNIE relation correction (mailto:'.config('crossref.mailto').')']);
             }
+            if ($provider === 'datacite') {
+                $request = $request->withUserAgent($publicLimiter->userAgent());
+            }
             $response = $request->get($url);
+            if ($provider === 'datacite') {
+                $publicLimiter->observe($response);
+            }
             if ($response->status() === 404) {
                 $result['status'] = 'not_found';
             } elseif ($response->successful()) {
@@ -90,6 +101,9 @@ class RelationMetadataClientService
                 }
             }
         } catch (Throwable $exception) {
+            if ($provider === 'datacite') {
+                $publicLimiter->suspend(60);
+            }
             report($exception);
         }
         $cache->put($key, $result, $result['status'] === 'ok' || $result['status'] === 'not_found' ? $cacheKey->ttl() : 300);

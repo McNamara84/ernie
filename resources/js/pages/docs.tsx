@@ -3114,6 +3114,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             confirmed registration only after setup succeeds.
                         </p>
                         <p>
+                            If DataCite is temporarily busy or another update of the DOI is still in progress (503), your successfully saved metadata
+                            remains in ERNIE, but the external update is unconfirmed. Wait briefly, then retry the action. If a newer DOI update
+                            superseded your request (409), reload the resource, review the latest saved metadata, and confirm the update again. Before
+                            retrying a registration, check whether the resource already has a DOI.
+                        </p>
+                        <p>
                             A newly registered DOI shows a five-second success celebration with the total number of canonically published Resources
                             and IGSNs in ERNIE. Draft, curation, and review records are excluded. Metadata updates use a normal success message
                             without the celebration.

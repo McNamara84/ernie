@@ -76,7 +76,12 @@ test.describe('Documentation Page - Interactive Features', () => {
 
             const register = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Register', exact: true }) });
             await expect(register).toContainText('create and publish a DOI');
-            await expect(register).toContainText('failed remote step does not undo a successful local save');
+            for (const label of ['Register', 'Update Metadata']) {
+                const action = page.locator('article').filter({ has: page.getByRole('heading', { name: label, exact: true }) });
+                await expect(action).toContainText(/successful local save remains stored/i);
+                await expect(action).toContainText(/\(503\).*external update is unconfirmed; wait briefly and retry/);
+                await expect(action).toContainText(/\(409\), reload the resource, review its latest metadata, then confirm again/);
+            }
 
             const update = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Update metadata', exact: true }) });
             await expect(update).toContainText('does not mint new DOIs');

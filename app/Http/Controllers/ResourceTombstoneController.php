@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DataCiteWriteSupersededException;
 use App\Http\Requests\LandingPage\ResourceTombstoneRequest;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -33,7 +34,11 @@ class ResourceTombstoneController extends Controller
     {
         $user = $request->user();
         assert($user instanceof User);
-        $page = $this->service->activate($resource, $user, $request->validated());
+        try {
+            $page = $this->service->activate($resource, $user, $request->validated());
+        } catch (DataCiteWriteSupersededException $exception) {
+            return response()->json(['error' => 'doi_update_superseded', 'message' => $exception->getMessage()], 409);
+        }
 
         return $this->result($resource, $user, $page);
     }

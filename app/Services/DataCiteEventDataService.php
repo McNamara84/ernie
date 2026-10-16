@@ -87,14 +87,21 @@ class DataCiteEventDataService
     {
         $relations = [];
 
+        $limiter = app(DataCitePublicApiLimiterService::class);
+        if (! $limiter->tryAcquire()) {
+            return [];
+        }
+
         try {
-            $response = Http::timeout(30)
+            $response = Http::timeout(30)->connectTimeout(5)
+                ->withUserAgent($limiter->userAgent())
                 ->get('https://api.datacite.org/events', [
                     'doi' => $doi,
                     'page[size]' => 200,
                     'source-id' => implode(',', self::SOURCE_IDS),
                 ]);
 
+            $limiter->observe($response);
             if (! $response->successful()) {
                 Log::warning('DataCite Event Data API returned non-success status', [
                     'doi' => $doi,
@@ -123,6 +130,7 @@ class DataCiteEventDataService
                 }
             }
         } catch (\Throwable $e) {
+            $limiter->suspend(60);
             Log::error('DataCite Event Data API request failed', [
                 'doi' => $doi,
                 'error' => $e->getMessage(),

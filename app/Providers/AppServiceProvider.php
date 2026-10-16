@@ -74,6 +74,7 @@ use App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider;
 use App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
+use App\Services\InteractiveApiRequestContextService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalCacheVersionService;
 use App\Services\PortalKeywordCacheInvalidationService;
@@ -112,6 +113,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(AssistanceDatacenterOptionsCacheInvalidationService::class);
         $this->app->singleton(DashboardMetricsCacheInvalidationService::class);
         $this->app->singleton(ResourceFilterOptionsCacheInvalidationService::class);
+        $this->app->scoped(InteractiveApiRequestContextService::class);
         $this->app->singleton(ResourceListingProjectorService::class);
         $this->app->singleton(ResourceListingProjectionRefreshService::class);
         $this->app->singleton(DatabaseDumpProcessRunner::class, SymfonyDatabaseDumpProcessRunner::class);

@@ -11,6 +11,7 @@ use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\FakeDataCiteRegistrationService;
 use App\Services\OrcidService;
+use Illuminate\Support\Facades\Cache;
 use Mockery\MockInterface;
 
 use function Pest\Laravel\actingAs;
@@ -69,6 +70,17 @@ function attachCreatorWithOrcid(Resource $resource, string $orcid, ?string $sche
 
     return $person;
 }
+
+test('force confirmation cannot override an ORCID cached as missing', function () {
+    $bareId = '0000-0002-1825-0097';
+    attachCreatorWithOrcid($this->resource, $bareId);
+    Cache::put('orcid:negative:'.$bareId, true, 600);
+    $this->mock(OrcidService::class, fn (MockInterface $mock) => $mock->shouldNotReceive('validateOrcid'));
+    actingAs($this->user)->postJson(route('resources.register-doi', $this->resource), [
+        'prefix' => '10.83279', 'force' => true,
+    ])->assertStatus(422)->assertJsonPath('invalid.0.reason', 'not_found');
+    expect($this->resource->fresh()->doi)->toBeNull();
+});
 
 test('registerDoi blocks with 422 when a creator ORCID is not found', function () {
     actingAs($this->user);

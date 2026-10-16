@@ -28,9 +28,13 @@ final readonly class EditorResourceSaveService
      */
     public function saveValidated(array $data, ?User $user): array
     {
+        // Optional external citation lookups must finish before an editor
+        // transaction takes the resource lock used by concurrent background work.
+        $data = $this->storageService->prepareForStorage($data);
+
         return DB::transaction(function () use ($data, $user): array {
             $before = $user === null ? [] : $this->activitySnapshot($data);
-            [$resource, $isUpdate, $changes] = $this->storageService->store(
+            [$resource, $isUpdate, $changes] = $this->storageService->storePrepared(
                 $data,
                 $user?->id,
                 doiChangeActor: $user,
@@ -53,6 +57,8 @@ final readonly class EditorResourceSaveService
      */
     public function saveRelaxed(array $data, ?User $user, EditorDraftSaveIntent $intent): array
     {
+        $data = $this->storageService->prepareForStorage($data);
+
         return DB::transaction(function () use ($data, $user, $intent): array {
             if ($intent === EditorDraftSaveIntent::SAVE_DRAFT) {
                 $this->assertResourceIsNotPublished($data);
@@ -60,7 +66,7 @@ final readonly class EditorResourceSaveService
 
             $autosave = $intent === EditorDraftSaveIntent::AUTOSAVE;
             $before = $user === null ? [] : $this->activitySnapshot($data, $autosave);
-            [$resource, $isUpdate, $changes] = $this->storageService->store(
+            [$resource, $isUpdate, $changes] = $this->storageService->storePrepared(
                 $data,
                 $user?->id,
                 doiChangeActor: $user,

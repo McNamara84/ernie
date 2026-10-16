@@ -3,7 +3,7 @@
     "editor-settings", "dump-downloads", "statistics", "sizes-unit", "related-items-edition",
     "igsn-user-code", "funder-name", "medusa-import", "size-precision", "rights-raw-fields",
     "suggested-relation-title", "projection-sort", "projection-spdx", "projection-party",
-    "igsn-facets", "assessment", "tombstone-schema", "igsn-layout", "assistance",
+    "igsn-facets", "assessment", "editor-background", "tombstone-schema", "igsn-layout", "assistance",
     "subject-hierarchy", "relation-correction", "description-language", "temporal-coverage",
     "oai-schema", "oai-services"
   ],
@@ -33,6 +33,7 @@
     "projection-party": ["tests/pest/Feature/Database/ResourceListingProjectionPartySearchMigrationTest.php"],
     "igsn-facets": ["tests/pest/Feature/Database/IgsnPortalFacetIndexesTest.php"],
     "assessment": ["tests/pest/Feature/Database/AssessmentRunSchemaTest.php"],
+    "editor-background": ["tests/pest/Feature/Database/EditorBackgroundConcurrencyTest.php", "tests/pest/Feature/Database/DataCiteConcurrentWriteTest.php"],
     "tombstone-schema": ["tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php"],
     "tombstones": ["tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php", "tests/pest/Feature/LandingPages/ResourceTombstoneTest.php"],
     "igsn-layout": ["tests/pest/Feature/LandingPages/LandingPageTemplateIgsnLayoutMigrationTest.php"],

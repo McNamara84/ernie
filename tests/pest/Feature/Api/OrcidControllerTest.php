@@ -1,11 +1,30 @@
 <?php
 
+use App\Services\InteractiveApiRequestContextService;
+use App\Services\OrcidService;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     // Clear HTTP fakes between tests
     Http::preventStrayRequests();
 });
+
+test('editor ORCID endpoints use interactive priority and restore it after returning', function (string $uri, string $method, array $result) {
+    $context = app(InteractiveApiRequestContextService::class);
+    $service = Mockery::mock(OrcidService::class);
+    $service->shouldReceive($method)->once()->andReturnUsing(function () use ($context, $result): array {
+        expect($context->isInteractive())->toBeTrue();
+
+        return $result;
+    });
+    app()->instance(OrcidService::class, $service);
+    $this->getJson($uri)->assertOk();
+    expect($context->isInteractive())->toBeFalse();
+})->with([
+    ['/api/v1/orcid/validate/0000-0002-1825-0097', 'validateOrcid', ['valid' => true, 'exists' => true]],
+    ['/api/v1/orcid/0000-0002-1825-0097', 'fetchOrcidRecord', ['success' => true, 'data' => []]],
+    ['/api/v1/orcid/search?q=Carberry', 'searchOrcid', ['success' => true, 'data' => []]],
+]);
 
 describe('OrcidController - Validation Endpoint', function () {
     test('validates orcid format successfully', function () {

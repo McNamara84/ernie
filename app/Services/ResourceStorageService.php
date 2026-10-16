@@ -86,7 +86,18 @@ class ResourceStorageService
         CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
         ?User $doiChangeActor = null,
     ): array {
-        $data = $this->prepareDataForStorage($data, $citationLabelResolutionMode);
+        return $this->storePrepared($this->prepareForStorage($data, $citationLabelResolutionMode), $userId, $doiChangeActor);
+    }
+
+    /**
+     * Persist data returned by prepareForStorage(), without external lookups.
+     * Callers may safely compose this with a transaction for workflow/audit writes.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: Resource, 1: bool, 2: array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}}
+     */
+    public function storePrepared(array $data, ?int $userId = null, ?User $doiChangeActor = null): array
+    {
 
         return DB::transaction(function () use ($data, $userId, $doiChangeActor): array {
             $languageId = null;
@@ -211,9 +222,9 @@ class ResourceStorageService
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function prepareDataForStorage(
+    public function prepareForStorage(
         array $data,
-        CitationLabelResolutionMode $citationLabelResolutionMode,
+        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
     ): array {
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
