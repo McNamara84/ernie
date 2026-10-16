@@ -1,8 +1,13 @@
 [
     {
         "version": "1.1.1dev",
-        "date": "2026-10-15",
+        "date": "2026-10-16",
         "fixes": [
+            {
+                "title": "Complete Identifier Patterns for ELMO",
+                "description": "The ELMO API now supplies a compatible validation pattern alongside separate recognition rules. IGSN and RAiD DOI forms, arXiv URLs and historical identifiers, and ISBNs with separators are accepted as complete inputs. Recognition rules prioritize known namespaces and ISBN over EAN13 while allowing manually selected EAN13 values that also qualify as ISBNs. Existing custom patterns and activation settings are preserved during the update. Advisory checksum instructions are documented for consumers; ELMO must apply the recognition priorities and local checksum checks itself.",
+                "references": [{ "type": "issue", "number": 1475, "url": "https://github.com/McNamara84/ernie/issues/1475" }]
+            },
             {
                 "title": "Responsive Data Editor During Background Checks",
                 "description": "Assistant scans now run on a separate worker, and interactive DataCite updates and ORCID verification receive priority within shared API limits. Waiting background requests release their locks, while optional citation lookups run before the editor's save transaction. Superseded DOI updates cannot replay older metadata over a newer update. Tombstone verification waits outside DOI locks, duplicate syncs leave running jobs in charge, and stale remote confirmations are retried. Temporary DataCite failures preserve locally saved metadata and clearly distinguish it from an unconfirmed external update. User documentation explains when to retry or reload. Event Data requests honor provider cooldowns across concurrent failures. Cached missing ORCIDs remain blocking when online checks time out or warnings are confirmed."

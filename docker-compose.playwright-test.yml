@@ -15,6 +15,7 @@ services:
       VIEW_COMPILED_PATH: /tmp/ernie-playwright-views
       INERTIA_DEVTOOLS_ENABLED: "false"
       DATACITE_TEST_MODE: "true"
+      ERNIE_API_KEY: playwright-identifier-api-test-key
       DATACITE_TEST_USERNAME: ""
       DATACITE_TEST_PASSWORD: ""
       DATACITE_USERNAME: ""
