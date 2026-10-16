@@ -878,7 +878,7 @@ This command:
 - starts the backend and optional `test` profile once
 - verifies MySQL 9.7 before resetting a schema; `db-test` uses the exact image pinned for `db`
 - uses `ernie_test` on the disposable `db-test` server, backed by a bounded 2 GiB tmpfs without a host port
-- runs the manifest in `tests/mysql-sensitive-slices.json` with 26 serial reset boundaries, including editor/background concurrency and shared-Redis DOI retry checks
+- runs the manifest in `tests/mysql-sensitive-slices.json` with 27 serial reset boundaries, including editor/background concurrency, shared-Redis DOI retry checks and identifier-pattern collation conflicts
 - copies the checkout into the Linux-native Pest workspace for the complete run; focused aliases keep using the checkout
 
 The development server and its versioned data volume are preserved. Focused

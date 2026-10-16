@@ -11,8 +11,9 @@ use Illuminate\Database\Seeder;
 /**
  * Seeder for Identifier Type Patterns (validation & detection)
  *
- * Seeds regex patterns derived from the existing frontend logic in
- * resources/js/lib/identifier-type-detection.ts for all 23 DataCite identifier types.
+ * Seeds API patterns for all 23 DataCite identifier types. The dated correction
+ * snapshot intentionally evolves independently of the editor detector in
+ * resources/js/lib/identifier-type-detection.ts.
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/appendices/appendix-1/relatedIdentifierType/
  */
@@ -50,26 +51,13 @@ class IdentifierTypePatternSeeder extends Seeder
      */
     private function getPatterns(): array
     {
-        return [
-            'DOI' => [
-                // Validation
-                ['type' => 'validation', 'pattern' => '^10\\.\\d{4,}/\\S+$', 'priority' => 10],
-                // Detection
-                ['type' => 'detection', 'pattern' => '^https?://(?:doi\\.org|dx\\.doi\\.org)/(.+)', 'priority' => 30],
-                ['type' => 'detection', 'pattern' => '^doi:', 'priority' => 20],
-                ['type' => 'detection', 'pattern' => '^10\\.\\d{4,}', 'priority' => 10],
-            ],
+        /** @var array<string, list<array{type: string, pattern: string, priority: int}>> $corrections */
+        $corrections = require database_path('data/identifier-patterns/2026-10-16.php');
 
-            'arXiv' => [
-                // Validation
-                ['type' => 'validation', 'pattern' => '^\\d{4}\\.\\d{4,5}(v\\d+)?$', 'priority' => 10],
-                ['type' => 'validation', 'pattern' => '^[a-z-]+/\\d{7}$', 'priority' => 5],
-                // Detection
-                ['type' => 'detection', 'pattern' => '^https?://arxiv\\.org/(?:abs|pdf|html|src)/\\S+', 'priority' => 30],
-                ['type' => 'detection', 'pattern' => '^arxiv:', 'priority' => 20],
-                ['type' => 'detection', 'pattern' => '^\\d{4}\\.\\d{4,5}(v\\d+)?$', 'priority' => 10],
-                ['type' => 'detection', 'pattern' => '^[a-z-]+/\\d{7}$', 'priority' => 5],
-            ],
+        $patterns = [
+            'DOI' => $corrections['DOI'],
+
+            'arXiv' => $corrections['arXiv'],
 
             'bibcode' => [
                 // Validation
@@ -89,14 +77,7 @@ class IdentifierTypePatternSeeder extends Seeder
                 ['type' => 'detection', 'pattern' => '^\\d{5}\\.\\d{2}\\.[A-Za-z_][A-Za-z0-9_.~-]*\\.\\S+$', 'priority' => 10],
             ],
 
-            'EAN13' => [
-                // Validation
-                ['type' => 'validation', 'pattern' => '^\\d{13}$', 'priority' => 10],
-                // Detection
-                ['type' => 'detection', 'pattern' => '^https?://(?:identifiers\\.org/ean13:|gs1\\.[^/]+/01/)', 'priority' => 30],
-                ['type' => 'detection', 'pattern' => '^urn:(?:ean13|gtin(?:-13)?):[\\d-]+$', 'priority' => 20],
-                ['type' => 'detection', 'pattern' => '^\\d{13}$', 'priority' => 10],
-            ],
+            'EAN13' => $corrections['EAN13'],
 
             'EISSN' => [
                 // Validation
@@ -119,29 +100,9 @@ class IdentifierTypePatternSeeder extends Seeder
                 ['type' => 'detection', 'pattern' => '^\\d+(?:\\.\\w+)?/\\S+$', 'priority' => 5],
             ],
 
-            'IGSN' => [
-                // Validation
-                ['type' => 'validation', 'pattern' => '^(?:(?:AU|SSH|BGR[A-Z]?|ICDP|CSR[A-Z]?|GFZ|MBCR|ARDC)[A-Z0-9]{2,12}|10\\.(?:60516|58052|60510|58108|58095)/\\S+)$', 'priority' => 10],
-                // Detection
-                ['type' => 'detection', 'pattern' => '^https?://(?:doi\\.org|dx\\.doi\\.org)/10\\.(?:60516|58052|60510|58108|58095)/\\S+', 'priority' => 35],
-                ['type' => 'detection', 'pattern' => '^https?://igsn\\.org/10\\.273/\\S+', 'priority' => 30],
-                ['type' => 'detection', 'pattern' => '^10\\.(?:60516|58052|60510|58108|58095)/\\S+$', 'priority' => 25],
-                ['type' => 'detection', 'pattern' => '^urn:igsn:[A-Za-z0-9]+$', 'priority' => 20],
-                ['type' => 'detection', 'pattern' => '^igsn:?\\s*[A-Za-z0-9]+$', 'priority' => 15],
-                ['type' => 'detection', 'pattern' => '^(?:AU|SSH|BGR[A-Z]?|ICDP|CSR[A-Z]?|GFZ|MBCR|ARDC)[A-Z0-9]{2,12}$', 'priority' => 10],
-            ],
+            'IGSN' => $corrections['IGSN'],
 
-            'ISBN' => [
-                // Validation
-                ['type' => 'validation', 'pattern' => '^(?:97[89]\\d{10}|\\d{9}[\\dXx])$', 'priority' => 10],
-                // Detection
-                ['type' => 'detection', 'pattern' => '^https?://isbn\\.openedition\\.org/97[89]', 'priority' => 30],
-                ['type' => 'detection', 'pattern' => '^https?://books\\.openedition\\.org/isbn/97[89]', 'priority' => 30],
-                ['type' => 'detection', 'pattern' => '^urn:isbn:', 'priority' => 25],
-                ['type' => 'detection', 'pattern' => '^isbn(?:-?(?:13|10))?[:\\s]+', 'priority' => 20],
-                ['type' => 'detection', 'pattern' => '^97[89]\\d{10}$', 'priority' => 10],
-                ['type' => 'detection', 'pattern' => '^\\d{9}[\\dXx]$', 'priority' => 5],
-            ],
+            'ISBN' => $corrections['ISBN'],
 
             'ISSN' => [
                 // Validation
@@ -198,12 +159,7 @@ class IdentifierTypePatternSeeder extends Seeder
                 ['type' => 'detection', 'pattern' => '^https?://purl\\.[a-z0-9.-]+\\.(?:org|edu)/[a-z0-9._/-]+$', 'priority' => 20],
             ],
 
-            'RAiD' => [
-                // Validation
-                ['type' => 'validation', 'pattern' => '^https?://raid\\.org/\\S+$', 'priority' => 10],
-                // Detection
-                ['type' => 'detection', 'pattern' => '^https?://raid\\.org/\\S+', 'priority' => 30],
-            ],
+            'RAiD' => $corrections['RAiD'],
 
             'RRID' => [
                 // Validation
@@ -263,5 +219,25 @@ class IdentifierTypePatternSeeder extends Seeder
                 ['type' => 'detection', 'pattern' => '^ark:/?\\d{5,}/\\S+', 'priority' => 20],
             ],
         ];
+
+        /** @var array<string, list<array{type: string, previous: string, pattern: string, priority: int}>> $htmlCorrections */
+        $htmlCorrections = require database_path('data/identifier-patterns/2026-10-16-html-patterns.php');
+
+        // Apply the follow-up snapshot without changing the historical one.
+        foreach ($htmlCorrections as $slug => $replacements) {
+            foreach ($replacements as $replacement) {
+                foreach ($patterns[$slug] as $index => $pattern) {
+                    if ($pattern['type'] === $replacement['type'] && $pattern['pattern'] === $replacement['previous']) {
+                        $patterns[$slug][$index] = [
+                            'type' => $replacement['type'],
+                            'pattern' => $replacement['pattern'],
+                            'priority' => $replacement['priority'],
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $patterns;
     }
 }
