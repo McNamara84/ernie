@@ -763,6 +763,47 @@ Docker Desktop can fail to sync the file back to the host even when it exists in
 docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
 ```
 
+### GEMET update checks time out
+
+The GEMET check in **Editor Settings / Thesauri** uses at most four concurrent
+group requests and retries temporary connection or HTTP failures once. Provider
+`Retry-After` delays and all requests share a 90-second budget. Each attempt has
+a maximum 10-second connection timeout and 30-second total timeout, reduced to
+the remaining budget. A complete count is cached for one hour; failed or partial
+checks are not cached and can be retried without clearing the application cache.
+
+Persistent failures return HTTP 503 with an understandable message. Look for
+`GEMET update check failed.` in the Laravel logs for the phase, group URI,
+attempt count, elapsed time and original exception. If a single GEMET request
+also fails from the affected app container, inspect DNS, outbound connectivity
+and TLS negotiation in that environment. A successful check from the host alone
+does not establish container connectivity. The actual vocabulary download and
+update jobs retain their existing request policy.
+
+The following opt-in probes run through the app container with the real cURL
+transport and production clock. They are outside the default PHPUnit suites:
+
+```bash
+npm run test:php -- tests/pest/Runtime/GemetUpdateCheckRuntimeTest.php
+npm run test:php -- tests/pest/Runtime/GemetLiveCheckTest.php
+```
+
+The controlled probe starts a temporary Node HTTP server on loopback and changes
+only the request destination. It measures concurrent connections, out-of-order
+responses, a real 30-second cURL timeout, `Retry-After`, and the shared 90-second
+deadline across successive pools. Allow about two minutes for the real waits.
+It also checks failure without a cache entry, recovery, and a warm cache hit.
+The server is stopped after each scenario.
+
+The live probe makes read-only requests to the public EEA service. It compares
+against an isolated copy of the local vocabulary and uses the test database and
+cache; it does not update vocabulary files or start update jobs. It writes status,
+counts, cold/warm durations, and per-request cURL timings to
+`storage/logs/issue-1476-gemet-live.json`. On failure, inspect the probe output
+and the container's connectivity. These probes are
+deliberately opt-in because they have real delays and the live result depends on
+the provider and the network of the app container where it runs.
+
 ### F-UJI is not reachable
 
 That is expected unless the matching profile was started:

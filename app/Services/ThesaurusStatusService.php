@@ -377,16 +377,7 @@ class ThesaurusStatusService
             : Cache::store();
 
         /** @var int */
-        return $cache->remember($cacheKey, 3600, function (): int {
-            $gemetApi = new GemetApiService;
-            $superGroups = $gemetApi->fetchSuperGroups(timeout: 30);
-            $groups = $gemetApi->fetchGroups(timeout: 30);
-
-            $conceptCounts = $gemetApi->fetchConceptCountsByGroup($groups, timeout: 30);
-            $conceptCount = array_sum($conceptCounts);
-
-            return count($superGroups) + count($groups) + $conceptCount;
-        });
+        return $cache->remember($cacheKey, 3600, fn (): int => app(GemetApiService::class)->fetchHierarchyNodeCountForUpdateCheck());
     }
 
     /**
