@@ -52,6 +52,16 @@ return [
             'after_commit' => false,
         ],
 
+        'assistance' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => env('ASSISTANCE_QUEUE', 'assistance'),
+            'job_timeout' => (int) env('ASSISTANCE_JOB_TIMEOUT', 3600),
+            'retry_after' => max((int) env('ASSISTANCE_JOB_TIMEOUT', 3600) + 60, (int) env('ASSISTANCE_QUEUE_RETRY_AFTER', 3660)),
+            'after_commit' => true,
+        ],
+
         'assessment' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),

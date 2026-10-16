@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\DataCiteRequestDeferredException;
+use App\Exceptions\DataCiteWriteSupersededException;
 use App\Models\LandingPage;
 use App\Models\ResourceTombstoneTransition;
 use App\Models\User;
@@ -147,21 +149,27 @@ class DataCiteMemberApiClient
         );
     }
 
-    /** @param array<string, mixed> $payload */
-    public function updateDoi(string $identifier, array $payload): Response
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  string|null  $writtenRevision  Receives this call's last PUT revision; verify under the DOI lock before acknowledging it later.
+     */
+    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null, ?string &$writtenRevision = null): Response
     {
-        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send(
+        return $this->send(
             'PUT',
             $this->doiUrl($identifier),
-            $this->protectTombstonePayload($identifier, $payload),
+            $payload,
             $this->transientAttempts(),
             credentialIdentifier: $identifier,
-        ));
+            tombstoneTransitionId: $tombstoneTransitionId,
+            expectedWriteRevision: $expectedWriteRevision,
+            writtenRevision: $writtenRevision,
+        );
     }
 
     public function updateLandingPageUrl(string $identifier, string $targetUrl, bool $deferWhenLimited = false): Response
     {
-        return DataCiteDoiWriteLockService::run($identifier, $this->testMode, fn (): Response => $this->send('PUT', $this->doiUrl($identifier), $this->protectTombstonePayload($identifier, [
+        return $this->send('PUT', $this->doiUrl($identifier), [
             'data' => [
                 'id' => $identifier,
                 'type' => 'dois',
@@ -169,16 +177,17 @@ class DataCiteMemberApiClient
                     'url' => $targetUrl,
                 ],
             ],
-        ]), 1, $deferWhenLimited, $identifier));
+        ], 1, $deferWhenLimited, $identifier);
     }
 
     /**
      * Applies the latest lifecycle state inside the DOI lock, even for stale queued payloads.
      *
      * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>
+     * @param  array{transition_id: int, state: mixed}|null  $lifecycleRead
+     * @return array<string, mixed>|null Null requests a lifecycle read outside the DOI lock.
      */
-    private function protectTombstonePayload(string $identifier, array $payload): array
+    private function protectTombstonePayload(string $identifier, array $payload, ?array $lifecycleRead): ?array
     {
         $transition = ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->first();
         if ($transition === null) {
@@ -193,9 +202,10 @@ class DataCiteMemberApiClient
         }
         $payload['data']['attributes']['url'] = $transition->target_url;
         if ($transition->target_state === 'registered' && ($payload['data']['attributes']['event'] ?? null) === 'publish') {
-            $response = $this->getDoi($identifier);
-            $response->throw();
-            if ($response->json('data.attributes.state') === 'findable') {
+            if (($lifecycleRead['transition_id'] ?? null) !== $transition->id) {
+                return null;
+            }
+            if ($lifecycleRead['state'] === 'findable') {
                 $payload['data']['attributes']['event'] = 'hide';
             } else {
                 unset($payload['data']['attributes']['event']);
@@ -215,17 +225,36 @@ class DataCiteMemberApiClient
         int $maxAttempts = 1,
         bool $deferWhenLimited = false,
         ?string $credentialIdentifier = null,
+        ?int $tombstoneTransitionId = null,
+        ?string $expectedWriteRevision = null,
+        ?string &$writtenRevision = null,
     ): Response {
         $maxAttempts = max(1, $maxAttempts);
+        $writeRevision = $method === 'PUT' && $credentialIdentifier !== null && $payload !== null
+            ? DataCiteDoiWriteLockService::run($credentialIdentifier, $this->testMode, function () use ($credentialIdentifier, $tombstoneTransitionId, $expectedWriteRevision): string {
+                $this->assertTombstoneTransition($credentialIdentifier, $tombstoneTransitionId);
+                if ($expectedWriteRevision !== null) {
+                    DataCiteDoiWriteLockService::assertCurrentWrite($credentialIdentifier, $this->testMode, $expectedWriteRevision);
+                }
+
+                return DataCiteDoiWriteLockService::observeWrite($credentialIdentifier, $this->testMode);
+            }) : null;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            $this->limiter->waitForSlot($deferWhenLimited);
-            $request = $this->request($credentialIdentifier);
-
+            if (app(InteractiveApiRequestContextService::class)->remainingMilliseconds() === 0) {
+                throw new DataCiteRequestDeferredException(1000);
+            }
             try {
-                $response = $payload === null
-                    ? $request->send($method, $url)
-                    : $request->send($method, $url, ['json' => $payload]);
+                $response = $writeRevision !== null && $credentialIdentifier !== null && $payload !== null
+                    ? $this->sendWrite($credentialIdentifier, $url, $payload, $writeRevision, $deferWhenLimited, $tombstoneTransitionId)
+                    : $this->limiter->runWhenReady(function () use ($method, $url, $payload, $credentialIdentifier): Response|int {
+                        $delay = $this->limiter->reserveSlot(DataCiteDoiWriteLockService::hasHeldLock());
+                        if ($delay > 0) {
+                            return $delay;
+                        }
+
+                        return $this->request($credentialIdentifier)->send($method, $url, $payload === null ? [] : ['json' => $payload]);
+                    }, $deferWhenLimited);
             } catch (ConnectionException $exception) {
                 if ($attempt >= $maxAttempts) {
                     throw $exception;
@@ -233,6 +262,9 @@ class DataCiteMemberApiClient
 
                 continue;
             }
+            // Keep the revision of our own PUT, even if another writer acquires
+            // the lock before the caller can finalize its local transition.
+            $writtenRevision = $writeRevision;
 
             if ($response->status() === 429) {
                 $this->limiter->imposeCooldown($this->retryAfterSeconds($response));
@@ -248,9 +280,57 @@ class DataCiteMemberApiClient
         throw new \LogicException('The DataCite request loop ended without a response.');
     }
 
+    /** @param array<string, mixed> $payload */
+    private function sendWrite(string $identifier, string $url, array $payload, string &$revision, bool $deferWhenLimited, ?int $tombstoneTransitionId): Response
+    {
+        $lifecycleRead = null;
+        do {
+            $response = $this->limiter->runWhenReady(function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead): Response|int|null {
+                return DataCiteDoiWriteLockService::run($identifier, $this->testMode, function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead): Response|int|null {
+                    DataCiteDoiWriteLockService::assertCurrentWrite($identifier, $this->testMode, $revision);
+                    $this->assertTombstoneTransition($identifier, $tombstoneTransitionId);
+                    $prepared = $this->protectTombstonePayload($identifier, $payload, $lifecycleRead);
+                    if ($prepared === null) {
+                        return null;
+                    }
+                    // Nonblocking admission immediately before sending: a permit
+                    // cannot age while waiting for this DOI or a lifecycle GET.
+                    $delay = $this->limiter->reserveSlot(nonBlocking: true);
+                    if ($delay > 0) {
+                        return $delay;
+                    }
+
+                    $revision = DataCiteDoiWriteLockService::beginWrite($identifier, $this->testMode);
+
+                    return $this->request($identifier)->put($url, $prepared);
+                });
+            }, $deferWhenLimited);
+            if ($response instanceof Response) {
+                return $response;
+            }
+            $transitionId = (int) ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->value('id');
+            $state = $this->getDoi($identifier, $deferWhenLimited);
+            $state->throw();
+            $lifecycleRead = ['transition_id' => $transitionId, 'state' => $state->json('data.attributes.state')];
+        } while (true);
+    }
+
+    private function assertTombstoneTransition(string $identifier, ?int $transitionId): void
+    {
+        if ($transitionId === null) {
+            return;
+        }
+        $latest = ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->first();
+        if ($latest?->id !== $transitionId || in_array($latest->status, ['succeeded', 'superseded', 'failed'], true)) {
+            throw new DataCiteWriteSupersededException;
+        }
+    }
+
     private function transientAttempts(): int
     {
-        return max(1, (int) config('datacite.transport_transient_attempts', 3));
+        $attempts = max(1, (int) config('datacite.transport_transient_attempts', 3));
+
+        return app(InteractiveApiRequestContextService::class)->isInteractive() ? min(2, $attempts) : $attempts;
     }
 
     private function retryAfterSeconds(Response $response): int
@@ -281,14 +361,18 @@ class DataCiteMemberApiClient
         }
         $userAgent .= ')';
 
+        $interactive = app(InteractiveApiRequestContextService::class)->isInteractive();
+
         return Http::withBasicAuth($username, $password)
             ->withHeaders([
                 'Content-Type' => 'application/vnd.api+json',
                 'Accept' => 'application/vnd.api+json',
                 'User-Agent' => $userAgent,
             ])
-            ->connectTimeout(max(1, (int) config('datacite.landing_page_url_update.connect_timeout_seconds', 10)))
-            ->timeout(max(1, (int) config('datacite.landing_page_url_update.timeout_seconds', 30)));
+            ->connectTimeout(min($interactive ? 5 : PHP_INT_MAX, max(1, (int) config('datacite.landing_page_url_update.connect_timeout_seconds', 10))))
+            ->timeout(min($interactive ? 20 : PHP_INT_MAX,
+                max(1, (int) ceil(app(InteractiveApiRequestContextService::class)->remainingMilliseconds() / 1000)),
+                max(1, (int) config('datacite.landing_page_url_update.timeout_seconds', 30))));
     }
 
     /**

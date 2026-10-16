@@ -53,7 +53,9 @@ class DiscoverOrcidsJob implements ShouldQueue
             );
         }
 
-        $this->timeout = (int) config('services.orcid.discovery_timeout', 3600);
+        $this->timeout = max(1, min((int) config('services.orcid.discovery_timeout', 3600),
+            (int) config('queue.connections.assistance.job_timeout', 3600)));
+        $this->onConnection('assistance')->onQueue((string) config('queue.connections.assistance.queue', 'assistance'));
     }
 
     /**

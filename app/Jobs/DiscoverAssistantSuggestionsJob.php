@@ -59,6 +59,8 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
         if (! Str::isUuid($jobId)) {
             throw new \InvalidArgumentException('Job ID must be a valid UUID');
         }
+        $this->timeout = max(1, (int) config('queue.connections.assistance.job_timeout', 3600));
+        $this->onConnection('assistance')->onQueue((string) config('queue.connections.assistance.queue', 'assistance'));
     }
 
     /**

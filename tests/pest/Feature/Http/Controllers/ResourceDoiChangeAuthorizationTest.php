@@ -234,8 +234,10 @@ it('prepares citation labels before locking and re-checking the DOI mutation', f
     expect(fn () => app(EditorResourceSaveService::class)->saveValidated($payload, $user))
         ->toThrow(AuthorizationException::class, ResourcePolicy::DOI_CHANGE_UNAUTHORIZED_MESSAGE);
 
+    // Preparation now runs before the editor transaction. Publication that
+    // happens during that work persists even though the later edit is denied.
     expect($resource->fresh()->doi)->toBe('10.5880/preparation-old.001')
-        ->and($landingPage->fresh()->is_published)->toBeFalse()
+        ->and($landingPage->fresh()->is_published)->toBeTrue()
         ->and($landingPage->fresh()->doi_prefix)->toBe('10.5880/preparation-old.001');
 });
 

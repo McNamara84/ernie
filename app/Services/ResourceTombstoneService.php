@@ -106,19 +106,24 @@ final class ResourceTombstoneService
             throw ValidationException::withMessages(['doi' => 'Tombstone pages require an existing resource DOI.']);
         }
         $client = app(DataCiteMemberApiClient::class);
+        $writeRevision = DataCiteDoiWriteLockService::run($resource->doi, $client->isTestMode(),
+            fn (): string => DataCiteDoiWriteLockService::observeWrite($resource->doi, $client->isTestMode()));
 
-        return DataCiteDoiWriteLockService::run($resource->doi, $client->isTestMode(), function () use ($resource, $user, $data, $client): LandingPage {
-            $registration = $this->registration($resource);
-            if ($registration['status'] !== 'eligible') {
-                $message = match ($registration['reason']) {
-                    'foreign_repository' => 'The DOI does not belong to the configured DataCite repository.',
-                    'not_registered', 'missing_target_url' => 'The DOI must already be registered with DataCite and have a target URL.',
-                    default => 'The registered DOI could not be verified with DataCite. Please retry.',
-                };
-                throw ValidationException::withMessages(['doi' => $message]);
-            }
-            $remoteState = $registration['state'];
-            $remoteUrl = $registration['url'];
+        // Reads and their admission waits must not retain the lifecycle lock.
+        $registration = $this->registration($resource);
+        if ($registration['status'] !== 'eligible') {
+            $message = match ($registration['reason']) {
+                'foreign_repository' => 'The DOI does not belong to the configured DataCite repository.',
+                'not_registered', 'missing_target_url' => 'The DOI must already be registered with DataCite and have a target URL.',
+                default => 'The registered DOI could not be verified with DataCite. Please retry.',
+            };
+            throw ValidationException::withMessages(['doi' => $message]);
+        }
+        $remoteState = $registration['state'];
+        $remoteUrl = $registration['url'];
+
+        return DataCiteDoiWriteLockService::run($resource->doi, $client->isTestMode(), function () use ($resource, $user, $data, $client, $writeRevision, $remoteState, $remoteUrl): LandingPage {
+            DataCiteDoiWriteLockService::assertCurrentWrite($resource->doi, $client->isTestMode(), $writeRevision);
 
             return DB::transaction(function () use ($resource, $user, $data, $client, $remoteState, $remoteUrl): LandingPage {
                 $locked = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();

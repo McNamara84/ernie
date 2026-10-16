@@ -46,15 +46,18 @@ it('preserves asserted-by object provenance without reversing the Crossref relat
         ->and($claims[1]->primary)->toBeFalse();
 });
 
-it('distinguishes unavailable, missing and incomplete records and retries transient failures', function (): void {
-    Http::fakeSequence()->push([], 503)->push([], 503)->push([], 404)->push(['data' => ['attributes' => ['doi' => '10.5880/wrong']]])->push(['data' => ['attributes' => ['doi' => '10.5880/d']]]);
+it('distinguishes unavailable, missing and incomplete records and resumes after provider cooldown', function (): void {
+    Http::fakeSequence()->push([], 503)->push([], 404)->push(['data' => ['attributes' => ['doi' => '10.5880/wrong']]])->push(['data' => ['attributes' => ['doi' => '10.5880/d']]]);
     $client = app(RelationMetadataClientService::class);
     expect($client->record('datacite', '10.5880/a')['status'])->toBe('unavailable')
-        ->and($client->record('datacite', '10.5880/b')['status'])->toBe('not_found')
+        ->and($client->record('datacite', '10.5880/b')['status'])->toBe('unavailable');
+    Http::assertSentCount(1);
+    $this->travel(61)->seconds();
+    expect($client->record('datacite', '10.5880/b')['status'])->toBe('not_found')
         ->and($client->record('datacite', '10.5880/c')['status'])->toBe('incomplete')
         ->and($client->record('datacite', '10.5880/d')['status'])->toBe('ok');
     $client->record('datacite', '10.5880/d');
-    Http::assertSentCount(5);
+    Http::assertSentCount(4);
     $this->travel(301)->seconds();
     Http::swap(new Factory);
     Http::fake(['*' => Http::response([], 404)]);

@@ -10,6 +10,8 @@ use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\OrcidService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Mockery\MockInterface;
 
 uses(RefreshDatabase::class);
@@ -49,6 +51,59 @@ function mockOrcidService(callable $setup): OrcidService
 {
     return tap(Mockery::mock(OrcidService::class), $setup);
 }
+
+it('preserves cached ORCID evidence after the network budget and during force confirmation', function (bool $exists) {
+    Cache::flush();
+    config(['services.orcid.rate_limit_delay_ms' => 0]);
+    [$resource] = makeResourceWithCreatorOrcid(VALID_ORCID);
+    $bareId = '0000-0001-8619-0199';
+    $other = Person::factory()->create([
+        'name_identifier' => 'https://orcid.org/'.$bareId,
+        'name_identifier_scheme' => 'ORCID',
+        'orcid_verified_at' => null,
+    ]);
+    ResourceContributor::factory()->forPerson($other)->atPosition(0)->create(['resource_id' => $resource->id]);
+    Cache::put(($exists ? 'orcid:verified:' : 'orcid:negative:').$bareId, true, 600);
+    Http::fake(function () {
+        $this->travel(21)->seconds();
+
+        return Http::response([], 200);
+    });
+    $validator = app(OrcidPreflightValidator::class);
+    foreach ([false, true] as $force) {
+        $result = $validator->validate($resource->fresh(), force: $force);
+        expect($result->shouldBlock)->toBe(! $exists)->and($result->warnings)->toBe([]);
+        if ($exists) {
+            expect($other->fresh()->orcid_verified_at)->not->toBeNull();
+        } else {
+            expect($result->invalid[0]->reason)->toBe('not_found');
+        }
+    }
+    Http::assertSentCount(1);
+})->with(['cached successful' => true, 'cached missing' => false]);
+
+it('bounds aggregate verification time while retaining offline blockers', function (bool $invalidChecksum) {
+    [$resource] = makeResourceWithCreatorOrcid(VALID_ORCID);
+    $other = Person::factory()->create([
+        'name_identifier' => $invalidChecksum ? INVALID_CHECKSUM_ORCID : '0000-0001-8619-0199',
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    ResourceCreator::factory()->forPerson($other)->position(1)->create(['resource_id' => $resource->id]);
+    $orcid = Mockery::mock(OrcidService::class);
+    $orcid->shouldReceive('validateOrcid')->once()->with(VALID_ORCID, 1, 4)->andReturnUsing(function (): array {
+        $this->travel(21)->seconds();
+
+        return ['valid' => true, 'exists' => true, 'errorType' => null];
+    });
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource->fresh());
+    expect($result->shouldBlock)->toBe($invalidChecksum)
+        ->and($result->needsConfirmation)->toBe(! $invalidChecksum);
+    if ($invalidChecksum) {
+        expect($result->invalid[0]->reason)->toBe('checksum');
+    } else {
+        expect($result->warnings[0]->reason)->toBe('timeout');
+    }
+})->with([true, false]);
 
 it('returns a clean result when no creators carry an ORCID', function () {
     $resource = Resource::factory()->create();
