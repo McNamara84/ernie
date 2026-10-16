@@ -7,6 +7,7 @@ use App\Models\IdentifierTypePattern;
 use Database\Seeders\IdentifierTypePatternSeeder;
 use Database\Seeders\IdentifierTypeSeeder;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
 
 function elmoPatternCorrectionMigration(): Migration
 {
@@ -105,10 +106,39 @@ it('leaves customized patterns untouched including case-only differences under M
         ->and($unrelated->fresh()->pattern)->toBe('^custom-[A-Z]+$');
 });
 
+it('leaves the entire original group untouched when any target has a collation-only conflict', function (string $slug, int $targetIndex): void {
+    $corrections = seedPreviousElmoPatterns();
+    $type = IdentifierType::where('slug', $slug)->firstOrFail();
+    $replacement = $corrections[$slug][$targetIndex];
+    $custom = str_replace('\\S', '\\s', $replacement['pattern']);
+    $target = $type->patterns()->create(['type' => $replacement['type'], 'pattern' => $custom, 'is_active' => false, 'priority' => 91]);
+
+    // Prove that the real unique-index collation considers these different
+    // regexes equal; a binary lookup alone would cause a duplicate-key error.
+    expect(DB::table('identifier_type_patterns')->where('identifier_type_id', $type->id)
+        ->where('type', $replacement['type'])->where('pattern', $replacement['pattern'])->value('id'))->toBe($target->id);
+    $groupPatterns = [$replacement['previous'], $custom];
+    foreach ($corrections[$slug] as $pattern) {
+        if ($pattern['type'] === $replacement['type'] && $pattern['previous'] === $replacement['previous']) {
+            $groupPatterns[] = $pattern['pattern'];
+        }
+    }
+    $group = fn () => $type->patterns()->where('type', $replacement['type'])->whereIn('pattern', $groupPatterns)->orderBy('id')->get()->toArray();
+    $before = $group();
+
+    elmoPatternCorrectionMigration()->up();
+
+    expect($group())->toBe($before);
+})->with([
+    'single DOI target' => ['DOI', 0],
+    'second arXiv alternative before any replacement is written' => ['arXiv', 1],
+])->skip(fn (): bool => DB::connection()->getDriverName() !== 'mysql', 'Requires the MySQL unique-index collation.');
+
 it('is idempotent and subsequent seeding does not recreate old patterns or change settings', function (): void {
     seedPreviousElmoPatterns();
     $migration = elmoPatternCorrectionMigration();
     $migration->up();
+    (require database_path('migrations/2026_10_16_000002_correct_html_identifier_type_patterns.php'))->up();
     $pattern = IdentifierTypePattern::where('type', 'validation')->firstOrFail();
     $pattern->update(['is_active' => false, 'priority' => 37]);
     $before = IdentifierTypePattern::orderBy('id')->get()->toArray();

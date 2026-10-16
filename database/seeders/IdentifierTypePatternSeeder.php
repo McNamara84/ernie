@@ -54,7 +54,7 @@ class IdentifierTypePatternSeeder extends Seeder
         /** @var array<string, list<array{type: string, pattern: string, priority: int}>> $corrections */
         $corrections = require database_path('data/identifier-patterns/2026-10-16.php');
 
-        return [
+        $patterns = [
             'DOI' => $corrections['DOI'],
 
             'arXiv' => $corrections['arXiv'],
@@ -219,5 +219,25 @@ class IdentifierTypePatternSeeder extends Seeder
                 ['type' => 'detection', 'pattern' => '^ark:/?\\d{5,}/\\S+', 'priority' => 20],
             ],
         ];
+
+        /** @var array<string, list<array{type: string, previous: string, pattern: string, priority: int}>> $htmlCorrections */
+        $htmlCorrections = require database_path('data/identifier-patterns/2026-10-16-html-patterns.php');
+
+        // Apply the follow-up snapshot without changing the historical one.
+        foreach ($htmlCorrections as $slug => $replacements) {
+            foreach ($replacements as $replacement) {
+                foreach ($patterns[$slug] as $index => $pattern) {
+                    if ($pattern['type'] === $replacement['type'] && $pattern['pattern'] === $replacement['previous']) {
+                        $patterns[$slug][$index] = [
+                            'type' => $replacement['type'],
+                            'pattern' => $replacement['pattern'],
+                            'priority' => $replacement['priority'],
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $patterns;
     }
 }

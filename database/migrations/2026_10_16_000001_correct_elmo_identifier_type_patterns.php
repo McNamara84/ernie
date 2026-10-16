@@ -38,6 +38,22 @@ return new class extends Migration
                         continue;
                     }
 
+                    // The unique index uses the database collation. Preflight
+                    // every alternative before changing this group: a custom
+                    // regex differing only in case (e.g. \s versus \S) must
+                    // neither replace the original nor cause a duplicate key.
+                    foreach ($replacements as $replacement) {
+                        $target = DB::table('identifier_type_patterns')
+                            ->where('identifier_type_id', $identifierTypeId)
+                            ->where('type', $replacement['type'])
+                            ->where('pattern', $replacement['pattern'])
+                            ->first();
+
+                        if ($target !== null && $target->pattern !== $replacement['pattern']) {
+                            continue 2;
+                        }
+                    }
+
                     $reusedPrevious = false;
 
                     foreach ($replacements as $replacement) {

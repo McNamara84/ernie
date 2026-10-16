@@ -35,6 +35,8 @@ it('ranks specific namespaces above DOI and ISBN above EAN13 without narrowing v
     $types = collect($this->getJson('/api/v1/identifier-types/elmo', ['X-API-Key' => 'test-api-key'])->assertOk()->json())->keyBy('slug');
     $examples = [
         ['10.60510/gf1211s-47', 'IGSN', 'DOI'],
+        ['DOI:10.60510/gf1211s-47', 'IGSN', 'DOI'],
+        ['doi: 10.60510/gf1211s-47', 'IGSN', 'DOI'],
         ['https://doi.org/10.60510/gf1211s-47', 'IGSN', 'DOI'],
         ['10.58006/sample123', 'IGSN', 'DOI'],
         ['https://doi.org/10.82210/162fda4d', 'RAiD', 'DOI'],
@@ -55,7 +57,9 @@ it('ranks specific namespaces above DOI and ISBN above EAN13 without narrowing v
 
     foreach (['IGSN', 'RAiD'] as $slug) {
         foreach ($types[$slug]['patterns']['detection'] as $pattern) {
-            expect(preg_match('~'.$pattern['pattern'].'~i', '10.99999/unknown'))->toBe(0);
+            foreach (['10.99999/unknown', 'DOI:10.99999/unknown'] as $unknown) {
+                expect(preg_match('~'.$pattern['pattern'].'~i', $unknown))->toBe(0);
+            }
         }
     }
 });

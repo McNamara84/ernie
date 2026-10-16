@@ -5,7 +5,7 @@
         "fixes": [
             {
                 "title": "Complete Identifier Patterns for ELMO",
-                "description": "The ELMO API now supplies a compatible validation pattern alongside separate recognition rules. IGSN and RAiD DOI forms, arXiv URLs and historical identifiers, and ISBNs with separators are accepted as complete inputs. Recognition rules prioritize known namespaces and ISBN over EAN13 while allowing manually selected EAN13 values that also qualify as ISBNs. Existing custom patterns and activation settings are preserved during the update. Advisory checksum instructions are documented for consumers; ELMO must apply the recognition priorities and local checksum checks itself.",
+                "description": "The ELMO API now supplies a compatible validation pattern alongside separate recognition rules. IGSN and RAiD DOI forms, arXiv URLs and historical identifiers, and ISBNs with separators are accepted as complete inputs. Recognition rules prioritize known namespaces, including DOI-labelled IGSNs, and ISBN over EAN13 while allowing manually selected EAN13 values that also qualify as ISBNs. All standard validation patterns compile with HTML's Unicode v flag, including corrected LSID, PURL, RRID, URN and w3id patterns. Existing custom patterns and activation settings are preserved during the update; migration target conflicts under case-insensitive database collations leave the original pattern group untouched. Advisory checksum instructions are documented for consumers; ELMO must apply the recognition priorities and local checksum checks itself.",
                 "references": [{ "type": "issue", "number": 1475, "url": "https://github.com/McNamara84/ernie/issues/1475" }]
             },
             {

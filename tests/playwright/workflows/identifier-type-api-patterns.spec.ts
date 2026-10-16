@@ -29,12 +29,26 @@ test('ELMO API patterns work after one JSON decode in JavaScript and native HTML
     expect(response.status()).toBe(200);
     // Decode the actual HTTP body once, without unescaping regex strings again.
     const types: IdentifierTypeResponse[] = JSON.parse(await response.text());
+    expect(types).toHaveLength(23);
 
     await page.setContent('<input id="identifier" type="text" required>');
     const failures = await page.evaluate(
         ({ types, cases }) => {
             const input = document.querySelector<HTMLInputElement>('#identifier')!;
             const failures: string[] = [];
+
+            // Every returned scalar must compile, including types without
+            // dedicated input fixtures. HTML silently ignores invalid patterns.
+            for (const type of types) {
+                for (const source of [type.pattern, ...type.patterns.validation.map((entry) => entry.pattern)]) {
+                    try {
+                        new RegExp(source, 'i');
+                        new RegExp(source, 'v');
+                    } catch (error) {
+                        failures.push(`Invalid ${type.slug} validation pattern: ${String(error)}`);
+                    }
+                }
+            }
 
             for (const example of cases) {
                 const type = types.find((entry) => entry.slug === example.type)!;
