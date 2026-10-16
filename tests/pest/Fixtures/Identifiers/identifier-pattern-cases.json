@@ -1,0 +1,697 @@
+[
+    {
+        "type": "DOI",
+        "input": "10.1234/example",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "https://doi.org/10.1234/example",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "http://dx.doi.org/10.1234/example",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "DOI:10.1234/example",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "doi: 10.1234/example",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "HTTPS://DOI.ORG/10.1234/example",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "10.1002/(SICI)1234;1:2<3::AID-X>3.0.CO;2-A",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "10.1234.5/example",
+        "valid": true
+    },
+    {
+        "type": "DOI",
+        "input": "10.1234",
+        "valid": false
+    },
+    {
+        "type": "DOI",
+        "input": "doi:",
+        "valid": false
+    },
+    {
+        "type": "DOI",
+        "input": "https://doi.org/",
+        "valid": false
+    },
+    {
+        "type": "DOI",
+        "input": "https://doi.org.evil.test/10.1234/example",
+        "valid": false
+    },
+    {
+        "type": "DOI",
+        "input": "10.1234/with space",
+        "valid": false
+    },
+    {
+        "type": "DOI",
+        "input": "10.1234/example\n",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "10.60510/gf1211s-47",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "https://doi.org/10.60510/gf1211s-47",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "http://dx.doi.org/10.60510/gf1211s-47",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "DOI:10.60510/gf1211s-47",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "IGSN:10.60510/gf1211s-47",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "10273/ICDP5054EHW1001",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "https://hdl.handle.net/10273/ICDP5054EHW1001",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "https://igsn.org/10273/ICDP5054EHW1001",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "https://igsn.org/SSH000SUA",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "IGSN: AU1234567",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "urn:igsn:SSH000SUA",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "AU1234567",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "bgrX123456789012",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "https://doi.org/10.99999/new-catalog",
+        "valid": true
+    },
+    {
+        "type": "IGSN",
+        "input": "10.273/ABC123",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "https://igsn.org/10.273/ABC123",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "10273/",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "IGSN:",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "urn:igsn:",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "https://doi.org/10.60510/",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "https://doi.org/10.60510/abc def",
+        "valid": false
+    },
+    {
+        "type": "IGSN",
+        "input": "AU12345\n",
+        "valid": false
+    },
+    {
+        "type": "RAiD",
+        "input": "https://raid.org/10.82210/162fda4d",
+        "valid": true
+    },
+    {
+        "type": "RAiD",
+        "input": "10.82210/162fda4d",
+        "valid": true
+    },
+    {
+        "type": "RAiD",
+        "input": "https://doi.org/10.82210/162fda4d",
+        "valid": true
+    },
+    {
+        "type": "RAiD",
+        "input": "http://dx.doi.org/10.82210/162fda4d",
+        "valid": true
+    },
+    {
+        "type": "RAiD",
+        "input": "DOI:10.82210/162fda4d",
+        "valid": true
+    },
+    {
+        "type": "RAiD",
+        "input": "HTTPS://RAID.ORG/10.82210/162fda4d",
+        "valid": true
+    },
+    {
+        "type": "RAiD",
+        "input": "https://raid.org/10.99999/project123",
+        "valid": true
+    },
+    {
+        "type": "RAiD",
+        "input": "https://raid.org/",
+        "valid": false
+    },
+    {
+        "type": "RAiD",
+        "input": "https://raid.org/about",
+        "valid": false
+    },
+    {
+        "type": "RAiD",
+        "input": "https://raid.org.evil.test/10.82210/162fda4d",
+        "valid": false
+    },
+    {
+        "type": "RAiD",
+        "input": "https://raid.org/10.82210/",
+        "valid": false
+    },
+    {
+        "type": "RAiD",
+        "input": "10.82210/has space",
+        "valid": false
+    },
+    {
+        "type": "RAiD",
+        "input": "10.82210/162fda4d\n",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.21532",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.21532v2",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "arXiv:2507.21532",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "ARXIV:2507.21532v12",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/abs/2507.21532",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "HTTPS://ARXIV.ORG/abs/2507.21532v3",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/pdf/2507.21532.pdf",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/pdf/2507.21532v2.pdf",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/html/2507.21532v2",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/src/2507.21532",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "0704.0001",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "1412.9999v1",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "1501.00001",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "hep-th/9901001",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "hep-th/9901001v2",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "math.GT/0309136",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "arXiv:math.GT/0309136v1",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/abs/math.GT/0309136v2",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/pdf/hep-th/9901001v2.pdf",
+        "valid": true
+    },
+    {
+        "type": "arXiv",
+        "input": "arXiv:",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/help",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/abs/",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org.evil.test/abs/2507.21532",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2513.21532",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2500.21532",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.2153",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.00000",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.21532v0",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.21532v01",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.21532junk",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.21532.pdf",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "https://arxiv.org/abs/2507.21532.pdf",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "0703.0001",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "1412.00001",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "1501.0001",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "hep-th/9900001",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "hep-th/9901000",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "math.GT/0309136v0",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "hep-th/0704001",
+        "valid": false
+    },
+    {
+        "type": "arXiv",
+        "input": "2507.21532\n",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "978-3-510-96872-5",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "9783510968725",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "978 3 510 96872 5",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "9783831048069",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "0-306-40615-2",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "0306406152",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "0 306 40615 2",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "0-8044-2957-X",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "080442957x",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "ISBN:978-3-510-96872-5",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "ISBN 978-3-510-96872-5",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "ISBN-13: 9783510968725",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "ISBN-10: 0306406152",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "urn:isbn:978-3-510-96872-5",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "https://isbn.openedition.org/9783510968725",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "https://books.openedition.org/isbn/9783510968725",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "9791090636071",
+        "valid": true
+    },
+    {
+        "type": "ISBN",
+        "input": "ISBN:",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "urn:isbn:",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "978--3-510-96872-5",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "978_3_510_96872_5",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "978-3-510-96872-5-",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "978351096872",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "97835109687255",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "X306406152",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "03064061X2",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "979-0-060-11561-5",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "9790060115615",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "4006381333931",
+        "valid": false
+    },
+    {
+        "type": "ISBN",
+        "input": "978-3-510-96872-5\n",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "9783831048069",
+        "valid": true
+    },
+    {
+        "type": "EAN13",
+        "input": "4006381333931",
+        "valid": true
+    },
+    {
+        "type": "EAN13",
+        "input": "urn:ean13:4006381333931",
+        "valid": true
+    },
+    {
+        "type": "EAN13",
+        "input": "URN:GTIN-13:4006381333931",
+        "valid": true
+    },
+    {
+        "type": "EAN13",
+        "input": "urn:gtin:400-6381333931",
+        "valid": true
+    },
+    {
+        "type": "EAN13",
+        "input": "https://identifiers.org/ean13:4006381333931",
+        "valid": true
+    },
+    {
+        "type": "EAN13",
+        "input": "https://gs1.org/01/4006381333931",
+        "valid": true
+    },
+    {
+        "type": "EAN13",
+        "input": "400638133393",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "40063813339311",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "400-6381333931",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "urn:ean13:",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "urn:ean13:400--6381333931",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "https://identifiers.org/ean13:",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "https://gs1.org/01/about",
+        "valid": false
+    },
+    {
+        "type": "EAN13",
+        "input": "9783831048069\n",
+        "valid": false
+    },
+    { "type": "LSID", "input": "urn:lsid:example-org.org:sample-data:id_123-4", "valid": true },
+    { "type": "LSID", "input": "urn:lsid:example.org:sample:id:2", "valid": true },
+    { "type": "LSID", "input": "urn:lsid:example.org:sample", "valid": false },
+    { "type": "LSID", "input": "urn:lsid:example.org:sample:id:two", "valid": false },
+    { "type": "LSID", "input": "urn:lsid:example.org:sample:bad value", "valid": false },
+    { "type": "PURL", "input": "https://purl.org/dc/elements/1.1/title", "valid": true },
+    { "type": "PURL", "input": "http://purl.example-org.org/some-path/item_1", "valid": true },
+    { "type": "PURL", "input": "https://purl.org/", "valid": false },
+    { "type": "PURL", "input": "https://purl.org/bad value", "valid": false },
+    { "type": "RRID", "input": "RRID:ab_123-4", "valid": true },
+    { "type": "RRID", "input": "ab_123", "valid": true },
+    { "type": "RRID", "input": "RRID:ab:123_4", "valid": true },
+    { "type": "RRID", "input": "1234", "valid": false },
+    { "type": "RRID", "input": "RRID:ab_!", "valid": false },
+    { "type": "RRID", "input": "RRID:ab_bad value", "valid": false },
+    { "type": "URN", "input": "urn:example-ns:some-id", "valid": true },
+    { "type": "URN", "input": "urn:nbn:de:123-456", "valid": true },
+    { "type": "URN", "input": "urn:example:", "valid": false },
+    { "type": "URN", "input": "urn:bad_ns:value", "valid": false },
+    { "type": "URN", "input": "urn:example:bad value", "valid": false },
+    { "type": "w3id", "input": "https://w3id.org/some-path/item_1#some-fragment", "valid": true },
+    { "type": "w3id", "input": "http://w3id.org/a/b#", "valid": true },
+    { "type": "w3id", "input": "https://w3id.org/", "valid": false },
+    { "type": "w3id", "input": "https://w3id.org/bad value", "valid": false },
+    { "type": "w3id", "input": "https://w3id.org/item#bad value", "valid": false }
+]

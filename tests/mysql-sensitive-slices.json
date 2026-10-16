@@ -5,12 +5,17 @@
     "suggested-relation-title", "projection-sort", "projection-spdx", "projection-party",
     "igsn-facets", "assessment", "editor-background", "tombstone-schema", "igsn-layout", "assistance",
     "subject-hierarchy", "relation-correction", "description-language", "temporal-coverage",
-    "oai-schema", "oai-services"
+    "identifier-patterns", "oai-schema", "oai-services"
   ],
   "aliases": {
     "oai-pmh": ["oai-schema", "oai-services"]
   },
   "slices": {
+    "identifier-patterns": [
+      "tests/pest/Feature/Database/CorrectElmoIdentifierTypePatternsMigrationTest.php",
+      "tests/pest/Feature/Database/CorrectHtmlIdentifierTypePatternsMigrationTest.php",
+      "tests/pest/Feature/Api/ElmoIdentifierPatternsTest.php"
+    ],
     "editor-settings": [
       "tests/pest/Feature/Database/EditorSettingsMigrationTest.php",
       "tests/pest/Feature/ElmoCacheRefresh/EditorSettingsRefreshTest.php"

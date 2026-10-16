@@ -653,7 +653,7 @@
             "get": {
                 "tags": ["Editor Configuration"],
                 "summary": "List identifier types enabled for ELMO",
-                "description": "Returns all identifier types that are enabled for ELMO with their active validation and detection regex patterns. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns types enabled by is_elmo_active, independently of ERNIE and ELMO-MSL activation, with active patterns only. Decode the JSON once and pass regex source strings directly to the consumer; do not JSON-decode individual patterns, remove escapes, or add regex delimiters. The scalar pattern is the full-input OR of all active validation alternatives, or (?!) when none exist. It supports legacy ELMO consumers; patterns.detection remains separate. Compare detection priorities across types, validate candidate input forms, apply any advisory checksum, and only auto-select an unambiguous preferred candidate. Explicit manual selections take precedence. Known IGSN/RAiD namespaces outrank DOI, ISBN outranks EAN13, and specific resolvers outrank URL. Unknown DOI namespaces remain DOI. A manually selected EAN13 may also be a valid ISBN-13. The API cannot override a consumer's hardcoded DOI precedence, implement checksum algorithms in its browser, or invalidate an existing resource. Native HTML pattern validation has no implicit case-insensitive flag. ELMO caches and synchronizes these responses; an old cache may temporarily retain older patterns. Authenticate with X-API-Key or a Bearer key.",
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -670,7 +670,7 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/IdentifierType"
+                                        "$ref": "#/components/schemas/ElmoIdentifierType"
                                     }
                                 }
                             }
@@ -6808,6 +6808,47 @@
                 },
                 "required": ["id", "name", "slug", "description", "patterns"]
             },
+            "ElmoIdentifierType": {
+                "description": "ELMO-specific additions to the unchanged grouped identifier-type contract. The compatibility pattern validates complete forms such as IGSN DOI resolver URLs, RAiD URLs or bare DOIs, modern and historical arXiv identifiers and URLs with versions, and ISBN-10/13 with allowed separators. Regex validation checks format, not registration or checksum correctness.",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/IdentifierType"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "pattern": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Nonempty JavaScript regex source without delimiters or flags, combining all active validation alternatives with full-input boundaries. (?!) matches nothing when no usable validation pattern exists. Validation and detection are deliberately separate; this legacy field does not resolve overlapping identifier types.",
+                                "examples": ["^(?:(?:^10\\.\\d{4,}/\\S+$))(?![\\s\\S])", "(?!)"]
+                            },
+                            "checksum": {
+                                "type": "object",
+                                "description": "Present for ISBN and EAN13. A consumer must implement these advisory local checks after recognizing an allowed presentation form and extracting its identifier core; remove only permitted ISBN spaces/hyphens or an explicitly supported EAN13 wrapper. isbn10-mod11: sum the ten digits with weights 10 through 1 (X/x = 10 only in the last position), requiring remainder 0 modulo 11. isbn13-mod10 and gtin13-mod10: sum all thirteen digits with alternating weights 1,3 starting at the left, requiring remainder 0 modulo 10. Choose the ISBN algorithm by core length. These are instructions, not executable validators; a regex match alone does not certify a checksum. They impose no new server-side resource-save requirement.",
+                                "properties": {
+                                    "algorithms": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "uniqueItems": true,
+                                        "items": {
+                                            "type": "string",
+                                            "enum": ["isbn10-mod11", "isbn13-mod10", "gtin13-mod10"]
+                                        }
+                                    },
+                                    "mode": {
+                                        "type": "string",
+                                        "const": "advisory"
+                                    }
+                                },
+                                "required": ["algorithms", "mode"],
+                                "examples": [{ "algorithms": ["isbn10-mod11", "isbn13-mod10"], "mode": "advisory" }]
+                            }
+                        },
+                        "required": ["pattern"]
+                    }
+                ]
+            },
             "IdentifierTypePattern": {
                 "type": "object",
                 "description": "A single regex pattern for validating or detecting an identifier type",
@@ -6819,7 +6860,7 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "description": "Priority for ordering patterns (higher = checked first)",
+                        "description": "Higher means preferred; compare detection priorities across all candidate types, independently of alphabetical response order. Validation alternatives are OR-combined, not selected by priority.",
                         "minimum": 0,
                         "maximum": 100,
                         "example": 10

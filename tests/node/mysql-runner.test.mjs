@@ -16,10 +16,10 @@ function recorder(version = '9.7.2', failSlice) {
     };
 }
 
-test('complete MySQL inventory retains 26 reset boundaries and includes editor concurrency checks', () => {
+test('complete MySQL inventory retains 27 reset boundaries and includes editor concurrency checks', () => {
     const slices = resolveMysqlSlices();
-    assert.equal(slices.length, 26);
-    assert.equal(new Set(slices.map(({ name }) => name)).size, 26);
+    assert.equal(slices.length, 27);
+    assert.equal(new Set(slices.map(({ name }) => name)).size, 27);
     assert.deepEqual(
         slices.find(({ name }) => name === 'editor-background'),
         resolveMysqlSlices('editor-background')[0],
@@ -51,7 +51,7 @@ test('starts services once and preserves isolated reset-before-test ordering and
     runMysqlTests({ execute: recording.execute });
     assert.equal(recording.calls.filter((args) => args[0] === 'up').length, 1);
     const tests = recording.calls.filter((args) => args.includes('./vendor/bin/pest'));
-    assert.equal(tests.length, 26);
+    assert.equal(tests.length, 27);
     for (const args of tests) {
         const reset = recording.calls[recording.calls.indexOf(args) - 1];
         assert.ok(reset.at(-1).startsWith('DROP DATABASE IF EXISTS ernie_test; CREATE DATABASE ernie_test;'));
