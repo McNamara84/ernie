@@ -23,42 +23,48 @@ async function expectReadableTopics(page: Page) {
         await document.fonts.ready;
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     });
-    const clipped = await page.locator('.science-topic-caption').evaluateAll((captions) =>
-        captions.flatMap((caption) => {
-            const hexagon = caption.closest('.science-topic-hexagon')!;
-            const box = hexagon.getBoundingClientRect();
-            const isHexagon = getComputedStyle(hexagon).clipPath !== 'none';
-            const walker = document.createTreeWalker(caption, NodeFilter.SHOW_TEXT);
-            while (walker.nextNode()) {
-                const range = document.createRange();
-                range.selectNodeContents(walker.currentNode);
-                for (const rect of range.getClientRects()) {
-                    for (const x of [rect.left + 1, rect.right - 1]) {
-                        for (const y of [rect.top + 1, rect.bottom - 1]) {
-                            const dx = Math.abs(x - box.x - box.width / 2) / box.width;
-                            const dy = Math.abs(y - box.y - box.height / 2) / box.height;
-                            if (dx > 0.5 || dy > 0.5 || (isHexagon && 2 * dx + dy > 1)) {
-                                return [
-                                    {
-                                        label: caption.textContent,
-                                        width: box.width,
-                                        height: box.height,
-                                        font: getComputedStyle(caption).fontSize,
-                                        containerWidth: caption.closest('.science-topics')!.clientWidth,
-                                        textWidth: rect.width,
-                                        dx,
-                                        dy,
-                                    },
-                                ];
+    // Responsive container queries can settle after text enlargement.
+    await expect
+        .poll(
+            () =>
+                page.locator('.science-topic-caption').evaluateAll((captions) =>
+                    captions.flatMap((caption) => {
+                        const hexagon = caption.closest('.science-topic-hexagon')!;
+                        const box = hexagon.getBoundingClientRect();
+                        const isHexagon = getComputedStyle(hexagon).clipPath !== 'none';
+                        const walker = document.createTreeWalker(caption, NodeFilter.SHOW_TEXT);
+                        while (walker.nextNode()) {
+                            const range = document.createRange();
+                            range.selectNodeContents(walker.currentNode);
+                            for (const rect of range.getClientRects()) {
+                                for (const x of [rect.left + 1, rect.right - 1]) {
+                                    for (const y of [rect.top + 1, rect.bottom - 1]) {
+                                        const dx = Math.abs(x - box.x - box.width / 2) / box.width;
+                                        const dy = Math.abs(y - box.y - box.height / 2) / box.height;
+                                        if (dx > 0.5 || dy > 0.5 || (isHexagon && 2 * dx + dy > 1)) {
+                                            return [
+                                                {
+                                                    label: caption.textContent,
+                                                    width: box.width,
+                                                    height: box.height,
+                                                    font: getComputedStyle(caption).fontSize,
+                                                    containerWidth: caption.closest('.science-topics')!.clientWidth,
+                                                    textWidth: rect.width,
+                                                    dx,
+                                                    dy,
+                                                },
+                                            ];
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-            }
-            return [];
-        }),
-    );
-    expect(clipped, 'Topic labels must fit inside their visible card or hexagon').toEqual([]);
+                        return [];
+                    }),
+                ),
+            { message: 'Topic labels must fit inside their visible card or hexagon' },
+        )
+        .toEqual([]);
     await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth), {
             message: 'Text enlargement and spacing must not cause horizontal page overflow',
@@ -68,8 +74,11 @@ async function expectReadableTopics(page: Page) {
 
 function requireLinkTabbing(browserName: string) {
     // Windows MiniBrowser skips native links with both Tab and Alt+Tab, even on
-    // a plain HTML control page. Keep these tests enabled in Linux CI.
-    test.skip(browserName === 'webkit' && process.platform === 'win32', 'Windows WebKit omits links from its native Tab cycle.');
+    // a plain HTML control page. Linux CI and remote Linux WebKit support links.
+    test.skip(
+        browserName === 'webkit' && process.platform === 'win32' && !process.env.ERNIE_WEBKIT_WS_ENDPOINT,
+        'Windows WebKit omits links from its native Tab cycle.',
+    );
 }
 
 async function expectContrastingFocus(control: Locator) {
@@ -106,6 +115,22 @@ async function expectContrastingFocus(control: Locator) {
 test.describe('Homepage accessibility', () => {
     test.beforeEach(async ({ page }) => {
         await page.emulateMedia({ reducedMotion: 'reduce' });
+    });
+
+    test('waits for delayed stylesheets before returning the homepage', async ({ page }) => {
+        await page.emulateMedia({ colorScheme: 'light' });
+        await page.route('https://fonts.bunny.net/css*', async (route) => {
+            // Reproduce a slow font provider while the application bundle can
+            // already render the heading. No external font request is needed.
+            await new Promise((resolve) => setTimeout(resolve, 7000));
+            await route.fulfill({ contentType: 'text/css', body: '' });
+        });
+
+        await openHomepage(page);
+
+        expect(await page.evaluate(() => document.readyState)).toBe('complete');
+        await expect(page.locator('footer')).toHaveCSS('background-color', 'rgb(26, 62, 116)');
+        await expect(page.locator('footer p')).toHaveCSS('color', 'rgb(255, 255, 255)');
     });
 
     for (const width of [320, 768, 1440]) {
