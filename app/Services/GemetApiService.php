@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use JsonException;
 use RuntimeException;
+use Throwable;
 
 /**
  * Service for fetching data from the GEMET REST API.
@@ -25,6 +31,200 @@ class GemetApiService
     private const RELATION_BROADER = 'http://www.w3.org/2004/02/skos/core#broader';
 
     private const RELATION_GROUP_MEMBER = 'http://www.eionet.europa.eu/gemet/2004/06/gemet-schema.rdf#groupMember';
+
+    private const CHECK_CONCURRENCY = 4;
+
+    private const CHECK_BUDGET_SECONDS = 90;
+
+    private const CHECK_REQUEST_SECONDS = 30;
+
+    private const CHECK_CONNECT_SECONDS = 10;
+
+    private const CHECK_ATTEMPTS = 2;
+
+    private const CHECK_RETRY_SECONDS = 0.5;
+
+    /**
+     * Fetch a complete hierarchy count within the synchronous settings budget.
+     * Download commands deliberately retain their existing request policy.
+     */
+    public function fetchHierarchyNodeCountForUpdateCheck(): int
+    {
+        $started = $this->checkTime();
+        $deadline = $started + self::CHECK_BUDGET_SECONDS;
+        $superGroups = $this->fetchCheckBatch(
+            [self::SUPERGROUP_URI => ['thesaurus_uri' => self::SUPERGROUP_URI]],
+            'getTopmostConcepts', 'supergroups', $started, $deadline,
+        );
+        $groups = $this->fetchCheckBatch(
+            [self::GROUP_URI => ['thesaurus_uri' => self::GROUP_URI]],
+            'getTopmostConcepts', 'groups', $started, $deadline,
+        )[self::GROUP_URI];
+        $count = count($superGroups[self::SUPERGROUP_URI]) + count($groups);
+
+        foreach (array_chunk($groups, self::CHECK_CONCURRENCY) as $batch) {
+            $queries = [];
+            foreach ($batch as $group) {
+                $queries[$group['uri']] = [
+                    'concept_uri' => $group['uri'],
+                    'relation_uri' => self::RELATION_GROUP_MEMBER,
+                ];
+            }
+
+            foreach ($this->fetchCheckBatch($queries, 'getRelatedConcepts', 'members', $started, $deadline) as $members) {
+                $count += count($members);
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param  array<string, array<string, string>>  $queries
+     * @return array<string, array<int, array{uri: string, label: string, definition: string}>>
+     */
+    private function fetchCheckBatch(array $queries, string $endpoint, string $phase, float $started, float $deadline): array
+    {
+        $results = [];
+        for ($attempt = 1; ; $attempt++) {
+            $timeout = $this->checkTimeout($deadline, $started, $phase, $attempt);
+            $responses = Http::pool(function (Pool $pool) use ($queries, $endpoint, $timeout): array {
+                $requests = [];
+                foreach ($queries as $uri => $query) {
+                    $requests[] = $pool->as($uri)
+                        ->connectTimeout(min(self::CHECK_CONNECT_SECONDS, $timeout))
+                        ->timeout($timeout)
+                        ->withoutRedirecting()
+                        ->acceptJson()
+                        ->get(self::BASE_URL.$endpoint, [...$query, 'language' => 'en']);
+                }
+
+                return $requests;
+            }, concurrency: self::CHECK_CONCURRENCY);
+
+            $this->checkTimeout($deadline, $started, $phase, $attempt);
+            $pending = [];
+            $delay = self::CHECK_RETRY_SECONDS;
+            foreach ($queries as $uri => $query) {
+                $response = $responses[$uri];
+                if ($response instanceof Throwable && ! $response instanceof ConnectionException) {
+                    throw $response;
+                }
+
+                if ($response instanceof Response && $response->successful()) {
+                    try {
+                        $results[$uri] = $this->parseCheckResponse($response, $phase === 'members');
+                    } catch (RuntimeException|JsonException $exception) {
+                        $this->failCheck('invalid_response', $phase, $uri, $attempt, $started, $exception);
+                    }
+
+                    continue;
+                }
+
+                $retryable = $response instanceof ConnectionException
+                    || in_array($response->status(), [408, 429, 500, 502, 503, 504], true);
+                $exception = $response instanceof ConnectionException ? $response
+                    : ($response->toException() ?? new RuntimeException("Unexpected GEMET HTTP status {$response->status()}."));
+                if (! $retryable || $attempt === self::CHECK_ATTEMPTS) {
+                    $this->failCheck('unavailable', $phase, $uri, $attempt, $started, $exception);
+                }
+
+                $pending[$uri] = $query;
+                if ($response instanceof Response && in_array($response->status(), [429, 503], true)) {
+                    $delay = max($delay, $this->checkRetryAfter($response));
+                }
+            }
+
+            if ($pending === []) {
+                $this->checkTimeout($deadline, $started, $phase, $attempt);
+
+                return $results;
+            }
+
+            if ($delay >= $deadline - $this->checkTime()) {
+                $this->failCheck('budget_exhausted', $phase, (string) array_key_first($pending), $attempt, $started);
+            }
+
+            $this->waitForCheckRetry($delay);
+            $queries = $pending;
+        }
+    }
+
+    /** @return array<int, array{uri: string, label: string, definition: string}> */
+    private function parseCheckResponse(Response $response, bool $allowEmpty): array
+    {
+        $body = $response->body();
+        $data = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+        if (! is_array($data) || ($data === [] && ! $allowEmpty)) {
+            throw new RuntimeException('Expected GEMET entities.');
+        }
+
+        if (! str_starts_with(ltrim($body), '[')) {
+            if (! isset($data['uri'])) {
+                throw new RuntimeException('Unexpected GEMET object.');
+            }
+            $data = [$data];
+        }
+
+        foreach ($data as $entity) {
+            if (! is_array($entity) || ! is_string($entity['uri'] ?? null) || trim($entity['uri']) === '') {
+                throw new RuntimeException('Invalid GEMET entity URI.');
+            }
+        }
+
+        return $this->parseEntities($data);
+    }
+
+    private function checkRetryAfter(Response $response): float
+    {
+        $value = trim($response->header('Retry-After'));
+        if (ctype_digit($value)) {
+            return (float) $value;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat(DATE_RFC7231, $value, new \DateTimeZone('GMT'));
+
+        return $date === false ? 0 : max(0, $date->getTimestamp() - Date::now()->getTimestamp());
+    }
+
+    private function checkTimeout(float $deadline, float $started, string $phase, int $attempt): float
+    {
+        // Sub-millisecond values would round to an unlimited cURL timeout.
+        $remaining = floor(($deadline - $this->checkTime()) * 1000) / 1000;
+        if ($remaining < 0.001) {
+            $this->failCheck('budget_exhausted', $phase, null, $attempt, $started);
+        }
+
+        return min(self::CHECK_REQUEST_SECONDS, $remaining);
+    }
+
+    private function failCheck(string $reason, string $phase, ?string $uri, int $attempt, float $started, ?Throwable $previous = null): never
+    {
+        Log::warning('GEMET update check failed.', [
+            'reason' => $reason,
+            'phase' => $phase,
+            'uri' => $uri,
+            'attempts' => $attempt,
+            'elapsed_seconds' => $this->checkTime() - $started,
+            'exception' => $previous,
+        ]);
+
+        throw new RuntimeException(match ($reason) {
+            'budget_exhausted' => 'GEMET update check exceeded its time limit. Please try again later.',
+            'invalid_response' => 'GEMET returned an invalid response. Please try again later.',
+            default => 'GEMET could not be reached. Please try again later.',
+        }, previous: $previous);
+    }
+
+    protected function checkTime(): float
+    {
+        return hrtime(true) / 1_000_000_000;
+    }
+
+    protected function waitForCheckRetry(float $seconds): void
+    {
+        usleep((int) ceil($seconds * 1_000_000));
+    }
 
     /**
      * Fetch all GEMET SuperGroups.
@@ -285,7 +485,7 @@ class GemetApiService
         foreach ($groupUris as $index => $groupUri) {
             $response = $responses[$index];
 
-            if ($response instanceof \Throwable) {
+            if ($response instanceof Throwable) {
                 throw new RuntimeException(
                     "HTTP request failed for group {$groupUri}: {$response->getMessage()}"
                 );

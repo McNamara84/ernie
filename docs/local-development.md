@@ -763,6 +763,23 @@ Docker Desktop can fail to sync the file back to the host even when it exists in
 docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
 ```
 
+### GEMET update checks time out
+
+The GEMET check in **Editor Settings / Thesauri** uses at most four concurrent
+group requests and retries temporary connection or HTTP failures once. Provider
+`Retry-After` delays and all requests share a 90-second budget. Each attempt has
+a maximum 10-second connection timeout and 30-second total timeout, reduced to
+the remaining budget. A complete count is cached for one hour; failed or partial
+checks are not cached and can be retried without clearing the application cache.
+
+Persistent failures return HTTP 503 with an understandable message. Look for
+`GEMET update check failed.` in the Laravel logs for the phase, group URI,
+attempt count, elapsed time and original exception. If a single GEMET request
+also fails from the affected app container, inspect DNS, outbound connectivity
+and TLS negotiation in that environment. A successful check from the host alone
+does not establish container connectivity. The actual vocabulary download and
+update jobs retain their existing request policy.
+
 ### F-UJI is not reachable
 
 That is expected unless the matching profile was started:
