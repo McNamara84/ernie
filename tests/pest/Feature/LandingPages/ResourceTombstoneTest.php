@@ -30,8 +30,10 @@ use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalSearchService;
 use App\Services\ResourceTombstoneSyncService;
 use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -79,6 +81,224 @@ beforeEach(function () {
     Http::swap(new Factory);
     Http::fake(['*datacite.org/*' => Http::response(($this->remote)())]);
 });
+
+test('tombstone activation waits for normal API spacing outside the DOI lock', function () {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $clock = new TombstoneAdmissionClock;
+    app()->instance(DataCiteRequestLimiter::class, $clock);
+    Http::swap(new Factory);
+    Http::fake(function () {
+        expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse();
+
+        return Http::response(($this->remote)());
+    });
+    app(DataCiteMemberApiClient::class)->getDoi($this->resource->doi);
+
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+
+    expect($clock->milliseconds)->toBe(1_001_000)
+        ->and(ResourceTombstoneTransition::firstOrFail()->previous_state)->toBe('findable');
+    Http::assertSentCount(2);
+});
+
+test('tombstone activation during a cooldown offers a controlled retry without mutations', function () {
+    Cache::flush();
+    $clock = new TombstoneAdmissionClock;
+    app()->instance(DataCiteRequestLimiter::class, $clock);
+    $clock->imposeCooldown(60);
+
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)
+        ->assertUnprocessable()->assertJsonValidationErrors('doi')
+        ->assertJsonPath('errors.doi.0', 'The registered DOI could not be verified with DataCite. Please retry.');
+
+    expect($this->page->fresh()->is_tombstone)->toBeFalse()
+        ->and(ResourceTombstoneTransition::count())->toBe(0);
+    Http::assertNothingSent();
+    Queue::assertNothingPushed();
+});
+
+test('activation rejects a remote snapshot superseded by a metadata writer', function () {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+    Http::swap(new Factory);
+    Http::fake(function ($request) {
+        if ($request->method() === 'GET') {
+            app(DataCiteMemberApiClient::class)->updateLandingPageUrl($this->resource->doi, 'https://example.org/new-target');
+        }
+
+        return Http::response(($this->remote)());
+    });
+
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)
+        ->assertConflict()->assertJsonPath('error', 'doi_update_superseded');
+
+    expect($this->page->fresh()->is_tombstone)->toBeFalse()
+        ->and(ResourceTombstoneTransition::count())->toBe(0);
+    Queue::assertNothingPushed();
+});
+
+test('a duplicate tombstone sync leaves its running worker in charge', function () {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    $duplicateStarted = false;
+    Http::swap(new Factory);
+    Http::fake(function ($request) use ($transition, &$duplicateStarted) {
+        if (! $duplicateStarted) {
+            $duplicateStarted = true;
+            expect($transition->fresh()->status)->toBe('running');
+            app(ResourceTombstoneSyncService::class)->sync($transition->id);
+            expect($transition->fresh()->status)->toBe('running')
+                ->and($transition->fresh()->attempts)->toBe(1);
+        }
+
+        return Http::response(($this->remote)($request->method() === 'GET' ? 'findable' : 'registered'));
+    });
+    Log::spy();
+
+    app(ResourceTombstoneSyncService::class)->sync($transition->id);
+
+    expect($transition->fresh()->status)->toBe('succeeded')->and($transition->fresh()->attempts)->toBe(1);
+    Http::assertSentCount(2);
+    Log::shouldHaveReceived('info')->once()->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'tombstone.datacite_synced');
+});
+
+test('only recovery can reclaim an abandoned running tombstone sync', function () {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    $transition->forceFill(['status' => 'running', 'attempts' => 1, 'updated_at' => now()->subMinutes(10)])->save();
+    Http::swap(new Factory);
+    Http::fake(['*' => Http::response(($this->remote)('registered'))]);
+    $sync = app(ResourceTombstoneSyncService::class);
+
+    $sync->sync($transition->id);
+    expect($transition->fresh()->status)->toBe('running')->and($transition->fresh()->attempts)->toBe(1);
+    Http::assertNothingSent();
+
+    $sync->recover();
+    expect($transition->fresh()->status)->toBe('pending');
+    $sync->sync($transition->id);
+
+    expect($transition->fresh()->status)->toBe('succeeded')->and($transition->fresh()->attempts)->toBe(2);
+    Http::assertSentCount(1);
+});
+
+test('an unclaimed sync cannot reset another worker after DOI lock contention', function (string $status) {
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    $transition->update(['status' => $status, 'attempts' => 1]);
+    Http::swap(new Factory);
+    Http::fake();
+    Cache::partialMock()->shouldReceive('lock')->once()
+        ->withArgs(fn (string $key, int $seconds): bool => str_starts_with($key, 'datacite:doi-write:') && $seconds === 300)
+        ->andThrow(new LockTimeoutException);
+
+    app(ResourceTombstoneSyncService::class)->sync($transition->id);
+
+    expect($transition->fresh()->status)->toBe($status)
+        ->and($transition->fresh()->attempts)->toBe(1)
+        ->and($transition->fresh()->last_error)->toBeNull();
+    Http::assertNothingSent();
+})->with(['pending', 'running']);
+
+test('a matching remote snapshot changed by a newer write is retried instead of acknowledged', function () {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    Http::swap(new Factory);
+    Http::fake(function ($request) {
+        if ($request->method() === 'GET') {
+            app(DataCiteMemberApiClient::class)->updateLandingPageUrl($this->resource->doi, $this->page->public_url);
+        }
+
+        return Http::response(($this->remote)('registered'));
+    });
+    Log::spy();
+
+    $sync = app(ResourceTombstoneSyncService::class);
+    $sync->sync($transition->id);
+
+    expect($transition->fresh()->status)->toBe('pending')
+        ->and($transition->fresh()->completed_at)->toBeNull()
+        ->and($transition->fresh()->available_at)->toBeGreaterThan(now());
+    Log::shouldNotHaveReceived('info');
+    Http::assertSentCount(2);
+
+    $this->travel(2)->minutes();
+    Http::swap(new Factory);
+    Http::fake(['*' => Http::response(($this->remote)('registered'))]);
+    $sync->sync($transition->id);
+
+    expect($transition->fresh()->status)->toBe('succeeded')->and($transition->fresh()->attempts)->toBe(2);
+    Http::assertSentCount(1);
+    Log::shouldHaveReceived('info')->once();
+});
+
+test('tombstone completion checks its own PUT revision after releasing the send lock', function (bool $newerWrite, bool $transientFailure) {
+    Cache::flush();
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+    $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
+    $transition = ResourceTombstoneTransition::firstOrFail();
+    $limiter = new class extends DataCiteRequestLimiter
+    {
+        public ?Closure $afterSend = null;
+
+        public function runWhenReady(Closure $attempt, bool $deferLongWait = false): mixed
+        {
+            $result = parent::runWhenReady($attempt, $deferLongWait);
+            if ($result instanceof Response && $this->afterSend !== null) {
+                $callback = $this->afterSend;
+                $this->afterSend = null;
+                expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse();
+                $callback();
+            }
+
+            return $result;
+        }
+    };
+    app()->instance(DataCiteRequestLimiter::class, $limiter);
+    $putCount = 0;
+    Http::swap(new Factory);
+    Http::fake(function ($request) use ($newerWrite, $transientFailure, $limiter, &$putCount) {
+        if ($request->method() === 'GET') {
+            return Http::response(($this->remote)('findable'));
+        }
+        $putCount++;
+        if ($transientFailure && $putCount === 1) {
+            return Http::response([], 503);
+        }
+        if ($putCount === ($transientFailure ? 2 : 1) && $newerWrite) {
+            // Simulate another worker acquiring the DOI lock after this PUT
+            // releases it, before the first worker finalizes its transition.
+            $limiter->afterSend = fn () => app(DataCiteMemberApiClient::class)->updateLandingPageUrl($this->resource->doi, $this->page->public_url);
+        }
+
+        return Http::response(($this->remote)('registered'));
+    });
+    Log::spy();
+
+    app(ResourceTombstoneSyncService::class)->sync($transition->id);
+
+    expect($transition->fresh()->status)->toBe($newerWrite ? 'pending' : 'succeeded')
+        ->and($transition->fresh()->completed_at === null)->toBe($newerWrite)
+        ->and($putCount)->toBe(1 + (int) $newerWrite + (int) $transientFailure);
+    Http::assertSentCount(2 + (int) $newerWrite + (int) $transientFailure);
+    if ($newerWrite) {
+        Log::shouldNotHaveReceived('info');
+    } else {
+        Log::shouldHaveReceived('info')->once();
+    }
+})->with([
+    'own write is current' => [false, false],
+    'newer writer intervenes' => [true, false],
+    'own write succeeds on retry' => [false, true],
+    'newer writer intervenes after retry' => [true, true],
+]);
 
 test('tombstone lifecycle reads and writes each obey final API admission', function (bool $sync) {
     Cache::flush();

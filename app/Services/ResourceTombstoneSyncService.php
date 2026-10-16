@@ -69,8 +69,9 @@ final class ResourceTombstoneSyncService
             return;
         }
 
+        $claimed = false;
         try {
-            $writeRevision = DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition): ?string {
+            $writeRevision = DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition, &$claimed): ?string {
                 $transition->refresh();
                 $latest = ResourceTombstoneTransition::where('resource_id', $transition->resource_id)->latest('revision')->first();
                 if ($latest?->id !== $transition->id) {
@@ -78,11 +79,12 @@ final class ResourceTombstoneSyncService
 
                     return null;
                 }
-                if (in_array($transition->status, ['succeeded', 'superseded', 'failed'], true)
+                if (in_array($transition->status, ['running', 'succeeded', 'superseded', 'failed'], true)
                     || ($transition->status === 'pending' && $transition->available_at?->isFuture())) {
                     return null;
                 }
                 $transition->update(['status' => 'running', 'attempts' => $transition->attempts + 1]);
+                $claimed = true;
 
                 return DataCiteDoiWriteLockService::observeWrite($transition->doi, $transition->test_mode);
             });
@@ -107,13 +109,15 @@ final class ResourceTombstoneSyncService
                 if ($state !== $transition->target_state) {
                     $attributes['event'] = $transition->target_state === 'registered' ? 'hide' : 'publish';
                 }
-                $response = $client->updateDoi($transition->doi, ['data' => ['type' => 'dois', 'id' => $transition->doi, 'attributes' => $attributes]], tombstoneTransitionId: $transition->id, expectedWriteRevision: $writeRevision);
+                $writtenRevision = null;
+                $response = $client->updateDoi($transition->doi, ['data' => ['type' => 'dois', 'id' => $transition->doi, 'attributes' => $attributes]], tombstoneTransitionId: $transition->id, expectedWriteRevision: $writeRevision, writtenRevision: $writtenRevision);
                 $response->throw();
                 if ($response->json('data.attributes.state') !== $transition->target_state || $response->json('data.attributes.url') !== $transition->target_url) {
                     throw new \RuntimeException('DataCite has not confirmed the requested state and URL.');
                 }
+                $writeRevision = $writtenRevision ?? throw new \LogicException('The DataCite write revision is missing.');
             }
-            DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition): void {
+            DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition, $writeRevision): void {
                 $transition->refresh();
                 $latest = ResourceTombstoneTransition::where('resource_id', $transition->resource_id)->latest('revision')->first();
                 if ($latest?->id !== $transition->id) {
@@ -124,6 +128,7 @@ final class ResourceTombstoneSyncService
                 if (in_array($transition->status, ['succeeded', 'superseded', 'failed'], true)) {
                     return;
                 }
+                DataCiteDoiWriteLockService::assertCurrentWrite($transition->doi, $transition->test_mode, $writeRevision);
                 $transition->update(['status' => 'succeeded', 'completed_at' => now(), 'available_at' => null, 'last_error' => null]);
                 $resource = \App\Models\Resource::find($transition->resource_id);
                 if ($resource !== null) {
@@ -133,6 +138,13 @@ final class ResourceTombstoneSyncService
                 }
             });
         } catch (Throwable $exception) {
+            if (! $claimed) {
+                // An unclaimed duplicate must not reset another worker's run.
+                // Pending work and abandoned runs remain recoverable by the scheduler.
+                Log::warning('Tombstone sync claim deferred', ['transition_id' => $id]);
+
+                return;
+            }
             $status = $exception instanceof RequestException ? $exception->response->status() : null;
             DataCiteDoiWriteLockService::run($transition->doi, $transition->test_mode, function () use ($transition, $status): void {
                 $transition->refresh();

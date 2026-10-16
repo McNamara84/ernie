@@ -149,8 +149,11 @@ class DataCiteMemberApiClient
         );
     }
 
-    /** @param array<string, mixed> $payload */
-    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null): Response
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  string|null  $writtenRevision  Receives this call's last PUT revision; verify under the DOI lock before acknowledging it later.
+     */
+    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null, ?string &$writtenRevision = null): Response
     {
         return $this->send(
             'PUT',
@@ -160,6 +163,7 @@ class DataCiteMemberApiClient
             credentialIdentifier: $identifier,
             tombstoneTransitionId: $tombstoneTransitionId,
             expectedWriteRevision: $expectedWriteRevision,
+            writtenRevision: $writtenRevision,
         );
     }
 
@@ -223,6 +227,7 @@ class DataCiteMemberApiClient
         ?string $credentialIdentifier = null,
         ?int $tombstoneTransitionId = null,
         ?string $expectedWriteRevision = null,
+        ?string &$writtenRevision = null,
     ): Response {
         $maxAttempts = max(1, $maxAttempts);
         $writeRevision = $method === 'PUT' && $credentialIdentifier !== null && $payload !== null
@@ -257,6 +262,9 @@ class DataCiteMemberApiClient
 
                 continue;
             }
+            // Keep the revision of our own PUT, even if another writer acquires
+            // the lock before the caller can finalize its local transition.
+            $writtenRevision = $writeRevision;
 
             if ($response->status() === 429) {
                 $this->limiter->imposeCooldown($this->retryAfterSeconds($response));
