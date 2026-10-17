@@ -5,8 +5,8 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Popup, Rectangle, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { type GeoLocation, hasBox, hasInvalidGeometry, hasLine, hasPoint, hasPol
 import type { LandingPageIgsnMetadata } from '@/types/landing-page';
 
 import { LandingPageCard } from './LandingPageCard';
+import { GeoLocationLayer } from './LocationGeometry';
 import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
@@ -40,9 +41,6 @@ interface LocationSectionProps {
     heading?: string;
 }
 
-// GFZ Corporate Blue
-const GFZ_BLUE = '#0C2A63';
-
 const WORLD_BOUNDS: L.LatLngBoundsExpression = [
     [-90, -180],
     [90, 180],
@@ -56,10 +54,6 @@ function formatMeasurement(value: string | number | null | undefined, unit: stri
     if (value === null || value === undefined || String(value).trim() === '') return null;
 
     return `${String(value).trim()}${unit ? ` ${unit}` : ''}`;
-}
-
-function formatLineWaypointTooltip(point: { longitude: number; latitude: number }): string {
-    return 'Lat: ' + formatCoordinate(point.latitude) + ', Lon: ' + formatCoordinate(point.longitude);
 }
 
 /**
@@ -216,6 +210,14 @@ function FullscreenControl() {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSupported, setIsSupported] = useState(false);
     const containerRef = useRef<HTMLElement | null>(null);
+    const controlRef = useCallback((element: HTMLDivElement | null) => {
+        if (!element) return;
+        // Treat this React-rendered button like a native Leaflet control, not a background map click.
+        L.DomEvent.disableClickPropagation(element);
+        return () => {
+            L.DomEvent.off(element);
+        };
+    }, []);
 
     useEffect(() => {
         // Check fullscreen support on mount
@@ -269,7 +271,7 @@ function FullscreenControl() {
 
     return (
         <div className="leaflet-top leaflet-right">
-            <div className="leaflet-control leaflet-bar">
+            <div ref={controlRef} className="leaflet-control leaflet-bar">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -282,86 +284,6 @@ function FullscreenControl() {
                 </Button>
             </div>
         </div>
-    );
-}
-
-/**
- * Renders the appropriate geometry for a single GeoLocation
- */
-function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
-    const hasDescription = typeof geoLocation.place === 'string' && geoLocation.place.trim() !== '';
-
-    return (
-        <>
-            {/* Point as Marker */}
-            {hasPoint(geoLocation) && (
-                <Marker position={[geoLocation.point_latitude!, geoLocation.point_longitude!]}>
-                    {hasDescription && (
-                        <Popup>
-                            <div className="max-w-xs text-sm break-words whitespace-normal">{geoLocation.place}</div>
-                        </Popup>
-                    )}
-                </Marker>
-            )}
-
-            {/* Bounding Box as Rectangle */}
-            {hasBox(geoLocation) && (
-                <Rectangle
-                    bounds={[
-                        [geoLocation.south_bound_latitude!, geoLocation.west_bound_longitude!],
-                        [geoLocation.north_bound_latitude!, geoLocation.east_bound_longitude!],
-                    ]}
-                    pathOptions={{
-                        color: GFZ_BLUE,
-                        weight: 2,
-                        fillOpacity: 0.2,
-                    }}
-                />
-            )}
-
-            {/* Polygon as filled area */}
-            {hasPolygon(geoLocation) && (
-                <Polygon
-                    positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
-                    pathOptions={{
-                        color: GFZ_BLUE,
-                        weight: 2,
-                        fillOpacity: 0.2,
-                    }}
-                />
-            )}
-
-            {/* Line as polyline (open path) */}
-            {hasLine(geoLocation) && (
-                <>
-                    <Polyline
-                        positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
-                        pathOptions={{
-                            color: GFZ_BLUE,
-                            weight: 3,
-                            dashArray: '8, 4',
-                        }}
-                    />
-                    {geoLocation.polygon_points!.map((point, index) => (
-                        <CircleMarker
-                            key={`${geoLocation.id}-line-waypoint-${index}`}
-                            center={[point.latitude, point.longitude]}
-                            radius={5}
-                            pathOptions={{
-                                color: GFZ_BLUE,
-                                fillColor: GFZ_BLUE,
-                                fillOpacity: 0.85,
-                                weight: 1,
-                            }}
-                        >
-                            <Tooltip direction="top" sticky>
-                                {formatLineWaypointTooltip(point)}
-                            </Tooltip>
-                        </CircleMarker>
-                    ))}
-                </>
-            )}
-        </>
     );
 }
 
