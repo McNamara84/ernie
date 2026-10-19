@@ -570,6 +570,12 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         </p>
 
                         <h4>Thesaurus Management</h4>
+                        <p>
+                            Admins and Group Leaders receive a dashboard reminder each calendar quarter to review thesauri for updates. The reminder
+                            opens and focuses the Thesauri card. After checking, use <strong>Mark this quarter&apos;s review as complete</strong> to
+                            dismiss it for everyone until the next quarter, even if no updates are available. Opening the card or downloading a
+                            vocabulary does not complete the review. This action saves immediately without saving other editor settings.
+                        </p>
                         <p>The Thesauri section allows you to:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Enable/disable individual thesauri for ERNIE and/or ELMO</li>

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\EmbargoService;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
+use App\Services\ThesaurusReviewReminderService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,6 +20,7 @@ final class DashboardController extends Controller
     public function __construct(
         private readonly GuidedTourAssignmentService $guidedTourAssignmentService,
         private readonly ResourceListingProjectionRefreshService $projectionRefreshScheduler,
+        private readonly ThesaurusReviewReminderService $thesaurusReviewReminderService,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -79,6 +81,9 @@ final class DashboardController extends Controller
             ->values();
 
         return Inertia::render('dashboard', [
+            'thesaurusReviewReminder' => $user->can('manage-thesauri') && $user->can('access-editor-settings')
+                ? $this->thesaurusReviewReminderService->status()
+                : null,
             'recentResources' => $recentResources,
             'dueEmbargos' => $dueEmbargos->take(10)->all(),
             'dueEmbargoCount' => $dueEmbargos->count(),

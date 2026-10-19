@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\ThesaurusReviewReminderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -49,7 +50,8 @@ test('admin users can view editor settings page', function () {
     );
 });
 
-test('admin users can update resource and title types and settings', function () {
+test('admin users can update resource and title types and settings', function (bool $reviewCompleted) {
+    $this->freezeTime();
     // Issue #379: Only Admin and Group Leader can access Editor Settings
     $user = User::factory()->admin()->create();
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
@@ -59,6 +61,11 @@ test('admin users can update resource and title types and settings', function ()
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
     Setting::create(['key' => 'max_titles', 'value' => '5']);
     Setting::create(['key' => 'max_licenses', 'value' => '2']);
+    $reminders = app(ThesaurusReviewReminderService::class);
+    if ($reviewCompleted) {
+        $reminders->complete($reminders->status()['period'], $user);
+    }
+    $reviewBeforeSave = $reminders->status();
     $this->actingAs($user);
 
     $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
@@ -112,7 +119,8 @@ test('admin users can update resource and title types and settings', function ()
     ]);
     expect(Setting::getValue('max_titles'))->toBe('5');
     expect(Setting::getValue('max_licenses'))->toBe('2');
-});
+    expect($reminders->status())->toBe($reviewBeforeSave);
+})->with([false, true]);
 
 test('legacy limit inputs are no longer validated or persisted', function () {
     // Issue #379: Only Admin and Group Leader can access Editor Settings
