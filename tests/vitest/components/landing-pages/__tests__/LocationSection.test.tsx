@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen, within } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import L from 'leaflet';
 import { MapContainer } from 'react-leaflet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,11 +28,28 @@ vi.mock('react-leaflet', () => ({
         </div>
     )),
     Popup: vi.fn(({ children }) => <div data-testid="popup">{children}</div>),
-    Rectangle: vi.fn(({ bounds }) => <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)} />),
-    Polygon: vi.fn(({ positions }) => <div data-testid="polygon" data-positions={JSON.stringify(positions)} />),
-    Polyline: vi.fn(({ positions }) => <div data-testid="polyline" data-positions={JSON.stringify(positions)} />),
-    CircleMarker: vi.fn(({ center, children }) => (
-        <div data-testid="circle-marker" data-center={JSON.stringify(center)}>
+    Rectangle: vi.fn(({ bounds, children }) => (
+        <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)}>
+            {children}
+        </div>
+    )),
+    Polygon: vi.fn(({ positions, children }) => (
+        <div data-testid="polygon" data-positions={JSON.stringify(positions)}>
+            {children}
+        </div>
+    )),
+    Polyline: vi.fn(({ positions, children }) => (
+        <div data-testid="polyline" data-positions={JSON.stringify(positions)}>
+            {children}
+        </div>
+    )),
+    CircleMarker: vi.fn(({ center, children, eventHandlers }) => (
+        <div
+            data-testid="circle-marker"
+            data-center={JSON.stringify(center)}
+            onMouseOver={() => eventHandlers?.mouseover()}
+            onMouseOut={() => eventHandlers?.mouseout()}
+        >
             {children}
         </div>
     )),
@@ -43,6 +60,9 @@ vi.mock('react-leaflet', () => ({
     )),
     useMap: vi.fn(() => ({
         fitBounds: fitBoundsMock,
+        getSize: () => ({ x: 400, y: 400 }),
+        on: vi.fn(),
+        off: vi.fn(),
         invalidateSize: vi.fn(),
         getContainer: vi.fn(() => document.createElement('div')),
     })),
@@ -505,7 +525,7 @@ describe('LocationSection', () => {
             expect(screen.getByText('8.687990')).toBeInTheDocument();
             expect(screen.getByText('49.634400')).toBeInTheDocument();
             expect(screen.getByText('8.696440')).toBeInTheDocument();
-            expect(screen.getByText('Heppenheim/Bergstraße, Germany')).toBeInTheDocument();
+            expect(screen.getByText('Location Name').nextElementSibling).toHaveTextContent('Heppenheim/Bergstraße, Germany');
             expect(screen.getByTestId('rectangle')).toBeInTheDocument();
             expect(screen.queryByTestId('polyline')).not.toBeInTheDocument();
         });
@@ -672,6 +692,8 @@ describe('LocationSection', () => {
 
             expect(screen.getByTestId('polyline')).toBeInTheDocument();
             expect(screen.getAllByTestId('circle-marker')).toHaveLength(3);
+            expect(screen.queryByTestId('tooltip')).not.toBeInTheDocument();
+            screen.getAllByTestId('circle-marker').forEach((waypoint) => fireEvent.mouseOver(waypoint));
             expect(screen.getAllByTestId('tooltip')).toHaveLength(3);
             expect(screen.getByText('Lat: 52.380600, Lon: 13.066100')).toBeInTheDocument();
             expect(screen.getByText('Lat: 53.987600, Lon: 14.123400')).toBeInTheDocument();
