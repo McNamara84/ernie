@@ -2676,6 +2676,28 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow.
                             {permissions.deleteResources && ' Curators and above can also delete draft landing pages.'}
                         </p>
+                        <h4>Reading Coverage Descriptions on the Map</h4>
+                        <p>
+                            On dataset and IGSN landing pages, including previews, click a described point, bounding box, polygon, line, or line
+                            waypoint to open its coverage description in a popup beside the object. Every waypoint of a line opens the same
+                            description as the line. Objects without a description remain visible without this action. Hover over a line waypoint to
+                            see its latitude and longitude, even when it has no description.
+                        </p>
+                        <p>
+                            The popup shows the complete description with its line breaks. Long text wraps and can be scrolled. Opening another
+                            described object replaces the previous popup.
+                        </p>
+                        <p>
+                            To use the keyboard, press <strong>Tab</strong> to focus a described map object, then <strong>Enter</strong> or{' '}
+                            <strong>Space</strong> to open its popup. Focus moves to the description text. Use <strong>Page Down</strong> to scroll
+                            long descriptions, or press <strong>Tab</strong> to reach <strong>Close popup</strong> and activate it with{' '}
+                            <strong>Enter</strong> or <strong>Space</strong>.
+                        </p>
+                        <p>
+                            Close the popup with its <strong>×</strong> button, <strong>Escape</strong>, or a click on an empty part of the map. When
+                            you close it from inside the popup, focus returns to the map object that opened it. If you have moved focus outside the
+                            popup, it stays there.
+                        </p>
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
                             The <strong>Download Metadata</strong> section remains visible while you review a Resource or IGSN landing page. Selecting
@@ -3030,6 +3052,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Locality Description, country, province, county, and city. Map renders one coordinate pair as a point, two pairs
                                     as a box, and three or more pairs as a polygon; its automatic overview stops at zoom level 2 before visitors zoom
                                     further themselves.
+                                </p>
+                                <p>
+                                    Described map geometries and line waypoints also open the coverage description in a popup. Location Description
+                                    and Locality Description remain in the separate Location card. See{' '}
+                                    <a href="/docs?tab=datasets&section=landing-pages">Reading Coverage Descriptions on the Map</a> in the Landing
+                                    Pages section for mouse and keyboard instructions.
                                 </p>
                                 <p>
                                     The built-in IGSN layout starts with General, Sample Family, Repositories, Map, Related Work, Download Metadata,
