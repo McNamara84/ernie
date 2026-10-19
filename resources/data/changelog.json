@@ -1,8 +1,13 @@
 [
     {
         "version": "1.1.1dev",
-        "date": "2026-10-16",
-        "features": [
+        "date": "2026-10-19",
+        "improvements": [
+            {
+                "title": "Quarterly Thesaurus Review Reminder",
+                "description": "Admins and Group Leaders see a dashboard reminder to check thesauri each calendar quarter. The clickable card opens, scrolls to and focuses Thesauri in Editor Settings. Explicitly completing the review dismisses the reminder for everyone until the next quarter, even when no updates are available. Completion preserves unsaved settings and prevents an outdated tab from accidentally completing a new quarter.",
+                "references": [{ "type": "issue", "number": 1478, "url": "https://github.com/McNamara84/ernie/issues/1478" }]
+            },
             {
                 "title": "Coverage Descriptions on Landing Page Maps",
                 "description": "Landing page maps and previews show the complete coverage description in a closable popup on points, bounding boxes, polygons, lines and every line waypoint. Described objects support keyboard activation, provide labelled description dialogs and restore focus to the originating geometry when dismissed from inside the popup. Long descriptions wrap and scroll, and line waypoints retain coordinate tooltips on hover. Objects without a description remain visible without a description action. The same behavior applies to dataset and IGSN landing pages.",

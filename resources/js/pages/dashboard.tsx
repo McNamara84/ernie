@@ -14,9 +14,10 @@ import { handleJsonFiles, handleXmlFiles } from '@/lib/datacite-upload';
 import { type GuidedTourAutostartPayload } from '@/lib/tours/definitions';
 import { cn } from '@/lib/utils';
 import { latestVersion } from '@/lib/version';
-import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
+import { changelog as changelogRoute, dashboard, editor as editorRoute, settings } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import type { ResourcePublicStatus } from '@/types/resources';
+import type { ThesaurusReviewReminder } from '@/types/thesaurus-review';
 export { handleJsonFiles, handleXmlFiles } from '@/lib/datacite-upload';
 
 type DashboardProps = {
@@ -32,6 +33,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 type DashboardPageProps = SharedData & {
+    thesaurusReviewReminder?: ThesaurusReviewReminder | null;
     dataResourceCount?: number;
     igsnCount?: number;
     dataInstitutionCount?: number;
@@ -177,6 +179,7 @@ function EnvironmentVersionRow({
 export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = handleJsonFiles }: DashboardProps = {}) {
     const {
         auth,
+        thesaurusReviewReminder,
         dataResourceCount,
         igsnCount,
         dataInstitutionCount,
@@ -487,6 +490,22 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {thesaurusReviewReminder?.isDue && (
+                            <Link
+                                href={settings({ query: { section: 'thesauri' } }).url}
+                                className="rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                            >
+                                <Card className="transition-colors hover:bg-accent/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">Quarterly thesaurus review</CardTitle>
+                                        <CardDescription>
+                                            Please check the thesauri for updates when convenient. Open Thesauri in Editor Settings.
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            </Link>
+                        )}
 
                         <Card>
                             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

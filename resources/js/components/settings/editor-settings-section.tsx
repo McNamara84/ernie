@@ -1,5 +1,5 @@
 import { ChevronsDown, ChevronsUp } from 'lucide-react';
-import { Children, createContext, isValidElement, type ReactNode, useContext, useRef } from 'react';
+import { Children, createContext, isValidElement, type ReactNode, useContext, useEffect, useRef } from 'react';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
@@ -121,6 +121,7 @@ interface EditorSettingsSectionProps {
     children: ReactNode;
     className?: string;
     forceMount?: boolean;
+    focusOnOpen?: boolean;
 }
 
 export function EditorSettingsSection({
@@ -132,10 +133,24 @@ export function EditorSettingsSection({
     children,
     className,
     forceMount = false,
+    focusOnOpen = false,
 }: EditorSettingsSectionProps) {
     const accordion = useContext(EditorSettingsAccordionContext);
     const isOpen = accordion?.openSections.includes(value) ?? false;
     const triggerRef = useRef<HTMLButtonElement>(null);
+    const didFocus = useRef(false);
+
+    useEffect(() => {
+        if (!focusOnOpen || !isOpen || didFocus.current) return;
+        const frame = requestAnimationFrame(() => {
+            const trigger = triggerRef.current;
+            if (!trigger) return;
+            didFocus.current = true;
+            trigger.focus({ preventScroll: true });
+            trigger.scrollIntoView({ block: 'start', behavior: 'instant' });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [focusOnOpen, isOpen]);
 
     return (
         <AccordionItem
@@ -144,7 +159,7 @@ export function EditorSettingsSection({
         >
             <AccordionTrigger
                 ref={triggerRef}
-                className="min-w-0 items-center gap-3 py-4 pr-2 pl-4 hover:no-underline sm:pl-6"
+                className="min-w-0 scroll-mt-52 items-center gap-3 py-4 pr-2 pl-4 hover:no-underline sm:pl-6 md:scroll-mt-32"
                 actions={accordion ? <EditorSettingsSectionActions accordion={accordion} onAction={() => triggerRef.current?.focus()} /> : undefined}
             >
                 <span className="flex min-w-0 flex-1 flex-col gap-2 text-left">

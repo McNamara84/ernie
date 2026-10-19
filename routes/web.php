@@ -54,6 +54,7 @@ use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\ResourceTombstoneController;
 use App\Http\Controllers\Settings\PidSettingsController;
+use App\Http\Controllers\Settings\ThesaurusReviewCompletionController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\StatisticsController;
@@ -373,6 +374,8 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     });
     // Thesaurus settings routes (Admin and Group Leader)
     Route::middleware(['can:manage-thesauri'])->prefix('thesauri')->group(function () {
+        Route::post('/review-completion', [ThesaurusReviewCompletionController::class, 'store'])
+            ->name('thesauri.review-completion.store');
         Route::get('/', [ThesaurusSettingsController::class, 'index'])
             ->name('thesauri.index');
         Route::post('/{type}/check', [ThesaurusSettingsController::class, 'checkStatus'])
