@@ -2,10 +2,10 @@
 
 This document covers the runtime settings introduced for the resource, PHP/Laravel, and public-portal cache optimizations. The values in Compose are conservative starting points. Validate them on Stage with a production-sized data set before changing Production.
 
-Stage and Production pull prebuilt application and Nginx images from GHCR.
-Stage follows every fully validated `main` commit, while Production promotes
-only GitHub's latest published stable release and reuses the exact image
-digests previously deployed to Stage. The initial Portainer migrations,
+Stage and Production pull prebuilt application, Nginx, and F-UJI images from GHCR.
+Stage follows the newest fully validated `dev` commit, while Production promotes
+only the highest published stable release after approval and reuses the exact
+`main` image digests tested in the isolated release stack. The initial Portainer migrations,
 rollback paths, and troubleshooting procedures are documented in
 [stage-container-deployment.md](stage-container-deployment.md) and
 [production-container-deployment.md](production-container-deployment.md).

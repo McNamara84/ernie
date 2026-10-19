@@ -46,7 +46,7 @@ it('loads the privileged Production workflow from the default branch', function 
         ->and($inspectJob['permissions']['contents'] ?? null)->toBe('read')
         ->and($inspectJob['permissions']['packages'] ?? null)->toBe('read')
         ->and($promoteJob)->toBeArray()
-        ->and($promoteJob['needs'] ?? null)->toBe(['validate', 'inspect'])
+        ->and($promoteJob['needs'] ?? null)->toBe(['validate', 'inspect', 'approve'])
         ->and($promoteJob['if'] ?? null)
         ->toContain("needs.inspect.outputs.current == 'true'")
         ->and($promoteJob['permissions']['contents'] ?? null)->toBe('write')
@@ -116,55 +116,33 @@ it('rejects v1.0.8 after v1.0.9 even when GitHub marks the older release latest'
         ->toContain('Refusing to replace deployed release');
 });
 
-it('promotes the exact image digests previously deployed to Stage', function (): void {
-    $workflowContents = file_get_contents(base_path('.github/workflows/promote-production-release.yml'));
+it('promotes immutable main artifacts only after candidate approval', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/promote-production-release.yml'));
-    $steps = collect($workflow['jobs']['inspect']['steps'] ?? [])->keyBy('name');
-    $artifacts = $steps->get('Resolve the exact Stage deployment artifacts');
+    $steps = collect($workflow['jobs']['inspect']['steps'])->keyBy('name');
+    $artifacts = $steps->get('Resolve the exact main image artifacts');
     $scan = $steps->get('Scan the exact promoted image digests');
+    $guard = $steps->get('Require a protected Production approval environment');
 
-    expect($workflowContents)->toBeString()
-        ->not->toContain('uses: docker/build-push-action@')
-        ->not->toContain('docker buildx imagetools create')
-        ->and($workflow['jobs']['validate']['outputs']['fuji_image'] ?? null)
-        ->toBe('${{ steps.source.outputs.fuji_image }}')
-        ->and($workflow['jobs']['inspect']['outputs']['fuji_digest'] ?? null)
-        ->toBe('${{ steps.artifacts.outputs.fuji_digest }}')
-        ->and($artifacts)->toBeArray()
-        ->and($artifacts['env']['FUJI_IMAGE'] ?? null)
-        ->toBe('${{ needs.validate.outputs.fuji_image }}')
-        ->and($artifacts['run'] ?? null)
-        ->toBeString()
-        ->toContain('+refs/heads/deploy/stage:refs/remotes/origin/deploy/stage')
-        ->toContain('Deploy Stage from $SOURCE_SHA')
-        ->toContain('SOURCE_IS_PARENT')
-        ->toContain('git show "${STAGE_DEPLOY_COMMIT}:docker-compose.stage.yml"')
-        ->toContain('docker compose -f "$STAGE_COMPOSE" config --format json')
-        ->toContain("'.services.app.image'")
-        ->toContain("'.services.webserver.image'")
-        ->toContain('FUJI_REF="$(jq -r')
-        ->toContain("'.services.fuji.image'")
-        ->toContain('FUJI_DIGEST="${FUJI_REF#"${FUJI_IMAGE}@"}"')
-        ->toContain('if [[ "$FUJI_REF" != "${FUJI_IMAGE}@${FUJI_DIGEST}" ||')
-        ->toContain('! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]')
-        ->toContain('for service in queue assessment-queue scheduler')
+    expect($artifacts['with']['script'])
+        ->toContain("readArtifact(github, context.repo, 'main', process.env.SOURCE_SHA)")
+        ->toContain('process.env.RELEASE_TAG.slice(1)')
+        ->not->toContain('deploy/stage')
+        ->and($guard['with']['script'])->toContain('requireProductionReview(data)')
+        ->and($workflow['jobs']['approve']['environment']['name'])->toBe('production')
+        ->and($workflow['jobs']['approve']['permissions']['contents'])->toBe('read')
+        ->and($workflow['jobs']['promote']['needs'])->toBe(['validate', 'inspect', 'approve']);
+
+    foreach (['app', 'nginx', 'fuji'] as $kind) {
+        expect($scan['env'][strtoupper($kind).'_IMAGE_REF'])
+            ->toBe('${{ needs.validate.outputs.'.$kind.'_image }}@${{ steps.artifacts.outputs.'.$kind.'_digest }}');
+    }
+
+    expect($scan['run'])->toContain('--severity CRITICAL,HIGH')
+        ->toContain('--exit-code 1')
+        ->and($steps->get('Verify promoted image manifests exist')['run'])
         ->toContain('docker buildx imagetools inspect "$APP_REF"')
         ->toContain('docker buildx imagetools inspect "$NGINX_REF"')
-        ->toContain('docker buildx imagetools inspect "$FUJI_REF"')
-        ->toContain('echo "fuji_digest=$FUJI_DIGEST"')
-        ->and($scan)->toBeArray()
-        ->and($scan['env']['APP_IMAGE_REF'] ?? null)
-        ->toBe('${{ needs.validate.outputs.app_image }}@${{ steps.artifacts.outputs.app_digest }}')
-        ->and($scan['env']['NGINX_IMAGE_REF'] ?? null)
-        ->toBe('${{ needs.validate.outputs.nginx_image }}@${{ steps.artifacts.outputs.nginx_digest }}')
-        ->and($scan['env']['FUJI_IMAGE_REF'] ?? null)
-        ->toBe('${{ needs.validate.outputs.fuji_image }}@${{ steps.artifacts.outputs.fuji_digest }}')
-        ->and($scan['run'] ?? null)
-        ->toBeString()
-        ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do')
-        ->toContain('aquasec/trivy:0.75.0@sha256:')
-        ->toContain('--exit-code 1')
-        ->toContain('--severity CRITICAL,HIGH');
+        ->toContain('docker buildx imagetools inspect "$FUJI_REF"');
 });
 
 it('publishes a latest-release-only digest-pinned Production deployment branch', function (): void {

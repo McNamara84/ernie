@@ -26,6 +26,7 @@
 /playwright-report
 /test-results
 /storage/framework/testing
+/.release-candidate
 
 # Build artifacts
 /public/hot

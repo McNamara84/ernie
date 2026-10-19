@@ -14,6 +14,8 @@
   },
   "scripts": {
     "build": "vite build",
+    "release:prepare": "node scripts/prepare-release-candidate.mjs",
+    "release:verify": "node scripts/prepare-release-candidate.mjs --verify",
     "build:ssr": "vite build && vite build --ssr",
     "dev": "vite",
     "docker:dev:up": "docker compose --env-file .env.docker -f docker-compose.dev.yml up --build",
