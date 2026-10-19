@@ -61,6 +61,7 @@ vi.mock('@/routes', () => {
 
     return {
         dashboard: () => makeRoute('/dashboard'),
+        settings: (params?: { query?: Record<string, string | number> }) => makeRoute('/settings', params?.query),
         editor: (params?: { query?: Record<string, string | number> }) => makeRoute('/editor', params?.query),
         changelog: () => makeRoute('/changelog'),
         about: () => makeRoute('/about'),
@@ -94,6 +95,23 @@ const removeCsrfMeta = () => {
 };
 
 describe('Dashboard', () => {
+    it.each([null, undefined, { period: '2026-Q4', isDue: false, completedAt: '2026-10-19T10:00:00Z' }])(
+        'does not show an unavailable or completed review reminder (%j)',
+        (thesaurusReviewReminder) => {
+            const props = usePageMock().props;
+            usePageMock.mockReturnValue({ props: { ...props, thesaurusReviewReminder } });
+            render(<Dashboard />);
+            expect(screen.queryByRole('link', { name: /Quarterly thesaurus review/ })).not.toBeInTheDocument();
+        },
+    );
+
+    it('links the entire due reminder to the thesauri section', () => {
+        const props = usePageMock().props;
+        usePageMock.mockReturnValue({ props: { ...props, thesaurusReviewReminder: { period: '2026-Q4', isDue: true, completedAt: null } } });
+        render(<Dashboard />);
+        expect(screen.getByRole('link', { name: /Quarterly thesaurus review/ })).toHaveAttribute('href', '/settings?section=thesauri');
+    });
+
     beforeEach(() => {
         usePageMock.mockReturnValue({
             props: {
