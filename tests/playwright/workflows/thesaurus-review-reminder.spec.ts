@@ -10,7 +10,7 @@ function trigger(page: Page) {
 
 function fixture(testInfo: TestInfo, action: 'snapshot' | 'open' | 'restore', snapshot?: string): string {
     const phpArgs = ['-d', 'memory_limit=2G', 'tests/playwright/fixtures/thesaurus-review-state.php', action];
-    const docker = testInfo.config.configFile?.endsWith('playwright.devstack.config.ts');
+    const docker = ['playwright.devstack.config.ts', 'playwright.docker.config.ts'].some((config) => testInfo.config.configFile?.endsWith(config));
     const result = spawnSync(
         docker ? 'docker' : 'php',
         docker ? ['compose', '--env-file', '.env.docker', '-f', 'docker-compose.dev.yml', 'exec', '-T', 'app', 'php', ...phpArgs] : phpArgs,
