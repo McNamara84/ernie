@@ -2,7 +2,7 @@
     {
         "version": "1.1.1dev",
         "date": "2026-10-19",
-        "features": [
+        "improvements": [
             {
                 "title": "Quarterly Thesaurus Review Reminder",
                 "description": "Admins and Group Leaders see a dashboard reminder to check thesauri each calendar quarter. The clickable card opens, scrolls to and focuses Thesauri in Editor Settings. Explicitly completing the review dismisses the reminder for everyone until the next quarter, even when no updates are available. Completion preserves unsaved settings and prevents an outdated tab from accidentally completing a new quarter.",
