@@ -83,8 +83,13 @@ Settings are prefixed with `RELEASE_` to avoid inheriting live deployment
 credentials. Database and F-UJI passwords are separate. Mail goes to logs;
 DataCite is fixed to the test endpoint and test mode; legacy database access,
 ELMO refresh, host metrics, and public traffic sampling are disabled. For tests
-that need external integrations, configure dedicated test credentials such as
-`RELEASE_DATACITE_USERNAME` and `RELEASE_DATACITE_PASSWORD` in this `.env`.
+that register DOIs or access a DataCite test repository, configure
+`RELEASE_DATACITE_TEST_USERNAME`, `RELEASE_DATACITE_TEST_PASSWORD`, and
+`RELEASE_DATACITE_TEST_CLIENT_ID` in this `.env` using a dedicated test account.
+The helper forwards them as `DATACITE_TEST_*` to the app and all its workers;
+the client ID identifies the test repository used for repository operations.
+Production DataCite credentials remain empty. The old
+`RELEASE_DATACITE_USERNAME`/`RELEASE_DATACITE_PASSWORD` names are not used.
 Document unavailable integrations as blocked or not applicable in the report.
 
 Use synthetic test data and dedicated accounts. The application entrypoint runs

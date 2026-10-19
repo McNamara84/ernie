@@ -37,10 +37,23 @@ it('stores artifacts before the dev-only Stage head guard and reuses recorded di
         ->and(array_search('Record immutable image artifacts', $names, true))
         ->toBeLessThan(array_search('Confirm that the candidate is still current', $names, true))
         ->and($steps->get('Record immutable image artifacts')['with']['script'])->toContain('publishArtifact(github, context.repo, record)')
-        ->and($steps->get('Build and push application image')['if'])->toBe("steps.existing.outputs.exists != 'true'")
-        ->and($workflow['concurrency']['group'])->toContain('github.event.workflow_run.head_branch')
-        ->toContain('github.event.workflow_run.head_sha')
-        ->and($workflow['concurrency']['cancel-in-progress'])->toBe("\${{ github.event.workflow_run.head_branch == 'dev' }}");
+        ->and($steps->get('Build and push application image')['if'])->toBe("steps.existing.outputs.exists != 'true'");
+});
+
+it('allows only eligible publishing jobs to cancel dev publication and isolates main candidates', function (): void {
+    $workflow = Yaml::parseFile(base_path('.github/workflows/publish-stage-images.yml'));
+    $validate = $workflow['jobs']['validate'];
+    $publish = $workflow['jobs']['publish'];
+
+    expect($workflow)->not->toHaveKey('concurrency')
+        ->and($validate)->not->toHaveKey('concurrency')
+        ->and($validate['if'])->toContain('github.event.workflow_run.head_repository.full_name == github.repository')
+        ->toContain("github.event.workflow_run.event == 'push'")
+        ->and($publish['needs'])->toBe('validate')
+        ->and($publish['if'])->toContain("needs.validate.outputs.current == 'true'")
+        ->toContain("needs.validate.outputs.checks_ready == 'true'")
+        ->and($publish['concurrency']['group'])->toBe("publish-images-\${{ needs.validate.outputs.branch }}-\${{ needs.validate.outputs.branch == 'dev' && 'latest' || needs.validate.outputs.sha }}")
+        ->and($publish['concurrency']['cancel-in-progress'])->toBe("\${{ needs.validate.outputs.branch == 'dev' }}");
 });
 
 it('does not send development prereleases to the stable GitLab mirror', function (): void {

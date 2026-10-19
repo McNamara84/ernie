@@ -219,11 +219,20 @@ may delay schedules). Unchanged source and target commits reuse the same helper
 commit, so scheduled checks do not repeatedly invalidate reviews or restart CI.
 
 To pause a PR, add **`sync:hold`**, mark it as draft, or disable its already-enabled
-auto-merge. Remove the label/mark ready and re-enable auto-merge to resume. A
-manually closed synchronization PR must be reopened before automation continues.
+auto-merge. On its next run, synchronization disables any active auto-merge for a
+held or draft PR. It checks these controls again before enabling auto-merge,
+including whether a maintainer disabled it during reconciliation. Remove the
+label/mark ready and re-enable auto-merge to resume. A manually closed
+synchronization PR must be reopened before automation continues.
 For a repository-wide pause, set the Actions variable **`SYNC_MAIN_TO_DEV_PAUSED`**
-to `true`; remove it or set `false` to resume. For immediate reconciliation, run
-**Synchronize main into dev** with **Run workflow**, selecting `main`.
+to `true`. The next run disables auto-merge on the managed PR and records that
+the automation applied the pause. Remove the variable or set `false` to resume
+automatically; a pre-existing or subsequently observed PR hold still requires
+manual resumption. For immediate reconciliation, run **Synchronize main into
+dev** with **Run workflow**, selecting `main`. A label or variable change alone
+does not trigger this workflow. To stop a pending merge immediately, disable
+auto-merge in the PR first and set the pause control; do not wait for the next
+scheduled run. Such a manual disablement also requires manual resumption.
 Do not edit or push directly to the automation-owned helper branch.
 
 For a merge conflict, create a helper branch from `origin/dev` and merge

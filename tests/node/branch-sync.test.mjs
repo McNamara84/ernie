@@ -25,7 +25,7 @@ function fixture(t) {
     const prs = [];
     let mutations = 0;
     const github = {
-        paginate: async (_method, query) => prs.filter((pr) => pr.state === query.state),
+        paginate: async (_method, query) => structuredClone(prs.filter((pr) => pr.state === query.state)),
         rest: {
             repos: { getBranch: async () => ({ data: { protected: true } }), get: async () => ({ data: { allow_auto_merge: true, allow_merge_commit: true } }) },
             pulls: {
@@ -103,6 +103,102 @@ test('maintainer holds and disabled auto-merge are not silently undone', async (
     assert.ok(syncHeld({ labels: [{ name: 'sync:hold' }] }));
     assert.ok(syncHeld({ draft: true }));
 });
+
+for (const hold of ['label', 'draft']) {
+    test(`${hold} hold disables already-enabled auto-merge before preparing any commits`, async (t) => {
+        const f = fixture(t);
+        await reconcileSync(f.options);
+        if (hold === 'label') f.prs[0].labels = [{ name: 'sync:hold' }];
+        else f.prs[0].draft = true;
+        f.options.git = new Proxy({}, { get: () => { throw new Error('Held PR must not prepare commits.'); } });
+
+        assert.match((await reconcileSync(f.options)).message, /on hold/u);
+        assert.equal(f.prs[0].auto_merge, null);
+        assert.equal(f.mutations(), 2);
+        // Removing the visible hold does not silently reverse a PR-level pause.
+        f.prs[0].labels = []; f.prs[0].draft = false;
+        assert.match((await reconcileSync(f.options)).message, /on hold/u);
+        assert.equal(f.mutations(), 2);
+    });
+}
+
+test('repository pause disarms a managed PR and resumes after branches advance', async (t) => {
+    const f = fixture(t);
+    await reconcileSync(f.options);
+    const before = f.run('ls-remote', 'origin', `refs/heads/${syncBranch}`);
+    const main = f.commit('pause-fix.txt', 'fix during pause\n'); f.run('push', 'origin', 'main');
+    // Disarming must still work when publication prerequisites are no longer met.
+    const originalGetBranch = f.github.rest.repos.getBranch;
+    f.github.rest.repos.getBranch = async () => { throw new Error('Pause must be applied before checking branch protection.'); };
+    await reconcileSync({ ...f.options, paused: true });
+    assert.equal(f.prs[0].auto_merge, null);
+    assert.equal(syncHeld(f.prs[0]), false);
+    assert.equal(f.run('ls-remote', 'origin', `refs/heads/${syncBranch}`), before);
+    await reconcileSync({ ...f.options, paused: true });
+    assert.equal(f.mutations(), 2);
+
+    f.github.rest.repos.getBranch = originalGetBranch;
+    await reconcileSync(f.options);
+    assert.ok(f.prs[0].auto_merge);
+    assert.ok(f.prs[0].body.includes(`Source: ${main}`));
+    assert.equal(f.mutations(), 3);
+    // A later manual disablement must not inherit the resumable pause marker.
+    f.prs[0].auto_merge = null;
+    assert.ok(syncHeld(f.prs[0]));
+    assert.match((await reconcileSync(f.options)).message, /on hold/u);
+    assert.equal(f.mutations(), 3);
+});
+
+test('repository pause preserves a pre-existing manual disablement', async (t) => {
+    const f = fixture(t);
+    await reconcileSync(f.options);
+    f.prs[0].auto_merge = null;
+    await reconcileSync({ ...f.options, paused: true });
+    assert.ok(syncHeld(f.prs[0]));
+    assert.match((await reconcileSync(f.options)).message, /on hold/u);
+    assert.equal(f.prs[0].auto_merge, null);
+    assert.equal(f.mutations(), 1);
+});
+
+test('a PR hold added during a repository pause requires explicit resumption', async (t) => {
+    const f = fixture(t);
+    await reconcileSync(f.options);
+    await reconcileSync({ ...f.options, paused: true });
+    f.prs[0].labels = [{ name: 'sync:hold' }];
+    await reconcileSync({ ...f.options, paused: true });
+    f.prs[0].labels = [];
+    assert.match((await reconcileSync(f.options)).message, /on hold/u);
+    assert.equal(f.prs[0].auto_merge, null);
+    assert.equal(f.mutations(), 2);
+});
+
+test('repository pause without a PR does not create one or access git', async () => {
+    const github = {
+        paginate: async () => [],
+        rest: { pulls: { list: () => {} } },
+    };
+    const result = await reconcileSync({ github, repo: { owner: 'Example', repo: 'ernie' }, git: {}, core: { notice: () => {} }, paused: true });
+    assert.match(result.message, /Synchronization paused/u);
+});
+
+for (const hold of ['disabled auto-merge', 'label', 'draft']) {
+    test(`refreshed ${hold} hold is honored after the initial PR inspection`, async (t) => {
+        const f = fixture(t);
+        await reconcileSync(f.options);
+        f.commit('race-fix.txt', 'fix before refreshed inspection\n'); f.run('push', 'origin', 'main');
+        f.github.rest.pulls.get = async () => {
+            if (hold === 'disabled auto-merge') f.prs[0].auto_merge = null;
+            else if (hold === 'label') f.prs[0].labels = [{ name: 'sync:hold' }];
+            else f.prs[0].draft = true;
+            return { data: structuredClone(f.prs[0]) };
+        };
+
+        assert.match((await reconcileSync(f.options)).message, /held before enabling/u);
+        assert.equal(f.prs[0].auto_merge, null);
+        assert.equal(f.mutations(), hold === 'disabled auto-merge' ? 1 : 2);
+        assert.ok(syncHeld(f.prs[0]));
+    });
+}
 
 test('a helper merge closes completed work and allows future synchronization', async (t) => {
     const f = fixture(t);

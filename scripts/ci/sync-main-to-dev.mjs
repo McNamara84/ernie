@@ -3,10 +3,28 @@ import { execFileSync, spawnSync } from 'node:child_process';
 export const syncBranch = 'automation/sync-main-to-dev';
 const marker = '<!-- ernie-main-dev-sync -->';
 const armed = '<!-- auto-merge-armed -->';
+const repositoryPaused = '<!-- auto-merge-paused-by-repository -->';
 
 export function syncHeld(pr) {
     return pr.draft || pr.labels?.some((label) => label.name === 'sync:hold')
-        || (pr.body?.includes(armed) && !pr.auto_merge);
+        || (pr.body?.includes(armed) && !pr.auto_merge && !pr.body.includes(repositoryPaused));
+}
+
+async function disableSyncMerge(github, repo, pr, { resumable = false } = {}) {
+    let body = pr.body;
+    if (pr.auto_merge) {
+        await github.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }', { id: pr.node_id });
+        if (!body.includes(armed)) body = `${body}\n${armed}`;
+        if (resumable && !body.includes(repositoryPaused)) body = `${body}\n${repositoryPaused}`;
+    }
+    // An explicit PR hold takes precedence over an earlier repository pause.
+    // Never turn a pre-existing manual disablement into a resumable pause.
+    if (!resumable) body = body.replaceAll(`\n${repositoryPaused}`, '');
+    if (body !== pr.body) await github.rest.pulls.update({ ...repo, pull_number: pr.number, body });
+}
+
+function syncDescription(description, pr) {
+    return [description, ...[armed, repositoryPaused].filter((tag) => pr?.body?.includes(tag))].join('\n');
 }
 
 export async function enableSyncMerge(github, repo, pr) {
@@ -49,20 +67,26 @@ export function createGit(cwd = process.cwd()) {
 
 export async function reconcileSync({ github, repo, git = createGit(), core, paused = false }) {
     const notice = (message) => { core.notice(message); return { message }; };
-    if (paused) return notice('Synchronization paused by SYNC_MAIN_TO_DEV_PAUSED.');
-    let target;
-    try { target = (await github.rest.repos.getBranch({ ...repo, branch: 'dev' })).data; }
-    catch (error) { if (error.status === 404) return notice('dev does not exist yet.'); throw error; }
-    if (!target.protected) throw new Error('Protect dev with required reviews and checks before enabling synchronization.');
-    const settings = (await github.rest.repos.get({ ...repo })).data;
-    if (!settings.allow_auto_merge || !settings.allow_merge_commit) throw new Error('Enable auto-merge and merge commits in repository settings.');
     const prs = await github.paginate(github.rest.pulls.list, {
         ...repo, state: 'open', base: 'dev', head: `${repo.owner}:${syncBranch}`, per_page: 100,
     });
     if (prs.length > 1) throw new Error('More than one synchronization PR exists.');
     let pr = prs[0];
     if (pr && !pr.body?.includes(marker)) throw new Error('The synchronization branch is owned by an unmanaged PR.');
-    if (pr && syncHeld(pr)) return notice(`Synchronization PR #${pr.number} is on hold. Remove sync:hold, mark ready, and re-enable auto-merge to resume.`);
+    if (paused) {
+        if (pr) await disableSyncMerge(github, repo, pr, { resumable: !syncHeld(pr) });
+        return notice('Synchronization paused by SYNC_MAIN_TO_DEV_PAUSED; managed auto-merge is disabled.');
+    }
+    if (pr && syncHeld(pr)) {
+        await disableSyncMerge(github, repo, pr);
+        return notice(`Synchronization PR #${pr.number} is on hold. Remove sync:hold, mark ready, and re-enable auto-merge to resume.`);
+    }
+    let target;
+    try { target = (await github.rest.repos.getBranch({ ...repo, branch: 'dev' })).data; }
+    catch (error) { if (error.status === 404) return notice('dev does not exist yet.'); throw error; }
+    if (!target.protected) throw new Error('Protect dev with required reviews and checks before enabling synchronization.');
+    const settings = (await github.rest.repos.get({ ...repo })).data;
+    if (!settings.allow_auto_merge || !settings.allow_merge_commit) throw new Error('Enable auto-merge and merge commits in repository settings.');
 
     git.run('fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main', '+refs/heads/dev:refs/remotes/origin/dev');
     const main = git.run('rev-parse', 'refs/remotes/origin/main');
@@ -97,12 +121,16 @@ export async function reconcileSync({ github, repo, git = createGit(), core, pau
         const next = tree ? git.run('commit-tree', tree, '-p', dev, '-p', main, '-m', `Synchronize main ${main} into dev ${dev}`) : main;
         git.run('push', `--force-with-lease=refs/heads/${syncBranch}:${oldHead}`, 'origin', `${next}:refs/heads/${syncBranch}`);
         if (pr) {
-            const manualBody = pr.body.includes(armed) ? `${description}\n${armed}` : description;
-            await github.rest.pulls.update({ ...repo, pull_number: pr.number, body: manualBody });
+            await github.rest.pulls.update({ ...repo, pull_number: pr.number, body: syncDescription(description, pr) });
         }
     }
     if (!pr) {
         pr = (await github.rest.pulls.create({ ...repo, head: syncBranch, base: 'dev', title: 'Sync main into dev', body: description })).data;
+    }
+    pr = (await github.rest.pulls.get({ ...repo, pull_number: pr.number })).data;
+    if (syncHeld(pr)) {
+        await disableSyncMerge(github, repo, pr);
+        return notice('Synchronization held before enabling auto-merge.');
     }
     if (!tree) {
         if (pr.auto_merge) await github.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }', { id: pr.node_id });
@@ -110,11 +138,10 @@ export async function reconcileSync({ github, repo, git = createGit(), core, pau
         await github.rest.pulls.update({ ...repo, pull_number: pr.number, body: description });
         throw new Error(`Synchronization PR #${pr.number} has merge conflicts.`);
     }
-    pr = (await github.rest.pulls.get({ ...repo, pull_number: pr.number })).data;
-    if (pr.draft || pr.labels?.some((label) => label.name === 'sync:hold')) return notice('Synchronization held before enabling auto-merge.');
     if (!pr.auto_merge) {
         if (await enableSyncMerge(github, repo, pr)) return notice(`Synchronization PR #${pr.number} merged after required reviews and CI.`);
-        await github.rest.pulls.update({ ...repo, pull_number: pr.number, body: `${description}\n${armed}` });
     }
+    const enabledBody = `${description}\n${armed}`;
+    if (pr.body !== enabledBody) await github.rest.pulls.update({ ...repo, pull_number: pr.number, body: enabledBody });
     return notice(`Synchronization PR #${pr.number}: auto-merge waits for required reviews and CI.`);
 }

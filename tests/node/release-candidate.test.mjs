@@ -58,6 +58,28 @@ test('candidate preparation rejects unknown services, old MySQL and unsafe outpu
     assert.throws(() => releaseCompose(template(), { ...artifact, branch: 'dev' }), /branch/u);
 });
 
+test('all candidate app services receive the test credentials and repository ID used by Laravel', () => {
+    const source = template();
+    // The current Production template omits test settings. Also override any
+    // future template defaults so the candidate stays on the test API.
+    source.services.app.environment.DATACITE_TEST_ENDPOINT = '${DATACITE_TEST_ENDPOINT}';
+    source.services.app.environment.DATACITE_USERNAME = '${DATACITE_USERNAME}';
+    source.services.app.environment.DATACITE_PASSWORD = '${DATACITE_PASSWORD}';
+    source.services.app.environment.DATACITE_CLIENT_ID = '${DATACITE_CLIENT_ID}';
+    const compose = releaseCompose(source, artifact);
+    for (const name of ['app', 'queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler']) {
+        const env = compose.services[name].environment;
+        assert.equal(env.DATACITE_TEST_MODE, 'true');
+        assert.equal(env.DATACITE_TEST_ENDPOINT, 'https://api.test.datacite.org');
+        for (const setting of ['USERNAME', 'PASSWORD', 'CLIENT_ID']) {
+            assert.equal(env[`DATACITE_TEST_${setting}`], '${RELEASE_DATACITE_TEST_' + setting + ':-}');
+            assert.equal(env[`DATACITE_${setting}`], '');
+        }
+        assert.equal(env.DATACITE_IGSN_USERNAME, '');
+        assert.equal(env.DATACITE_IGSN_PASSWORD, '');
+    }
+});
+
 test('verification rejects another project, missing or unhealthy services, and substituted images', () => {
     const compose = releaseCompose(template(), artifact);
     const containers = Object.entries(compose.services).map(([name, service]) => ({

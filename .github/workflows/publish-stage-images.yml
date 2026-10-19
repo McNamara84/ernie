@@ -17,11 +17,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  # Keep each main candidate independent; dev only needs its newest build.
-  group: publish-images-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_branch == 'dev' && 'latest' || github.event.workflow_run.head_sha }}
-  cancel-in-progress: ${{ github.event.workflow_run.head_branch == 'dev' }}
-
 jobs:
   validate:
     if: >-
@@ -159,6 +154,11 @@ jobs:
     if: >-
       needs.validate.outputs.current == 'true' &&
       needs.validate.outputs.checks_ready == 'true'
+    concurrency:
+      # Only validated current dev pushes may replace an active publication.
+      # Keep each main candidate independent, including older release candidates.
+      group: publish-images-${{ needs.validate.outputs.branch }}-${{ needs.validate.outputs.branch == 'dev' && 'latest' || needs.validate.outputs.sha }}
+      cancel-in-progress: ${{ needs.validate.outputs.branch == 'dev' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
