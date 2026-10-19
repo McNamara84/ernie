@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen } from '@tests/vitest/utils/render';
 import L from 'leaflet';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -121,6 +122,58 @@ describe('coverage descriptions with real Leaflet layers', () => {
         expect(marker).toHaveAttribute('tabindex', '0');
         fireEvent.keyPress(marker, { key: 'Enter', charCode: 13, keyCode: 13 });
         expect(popup(container)).toHaveTextContent(base.place!);
+    });
+
+    it.each([
+        ...Object.entries(geometries).map(([kind, geo]) => ({ kind, geo, pathIndex: 0 })),
+        ...[1, 2, 3].map((pathIndex) => ({ kind: `waypoint ${pathIndex}`, geo: geometries.line, pathIndex })),
+    ])('exposes the description and returns focus to $kind after keyboard dismissal', async ({ kind, geo, pathIndex }) => {
+        const user = userEvent.setup();
+        const { container } = render(<LocationSection geoLocations={[geo]} />);
+        const trigger = (kind === 'point' ? object(container, kind) : container.querySelectorAll('.leaflet-overlay-pane path')[pathIndex]) as
+            | HTMLElement
+            | SVGElement;
+        expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        for (const dismissal of ['Escape', 'Enter', ' ']) {
+            trigger.focus();
+            fireEvent.keyDown(trigger, { key: dismissal === 'Enter' ? 'Enter' : ' ' });
+            const dialog = screen.getByRole('dialog', { name: 'Coverage description' });
+            const description = document.getElementById(dialog.getAttribute('aria-describedby')!)!;
+            expect(dialog).toHaveAccessibleDescription(base.place!);
+            expect(dialog).toHaveAttribute('aria-modal', 'false');
+            expect(trigger).toHaveAttribute('aria-controls', dialog.id);
+            expect(trigger).toHaveAttribute('aria-expanded', 'true');
+            expect(description).toHaveFocus();
+            expect(description).toHaveTextContent(base.place!);
+            await user.tab();
+            expect(screen.getByRole('button', { name: 'Close popup' })).toHaveFocus();
+            await user.keyboard(dismissal === ' ' ? ' ' : `{${dismissal}}`);
+            expect(popup(container)).toBeNull();
+            expect(trigger).toHaveFocus();
+            expect(trigger).toHaveAttribute('aria-expanded', 'false');
+            expect(trigger).not.toHaveAttribute('aria-controls');
+        }
+    });
+
+    it('restores focus from the description but preserves focus moved outside the popup', () => {
+        const bind = vi.spyOn(L.Layer.prototype, 'bindPopup');
+        const { container } = render(<LocationSection geoLocations={[geometries.box]} />);
+        const trigger = object(container, 'box') as SVGElement;
+        trigger.focus();
+        fireEvent.keyDown(trigger, { key: 'Enter' });
+        const dialog = screen.getByRole('dialog', { name: 'Coverage description' });
+        const description = document.getElementById(dialog.getAttribute('aria-describedby')!)!;
+        fireEvent.keyDown(description, { key: 'Escape' });
+        expect(trigger).toHaveFocus();
+        fireEvent.keyDown(trigger, { key: 'Enter' });
+        const zoom = screen.getByRole('button', { name: 'Zoom in' });
+        zoom.focus();
+        act(() => {
+            (bind.mock.calls[0][0] as L.Popup).close();
+        });
+        expect(popup(container)).toBeNull();
+        expect(zoom).toHaveFocus();
     });
 
     it('closes with Escape while a popup control has focus and ignores Escape when closed', () => {

@@ -1,5 +1,5 @@
 import type L from 'leaflet';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CircleMarker, Marker, Polygon, Polyline, Popup, Rectangle, Tooltip, useMap } from 'react-leaflet';
 
 import { type GeoLocation, hasBox, hasLine, hasPoint, hasPolygon } from '@/lib/landing-page-geolocation';
@@ -16,9 +16,76 @@ function popupSize(map: L.Map) {
     };
 }
 
-function CoverageDescriptionPopup({ description }: { description: string }) {
+function CoverageDescriptionPopup({ description, layerRef }: { description: string; layerRef: RefObject<L.Marker | L.Path | null> }) {
     const map = useMap();
     const popupRef = useRef<L.Popup>(null);
+    const descriptionRef = useRef<HTMLDivElement>(null);
+    const popupId = useId();
+    const descriptionId = `${popupId}-description`;
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        const layer = layerRef.current;
+        if (!layer) return;
+        let trigger: Element | undefined;
+        let dialog: HTMLElement | undefined;
+        let focusInside = false;
+        const configureTrigger = () => {
+            trigger = layer.getElement();
+            trigger?.setAttribute('aria-haspopup', 'dialog');
+            trigger?.setAttribute('aria-expanded', 'false');
+        };
+        const trackFocus = (event: FocusEvent) => {
+            focusInside = dialog?.contains(event.target as Node) ?? false;
+        };
+        const show = (event: L.PopupEvent) => {
+            if (event.popup !== popupRef.current) return;
+            dialog = event.popup.getElement();
+            dialog?.setAttribute('id', popupId);
+            dialog?.setAttribute('role', 'dialog');
+            dialog?.setAttribute('aria-label', 'Coverage description');
+            dialog?.setAttribute('aria-modal', 'false');
+            dialog?.setAttribute('aria-describedby', descriptionId);
+            dialog?.removeAttribute('aria-hidden');
+            trigger?.setAttribute('aria-controls', popupId);
+            trigger?.setAttribute('aria-expanded', 'true');
+            document.addEventListener('focusin', trackFocus);
+            setOpen(true);
+        };
+        const hide = (event: L.PopupEvent) => {
+            if (event.popup !== popupRef.current) return;
+            // Without Leaflet's fade animation, the focused DOM node has already been removed.
+            const restoreFocus = focusInside && (dialog?.contains(document.activeElement) || document.activeElement === document.body);
+            trigger?.setAttribute('aria-expanded', 'false');
+            trigger?.removeAttribute('aria-controls');
+            document.removeEventListener('focusin', trackFocus);
+            focusInside = false;
+            setOpen(false);
+            if (restoreFocus && trigger?.isConnected && (trigger instanceof HTMLElement || trigger instanceof SVGElement)) {
+                trigger.focus({ preventScroll: true });
+            }
+            dialog?.setAttribute('aria-hidden', 'true');
+        };
+        // Popup effects can run before the source layer has been added to the map.
+        layer.on('add', configureTrigger);
+        configureTrigger();
+        map.on('popupopen', show);
+        map.on('popupclose', hide);
+        return () => {
+            layer.off('add', configureTrigger);
+            map.off('popupopen', show);
+            map.off('popupclose', hide);
+            document.removeEventListener('focusin', trackFocus);
+            trigger?.removeAttribute('aria-haspopup');
+            trigger?.removeAttribute('aria-expanded');
+            trigger?.removeAttribute('aria-controls');
+        };
+    }, [descriptionId, layerRef, map, popupId]);
+
+    useEffect(() => {
+        // React-Leaflet mounts the description portal after popupopen; focus its complete text once it exists.
+        if (open) descriptionRef.current?.focus({ preventScroll: true });
+    }, [open]);
 
     useEffect(() => {
         const resize = () => {
@@ -29,18 +96,24 @@ function CoverageDescriptionPopup({ description }: { description: string }) {
         };
         // Leaflet's map-level Escape handler is inactive while a marker, path or close button has focus.
         const container = map.getContainer();
-        const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && popupRef.current?.isOpen()) {
+        const closeFromKeyboard = (event: KeyboardEvent) => {
+            // Leaflet renders its close control as an anchor with role=button; add the button's Space behavior.
+            const closeWithSpace =
+                event.key === ' ' &&
+                event.target instanceof Element &&
+                event.target.matches('.leaflet-popup-close-button') &&
+                popupRef.current?.getElement()?.contains(event.target);
+            if ((event.key === 'Escape' || closeWithSpace) && popupRef.current?.isOpen()) {
                 event.preventDefault();
                 event.stopPropagation();
                 popupRef.current.close();
             }
         };
         map.on('resize', resize);
-        container.addEventListener('keydown', closeOnEscape);
+        container.addEventListener('keydown', closeFromKeyboard);
         return () => {
             map.off('resize', resize);
-            container.removeEventListener('keydown', closeOnEscape);
+            container.removeEventListener('keydown', closeFromKeyboard);
         };
     }, [map]);
 
@@ -56,13 +129,20 @@ function CoverageDescriptionPopup({ description }: { description: string }) {
             closeOnClick
             autoClose
         >
-            <div className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-gray-900">{description}</div>
+            <div
+                ref={descriptionRef}
+                id={descriptionId}
+                tabIndex={-1}
+                className={`text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-gray-900 ${PATH_FOCUS_STYLE}`}
+            >
+                {description}
+            </div>
         </Popup>
     );
 }
 
-/** Leaflet paths need an explicit keyboard target; only described paths act as buttons. */
-function useDescriptionPath<T extends L.Path>(enabled: boolean, label: string) {
+/** All described geometries use the same button semantics and keyboard activation. */
+function useDescriptionTrigger<T extends L.Marker | L.Path>(enabled: boolean, label: string) {
     const ref = useRef<T>(null);
 
     useEffect(() => {
@@ -94,7 +174,7 @@ function useDescriptionPath<T extends L.Path>(enabled: boolean, label: string) {
 }
 
 function LineWaypoint({ point, description, index }: { point: { longitude: number; latitude: number }; description: string | null; index: number }) {
-    const ref = useDescriptionPath<L.CircleMarker>(description !== null, `Show coverage description for waypoint ${index + 1}`);
+    const ref = useDescriptionTrigger<L.CircleMarker>(description !== null, `Show coverage description for waypoint ${index + 1}`);
     const [hovered, setHovered] = useState(false);
     const events = useMemo<L.LeafletEventHandlerFnMap>(
         () => ({
@@ -125,7 +205,7 @@ function LineWaypoint({ point, description, index }: { point: { longitude: numbe
                     {'Lat: ' + point.latitude.toFixed(6) + ', Lon: ' + point.longitude.toFixed(6)}
                 </Tooltip>
             )}
-            {description !== null && <CoverageDescriptionPopup description={description} />}
+            {description !== null && <CoverageDescriptionPopup description={description} layerRef={ref} />}
         </CircleMarker>
     );
 }
@@ -134,15 +214,21 @@ function LineWaypoint({ point, description, index }: { point: { longitude: numbe
 export function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
     const description = typeof geoLocation.place === 'string' && geoLocation.place.trim() !== '' ? geoLocation.place : null;
     const interactive = description !== null;
-    const rectangleRef = useDescriptionPath<L.Rectangle>(interactive, 'Show coverage description for bounding box');
-    const polygonRef = useDescriptionPath<L.Polygon>(interactive, 'Show coverage description for polygon');
-    const lineRef = useDescriptionPath<L.Polyline>(interactive, 'Show coverage description for line');
+    const markerRef = useDescriptionTrigger<L.Marker>(interactive, 'Show coverage description for point');
+    const rectangleRef = useDescriptionTrigger<L.Rectangle>(interactive, 'Show coverage description for bounding box');
+    const polygonRef = useDescriptionTrigger<L.Polygon>(interactive, 'Show coverage description for polygon');
+    const lineRef = useDescriptionTrigger<L.Polyline>(interactive, 'Show coverage description for line');
 
     return (
         <>
             {hasPoint(geoLocation) && (
-                <Marker position={[geoLocation.point_latitude!, geoLocation.point_longitude!]} interactive={interactive} keyboard={interactive}>
-                    {description !== null && <CoverageDescriptionPopup description={description} />}
+                <Marker
+                    ref={markerRef}
+                    position={[geoLocation.point_latitude!, geoLocation.point_longitude!]}
+                    interactive={interactive}
+                    keyboard={interactive}
+                >
+                    {description !== null && <CoverageDescriptionPopup description={description} layerRef={markerRef} />}
                 </Marker>
             )}
             {hasBox(geoLocation) && (
@@ -156,7 +242,7 @@ export function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) 
                     ]}
                     pathOptions={{ color: GFZ_BLUE, weight: 2, fillOpacity: 0.2 }}
                 >
-                    {description !== null && <CoverageDescriptionPopup description={description} />}
+                    {description !== null && <CoverageDescriptionPopup description={description} layerRef={rectangleRef} />}
                 </Rectangle>
             )}
             {hasPolygon(geoLocation) && (
@@ -167,7 +253,7 @@ export function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) 
                     positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
                     pathOptions={{ color: GFZ_BLUE, weight: 2, fillOpacity: 0.2 }}
                 >
-                    {description !== null && <CoverageDescriptionPopup description={description} />}
+                    {description !== null && <CoverageDescriptionPopup description={description} layerRef={polygonRef} />}
                 </Polygon>
             )}
             {hasLine(geoLocation) && (
@@ -179,7 +265,7 @@ export function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) 
                         positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
                         pathOptions={{ color: GFZ_BLUE, weight: 3, dashArray: '8, 4' }}
                     >
-                        {description !== null && <CoverageDescriptionPopup description={description} />}
+                        {description !== null && <CoverageDescriptionPopup description={description} layerRef={lineRef} />}
                     </Polyline>
                     {geoLocation.polygon_points!.map((point, index) => (
                         <LineWaypoint key={`${geoLocation.id}-line-waypoint-${index}`} point={point} description={description} index={index} />

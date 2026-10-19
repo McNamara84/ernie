@@ -76,6 +76,20 @@ async function clickPath(page: Page, path: Locator) {
     await page.mouse.click(position!.x, position!.y);
 }
 
+async function expectKeyboardPopupAccess(page: Page, map: Locator, trigger: Locator, text: string) {
+    const dialog = map.getByRole('dialog', { name: 'Coverage description' });
+    await expect(dialog).toHaveAccessibleDescription(text);
+    await expect(dialog).toHaveAttribute('aria-modal', 'false');
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(trigger).toHaveAttribute('aria-controls', (await dialog.getAttribute('id'))!);
+    const description = dialog.locator(`[id="${await dialog.getAttribute('aria-describedby')}"]`);
+    await expect(description).toHaveText(text);
+    await expect(description).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(map.getByRole('button', { name: 'Close popup' })).toBeFocused();
+}
+
 const describedLocations: GeoLocation[] = [
     { ...point, id: 11, point_latitude: 35, point_longitude: 80, place: 'Point coverage' },
     {
@@ -162,9 +176,16 @@ for (const preview of [false, true]) {
             await expect(popup).toHaveCount(0);
             await marker.focus();
             await marker.press('Enter');
-            await expect(popup).toHaveText('Point coverage');
-            await marker.press('Escape');
+            await expectKeyboardPopupAccess(page, map, marker, 'Point coverage');
+            await page.keyboard.press('Escape');
             await expect(popup).toHaveCount(0);
+            await expect(marker).toBeFocused();
+            await expect(marker).toHaveAttribute('aria-expanded', 'false');
+            await marker.press('Space');
+            await expectKeyboardPopupAccess(page, map, marker, 'Point coverage');
+            await page.keyboard.press('Enter');
+            await expect(popup).toHaveCount(0);
+            await expect(marker).toBeFocused();
 
             for (const [label, text] of [
                 ['bounding box', 'Box coverage'],
@@ -182,13 +203,18 @@ for (const preview of [false, true]) {
                 for (const key of ['Enter', 'Space']) {
                     await path.focus();
                     await path.press(key);
-                    await expect(popup).toHaveText(text);
-                    await map.getByRole('button', { name: 'Close popup' }).click();
+                    await expectKeyboardPopupAccess(page, map, path, text);
+                    await page.keyboard.press(key === 'Enter' ? 'Escape' : 'Enter');
                     await expect(popup).toHaveCount(0);
+                    await expect(path).toBeFocused();
+                    await expect(path).toHaveAttribute('aria-expanded', 'false');
                 }
             }
             for (let index = 0; index < 3; index++) {
                 const waypoint = map.getByRole('button', { name: `Show coverage description for waypoint ${index + 1}`, exact: true });
+                // Start a fresh hover after focus restoration and popup panning; let old tooltip animations finish.
+                await map.hover({ position: { x: 15, y: 80 } });
+                await expect(map.locator('.leaflet-tooltip')).toHaveCount(0);
                 await waypoint.hover();
                 const coordinate = describedLocations[3].polygon_points![index];
                 await expect(map.locator('.leaflet-tooltip')).toHaveText(
@@ -201,9 +227,11 @@ for (const preview of [false, true]) {
                 await expect(popup).toHaveCount(0);
                 await waypoint.focus();
                 await waypoint.press('Space');
-                await expect(popup).toHaveText('Line coverage');
-                await waypoint.press('Escape');
+                await expectKeyboardPopupAccess(page, map, waypoint, 'Line coverage');
+                await page.keyboard.press('Space');
                 await expect(popup).toHaveCount(0);
+                await expect(waypoint).toBeFocused();
+                await expect(waypoint).toHaveAttribute('aria-expanded', 'false');
             }
             // Switching objects replaces the previous popup; background clicks close it.
             await marker.click();
@@ -288,6 +316,9 @@ for (const colorScheme of ['light', 'dark'] as const) {
         expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.width + 1);
         expect(metrics.contrast).toBeGreaterThanOrEqual(4.5);
         expect(metrics.whiteSpace).toBe('pre-wrap');
+        await expect(map.getByRole('dialog', { name: 'Coverage description' }).locator('[tabindex="-1"]')).toBeFocused();
+        await page.keyboard.press('PageDown');
+        await expect.poll(() => popup.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
         await popup.evaluate((element) => {
             element.scrollTop = element.scrollHeight;
         });
