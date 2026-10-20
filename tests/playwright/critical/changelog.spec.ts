@@ -36,10 +36,15 @@ test.describe('Changelog Page', () => {
         // Check if it's expanded
         await expect(firstButton).toHaveAttribute('aria-expanded', 'true');
 
-        // Check if content is visible (any section: Features, Improvements, Fixes)
+        // A newly started development version can legitimately have no changes yet.
         const firstPanel = page.locator('#release-0');
         await expect(firstPanel).toBeVisible();
-        await expect(firstPanel.getByRole('heading', { name: /(Features|Improvements|Fixes)/i }).first()).toBeVisible();
+        await expect(
+            firstPanel
+                .getByRole('heading', { name: /^(Features|Improvements|Fixes)$/ })
+                .or(firstPanel.getByText('No changes have been recorded for this version yet.', { exact: true }))
+                .first(),
+        ).toBeVisible();
     });
 
     test('links changelog entries to their related GitHub context in a new tab', async ({ page }) => {
@@ -166,30 +171,40 @@ test.describe('Changelog Page', () => {
         await expect(secondButton).toBeInViewport();
     });
 
-    test('displays icons for different change types', async ({ page }) => {
-        // Expand first version if not already
+    test('shows an empty version and change-type icons when opening a populated version', async ({ page }) => {
+        await page.route('**/api/changelog', (route) =>
+            route.fulfill({
+                json: [
+                    { version: '1.2.0dev', date: '2026-10-20', features: [], improvements: [], fixes: [] },
+                    {
+                        version: '1.1.1',
+                        date: '2026-10-19',
+                        features: [{ title: 'Example feature', description: 'Feature description.' }],
+                        improvements: [{ title: 'Example improvement', description: 'Improvement description.' }],
+                        fixes: [{ title: 'Example fix', description: 'Fix description.' }],
+                    },
+                ],
+            }),
+        );
+        await page.goto('/changelog');
+
         const firstButton = page.locator('#release-trigger-0');
-        const isExpanded = await firstButton.getAttribute('aria-expanded');
-        if (isExpanded === 'false') {
-            await firstButton.click();
-            // Wait for animation to complete
-            await page.waitForTimeout(500);
-        }
+        const firstPanel = page.locator('#release-0');
+        await expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+        await expect(firstPanel).toBeVisible();
+        await expect(firstPanel.getByText('No changes have been recorded for this version yet.', { exact: true })).toBeVisible();
+        await expect(firstPanel.getByRole('heading')).toHaveCount(0);
 
-        // Look for icons in the Features, Improvements, or Fixes sections
-        // Icons are rendered as SVG elements with data-testid attributes
-        const sparklesIcon = page.locator('[data-testid="sparkles-icon"]');
-        const trendingUpIcon = page.locator('[data-testid="trending-up-icon"]');
-        const bugIcon = page.locator('[data-testid="bug-icon"]');
+        await page.locator('#release-trigger-1').click();
+        const populatedPanel = page.locator('#release-1');
+        await expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+        await expect(populatedPanel.getByTestId('sparkles-icon')).toBeVisible();
+        await expect(populatedPanel.getByTestId('trending-up-icon')).toBeVisible();
+        await expect(populatedPanel.getByTestId('bug-icon')).toBeVisible();
+        await expect(populatedPanel.getByText('No changes have been recorded for this version yet.', { exact: true })).toHaveCount(0);
 
-        // Wait for at least one icon to be visible (with longer timeout)
-        try {
-            await expect(sparklesIcon.or(trendingUpIcon).or(bugIcon).first()).toBeVisible({ timeout: 3000 });
-        } catch {
-            // If none found, check the expanded content is there at least
-            const content = page.locator('#release-0');
-            await expect(content).toBeVisible();
-        }
+        await firstButton.click();
+        await expect(firstPanel.getByText('No changes have been recorded for this version yet.', { exact: true })).toBeVisible();
     });
 
     test('shows "New" badge for recent releases', async ({ page }) => {
