@@ -85,19 +85,19 @@ function SortableSectionItem({ id, label, actions }: { id: string; label: string
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+        <div ref={setNodeRef} style={style} className="flex min-w-0 items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
             <Button
                 variant="ghost"
                 size="icon"
                 type="button"
                 aria-label={`Reorder ${label}`}
-                className="size-6 cursor-grab touch-none text-muted-foreground hover:text-foreground"
+                className="size-6 shrink-0 cursor-grab touch-none text-muted-foreground hover:text-foreground"
                 {...attributes}
                 {...listeners}
             >
                 <GripVertical className="size-4" />
             </Button>
-            <span className="flex-1">{label}</span>
+            <span className="min-w-0 flex-1 break-words">{label}</span>
             {actions}
         </div>
     );
@@ -286,7 +286,7 @@ function ZonedSectionOrderEditor({
     };
     const actionsFor = (zone: 'left' | 'right' | 'hidden') => (section: LayoutSection) =>
         zone === 'hidden' ? (
-            <div className="flex gap-1">
+            <div className="flex shrink-0 gap-1">
                 <Button
                     type="button"
                     variant="ghost"
@@ -313,7 +313,7 @@ function ZonedSectionOrderEditor({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-7"
+                className="size-7 shrink-0"
                 aria-label={`Hide ${scope === 'igsn' ? IGSN_SECTION_LABELS[section as IgsnSection] : SECTION_LABELS[section]}`}
                 onClick={() => move(section, `${scope}-hidden-column`)}
             >
@@ -360,7 +360,7 @@ function ZonedSectionOrderEditor({
                     snapshot.current = null;
                 }}
             >
-                <div className="grid gap-6 md:grid-cols-3">
+                <div className="grid gap-6 lg:grid-cols-3">
                     <TemplateColumn
                         id={`${scope}-left-column`}
                         title="Left Column (sidebar)"
@@ -1048,7 +1048,7 @@ export default function LandingPageTemplatesPage() {
 
             {/* Edit Dialog */}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[min(64rem,calc(100%-2rem))]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Pencil className="size-5" />

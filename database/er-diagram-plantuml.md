@@ -795,7 +795,7 @@ entity "landing_page_templates" as landing_page_templates {
     logo_filename : VARCHAR
     * right_column_order : JSON
     * left_column_order : JSON
-    hidden_sections : JSON //IGSN hidden cards; [] for resources//
+    hidden_sections : JSON //Hidden DOI and IGSN modules, including Usage//
     * creator_display_limit : SMALLINT = 50
     * contributor_display_limit : SMALLINT = 50
     * citation_author_display_limit : SMALLINT = 50
@@ -817,7 +817,7 @@ entity "landing_page_template_relation_type_exclusions" as landing_page_template
 entity "landing_pages" as landing_pages {
     * **id** : BIGINT <<PK>>
     --
-    * resource_id : BIGINT <<FK>> <<UK>> //1:1//
+    * resource_id : BIGINT <<FK>> <<UK>> //1:1; cascade delete//
     doi_prefix : VARCHAR
     * slug : VARCHAR
     * template : VARCHAR(50) = 'default_gfz'
@@ -898,6 +898,102 @@ entity "landing_page_links" as landing_page_links {
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+
+' COUNTER usage: explicit activation; legacy statistics below freeze at activation.
+entity "usage_list_versions" as usage_list_versions {
+    * **id** : BIGINT <<PK>>
+    --
+    * checksum : CHAR(64) <<UK>>
+    * rules : JSON
+    * sources : JSON
+    * created_at : TIMESTAMP
+}
+
+entity "usage_tracking_state" as usage_tracking_state {
+    * **id** : TINYINT <<PK>> //Singleton, id 1//
+    --
+    started_at : TIMESTAMP(6) //Permanent activation boundary//
+    * paused : BOOLEAN = false
+    paused_at : TIMESTAMP(6)
+    list_version_id : BIGINT <<FK>> //Active classification version//
+    * metrics_revision : BIGINT UNSIGNED = 0
+    last_aggregated_at : TIMESTAMP
+    data_through : DATE
+}
+
+entity "usage_aggregation_days" as usage_aggregation_days {
+    * **day** : DATE <<PK>>
+    --
+    finalized_at : TIMESTAMP
+    * incomplete : BOOLEAN = false
+}
+
+entity "usage_events" as usage_events {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>> //Cascade delete//
+    * event_type : VARCHAR(16) //investigation or request//
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * session_hash : CHAR(64) //Pseudonymous hourly session//
+    * target_hash : CHAR(64)
+    * day : DATE <<INDEX>>
+    * occurred_at_ms : BIGINT UNSIGNED
+    * list_version_id : BIGINT <<FK>>
+}
+' usage_events index(day, landing_page_id, access_method)
+
+entity "usage_search_events" as usage_search_events {
+    * **id** : BIGINT <<PK>>
+    --
+    * portal_scope : VARCHAR(8) //doi or igsn//
+    * normalized_term : TEXT
+    * term_hash : CHAR(64)
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * session_hash : CHAR(64) //Pseudonymous hourly session//
+    * day : DATE <<INDEX>>
+    * occurred_at_ms : BIGINT UNSIGNED
+    * list_version_id : BIGINT <<FK>>
+}
+
+entity "usage_daily_metrics" as usage_daily_metrics {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>> //Cascade delete//
+    * day : DATE <<INDEX>>
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * total_investigations : BIGINT UNSIGNED
+    * unique_investigations : BIGINT UNSIGNED
+    total_requests : BIGINT UNSIGNED //NULL for IGSNs//
+    unique_requests : BIGINT UNSIGNED //NULL for IGSNs//
+}
+' usage_daily_metrics unique(landing_page_id, day, access_method)
+
+entity "usage_monthly_metrics" as usage_monthly_metrics {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>> //Cascade delete//
+    * month : DATE <<INDEX>> //First day of UTC month//
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * total_investigations : BIGINT UNSIGNED
+    * unique_investigations : BIGINT UNSIGNED
+    total_requests : BIGINT UNSIGNED //NULL for IGSNs//
+    unique_requests : BIGINT UNSIGNED //NULL for IGSNs//
+}
+' usage_monthly_metrics unique(landing_page_id, month, access_method)
+
+entity "usage_search_daily_metrics" as usage_search_daily_metrics {
+    * **id** : BIGINT <<PK>>
+    --
+    * day : DATE <<INDEX>>
+    * portal_scope : VARCHAR(8) //doi or igsn//
+    * normalized_term : TEXT
+    * term_hash : CHAR(64)
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * search_count : BIGINT UNSIGNED
+}
+' usage_search_daily_metrics unique(day, portal_scope, term_hash, access_method)
+' Periods, hashes, and search scopes have no FK constraints.
+' List versions are retained; deleting a landing page cascades only its events and resource metrics.
 
 entity "landing_page_daily_statistics" as landing_page_daily_statistics {
     * **id** : BIGINT <<PK>>
@@ -1647,6 +1743,12 @@ landing_page_files }o--o| sizes : "content size"
 landing_page_links }o--o| formats : "content format"
 landing_page_links }o--o| sizes : "content size"
 landing_pages ||--o{ landing_page_daily_statistics
+landing_pages ||--o{ usage_events : cascade delete
+landing_pages ||--o{ usage_daily_metrics : cascade delete
+landing_pages ||--o{ usage_monthly_metrics : cascade delete
+usage_tracking_state }o--o| usage_list_versions : active classification
+usage_events }o--|| usage_list_versions : classified with
+usage_search_events }o--|| usage_list_versions : classified with
 landing_pages }o--o| landing_page_templates
 landing_page_templates }o--o| users
 landing_page_template_date_type_exclusions }o--|| landing_page_templates

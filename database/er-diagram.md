@@ -724,7 +724,7 @@ erDiagram
         varchar logo_filename "nullable"
         json right_column_order
         json left_column_order
-        json hidden_sections "nullable; IGSN hidden cards; [] for resources"
+        json hidden_sections "nullable; hidden DOI and IGSN modules, including Usage"
         smallint creator_display_limit "default 50"
         smallint contributor_display_limit "default 50"
         smallint citation_author_display_limit "default 50"
@@ -745,7 +745,7 @@ erDiagram
 
     landing_pages {
         bigint id PK
-        bigint resource_id FK "UK, 1:1 with resources"
+        bigint resource_id FK "UK, 1:1 with resources; cascade delete"
         varchar doi_prefix
         varchar slug "unique with doi_prefix"
         varchar template
@@ -821,6 +821,94 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+
+    %% COUNTER usage: explicit activation; legacy statistics below freeze at activation.
+    usage_list_versions {
+        bigint id PK
+        char checksum UK "64"
+        json rules
+        json sources
+        timestamp created_at
+    }
+
+    usage_tracking_state {
+        tinyint id PK "singleton, id 1"
+        timestamp started_at "microseconds, nullable; permanent activation boundary"
+        boolean paused "default false"
+        timestamp paused_at "microseconds, nullable"
+        bigint list_version_id FK "nullable; active classification version"
+        bigint metrics_revision "unsigned, default 0"
+        timestamp last_aggregated_at "nullable"
+        date data_through "nullable"
+    }
+
+    usage_aggregation_days {
+        date day PK
+        timestamp finalized_at "nullable"
+        boolean incomplete "default false"
+    }
+
+    usage_events {
+        bigint id PK
+        bigint landing_page_id FK "cascade delete"
+        varchar event_type "16; investigation or request"
+        varchar access_method "8; Regular or Machine"
+        char session_hash "64; pseudonymous hourly session"
+        char target_hash "64"
+        date day "indexed"
+        bigint occurred_at_ms "unsigned"
+        bigint list_version_id FK
+    }
+    %% usage_events index(day, landing_page_id, access_method)
+
+    usage_search_events {
+        bigint id PK
+        varchar portal_scope "8; doi or igsn"
+        text normalized_term
+        char term_hash "64"
+        varchar access_method "8; Regular or Machine"
+        char session_hash "64; pseudonymous hourly session"
+        date day "indexed"
+        bigint occurred_at_ms "unsigned"
+        bigint list_version_id FK
+    }
+
+    usage_daily_metrics {
+        bigint id PK
+        bigint landing_page_id FK "cascade delete"
+        date day "indexed"
+        varchar access_method "8; Regular or Machine"
+        bigint total_investigations "unsigned"
+        bigint unique_investigations "unsigned"
+        bigint total_requests "unsigned, nullable for IGSNs"
+        bigint unique_requests "unsigned, nullable for IGSNs"
+    }
+    %% usage_daily_metrics unique(landing_page_id, day, access_method)
+
+    usage_monthly_metrics {
+        bigint id PK
+        bigint landing_page_id FK "cascade delete"
+        date month "first day of UTC month, indexed"
+        varchar access_method "8; Regular or Machine"
+        bigint total_investigations "unsigned"
+        bigint unique_investigations "unsigned"
+        bigint total_requests "unsigned, nullable for IGSNs"
+        bigint unique_requests "unsigned, nullable for IGSNs"
+    }
+    %% usage_monthly_metrics unique(landing_page_id, month, access_method)
+
+    usage_search_daily_metrics {
+        bigint id PK
+        date day "indexed"
+        varchar portal_scope "8; doi or igsn"
+        text normalized_term
+        char term_hash "64"
+        varchar access_method "8; Regular or Machine"
+        bigint search_count "unsigned"
+    }
+    %% usage_search_daily_metrics unique(day, portal_scope, term_hash, access_method)
+    %% Periods, hashes, and search scopes have no FK constraints.
+    %% List versions are retained; deleting a landing page cascades only its events and resource metrics.
 
     landing_page_daily_statistics {
         bigint id PK
@@ -1542,6 +1630,12 @@ erDiagram
     landing_page_links }o--o| formats : "content format"
     landing_page_links }o--o| sizes : "content size"
     landing_pages ||--o{ landing_page_daily_statistics : "tracks daily analytics"
+    landing_pages ||--o{ usage_events : "records usage; cascade delete"
+    landing_pages ||--o{ usage_daily_metrics : "daily usage; cascade delete"
+    landing_pages ||--o{ usage_monthly_metrics : "monthly usage; cascade delete"
+    usage_tracking_state }o--o| usage_list_versions : "active classification"
+    usage_events }o--|| usage_list_versions : "classified with"
+    usage_search_events }o--|| usage_list_versions : "classified with"
     landing_pages }o--o| landing_page_templates : "uses template"
     landing_page_templates }o--o| users : "created by"
     landing_page_template_date_type_exclusions }o--|| landing_page_templates : "configures template"

@@ -34,6 +34,8 @@
     },
     "slices": {
         "usage": [
+            "tests/pest/Feature/Usage/CounterDeletionTest.php",
+            "tests/pest/Feature/Usage/CounterDeletionMigrationTest.php",
             "tests/pest/Feature/Usage/CounterProcessingTest.php",
             "tests/pest/Feature/Usage/CounterReadAndLayoutTest.php",
             "tests/pest/Feature/Usage/CounterConcurrencyTest.php"

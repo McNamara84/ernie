@@ -39,7 +39,7 @@ return new class extends Migration
 
         Schema::create('usage_events', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('landing_page_id')->constrained()->restrictOnDelete();
+            $table->foreignId('landing_page_id')->constrained()->cascadeOnDelete();
             $table->string('event_type', 16);
             $table->string('access_method', 8);
             $table->char('session_hash', 64);
@@ -65,7 +65,7 @@ return new class extends Migration
         foreach (['usage_daily_metrics' => 'day', 'usage_monthly_metrics' => 'month'] as $name => $period) {
             Schema::create($name, function (Blueprint $table) use ($period): void {
                 $table->id();
-                $table->foreignId('landing_page_id')->constrained()->restrictOnDelete();
+                $table->foreignId('landing_page_id')->constrained()->cascadeOnDelete();
                 $table->date($period)->index();
                 $table->string('access_method', 8);
                 $table->unsignedBigInteger('total_investigations');
