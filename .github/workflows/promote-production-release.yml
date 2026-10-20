@@ -257,7 +257,6 @@ jobs:
       current: ${{ steps.latest.outputs.current }}
       nginx_digest: ${{ steps.artifacts.outputs.nginx_digest }}
       fuji_digest: ${{ steps.artifacts.outputs.fuji_digest }}
-      artifact_commit: ${{ steps.artifacts.outputs.artifact_commit }}
 
     steps:
       - name: Checkout the trusted default branch
@@ -273,14 +272,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Require a protected Production approval environment
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const { requireProductionReview } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/ci/deployment-artifacts.mjs`);
-            const { data } = await github.rest.repos.getEnvironment({ ...context.repo, environment_name: 'production' });
-            requireProductionReview(data);
-
       - name: Resolve the exact main image artifacts
         id: artifacts
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -294,8 +285,8 @@ jobs:
             if (!artifact) throw new Error(`No main image artifact record exists for ${process.env.SOURCE_SHA}.`);
             validateArtifact(artifact.record, { version: process.env.RELEASE_TAG.slice(1) });
             artifactOutputs(core, artifact);
-            await core.summary.addHeading('Release candidate awaiting approval')
-              .addRaw('Approve the production environment only after testing this exact commit and image set in the isolated release stack.\n')
+            await core.summary.addHeading('Published release candidate')
+              .addRaw('Publishing the stable GitHub release authorizes automatic promotion of this exact commit and image set after all validation and image checks pass.\n')
               .addCodeBlock(JSON.stringify(artifact.record, null, 2), 'json')
               .addLink('Immutable artifact record', `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${artifact.commit}/${process.env.SOURCE_SHA}.json`).write();
 
@@ -370,29 +361,10 @@ jobs:
             echo "Skipping superseded Production release $RELEASE_TAG."
           fi
 
-  approve:
-    needs: [validate, inspect]
-    if: needs.inspect.outputs.current == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    environment:
-      name: production
-      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-    steps:
-      - name: Record approval of the inspected release candidate
-        env:
-          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
-          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
-          ARTIFACT_COMMIT: ${{ needs.inspect.outputs.artifact_commit }}
-        run: |
-          printf 'Approved %s from %s using immutable artifact record %s\n' "$RELEASE_TAG" "$SOURCE_SHA" "$ARTIFACT_COMMIT" >> "$GITHUB_STEP_SUMMARY"
-
   promote:
     needs:
       - validate
       - inspect
-      - approve
     if: >-
       needs.inspect.outputs.current == 'true'
     runs-on: ubuntu-latest

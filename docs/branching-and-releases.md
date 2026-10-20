@@ -83,12 +83,12 @@ Complete this setup as part of the rollout, before routine work on `dev`:
    **`SYNC_APP_CLIENT_ID`**. Keep the private key out of repository secrets so a
    workflow on `dev` cannot retrieve it. The workflow creates short-lived,
    repository-scoped tokens automatically.
-5. Create the GitHub environment **`production`**, restricted to **`main`**, with
-   at least one **required reviewer** responsible for release approval. The
-   promotion workflow verifies that reviewers are configured and fails if they
-   are missing. Approvers compare the SHA and digests in the workflow summary
-   with the candidate test report before approving. Configure prevention of
-   self-review if your team's review policy requires it.
+5. Publishing the tested stable GitHub release authorizes Production deployment.
+   No **`production`** environment or additional approval in Actions is needed.
+   Compare the candidate SHA and recorded image digests with the test report
+   before publishing. Promotion runs automatically after its release, CI, and
+   image checks pass. An existing `production` environment is not used by this
+   workflow and can remain in place.
 6. Allow Actions to request `contents: write` and `packages: write` for validated
    image publication. Keep `automation/sync-main-to-dev` available for the App's
    guarded branch updates. Deployment and artifact branches are machine-managed:
@@ -98,7 +98,8 @@ Complete this setup as part of the rollout, before routine work on `dev`:
 Merge the implementation into `main` through the normal reviewed PR process.
 Publication now validates both branches, but **only `dev` updates Stage**. Until
 `dev` exists and passes CI, Stage stays on its previous deployment. Production
-continues serving its current deployment until an eligible release is approved.
+continues serving its current deployment until an eligible release is published
+and its automatic promotion checks pass.
 GitLab mirroring continues to mirror `main` and stable release tags; drafts and
 prereleases are skipped.
 
@@ -277,9 +278,10 @@ release test stack established there.
    regression from [Pre-Release Testing](pre-release-testing.md), including
    relevant migrations from the current Production schema. Tests on v1.2.0 Stage
    do not replace testing this candidate.
-4. **Obtain approval.** Follow the Go/No-Go procedure in the testing guide for
-   this candidate. If findings require more changes, select and test a new
-   candidate before proceeding.
+4. **Confirm release readiness.** Follow the Go/No-Go procedure in the testing
+   guide for this candidate and compare its recorded SHA and image digests with
+   the test report before publishing. If findings require more changes, select
+   and test a new candidate before proceeding.
 5. **Tag the tested commit.** In the same PowerShell session, using the recorded
    SHA:
 
@@ -294,11 +296,12 @@ release test stack established there.
    the existing `v1.1.1` tag, add the release notes, leave **Pre-release disabled**,
    and publish it as **Latest**. Select the existing tag rather than creating one
    automatically at the current branch head. A tag or saved draft alone does not
-   trigger the existing Production promotion; publishing the release does.
+   trigger the existing Production promotion; publishing the release authorizes
+   automatic deployment after all promotion checks pass. There is no additional
+   approval in Actions.
 7. **Verify Production.** Follow `Production Release Signal` and
-   `Promote Production Release`. Its `approve` job waits for a required
-   **`production` environment reviewer**. Approve only when its source SHA and
-   digests match the tested candidate report. Then verify the
+   `Promote Production Release`. Its `validate`, `inspect`, and `promote` jobs
+   check and deploy the published candidate automatically. Then verify the
    actual Portainer deployment, all three image digests, the displayed version,
    and `/health`. Stage remains on the v1.2.0 development line.
 8. **Prepare further development.** Through a new PR against `main`, add
@@ -328,7 +331,7 @@ Do not change the tag or create another release just to retry deployment.
    merge does not deploy to Production; it prepares the new release line on `main`.
 4. **Validate and publish the resulting commit.** Follow steps 2 through 7 of
    section 7, using version `1.2.0` and tag `v1.2.0`. Record the resulting commit
-   on `main`, build and test its images, and obtain release approval. The earlier
+   on `main`, build and test its images, and publish the stable release. The earlier
    Stage build belongs to the `dev` commit and must not be assumed to identify
    this new merge commit.
 5. **Prepare both branches for further work.** After publication, add `1.2.1dev`
@@ -351,7 +354,7 @@ Production release, not a development preview.
 | Synchronize fixes into `dev` | Create or update one PR after `main` changes; retry transient failures and reconcile pending work | Resolve conflicts and persistent failures |
 | Merge the synchronization PR | Enable auto-merge with a merge commit after required reviews and checks | Provide any review required by branch rules; explicitly hold a PR if necessary |
 | Publish images and deploy | Run CI and image publication after the merge; update Stage through Portainer | Verify the deployed behavior and investigate failures |
-| Prepare and approve a release | Build and validate the selected candidate; promote it after the stable release is published | Finalize release notes, perform release testing, and approve publication |
+| Prepare and publish a release | Build and validate the selected candidate; promote it automatically after the stable release is published and all checks pass | Finalize release notes, perform release testing, and publish the stable release |
 
 Use the dedicated GitHub App from the start so automated PRs and merges trigger
 the required CI workflows. The

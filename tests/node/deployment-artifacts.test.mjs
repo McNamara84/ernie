@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import test from 'node:test';
 
-import { publishArtifact, readArtifact, requireProductionReview, validateArtifact } from '../../scripts/ci/deployment-artifacts.mjs';
+import { publishArtifact, readArtifact, validateArtifact } from '../../scripts/ci/deployment-artifacts.mjs';
 
 const repo = { owner: 'Example', repo: 'ernie' };
 const sha = 'a'.repeat(40);
@@ -97,11 +97,4 @@ test('publication cannot replace a concurrent record for the same source SHA', a
     mock.race(() => publishArtifact(mock.github, repo, second));
     await assert.rejects(publishArtifact(mock.github, repo, changed), /immutable/u);
     assert.deepEqual((await readArtifact(mock.github, repo, 'main', second.sha)).record, second);
-});
-
-test('Production promotion fails closed without an environment reviewer', () => {
-    for (const environment of [{}, { protection_rules: [] }, { protection_rules: [{ type: 'required_reviewers', reviewers: [] }] }]) {
-        assert.throws(() => requireProductionReview(environment), /required reviewers/u);
-    }
-    requireProductionReview({ protection_rules: [{ type: 'required_reviewers', reviewers: [{ id: 1 }] }] });
 });
