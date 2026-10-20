@@ -2,7 +2,10 @@
 
 ## Overview
 
-ERNIE uses a Docker-first local workflow.
+ERNIE uses a Docker-first local workflow. See [Branching and Releases](branching-and-releases.md)
+for `main` bugfixes, `dev` features, automatic synchronization, and publishing.
+To test immutable Production candidates while Stage follows `dev`, use
+[Release Candidate Testing](release-candidate-testing.md).
 
 - Fast Mode is the default path for day-to-day development.
 - Optional profiles are available for assessment-specific and parity-specific work.

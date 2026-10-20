@@ -1,4 +1,4 @@
-name: Publish Stage Images
+name: Publish Validated Images
 
 on:
   workflow_run:
@@ -13,16 +13,15 @@ on:
       - completed
     branches:
       - main
+      - dev
 permissions:
   contents: read
-
-concurrency:
-  group: publish-stage-images
-  cancel-in-progress: true
 
 jobs:
   validate:
     if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'dev') &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
@@ -30,6 +29,7 @@ jobs:
       actions: read
       contents: read
     outputs:
+      branch: ${{ steps.source.outputs.branch }}
       app_image: ${{ steps.source.outputs.app_image }}
       checks_ready: ${{ steps.deployment-checks.outputs.ready }}
       current: ${{ steps.source.outputs.current }}
@@ -38,7 +38,7 @@ jobs:
       sha: ${{ steps.source.outputs.sha }}
 
     steps:
-      - name: Checkout the candidate main commit
+      - name: Checkout the candidate source commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
@@ -48,22 +48,24 @@ jobs:
         id: source
         env:
           REPOSITORY_OWNER: ${{ github.repository_owner }}
+          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
 
           SOURCE_SHA="$(git rev-parse HEAD)"
           OWNER="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
 
-          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
-
-          if [[ "$(git rev-parse refs/remotes/origin/main)" == "$SOURCE_SHA" ]]; then
-            CURRENT=true
-          else
+          case "$SOURCE_BRANCH" in main|dev) ;; *) exit 1 ;; esac
+          git fetch --no-tags origin "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}"
+          git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/${SOURCE_BRANCH}"
+          CURRENT=true
+          if [[ "$SOURCE_BRANCH" == dev && "$(git rev-parse refs/remotes/origin/dev)" != "$SOURCE_SHA" ]]; then
             CURRENT=false
-            echo "Skipping stale commit $SOURCE_SHA because main has advanced."
+            echo "Skipping stale dev commit $SOURCE_SHA."
           fi
 
           {
+            echo "branch=$SOURCE_BRANCH"
             echo "current=$CURRENT"
             echo "sha=$SOURCE_SHA"
             echo "app_image=ghcr.io/${OWNER}/ernie-app"
@@ -77,6 +79,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          SOURCE_BRANCH: ${{ steps.source.outputs.branch }}
         with:
           script: |
             const requiredWorkflows = [
@@ -94,7 +97,7 @@ jobs:
               const response = await github.rest.actions.listWorkflowRuns({
                 ...context.repo,
                 workflow_id: workflowId,
-                branch: 'main',
+                branch: process.env.SOURCE_BRANCH,
                 event: 'push',
                 head_sha: sourceSha,
                 per_page: 10,
@@ -141,7 +144,7 @@ jobs:
                 )
                 .map((result) => `${result.name}: ${result.status}/${result.conclusion}`)
                 .join(', ');
-              const message = `Stage publication is blocked for ${sourceSha}: ${details}`;
+              const message = `Image publication is blocked for ${sourceSha}: ${details}`;
 
               core.notice(message);
             }
@@ -151,13 +154,18 @@ jobs:
     if: >-
       needs.validate.outputs.current == 'true' &&
       needs.validate.outputs.checks_ready == 'true'
+    concurrency:
+      # Only validated current dev pushes may replace an active publication.
+      # Keep each main candidate independent, including older release candidates.
+      group: publish-images-${{ needs.validate.outputs.branch }}-${{ needs.validate.outputs.branch == 'dev' && 'latest' || needs.validate.outputs.sha }}
+      cancel-in-progress: ${{ needs.validate.outputs.branch == 'dev' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
 
     steps:
-      - name: Checkout the validated main commit
+      - name: Checkout the validated source commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.validate.outputs.sha }}
@@ -180,8 +188,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Reuse immutable artifacts when available
+        id: existing
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+          SOURCE_BRANCH: ${{ needs.validate.outputs.branch }}
+        with:
+          script: |
+            const { readArtifact, artifactOutputs } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/ci/deployment-artifacts.mjs`);
+            artifactOutputs(core, await readArtifact(github, context.repo, process.env.SOURCE_BRANCH, process.env.SOURCE_SHA));
+
       - name: Build and push application image
         id: app-build
+        if: steps.existing.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -196,11 +216,12 @@ jobs:
             SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
           cache-from: |
             type=gha,scope=security-app
-            type=gha,scope=stage-app
-          cache-to: type=gha,mode=max,scope=stage-app
+            type=gha,scope=publish-${{ needs.validate.outputs.branch }}-app
+          cache-to: type=gha,mode=max,scope=publish-${{ needs.validate.outputs.branch }}-app
 
       - name: Build and push Nginx image
         id: nginx-build
+        if: steps.existing.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -215,12 +236,13 @@ jobs:
             SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
           cache-from: |
             type=gha,scope=security-app
-            type=gha,scope=stage-app
-            type=gha,scope=stage-nginx
-          cache-to: type=gha,mode=max,scope=stage-nginx
+            type=gha,scope=publish-${{ needs.validate.outputs.branch }}-app
+            type=gha,scope=publish-${{ needs.validate.outputs.branch }}-nginx
+          cache-to: type=gha,mode=max,scope=publish-${{ needs.validate.outputs.branch }}-nginx
 
       - name: Build and push F-UJI image with Chromium
         id: fuji-build
+        if: steps.existing.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -235,17 +257,17 @@ jobs:
             SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
           cache-from: |
             type=gha,scope=security-fuji
-            type=gha,scope=stage-fuji
-          cache-to: type=gha,mode=max,scope=stage-fuji
+            type=gha,scope=publish-${{ needs.validate.outputs.branch }}-fuji
+          cache-to: type=gha,mode=max,scope=publish-${{ needs.validate.outputs.branch }}-fuji
 
       - name: Prepare Trivy cache
         run: mkdir -p "${{ runner.temp }}/trivy-cache"
 
       - name: Scan exact published image digests
         env:
-          APP_IMAGE_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}
-          NGINX_IMAGE_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.nginx-build.outputs.digest }}
-          FUJI_IMAGE_REF: ${{ needs.validate.outputs.fuji_image }}@${{ steps.fuji-build.outputs.digest }}
+          APP_IMAGE_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.existing.outputs.app_digest || steps.app-build.outputs.digest }}
+          NGINX_IMAGE_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.existing.outputs.nginx_digest || steps.nginx-build.outputs.digest }}
+          FUJI_IMAGE_REF: ${{ needs.validate.outputs.fuji_image }}@${{ steps.existing.outputs.fuji_digest || steps.fuji-build.outputs.digest }}
           TRIVY_DISABLE_VEX_NOTICE: 'true'
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           TRIVY_USERNAME: ${{ github.actor }}
@@ -279,31 +301,57 @@ jobs:
 
           exit "$scan_status"
 
+      - name: Record immutable image artifacts
+        id: artifacts
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+          SOURCE_BRANCH: ${{ needs.validate.outputs.branch }}
+          APP_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.existing.outputs.app_digest || steps.app-build.outputs.digest }}
+          NGINX_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.existing.outputs.nginx_digest || steps.nginx-build.outputs.digest }}
+          FUJI_REF: ${{ needs.validate.outputs.fuji_image }}@${{ steps.existing.outputs.fuji_digest || steps.fuji-build.outputs.digest }}
+        with:
+          script: |
+            const { readFileSync } = await import('node:fs');
+            const { publishArtifact } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/ci/deployment-artifacts.mjs`);
+            const record = {
+              schema: 1, repository: `${context.repo.owner}/${context.repo.repo}`,
+              branch: process.env.SOURCE_BRANCH, sha: process.env.SOURCE_SHA,
+              version: JSON.parse(readFileSync('resources/data/changelog.json', 'utf8'))[0].version,
+              images: { app: process.env.APP_REF, nginx: process.env.NGINX_REF, fuji: process.env.FUJI_REF },
+            };
+            const commit = await publishArtifact(github, context.repo, record);
+            core.setOutput('commit', commit);
+            await core.summary.addHeading('Validated image artifacts')
+              .addCodeBlock(JSON.stringify(record, null, 2), 'json')
+              .addLink('Immutable artifact record', `https://github.com/${record.repository}/blob/${commit}/${record.sha}.json`).write();
+
       - name: Confirm that the candidate is still current
+        if: needs.validate.outputs.branch == 'dev'
         id: latest
         env:
           SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
           set -euo pipefail
 
-          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          git fetch --no-tags origin "refs/heads/dev:refs/remotes/origin/dev"
 
-          if [[ "$(git rev-parse refs/remotes/origin/main)" == "$SOURCE_SHA" ]]; then
+          if [[ "$(git rev-parse refs/remotes/origin/dev)" == "$SOURCE_SHA" ]]; then
             echo "current=true" >> "$GITHUB_OUTPUT"
           else
             echo "current=false" >> "$GITHUB_OUTPUT"
-            echo "Images remain available by SHA, but a newer main commit will be promoted instead."
+            echo "Images remain available by SHA, but a newer dev commit will be promoted instead."
           fi
 
       - name: Create digest-pinned Stage deployment commit
-        if: steps.latest.outputs.current == 'true'
+        if: needs.validate.outputs.branch == 'dev' && steps.latest.outputs.current == 'true'
         id: deployment
         env:
-          APP_DIGEST: ${{ steps.app-build.outputs.digest }}
+          APP_DIGEST: ${{ steps.existing.outputs.app_digest || steps.app-build.outputs.digest }}
           APP_IMAGE: ${{ needs.validate.outputs.app_image }}
-          NGINX_DIGEST: ${{ steps.nginx-build.outputs.digest }}
+          NGINX_DIGEST: ${{ steps.existing.outputs.nginx_digest || steps.nginx-build.outputs.digest }}
           NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
-          FUJI_DIGEST: ${{ steps.fuji-build.outputs.digest }}
+          FUJI_DIGEST: ${{ steps.existing.outputs.fuji_digest || steps.fuji-build.outputs.digest }}
           FUJI_IMAGE: ${{ needs.validate.outputs.fuji_image }}
           SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
@@ -373,7 +421,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Advance the digest-pinned Stage deployment branch
-        if: steps.latest.outputs.current == 'true'
+        if: needs.validate.outputs.branch == 'dev' && steps.latest.outputs.current == 'true'
         env:
           DEPLOY_COMMIT: ${{ steps.deployment.outputs.commit }}
           PREVIOUS_DEPLOY_SHA: ${{ steps.deployment.outputs.previous }}
@@ -381,10 +429,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          git fetch --no-tags origin "refs/heads/dev:refs/remotes/origin/dev"
 
-          if [[ "$(git rev-parse refs/remotes/origin/main)" != "$SOURCE_SHA" ]]; then
-            echo "main advanced while preparing the deployment commit; leaving deploy/stage unchanged."
+          if [[ "$(git rev-parse refs/remotes/origin/dev)" != "$SOURCE_SHA" ]]; then
+            echo "dev advanced while preparing the deployment commit; leaving deploy/stage unchanged."
             exit 0
           fi
 

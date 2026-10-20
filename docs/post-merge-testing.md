@@ -1,7 +1,7 @@
 # Post-Merge Testing of ERNIE
 
 This guide supports targeted manual testing of a feature, fix, or hotfix after
-its pull request has been merged and deployed to stage. It does not replace the
+its pull request has been merged and deployed to the selected test environment. It does not replace the
 full pre-release regression test.
 
 > **Important:** Before starting a test run, create a local copy of this file
@@ -11,8 +11,13 @@ full pre-release regression test.
 
 ## 1. Ground Rules
 
-- Test only at <https://ernie.rz-vm182.gfz.de/> and confirm that the expected
-  pull request has been deployed to stage before starting.
+- Test `dev` changes at <https://ernie.rz-vm182.gfz.de/>. A fix merged into `main`
+  reaches Stage only after its synchronization PR into `dev` and Stage deployment.
+- To test the stable-line fix independently, use the isolated `main` stack from
+  [Release Candidate Testing](release-candidate-testing.md), normally
+  <http://localhost:8181/>. Confirm the expected SHA, digests, and version first.
+- Record the selected URL. References to "stage" below mean this test environment;
+  never run this checklist against Production.
 - Use dedicated administrator or curator test accounts. Group Leader and
   Beginner are not part of regular manual testing.
 - Use only synthetic data with a unique identifier such as
@@ -41,8 +46,8 @@ expected and actual result, frequency, and a sanitised screenshot.
 
 ## 2. Post-Merge Process
 
-1. Verify that the pull request is merged and its deployment to stage is
-   complete.
+1. Verify that the pull request is merged and its deployment to the selected
+   test environment is complete.
 2. Run the smoke test from
    [`pre-release-testing.md`](pre-release-testing.md). If it returns `FAIL` or
    `BLOCKED`, do not consider the targeted test successful.
@@ -51,8 +56,8 @@ expected and actual result, frequency, and a sanitised screenshot.
 4. Complete the template in section 3 and run direct and adjacent test cases.
 5. Record deviations as separate backlog items, clean up test data, and
    recommend `ACCEPT`, `ACCEPT WITH KNOWN RISKS`, or `REJECT`.
-6. If the version is intended for production, also run the full pre-release
-   regression test.
+6. For Production, also run the full pre-release regression on the exact `main`
+   candidate. Successful tests on a newer `dev` version do not replace this.
 
 ### 2.1 Minimum Scope by Risk
 
@@ -78,8 +83,9 @@ Testing always starts with the smoke test from the
 | Type                       | Feature / Fix / Hotfix |
 | Issue or backlog item      |                        |
 | Pull request               |                        |
-| Commit or version          |                        |
-| Stage deployment completed |                        |
+| Full SHA and version       |                        |
+| Test URL and image digests  |                        |
+| Test deployment completed  |                        |
 | Requester                  |                        |
 | Tester                     |                        |
 | Test date                  |                        |
