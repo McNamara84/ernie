@@ -42,6 +42,10 @@ for (const width of [390, 768, 1024, 1440]) {
             await page.getByRole('button', { name: 'Edit', exact: true }).click();
             const dialog = page.getByRole('dialog', { name: 'Edit Template', exact: true });
             await expect(dialog).toBeVisible();
+            // The opening animation scales and moves the dialog while it is already visible.
+            await dialog.evaluate(async (element) => {
+                await Promise.all(element.getAnimations().map((animation) => animation.finished));
+            });
             await expect
                 .poll(() =>
                     dialog.evaluate((element) => {
