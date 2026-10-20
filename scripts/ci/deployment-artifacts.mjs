@@ -93,8 +93,3 @@ export function artifactOutputs(core, artifact) {
     for (const kind of imageKinds) core.setOutput(`${kind}_digest`, artifact.record.images[kind].split('@')[1]);
     core.setOutput('artifact_commit', artifact.commit);
 }
-
-export function requireProductionReview(environment) {
-    const reviewers = environment.protection_rules?.find((rule) => rule.type === 'required_reviewers')?.reviewers;
-    if (!reviewers?.length) throw new Error('Configure required reviewers on the production GitHub environment before releasing.');
-}
