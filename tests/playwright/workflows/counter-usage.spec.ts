@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/authenticated';
@@ -42,9 +44,6 @@ test.describe('Usage statistics', () => {
         await page.reload();
         await expect(page.getByLabel('Landing page metric')).toHaveValue('total');
         await expect(page.getByLabel('Access method')).toHaveValue('machine');
-        const download = page.waitForEvent('download');
-        await page.getByRole('button', { name: 'Export monthly CSV' }).click();
-        expect((await download).suggestedFilename()).toMatch(/^usage-start-latest-through-.*\.csv$/);
         await page.getByRole('combobox', { name: 'Period', exact: true }).selectOption('legacy');
         await expect(page).toHaveURL(/mode=legacy/);
         await expect(page.getByText(/These are not COUNTER metrics/)).toBeVisible();
@@ -52,4 +51,64 @@ test.describe('Usage statistics', () => {
         await expect(page.getByLabel('Access method')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Export monthly CSV' })).toHaveCount(0);
     });
+
+    for (const range of [
+        { label: 'all months', access: 'regular', from: '', to: '' },
+        { label: 'a bounded month range', access: 'machine', from: '2026-05', to: '2026-09' },
+    ]) {
+        test(`exports ${range.access} usage for ${range.label}`, async ({ page, browserName }) => {
+            await page.goto(`/statistics?access_method=${range.access}`);
+            await expect(page.getByLabel('Access method')).toHaveValue(range.access);
+            await page.getByLabel('From month').fill(range.from);
+            await page.getByLabel('To month').fill(range.to);
+
+            const exportButton = page.getByRole('button', { name: 'Export monthly CSV' });
+            const filenamePattern = new RegExp(
+                `^usage-${range.from || 'start'}-${range.to || 'latest'}-through-(?:pending|\\d{4}-\\d{2}-\\d{2})\\.csv$`,
+            );
+            let exportUrl: URL;
+            let csv: string;
+
+            if (browserName === 'webkit') {
+                // Playwright's Linux WebKit renders attachment navigations instead
+                // of emitting a download: https://github.com/microsoft/playwright/issues/34076.
+                // Verify the real form response, including its download contract.
+                const [response] = await Promise.all([
+                    page.waitForResponse((result) => new URL(result.url()).pathname === '/statistics/usage.csv'),
+                    exportButton.click(),
+                ]);
+                expect(response.status()).toBe(200);
+                expect(response.headers()['content-type']).toBe('text/csv; charset=UTF-8');
+                const disposition = response.headers()['content-disposition'];
+                expect(disposition).toMatch(/^attachment; filename=/);
+                expect(disposition.match(/filename="?([^";]+)"?/)?.[1]).toMatch(filenamePattern);
+                exportUrl = new URL(response.url());
+                csv = await response.text();
+            } else {
+                const [download] = await Promise.all([page.waitForEvent('download'), exportButton.click()]);
+                expect(download.suggestedFilename()).toMatch(filenamePattern);
+                expect(await download.failure()).toBeNull();
+                exportUrl = new URL(download.url());
+                csv = await readFile((await download.path())!, 'utf8');
+            }
+
+            expect(exportUrl.pathname).toBe('/statistics/usage.csv');
+            expect(Object.fromEntries(exportUrl.searchParams)).toEqual({
+                access_method: range.access,
+                from: range.from,
+                to: range.to,
+            });
+            expect(csv.split(/\r?\n/)[0].split(',')).toEqual([
+                'landing_page_id',
+                'identifier',
+                'resource_type',
+                'month',
+                'access_method',
+                'total_investigations',
+                'unique_investigations',
+                'total_requests',
+                'unique_requests',
+            ]);
+        });
+    }
 });
