@@ -62,8 +62,13 @@ async function clickPath(page: Page, path: Locator) {
                 for (let distance = length * 0.1; distance < length * 0.9; distance += 2) {
                     const point = svgPath.getPointAtLength(distance);
                     const screenPoint = new DOMPoint(point.x, point.y).matrixTransform(svgPath.getScreenCTM()!);
-                    if (document.elementFromPoint(screenPoint.x, screenPoint.y) === svgPath) {
-                        return { x: screenPoint.x, y: screenPoint.y };
+                    // Firefox sends mouse events at integer coordinates. Hit-test
+                    // that pixel and its neighbours, away from dashed stroke caps.
+                    const x = Math.round(screenPoint.x);
+                    const y = Math.round(screenPoint.y);
+                    const offsets = [-1, 0, 1];
+                    if (offsets.every((dx) => offsets.every((dy) => document.elementFromPoint(x + dx, y + dy) === svgPath))) {
+                        return { x, y };
                     }
                 }
                 return null;

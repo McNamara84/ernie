@@ -56,7 +56,7 @@ test.describe('Usage statistics', () => {
         { label: 'all months', access: 'regular', from: '', to: '' },
         { label: 'a bounded month range', access: 'machine', from: '2026-05', to: '2026-09' },
     ]) {
-        test(`exports ${range.access} usage for ${range.label}`, async ({ page, browserName }) => {
+        test(`exports ${range.access} usage for ${range.label}`, async ({ page, browserName }, testInfo) => {
             await page.goto(`/statistics?access_method=${range.access}`);
             await expect(page.getByLabel('Access method')).toHaveValue(range.access);
             await page.getByLabel('From month').fill(range.from);
@@ -89,7 +89,10 @@ test.describe('Usage statistics', () => {
                 expect(download.suggestedFilename()).toMatch(filenamePattern);
                 expect(await download.failure()).toBeNull();
                 exportUrl = new URL(download.url());
-                csv = await readFile((await download.path())!, 'utf8');
+                // saveAs also copies downloads from a remote Linux browser.
+                const filePath = testInfo.outputPath('usage.csv');
+                await download.saveAs(filePath);
+                csv = await readFile(filePath, 'utf8');
             }
 
             expect(exportUrl.pathname).toBe('/statistics/usage.csv');
