@@ -22,6 +22,8 @@ use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\PublicTraffic\PublicTrafficRecorderService;
+use App\Services\Usage\CounterEventRecorderService;
+use App\Services\Usage\CounterReadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -384,8 +386,9 @@ class LandingPagePublicController extends Controller
                 $resourceOrders = LandingPageTemplate::normalizeResourceSectionOrders(
                     $templateConfig->left_column_order,
                     $templateConfig->right_column_order,
+                    $templateConfig->hidden_sections ?? [],
                 );
-                $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left']];
+                $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left'], 'hiddenSections' => $resourceOrders['hidden']];
             }
             $customLogoUrl = $templateConfig->logo_url;
 
@@ -415,6 +418,7 @@ class LandingPagePublicController extends Controller
                 'template' => $effectiveTemplate,
                 'props' => [
                     'resource' => $resourceData,
+                    'usage' => app(CounterReadService::class)->landingPage($landingPage),
                     'documentTitle' => $documentMetadata['title'],
                     'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
@@ -452,6 +456,32 @@ class LandingPagePublicController extends Controller
         // Recipient availability is deployment configuration, not landing-page
         // content, so resolve it on every request instead of caching it.
         $renderData['props']['hasDataPublicationTeamRecipient'] = $dataPublicationTeamRecipientService->isAvailable();
+
+        // Keep review-specific URLs outside the shared public render cache.
+        if (app(CounterEventRecorderService::class)->isPreview($request, $landingPage)) {
+            $appendPreview = static fn (string $url): string => $url.(str_contains($url, '?') ? '&' : '?').'preview='.rawurlencode((string) $previewToken);
+            $payload = $renderData['props']['landingPage'];
+            if (is_array($payload)) {
+                if (is_string($payload['tracked_ftp_url'] ?? null)) {
+                    $payload['tracked_ftp_url'] = $appendPreview($payload['tracked_ftp_url']);
+                }
+                foreach (['files', 'links'] as $collection) {
+                    $payload[$collection] = array_map(static function (array $item) use ($appendPreview): array {
+                        if (is_string($item['tracked_url'] ?? null)) {
+                            $item['tracked_url'] = $appendPreview($item['tracked_url']);
+                        }
+
+                        return $item;
+                    }, $payload[$collection] ?? []);
+                }
+                $renderData['props']['landingPage'] = $payload;
+            }
+            $renderData['props']['metadataLinks'] = array_map(static function (array $link) use ($appendPreview): array {
+                $link['url'] = $appendPreview($link['url']);
+
+                return $link;
+            }, $renderData['props']['metadataLinks'] ?? []);
+        }
 
         $inertiaResponse = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
         $viewData = $renderData['viewData'] ?? [];
@@ -540,6 +570,16 @@ class LandingPagePublicController extends Controller
 
             return $file;
         }, $files);
+
+        $landingPageData['links'] = array_map(function (mixed $link) use ($landingPage): mixed {
+            if (is_array($link) && ($link['kind'] ?? null) === 'download' && isset($link['id'])) {
+                $link['tracked_url'] = route('landing-page.download.link', [
+                    'landingPage' => $landingPage->id, 'landingPageLink' => $link['id'],
+                ]);
+            }
+
+            return $link;
+        }, is_array($landingPageData['links'] ?? null) ? $landingPageData['links'] : []);
 
         return $landingPageData;
     }

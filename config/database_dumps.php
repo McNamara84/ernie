@@ -16,6 +16,7 @@ return [
             'description' => 'Current ERNIE application database',
             'connection' => 'mysql',
             'legacy' => false,
+            'exclude_table_data' => ['usage_events', 'usage_search_events'],
             // The bundled MariaDB 11.4+ client verifies certificates by
             // default, while the colocated MySQL container uses its generated
             // self-signed certificate. Keep TLS encryption, but do not require

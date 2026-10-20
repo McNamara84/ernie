@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureValidErnieApiKey;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogUserActivity;
+use App\Http\Middleware\RecordCounterUsage;
 use App\Http\Middleware\TrackLastSeenMiddleware;
 use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernelContract;
@@ -40,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'oai-pmh', // OAI-PMH harvesting endpoint (harvesters send POST without CSRF tokens)
         ]);
 
-        $middleware->web(append: [
+        $middleware->web(prepend: [RecordCounterUsage::class], append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

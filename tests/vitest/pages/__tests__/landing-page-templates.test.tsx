@@ -6,7 +6,12 @@ import axios from 'axios';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { IGSN_HIDDEN_SECTIONS, IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECTIONS } from '@/pages/LandingPages/lib/section-catalog';
+import {
+    IGSN_HIDDEN_SECTIONS,
+    IGSN_LEFT_COLUMN_SECTIONS,
+    IGSN_RIGHT_COLUMN_SECTIONS,
+    RESOURCE_SECTIONS,
+} from '@/pages/LandingPages/lib/section-catalog';
 import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter, LandingPageTypeOption } from '@/types/landing-page';
 
 const defaultRightOrder: LandingPageTemplateConfig['right_column_order'] = [
@@ -22,6 +27,7 @@ const defaultRightOrder: LandingPageTemplateConfig['right_column_order'] = [
     'keywords',
     'metadata_download',
     'location',
+    'usage',
 ];
 
 const locationFirstRightOrder: LandingPageTemplateConfig['right_column_order'] = [
@@ -37,6 +43,7 @@ const locationFirstRightOrder: LandingPageTemplateConfig['right_column_order'] =
     'funders',
     'keywords',
     'metadata_download',
+    'usage',
 ];
 
 const legacyLocationFirstRightOrder = ['location', 'descriptions', 'keywords'] as unknown as LandingPageTemplateConfig['right_column_order'];
@@ -58,6 +65,7 @@ const expandedLegacyLocationFirstOrder = [
     'contributors',
     'funders',
     'metadata_download',
+    'usage',
 ];
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -1086,8 +1094,35 @@ describe('LandingPageTemplatesPage', () => {
             expect(leftEditorTitle).toBeInTheDocument();
             expect(rightEditorTitle).toBeInTheDocument();
             expect(leftEditorTitle.compareDocumentPosition(rightEditorTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-            expect(screen.getByText(/Every Resource module can be reordered or moved between either column/i)).toBeInTheDocument();
+            expect(screen.getByText(/Reorder modules, move them between columns, or hide and restore them/i)).toBeInTheDocument();
             expect(within(screen.getByRole('dialog')).getByText('Cite this Resource')).toBeInTheDocument();
+        });
+
+        it('hides and restores DOI modules with keyboard controls and persists the hidden zone', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+            await user.click(screen.getAllByRole('button', { name: /Edit/i })[0]);
+            const hideUsage = screen.getByRole('button', { name: 'Hide Usage' });
+            hideUsage.focus();
+            await user.keyboard('{Enter}');
+            expect(within(screen.getByTestId('resource-hidden-column')).getByText('Usage')).toBeInTheDocument();
+            const restore = screen.getByRole('button', { name: 'Show Usage in left column' });
+            restore.focus();
+            await user.keyboard('{Enter}');
+            expect(within(screen.getByTestId('resource-left-column')).getByText('Usage')).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: 'Hide License & Rights' }));
+            await user.click(screen.getByRole('button', { name: 'Hide Cite this Resource' }));
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+            await waitFor(() =>
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplate.id}`,
+                    expect.objectContaining({
+                        left_column_order: expect.arrayContaining(['usage']),
+                        hidden_sections: ['licenses', 'citation'],
+                    }),
+                ),
+            );
         });
 
         it('moves a Resource module to the other column and persists both complete columns', async () => {
@@ -1118,7 +1153,7 @@ describe('LandingPageTemplatesPage', () => {
                 right_column_order: string[];
             };
             expect(payload.right_column_order.indexOf('files')).toBe(payload.right_column_order.indexOf('abstract') - 1);
-            expect(new Set([...payload.left_column_order, ...payload.right_column_order]).size).toBe(18);
+            expect(new Set([...payload.left_column_order, ...payload.right_column_order]).size).toBe(RESOURCE_SECTIONS.length);
         });
 
         it('keeps Resource metadata grouped and restores the layout after a drop outside both columns', async () => {

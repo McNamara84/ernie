@@ -248,6 +248,18 @@ PORTAL_MAP_BASEMAP_STYLE_URL=https://maps.example.org/styles/liberty
 
 The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does not provide an SLA; keep the default for ordinary use or self-host when operational guarantees are required.
 
+### COUNTER usage collection
+
+After validating collection and aggregation on Stage, configure a separate
+`COUNTER_SESSION_SECRET` (at least 32 random characters) in the Production stack
+environment and redeploy all PHP services. Keep it independent of `APP_KEY`.
+Migrations leave collection inactive. Plan the one-time
+`php artisan counter:activate` in the app container at a UTC day boundary,
+then verify `php artisan counter:tracking status` and scheduler operation.
+Legacy counters remain frozen after activation, including during pauses.
+Follow the [activation and recovery guide](counter-usage.md) for raw-data backup
+exclusions, retention, recovery and the restriction on rolling back to old images.
+
 ### 5. Verify the first deployment
 
 Save the changes and manually select **Pull and redeploy** for the stack.

@@ -21,6 +21,7 @@ services:
       start_period: 10s
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -271,6 +272,7 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -397,6 +399,7 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -485,6 +488,7 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false

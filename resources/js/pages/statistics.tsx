@@ -1,9 +1,11 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+
+import type { UsageStatus } from './LandingPages/components/UsageSection';
 
 type StatisticsOverview = {
     totalPageViews: number;
@@ -38,7 +40,6 @@ type TypeSplit = {
     resourcePageViews: number;
     physicalObjectPageViews: number;
     resourceDownloadClicks: number;
-    physicalObjectDownloadClicks: number;
 };
 
 type StatisticsPageProps = {
@@ -48,7 +49,10 @@ type StatisticsPageProps = {
     topLandingPagesByDownloads: RankedLandingPage[];
     portalSearchTerms: SearchTermStat[];
     typeSplit: TypeSplit;
-    lastUpdated: string;
+    lastUpdated: string | null;
+    usageStatus: UsageStatus;
+    filters: { mode: 'counter' | 'legacy'; metric: 'unique' | 'total'; access_method: 'regular' | 'machine' };
+    legacyPeriod: { from: string | null; until: string | null };
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -241,7 +245,7 @@ function SearchTermsCard({ items }: { items: SearchTermStat[] }) {
     );
 }
 
-function TypeSplitCard({ title, pageViews, downloadClicks }: { title: string; pageViews: number; downloadClicks: number }) {
+function TypeSplitCard({ title, pageViews, downloadClicks }: { title: string; pageViews: number; downloadClicks?: number }) {
     return (
         <Card className="border-border/70 bg-card/80 backdrop-blur">
             <CardHeader>
@@ -253,10 +257,12 @@ function TypeSplitCard({ title, pageViews, downloadClicks }: { title: string; pa
                     <p className="text-sm text-muted-foreground">Page views</p>
                     <p className="mt-2 text-2xl font-semibold text-foreground">{formatCompactNumber(pageViews)}</p>
                 </div>
-                <div className="rounded-2xl bg-muted/40 p-4">
-                    <p className="text-sm text-muted-foreground">Download clicks</p>
-                    <p className="mt-2 text-2xl font-semibold text-foreground">{formatCompactNumber(downloadClicks)}</p>
-                </div>
+                {downloadClicks !== undefined && (
+                    <div className="rounded-2xl bg-muted/40 p-4">
+                        <p className="text-sm text-muted-foreground">Download clicks</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{formatCompactNumber(downloadClicks)}</p>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -270,7 +276,12 @@ export default function Statistics({
     portalSearchTerms,
     typeSplit,
     lastUpdated,
+    usageStatus,
+    filters,
+    legacyPeriod,
 }: StatisticsPageProps) {
+    const legacy = filters.mode === 'legacy';
+    const change = (updates: Partial<typeof filters>) => router.get('/statistics', { ...filters, ...updates }, { preserveScroll: true });
     const hasAnyAnalytics = overview.totalPageViews > 0 || overview.totalDownloadClicks > 0 || overview.totalPortalSearches > 0;
 
     return (
@@ -282,27 +293,110 @@ export default function Statistics({
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
                             <Badge variant="secondary" className="bg-white/70 text-gfz-primary dark:bg-white/10 dark:text-sky-100">
-                                Go-live analytics
+                                {legacy ? 'Before COUNTER' : 'COUNTER Research Data'}
                             </Badge>
                             <div className="space-y-2">
                                 <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">Public engagement statistics</h1>
                                 <p className="max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
-                                    This dashboard tracks published landing page views, file download clicks, and explicit portal search submissions.
-                                    Review and preview traffic is excluded.
+                                    {legacy
+                                        ? `Historical counters from ${legacyPeriod.from ?? 'the first observation'} until ${legacyPeriod.until ?? 'COUNTER activation (pending)'}. These are not COUNTER metrics.`
+                                        : 'Investigations include landing pages, public metadata and download-link clicks. Requests measure download clicks, not completed transfers. IGSNs have investigations only.'}
                                 </p>
                             </div>
                         </div>
                         <div className="rounded-2xl border border-white/50 bg-white/60 px-4 py-3 text-sm text-muted-foreground shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-                            Last updated: {formatDateTime(lastUpdated)}
+                            {legacy ? 'Frozen at' : 'Last aggregated'}: {lastUpdated ? formatDateTime(lastUpdated) : 'Pending'}
+                            {!legacy && <p>Data through: {usageStatus.dataThrough ?? 'Pending'} (UTC)</p>}
                         </div>
                     </div>
                 </section>
 
+                <section className="space-y-3 rounded-xl border p-4" aria-label="Statistics filters">
+                    <div className="flex flex-wrap items-end gap-4">
+                        <label className="grid gap-1 text-sm">
+                            Period
+                            <select
+                                className="rounded border bg-background p-2"
+                                value={filters.mode}
+                                onChange={(event) => change({ mode: event.target.value as typeof filters.mode })}
+                            >
+                                <option value="counter">COUNTER</option>
+                                <option value="legacy">Before COUNTER</option>
+                            </select>
+                        </label>
+                        {!legacy && (
+                            <>
+                                <label className="grid gap-1 text-sm">
+                                    Landing page metric
+                                    <select
+                                        className="rounded border bg-background p-2"
+                                        value={filters.metric}
+                                        onChange={(event) => change({ metric: event.target.value as typeof filters.metric })}
+                                    >
+                                        <option value="unique">Unique</option>
+                                        <option value="total">Total</option>
+                                    </select>
+                                </label>
+                                <label className="grid gap-1 text-sm">
+                                    Access method
+                                    <select
+                                        className="rounded border bg-background p-2"
+                                        value={filters.access_method}
+                                        onChange={(event) => change({ access_method: event.target.value as typeof filters.access_method })}
+                                    >
+                                        <option value="regular">Regular</option>
+                                        <option value="machine">Machine</option>
+                                    </select>
+                                </label>
+                            </>
+                        )}
+                        <a href="/usage-statistics" className="py-2 text-sm underline">
+                            How we count
+                        </a>
+                    </div>
+                    {!legacy && (
+                        <>
+                            <p className="text-sm text-muted-foreground">
+                                Total / Unique changes resource metrics only. Portal searches always show filtered search counts. Access method
+                                applies to both.
+                            </p>
+                            {usageStatus.state === 'inactive' && <p role="status">COUNTER collection has not started.</p>}
+                            {usageStatus.state === 'pending' && <p role="status">The first daily aggregation is pending.</p>}
+                            {(usageStatus.paused || usageStatus.incompleteDays.length > 0) && (
+                                <p role="status">
+                                    Observations are incomplete{usageStatus.paused ? '; collection is paused' : ''}. Affected UTC days:{' '}
+                                    {usageStatus.incompleteDays.join(', ')}.
+                                </p>
+                            )}
+                            <form action="/statistics/usage.csv" method="get" className="flex flex-wrap items-end gap-3">
+                                <input type="hidden" name="access_method" value={filters.access_method} />
+                                <label className="grid gap-1 text-sm">
+                                    From month <input className="rounded border p-2" type="month" name="from" />
+                                </label>
+                                <label className="grid gap-1 text-sm">
+                                    To month <input className="rounded border p-2" type="month" name="to" />
+                                </label>
+                                <button type="submit" className="rounded border px-3 py-2 text-sm">
+                                    Export monthly CSV
+                                </button>
+                                <p className="w-full text-xs text-muted-foreground">
+                                    Blank dates export all months. Includes all four metrics for the selected access method, through{' '}
+                                    {usageStatus.dataThrough ?? 'the first aggregation (pending)'}.
+                                </p>
+                            </form>
+                        </>
+                    )}
+                </section>
+
                 <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <OverviewCard
-                        title="Landing page views"
+                        title={legacy ? 'Landing page views' : 'Investigations'}
                         value={overview.totalPageViews}
-                        description="Published landing page requests tracked since go-live."
+                        description={
+                            legacy
+                                ? 'Published landing page requests before COUNTER.'
+                                : `${filters.metric === 'unique' ? 'Unique' : 'Total'} investigations since activation.`
+                        }
                     />
                     <OverviewCard
                         title="Download clicks"
@@ -312,7 +406,7 @@ export default function Statistics({
                     <OverviewCard
                         title="Portal searches"
                         value={overview.totalPortalSearches}
-                        description="Explicit submissions from the public portal search slot."
+                        description="Successful free-text submissions and direct search URLs; no unique metric."
                     />
                     <OverviewCard
                         title="Tracked landing pages"
@@ -325,8 +419,7 @@ export default function Statistics({
                     <section>
                         <Card className="border-dashed border-border/80 bg-card/60">
                             <CardContent className="p-6 text-sm text-muted-foreground">
-                                No analytics have been recorded yet. Metrics start at go-live and will fill in as published landing pages and portal
-                                searches receive traffic.
+                                No aggregated usage is available for this selection yet.
                             </CardContent>
                         </Card>
                     </section>
@@ -334,8 +427,8 @@ export default function Statistics({
 
                 <section className="grid gap-4 xl:grid-cols-3">
                     <TrendCard
-                        title="Landing page views"
-                        description="Daily published landing page traffic over the last 14 days."
+                        title={legacy ? 'Landing page views' : 'Investigations'}
+                        description="Daily usage over up to 14 completed UTC days."
                         days={trends.days}
                         values={trends.pageViews}
                         toneClass="bg-gradient-to-t from-gfz-primary to-sky-500"
@@ -374,11 +467,7 @@ export default function Statistics({
                 <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
                     <div className="grid gap-4 md:grid-cols-2">
                         <TypeSplitCard title="Resources" pageViews={typeSplit.resourcePageViews} downloadClicks={typeSplit.resourceDownloadClicks} />
-                        <TypeSplitCard
-                            title="Physical Objects"
-                            pageViews={typeSplit.physicalObjectPageViews}
-                            downloadClicks={typeSplit.physicalObjectDownloadClicks}
-                        />
+                        <TypeSplitCard title="Physical Objects" pageViews={typeSplit.physicalObjectPageViews} />
                     </div>
                     <SearchTermsCard items={portalSearchTerms} />
                 </section>

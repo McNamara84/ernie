@@ -63,14 +63,6 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             /** @var LandingPageTemplate $template */
             $template = $this->route('landingPageTemplate');
 
-            if ($this->has('hidden_sections')
-                && $template->template_type !== LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
-                $validator->errors()->add(
-                    'hidden_sections',
-                    'Hidden sections are only available for IGSN templates.'
-                );
-            }
-
             if ($this->hasAny(['right_column_order', 'left_column_order', 'hidden_sections'])) {
                 if (! $this->has('right_column_order')) {
                     $validator->errors()->add(
@@ -96,7 +88,7 @@ class UpdateLandingPageTemplateRequest extends FormRequest
 
                 $rightOrder = $this->input('right_column_order', []);
                 $leftOrder = $this->input('left_column_order', []);
-                $hiddenSections = $this->input('hidden_sections', []);
+                $hiddenSections = $this->input('hidden_sections', $template->hidden_sections ?? []);
                 if (! is_array($rightOrder)
                     || ! is_array($leftOrder)
                     || ! is_array($hiddenSections)
@@ -120,10 +112,10 @@ class UpdateLandingPageTemplateRequest extends FormRequest
                 }
 
                 if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE
-                    && ! LandingPageTemplate::isValidResourceSectionLayout($leftOrder, $rightOrder)) {
+                    && ! LandingPageTemplate::isValidResourceSectionLayout($leftOrder, $rightOrder, $hiddenSections)) {
                     $validator->errors()->add(
                         'right_column_order',
-                        'Resource columns must contain every valid resource section exactly once and keep metadata sections grouped within each column.'
+                        'Resource layout zones must contain every valid resource section exactly once and keep visible metadata sections grouped within each column.'
                     );
                 }
             }

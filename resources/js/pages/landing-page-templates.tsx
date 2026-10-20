@@ -106,7 +106,7 @@ function SortableSectionItem({ id, label, actions }: { id: string; label: string
 type LayoutScope = 'igsn' | 'resource';
 type LayoutSection = IgsnSection | ResourceSection;
 type TemplateColumnId = `${LayoutScope}-left-column` | `${LayoutScope}-right-column`;
-type IgsnColumnId = TemplateColumnId | 'igsn-hidden-column';
+type IgsnColumnId = TemplateColumnId | `${LayoutScope}-hidden-column`;
 
 function columnIds(scope: LayoutScope): { left: TemplateColumnId; right: TemplateColumnId } {
     return {
@@ -168,16 +168,27 @@ export function moveIgsnSection(
     hidden: readonly IgsnSection[],
     activeId: string,
     overId: string,
-): { left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] } {
+) {
+    return moveZonedSection('igsn', left, right, hidden, activeId, overId);
+}
+
+function moveZonedSection(
+    scope: LayoutScope,
+    left: readonly LayoutSection[],
+    right: readonly LayoutSection[],
+    hidden: readonly LayoutSection[],
+    activeId: string,
+    overId: string,
+): { left: LayoutSection[]; right: LayoutSection[]; hidden: LayoutSection[] } {
     const columns: Record<'left' | 'right' | 'hidden', IgsnColumnId> = {
-        left: 'igsn-left-column',
-        right: 'igsn-right-column',
-        hidden: 'igsn-hidden-column',
+        left: `${scope}-left-column`,
+        right: `${scope}-right-column`,
+        hidden: `${scope}-hidden-column`,
     };
     const findZone = (id: string): keyof typeof columns | null => {
-        if (id === columns.left || left.includes(id as IgsnSection)) return 'left';
-        if (id === columns.right || right.includes(id as IgsnSection)) return 'right';
-        if (id === columns.hidden || hidden.includes(id as IgsnSection)) return 'hidden';
+        if (id === columns.left || left.includes(id as LayoutSection)) return 'left';
+        if (id === columns.right || right.includes(id as LayoutSection)) return 'right';
+        if (id === columns.hidden || hidden.includes(id as LayoutSection)) return 'hidden';
         return null;
     };
     const sourceZone = findZone(activeId);
@@ -189,17 +200,17 @@ export function moveIgsnSection(
 
     const source = next[sourceZone];
     const target = next[targetZone];
-    const oldIndex = source.indexOf(activeId as IgsnSection);
+    const oldIndex = source.indexOf(activeId as LayoutSection);
     if (oldIndex === -1) return next;
 
     if (sourceZone === targetZone) {
-        const overIndex = overId === columns[targetZone] ? target.length - 1 : target.indexOf(overId as IgsnSection);
+        const overIndex = overId === columns[targetZone] ? target.length - 1 : target.indexOf(overId as LayoutSection);
         if (overIndex >= 0) next[sourceZone] = arrayMove(source, oldIndex, overIndex);
         return next;
     }
 
     const [moved] = source.splice(oldIndex, 1);
-    const overIndex = overId === columns[targetZone] ? target.length : target.indexOf(overId as IgsnSection);
+    const overIndex = overId === columns[targetZone] ? target.length : target.indexOf(overId as LayoutSection);
     target.splice(overIndex < 0 ? target.length : overIndex, 0, moved);
     return next;
 }
@@ -247,29 +258,33 @@ function TemplateColumn<T extends LayoutSection>({
     );
 }
 
-function IgsnSectionOrderEditor({
+function ZonedSectionOrderEditor({
+    scope,
     left,
     right,
     hidden,
     onChange,
 }: {
-    left: IgsnSection[];
-    right: IgsnSection[];
-    hidden: IgsnSection[];
-    onChange: (orders: { left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] }) => void;
+    scope: LayoutScope;
+    left: LayoutSection[];
+    right: LayoutSection[];
+    hidden: LayoutSection[];
+    onChange: (orders: { left: LayoutSection[]; right: LayoutSection[]; hidden: LayoutSection[] }) => void;
 }) {
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-    const snapshot = useRef<{ left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] } | null>(null);
-    const normalize = (orders: { left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] }) =>
-        normalizeIgsnColumnOrders(orders.left, orders.right, orders.hidden);
-    const move = (section: IgsnSection, target: IgsnColumnId) => onChange(normalize(moveIgsnSection(left, right, hidden, section, target)));
+    const snapshot = useRef<{ left: LayoutSection[]; right: LayoutSection[]; hidden: LayoutSection[] } | null>(null);
+    const normalize = (orders: { left: LayoutSection[]; right: LayoutSection[]; hidden: LayoutSection[] }) =>
+        scope === 'igsn'
+            ? normalizeIgsnColumnOrders(orders.left, orders.right, orders.hidden)
+            : normalizeResourceColumnOrders(orders.left, orders.right, orders.hidden);
+    const move = (section: LayoutSection, target: IgsnColumnId) => onChange(normalize(moveZonedSection(scope, left, right, hidden, section, target)));
     const zoneFor = (id: string): IgsnColumnId | null => {
-        if (id === 'igsn-left-column' || left.includes(id as IgsnSection)) return 'igsn-left-column';
-        if (id === 'igsn-right-column' || right.includes(id as IgsnSection)) return 'igsn-right-column';
-        if (id === 'igsn-hidden-column' || hidden.includes(id as IgsnSection)) return 'igsn-hidden-column';
+        if (id === `${scope}-left-column` || left.includes(id as LayoutSection)) return `${scope}-left-column`;
+        if (id === `${scope}-right-column` || right.includes(id as LayoutSection)) return `${scope}-right-column`;
+        if (id === `${scope}-hidden-column` || hidden.includes(id as LayoutSection)) return `${scope}-hidden-column`;
         return null;
     };
-    const actionsFor = (zone: 'left' | 'right' | 'hidden') => (section: IgsnSection) =>
+    const actionsFor = (zone: 'left' | 'right' | 'hidden') => (section: LayoutSection) =>
         zone === 'hidden' ? (
             <div className="flex gap-1">
                 <Button
@@ -277,8 +292,8 @@ function IgsnSectionOrderEditor({
                     variant="ghost"
                     size="icon"
                     className="size-7"
-                    aria-label={`Show ${IGSN_SECTION_LABELS[section]} in left column`}
-                    onClick={() => move(section, 'igsn-left-column')}
+                    aria-label={`Show ${scope === 'igsn' ? IGSN_SECTION_LABELS[section as IgsnSection] : SECTION_LABELS[section]} in left column`}
+                    onClick={() => move(section, `${scope}-left-column`)}
                 >
                     <ArrowLeft className="size-4" />
                 </Button>
@@ -287,8 +302,8 @@ function IgsnSectionOrderEditor({
                     variant="ghost"
                     size="icon"
                     className="size-7"
-                    aria-label={`Show ${IGSN_SECTION_LABELS[section]} in right column`}
-                    onClick={() => move(section, 'igsn-right-column')}
+                    aria-label={`Show ${scope === 'igsn' ? IGSN_SECTION_LABELS[section as IgsnSection] : SECTION_LABELS[section]} in right column`}
+                    onClick={() => move(section, `${scope}-right-column`)}
                 >
                     <ArrowRight className="size-4" />
                 </Button>
@@ -299,8 +314,8 @@ function IgsnSectionOrderEditor({
                 variant="ghost"
                 size="icon"
                 className="size-7"
-                aria-label={`Hide ${IGSN_SECTION_LABELS[section]}`}
-                onClick={() => move(section, 'igsn-hidden-column')}
+                aria-label={`Hide ${scope === 'igsn' ? IGSN_SECTION_LABELS[section as IgsnSection] : SECTION_LABELS[section]}`}
+                onClick={() => move(section, `${scope}-hidden-column`)}
             >
                 <EyeOff className="size-4" />
             </Button>
@@ -313,7 +328,7 @@ function IgsnSectionOrderEditor({
         if (!event.over) return;
         const activeId = String(event.active.id);
         const overId = String(event.over.id);
-        if (zoneFor(activeId) !== zoneFor(overId)) onChange(normalize(moveIgsnSection(left, right, hidden, activeId, overId)));
+        if (zoneFor(activeId) !== zoneFor(overId)) onChange(normalize(moveZonedSection(scope, left, right, hidden, activeId, overId)));
     };
     const handleDragEnd = (event: DragEndEvent) => {
         if (!event.over) {
@@ -323,13 +338,16 @@ function IgsnSectionOrderEditor({
         }
         const initial = snapshot.current ?? { left, right, hidden };
         snapshot.current = null;
-        onChange(normalize(moveIgsnSection(initial.left, initial.right, initial.hidden, String(event.active.id), String(event.over.id))));
+        onChange(normalize(moveZonedSection(scope, initial.left, initial.right, initial.hidden, String(event.active.id), String(event.over.id))));
     };
 
     return (
         <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-                Reorder modules, move them between columns, or hide and restore them. The Version Notice can move but always remains visible.
+                Reorder modules, move them between columns, or hide and restore them.{' '}
+                {scope === 'igsn'
+                    ? 'The Version Notice always remains visible.'
+                    : 'Visible metadata modules remain grouped. Key Publication and Dataset Description follow License & Rights.'}
             </p>
             <DndContext
                 sensors={sensors}
@@ -344,94 +362,26 @@ function IgsnSectionOrderEditor({
             >
                 <div className="grid gap-6 md:grid-cols-3">
                     <TemplateColumn
-                        id="igsn-left-column"
+                        id={`${scope}-left-column`}
                         title="Left Column (sidebar)"
                         items={left}
                         actions={actionsFor('left')}
-                        labelFor={(section) => IGSN_SECTION_LABELS[section]}
+                        labelFor={(section) => (scope === 'igsn' ? IGSN_SECTION_LABELS[section as IgsnSection] : SECTION_LABELS[section])}
                     />
                     <TemplateColumn
-                        id="igsn-right-column"
+                        id={`${scope}-right-column`}
                         title="Right Column (main content)"
                         items={right}
                         actions={actionsFor('right')}
-                        labelFor={(section) => IGSN_SECTION_LABELS[section]}
+                        labelFor={(section) => (scope === 'igsn' ? IGSN_SECTION_LABELS[section as IgsnSection] : SECTION_LABELS[section])}
                     />
                     <TemplateColumn
-                        id="igsn-hidden-column"
+                        id={`${scope}-hidden-column`}
                         title="Hidden cards"
                         items={hidden}
                         actions={actionsFor('hidden')}
-                        labelFor={(section) => IGSN_SECTION_LABELS[section]}
+                        labelFor={(section) => (scope === 'igsn' ? IGSN_SECTION_LABELS[section as IgsnSection] : SECTION_LABELS[section])}
                     />
-                </div>
-            </DndContext>
-        </div>
-    );
-}
-
-function FlexibleSectionOrderEditor<T extends LayoutSection>({
-    scope,
-    left,
-    right,
-    onChange,
-    normalize,
-    description,
-}: {
-    scope: LayoutScope;
-    left: T[];
-    right: T[];
-    onChange: (orders: { left: T[]; right: T[] }) => void;
-    normalize: (left: readonly T[], right: readonly T[]) => { left: T[]; right: T[] };
-    description: string;
-}) {
-    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-    const snapshot = useRef<{ left: T[]; right: T[] } | null>(null);
-
-    const handleDragStart = (event: DragStartEvent) => {
-        if (findTemplateColumn(scope, String(event.active.id), left, right) !== null) snapshot.current = { left: [...left], right: [...right] };
-    };
-    const handleDragOver = (event: DragOverEvent) => {
-        if (!event.over) return;
-        const activeId = String(event.active.id);
-        const overId = String(event.over.id);
-        if (findTemplateColumn(scope, activeId, left, right) !== findTemplateColumn(scope, overId, left, right)) {
-            const moved = moveTemplateSection(scope, left, right, activeId, overId);
-            onChange(normalize(moved.left, moved.right));
-        }
-    };
-    const handleDragEnd = (event: DragEndEvent) => {
-        if (!event.over) {
-            if (snapshot.current) onChange(snapshot.current);
-            snapshot.current = null;
-            return;
-        }
-
-        const initialOrders = snapshot.current ?? { left, right };
-        snapshot.current = null;
-        const moved = moveTemplateSection(scope, initialOrders.left, initialOrders.right, String(event.active.id), String(event.over.id));
-        onChange(normalize(moved.left, moved.right));
-    };
-
-    const columns = columnIds(scope);
-
-    return (
-        <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">{description}</p>
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
-                onDragCancel={() => {
-                    if (snapshot.current) onChange(snapshot.current);
-                    snapshot.current = null;
-                }}
-            >
-                <div className="grid gap-6 md:grid-cols-2">
-                    <TemplateColumn id={columns.left} title="Left Column (sidebar)" items={left} />
-                    <TemplateColumn id={columns.right} title="Right Column (main content)" items={right} />
                 </div>
             </DndContext>
         </div>
@@ -678,10 +628,10 @@ export default function LandingPageTemplatesPage() {
             setEditRightOrder(orders.right);
             setEditHiddenSections(orders.hidden);
         } else {
-            const orders = normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order);
+            const orders = normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections);
             setEditLeftOrder(orders.left);
             setEditRightOrder(orders.right);
-            setEditHiddenSections([]);
+            setEditHiddenSections(orders.hidden);
         }
         setEditCreatorDisplayLimit(String(tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
@@ -712,7 +662,7 @@ export default function LandingPageTemplatesPage() {
             const normalizedOrders =
                 editTemplate.template_type === 'igsn'
                     ? normalizeIgsnColumnOrders(editLeftOrder, editRightOrder, editHiddenSections)
-                    : normalizeResourceColumnOrders(editLeftOrder, editRightOrder);
+                    : normalizeResourceColumnOrders(editLeftOrder, editRightOrder, editHiddenSections);
             const igsnLayout = 'hidden' in normalizedOrders ? { hidden_sections: normalizedOrders.hidden } : {};
             const payload = editTemplate.is_default
                 ? {
@@ -935,7 +885,8 @@ export default function LandingPageTemplatesPage() {
                                             {(tmpl.template_type === 'igsn'
                                                 ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections)
                                                       .left
-                                                : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order).left
+                                                : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections)
+                                                      .left
                                             ).map((key) => (
                                                 <li key={key}>
                                                     {tmpl.template_type === 'igsn'
@@ -951,7 +902,8 @@ export default function LandingPageTemplatesPage() {
                                             {(tmpl.template_type === 'igsn'
                                                 ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections)
                                                       .right
-                                                : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order).right
+                                                : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections)
+                                                      .right
                                             ).map((key) => (
                                                 <li key={key}>
                                                     {tmpl.template_type === 'igsn'
@@ -961,20 +913,18 @@ export default function LandingPageTemplatesPage() {
                                             ))}
                                         </ol>
                                     </div>
-                                    {tmpl.template_type === 'igsn' && (
-                                        <div>
-                                            <span className="font-medium text-foreground">Hidden:</span>
-                                            <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
-                                                {normalizeIgsnColumnOrders(
-                                                    tmpl.left_column_order,
-                                                    tmpl.right_column_order,
-                                                    tmpl.hidden_sections,
-                                                ).hidden.map((key) => (
-                                                    <li key={key}>{IGSN_SECTION_LABELS[key] ?? key}</li>
-                                                ))}
-                                            </ol>
-                                        </div>
-                                    )}
+                                    <div>
+                                        <span className="font-medium text-foreground">Hidden:</span>
+                                        <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
+                                            {(tmpl.template_type === 'igsn' ? normalizeIgsnColumnOrders : normalizeResourceColumnOrders)(
+                                                tmpl.left_column_order,
+                                                tmpl.right_column_order,
+                                                tmpl.hidden_sections,
+                                            ).hidden.map((key) => (
+                                                <li key={key}>{SECTION_LABELS[key] ?? key}</li>
+                                            ))}
+                                        </ol>
+                                    </div>
                                 </div>
 
                                 {/* Actions */}
@@ -1205,30 +1155,17 @@ export default function LandingPageTemplatesPage() {
                             <>
                                 <Separator />
 
-                                {editTemplate?.template_type === 'igsn' ? (
-                                    <IgsnSectionOrderEditor
-                                        left={editLeftOrder as IgsnSection[]}
-                                        right={editRightOrder as IgsnSection[]}
-                                        hidden={editHiddenSections as IgsnSection[]}
-                                        onChange={(orders) => {
-                                            setEditLeftOrder(orders.left);
-                                            setEditRightOrder(orders.right);
-                                            setEditHiddenSections(orders.hidden);
-                                        }}
-                                    />
-                                ) : (
-                                    <FlexibleSectionOrderEditor
-                                        scope="resource"
-                                        left={editLeftOrder as ResourceSection[]}
-                                        right={editRightOrder as ResourceSection[]}
-                                        normalize={normalizeResourceColumnOrders}
-                                        description="Every Resource module can be reordered or moved between either column. Key Publication and Dataset Description automatically follow License & Rights. Metadata modules remain grouped inside the existing shared metadata card."
-                                        onChange={(orders) => {
-                                            setEditLeftOrder(orders.left);
-                                            setEditRightOrder(orders.right);
-                                        }}
-                                    />
-                                )}
+                                <ZonedSectionOrderEditor
+                                    scope={editTemplate?.template_type === 'igsn' ? 'igsn' : 'resource'}
+                                    left={editLeftOrder as LayoutSection[]}
+                                    right={editRightOrder as LayoutSection[]}
+                                    hidden={editHiddenSections as LayoutSection[]}
+                                    onChange={(orders) => {
+                                        setEditLeftOrder(orders.left);
+                                        setEditRightOrder(orders.right);
+                                        setEditHiddenSections(orders.hidden);
+                                    }}
+                                />
                             </>
                         )}
                     </div>

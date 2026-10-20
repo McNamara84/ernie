@@ -8,7 +8,9 @@ use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Services\IgsnSampleFamilyService;
+use App\Services\Usage\CounterTrackingStateService;
 use App\Support\Traits\ChecksCacheTagging;
+use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -35,17 +37,25 @@ class LandingPageRenderDataCacheService
 
         /** @var array{template: string, props: array<string, mixed>, viewData?: array<string, mixed>} */
         return $this->getCacheInstance($cacheKey->tags())
-            ->remember($cacheKey->key($landingPage->id), $cacheKey->ttl(), $resolver);
+            ->remember($this->renderKey($landingPage->id), $cacheKey->ttl(), $resolver);
     }
 
     public function forget(LandingPage $landingPage): bool
     {
-        return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPage->id);
+        return $this->forgetById($landingPage->id);
     }
 
     public function forgetById(int $landingPageId): bool
     {
-        return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPageId);
+        return $this->getCacheInstance(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->forget($this->renderKey($landingPageId));
+    }
+
+    private function renderKey(int $landingPageId): string
+    {
+        $state = app(CounterTrackingStateService::class)->read();
+        $base = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPageId);
+
+        return $state->started_at === null ? $base : $base.':usage:'.$state->metrics_revision.':'.CarbonImmutable::now('UTC')->format('Y-m');
     }
 
     /**
