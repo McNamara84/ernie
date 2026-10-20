@@ -822,7 +822,7 @@ erDiagram
         timestamp updated_at
     }
 
-    %% COUNTER usage: explicit activation; legacy statistics below freeze at activation.
+    %% COUNTER usage, collected only after explicit activation.
     usage_list_versions {
         bigint id PK
         char checksum UK "64"
@@ -910,6 +910,7 @@ erDiagram
     %% Periods, hashes, and search scopes have no FK constraints.
     %% List versions are retained; deleting a landing page cascades only its events and resource metrics.
 
+    %% landing_page_daily_statistics and portal_search_daily_statistics freeze at COUNTER activation.
     landing_page_daily_statistics {
         bigint id PK
         bigint landing_page_id FK
