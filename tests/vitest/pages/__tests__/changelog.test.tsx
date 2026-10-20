@@ -289,6 +289,7 @@ describe('Changelog', () => {
         expect(firstButton).toHaveAttribute('aria-expanded', 'true');
         expect(await screen.findByText(/Resources workspace/i)).toBeInTheDocument();
         expect(screen.getByText(/Dashboard overview/i)).toBeInTheDocument();
+        expect(screen.queryByText('No changes have been recorded for this version yet.')).not.toBeInTheDocument();
         await user.click(lastButton);
         expect(lastButton).toHaveAttribute('aria-expanded', 'true');
         expect(firstButton).toHaveAttribute('aria-expanded', 'false');
@@ -298,6 +299,31 @@ describe('Changelog', () => {
         await vi.waitFor(() => {
             expect(screen.queryByText(/Minor improvements/i)).not.toBeInTheDocument();
         });
+    });
+
+    it.each([
+        { name: 'empty change arrays', sections: { features: [], improvements: [], fixes: [] } },
+        { name: 'omitted change arrays', sections: {} },
+    ])('shows an empty state for a version with $name', async ({ sections }) => {
+        vi.mocked(fetch).mockResolvedValueOnce({
+            ok: true,
+            json: async () => [{ version: '1.2.0dev', date: '2026-10-20', ...sections }],
+        } as Response);
+
+        const user = userEvent.setup();
+        render(<Changelog />);
+
+        const button = await screen.findByRole('button', { name: /version 1\.2\.0dev/i });
+        expect(button).toHaveAttribute('aria-expanded', 'true');
+        const panel = screen.getByRole('region', { name: /version 1\.2\.0dev/i });
+        expect(within(panel).getByText('No changes have been recorded for this version yet.')).toBeVisible();
+        expect(within(panel).queryByRole('heading')).not.toBeInTheDocument();
+
+        await user.click(button);
+        expect(button).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByRole('region', { name: /version 1\.2\.0dev/i })).not.toBeInTheDocument();
+        await user.click(button);
+        expect(screen.getByText('No changes have been recorded for this version yet.')).toBeVisible();
     });
 
     it('renders optional GitHub references as safe external links with accessible labels', async () => {
