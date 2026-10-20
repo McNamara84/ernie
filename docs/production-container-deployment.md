@@ -17,22 +17,19 @@ immutable, release-approved images.
    Stage independently follows `dev` through `deploy/stage`.
 4. Test these exact images in the [isolated release stack](release-candidate-testing.md),
    record the candidate SHA and digests, and obtain the release Go/No-Go decision.
-5. Publish a stable GitHub release for that fixed commit. The read-only
-   `Production Release Signal` workflow records the event.
+5. Publish a stable GitHub release for that fixed commit to authorize Production
+   deployment. The read-only `Production Release Signal` workflow records the event.
 6. `Promote Production Release`, loaded from the default branch through
    `workflow_run`, verifies the release and exact `main` CI results in `validate`.
 7. Its read-only `inspect` job reads the immutable `artifacts/main` record,
    requires its version to match the release tag, verifies all three image
    manifests, and scans them again for HIGH and CRITICAL vulnerabilities.
-8. The read-only `approve` job waits for a required reviewer of the GitHub
-   **`production` environment**. Approve only when the workflow summary matches
-   the SHA and three digests in the release test report.
-9. After approval, `promote` receives repository write access, verifies that the
-   release is still the latest and highest stable release, writes those same
-   digests into `docker-compose.prod.yml`, and advances `deploy/prod` with a
+8. After those checks pass, `promote` receives repository write access, verifies
+   that the release is still the latest and highest stable release, writes those
+   same digests into `docker-compose.prod.yml`, and advances `deploy/prod` with a
    compare-and-swap push.
-10. Portainer detects the changed deployment commit and recreates Production
-    from the approved images.
+9. Portainer detects the changed deployment commit and recreates Production
+   from the tested images. No additional approval in Actions is required.
 
 No developer works on or merges into `deploy/prod`. Its commits record the
 release tag and source SHA, retain the validated source commit as a parent,
@@ -132,7 +129,6 @@ Automatic Production promotion requires all of the following:
 - `artifacts/main` contains a validated record for that exact source SHA;
 - the recorded application version equals the stable release version;
 - all three recorded image manifests still exist and pass the new digest scan;
-- the `production` environment has required reviewers and the candidate is approved;
 - the release remains latest immediately before `deploy/prod` is updated.
 
 Publishing a prerelease, an older release, or a release for an unvalidated or
@@ -156,7 +152,9 @@ write-capable workflow from being dispatched manually.
 ## One-time rollout
 
 For an existing `deploy/prod` installation, keep its Portainer settings and
-volumes unchanged. Complete the GitHub environment setup below; the current
+volumes unchanged. Merge the workflow changes through the normal reviewed PR
+process; no `production` environment setup is required. An existing environment
+is not referenced by this workflow and can remain in place. The current
 Production deployment stays active during the transition. Old releases without
 `artifacts/main` records cannot be promoted through the new workflow. Do not
 rebuild or retag an old release to bypass candidate testing.
@@ -175,13 +173,13 @@ Production needs outbound HTTPS access to the Git repository, `ghcr.io`, and
 the GHCR authentication endpoint when the packages are private. No inbound
 connection from GitHub to the Production Portainer server is required.
 
-### 2. Configure approval and test the intended release commit
+### 2. Test the intended release commit
 
-Merge the implementation through the normal pull-request process. Create the
-GitHub environment **`production`**, restrict deployment branches to **`main`**,
-and configure at least one **required reviewer**. Promotion fails if this
-protection is missing. See [Branching and Releases](branching-and-releases.md#3-one-time-preparation)
-for the full rollout setup.
+Merge the implementation through the normal pull-request process. Publishing
+the tested stable GitHub release is the Production authorization; there is no
+separate environment approval. See
+[Branching and Releases](branching-and-releases.md#3-one-time-preparation) for the
+full rollout setup.
 
 Wait until all six validation workflows and `Publish Validated Images` succeed
 for the exact release commit. Finalize the first changelog entry to the stable
@@ -207,8 +205,7 @@ Wait for:
 
 1. `Production Release Signal` to finish successfully;
 2. `Promote Production Release` to finish successfully with `validate`,
-   `inspect`, `approve`, and `promote` executed rather than skipped. Complete the
-   protected environment review by checking the candidate test report.
+   `inspect`, and `promote` executed rather than skipped.
 
 The following inspection and promotion steps must be green:
 
@@ -275,7 +272,8 @@ There must be no local ERNIE Docker build in the deployment log. Verify that:
 
 After this verification, re-enable the existing Portainer polling mechanism.
 Further `dev` commits update Stage. A `main` build only records candidate images;
-Production changes when an eligible latest stable release is published and approved.
+Production changes when an eligible latest stable release is published and its
+automatic promotion checks pass.
 
 ## Normal release operation
 
@@ -285,7 +283,7 @@ For each later Production release:
 2. wait for all CI validation and the immutable `artifacts/main` image record;
 3. test the exact candidate in the isolated release stack and obtain Go/No-Go;
 4. tag that fixed SHA and publish the next stable GitHub release;
-5. approve the matching candidate in the `production` environment and watch promotion;
+5. watch the automatic validation, image inspection, and promotion;
 6. verify the automatic Portainer deployment and health checks.
 
 If a newer stable release appears while an older promotion is running, the
@@ -299,7 +297,7 @@ because all image references are immutable digests from one main candidate recor
 For a transient failure, use GitHub Actions' **Re-run all jobs** on the failed
 `Promote Production Release` run. Re-running `Production Release Signal` also
 causes a new promotion attempt after it completes. Every retry independently
-revalidates the current latest stable release, CI results, main artifact record, protected approval,
+revalidates the current latest stable release, CI results, main artifact record,
 image manifests, and vulnerability scan.
 
 Do not add a manual dispatch trigger to the privileged workflow and do not
@@ -340,17 +338,9 @@ all six push workflows succeeded for the tagged commit on `main`.
 
 Wait for successful publication of that exact SHA on `main`. Rerun one of its
 successful deployment-blocking push workflows to trigger publication again,
-even if `main` has since advanced. Then rerun promotion, after testing and
-approving those recorded images. Do not move an existing tag. There is no
+even if `main` has since advanced. Then rerun promotion after testing and
+verifying those recorded images. Do not move an existing tag. There is no
 fallback to Stage images or mutable image tags.
-
-### Production approval is missing or pending
-
-Configure required reviewers on the `production` environment and restrict it
-to `main`. The `inspect` job fails if protection is absent. When `approve` is
-waiting, a designated reviewer must compare the displayed source SHA and image
-digests with the test report and approve the environment deployment. Approval
-requires human action; retries do not bypass it.
 
 ### Image inspection or the digest scan fails
 
