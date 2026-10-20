@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UsageStatisticsExportRequest;
 use App\Http\Requests\UsageStatisticsRequest;
 use App\Services\Statistics\LegacyStatisticsDashboardService;
 use App\Services\Statistics\StatisticsDashboardService;
@@ -41,7 +42,7 @@ class StatisticsController extends Controller
         ]);
     }
 
-    public function export(UsageStatisticsRequest $request): StreamedResponse
+    public function export(UsageStatisticsExportRequest $request): StreamedResponse
     {
         $access = ucfirst($request->string('access_method', 'regular')->toString());
         $from = $request->string('from')->toString();

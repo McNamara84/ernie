@@ -34,23 +34,45 @@ test.describe('Usage statistics', () => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
 
-    test('preserves filters in the URL and separates the historical dashboard', async ({ page }) => {
-        await page.goto('/statistics');
-        await expect(page.getByRole('heading', { name: 'Public engagement statistics' })).toBeVisible();
-        await page.getByLabel('Landing page metric').selectOption('total');
-        await expect(page).toHaveURL(/metric=total/);
-        await page.getByLabel('Access method').selectOption('machine');
-        await expect(page).toHaveURL(/access_method=machine/);
-        await page.reload();
-        await expect(page.getByLabel('Landing page metric')).toHaveValue('total');
-        await expect(page.getByLabel('Access method')).toHaveValue('machine');
-        await page.getByRole('combobox', { name: 'Period', exact: true }).selectOption('legacy');
-        await expect(page).toHaveURL(/mode=legacy/);
-        await expect(page.getByText(/These are not COUNTER metrics/)).toBeVisible();
-        await expect(page.getByLabel('Landing page metric')).toHaveCount(0);
-        await expect(page.getByLabel('Access method')).toHaveCount(0);
-        await expect(page.getByRole('button', { name: 'Export monthly CSV' })).toHaveCount(0);
-    });
+    for (const width of [390, 1440]) {
+        test(`preserves filters and separates the historical dashboard at ${width}px`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 1000 });
+            await page.goto('/statistics');
+            await expect(page.getByRole('heading', { name: 'Public engagement statistics' })).toBeVisible();
+            const metric = page.getByRole('combobox', { name: 'Landing page metric' });
+            await metric.focus();
+            await metric.press('Enter');
+            await expect(page.getByRole('option', { name: 'Total', exact: true })).toBeVisible();
+            await page.keyboard.press('Escape');
+            await expect(metric).toBeFocused();
+            await metric.press('Enter');
+            await expect(page.getByRole('option', { name: 'Total', exact: true })).toBeVisible();
+            await page.keyboard.press('End');
+            await expect(page.getByRole('option', { name: 'Total', exact: true })).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(page).toHaveURL(/metric=total/);
+            await page.getByRole('combobox', { name: 'Access method' }).click();
+            await page.getByRole('option', { name: 'Machine', exact: true }).click();
+            await expect(page).toHaveURL(/access_method=machine/);
+            await page.reload();
+            await expect(metric).toHaveText('Total');
+            await expect(page.getByRole('combobox', { name: 'Access method' })).toHaveText('Machine');
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+            await page.getByRole('combobox', { name: 'Period', exact: true }).click();
+            await page.getByRole('option', { name: 'Before COUNTER', exact: true }).click();
+            await expect(page).toHaveURL(/mode=legacy/);
+            await expect(page.getByText(/These are not COUNTER metrics/)).toBeVisible();
+            await expect(metric).toHaveCount(0);
+            await expect(page.getByLabel('Access method')).toHaveCount(0);
+            await expect(page.getByRole('button', { name: 'Export monthly CSV' })).toHaveCount(0);
+            await page.getByRole('combobox', { name: 'Period', exact: true }).click();
+            await page.getByRole('option', { name: 'COUNTER', exact: true }).click();
+            await expect(page).toHaveURL(/mode=counter/);
+            await expect(metric).toHaveText('Total');
+            await expect(page.getByRole('combobox', { name: 'Access method' })).toHaveText('Machine');
+            await expect(page.getByRole('button', { name: 'Export monthly CSV' })).toBeVisible();
+        });
+    }
 
     for (const range of [
         { label: 'all months', access: 'regular', from: '', to: '' },
@@ -58,7 +80,7 @@ test.describe('Usage statistics', () => {
     ]) {
         test(`exports ${range.access} usage for ${range.label}`, async ({ page, browserName }, testInfo) => {
             await page.goto(`/statistics?access_method=${range.access}`);
-            await expect(page.getByLabel('Access method')).toHaveValue(range.access);
+            await expect(page.getByRole('combobox', { name: 'Access method' })).toHaveText(range.access === 'machine' ? 'Machine' : 'Regular');
             await page.getByLabel('From month').fill(range.from);
             await page.getByLabel('To month').fill(range.to);
 

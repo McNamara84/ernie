@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RecordCounterUsage;
 use App\Models\LandingPage;
@@ -175,6 +176,31 @@ it('protects exports and validates filters including blank optional date control
         $this->getJson('/statistics/usage.csv?'.$query)->assertUnprocessable();
     }
 });
+
+it('exports COUNTER data only while retaining the historical dashboard', function (UserRole $role): void {
+    $this->get($this->page->public_url)->assertOk();
+    $this->travel(1)->days();
+    app(CounterAggregationService::class)->aggregate();
+    $this->actingAs(User::factory()->create(['role' => $role]));
+
+    $default = $this->get('/statistics/usage.csv')->assertOk()->streamedContent();
+    $explicit = $this->get('/statistics/usage.csv?mode=counter')->assertOk()->streamedContent();
+    expect($explicit)->toBe($default)->toContain($this->page->doi_prefix);
+
+    $this->getJson('/statistics/usage.csv?mode=legacy')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['mode'])
+        ->assertJsonPath('errors.mode.0', 'CSV export is only available for COUNTER statistics.')
+        ->assertHeaderMissing('Content-Disposition');
+
+    $this->from('/statistics?mode=legacy')->get('/statistics/usage.csv?mode=legacy')
+        ->assertRedirect('/statistics?mode=legacy')
+        ->assertSessionHasErrors(['mode'])
+        ->assertHeaderMissing('Content-Disposition');
+
+    $this->get('/statistics?mode=legacy')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('statistics')->where('filters.mode', 'legacy'));
+})->with([UserRole::ADMIN, UserRole::GROUP_LEADER]);
 
 it('does not stop collection when usage is hidden and allows all DOI modules to remain hidden', function () {
     $template = LandingPageTemplate::factory()->create([

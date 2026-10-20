@@ -1,7 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 
@@ -313,41 +317,47 @@ export default function Statistics({
 
                 <section className="space-y-3 rounded-xl border p-4" aria-label="Statistics filters">
                     <div className="flex flex-wrap items-end gap-4">
-                        <label className="grid gap-1 text-sm">
-                            Period
-                            <select
-                                className="rounded border bg-background p-2"
-                                value={filters.mode}
-                                onChange={(event) => change({ mode: event.target.value as typeof filters.mode })}
-                            >
-                                <option value="counter">COUNTER</option>
-                                <option value="legacy">Before COUNTER</option>
-                            </select>
-                        </label>
+                        <div className="grid w-44 gap-2">
+                            <Label htmlFor="statistics-mode">Period</Label>
+                            <Select value={filters.mode} onValueChange={(value) => change({ mode: value as typeof filters.mode })}>
+                                <SelectTrigger id="statistics-mode">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="counter">COUNTER</SelectItem>
+                                    <SelectItem value="legacy">Before COUNTER</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                         {!legacy && (
                             <>
-                                <label className="grid gap-1 text-sm">
-                                    Landing page metric
-                                    <select
-                                        className="rounded border bg-background p-2"
-                                        value={filters.metric}
-                                        onChange={(event) => change({ metric: event.target.value as typeof filters.metric })}
-                                    >
-                                        <option value="unique">Unique</option>
-                                        <option value="total">Total</option>
-                                    </select>
-                                </label>
-                                <label className="grid gap-1 text-sm">
-                                    Access method
-                                    <select
-                                        className="rounded border bg-background p-2"
+                                <div className="grid w-44 gap-2">
+                                    <Label htmlFor="statistics-metric">Landing page metric</Label>
+                                    <Select value={filters.metric} onValueChange={(value) => change({ metric: value as typeof filters.metric })}>
+                                        <SelectTrigger id="statistics-metric">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unique">Unique</SelectItem>
+                                            <SelectItem value="total">Total</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid w-44 gap-2">
+                                    <Label htmlFor="statistics-access-method">Access method</Label>
+                                    <Select
                                         value={filters.access_method}
-                                        onChange={(event) => change({ access_method: event.target.value as typeof filters.access_method })}
+                                        onValueChange={(value) => change({ access_method: value as typeof filters.access_method })}
                                     >
-                                        <option value="regular">Regular</option>
-                                        <option value="machine">Machine</option>
-                                    </select>
-                                </label>
+                                        <SelectTrigger id="statistics-access-method">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="regular">Regular</SelectItem>
+                                            <SelectItem value="machine">Machine</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </>
                         )}
                         <a href="/usage-statistics" className="py-2 text-sm underline">
@@ -370,15 +380,17 @@ export default function Statistics({
                             )}
                             <form action="/statistics/usage.csv" method="get" className="flex flex-wrap items-end gap-3">
                                 <input type="hidden" name="access_method" value={filters.access_method} />
-                                <label className="grid gap-1 text-sm">
-                                    From month <input className="rounded border p-2" type="month" name="from" />
-                                </label>
-                                <label className="grid gap-1 text-sm">
-                                    To month <input className="rounded border p-2" type="month" name="to" />
-                                </label>
-                                <button type="submit" className="rounded border px-3 py-2 text-sm">
+                                <div className="grid w-44 gap-2">
+                                    <Label htmlFor="statistics-from">From month</Label>
+                                    <Input id="statistics-from" type="month" name="from" />
+                                </div>
+                                <div className="grid w-44 gap-2">
+                                    <Label htmlFor="statistics-to">To month</Label>
+                                    <Input id="statistics-to" type="month" name="to" />
+                                </div>
+                                <Button type="submit" variant="outline">
                                     Export monthly CSV
-                                </button>
+                                </Button>
                                 <p className="w-full text-xs text-muted-foreground">
                                     Blank dates export all months. Includes all four metrics for the selected access method, through{' '}
                                     {usageStatus.dataThrough ?? 'the first aggregation (pending)'}.

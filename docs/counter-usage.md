@@ -96,7 +96,10 @@ resource metrics; Regular/Machine also affects filtered search counts. Search
 counts are not a unique COUNTER dataset metric. The Before COUNTER view has its own
 date window and excludes historical IGSN downloads without modifying stored data.
 `/statistics/usage.csv` exports all four monthly metrics for the selected access
-method and optional `from`/`to` months. IGSN request fields are empty.
+method and optional `from`/`to` months. IGSN request fields are empty. The export
+accepts an omitted `mode` or `mode=counter`; `mode=legacy` is a validation error
+(HTTP 422 for JSON clients, or a redirect with a field error for browser requests).
+Historical counters have no CSV export.
 
 The public method explanation is `/usage-statistics`. It links to the existing
 TYPO3-managed privacy policy; ERNIE neither copies nor edits that policy.
