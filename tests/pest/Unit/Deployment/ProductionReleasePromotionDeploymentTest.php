@@ -46,7 +46,7 @@ it('loads the privileged Production workflow from the default branch', function 
         ->and($inspectJob['permissions']['contents'] ?? null)->toBe('read')
         ->and($inspectJob['permissions']['packages'] ?? null)->toBe('read')
         ->and($promoteJob)->toBeArray()
-        ->and($promoteJob['needs'] ?? null)->toBe(['validate', 'inspect', 'approve'])
+        ->and($promoteJob['needs'] ?? null)->toBe(['validate', 'inspect'])
         ->and($promoteJob['if'] ?? null)
         ->toContain("needs.inspect.outputs.current == 'true'")
         ->and($promoteJob['permissions']['contents'] ?? null)->toBe('write')
@@ -116,21 +116,21 @@ it('rejects v1.0.8 after v1.0.9 even when GitHub marks the older release latest'
         ->toContain('Refusing to replace deployed release');
 });
 
-it('promotes immutable main artifacts only after candidate approval', function (): void {
+it('promotes immutable main artifacts after automated checks without environment approval', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/promote-production-release.yml'));
     $steps = collect($workflow['jobs']['inspect']['steps'])->keyBy('name');
     $artifacts = $steps->get('Resolve the exact main image artifacts');
     $scan = $steps->get('Scan the exact promoted image digests');
-    $guard = $steps->get('Require a protected Production approval environment');
 
     expect($artifacts['with']['script'])
         ->toContain("readArtifact(github, context.repo, 'main', process.env.SOURCE_SHA)")
         ->toContain('process.env.RELEASE_TAG.slice(1)')
         ->not->toContain('deploy/stage')
-        ->and($guard['with']['script'])->toContain('requireProductionReview(data)')
-        ->and($workflow['jobs']['approve']['environment']['name'])->toBe('production')
-        ->and($workflow['jobs']['approve']['permissions']['contents'])->toBe('read')
-        ->and($workflow['jobs']['promote']['needs'])->toBe(['validate', 'inspect', 'approve']);
+        ->and($workflow['jobs']['promote']['needs'])->toBe(['validate', 'inspect']);
+
+    foreach ($workflow['jobs'] as $job) {
+        expect($job)->not->toHaveKey('environment');
+    }
 
     foreach (['app', 'nginx', 'fuji'] as $kind) {
         expect($scan['env'][strtoupper($kind).'_IMAGE_REF'])

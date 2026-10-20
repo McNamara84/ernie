@@ -126,15 +126,17 @@ test report record the URL, SHA, version, three image references, verification
 time, test results, and the release Go/No-Go decision. Stage can continue testing
 the next minor release independently.
 
-## 4. Approve and publish the same images
+## 4. Publish the tested images
 
-Follow [Branching and Releases](branching-and-releases.md#7-publish-v111) to tag
-the tested SHA and publish its stable GitHub release. In **Promote Production
-Release**, review the `inspect` summary and compare its SHA and all three digests
-with the test report. A required reviewer then approves the **`production`**
-environment. The workflow promotes those recorded images without rebuilding.
+Before publishing, compare the candidate SHA and all three digests in its
+immutable `artifacts/main` record with the test report. Follow
+[Branching and Releases](branching-and-releases.md#7-publish-v111) to tag the tested
+SHA and publish its stable GitHub release. Publishing is the Production release
+authorization: **Promote Production Release** validates the candidate and promotes
+those recorded images automatically, without rebuilding or an additional approval
+in Actions. Its `inspect` summary records the selected SHA and image digests.
 
-If code, images, version, or test results differ, do not approve. Prepare and test
+If code, images, version, or test results differ, do not publish. Prepare and test
 a new candidate through the normal PR process. Do not move an existing release tag.
 
 ## 5. Stop the test stack
