@@ -25,6 +25,7 @@ coverage-parallel.xml
 .env
 .env.backup
 .env.docker
+/.release-candidate/
 .phpactor.json
 .phpunit.result.cache
 Homestead.json

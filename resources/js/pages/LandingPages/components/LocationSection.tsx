@@ -5,15 +5,18 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Popup, Rectangle, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GLOBAL_COVERAGE_MESSAGE, isGlobalCoverageBounds } from '@/lib/geo-coverage';
+import { type GeoLocation, hasBox, hasInvalidGeometry, hasLine, hasPoint, hasPolygon, LOCATION_FIT_OPTIONS } from '@/lib/landing-page-geolocation';
 import type { LandingPageIgsnMetadata } from '@/types/landing-page';
 
 import { LandingPageCard } from './LandingPageCard';
+import { GeoLocationLayer } from './LocationGeometry';
 import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
@@ -26,31 +29,6 @@ L.Icon.Default.mergeOptions({
     shadowUrl: markerShadow,
 });
 
-/**
- * GeoLocation interface matching the backend model
- */
-interface GeoLocation {
-    id: number;
-    place: string | null;
-    point_longitude: number | null;
-    point_latitude: number | null;
-    west_bound_longitude: number | null;
-    east_bound_longitude: number | null;
-    south_bound_latitude: number | null;
-    north_bound_latitude: number | null;
-    polygon_points: Array<{ longitude: number; latitude: number }> | null;
-    geo_type: string | null;
-    elevation?: number | null;
-    elevation_unit?: string | null;
-    location_type?: string | null;
-    location_description?: string | null;
-    locality_description?: string | null;
-    country?: string | null;
-    province?: string | null;
-    county?: string | null;
-    city?: string | null;
-}
-
 interface LocationSectionProps {
     geoLocations: GeoLocation[];
     /** Whether system dark mode is active. Passed down from the page root. */
@@ -62,9 +40,6 @@ interface LocationSectionProps {
     content?: 'combined' | 'details' | 'map';
     heading?: string;
 }
-
-// GFZ Corporate Blue
-const GFZ_BLUE = '#0C2A63';
 
 const WORLD_BOUNDS: L.LatLngBoundsExpression = [
     [-90, -180],
@@ -81,29 +56,6 @@ function formatMeasurement(value: string | number | null | undefined, unit: stri
     return `${String(value).trim()}${unit ? ` ${unit}` : ''}`;
 }
 
-function formatLineWaypointTooltip(point: { longitude: number; latitude: number }): string {
-    return 'Lat: ' + formatCoordinate(point.latitude) + ', Lon: ' + formatCoordinate(point.longitude);
-}
-
-/**
- * Check if a GeoLocation has a valid point defined
- */
-function hasPoint(geo: GeoLocation): boolean {
-    return geo.point_longitude !== null && geo.point_latitude !== null;
-}
-
-/**
- * Check if a GeoLocation has a valid bounding box defined
- */
-function hasBox(geo: GeoLocation): boolean {
-    return (
-        geo.west_bound_longitude !== null &&
-        geo.east_bound_longitude !== null &&
-        geo.south_bound_latitude !== null &&
-        geo.north_bound_latitude !== null
-    );
-}
-
 /**
  * Check if a GeoLocation box covers the whole world.
  */
@@ -117,21 +69,6 @@ function isGlobalCoverage(geo: GeoLocation): boolean {
         },
         geo.geo_type,
     );
-}
-
-/**
- * Check if a GeoLocation has a valid polygon defined (minimum 3 points)
- */
-function hasPolygon(geo: GeoLocation): boolean {
-    if (geo.geo_type === 'line') return false;
-    return geo.polygon_points !== null && geo.polygon_points.length >= 3;
-}
-
-/**
- * Check if a GeoLocation has a valid line defined (minimum 2 points)
- */
-function hasLine(geo: GeoLocation): boolean {
-    return geo.geo_type === 'line' && geo.polygon_points !== null && geo.polygon_points.length >= 2;
 }
 
 /**
@@ -168,12 +105,12 @@ function calculateBounds(locations: GeoLocation[]): L.LatLngBounds {
         ]);
     }
 
-    if (allPoints.length === 1) {
+    if (allPoints.every(([lat, lng]) => lat === allPoints[0][0] && lng === allPoints[0][1])) {
         // Single point: Create a small area around it
         const [lat, lng] = allPoints[0];
         return L.latLngBounds([
-            [lat - 0.5, lng - 0.5],
-            [lat + 0.5, lng + 0.5],
+            [Math.max(-90, lat - 0.5), Math.max(-180, lng - 0.5)],
+            [Math.min(90, lat + 0.5), Math.min(180, lng + 0.5)],
         ]);
     }
 
@@ -188,7 +125,7 @@ function FitBoundsControl({ bounds }: { bounds: L.LatLngBounds }) {
 
     useEffect(() => {
         if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [20, 20], maxZoom: 2 });
+            map.fitBounds(bounds, LOCATION_FIT_OPTIONS);
         }
     }, [map, bounds]);
 
@@ -273,6 +210,14 @@ function FullscreenControl() {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSupported, setIsSupported] = useState(false);
     const containerRef = useRef<HTMLElement | null>(null);
+    const controlRef = useCallback((element: HTMLDivElement | null) => {
+        if (!element) return;
+        // Treat this React-rendered button like a native Leaflet control, not a background map click.
+        L.DomEvent.disableClickPropagation(element);
+        return () => {
+            L.DomEvent.off(element);
+        };
+    }, []);
 
     useEffect(() => {
         // Check fullscreen support on mount
@@ -326,7 +271,7 @@ function FullscreenControl() {
 
     return (
         <div className="leaflet-top leaflet-right">
-            <div className="leaflet-control leaflet-bar">
+            <div ref={controlRef} className="leaflet-control leaflet-bar">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -342,86 +287,6 @@ function FullscreenControl() {
     );
 }
 
-/**
- * Renders the appropriate geometry for a single GeoLocation
- */
-function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
-    const hasDescription = typeof geoLocation.place === 'string' && geoLocation.place.trim() !== '';
-
-    return (
-        <>
-            {/* Point as Marker */}
-            {hasPoint(geoLocation) && (
-                <Marker position={[geoLocation.point_latitude!, geoLocation.point_longitude!]}>
-                    {hasDescription && (
-                        <Popup>
-                            <div className="max-w-xs text-sm break-words whitespace-normal">{geoLocation.place}</div>
-                        </Popup>
-                    )}
-                </Marker>
-            )}
-
-            {/* Bounding Box as Rectangle */}
-            {hasBox(geoLocation) && (
-                <Rectangle
-                    bounds={[
-                        [geoLocation.south_bound_latitude!, geoLocation.west_bound_longitude!],
-                        [geoLocation.north_bound_latitude!, geoLocation.east_bound_longitude!],
-                    ]}
-                    pathOptions={{
-                        color: GFZ_BLUE,
-                        weight: 2,
-                        fillOpacity: 0.2,
-                    }}
-                />
-            )}
-
-            {/* Polygon as filled area */}
-            {hasPolygon(geoLocation) && (
-                <Polygon
-                    positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
-                    pathOptions={{
-                        color: GFZ_BLUE,
-                        weight: 2,
-                        fillOpacity: 0.2,
-                    }}
-                />
-            )}
-
-            {/* Line as polyline (open path) */}
-            {hasLine(geoLocation) && (
-                <>
-                    <Polyline
-                        positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
-                        pathOptions={{
-                            color: GFZ_BLUE,
-                            weight: 3,
-                            dashArray: '8, 4',
-                        }}
-                    />
-                    {geoLocation.polygon_points!.map((point, index) => (
-                        <CircleMarker
-                            key={`${geoLocation.id}-line-waypoint-${index}`}
-                            center={[point.latitude, point.longitude]}
-                            radius={5}
-                            pathOptions={{
-                                color: GFZ_BLUE,
-                                fillColor: GFZ_BLUE,
-                                fillOpacity: 0.85,
-                                weight: 1,
-                            }}
-                        >
-                            <Tooltip direction="top" sticky>
-                                {formatLineWaypointTooltip(point)}
-                            </Tooltip>
-                        </CircleMarker>
-                    ))}
-                </>
-            )}
-        </>
-    );
-}
-
 function GlobalCoverageNotice() {
     return (
         <p
@@ -430,6 +295,30 @@ function GlobalCoverageNotice() {
         >
             {GLOBAL_COVERAGE_MESSAGE}
         </p>
+    );
+}
+
+function LocationMap({ locations, tileUrl, attribution }: { locations: GeoLocation[]; tileUrl: string; attribution: string }) {
+    const bounds = useMemo(() => calculateBounds(locations), [locations]);
+
+    return (
+        <MapContainer
+            bounds={bounds}
+            boundsOptions={LOCATION_FIT_OPTIONS}
+            className="h-full w-full"
+            maxBounds={WORLD_BOUNDS}
+            maxBoundsViscosity={1}
+            scrollWheelZoom={true}
+            style={{ height: '100%', width: '100%' }}
+            worldCopyJump={false}
+        >
+            <TileLayer attribution={attribution} noWrap={true} url={tileUrl} />
+            <FitBoundsControl bounds={bounds} />
+            <FullscreenControl />
+            {locations.map((geo) => (
+                <GeoLocationLayer key={geo.id} geoLocation={geo} />
+            ))}
+        </MapContainer>
     );
 }
 
@@ -465,8 +354,7 @@ export function LocationSection({
     const globalLocations = useMemo(() => validLocations.filter((geo) => isGlobalCoverage(geo)), [validLocations]);
     const mappableLocations = useMemo(() => validLocations.filter((geo) => !isGlobalCoverage(geo)), [validLocations]);
 
-    // Calculate bounds for auto-zoom
-    const bounds = useMemo(() => calculateBounds(mappableLocations), [mappableLocations]);
+    const invalidLocations = useMemo(() => geoLocations.filter(hasInvalidGeometry), [geoLocations]);
     const hasGlobalCoverage = globalLocations.length > 0;
     const hasMappableLocations = mappableLocations.length > 0;
     const primary = geoLocations[0];
@@ -503,7 +391,7 @@ export function LocationSection({
     const showDetails = content !== 'map' && hasDetails;
     const showMap = content !== 'details' && (hasGlobalCoverage || hasMappableLocations);
 
-    if (!showDetails && !showMap) {
+    if (!showDetails && !showMap && invalidLocations.length === 0) {
         return null;
     }
 
@@ -543,29 +431,27 @@ export function LocationSection({
                 </div>
             )}
             {showMap && hasGlobalCoverage && <GlobalCoverageNotice />}
+            {invalidLocations.length > 0 && (
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-300" data-testid="invalid-geolocation-message">
+                    Some location information could not be displayed on the map.
+                </p>
+            )}
             {showMap && hasMappableLocations && (
                 <div
                     className="relative z-0 aspect-square w-full overflow-hidden rounded-lg"
                     data-testid="map-container"
                     aria-label="Map showing the geographic location of the dataset"
                 >
-                    <MapContainer
-                        bounds={bounds}
-                        className="h-full w-full"
-                        maxBounds={WORLD_BOUNDS}
-                        maxBoundsViscosity={1}
-                        scrollWheelZoom={true}
-                        style={{ height: '100%', width: '100%' }}
-                        worldCopyJump={false}
+                    <ErrorBoundary
+                        key={JSON.stringify(mappableLocations)}
+                        fallback={
+                            <p role="status" className="p-4 text-sm">
+                                The location map is currently unavailable.
+                            </p>
+                        }
                     >
-                        <TileLayer attribution={tileAttribution} noWrap={true} url={tileUrl} />
-                        <FitBoundsControl bounds={bounds} />
-                        <FullscreenControl />
-
-                        {mappableLocations.map((geo) => (
-                            <GeoLocationLayer key={geo.id} geoLocation={geo} />
-                        ))}
-                    </MapContainer>
+                        <LocationMap locations={mappableLocations} tileUrl={tileUrl} attribution={tileAttribution} />
+                    </ErrorBoundary>
                 </div>
             )}
         </LandingPageCard>

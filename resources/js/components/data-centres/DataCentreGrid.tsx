@@ -8,11 +8,7 @@ export function DataCentreGrid({ dataCentres }: { dataCentres: DataCentre[] }) {
         <ul className="data-centre-grid" aria-label="Data centres">
             {dataCentres.map((centre) => (
                 <li key={centre.slug} className="data-centre-cell">
-                    <Link
-                        href={buildDataCentreSearchUrl(centre.datacenterName)}
-                        className="data-centre-link"
-                        aria-label={`View publications: ${centre.shortName} — ${centre.displayName}`}
-                    >
+                    <Link href={buildDataCentreSearchUrl(centre.datacenterName)} className="data-centre-link">
                         <span className="data-centre-hexagon" aria-hidden="true">
                             {centre.logo ? (
                                 <img
@@ -30,7 +26,10 @@ export function DataCentreGrid({ dataCentres }: { dataCentres: DataCentre[] }) {
                                 <span>{centre.shortName}</span>
                             </span>
                         </span>
-                        <span className="data-centre-label">{centre.shortName}</span>
+                        <span className="data-centre-label">
+                            <span className="sr-only">View publications:</span> {centre.shortName}{' '}
+                            <span className="sr-only">— {centre.displayName}</span>
+                        </span>
                     </Link>
                     <Link
                         href={`/data-centres/description#${centre.slug}`}

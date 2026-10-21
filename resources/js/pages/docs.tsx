@@ -570,6 +570,12 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         </p>
 
                         <h4>Thesaurus Management</h4>
+                        <p>
+                            Admins and Group Leaders receive a dashboard reminder each calendar quarter to review thesauri for updates. The reminder
+                            opens and focuses the Thesauri card. After checking, use <strong>Mark this quarter&apos;s review as complete</strong> to
+                            dismiss it for everyone until the next quarter, even if no updates are available. Opening the card or downloading a
+                            vocabulary does not complete the review. This action saves immediately without saving other editor settings.
+                        </p>
                         <p>The Thesauri section allows you to:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Enable/disable individual thesauri for ERNIE and/or ELMO</li>
@@ -1540,6 +1546,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     After successful upload, the dashboard shows a confirmation. Use <strong>Open in editor</strong> when you are
                                     ready to review the pre-populated metadata.
                                 </p>
+                                <p>
+                                    If the file contains identical location entries, ERNIE keeps one entry and shows how many duplicates were merged.
+                                    Locations with different descriptions, time coverage, elevation, or location details remain separate. Review the
+                                    retained locations in the editor before publishing.
+                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
                     </>
@@ -2104,6 +2115,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>North/South/East/West bounds for bounding boxes</li>
                         </ul>
 
+                        <p>
+                            Incomplete coordinates in stored polygons and lines appear as blank editable fields. Only valid points are drawn on the
+                            map. Correct or remove incomplete rows before saving; ERNIE keeps the stored geometry until a valid change is saved.
+                        </p>
+                        <p>When saving merges identical locations, the remaining locations keep the order shown in the editor.</p>
+
                         <h4>CSV Import for Polygons and Lines</h4>
                         <p>
                             For polygons or lines with many coordinate pairs, you can import coordinates from a CSV file instead of entering them
@@ -2665,6 +2682,28 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow.
                             {permissions.deleteResources && ' Curators and above can also delete draft landing pages.'}
                         </p>
+                        <h4>Reading Coverage Descriptions on the Map</h4>
+                        <p>
+                            On dataset and IGSN landing pages, including previews, click a described point, bounding box, polygon, line, or line
+                            waypoint to open its coverage description in a popup beside the object. Every waypoint of a line opens the same
+                            description as the line. Objects without a description remain visible without this action. Hover over a line waypoint to
+                            see its latitude and longitude, even when it has no description.
+                        </p>
+                        <p>
+                            The popup shows the complete description with its line breaks. Long text wraps and can be scrolled. Opening another
+                            described object replaces the previous popup.
+                        </p>
+                        <p>
+                            To use the keyboard, press <strong>Tab</strong> to focus a described map object, then <strong>Enter</strong> or{' '}
+                            <strong>Space</strong> to open its popup. Focus moves to the description text. Use <strong>Page Down</strong> to scroll
+                            long descriptions, or press <strong>Tab</strong> to reach <strong>Close popup</strong> and activate it with{' '}
+                            <strong>Enter</strong> or <strong>Space</strong>.
+                        </p>
+                        <p>
+                            Close the popup with its <strong>×</strong> button, <strong>Escape</strong>, or a click on an empty part of the map. When
+                            you close it from inside the popup, focus returns to the map object that opened it. If you have moved focus outside the
+                            popup, it stays there.
+                        </p>
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
                             The <strong>Download Metadata</strong> section remains visible while you review a Resource or IGSN landing page. Selecting
@@ -3021,6 +3060,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     further themselves.
                                 </p>
                                 <p>
+                                    Described map geometries and line waypoints also open the coverage description in a popup. Location Description
+                                    and Locality Description remain in the separate Location card. See{' '}
+                                    <a href="/docs?tab=datasets&section=landing-pages">Reading Coverage Descriptions on the Map</a> in the Landing
+                                    Pages section for mouse and keyboard instructions.
+                                </p>
+                                <p>
                                     The built-in IGSN layout starts with General, Sample Family, Repositories, Map, Related Work, Download Metadata,
                                     Dates, and Cite This Resource on the left. Version Notice, Contributors, Authors, Location, Acquisition, and
                                     Funding References form the right column. Version Notice can move between the columns but cannot be hidden.
@@ -3101,6 +3146,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             then show a confirmation dialog. Nothing is saved for that action and nothing is sent to DataCite until you confirm. If
                             registration still needs a landing page, ERNIE saves the validated resource, opens landing-page setup, and resumes the
                             confirmed registration only after setup succeeds.
+                        </p>
+                        <p>
+                            If DataCite is temporarily busy or another update of the DOI is still in progress (503), your successfully saved metadata
+                            remains in ERNIE, but the external update is unconfirmed. Wait briefly, then retry the action. If a newer DOI update
+                            superseded your request (409), reload the resource, review the latest saved metadata, and confirm the update again. Before
+                            retrying a registration, check whether the resource already has a DOI.
                         </p>
                         <p>
                             A newly registered DOI shows a five-second success celebration with the total number of canonically published Resources
@@ -3537,6 +3588,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     DataCite.
                                 </p>
                                 <p>
+                                    The import result reports identical location entries merged from DataCite metadata and SUMARIO coverage enrichment
+                                    together. Entries with different geometry, descriptions, time coverage, elevation, or location details remain
+                                    separate. Review the retained locations before publishing.
+                                </p>
+                                <p>
                                     The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL
                                     such as <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database
                                     before the import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the
@@ -3946,6 +4002,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Assignments apply only when a new IGSN is created. An IGSN that already exists in ERNIE is skipped without filling,
                             replacing, or removing its current datacenter. If the portal responds successfully but contains no assignment for a new
                             IGSN, the import continues, leaves the datacenter empty, and lists the IGSN in the result for manual curation.
+                        </p>
+                        <p>
+                            The import result reports identical location entries merged from DataCite metadata and legacy enrichment together. Review
+                            the retained locations before publishing; locations with different scientific details remain separate.
                         </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">

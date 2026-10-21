@@ -3,7 +3,7 @@ services:
   # Serves application on https://localhost:3333 (no prefix)
   # On Windows: Docker provider disabled, uses static routes.yml
   traefik:
-    image: traefik:v3.7.14@sha256:575fa15b135078fe5e50aa847987d96dbddd7b093c172429618404df73f3fa7c
+    image: traefik:v3.7.16@sha256:6d3e069ee484ab1da5adfdda555a75eb9b1545ef09096a0cc7c3043101986a20
     container_name: ernie-traefik
     restart: unless-stopped
     command:
@@ -86,6 +86,10 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
@@ -98,6 +102,8 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - DATACITE_INTERACTIVE_RESERVED_REQUESTS=${DATACITE_INTERACTIVE_RESERVED_REQUESTS:-30}
+      - DATACITE_INTERACTIVE_MAX_WAIT_MS=${DATACITE_INTERACTIVE_MAX_WAIT_MS:-5000}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
       - BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS=${BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS:-}
@@ -230,7 +236,7 @@ services:
 
   # MySQL Database
   db:
-    image: &mysql-server mysql:9.7.2@sha256:e2bde46db6563855d7177adb5f0b57b9dc663f5a20927a90f4259d3312068497
+    image: &mysql-server mysql:9.7.2@sha256:e2fa358a74ac81148e7e27d9433e4c0ab62133de8ea4428b4f39a51a4ba7d07f
     container_name: ernie-db-dev
     restart: unless-stopped
     environment:
@@ -349,6 +355,10 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
@@ -361,6 +371,8 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - DATACITE_INTERACTIVE_RESERVED_REQUESTS=${DATACITE_INTERACTIVE_RESERVED_REQUESTS:-30}
+      - DATACITE_INTERACTIVE_MAX_WAIT_MS=${DATACITE_INTERACTIVE_MAX_WAIT_MS:-5000}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
       - GFZ_IGSN_PORTAL_PROXY_URL=${GFZ_IGSN_PORTAL_PROXY_URL:-https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php}
@@ -382,6 +394,14 @@ services:
       - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
     command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default,imports --sleep=3 --tries=3
+
+  # Discovery scans have a separate consumer and reservation window.
+  assistance-queue:
+    <<: *ernie-queue
+    container_name: ernie-assistance-queue-dev
+    cpus: ${ASSISTANCE_WORKER_CPUS:-0.5}
+    stop_grace_period: 30s
+    command: php artisan queue:work assistance --queue=${ASSISTANCE_QUEUE:-assistance} --sleep=1 --tries=1 --timeout=${ASSISTANCE_JOB_TIMEOUT:-3600}
 
   # Separate reservation window for the potentially 300-second ELMO request.
   elmo-cache-refresh:
@@ -427,6 +447,10 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
@@ -504,6 +528,10 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://env.rz-vm182.gfz.de/elmo}
@@ -516,6 +544,8 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - DATACITE_INTERACTIVE_RESERVED_REQUESTS=${DATACITE_INTERACTIVE_RESERVED_REQUESTS:-30}
+      - DATACITE_INTERACTIVE_MAX_WAIT_MS=${DATACITE_INTERACTIVE_MAX_WAIT_MS:-5000}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}
       - FUJI_ASSESSMENT_QUEUE=${FUJI_ASSESSMENT_QUEUE:-assessments}

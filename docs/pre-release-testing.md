@@ -1,7 +1,8 @@
 # Pre-Release Testing of ERNIE
 
 This guide contains the smoke test after a stage deployment and the full
-release regression test before a production deployment. For targeted testing
+release regression test of an isolated `main` candidate before a Production
+deployment. Stage follows `dev` and may show the next minor release. For targeted testing
 of a merged pull request, use
 [`post-merge-testing.md`](post-merge-testing.md) instead.
 
@@ -14,8 +15,9 @@ of a merged pull request, use
 
 1. Read the general information and prepare the test run.
 2. After every stage deployment, run the smoke test in section 2.
-3. Before a production deployment, also run the full release regression in
-   section 3.
+3. Before a Production deployment, prepare the exact `main` candidate using
+   [Release Candidate Testing](release-candidate-testing.md), then run both the
+   smoke test and the full release regression in section 3 on that stack.
 4. The tester makes a recommendation; the final go/no-go decision is made by
    Product Owner Tanja ([anti@gfz.de](mailto:anti@gfz.de)).
 
@@ -26,7 +28,7 @@ of a merged pull request, use
 ### 1.1 Purpose and Scope
 
 Manual testing complements the automated tests. It verifies from a user's
-perspective that the version deployed to stage is usable, that critical
+perspective that the deployed test version is usable, that critical
 workflows function, and that no visible regressions have been introduced.
 
 This guide covers the following perspectives:
@@ -58,9 +60,18 @@ fully covered by manual testing.
 - Developers answer functional or technical questions and analyse reported
   defects.
 
-### 1.4 Stage, Accounts, and Credentials
+### 1.4 Test Environment, Accounts, and Credentials
 
-- Test only at <https://ernie.rz-vm182.gfz.de/>.
+- For `dev` and synchronized fixes, test Stage at <https://ernie.rz-vm182.gfz.de/>.
+- For a Production release, test the isolated `main` candidate at the URL recorded
+  by [Release Candidate Testing](release-candidate-testing.md), normally
+  <http://localhost:8181/>. Record its full SHA and three image digests.
+- Select one environment for a test run and record its URL before starting.
+  In the checklists below, "stage" means that selected test environment. Use its
+  recorded URL for every browser step. Never perform these tests on Production.
+- Candidate stacks disable host metrics and live integrations by default. Record
+  those checks as N/A or BLOCKED with a reason; do not enable live credentials to
+  make a test pass. Stage testing cannot replace testing the `main` images.
 
 - Dedicated administrator and curator test accounts are used.
 
@@ -184,7 +195,8 @@ Stop immediately if:
 | Field                    | Entry          |
 | ------------------------ | -------------- |
 | Reason                   |                |
-| PR, commit, or version   |                |
+| PR, full commit SHA, version |             |
+| Image digests / verification report |        |
 | Deployment completed at  |                |
 | Test date and start time |                |
 | Tester                   |                |
@@ -194,7 +206,7 @@ Stop immediately if:
 
 ### 2.2 Preparation
 
-- [ ] The stage URL, deployment, and intended version have been confirmed by
+- [ ] The selected test URL, deployment SHA, and intended version have been confirmed by
       development.
 
 - [ ] A current Chrome desktop window is open; old ERNIE tabs are closed.
@@ -233,7 +245,7 @@ Stop immediately if:
       redirect loop. Similar paths such as `/portals` and `/igsn-newer` are not
       captured. Use GET with `curl -D - -o /dev/null` rather than HEAD (`curl -I`).
 
-- [ ] <https://ernie.rz-vm182.gfz.de/> opens without certificate, gateway, server,
+- [ ] The recorded test URL opens without certificate, gateway, server,
       or blank-page errors.
 
 - [ ] The login page renders completely; logo, email, password, and `Log in` are
@@ -309,6 +321,8 @@ disabled functions as `N/A` and provide a reason.
 | Field                  | Entry                   |
 | ---------------------- | ----------------------- |
 | Release/version        |                         |
+| Candidate SHA and image digests |                  |
+| Candidate URL and verification report |            |
 | Commit or tag          |                         |
 | Included pull requests |                         |
 | Deployment time        |                         |
@@ -321,7 +335,7 @@ disabled functions as `N/A` and provide a reason.
 | Previous smoke test    | PASS / Link or filename |
 
 - [ ] Development has confirmed that the complete release candidate is deployed
-      to stage.
+      to the selected test environment.
 
 - [ ] Known limitations, changed features, and acceptance criteria have been
       provided.

@@ -25,9 +25,13 @@ use App\Models\User;
 use App\Policies\ResourcePolicy;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
+use App\Services\Editor\EditorDataTransformer;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\GeoLocations\GeoLocationIdentityService;
+use App\Services\GeoLocations\GeoLocationWriterService;
+use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
@@ -69,7 +73,7 @@ class ResourceStorageService
      * @param  array<string, mixed>  $data  Validated request data
      * @param  int|null  $userId  ID of the user performing the operation
      * @param  User|null  $doiChangeActor  Editor user whose DOI mutation must be authorized
-     * @return array{0: Resource, 1: bool} Returns [$resource, $isUpdate]
+     * @return array{0: Resource, 1: bool, 2: array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}}
      *
      * @throws AuthorizationException
      * @throws QueryException
@@ -82,7 +86,18 @@ class ResourceStorageService
         CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
         ?User $doiChangeActor = null,
     ): array {
-        $data = $this->prepareDataForStorage($data, $citationLabelResolutionMode);
+        return $this->storePrepared($this->prepareForStorage($data, $citationLabelResolutionMode), $userId, $doiChangeActor);
+    }
+
+    /**
+     * Persist data returned by prepareForStorage(), without external lookups.
+     * Callers may safely compose this with a transaction for workflow/audit writes.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: Resource, 1: bool, 2: array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}}
+     */
+    public function storePrepared(array $data, ?int $userId = null, ?User $doiChangeActor = null): array
+    {
 
         return DB::transaction(function () use ($data, $userId, $doiChangeActor): array {
             $languageId = null;
@@ -177,7 +192,7 @@ class ResourceStorageService
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ]);
-            $this->storeGeoLocations($resource, $data, $isUpdate);
+            $geoLocationChanges = $this->storeGeoLocations($resource, $data, $isUpdate);
             $this->storeRelatedIdentifiers($resource, $data, $isUpdate);
             $this->storeRelatedItems($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
@@ -198,6 +213,7 @@ class ResourceStorageService
                     'datacenter',
                 ]),
                 $isUpdate,
+                $geoLocationChanges,
             ];
         });
     }
@@ -206,9 +222,9 @@ class ResourceStorageService
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function prepareDataForStorage(
+    public function prepareForStorage(
         array $data,
-        CitationLabelResolutionMode $citationLabelResolutionMode,
+        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
     ): array {
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
@@ -1449,17 +1465,70 @@ class ResourceStorageService
 
     /**
      * @param  array<string, mixed>  $data
+     * @return array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}
      */
-    private function storeGeoLocations(Resource $resource, array $data, bool $isUpdate): void
+    private function storeGeoLocations(Resource $resource, array $data, bool $isUpdate): array
     {
-        // Save geo locations (spatial and temporal coverages)
-        if ($isUpdate) {
-            $resource->geoLocations()->delete();
+        $changes = ['removedCount' => 0, 'idMap' => [], 'removedIds' => []];
+        if (! array_key_exists('spatialTemporalCoverages', $data)) {
+            return $changes;
         }
 
+        return app(GeoLocationWriterService::class)->batch($resource, fn (GeoLocationWriteSessionService $session): array => $this->synchronizeGeoLocations($resource, $data, $isUpdate, $session));
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}
+     */
+    private function synchronizeGeoLocations(Resource $resource, array $data, bool $isUpdate, GeoLocationWriteSessionService $session): array
+    {
+        $changes = ['removedCount' => 0, 'idMap' => [], 'removedIds' => []];
+        $existing = $session->locations()->keyBy('id');
+        $resource->setRelation('geoLocations', $existing->values());
+        $originalCoverages = collect(app(EditorDataTransformer::class)->transformCoverages($resource))->keyBy('id');
+        $retainedIds = [];
+        $submittedLocations = [];
         $coverages = $data['spatialTemporalCoverages'] ?? [];
 
         foreach ($coverages as $position => $coverage) {
+            $inputId = isset($coverage['id']) ? (string) $coverage['id'] : null;
+            $location = $inputId !== null && ctype_digit($inputId) ? $existing->get((int) $inputId) : null;
+            // Older clients omitted row IDs. Match unchanged rows one-to-one,
+            // so an unrelated save cannot clean a historical duplicate group.
+            if ($inputId === null && ! isset($coverage['copyFromId']) && array_key_exists('type', $coverage)) {
+                foreach ($existing as $stored) {
+                    $original = $originalCoverages->get((string) $stored->id, []);
+                    if (! in_array($stored->id, $retainedIds, true) && $this->unchangedCoverage(array_intersect_key($coverage, $original), $original)) {
+                        $location = $stored;
+                        break;
+                    }
+                }
+                if ($location === null && count($coverages) === $existing->count()) {
+                    $slot = $existing->values()->get($position);
+                    if ($slot !== null && ! in_array($slot->id, $retainedIds, true)) {
+                        $location = $slot;
+                    }
+                }
+            }
+            if ($isUpdate && $inputId !== null && ctype_digit($inputId) && $location === null) {
+                throw ValidationException::withMessages(['spatialTemporalCoverages' => 'A location does not belong to this resource. Reload before saving.']);
+            }
+            $copyFromId = isset($coverage['copyFromId']) ? (string) $coverage['copyFromId'] : null;
+            $template = $copyFromId !== null && ctype_digit($copyFromId) ? $existing->get((int) $copyFromId) : null;
+            if ($copyFromId !== null && ($template === null || $location !== null)) {
+                throw ValidationException::withMessages(['spatialTemporalCoverages' => 'The copied location does not belong to this resource. Reload before saving.']);
+            }
+            if ($location !== null && $this->unchangedCoverage($coverage, $originalCoverages->get((string) $location->id, []))) {
+                $location = $session->write(['position' => $position], $location)->location;
+                $retainedIds[] = $location->id;
+                $submittedLocations[] = ['inputId' => $inputId, 'storedId' => $location->id];
+                if ($inputId !== null) {
+                    $changes['idMap'][$inputId] = (string) $location->id;
+                }
+
+                continue;
+            }
             $type = $coverage['type'] ?? 'point';
 
             // Only save coverage if it has at least one meaningful field.
@@ -1498,6 +1567,13 @@ class ResourceStorageService
                     'end_time' => ! empty($coverage['endTime']) ? $coverage['endTime'] : null,
                     'timezone' => $this->temporalCoverageValueService->normalizeTimezone($coverage['timezone'] ?? null),
                     'position' => $position,
+                    'point_longitude' => null,
+                    'point_latitude' => null,
+                    'west_bound_longitude' => null,
+                    'east_bound_longitude' => null,
+                    'south_bound_latitude' => null,
+                    'north_bound_latitude' => null,
+                    'polygon_points' => null,
                 ];
 
                 // For polygon type, store polygon points as JSON (geo_locations.polygon_points)
@@ -1575,7 +1651,6 @@ class ResourceStorageService
                         $validPoints
                     ));
 
-                    $resource->geoLocations()->create($geoLocationData);
                 } elseif ($type === 'line' && ! empty($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
                     // Line type: stored in polygon_points with geo_type = 'line'
                     $invalidPoints = [];
@@ -1639,13 +1714,11 @@ class ResourceStorageService
                         $validPoints
                     ));
 
-                    $resource->geoLocations()->create($geoLocationData);
                 } elseif ($type === 'point') {
                     // Point type
                     $geoLocationData['geo_type'] = 'point';
                     $geoLocationData['point_longitude'] = $coverage['lonMin'] ?? null;
                     $geoLocationData['point_latitude'] = $coverage['latMin'] ?? null;
-                    $resource->geoLocations()->create($geoLocationData);
                 } else {
                     // Box type
                     $geoLocationData['geo_type'] = 'box';
@@ -1653,10 +1726,114 @@ class ResourceStorageService
                     $geoLocationData['east_bound_longitude'] = $coverage['lonMax'] ?? null;
                     $geoLocationData['south_bound_latitude'] = $coverage['latMin'] ?? null;
                     $geoLocationData['north_bound_latitude'] = $coverage['latMax'] ?? null;
-                    $resource->geoLocations()->create($geoLocationData);
+                }
+                $source = $location ?? $template;
+                if ($source !== null) {
+                    $original = $originalCoverages->get((string) $source->id, []);
+                    $fields = [
+                        'place' => 'description', 'start_date' => 'startDate', 'end_date' => 'endDate',
+                        'temporal_mode' => 'temporalMode', 'start_time' => 'startTime', 'end_time' => 'endTime', 'timezone' => 'timezone',
+                    ];
+                    if (($coverage['type'] ?? null) === ($original['type'] ?? null)) {
+                        unset($geoLocationData['geo_type']);
+                        $geometryFields = match ($type) {
+                            'point' => ['point_latitude' => 'latMin', 'point_longitude' => 'lonMin'],
+                            'box' => ['south_bound_latitude' => 'latMin', 'north_bound_latitude' => 'latMax', 'west_bound_longitude' => 'lonMin', 'east_bound_longitude' => 'lonMax'],
+                            default => ['polygon_points' => 'polygonPoints'],
+                        };
+                        foreach (['point_latitude', 'point_longitude', 'south_bound_latitude', 'north_bound_latitude', 'west_bound_longitude', 'east_bound_longitude', 'polygon_points'] as $field) {
+                            if (! array_key_exists($field, $geometryFields)) {
+                                unset($geoLocationData[$field]);
+                            }
+                        }
+                        $fields = [...$fields, ...$geometryFields];
+                    } else {
+                        $geoLocationData['in_polygon_point_latitude'] = null;
+                        $geoLocationData['in_polygon_point_longitude'] = null;
+                    }
+                    foreach ($fields as $field => $inputField) {
+                        if (! array_key_exists($inputField, $coverage) || $this->unchangedCoverage([$inputField => $coverage[$inputField]], $original)) {
+                            unset($geoLocationData[$field]);
+                        }
+                    }
+                }
+                if ($template !== null) {
+                    $geoLocationData = [...$template->only(GeoLocationIdentityService::FIELDS), ...$geoLocationData];
+                }
+                $result = $session->write($geoLocationData, $location);
+                $retainedIds[] = $result->location->id;
+                $submittedLocations[] = ['inputId' => $inputId, 'storedId' => $result->location->id];
+                if ($inputId !== null) {
+                    $changes['idMap'][$inputId] = (string) $result->location->id;
+                }
+                $changes['removedCount'] += (int) $result->duplicate;
+            }
+        }
+        // Remove an input only when another submitted input represents its row.
+        $keepers = [];
+        foreach ($changes['idMap'] as $inputId => $storedId) {
+            $inputId = (string) $inputId;
+            if (isset($keepers[$storedId])) {
+                if ($inputId === $storedId) {
+                    $changes['removedIds'][] = $keepers[$storedId];
+                    $keepers[$storedId] = $inputId;
+                } else {
+                    $changes['removedIds'][] = $inputId;
+                }
+            } else {
+                $keepers[$storedId] = $inputId;
+            }
+        }
+        if ($isUpdate) {
+            foreach ($existing as $location) {
+                if (! in_array($location->id, $retainedIds, true)) {
+                    $session->delete($location);
                 }
             }
         }
+
+        // Match the editor's surviving input rows before assigning contiguous positions.
+        $positions = [];
+        foreach ($submittedLocations as $submitted) {
+            $storedId = $submitted['storedId'];
+            if (isset($keepers[$storedId]) && $keepers[$storedId] !== $submitted['inputId']) {
+                continue;
+            }
+            $positions[$storedId] ??= count($positions);
+        }
+        foreach ($session->locations() as $location) {
+            if (isset($positions[$location->id]) && $location->position !== $positions[$location->id]) {
+                $session->write(['position' => $positions[$location->id]], $location);
+            }
+        }
+
+        return $changes;
+    }
+
+    /** @param array<string, mixed> $incoming
+     * @param  array<string, mixed>  $original
+     */
+    private function unchangedCoverage(array $incoming, array $original): bool
+    {
+        foreach ($incoming as $key => $value) {
+            if ($key === 'id') {
+                continue;
+            }
+            $before = $original[$key] ?? null;
+            if (in_array($key, ['latMin', 'latMax', 'lonMin', 'lonMax'], true) && is_numeric($value) && is_numeric($before)) {
+                if ((float) $value !== (float) $before) {
+                    return false;
+                }
+            } elseif ($key === 'polygonPoints') {
+                if (! app(GeoLocationIdentityService::class)->samePoints($value, $before)) {
+                    return false;
+                }
+            } elseif ($value !== $before && ! (($value === null || $value === '') && ($before === null || $before === ''))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

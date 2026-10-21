@@ -102,7 +102,7 @@ class ResourceTestDataSeeder extends Seeder
     {
         // Prevent running in production environment
         if (App::environment('production')) {
-            $this->command->error('This seeder cannot be run in production environment!');
+            $this->command?->error('This seeder cannot be run in production environment!');
 
             return;
         }
@@ -110,13 +110,13 @@ class ResourceTestDataSeeder extends Seeder
         // Idempotency check: If test resources already exist, skip seeding
         // We check for a characteristic landing page slug that indicates the seeder has run before.
         if (LandingPage::where('slug', 'mandatory-fields-only')->exists()) {
-            $this->command->info('ResourceTestDataSeeder: Test resources already exist, skipping...');
+            $this->command?->info('ResourceTestDataSeeder: Test resources already exist, skipping...');
 
             return;
         }
 
-        $this->command->info('Creating comprehensive test resources...');
-        $this->command->newLine();
+        $this->command?->info('Creating comprehensive test resources...');
+        $this->command?->newLine();
 
         $this->initializeLookupTables();
 
@@ -151,9 +151,9 @@ class ResourceTestDataSeeder extends Seeder
         $this->createFilesWithContactPersonOnly();
         $this->createFilesWithNoContactOptions();
 
-        $this->command->newLine();
-        $this->command->info('✓ Created '.count($this->createdResourceIds).' test resources.');
-        $this->command->newLine();
+        $this->command?->newLine();
+        $this->command?->info('✓ Created '.count($this->createdResourceIds).' test resources.');
+        $this->command?->newLine();
 
         // Output summary table
         $this->outputSummary();
@@ -1452,8 +1452,8 @@ class ResourceTestDataSeeder extends Seeder
      */
     private function logCreation(Resource $resource, string $description): void
     {
-        $this->command->info("  ✓ Created: {$resource->main_title}");
-        $this->command->line("    → {$description}");
+        $this->command?->info("  ✓ Created: {$resource->main_title}");
+        $this->command?->line("    → {$description}");
     }
 
     /**
@@ -1461,8 +1461,8 @@ class ResourceTestDataSeeder extends Seeder
      */
     private function outputSummary(): void
     {
-        $this->command->info('Created Test Resources Summary:');
-        $this->command->newLine();
+        $this->command?->info('Created Test Resources Summary:');
+        $this->command?->newLine();
 
         $resources = Resource::whereIn('id', $this->createdResourceIds)
             ->with(['titles', 'creators', 'contributors', 'geoLocations', 'rights'])
@@ -1483,7 +1483,7 @@ class ResourceTestDataSeeder extends Seeder
             ];
         }
 
-        $this->command->table(
+        $this->command?->table(
             ['ID', 'Title', 'Creators', 'Contributors', 'GeoLocs', 'Rights'],
             $tableData
         );

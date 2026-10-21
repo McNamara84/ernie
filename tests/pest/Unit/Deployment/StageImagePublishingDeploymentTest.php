@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('publishes Stage images only after every deployment workflow passed for the same main commit', function (): void {
+it('publishes Stage images only after every deployment workflow passed for the same allowed source commit', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/publish-stage-images.yml'));
 
     expect($workflow)->toBeArray();
@@ -52,7 +52,7 @@ it('publishes Stage images only after every deployment workflow passed for the s
         ->toContain("['vitest.yml', 'Vitest TS integration Tests']")
         ->toContain("['lint.yml', 'Linter Tests']")
         ->toContain("['playwright.yml', 'Playwright UI Tests']")
-        ->toContain("branch: 'main'")
+        ->toContain('branch: process.env.SOURCE_BRANCH')
         ->toContain("event: 'push'")
         ->toContain('head_sha: sourceSha')
         ->toContain("result.status === 'completed' && result.conclusion === 'success'")
@@ -63,8 +63,10 @@ it('publishes Stage images only after every deployment workflow passed for the s
         ->toContain("github.event.workflow_run.event == 'push'")
         ->toContain("github.event.workflow_run.conclusion == 'success'")
         ->not->toContain('workflow_dispatch')
-        ->and($validateSteps->get('Checkout the candidate main commit')['with']['ref'] ?? null)
-        ->toBe('${{ github.event.workflow_run.head_sha }}');
+        ->and($validateSteps->get('Checkout the candidate source commit')['with']['ref'] ?? null)
+        ->toBe('${{ github.event.workflow_run.head_sha }}')
+        ->and($workflow['on']['workflow_run']['branches'])->toBe(['main', 'dev'])
+        ->and($validateJob['if'])->toContain('github.event.workflow_run.head_repository.full_name == github.repository');
 });
 
 it('builds images from sanitized Production defaults without replacing their runtime settings', function (): void {
@@ -167,7 +169,7 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}')
         ->and($fujiBuild['with']['cache-from'] ?? null)
         ->toContain('type=gha,scope=security-fuji')
-        ->toContain('type=gha,scope=stage-fuji');
+        ->toContain('type=gha,scope=publish-${{ needs.validate.outputs.branch }}-fuji');
 
     expect($workflowContents)
         ->not->toContain('uses: actions/cache@')
@@ -178,18 +180,18 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->and($publishedDigestScan)
         ->toBeArray()
         ->and($publishedDigestScan['env']['APP_IMAGE_REF'] ?? null)
-        ->toBe('${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}')
+        ->toBe('${{ needs.validate.outputs.app_image }}@${{ steps.existing.outputs.app_digest || steps.app-build.outputs.digest }}')
         ->and($publishedDigestScan['env']['NGINX_IMAGE_REF'] ?? null)
-        ->toBe('${{ needs.validate.outputs.nginx_image }}@${{ steps.nginx-build.outputs.digest }}')
+        ->toBe('${{ needs.validate.outputs.nginx_image }}@${{ steps.existing.outputs.nginx_digest || steps.nginx-build.outputs.digest }}')
         ->and($publishedDigestScan['env']['FUJI_IMAGE_REF'] ?? null)
-        ->toBe('${{ needs.validate.outputs.fuji_image }}@${{ steps.fuji-build.outputs.digest }}')
+        ->toBe('${{ needs.validate.outputs.fuji_image }}@${{ steps.existing.outputs.fuji_digest || steps.fuji-build.outputs.digest }}')
         ->and($publishedDigestScan['env']['TRIVY_PASSWORD'] ?? null)
         ->toBe('${{ secrets.GITHUB_TOKEN }}')
         ->and($publishedDigestScan['run'] ?? null)
         ->toBeString()
         ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do')
         ->toContain('@sha256:[0-9a-f]{64}$')
-        ->toContain('aquasec/trivy:0.75.0@sha256:')
+        ->toContain('aquasec/trivy:0.76.1@sha256:')
         ->toContain('-v "${{ runner.temp }}/trivy-cache:/root/.cache/trivy"')
         ->toContain('--cache-dir /root/.cache/trivy')
         ->toContain('--exit-code 1')
@@ -199,8 +201,8 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->and($createDeployment)
         ->toBeArray()
         ->and($createDeployment['id'] ?? null)->toBe('deployment')
-        ->and($createDeployment['if'] ?? null)->toBe("steps.latest.outputs.current == 'true'")
-        ->and($createDeployment['env']['FUJI_DIGEST'] ?? null)->toBe('${{ steps.fuji-build.outputs.digest }}')
+        ->and($createDeployment['if'] ?? null)->toBe("needs.validate.outputs.branch == 'dev' && steps.latest.outputs.current == 'true'")
+        ->and($createDeployment['env']['FUJI_DIGEST'] ?? null)->toBe('${{ steps.existing.outputs.fuji_digest || steps.fuji-build.outputs.digest }}')
         ->and($createDeployment['env']['FUJI_IMAGE'] ?? null)->toBe('${{ needs.validate.outputs.fuji_image }}')
         ->and($createDeployment['run'] ?? null)
         ->toBeString()
@@ -222,14 +224,14 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
 
     expect($advanceDeployment)
         ->toBeArray()
-        ->and($advanceDeployment['if'] ?? null)->toBe("steps.latest.outputs.current == 'true'")
+        ->and($advanceDeployment['if'] ?? null)->toBe("needs.validate.outputs.branch == 'dev' && steps.latest.outputs.current == 'true'")
         ->and($advanceDeployment['env']['DEPLOY_COMMIT'] ?? null)
         ->toBe('${{ steps.deployment.outputs.commit }}')
         ->and($advanceDeployment['env']['PREVIOUS_DEPLOY_SHA'] ?? null)
         ->toBe('${{ steps.deployment.outputs.previous }}')
         ->and($advanceDeployment['run'] ?? null)
         ->toBeString()
-        ->toContain('refs/heads/main:refs/remotes/origin/main')
+        ->toContain('refs/heads/dev:refs/remotes/origin/dev')
         ->toContain('--force-with-lease=refs/heads/deploy/stage:${PREVIOUS_DEPLOY_SHA}')
         ->toContain('--force-with-lease=refs/heads/deploy/stage:')
         ->toContain('${DEPLOY_COMMIT}:refs/heads/deploy/stage');

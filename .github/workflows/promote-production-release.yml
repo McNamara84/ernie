@@ -251,12 +251,12 @@ jobs:
     permissions:
       contents: read
       packages: read
+      actions: read
     outputs:
       app_digest: ${{ steps.artifacts.outputs.app_digest }}
       current: ${{ steps.latest.outputs.current }}
       nginx_digest: ${{ steps.artifacts.outputs.nginx_digest }}
       fuji_digest: ${{ steps.artifacts.outputs.fuji_digest }}
-      stage_commit: ${{ steps.artifacts.outputs.stage_commit }}
 
     steps:
       - name: Checkout the trusted default branch
@@ -272,93 +272,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve the exact Stage deployment artifacts
+      - name: Resolve the exact main image artifacts
         id: artifacts
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          APP_IMAGE: ${{ needs.validate.outputs.app_image }}
-          NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
-          FUJI_IMAGE: ${{ needs.validate.outputs.fuji_image }}
           SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+        with:
+          script: |
+            const { readArtifact, validateArtifact, artifactOutputs } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/ci/deployment-artifacts.mjs`);
+            const artifact = await readArtifact(github, context.repo, 'main', process.env.SOURCE_SHA);
+            if (!artifact) throw new Error(`No main image artifact record exists for ${process.env.SOURCE_SHA}.`);
+            validateArtifact(artifact.record, { version: process.env.RELEASE_TAG.slice(1) });
+            artifactOutputs(core, artifact);
+            await core.summary.addHeading('Published release candidate')
+              .addRaw('Publishing the stable GitHub release authorizes automatic promotion of this exact commit and image set after all validation and image checks pass.\n')
+              .addCodeBlock(JSON.stringify(artifact.record, null, 2), 'json')
+              .addLink('Immutable artifact record', `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${artifact.commit}/${process.env.SOURCE_SHA}.json`).write();
+
+      - name: Verify promoted image manifests exist
+        env:
+          APP_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.artifacts.outputs.app_digest }}
+          NGINX_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.artifacts.outputs.nginx_digest }}
+          FUJI_REF: ${{ needs.validate.outputs.fuji_image }}@${{ steps.artifacts.outputs.fuji_digest }}
         run: |
           set -euo pipefail
-
-          git fetch --no-tags origin \
-            "+refs/heads/deploy/stage:refs/remotes/origin/deploy/stage"
-
-          STAGE_DEPLOY_COMMIT=""
-
-          while IFS= read -r candidate; do
-            if [[ "$(git show -s --format=%s "$candidate")" == "Deploy Stage from $SOURCE_SHA" ]]; then
-              STAGE_DEPLOY_COMMIT="$candidate"
-              break
-            fi
-          done < <(git rev-list --first-parent refs/remotes/origin/deploy/stage)
-
-          if [[ -z "$STAGE_DEPLOY_COMMIT" ]]; then
-            echo "No Stage deployment commit exists for release source $SOURCE_SHA." >&2
-            exit 1
-          fi
-
-          SOURCE_IS_PARENT=false
-
-          for parent in $(git show -s --format=%P "$STAGE_DEPLOY_COMMIT"); do
-            if [[ "$parent" == "$SOURCE_SHA" ]]; then
-              SOURCE_IS_PARENT=true
-              break
-            fi
-          done
-
-          if [[ "$SOURCE_IS_PARENT" != true ]]; then
-            echo "Stage deployment commit $STAGE_DEPLOY_COMMIT does not retain source $SOURCE_SHA as a parent." >&2
-            exit 1
-          fi
-
-          STAGE_COMPOSE="${RUNNER_TEMP}/docker-compose.stage.yml"
-          git show "${STAGE_DEPLOY_COMMIT}:docker-compose.stage.yml" > "$STAGE_COMPOSE"
-          STAGE_CONFIG="$(docker compose -f "$STAGE_COMPOSE" config --format json)"
-
-          APP_REF="$(jq -r '.services.app.image' <<< "$STAGE_CONFIG")"
-          NGINX_REF="$(jq -r '.services.webserver.image' <<< "$STAGE_CONFIG")"
-          FUJI_REF="$(jq -r '.services.fuji.image' <<< "$STAGE_CONFIG")"
-          APP_DIGEST="${APP_REF#"${APP_IMAGE}@"}"
-          NGINX_DIGEST="${NGINX_REF#"${NGINX_IMAGE}@"}"
-          FUJI_DIGEST="${FUJI_REF#"${FUJI_IMAGE}@"}"
-
-          if [[ "$APP_REF" != "${APP_IMAGE}@${APP_DIGEST}" ||
-              ! "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "Invalid Stage application image reference: $APP_REF" >&2
-            exit 1
-          fi
-
-          if [[ "$NGINX_REF" != "${NGINX_IMAGE}@${NGINX_DIGEST}" ||
-              ! "$NGINX_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "Invalid Stage Nginx image reference: $NGINX_REF" >&2
-            exit 1
-          fi
-
-          if [[ "$FUJI_REF" != "${FUJI_IMAGE}@${FUJI_DIGEST}" ||
-              ! "$FUJI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "Invalid Stage F-UJI image reference: $FUJI_REF" >&2
-            exit 1
-          fi
-
-          for service in queue assessment-queue scheduler; do
-            if [[ "$(jq -r --arg service "$service" '.services[$service].image' <<< "$STAGE_CONFIG")" != "$APP_REF" ]]; then
-              echo "Stage service $service does not use the release application image." >&2
-              exit 1
-            fi
-          done
-
           docker buildx imagetools inspect "$APP_REF" >/dev/null
           docker buildx imagetools inspect "$NGINX_REF" >/dev/null
           docker buildx imagetools inspect "$FUJI_REF" >/dev/null
-
-          {
-            echo "app_digest=$APP_DIGEST"
-            echo "nginx_digest=$NGINX_DIGEST"
-            echo "fuji_digest=$FUJI_DIGEST"
-            echo "stage_commit=$STAGE_DEPLOY_COMMIT"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Scan the exact promoted image digests
         env:
@@ -383,7 +324,7 @@ jobs:
               -e TRIVY_DISABLE_VEX_NOTICE \
               -e TRIVY_PASSWORD \
               -e TRIVY_USERNAME \
-              aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa image \
+              aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
               --scanners vuln \
               --format table \
               --exit-code 1 \

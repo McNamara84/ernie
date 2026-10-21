@@ -1,8 +1,8 @@
-# Production deployment from stable Stage artifacts
+# Production deployment from validated main artifacts
 
 Production does not build ERNIE images on its Portainer host. A published
 stable GitHub release promotes the exact application, Nginx, and F-UJI image digests
-that were previously deployed to Stage and creates a machine-managed
+recorded for the tested `main` commit and creates a machine-managed
 `deploy/prod` commit. Portainer follows that branch and therefore deploys only
 immutable, release-approved images.
 
@@ -11,24 +11,25 @@ immutable, release-approved images.
 1. A normal pull request is merged into `main`.
 2. The Security, Pest, MySQL, Vitest, lint/PHPStan, and Playwright workflows validate
    the `main` commit.
-3. `Publish Stage Images` builds and scans the application, Nginx, and F-UJI images,
-   pins their exact digests in `deploy/stage`, and Stage deploys them.
-4. A GitHub release such as `v1.0.9` is published for that commit.
-5. The read-only `Production Release Signal` workflow records the release
-   event. It has no package or repository write permission.
+3. `Publish Validated Images` builds and scans the application, Nginx, and F-UJI
+   images, then records their exact digests and application version in
+   `<source-sha>.json` on `artifacts/main`. Repeated publication reuses that record.
+   Stage independently follows `dev` through `deploy/stage`.
+4. Test these exact images in the [isolated release stack](release-candidate-testing.md),
+   record the candidate SHA and digests, and obtain the release Go/No-Go decision.
+5. Publish a stable GitHub release for that fixed commit to authorize Production
+   deployment. The read-only `Production Release Signal` workflow records the event.
 6. `Promote Production Release`, loaded from the default branch through
-   `workflow_run`, independently verifies the release and CI results in a
-   read-only `validate` job.
-7. Its read-only `inspect` job finds the historical `deploy/stage` commit for the release
-   source, verifies that the source commit is a parent, resolves the exact
-   image digests from its Compose file, confirms that the manifests still
-   exist, and scans them again for HIGH and CRITICAL vulnerabilities.
-8. Only after those checks succeed does the `promote` job receive repository
-   write access. If the release is still GitHub's latest stable release, it
-   writes those same digests into `docker-compose.prod.yml` and advances
-   `deploy/prod` with a compare-and-swap push.
-9. Portainer's outbound Git polling detects the changed deployment commit and
-   recreates Production from the promoted images.
+   `workflow_run`, verifies the release and exact `main` CI results in `validate`.
+7. Its read-only `inspect` job reads the immutable `artifacts/main` record,
+   requires its version to match the release tag, verifies all three image
+   manifests, and scans them again for HIGH and CRITICAL vulnerabilities.
+8. After those checks pass, `promote` receives repository write access, verifies
+   that the release is still the latest and highest stable release, writes those
+   same digests into `docker-compose.prod.yml`, and advances `deploy/prod` with a
+   compare-and-swap push.
+9. Portainer detects the changed deployment commit and recreates Production
+   from the tested images. No additional approval in Actions is required.
 
 No developer works on or merges into `deploy/prod`. Its commits record the
 release tag and source SHA, retain the validated source commit as a parent,
@@ -125,13 +126,13 @@ Automatic Production promotion requires all of the following:
 - the tag resolves to a commit contained in `main`;
 - all six deployment-blocking push workflows succeeded for that exact
   commit;
-- `deploy/stage` contains a deployment commit for that exact source SHA;
-- all three Stage-pinned image manifests (application, Nginx, and F-UJI) still
-  exist and pass the new digest scan;
+- `artifacts/main` contains a validated record for that exact source SHA;
+- the recorded application version equals the stable release version;
+- all three recorded image manifests still exist and pass the new digest scan;
 - the release remains latest immediately before `deploy/prod` is updated.
 
 Publishing a prerelease, an older release, or a release for an unvalidated or
-not-yet-staged commit cannot change `deploy/prod`. The workflow compares
+unrecorded candidate commit cannot change `deploy/prod`. The workflow compares
 numeric semantic versions rather than trusting GitHub's mutable latest label
 and repeats the deployed-version guard before creating the compare-and-swap
 update. Deleting or reclassifying a release also does not automatically roll
@@ -142,7 +143,7 @@ A release workflow runs in the context of its tag, whereas the
 `workflow_run` promotion is loaded from the default branch. The promotion
 does not trust the signal workflow's code or artifacts: its read-only jobs
 query the latest release, resolve the tag, check `main` and all CI results,
-inspect the trusted Stage deployment history, and rescan all three images before a
+inspect the immutable main artifact record, and rescan all three images before a
 separate job receives write access.
 
 Neither workflow offers `workflow_dispatch`. This prevents a branch copy of a
@@ -150,9 +151,16 @@ write-capable workflow from being dispatched manually.
 
 ## One-time rollout
 
-Perform these steps in order. Until the first eligible release has been
-promoted, `main` contains deliberately unpublished `deployment-template`
-markers and `deploy/prod` does not yet exist.
+For an existing `deploy/prod` installation, keep its Portainer settings and
+volumes unchanged. Merge the workflow changes through the normal reviewed PR
+process; no `production` environment setup is required. An existing environment
+is not referenced by this workflow and can remain in place. The current
+Production deployment stays active during the transition. Old releases without
+`artifacts/main` records cannot be promoted through the new workflow. Do not
+rebuild or retag an old release to bypass candidate testing.
+
+For a first deployment, perform the following steps in order. `main` contains
+unpublished `deployment-template` markers and is never a direct deployment target.
 
 ### 1. Pause the current Production auto-update
 
@@ -165,12 +173,19 @@ Production needs outbound HTTPS access to the Git repository, `ghcr.io`, and
 the GHCR authentication endpoint when the packages are private. No inbound
 connection from GitHub to the Production Portainer server is required.
 
-### 2. Merge and stage the intended release commit
+### 2. Test the intended release commit
 
-Merge the implementation through the normal pull-request process. Keep
-Production polling paused. Wait until all six validation workflows and
-`Publish Stage Images` have succeeded for the exact commit that will receive
-the release tag. Confirm that Stage is healthy with that deployment.
+Merge the implementation through the normal pull-request process. Publishing
+the tested stable GitHub release is the Production authorization; there is no
+separate environment approval. See
+[Branching and Releases](branching-and-releases.md#3-one-time-preparation) for the
+full rollout setup.
+
+Wait until all six validation workflows and `Publish Validated Images` succeed
+for the exact release commit. Finalize the first changelog entry to the stable
+version before building. Test that candidate using
+[Release Candidate Testing](release-candidate-testing.md). Stage may show a
+newer minor version and is not evidence that the `main` candidate was tested.
 
 The release tag must point to a commit that already contains these Production
 workflows. An older tag such as `v1.0.8` does not bootstrap the new process;
@@ -180,7 +195,7 @@ the first new published stable release does.
 
 Create or publish the release using a strict stable tag such as `v1.0.9`:
 
-- target the already validated and staged `main` commit;
+- target the exact tested `main` commit;
 - leave **Set as a pre-release** disabled;
 - ensure GitHub marks it as the latest release;
 - publish the release only after the tag, title, notes, and target commit are
@@ -194,7 +209,7 @@ Wait for:
 
 The following inspection and promotion steps must be green:
 
-- `Resolve the exact Stage deployment artifacts`;
+- `Resolve the exact main image artifacts`;
 - `Scan the exact promoted image digests`;
 - `Confirm that the release is still latest`;
 - `Create the digest-pinned Production deployment commit`;
@@ -256,32 +271,33 @@ There must be no local ERNIE Docker build in the deployment log. Verify that:
 - CPU, RAM, disk space, and container restart counts remain stable.
 
 After this verification, re-enable the existing Portainer polling mechanism.
-Further `main` commits continue to deploy to Stage only. Production changes
-only when a new eligible latest stable GitHub release is published.
+Further `dev` commits update Stage. A `main` build only records candidate images;
+Production changes when an eligible latest stable release is published and its
+automatic promotion checks pass.
 
 ## Normal release operation
 
 For each later Production release:
 
 1. merge reviewed changes into `main`;
-2. wait for all CI validation and the Stage image publication;
-3. verify the exact candidate on Stage;
-4. publish the next stable GitHub release for that commit;
-5. watch both Production release workflows;
+2. wait for all CI validation and the immutable `artifacts/main` image record;
+3. test the exact candidate in the isolated release stack and obtain Go/No-Go;
+4. tag that fixed SHA and publish the next stable GitHub release;
+5. watch the automatic validation, image inspection, and promotion;
 6. verify the automatic Portainer deployment and health checks.
 
 If a newer stable release appears while an older promotion is running, the
 concurrency guard cancels the older run. The final latest-release check and
 compare-and-swap branch update prevent a superseded run from overwriting a
 newer deployment. Every deployment commit remains internally consistent
-because all image references are immutable digests from one Stage deployment.
+because all image references are immutable digests from one main candidate record.
 
 ## Manual retry
 
 For a transient failure, use GitHub Actions' **Re-run all jobs** on the failed
 `Promote Production Release` run. Re-running `Production Release Signal` also
 causes a new promotion attempt after it completes. Every retry independently
-revalidates the current latest stable release, CI results, Stage deployment,
+revalidates the current latest stable release, CI results, main artifact record,
 image manifests, and vulnerability scan.
 
 Do not add a manual dispatch trigger to the privileged workflow and do not
@@ -318,23 +334,24 @@ Open the `validate` job summary. Confirm that the signal came from a release,
 the release is GitHub's current latest stable `vMAJOR.MINOR.PATCH` release, and
 all six push workflows succeeded for the tagged commit on `main`.
 
-### No Stage deployment commit exists for the release source
+### No main image artifact record exists for the release source
 
-The release was published before the exact tagged commit completed Stage
-publication, or the tag points to another commit. Do not retag an existing
-release. Let Stage publish and validate the intended commit, then correct the
-release through the normal release process.
+Wait for successful publication of that exact SHA on `main`. Rerun one of its
+successful deployment-blocking push workflows to trigger publication again,
+even if `main` has since advanced. Then rerun promotion after testing and
+verifying those recorded images. Do not move an existing tag. There is no
+fallback to Stage images or mutable image tags.
 
 ### Image inspection or the digest scan fails
 
 Confirm that all three GHCR packages (`ernie-app`, `ernie-nginx`, and
 `ernie-fuji`) still contain the digests referenced by the matching
-`deploy/stage` commit. Check repository access to each package and inspect the
+`artifacts/main` record. Check repository access to each package and inspect the
 vulnerability report for each image, including F-UJI. Promotion deliberately
 stops if any image is missing or has a fixable HIGH/CRITICAL finding.
 
 If F-UJI fails the scan, update the affected dependencies through the normal
-pull-request, Stage validation, and stable release process. Re-running the
+pull-request, candidate validation, and stable release process. Re-running the
 promotion with the same vulnerable digest does not fix the finding.
 
 ### Portainer reports unauthorized or manifest unknown

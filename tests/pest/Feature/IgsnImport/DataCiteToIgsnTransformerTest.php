@@ -4,6 +4,7 @@ use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\DataCiteToIgsnTransformer;
 use App\Services\DataCiteToResourceTransformer;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 
 beforeEach(function () {
     $this->baseTransformer = Mockery::mock(DataCiteToResourceTransformer::class);
@@ -30,7 +31,7 @@ describe('DataCiteToIgsnTransformer', function () {
         $this->baseTransformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiData, 1)
+            ->with($doiData, 1, null)
             ->andReturn($resource);
 
         $result = $this->transformer->transform($doiData, 1);
@@ -40,6 +41,21 @@ describe('DataCiteToIgsnTransformer', function () {
         $igsnMetadata = IgsnMetadata::where('resource_id', $resource->id)->first();
         expect($igsnMetadata)->not->toBeNull();
         expect($igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+    });
+
+    it('passes the operation report to the base transformer', function () {
+        $resource = Resource::factory()->create();
+        $report = new GeoLocationWriteReport;
+        $this->baseTransformer->shouldReceive('transform')->once()
+            ->with(['attributes' => []], 1, $report)
+            ->andReturnUsing(function () use ($resource, $report): Resource {
+                $report->removedCount = 1;
+
+                return $resource;
+            });
+
+        $result = $this->transformer->transform(['attributes' => []], 1, $report);
+        expect($result->id)->toBe($resource->id)->and($report->removedCount)->toBe(1);
     });
 
     it('sets upload_status to registered on the IgsnMetadata', function () {

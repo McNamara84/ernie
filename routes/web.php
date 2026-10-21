@@ -54,6 +54,7 @@ use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\ResourceTombstoneController;
 use App\Http\Controllers\Settings\PidSettingsController;
+use App\Http\Controllers\Settings\ThesaurusReviewCompletionController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\StatisticsController;
@@ -65,6 +66,7 @@ use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\VocabularyController;
+use App\Http\Middleware\PrioritizeInteractiveApiRequests;
 use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -276,7 +278,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/changelog', [ChangelogController::class, 'index'])->name('api.changelog');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])->group(function () {
     // Assistance routes are registered dynamically by AssistantServiceProvider.
     // @see \App\Providers\AssistantServiceProvider::registerRoutes()
 
@@ -372,6 +374,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     // Thesaurus settings routes (Admin and Group Leader)
     Route::middleware(['can:manage-thesauri'])->prefix('thesauri')->group(function () {
+        Route::post('/review-completion', [ThesaurusReviewCompletionController::class, 'store'])
+            ->name('thesauri.review-completion.store');
         Route::get('/', [ThesaurusSettingsController::class, 'index'])
             ->name('thesauri.index');
         Route::post('/{type}/check', [ThesaurusSettingsController::class, 'checkStatus'])

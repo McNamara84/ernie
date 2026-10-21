@@ -34,10 +34,12 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Size;
 use App\Services\Creators\ResourceCreatorNameResolverService;
+use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
 use App\Services\Igsn\IgsnSampleImageUrlService;
 use App\Support\DataCiteDateNormalizer;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\IgsnLocationNormalizer;
 use App\Support\OrcidNormalizer;
 use Illuminate\Database\Eloquent\Model;
@@ -65,6 +67,7 @@ class IgsnDifXmlParser
         Resource $resource,
         IgsnMetadata $igsnMetadata,
         bool $additive = false,
+        ?GeoLocationWriteReport $geoReport = null,
     ): bool {
         try {
             $metadata = $this->extractor->extract($difXml);
@@ -93,11 +96,12 @@ class IgsnDifXmlParser
         }
 
         try {
-            DB::transaction(function () use ($metadata, $resource, $igsnMetadata, $additive): void {
+            $enrichmentReport = new GeoLocationWriteReport;
+            DB::transaction(function () use ($metadata, $resource, $igsnMetadata, $additive, $enrichmentReport): void {
                 $this->persistScalars($metadata, $resource, $igsnMetadata, $additive);
                 $this->persistSampleImageDescriptor($metadata['sample_image'], $igsnMetadata, $additive);
                 $this->persistAlternateIdentifiers($metadata, $resource);
-                $this->persistGeoLocation($metadata['location'], $resource);
+                $this->persistGeoLocation($metadata['location'], $resource, $enrichmentReport);
                 $this->persistCollectionDate($metadata['collection'], $resource);
                 $this->persistCollector($metadata['collection'], $resource);
                 $this->persistValueRelations($metadata, $resource);
@@ -127,6 +131,11 @@ class IgsnDifXmlParser
                     $resource->save();
                 }
             });
+
+            // A later persistence failure rolls back the location write too.
+            if ($geoReport !== null) {
+                $geoReport->removedCount += $enrichmentReport->removedCount;
+            }
 
             return true;
         } catch (\Throwable $exception) {
@@ -256,7 +265,7 @@ class IgsnDifXmlParser
     }
 
     /** @param array<string, mixed> $location */
-    private function persistGeoLocation(array $location, Resource $resource): void
+    private function persistGeoLocation(array $location, Resource $resource, GeoLocationWriteReport $geoReport): void
     {
         $text = [
             'place' => IgsnLocationNormalizer::place($location),
@@ -283,7 +292,7 @@ class IgsnDifXmlParser
                 $this->replaceGeometry($existing, $geometry);
             }
             if ($existing->isDirty()) {
-                $existing->save();
+                $geoReport->record(app(GeoLocationWriterService::class)->save($resource, $existing));
             }
 
             return;
@@ -294,7 +303,7 @@ class IgsnDifXmlParser
             static fn (mixed $value): bool => $value !== null,
         );
         if ($attributes !== []) {
-            GeoLocation::create(['resource_id' => $resource->id, ...$attributes]);
+            $geoReport->record(app(GeoLocationWriterService::class)->write($resource, $attributes));
         }
     }
 

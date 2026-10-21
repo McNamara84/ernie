@@ -22,13 +22,13 @@ class IgsnTestDataSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->command->info('Creating IGSN test samples...');
+        $this->command?->info('Creating IGSN test samples...');
 
         // Physical Object exists with ID 21
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
 
         if (! $physicalObjectType) {
-            $this->command->error('Physical Object resource type not found!');
+            $this->command?->error('Physical Object resource type not found!');
 
             return;
         }
@@ -37,7 +37,7 @@ class IgsnTestDataSeeder extends Seeder
         $language = Language::first();
 
         if (! $publisher || ! $language) {
-            $this->command->error('Publisher or Language not found! Run base seeders first.');
+            $this->command?->error('Publisher or Language not found! Run base seeders first.');
 
             return;
         }
@@ -51,7 +51,7 @@ class IgsnTestDataSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'role' => 'admin',
             ]);
-            $this->command->info('  ✓ Created test admin user (admin@test.local / password)');
+            $this->command?->info('  ✓ Created test admin user (admin@test.local / password)');
         }
 
         $samples = [
@@ -142,7 +142,7 @@ class IgsnTestDataSeeder extends Seeder
 
             // Skip if already exists (idempotency)
             if (Resource::where('doi', $doi)->exists()) {
-                $this->command->warn("  → Skipped (exists): {$sample['title']}");
+                $this->command?->warn("  → Skipped (exists): {$sample['title']}");
 
                 continue;
             }
@@ -200,10 +200,10 @@ class IgsnTestDataSeeder extends Seeder
                 'point_latitude' => $sample['lat'],
             ]);
 
-            $this->command->info("  ✓ Created: {$sample['title']}");
+            $this->command?->info("  ✓ Created: {$sample['title']}");
         }
 
-        $this->command->newLine();
-        $this->command->info('✓ Created '.count($samples).' IGSN samples.');
+        $this->command?->newLine();
+        $this->command?->info('✓ Created '.count($samples).' IGSN samples.');
     }
 }

@@ -29,8 +29,10 @@ use App\Services\LandingPageDownloadUrlSuggestionService;
 use App\Services\Pid4instStatusService;
 use App\Services\RaidStatusService;
 use App\Services\RorStatusService;
+use App\Services\ThesaurusReviewReminderService;
 use App\Services\ThesaurusStatusService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -47,7 +49,7 @@ class EditorSettingsController extends Controller
         private readonly ElmoCacheRefreshDispatcherService $elmoRefreshDispatcher,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request, ThesaurusReviewReminderService $reminders): Response
     {
         // Ensure thesaurus and PID settings exist (auto-create if missing)
         $this->ensureThesaurusSettingsExist();
@@ -191,6 +193,8 @@ class EditorSettingsController extends Controller
             ]);
 
         return Inertia::render('settings/index', [
+            'thesaurusReviewReminder' => $reminders->status(),
+            'focusSection' => $request->query('section') === 'thesauri' ? 'thesauri' : null,
             'resourceTypes' => $resourceTypes,
             'titleTypes' => $titleTypes,
             'licenses' => $licenses,

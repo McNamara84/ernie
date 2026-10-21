@@ -71,7 +71,8 @@ final class WarmPortalCache extends Command
     /** @return list<PortalScope>|null */
     private function scopes(): ?array
     {
-        $scope = strtolower((string) $this->option('scope'));
+        $scope = $this->option('scope');
+        $scope = is_string($scope) ? strtolower($scope) : '';
 
         if ($scope === 'all') {
             return PortalScope::cases();
@@ -90,7 +91,7 @@ final class WarmPortalCache extends Command
     /** @return list<string>|null */
     private function areas(): ?array
     {
-        $areas = $this->option('area');
+        $areas = (array) $this->option('area');
         $areas = array_values(array_unique(array_filter(
             array_map(static fn (?string $area): string => (string) $area, $areas),
             static fn (string $area): bool => $area !== '',

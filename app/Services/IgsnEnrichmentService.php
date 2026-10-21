@@ -8,6 +8,7 @@ use App\Exceptions\LegacyIgsnPortalException;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -103,7 +104,7 @@ class IgsnEnrichmentService
      * @param  IgsnMetadata  $igsnMetadata  The IGSN metadata record to populate
      * @return bool True if enrichment was successful from any source
      */
-    public function enrich(Resource $resource, IgsnMetadata $igsnMetadata): bool
+    public function enrich(Resource $resource, IgsnMetadata $igsnMetadata, ?GeoLocationWriteReport $geoReport = null): bool
     {
         $this->lastResult = ['status' => 'datacite_only', 'source' => null];
         $doi = $resource->doi;
@@ -135,7 +136,7 @@ class IgsnEnrichmentService
                 return false;
             }
 
-            if (! $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata)) {
+            if (! $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata, false, $geoReport)) {
                 throw LegacyIgsnPortalException::invalidPayload(
                     'The prepared legacy DIF metadata could not be persisted.'
                 );
@@ -153,7 +154,7 @@ class IgsnEnrichmentService
         // Try Solr first (primary source, ~92% coverage)
         if ($configuration['solr'] && $this->solrService->isAvailable()) {
             $attempted = true;
-            $result = $this->solrService->enrich($resource, $igsnMetadata, $igsnHandle);
+            $result = $this->solrService->enrich($resource, $igsnMetadata, $igsnHandle, $geoReport);
             if ($result) {
                 $this->lastResult = ['status' => 'enriched', 'source' => 'solr'];
                 Log::info('IGSN legacy enrichment completed', ['doi' => $doi, 'source' => 'solr']);
@@ -165,7 +166,7 @@ class IgsnEnrichmentService
         // Fallback to legacy DB (adds ~2.3% more coverage)
         if ($configuration['legacy_db'] && $this->dbService->isAvailable()) {
             $attempted = true;
-            $result = $this->dbService->enrich($resource, $igsnMetadata, $igsnHandle);
+            $result = $this->dbService->enrich($resource, $igsnMetadata, $igsnHandle, $geoReport);
             if ($result) {
                 $this->lastResult = ['status' => 'enriched', 'source' => 'legacy_db'];
                 Log::info('IGSN legacy enrichment completed', ['doi' => $doi, 'source' => 'legacy_db']);
@@ -179,7 +180,7 @@ class IgsnEnrichmentService
 
             try {
                 $difXml = $this->portalService->difForHandles([$igsnHandle])[$igsnHandle] ?? null;
-                if ($difXml !== null && $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata)) {
+                if ($difXml !== null && $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata, false, $geoReport)) {
                     $this->lastResult = ['status' => 'enriched', 'source' => 'portal'];
                     Log::info('IGSN legacy enrichment completed', ['doi' => $doi, 'source' => 'portal']);
 

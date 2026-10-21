@@ -1,5 +1,46 @@
 [
     {
+        "version": "1.1.1",
+        "date": "2026-10-21",
+        "improvements": [
+            {
+                "title": "Quarterly Thesaurus Review Reminder",
+                "description": "Admins and Group Leaders see a dashboard reminder to check thesauri each calendar quarter. The clickable card opens, scrolls to and focuses Thesauri in Editor Settings. Explicitly completing the review dismisses the reminder for everyone until the next quarter, even when no updates are available. Completion preserves unsaved settings and prevents an outdated tab from accidentally completing a new quarter.",
+                "references": [{ "type": "issue", "number": 1478, "url": "https://github.com/McNamara84/ernie/issues/1478" }]
+            },
+            {
+                "title": "Coverage Descriptions on Landing Page Maps",
+                "description": "Landing page maps and previews show the complete coverage description in a closable popup on points, bounding boxes, polygons, lines and every line waypoint. Described objects support keyboard activation, provide labelled description dialogs and restore focus to the originating geometry when dismissed from inside the popup. Long descriptions wrap and scroll, and line waypoints retain coordinate tooltips on hover. Objects without a description remain visible without a description action. The same behavior applies to dataset and IGSN landing pages.",
+                "references": [{ "type": "issue", "number": 1477, "url": "https://github.com/McNamara84/ernie/issues/1477" }]
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Reliable Resource List Scrolling",
+                "description": "Resources continue loading correctly when a saved sort preference is restored. Explicit URL sorting takes priority, and filters and page size are retained. Failed requests pause automatic loading and keep existing rows visible, with Retry for temporary failures or Reload list when the list needs to be refreshed."
+            },
+            {
+                "title": "Reliable GEMET Update Checks",
+                "description": "GEMET update checks limit simultaneous requests and retry temporary connection failures once. Checks respect provider retry delays and a shared time budget, cache only complete results, and report understandable errors when GEMET remains unavailable. Existing vocabulary downloads and update jobs keep their behavior.",
+                "references": [{ "type": "issue", "number": 1476, "url": "https://github.com/McNamara84/ernie/issues/1476" }]
+            },
+            {
+                "title": "Complete Identifier Patterns for ELMO",
+                "description": "The ELMO API now supplies a compatible validation pattern alongside separate recognition rules. IGSN and RAiD DOI forms, arXiv URLs and historical identifiers, and ISBNs with separators are accepted as complete inputs. Recognition rules prioritize known namespaces, including DOI-labelled IGSNs, and ISBN over EAN13 while allowing manually selected EAN13 values that also qualify as ISBNs. All standard validation patterns compile with HTML's Unicode v flag, including corrected LSID, PURL, RRID, URN and w3id patterns. Existing custom patterns and activation settings are preserved during the update; migration target conflicts under case-insensitive database collations leave the original pattern group untouched. Advisory checksum instructions are documented for consumers; ELMO must apply the recognition priorities and local checksum checks itself.",
+                "references": [{ "type": "issue", "number": 1475, "url": "https://github.com/McNamara84/ernie/issues/1475" }]
+            },
+            {
+                "title": "Responsive Data Editor During Background Checks",
+                "description": "Assistant scans now run on a separate worker, and interactive DataCite updates and ORCID verification receive priority within shared API limits. Waiting background requests release their locks, while optional citation lookups run before the editor's save transaction. Superseded DOI updates cannot replay older metadata over a newer update. Tombstone verification waits outside DOI locks, duplicate syncs leave running jobs in charge, and stale remote confirmations are retried. Temporary DataCite failures preserve locally saved metadata and clearly distinguish it from an unconfirmed external update. User documentation explains when to retry or reload. Event Data requests honor provider cooldowns across concurrent failures. Cached missing ORCIDs remain blocking when online checks time out or warnings are confirmed."
+            },
+            {
+                "title": "Stable Landing Page Maps and GeoLocation Duplicate Prevention",
+                "description": "Landing pages and previews remain visible with coincident, near-polar or invalid historical locations. Valid numeric-string coordinates in stored polygons and lines are normalized for map display without rewriting data. New identical GeoLocations are merged and reported when saving or importing, including IGSN legacy and SUMARIO coverage enrichment. Equality includes geometry, descriptions, time coverage, elevation and location details. Saves retain persisted IDs and hidden metadata, and preserve the order of the remaining editor entries after merges. Incomplete polygon and line vertices remain editable as blank fields and are excluded from maps; saving requires their correction. Existing duplicate or questionable locations remain stored for manual curation, including during unrelated saves.",
+                "references": [{ "type": "pull_request", "number": 1473, "url": "https://github.com/McNamara84/ernie/pull/1473" }]
+            }
+        ]
+    },
+    {
         "version": "1.1.0",
         "date": "2026-10-13",
         "features": [

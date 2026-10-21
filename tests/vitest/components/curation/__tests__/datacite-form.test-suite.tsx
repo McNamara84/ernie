@@ -8685,6 +8685,57 @@ describe('DataCiteForm', () => {
             expect(secondPayload.resourceId).toBe(42);
         });
 
+        it('keeps the retained GeoLocation ID on the next draft save after merging a new copy', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const entry = {
+                id: 'new-first',
+                type: 'point' as const,
+                latMin: '52',
+                lonMin: '13',
+                latMax: '',
+                lonMax: '',
+                startDate: '',
+                endDate: '',
+                startTime: '',
+                endTime: '',
+                timezone: '',
+                description: 'GFZ',
+            };
+            const mockPost = vi.mocked(axios.post);
+            mockPost.mockResolvedValue({
+                status: 200,
+                data: {
+                    resource: { id: 99 },
+                    geoLocationChanges: {
+                        removedCount: 1,
+                        idMap: { 'new-first': '21', 'new-copy': '21' },
+                        removedIds: ['new-copy'],
+                    },
+                },
+            });
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Location draft', titleType: 'main-title' }],
+                initialSpatialTemporalCoverages: [entry, { ...entry, id: 'new-copy' }],
+            });
+            const spatialTrigger = screen.getByRole('button', { name: /^Spatial and Temporal Coverage/ });
+            if (spatialTrigger.getAttribute('aria-expanded') !== 'true') await user.click(spatialTrigger);
+            await user.click(screen.getByText('Coverage Entry #1'));
+            const descriptionField = document.getElementById('description-new-first');
+            expect(descriptionField).not.toBeNull();
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(toast.info).toHaveBeenCalledWith('1 identical location entry was merged.'));
+            expect(document.getElementById('description-new-first')).toBe(descriptionField);
+            mockPost.mockClear();
+            mockPost.mockResolvedValue({ status: 200, data: { resource: { id: 99 } } });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockPost).toHaveBeenCalled());
+            expect(mockPost.mock.calls[0][1]).toEqual(
+                expect.objectContaining({
+                    spatialTemporalCoverages: [expect.objectContaining({ id: '21', description: 'GFZ' })],
+                }),
+            );
+        });
+
         it('uses the saved resource ID on subsequent draft saves without leaving the editor', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -9088,70 +9139,100 @@ describe('DataCiteForm', () => {
             expect(mockedAxios.post).not.toHaveBeenCalled();
         });
 
-        it('confirms, saves, and updates DataCite metadata for a published record', { timeout: 60000 }, async () => {
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        it.each(['success', 'temporary-busy', 'superseded'] as const)(
+            'confirms, saves, and updates a published record after %s',
+            { timeout: 60000 },
+            async (outcome) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+                const busyMessage =
+                    outcome === 'superseded'
+                        ? 'A newer DOI update superseded this request. Reload the resource before retrying.'
+                        : 'Your metadata is saved in ERNIE. DataCite is temporarily busy; the external update has not been confirmed. Please retry shortly.';
+                let updateAttempts = 0;
 
-            mockedAxios.post.mockImplementation((url: string) => {
-                if (url === '/editor/resources') {
-                    return Promise.resolve({
-                        data: { message: 'Validated', resource: { id: 42, publicStatus: 'published' } },
-                        status: 200,
-                    });
+                mockedAxios.post.mockImplementation((url: string) => {
+                    if (url === '/editor/resources') {
+                        return Promise.resolve({
+                            data: { message: 'Validated', resource: { id: 42, publicStatus: 'published' } },
+                            status: 200,
+                        });
+                    }
+
+                    if (url === '/resources/42/register-doi') {
+                        if (outcome !== 'success' && updateAttempts++ === 0) {
+                            return Promise.reject({
+                                isAxiosError: true,
+                                response: {
+                                    status: outcome === 'superseded' ? 409 : 503,
+                                    data: {
+                                        error: outcome === 'superseded' ? 'doi_update_superseded' : 'datacite_temporarily_busy',
+                                        message: busyMessage,
+                                    },
+                                },
+                            });
+                        }
+                        return Promise.resolve({
+                            data: {
+                                success: true,
+                                message: 'DOI metadata updated successfully',
+                                doi: '10.5880/example',
+                                mode: 'production',
+                                updated: true,
+                            },
+                            status: 200,
+                        });
+                    }
+
+                    throw new Error(`Unexpected POST ${url}`);
+                });
+
+                renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialDoi: '10.5880/example',
+                    initialPublicStatus: 'published',
+                    initialYear: '2024',
+                    initialResourceType: '1',
+                    initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
+                    initialLicenses: ['MIT'],
+                    availableDatacenters,
+                    initialDatacenterId: 1,
+                    initialLandingPage: {
+                        id: 7,
+                        is_published: true,
+                        status: 'published',
+                        public_url: 'https://example.test/landing-page',
+                        preview_url: null,
+                        external_url: null,
+                    },
+                });
+
+                await fillRequiredAuthor(user);
+                await fillRequiredContributor(user);
+                await fillRequiredAbstract(user);
+                await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
+                expect(mockedAxios.post).not.toHaveBeenCalled();
+
+                const confirmButton = await screen.findByTestId('confirm-editor-datacite-action');
+                await waitFor(() => expect(confirmButton).toBeEnabled());
+                await user.click(confirmButton);
+
+                await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
+                expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
+                expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/register-doi', { prefix: '', force: false }]);
+                if (outcome !== 'success') {
+                    expect(await screen.findByText(busyMessage)).toBeInTheDocument();
+                    expect(mockRouterVisit).not.toHaveBeenCalled();
+                    expect(screen.getByDisplayValue('Published Dataset')).toBeInTheDocument();
+                    await waitFor(() => expect(confirmButton).toBeEnabled());
+                    await user.click(confirmButton);
+                    await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(3));
+                    expect(mockedAxios.post.mock.calls.filter(([url]) => url === '/editor/resources')).toHaveLength(1);
                 }
-
-                if (url === '/resources/42/register-doi') {
-                    return Promise.resolve({
-                        data: {
-                            success: true,
-                            message: 'DOI metadata updated successfully',
-                            doi: '10.5880/example',
-                            mode: 'production',
-                            updated: true,
-                        },
-                        status: 200,
-                    });
-                }
-
-                throw new Error(`Unexpected POST ${url}`);
-            });
-
-            renderDataCiteForm({
-                initialResourceId: '42',
-                initialDoi: '10.5880/example',
-                initialPublicStatus: 'published',
-                initialYear: '2024',
-                initialResourceType: '1',
-                initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
-                initialLicenses: ['MIT'],
-                availableDatacenters,
-                initialDatacenterId: 1,
-                initialLandingPage: {
-                    id: 7,
-                    is_published: true,
-                    status: 'published',
-                    public_url: 'https://example.test/landing-page',
-                    preview_url: null,
-                    external_url: null,
-                },
-            });
-
-            await fillRequiredAuthor(user);
-            await fillRequiredContributor(user);
-            await fillRequiredAbstract(user);
-            await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
-            expect(mockedAxios.post).not.toHaveBeenCalled();
-
-            const confirmButton = await screen.findByTestId('confirm-editor-datacite-action');
-            await waitFor(() => expect(confirmButton).toBeEnabled());
-            await user.click(confirmButton);
-
-            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
-            expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
-            expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/register-doi', { prefix: '', force: false }]);
-            expect(mockRouterVisit).toHaveBeenCalledWith('/resources');
-            expect(screen.queryByTestId('doi-registration-success-dialog')).not.toBeInTheDocument();
-        });
+                expect(mockRouterVisit).toHaveBeenCalledWith('/resources');
+                expect(screen.queryByTestId('doi-registration-success-dialog')).not.toBeInTheDocument();
+            },
+        );
     });
 
     describe('Section-level validation alerts suppressed until submit (Issue #625)', () => {

@@ -222,6 +222,24 @@ function expectBulkActions(expand: boolean, collapse: boolean) {
 }
 
 describe('EditorSettings accordion page', () => {
+    it('opens and focuses only the linked thesauri section without dirtying settings or refocusing on reload', async () => {
+        const view = renderSettings({ focusSection: 'thesauri' });
+        const trigger = sectionTrigger(/^Thesauri/);
+        await waitFor(() => expect(trigger).toHaveFocus());
+        expect(settingsTriggers().filter((item) => item.getAttribute('aria-expanded') === 'true')).toEqual([trigger]);
+        expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+        await userEvent.click(trigger);
+        await userEvent.click(sectionTrigger(/^Resource Types/));
+        const input = within(section('resource-types')).getAllByRole('textbox', { name: 'Name' })[0];
+        await userEvent.clear(input);
+        await userEvent.type(input, 'Unsaved name');
+        view.rerender(<EditorSettings {...defaultProps} focusSection="thesauri" thesauri={[...defaultThesauri]} />);
+        expect(input).toHaveFocus();
+        expect(input).toHaveValue('Unsaved name');
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+    });
+
     beforeEach(() => {
         formHarness.initialData = null;
         formHarness.replaceData = null;

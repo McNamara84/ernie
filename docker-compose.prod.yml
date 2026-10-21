@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:9ae18ec5fe667d705475289e27880af775bf41a038d90171b8a0a59610066796}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -61,6 +61,8 @@ services:
       - DATACITE_IGSN_PASSWORD=${DATACITE_IGSN_PASSWORD}
       - DATACITE_USER_AGENT_EMAIL=${DATACITE_USER_AGENT_EMAIL:-datapub@gfz.de}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - DATACITE_INTERACTIVE_RESERVED_REQUESTS=${DATACITE_INTERACTIVE_RESERVED_REQUESTS:-30}
+      - DATACITE_INTERACTIVE_MAX_WAIT_MS=${DATACITE_INTERACTIVE_MAX_WAIT_MS:-5000}
       - SESSION_DRIVER=file
       - SESSION_LIFETIME=120
       - SESSION_PATH=/
@@ -75,6 +77,10 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
@@ -169,7 +175,7 @@ services:
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:d6df70b79037496603b9f1533c99eed64680a331a178ae7c08117bf63852c94b}"
+    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:bef91ad5b4ef336e2297d680873d34b6c65b5e926002b9937e693ce1b8256043}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -245,7 +251,7 @@ services:
       - "traefik.docker.network=traefik"
 
   db:
-    image: mysql:9.7.2@sha256:e2bde46db6563855d7177adb5f0b57b9dc663f5a20927a90f4259d3312068497
+    image: mysql:9.7.2@sha256:e2fa358a74ac81148e7e27d9433e4c0ab62133de8ea4428b4f39a51a4ba7d07f
     container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
@@ -281,7 +287,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:5da95ce830e637ce98f0431272f64eaa9bd2194508107c9fa602a05e08ca36b3}"
+    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:9d7899df99051c72c84b0add8f8e15e5e349bd92de33b72129267de1f501116d}"
     container_name: ernie-fuji-prod
     restart: unless-stopped
     entrypoint:
@@ -312,7 +318,7 @@ services:
       start_period: 60s
 
   queue: &ernie-queue
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:9ae18ec5fe667d705475289e27880af775bf41a038d90171b8a0a59610066796}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -349,6 +355,8 @@ services:
       - DATACITE_IGSN_PASSWORD=${DATACITE_IGSN_PASSWORD}
       - DATACITE_USER_AGENT_EMAIL=${DATACITE_USER_AGENT_EMAIL:-datapub@gfz.de}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - DATACITE_INTERACTIVE_RESERVED_REQUESTS=${DATACITE_INTERACTIVE_RESERVED_REQUESTS:-30}
+      - DATACITE_INTERACTIVE_MAX_WAIT_MS=${DATACITE_INTERACTIVE_MAX_WAIT_MS:-5000}
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
@@ -356,6 +364,10 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
@@ -421,6 +433,14 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
+  # Discovery scans have a separate consumer and reservation window.
+  assistance-queue:
+    <<: *ernie-queue
+    container_name: dockerized-laravel-assistance-queue
+    cpus: ${ASSISTANCE_WORKER_CPUS:-0.5}
+    stop_grace_period: 30s
+    command: php artisan queue:work assistance --queue=${ASSISTANCE_QUEUE:-assistance} --sleep=1 --tries=1 --timeout=${ASSISTANCE_JOB_TIMEOUT:-3600}
+
   # Separate reservation window for the potentially 300-second ELMO request.
   elmo-cache-refresh:
     <<: *ernie-queue
@@ -429,7 +449,7 @@ services:
     command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:9ae18ec5fe667d705475289e27880af775bf41a038d90171b8a0a59610066796}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -463,6 +483,10 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
@@ -498,7 +522,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:9ae18ec5fe667d705475289e27880af775bf41a038d90171b8a0a59610066796}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped
@@ -552,6 +576,8 @@ services:
       - PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS=${PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS:-300}
       - INERTIA_SSR_ENABLED=false
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - DATACITE_INTERACTIVE_RESERVED_REQUESTS=${DATACITE_INTERACTIVE_RESERVED_REQUESTS:-30}
+      - DATACITE_INTERACTIVE_MAX_WAIT_MS=${DATACITE_INTERACTIVE_MAX_WAIT_MS:-5000}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}
       - FUJI_ASSESSMENT_QUEUE=${FUJI_ASSESSMENT_QUEUE:-assessments}
@@ -562,6 +588,10 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
+      - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
+      - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}

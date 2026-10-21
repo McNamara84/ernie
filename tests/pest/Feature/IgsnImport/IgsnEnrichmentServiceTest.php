@@ -9,6 +9,7 @@ use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnLegacyDbEnrichmentService;
 use App\Services\IgsnSolrEnrichmentService;
 use App\Services\LegacyIgsnPortalService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
@@ -38,6 +39,25 @@ afterEach(function () {
 });
 
 describe('IgsnEnrichmentService', function () {
+    it('passes the operation report through each configured enrichment source', function (string $source) {
+        $resource = Resource::factory()->create(['doi' => '10.60510/GFREPORT001']);
+        $metadata = IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_REGISTERED]);
+        $report = new GeoLocationWriteReport;
+        config()->set('datacite.solr.host', $source === 'solr' ? 'solr.internal' : null);
+        config()->set('database.connections.igsn_legacy.configured', $source === 'legacy_db');
+        config()->set('datacite.legacy_igsn_portal.proxy_url', $source === 'portal' ? 'https://portal.test' : null);
+        if ($source === 'solr' || $source === 'legacy_db') {
+            $service = $source === 'solr' ? $this->solrService : $this->dbService;
+            $service->shouldReceive('isAvailable')->once()->andReturn(true);
+            $service->shouldReceive('enrich')->once()->with($resource, $metadata, 'GFREPORT001', $report)->andReturn(true);
+        } else {
+            $xml = '<resource><sample><primary_location_name>Germany</primary_location_name></sample></resource>';
+            $this->portalService->shouldReceive('difForHandles')->once()->with(['GFREPORT001'])->andReturn(['GFREPORT001' => $xml]);
+            $this->difParser->shouldReceive('enrichFromDifXml')->once()->with($xml, $resource, $metadata, false, $report)->andReturn(true);
+        }
+        expect($this->enrichmentService->enrich($resource, $metadata, $report))->toBeTrue();
+    })->with(['solr', 'legacy_db', 'portal']);
+
     it('tries Solr first and stops on success', function () {
         $resource = Resource::factory()->create(['doi' => '10.60510/GFTEST001']);
         $igsnMetadata = IgsnMetadata::create([
@@ -48,7 +68,7 @@ describe('IgsnEnrichmentService', function () {
         $this->solrService->shouldReceive('isAvailable')->once()->andReturn(true);
         $this->solrService->shouldReceive('enrich')
             ->once()
-            ->with($resource, $igsnMetadata, 'GFTEST001')
+            ->with($resource, $igsnMetadata, 'GFTEST001', null)
             ->andReturn(true);
 
         // DB should not be called if Solr succeeds
@@ -70,13 +90,13 @@ describe('IgsnEnrichmentService', function () {
         $this->solrService->shouldReceive('isAvailable')->once()->andReturn(true);
         $this->solrService->shouldReceive('enrich')
             ->once()
-            ->with($resource, $igsnMetadata, 'GFTEST002')
+            ->with($resource, $igsnMetadata, 'GFTEST002', null)
             ->andReturn(false);
 
         $this->dbService->shouldReceive('isAvailable')->once()->andReturn(true);
         $this->dbService->shouldReceive('enrich')
             ->once()
-            ->with($resource, $igsnMetadata, 'GFTEST002')
+            ->with($resource, $igsnMetadata, 'GFTEST002', null)
             ->andReturn(true);
 
         $result = $this->enrichmentService->enrich($resource, $igsnMetadata);
@@ -231,7 +251,7 @@ describe('IgsnEnrichmentService', function () {
         ]);
         $this->difParser->shouldReceive('enrichFromDifXml')
             ->once()
-            ->with($difXml, $resource, $igsnMetadata)
+            ->with($difXml, $resource, $igsnMetadata, false, null)
             ->andReturn(true);
         $this->solrService->shouldReceive('enrich')->never();
         $this->dbService->shouldReceive('enrich')->never();

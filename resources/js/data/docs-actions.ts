@@ -54,7 +54,8 @@ export const DOCS_ACTIONS: DocsAction[] = [
         externalEffect:
             'After confirmation and preparation, DataCite receives a DOI creation request with event=publish. ORCID preflight can block or warn before the request.',
         publicEffect: 'A successful production registration publishes a resolvable DOI. Test registrations remain in DataCite test mode.',
-        failure: 'Review the displayed error and the record status before retrying; a failed remote step does not undo a successful local save.',
+        failure:
+            'A successful local save remains stored if DataCite is temporarily busy or another DOI update is in progress (503). The external update is unconfirmed; wait briefly and retry. If a newer update supersedes yours (409), reload the resource, review its latest metadata, then confirm again. Check the DOI status before retrying registration.',
     },
     {
         id: 'editor-update-metadata',
@@ -70,7 +71,7 @@ export const DOCS_ACTIONS: DocsAction[] = [
         externalEffect: 'Updates the existing DataCite record; it does not mint a new DOI. ORCID preflight runs before the remote write.',
         publicEffect: 'Metadata for the existing DOI changes at DataCite after a successful request.',
         failure:
-            'A locally stored DOI does not prove that DataCite has that DOI in this environment. Check the error and remote status before retrying.',
+            'A successful local save remains stored if DataCite is temporarily busy or another DOI update is in progress (503). The external update is unconfirmed; wait briefly and retry. If a newer update supersedes yours (409), reload the resource, review its latest metadata, then confirm again. A locally stored DOI does not prove that it exists in this DataCite environment.',
     },
     {
         id: 'editor-preview-lp',

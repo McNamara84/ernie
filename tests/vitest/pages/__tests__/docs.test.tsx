@@ -1683,7 +1683,12 @@ describe('Docs page', () => {
         const register = screen.getByRole('heading', { name: 'Register', level: 3 }).closest('article');
         expect(register?.textContent).toMatch(/This click does not save for this action or contact DataCite/);
         expect(register?.textContent).toMatch(/sends metadata to DataCite to create and publish a DOI/);
-        expect(register?.textContent).toMatch(/a failed remote step does not undo a successful local save/);
+        for (const label of ['Register', 'Update Metadata']) {
+            const action = screen.getByRole('heading', { name: label, level: 3 }).closest('article');
+            expect(action?.textContent).toMatch(/successful local save remains stored/i);
+            expect(action?.textContent).toMatch(/\(503\).*external update is unconfirmed; wait briefly and retry/);
+            expect(action?.textContent).toMatch(/\(409\), reload the resource, review its latest metadata, then confirm again/);
+        }
 
         const update = screen.getByRole('heading', { name: 'Update metadata', level: 3 }).closest('article');
         expect(update?.textContent).toMatch(/It does not mint new DOIs/);

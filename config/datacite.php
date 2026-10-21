@@ -17,6 +17,11 @@ return [
     // failures only. URL migration jobs own their persistent retry lifecycle.
     'transport_transient_attempts' => (int) env('DATACITE_TRANSPORT_TRANSIENT_ATTEMPTS', 3),
 
+    // Keep part of the shared quota available for editor requests. Background
+    // work yields while an interactive caller is waiting for the next slot.
+    'interactive_reserved_requests' => (int) env('DATACITE_INTERACTIVE_RESERVED_REQUESTS', 30),
+    'interactive_max_wait_ms' => (int) env('DATACITE_INTERACTIVE_MAX_WAIT_MS', 5000),
+
     // Every durable DataCite workflow uses the same serial worker queue.
     'queue' => env('DATACITE_QUEUE', env('DATACITE_URL_UPDATE_QUEUE', 'datacite')),
 

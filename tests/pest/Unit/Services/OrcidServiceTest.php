@@ -13,12 +13,24 @@ covers(OrcidService::class);
 
 beforeEach(function () {
     NativeSleep::fake();
+    // Provider behavior is tested here; reservation timing has dedicated tests.
+    config(['services.orcid.rate_limit_delay_ms' => 0]);
     $this->service = new OrcidService(new RorLookupService);
     Cache::flush();
 });
 
 afterEach(function () {
     NativeSleep::restore();
+});
+
+it('reuses successful verification briefly without suppressing later invalidation', function () {
+    Http::fakeSequence()->push([], 200)->push([], 404);
+    expect($this->service->validateOrcid('0000-0002-1825-0097')['exists'])->toBeTrue()
+        ->and($this->service->validateOrcid('https://orcid.org/0000-0002-1825-0097')['exists'])->toBeTrue();
+    Http::assertSentCount(1);
+    $this->travel(301)->seconds();
+    expect($this->service->validateOrcid('0000-0002-1825-0097')['errorType'])->toBe('not_found');
+    Http::assertSentCount(2);
 });
 
 describe('Format validation', function () {

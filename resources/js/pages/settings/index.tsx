@@ -12,6 +12,7 @@ import { LicenseResourceTypePopover } from '@/components/settings/license-resour
 import { type PidSettingData, PidSettingsCard } from '@/components/settings/pid-settings-card';
 import { pluralizedCount, SettingsSectionSummary } from '@/components/settings/settings-section-summary';
 import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
+import { ThesaurusReviewStatus } from '@/components/settings/thesaurus-review-status';
 import { TruncatedLicenseIdentifier } from '@/components/settings/truncated-license-identifier';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,6 +25,7 @@ import { getSelectAllState } from '@/lib/select-all';
 import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import type { LandingPageDownloadUrlSuggestionItem } from '@/types/landing-page';
+import type { ThesaurusReviewReminder } from '@/types/thesaurus-review';
 
 interface ResourceTypeRow {
     id: number;
@@ -130,6 +132,8 @@ interface EditorSettingsProps {
     dateTypes: DateTypeRow[];
     descriptionTypes: DescriptionTypeRow[];
     thesauri: ThesaurusData[];
+    thesaurusReviewReminder?: ThesaurusReviewReminder;
+    focusSection?: 'thesauri' | null;
     pidSettings: PidSettingData[];
     landingPageDomains: LandingPageDomainRow[];
     contributorPersonRoles: ContributorRoleRow[];
@@ -152,6 +156,8 @@ export default function EditorSettings({
     dateTypes,
     descriptionTypes,
     thesauri,
+    thesaurusReviewReminder,
+    focusSection = null,
     pidSettings,
     landingPageDomains,
     contributorPersonRoles,
@@ -166,7 +172,7 @@ export default function EditorSettings({
     const [newDomain, setNewDomain] = useState('');
     const [isAddingDomain, setIsAddingDomain] = useState(false);
     const [expandedIdentifierTypes, setExpandedIdentifierTypes] = useState<Set<number>>(new Set());
-    const [openSections, setOpenSections] = useState<string[]>([]);
+    const [openSections, setOpenSections] = useState<string[]>(focusSection === 'thesauri' ? ['thesauri'] : []);
     const [savedDownloadUrlSuggestionOrder, setSavedDownloadUrlSuggestionOrder] = useState(downloadUrlSuggestionOrder);
 
     // Datacenter management - managed separately via API
@@ -1759,6 +1765,7 @@ export default function EditorSettings({
                     {/* Thesauri */}
                     <EditorSettingsSection
                         value="thesauri"
+                        focusOnOpen={focusSection === 'thesauri'}
                         title="Thesauri"
                         description="Manage controlled vocabularies for scientific keywords, platforms, instruments, and MSL laboratories."
                         forceMount
@@ -1773,6 +1780,7 @@ export default function EditorSettings({
                             />
                         }
                     >
+                        {thesaurusReviewReminder && <ThesaurusReviewStatus reminder={thesaurusReviewReminder} />}
                         <ThesaurusCard
                             thesauri={thesauri.map((t) => {
                                 const formData = data.thesauri.find((d) => d.type === t.type);

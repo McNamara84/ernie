@@ -444,6 +444,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                                 {successResult.resourceId
                                     ? `Draft resource #${successResult.resourceId} is ready to review.`
                                     : 'The parsed metadata is ready to open in the editor.'}
+                                {successResult.message && <p className="mt-2">{successResult.message}</p>}
                             </>
                         )}
                     </AlertDescription>

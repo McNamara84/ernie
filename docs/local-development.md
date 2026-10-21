@@ -2,7 +2,10 @@
 
 ## Overview
 
-ERNIE uses a Docker-first local workflow.
+ERNIE uses a Docker-first local workflow. See [Branching and Releases](branching-and-releases.md)
+for `main` bugfixes, `dev` features, automatic synchronization, and publishing.
+To test immutable Production candidates while Stage follows `dev`, use
+[Release Candidate Testing](release-candidate-testing.md).
 
 - Fast Mode is the default path for day-to-day development.
 - Optional profiles are available for assessment-specific and parity-specific work.
@@ -173,6 +176,32 @@ npm run docker:dev:assessment
 npm run docker:dev:parity
 ```
 
+### Assistant discovery queue
+
+The standard stack includes `assistance-queue`, separate from the general queue
+and optional assessment workers. All generic and legacy discovery jobs use the
+persistent `assistance` connection. Its queue name defaults to `assistance` and
+can be changed with `ASSISTANCE_QUEUE`; the app and worker must use the same value.
+`ASSISTANCE_JOB_TIMEOUT` defaults to 3600 seconds, and the reservation window is
+always at least 60 seconds longer. `ASSISTANCE_WORKER_CPUS` defaults to 0.5 CPU.
+The general database queue reservation defaults to 7260 seconds in Compose to
+cover its existing longest worker timeout.
+
+After pulling this change, recreate the stack to start the new consumer. Existing
+discovery jobs on `default` are not moved and must finish on the general worker.
+Do not clear queued work to change routing. See the
+[production runtime notes](production-runtime-performance.md#editor-requests-during-background-checks)
+for interactive API budgets and provider cooldown behavior.
+
+Run the separate-process MySQL 9.7 regression checks with:
+
+```bash
+npm run test:php:mysql-sensitive -- --slice editor-background
+```
+
+These checks pause background work inside its HTTP call and save the same resource
+through an authenticated editor request on an independent database connection.
+
 ### Persistent FAIR assessment queue
 
 Resource and IGSN assessments use database-backed runs and one short queue job per resource. Closing the browser, restarting a worker, or deploying the application therefore does not discard the run snapshot or its progress. Opening `/assessment` again reconnects to an active run; pressing `Check` while a run is active returns that same run, and a paused run is resumed instead of replaced.
@@ -196,7 +225,8 @@ before removing the build-only `pip` installer and `ensurepip` bootstrap archive
 This removes the old libraries bundled inside pip; updating F-UJI's installed
 `setuptools` alone would not replace those copies. Runtime dependencies, including
 the `setuptools` package used by Tika, remain installed. Change dependencies through
-the Dockerfile and rebuild the image. CI checks that F-UJI dependencies import and
+the Dockerfile and rebuild the image. CI checks that F-UJI dependencies import,
+the certificate bundle excludes the compromised emSign ECC Root CA - G3, and
 Chromium launches without the installers, then scans the complete image alongside
 the application and Nginx images before Stage publication.
 
@@ -737,6 +767,47 @@ Docker Desktop can fail to sync the file back to the host even when it exists in
 docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
 ```
 
+### GEMET update checks time out
+
+The GEMET check in **Editor Settings / Thesauri** uses at most four concurrent
+group requests and retries temporary connection or HTTP failures once. Provider
+`Retry-After` delays and all requests share a 90-second budget. Each attempt has
+a maximum 10-second connection timeout and 30-second total timeout, reduced to
+the remaining budget. A complete count is cached for one hour; failed or partial
+checks are not cached and can be retried without clearing the application cache.
+
+Persistent failures return HTTP 503 with an understandable message. Look for
+`GEMET update check failed.` in the Laravel logs for the phase, group URI,
+attempt count, elapsed time and original exception. If a single GEMET request
+also fails from the affected app container, inspect DNS, outbound connectivity
+and TLS negotiation in that environment. A successful check from the host alone
+does not establish container connectivity. The actual vocabulary download and
+update jobs retain their existing request policy.
+
+The following opt-in probes run through the app container with the real cURL
+transport and production clock. They are outside the default PHPUnit suites:
+
+```bash
+npm run test:php -- tests/pest/Runtime/GemetUpdateCheckRuntimeTest.php
+npm run test:php -- tests/pest/Runtime/GemetLiveCheckTest.php
+```
+
+The controlled probe starts a temporary Node HTTP server on loopback and changes
+only the request destination. It measures concurrent connections, out-of-order
+responses, a real 30-second cURL timeout, `Retry-After`, and the shared 90-second
+deadline across successive pools. Allow about two minutes for the real waits.
+It also checks failure without a cache entry, recovery, and a warm cache hit.
+The server is stopped after each scenario.
+
+The live probe makes read-only requests to the public EEA service. It compares
+against an isolated copy of the local vocabulary and uses the test database and
+cache; it does not update vocabulary files or start update jobs. It writes status,
+counts, cold/warm durations, and per-request cURL timings to
+`storage/logs/issue-1476-gemet-live.json`. On failure, inspect the probe output
+and the container's connectivity. These probes are
+deliberately opt-in because they have real delays and the live result depends on
+the provider and the network of the app container where it runs.
+
 ### F-UJI is not reachable
 
 That is expected unless the matching profile was started:
@@ -852,7 +923,7 @@ This command:
 - starts the backend and optional `test` profile once
 - verifies MySQL 9.7 before resetting a schema; `db-test` uses the exact image pinned for `db`
 - uses `ernie_test` on the disposable `db-test` server, backed by a bounded 2 GiB tmpfs without a host port
-- runs the manifest in `tests/mysql-sensitive-slices.json`, preserving all 25 existing serial reset boundaries
+- runs the manifest in `tests/mysql-sensitive-slices.json` with 27 serial reset boundaries, including editor/background concurrency, shared-Redis DOI retry checks and identifier-pattern collation conflicts
 - copies the checkout into the Linux-native Pest workspace for the complete run; focused aliases keep using the checkout
 
 The development server and its versioned data volume are preserved. Focused

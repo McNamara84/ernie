@@ -34,8 +34,8 @@ final class DeduplicateSubjects extends Command
             afterResourceId: max(0, (int) $this->option('after-resource-id')),
             limit: max(0, (int) $this->option('limit')),
             chunk: max(1, min(1000, (int) $this->option('chunk'))),
-            dois: array_values(array_filter($this->option('doi'), 'is_string')),
-            schemes: array_values(array_filter($this->option('scheme'), 'is_string')),
+            dois: array_values(array_filter((array) $this->option('doi'), 'is_string')),
+            schemes: array_values(array_filter((array) $this->option('scheme'), 'is_string')),
             includeFree: (bool) $this->option('include-free'),
         );
 

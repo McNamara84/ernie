@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\DataCiteRequestDeferredException;
+use Closure;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 
@@ -23,19 +24,51 @@ class DataCiteRequestLimiter
 
     private const LOCK_KEY = 'datacite:member-api:request-limiter-lock';
 
+    private const INTERACTIVE_KEY = 'datacite:member-api:interactive-waiting-until-ms';
+
+    private const BACKGROUND_HISTORY_KEY = 'datacite:member-api:background-history-ms';
+
     public function waitForSlot(bool $deferLongWait = false): void
     {
+        $this->runWhenReady(function (): bool|int {
+            $delay = $this->reserveSlot();
+
+            return $delay > 0 ? $delay : true;
+        }, $deferLongWait);
+    }
+
+    /**
+     * The attempt admits and sends atomically with its DOI checks. Positive
+     * delays are returned only after releasing all locks; they are not permits.
+     *
+     * @template T
+     *
+     * @param  Closure(): (T|int)  $attempt
+     * @return T
+     */
+    public function runWhenReady(Closure $attempt, bool $deferLongWait = false): mixed
+    {
+        $interactive = app(InteractiveApiRequestContextService::class)->isInteractive();
+        $deadline = $this->nowMs() + min(app(InteractiveApiRequestContextService::class)->remainingMilliseconds(),
+            max(0, (int) config('datacite.interactive_max_wait_ms', 5000)));
         do {
-            $delayMs = $this->reserveSlot();
-
-            if ($delayMs > 0) {
-                if ($deferLongWait && $delayMs > 1000) {
-                    throw new DataCiteRequestDeferredException($delayMs);
-                }
-
-                usleep(min($delayMs, 1000) * 1000);
+            if (app(InteractiveApiRequestContextService::class)->remainingMilliseconds() === 0) {
+                throw new DataCiteRequestDeferredException(1000);
             }
-        } while ($delayMs > 0);
+            $result = $attempt();
+            if (! is_int($result)) {
+                return $result;
+            }
+            $delayMs = max(1, $result);
+
+            if (DataCiteDoiWriteLockService::hasHeldLock()
+                || ($deferLongWait && $delayMs > 1000)
+                || ($interactive && $this->nowMs() + $delayMs > $deadline)) {
+                throw new DataCiteRequestDeferredException($delayMs);
+            }
+
+            $this->pause(min($delayMs, 1000));
+        } while (true);
     }
 
     public function imposeCooldown(int $seconds): void
@@ -57,6 +90,8 @@ class DataCiteRequestLimiter
     {
         Cache::forget(self::HISTORY_KEY);
         Cache::forget(self::COOLDOWN_KEY);
+        Cache::forget(self::INTERACTIVE_KEY);
+        Cache::forget(self::BACKGROUND_HISTORY_KEY);
     }
 
     /**
@@ -64,10 +99,11 @@ class DataCiteRequestLimiter
      * can be reserved. Public so the hard limit can be verified without
      * sleeping in automated tests and health checks.
      */
-    public function reserveSlot(): int
+    public function reserveSlot(bool $nonBlocking = false): int
     {
         try {
-            return Cache::lock(self::LOCK_KEY, 10)->block(5, function (): int {
+            $lock = Cache::lock(self::LOCK_KEY, 10);
+            $reserve = function (): int {
                 $nowMs = $this->nowMs();
                 $cooldownUntilMs = (int) Cache::get(self::COOLDOWN_KEY, 0);
 
@@ -84,19 +120,48 @@ class DataCiteRequestLimiter
                     static fn (int $timestamp): bool => $timestamp > $nowMs - $windowMs,
                 )) : [];
 
+                $interactive = app(InteractiveApiRequestContextService::class)->isInteractive();
+                $background = Cache::get(self::BACKGROUND_HISTORY_KEY, []);
+                $background = is_array($background) ? array_values(array_filter(
+                    array_map('intval', $background),
+                    static fn (int $timestamp): bool => $timestamp > $nowMs - $windowMs,
+                )) : [];
+                // Always permit at least one background request, including tiny
+                // limits used for installations/tests; the total cap still applies.
+                $reserved = min(intdiv($limit, 10), max(0, (int) config('datacite.interactive_reserved_requests', 30)));
+                $backgroundLimit = $limit - $reserved;
+
                 $nextByInterval = $history === [] ? $nowMs : end($history) + $minimumIntervalMs;
                 $nextByWindow = count($history) < $limit ? $nowMs : $history[0] + $windowMs;
                 $nextAt = max($nowMs, $nextByInterval, $nextByWindow);
 
+                if (! $interactive) {
+                    $nextAt = max($nextAt, (int) Cache::get(self::INTERACTIVE_KEY, 0));
+                    if (count($background) >= $backgroundLimit) {
+                        $nextAt = max($nextAt, $background[0] + $windowMs);
+                    }
+                }
+
                 if ($nextAt > $nowMs) {
+                    if ($interactive) {
+                        Cache::put(self::INTERACTIVE_KEY, $nowMs + 2000, 3);
+                    }
+
                     return $nextAt - $nowMs;
                 }
 
                 $history[] = $nowMs;
                 Cache::put(self::HISTORY_KEY, $history, now()->addMilliseconds($windowMs * 2));
+                if (! $interactive) {
+                    $background[] = $nowMs;
+                    Cache::put(self::BACKGROUND_HISTORY_KEY, $background, now()->addMilliseconds($windowMs * 2));
+                }
 
                 return 0;
-            });
+            };
+            $result = $nonBlocking ? $lock->get($reserve) : $lock->block(5, $reserve);
+
+            return is_int($result) ? $result : 1000;
         } catch (LockTimeoutException) {
             return 1000;
         }
@@ -105,5 +170,10 @@ class DataCiteRequestLimiter
     protected function nowMs(): int
     {
         return (int) floor(microtime(true) * 1000);
+    }
+
+    protected function pause(int $milliseconds): void
+    {
+        usleep($milliseconds * 1000);
     }
 }

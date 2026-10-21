@@ -4,6 +4,9 @@ use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\IgsnDifXmlParser;
 use App\Services\IgsnLegacyDbEnrichmentService;
+use App\Support\GeoLocations\GeoLocationWriteReport;
+use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -16,6 +19,24 @@ afterEach(function () {
 });
 
 describe('IgsnLegacyDbEnrichmentService', function () {
+    it('passes the operation report from legacy DIF metadata to the parser', function () {
+        $resource = Resource::factory()->create(['doi' => '10.60510/GFREPORT001']);
+        $metadata = IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_REGISTERED]);
+        $report = new GeoLocationWriteReport;
+        $xml = '<resource><sample><primary_location_name>Germany</primary_location_name></sample></resource>';
+        $query = Mockery::mock(Builder::class);
+        $query->shouldReceive('join', 'where', 'whereNotNull', 'orderByDesc', 'select')->andReturnSelf();
+        $query->shouldReceive('first')->once()->andReturn((object) ['dif' => $xml]);
+        $connection = Mockery::mock(Connection::class);
+        $connection->shouldReceive('table')->once()->with('metadata')->andReturn($query);
+        $ernieConnection = DB::connection();
+        DB::partialMock()->shouldReceive('connection')->byDefault()->andReturn($ernieConnection);
+        DB::partialMock()->shouldReceive('connection')->once()->with('igsn_legacy')->andReturn($connection);
+        $this->parser->shouldReceive('enrichFromDifXml')->once()->with($xml, $resource, $metadata, false, $report)->andReturn(true);
+
+        expect($this->service->enrich($resource, $metadata, 'GFREPORT001', $report))->toBeTrue();
+    });
+
     it('returns false when legacy DB query throws connection error', function () {
         DB::shouldReceive('connection')
             ->with('igsn_legacy')

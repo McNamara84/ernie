@@ -2,10 +2,10 @@
 
 This document covers the runtime settings introduced for the resource, PHP/Laravel, and public-portal cache optimizations. The values in Compose are conservative starting points. Validate them on Stage with a production-sized data set before changing Production.
 
-Stage and Production pull prebuilt application and Nginx images from GHCR.
-Stage follows every fully validated `main` commit, while Production promotes
-only GitHub's latest published stable release and reuses the exact image
-digests previously deployed to Stage. The initial Portainer migrations,
+Stage and Production pull prebuilt application, Nginx, and F-UJI images from GHCR.
+Stage follows the newest fully validated `dev` commit, while Production promotes
+only the highest published stable release after approval and reuses the exact
+`main` image digests tested in the isolated release stack. The initial Portainer migrations,
 rollback paths, and troubleshooting procedures are documented in
 [stage-container-deployment.md](stage-container-deployment.md) and
 [production-container-deployment.md](production-container-deployment.md).
@@ -36,6 +36,49 @@ The workers process one resource per job and share a Redis-backed limiter. The c
 ERNIE distinguishes resource failures from assessment-service errors. HTTP 4xx responses other than 429 are resource failures. DNS and connection failures, HTTP 429, HTTP 5xx, and invalid service payloads are service errors. Short connection failures and retryable HTTP responses retain bounded retries; a cURL 28 response timeout that already consumed the complete evaluation window is not repeated immediately. Each failed run item stores its error code, sanitized underlying detail, HTTP status, and attempt duration. Completed runs with service errors expose `Retry service errors`, which queues only those items and preserves successful results and resource failures.
 
 After updating a Portainer stack, verify that `fuji` is healthy and that the configured number of `assessment-queue` containers is running. The application caches the F-UJI health result for up to 30 seconds, and the scheduler recovers active persistent runs every minute. Leave an existing `preparing`, `queued`, or `running` run in place: once the workers are available, it resumes without deleting its snapshot or results. If progress does not advance after those two windows, inspect the F-UJI and assessment-worker logs for authentication failures, HTTP 429 responses, timeouts, restarts, or memory pressure.
+
+## Editor requests during background checks
+
+Assistant discovery uses the persistent `assistance` connection and its own
+`assistance-queue` service. Its default CPU limit is 0.5 CPU; adjust
+`ASSISTANCE_WORKER_CPUS` only after measuring foreground latency and scan progress.
+FAIR assessments retain their separate `assessment-queue` workers.
+
+Deploy the new service alongside the existing workers. Jobs already queued on
+`default` retain their original destination and must finish on the general worker;
+do not purge them. `ASSISTANCE_QUEUE` must match in dispatchers and the consumer.
+`ASSISTANCE_JOB_TIMEOUT` defaults to 3600 seconds and its reservation is at least
+60 seconds longer. The general database queue now forwards
+`DB_QUEUE_RETRY_AFTER` (7260 seconds by default) to cover its existing 7200-second
+worker timeout. Recreate app, queue and scheduler services after changing these
+settings so their cached configuration agrees.
+
+Authenticated web requests share a 90-second external-operation budget. DataCite
+keeps up to ten percent of its configured request window available for interactive
+calls, capped by `DATACITE_INTERACTIVE_RESERVED_REQUESTS` (30 by default).
+`DATACITE_INTERACTIVE_MAX_WAIT_MS` bounds editor limiter waits (5000 ms by default).
+Background requests still obey the total shared quota and yield to waiting editor
+requests. A provider-imposed cooldown also applies to interactive requests.
+Successful ORCID checks are reused for five minutes; invalid format/checksum and
+known missing identifiers remain blocking. The ORCID preflight has a twenty-second
+aggregate network budget, followed by the existing explicit warning confirmation
+when a provider cannot be checked. No sleeping process retains the ORCID limiter
+lock. The editor-facing ORCID API endpoints use the same interactive budget;
+cached successful and missing identifiers are still checked after the network
+deadline and during warning confirmation.
+
+DataCite releases DOI locks before capacity waits. Lifecycle reads and final
+writes each obtain admission immediately before sending. A newer write invalidates
+older waiting operations and retries under the DOI lock; a superseded editor
+request returns HTTP 409 instead of replaying stale metadata. Tombstone outbox
+work also rechecks its lifecycle revision and remote-read version before writing.
+
+Public DataCite reads from relation discovery and correction share a separate
+300-request/five-minute budget and provider cooldown across their modules.
+Concurrent failures can extend an active cooldown but cannot shorten it.
+Other relation sources continue to be queried;
+a completed scan during such an outage may have incomplete Event Data suggestions.
+Retry discovery after provider recovery when complete supplementary results matter.
 
 ## Initial runtime budgets
 

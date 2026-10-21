@@ -30,11 +30,11 @@ class RelatedIdentifierTypeController extends Controller
     {
         $types = IdentifierType::query()
             ->elmoActive()
-            ->with(['patterns' => fn ($q) => $q->where('is_active', true)->orderByDesc('priority')])
+            ->with(['patterns' => fn ($q) => $q->where('is_active', true)->orderByDesc('priority')->orderBy('id')])
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
 
-        return response()->json($this->formatResponse($types));
+        return response()->json($this->formatElmoResponse($types));
     }
 
     /** Return entries independently enabled for ELMO-MSL. */
@@ -61,6 +61,38 @@ class RelatedIdentifierTypeController extends Controller
             ->get(['id', 'name', 'slug', 'description']);
 
         return response()->json($this->formatResponse($types));
+    }
+
+    /**
+     * Add the legacy ELMO validation field without conflating detection rules.
+     *
+     * @param  Collection<int, IdentifierType>  $types
+     * @return list<array{id: int, name: string, slug: string, description: string|null, patterns: array{validation: list<array{pattern: string, priority: int}>, detection: list<array{pattern: string, priority: int}>}, pattern: string, checksum?: array{algorithms: list<string>, mode: string}}>
+     */
+    private function formatElmoResponse(Collection $types): array
+    {
+        return array_map(static function (array $type): array {
+            $alternatives = array_map(
+                static fn (array $pattern): string => '(?:'.$pattern['pattern'].')',
+                array_filter($type['patterns']['validation'], static fn (array $pattern): bool => $pattern['pattern'] !== ''),
+            );
+
+            // The end guard prevents JavaScript's $ anchor accepting a final
+            // newline. Empty pattern lists must never become an empty regex.
+            $type['pattern'] = $alternatives === [] ? '(?!)' : '^(?:'.implode('|', $alternatives).')(?![\s\S])';
+
+            $algorithms = match ($type['slug']) {
+                'ISBN' => ['isbn10-mod11', 'isbn13-mod10'],
+                'EAN13' => ['gtin13-mod10'],
+                default => [],
+            };
+
+            if ($algorithms !== []) {
+                $type['checksum'] = ['algorithms' => $algorithms, 'mode' => 'advisory'];
+            }
+
+            return $type;
+        }, $this->formatResponse($types));
     }
 
     /**

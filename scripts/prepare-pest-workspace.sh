@@ -31,6 +31,7 @@ find "$TEST_WORKSPACE" -mindepth 1 -maxdepth 1 ! -name vendor -exec rm -rf -- {}
 tar \
     --exclude='./.git' \
     --exclude='./.tmp' \
+    --exclude='./.release-candidate' \
     --exclude='./.vitest' \
     --exclude='./coverage' \
     --exclude='./node_modules' \

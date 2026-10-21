@@ -44,6 +44,52 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 covers(LandingPageResourceTransformer::class);
 
+test('converts valid numeric-string path coordinates for landing pages without modifying the model', function (string $type) {
+    $points = [
+        ['latitude' => '52.38', 'longitude' => '13.06', 'label' => 'Keep detail'],
+        ['latitude' => ' 0 ', 'longitude' => '-0'],
+        ['latitude' => '-9e1', 'longitude' => '+180'],
+        ['latitude' => 90, 'longitude' => -180.0],
+    ];
+    $resource = legacyLandingResource([], []);
+    $geo = new GeoLocation(['geo_type' => $type, 'polygon_points' => $points]);
+    $resource->setRelation('geoLocations', new EloquentCollection([$geo]));
+
+    expect((new LandingPageResourceTransformer)->transform($resource)['geo_locations'][0]['polygon_points'])->toBe([
+        ['latitude' => 52.38, 'longitude' => 13.06, 'label' => 'Keep detail'],
+        ['latitude' => 0.0, 'longitude' => -0.0],
+        ['latitude' => -90.0, 'longitude' => 180.0],
+        ['latitude' => 90, 'longitude' => -180],
+    ])->and($geo->polygon_points)->toBe(json_decode(json_encode($points, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR));
+})->with(['polygon', 'line']);
+
+test('keeps malformed path coordinates invalid at the landing-page boundary', function (string $field, mixed $invalid) {
+    $points = [[$field => $invalid, $field === 'latitude' ? 'longitude' : 'latitude' => '13.06'],
+        ['latitude' => '52.38', 'longitude' => '13.06']];
+    $resource = legacyLandingResource([], []);
+    $resource->setRelation('geoLocations', new EloquentCollection([new GeoLocation(['geo_type' => 'line', 'polygon_points' => $points])]));
+
+    $transformed = (new LandingPageResourceTransformer)->transform($resource)['geo_locations'][0]['polygon_points'];
+    expect($transformed[0][$field])->toBe($invalid)
+        ->and($transformed[1])->toBe(['latitude' => 52.38, 'longitude' => 13.06]);
+})->with([
+    'latitude outside range' => ['latitude', '90.01'], 'longitude outside range' => ['longitude', '-180.01'],
+    'empty string' => ['latitude', ''], 'whitespace' => ['latitude', '   '],
+    'decimal comma' => ['latitude', '52,38'], 'text' => ['longitude', 'bad'],
+    'NaN' => ['latitude', 'NaN'], 'Infinity' => ['latitude', 'Infinity'], 'overflow' => ['longitude', '1e309'],
+    'null' => ['latitude', null], 'boolean' => ['latitude', false], 'nested array' => ['longitude', ['13.06']],
+]);
+
+test('preserves malformed path vertices and containers for landing-page validation', function (mixed $points) {
+    $resource = legacyLandingResource([], []);
+    $resource->setRelation('geoLocations', new EloquentCollection([new GeoLocation(['geo_type' => 'polygon', 'polygon_points' => $points])]));
+    expect((new LandingPageResourceTransformer)->transform($resource)['geo_locations'][0]['polygon_points'])->toBe($points);
+})->with([
+    'absent' => [null], 'string container' => ['invalid'], 'empty path' => [[]],
+    'null vertex' => [[null]], 'scalar vertex' => [[42]], 'text vertex' => [['invalid']],
+    'missing coordinates' => [[['label' => 'No coordinates']]],
+]);
+
 function legacyLandingPerson(
     int $id,
     string $givenName,

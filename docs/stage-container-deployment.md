@@ -6,27 +6,30 @@ application, Nginx, and F-UJI images, publishes them to GitHub Container Registr
 pins all three images by immutable digest.
 
 Production promotion remains separate from this workflow. It promotes a
-published latest stable release only after locating the exact image digests in
-Stage deployment history. See
+published latest stable release from the immutable `artifacts/main` records,
+after separate release-candidate testing and approval. See
 [production-container-deployment.md](production-container-deployment.md).
 
 ## Deployment flow
 
-1. Feature and fix branches are reviewed and merged into `main`.
+1. Features are reviewed and merged into `dev`. Stable-line fixes enter `main`
+   and are synchronized automatically into `dev` through a reviewed PR.
 2. The Security, Pest, MySQL, Vitest, lint/PHPStan, and Playwright workflows validate
    the merged commit. The security gate builds and scans all three deployable
    runtime images (`app`, `nginx`, and F-UJI with Chromium) for fixable HIGH and
    CRITICAL vulnerabilities. F-UJI also gets a dependency and browser smoke check.
-3. `Publish Stage Images` verifies that all six workflows succeeded for the
-   exact current `main` commit, then builds and pushes the images under
+3. `Publish Validated Images` verifies that all six workflows succeeded for the
+   exact current `dev` commit, then builds and pushes the images under
    traceable `sha-<full-commit-sha>` tags.
 4. The publication job scans the exact pushed application, Nginx, and F-UJI digest
    references. A HIGH or CRITICAL vulnerability in any published image
    stops the workflow before it can change `deploy/stage`.
-5. The workflow creates a deployment commit derived from that source commit.
+5. The workflow records the three digests in `artifacts/dev/<source-sha>.json`
+   (file `<source-sha>.json` on branch `artifacts/dev`) and creates a deployment
+   commit derived from that source commit.
    Its Stage Compose file pins the application, Nginx, and F-UJI images as
    `ghcr.io/...@sha256:<digest>`.
-6. If the source commit is still the head of `main`, the workflow advances
+6. If the source commit is still the head of `dev`, the workflow advances
    `deploy/stage` to the digest-pinned deployment commit.
 7. Portainer's existing outbound Git polling detects the new
    `deploy/stage` commit and recreates the Stage services from the GHCR
@@ -48,7 +51,7 @@ references the exact digest produced by each image build. Therefore a manual
 pull or later stack recreation cannot combine a deployment commit with images
 from another commit.
 
-The Compose file on `main` contains the deliberately unpublished
+The Compose files on `main` and `dev` contains the deliberately unpublished
 `deployment-template` marker. It is input for the publishing workflow, not a
 direct Portainer deployment target. The workflow requires and replaces every
 marker before advancing `deploy/stage`.
@@ -58,9 +61,11 @@ the same application image. `webserver` uses the Nginx image.
 
 ## One-time rollout
 
-Perform these steps in order. The temporary pause prevents the existing
-`main` polling configuration from trying to deploy the new Compose file
-before its first images exist.
+For an existing `deploy/stage` installation, keep the Portainer reference and
+volumes unchanged. Complete the [branch setup](branching-and-releases.md#3-one-time-preparation),
+create `dev`, and wait for its first successful publication. Until then Stage
+keeps its previous deployment. The steps below also cover the first migration
+from direct `main` polling to prebuilt images.
 
 ### 1. Check connectivity
 
@@ -79,14 +84,17 @@ existing Stage stack. Do not delete the stack or its volumes.
 
 ### 3. Merge through the normal pull-request process
 
-Merge the implementation into `main`. Wait for:
+Merge the implementation into `main`, complete the GitHub setup, and create
+`dev` as documented in [Branching and Releases](branching-and-releases.md). Wait
+for the following on the `dev` commit:
 
 1. `Security Checks`, `Pest PHP Unit Tests`, `MySQL Compatibility Tests`, `Vitest TS integration Tests`,
    `Linter Tests`, and `Playwright UI Tests` to succeed;
-2. `Publish Stage Images` to publish the validated commit.
+2. `Publish Validated Images` to publish the validated commit.
 
-The second workflow creates the three GHCR packages and the digest-pinned
-`deploy/stage` branch. It intentionally has no `workflow_dispatch` trigger:
+The second workflow records the validated images on `artifacts/dev` and creates
+or advances `deploy/stage`. Publication from `main` records `artifacts/main`
+without updating Stage. It intentionally has no `workflow_dispatch` trigger:
 manual dispatch can target another branch and would execute that branch's
 workflow definition with the publish job's write-scoped token.
 
@@ -189,17 +197,17 @@ ensurepip bootstrap after installing and checking runtime dependencies. The
 Security Checks workflow also builds, tests, and scans F-UJI before publication,
 so a failing F-UJI image blocks the earlier validation gate as well.
 
-After the one-time rollout, the normal developer process remains unchanged:
+After the one-time rollout:
 
-1. create a feature or fix branch from `main`;
-2. open and review a pull request;
-3. merge the pull request into `main`;
-4. wait for all CI validation and the Stage image workflow;
+1. create a feature branch from `dev` (a stable-line fix starts from `main`);
+2. open and review the PR against its originating branch;
+3. merge into `dev`, or wait for the automated `main`-to-`dev` synchronization PR;
+4. wait for all CI validation on `dev` and `Publish Validated Images`;
 5. Portainer observes `deploy/stage` and deploys the images.
 
-If another commit reaches `main` while images are building, the final head
+If another commit reaches `dev` while images are building, the final head
 guard normally skips the older deployment and the newer validated workflow
-replaces it. Even if `main` changes at the final update boundary, every
+replaces it. Even if `dev` changes at the final update boundary, every
 deployment commit remains internally consistent because it pins all image
 digests; a later pull can never silently substitute images from another
 commit.
@@ -207,11 +215,14 @@ commit.
 ## Manual retry
 
 Open any one of the six successful deployment-blocking workflow runs for the
-current `main` commit and choose **Re-run all jobs**. Its successful completion
-triggers the default-branch `Publish Stage Images` workflow again. Do not add a
+current `dev` commit and choose **Re-run all jobs**. Its successful completion
+triggers the default-branch `Publish Validated Images` workflow again. Do not add a
 manual trigger to the privileged publishing workflow or dispatch it against a
 feature branch. The retry still verifies successful Security, Pest, MySQL, Vitest,
-lint/PHPStan, and Playwright push workflows for that exact commit.
+lint/PHPStan, and Playwright push workflows for that exact commit. Existing
+artifact records are reused and rescanned; a retry never replaces their digests.
+To publish a selected older `main` candidate, rerun a successful push check for
+that exact SHA on `main`; the publisher accepts ancestors of the current `main`.
 
 ## Rollback
 
@@ -247,10 +258,10 @@ selected for the stack.
 
 ### The deploy branch does not move
 
-Inspect the six deployment-blocking validation workflows and `Publish Stage
+Inspect the six deployment-blocking validation workflows and `Publish Validated
 Images`. Any missing, running, or failed validation for the exact commit
 prevents publication. A superseded run intentionally skips promotion when a
-newer `main` commit exists.
+newer `dev` commit exists.
 
 ### Portainer sees the commit but keeps the old image
 
