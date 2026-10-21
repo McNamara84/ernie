@@ -133,7 +133,7 @@ class PortalTestDataSeeder extends Seeder
     {
         // Prevent running in production
         if (App::environment('production')) {
-            $this->command->error('This seeder cannot be run in production!');
+            $this->command?->error('This seeder cannot be run in production!');
 
             return;
         }
@@ -142,7 +142,7 @@ class PortalTestDataSeeder extends Seeder
         $existingCount = Resource::whereHas('landingPage', fn ($q) => $q->where('is_published', true))->count();
 
         if ($existingCount >= self::TARGET_TOTAL) {
-            $this->command->info("PortalTestDataSeeder: Already have {$existingCount} published resources (target: ".self::TARGET_TOTAL.')');
+            $this->command?->info("PortalTestDataSeeder: Already have {$existingCount} published resources (target: ".self::TARGET_TOTAL.')');
 
             return;
         }
@@ -150,7 +150,7 @@ class PortalTestDataSeeder extends Seeder
         $this->initializeLookupTables();
 
         $needed = self::TARGET_TOTAL - $existingCount;
-        $this->command->info("Creating {$needed} additional resources to reach ".self::TARGET_TOTAL.' total...');
+        $this->command?->info("Creating {$needed} additional resources to reach ".self::TARGET_TOTAL.' total...');
 
         // Split between DOI datasets (60%) and IGSNs (40%)
         $doiCount = (int) ceil($needed * 0.6);
@@ -172,17 +172,17 @@ class PortalTestDataSeeder extends Seeder
             }
         }
 
-        $this->command->newLine();
-        $this->command->info("✓ Created {$created} additional resources.");
+        $this->command?->newLine();
+        $this->command?->info("✓ Created {$created} additional resources.");
 
         $totalPublished = Resource::whereHas('landingPage', fn ($q) => $q->where('is_published', true))->count();
         $totalWithGeo = Resource::whereHas('geoLocations')->whereHas('landingPage', fn ($q) => $q->where('is_published', true))->count();
         $totalIgsn = Resource::whereHas('resourceType', fn ($q) => $q->where('slug', 'physical-object'))->whereHas('landingPage', fn ($q) => $q->where('is_published', true))->count();
 
-        $this->command->info("Total published resources: {$totalPublished}");
-        $this->command->info("  - With geo-locations: {$totalWithGeo}");
-        $this->command->info("  - IGSN samples: {$totalIgsn}");
-        $this->command->info('  - DOI datasets: '.($totalPublished - $totalIgsn));
+        $this->command?->info("Total published resources: {$totalPublished}");
+        $this->command?->info("  - With geo-locations: {$totalWithGeo}");
+        $this->command?->info("  - IGSN samples: {$totalIgsn}");
+        $this->command?->info('  - DOI datasets: '.($totalPublished - $totalIgsn));
     }
 
     private function initializeLookupTables(): void
@@ -249,7 +249,7 @@ class PortalTestDataSeeder extends Seeder
             $this->createDiverseGeoLocation($resource, $location, $index);
         }
 
-        $this->command->info("  ✓ DOI: {$topic} - {$location['name']} ({$year})");
+        $this->command?->info("  ✓ DOI: {$topic} - {$location['name']} ({$year})");
 
         return true;
     }
@@ -410,7 +410,7 @@ class PortalTestDataSeeder extends Seeder
         // GeoLocation (all IGSN samples have geo-location) - diversified types
         $this->createDiverseGeoLocation($resource, $location, $index + 100);
 
-        $this->command->info("  ✓ IGSN: {$sampleType} ({$material}) - {$location['name']}");
+        $this->command?->info("  ✓ IGSN: {$sampleType} ({$material}) - {$location['name']}");
 
         return true;
     }
