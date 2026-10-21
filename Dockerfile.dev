@@ -16,6 +16,7 @@ WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
 ARG XDEBUG_VERSION=3.5.3
+ARG XDEBUG_SHA256=f073de91bea046106abf4d6071c963ea71e58571df6ce58948ceca89d121cb2d
 ARG NPM_VERSION=12.2.0
 ARG NODE_CHECKSUM_ARM64=7a6353f63eb3d04765004b4adf172616243e4522434635cb1d26288658b04ab5
 ARG NODE_CHECKSUM_X64=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
@@ -179,9 +180,16 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-# Install a reproducible Xdebug release for debugging and coverage
-# (optional at runtime, disabled by default).
-RUN pecl install "xdebug-${XDEBUG_VERSION}" && docker-php-ext-enable xdebug
+# Build the pinned Xdebug release without depending on PECL channel metadata.
+# Verify the official release archive before compiling (disabled at runtime by default).
+RUN set -eux; \
+    curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
+        "https://xdebug.org/files/xdebug-${XDEBUG_VERSION}.tgz" -o /tmp/xdebug.tgz; \
+    echo "${XDEBUG_SHA256}  /tmp/xdebug.tgz" | sha256sum -c -; \
+    mkdir -p /usr/src/php/ext/xdebug; \
+    tar -xzf /tmp/xdebug.tgz -C /usr/src/php/ext/xdebug --strip-components=1 "xdebug-${XDEBUG_VERSION}"; \
+    docker-php-ext-install xdebug; \
+    rm -rf /tmp/xdebug.tgz /usr/src/php/ext/xdebug
 
 # Configure Xdebug (disabled by default - enable via env vars)
 RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \

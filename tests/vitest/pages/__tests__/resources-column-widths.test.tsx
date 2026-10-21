@@ -554,7 +554,7 @@ describe('ResourcesPage column resizing', () => {
             render(
                 <ResourcesPage
                     resources={[resource]}
-                    pagination={{ ...pagination, has_more: true, last_page: 2, total: 2 }}
+                    pagination={{ ...pagination, has_more: true, next_cursor: 'next-cursor', last_page: 2, total: 2 }}
                     sort={{ key: 'id', direction: 'asc' }}
                 />,
             );

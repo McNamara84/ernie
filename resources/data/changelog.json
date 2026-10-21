@@ -16,6 +16,10 @@
         ],
         "fixes": [
             {
+                "title": "Reliable Resource List Scrolling",
+                "description": "Resources continue loading correctly when a saved sort preference is restored. Explicit URL sorting takes priority, and filters and page size are retained. Failed requests pause automatic loading and keep existing rows visible, with Retry for temporary failures or Reload list when the list needs to be refreshed."
+            },
+            {
                 "title": "Reliable GEMET Update Checks",
                 "description": "GEMET update checks limit simultaneous requests and retry temporary connection failures once. Checks respect provider retry delays and a shared time budget, cache only complete results, and report understandable errors when GEMET remains unavailable. Existing vocabulary downloads and update jobs keep their behavior.",
                 "references": [{ "type": "issue", "number": 1476, "url": "https://github.com/McNamara84/ernie/issues/1476" }]
