@@ -42,6 +42,12 @@ class GenerateWayfinderDefinitions extends Command
     private function normalizeWayfinderHelper(): bool
     {
         $basePath = $this->option('path') ?? join_paths(resource_path(), 'js');
+        if (! is_string($basePath)) {
+            $this->error('The --path option must be a string.');
+
+            return false;
+        }
+
         $wayfinderPath = join_paths($basePath, 'wayfinder', 'index.ts');
 
         if (! $this->files->exists($wayfinderPath)) {
