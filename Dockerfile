@@ -1,6 +1,6 @@
-FROM mysql:8.4.11@sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242 AS legacy-mysql-dump-client
+FROM mysql:8.4.11@sha256:0f51e63e537a1f176423fa03ef559aabe6fa4372a53160a44bc7e75da7d15364 AS legacy-mysql-dump-client
 
-FROM php:8.5.11-fpm-trixie@sha256:b7bb221e9cbd162bcc5a281c820f270372b8982d7c146383ea283fb93f9ab883 AS app-base
+FROM php:8.5.11-fpm-trixie@sha256:36b66e02388a304d90cfa548172831b2ba3fd2a1a9cb5aa97ce6df01360518dd AS app-base
 
 WORKDIR /var/www/html
 
@@ -72,8 +72,8 @@ RUN update-ca-certificates
 FROM app-base AS app-build
 
 ARG NPM_VERSION=12.2.0
-ARG NODE_CHECKSUM_ARM64=7a6353f63eb3d04765004b4adf172616243e4522434635cb1d26288658b04ab5
-ARG NODE_CHECKSUM_X64=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
+ARG NODE_CHECKSUM_ARM64=42aa04922591ee5d4dbc7740d452621acf28508239daa512f5ee8c47ee224fdb
+ARG NODE_CHECKSUM_X64=6170b2d474e1c626f43cff3adc118df9fe3b573258a4fc3d850c8dbc6b079bbd
 
 # Install Node.js only in the build stage so the runtime image contains no Node package manifests.
 # Download the exact stable release from nodejs.org and verify it for supported architectures.
@@ -159,7 +159,7 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
-FROM nginx:1.31.6-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS nginx
+FROM nginx:1.31.7-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d AS nginx
 
 ARG SYSTEM_PACKAGES_REFRESH=manual
 

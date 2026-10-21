@@ -191,7 +191,7 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->toBeString()
         ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF" "$FUJI_IMAGE_REF"; do')
         ->toContain('@sha256:[0-9a-f]{64}$')
-        ->toContain('aquasec/trivy:0.75.0@sha256:')
+        ->toContain('aquasec/trivy:0.76.1@sha256:')
         ->toContain('-v "${{ runner.temp }}/trivy-cache:/root/.cache/trivy"')
         ->toContain('--cache-dir /root/.cache/trivy')
         ->toContain('--exit-code 1')
