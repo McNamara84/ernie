@@ -113,6 +113,27 @@ const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) 
 
 describe('Docs page', () => {
     beforeEach(() => window.history.replaceState(null, '', '/'));
+    it.each<UserRole>(['beginner', 'curator', 'group_leader', 'admin'])(
+        'restricts COUNTER guidance to the matching %s capabilities',
+        async (role) => {
+            const { user } = renderDocsPage(role);
+            const statistics = screen.queryByRole('heading', { name: 'Public Engagement Statistics' });
+            const operations = screen.queryByRole('heading', { name: 'Activate and Monitor COUNTER Collection' });
+
+            if (role === 'admin' || role === 'group_leader') {
+                expect(statistics).toBeInTheDocument();
+            } else {
+                expect(statistics).not.toBeInTheDocument();
+            }
+            if (role === 'admin') {
+                expect(operations).toBeInTheDocument();
+            } else {
+                expect(operations).not.toBeInTheDocument();
+            }
+            await openDatasetsTab(user);
+            expect(screen.getByRole('heading', { name: 'Reading Public Usage Statistics' })).toBeInTheDocument();
+        },
+    );
     it('renders documentation for beginner role', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Check for sections visible in Getting Started tab (default)

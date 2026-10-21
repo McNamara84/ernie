@@ -1,5 +1,7 @@
 # Compatible runtime updates on top of the digest-pinned F-UJI 4.0.1 image.
 # Recheck upstream pyproject.toml and `pip check` when changing these pins.
+# Remove the compromised emSign CA from the inherited certificate bundle (GHSA-6q48-6c7w-9gw2).
+certifi==2026.10.19
 charset-normalizer==3.5.2
 cryptography==50.0.2
 filelock==4.0.12

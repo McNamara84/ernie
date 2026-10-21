@@ -42,18 +42,18 @@ interface UsePortalFiltersReturn {
  */
 export function usePortalFilters({ filters, currentPage, basePath = '/doi-search' }: UsePortalFiltersOptions): UsePortalFiltersReturn {
     const updateFilters = useCallback(
-        (newFilters: Partial<PortalFilters>, resetPage = true, preserveScroll = true) => {
+        (newFilters: Partial<PortalFilters>, resetPage = true, preserveScroll = true, searchSubmit = false) => {
             const resolvedFilters = mergePortalFilters(filters, newFilters);
             const url = buildPortalFilterUrl(resolvedFilters, basePath, !resetPage && currentPage > 1 ? currentPage : null);
 
-            router.get(url, {}, { preserveState: true, preserveScroll });
+            router.get(url, {}, { preserveState: true, preserveScroll, ...(searchSubmit ? { headers: { 'X-Ernie-Search-Intent': 'submit' } } : {}) });
         },
         [basePath, filters, currentPage],
     );
 
     const setSearch = useCallback(
         (query: string) => {
-            updateFilters({ query }, true);
+            updateFilters({ query }, true, true, true);
         },
         [updateFilters],
     );

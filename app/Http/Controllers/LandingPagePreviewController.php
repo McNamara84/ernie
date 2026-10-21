@@ -16,6 +16,7 @@ use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageDownloadAvailabilityService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
+use App\Services\Usage\CounterReadService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Session;
@@ -214,8 +215,9 @@ class LandingPagePreviewController extends Controller
             $resourceOrders = LandingPageTemplate::normalizeResourceSectionOrders(
                 $templateConfig->left_column_order,
                 $templateConfig->right_column_order,
+                $templateConfig->hidden_sections ?? [],
             );
-            $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left']];
+            $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left'], 'hiddenSections' => $resourceOrders['hidden']];
         }
         $customLogoUrl = $templateConfig->logo_url;
 
@@ -273,6 +275,7 @@ class LandingPagePreviewController extends Controller
         ];
 
         return Inertia::render("LandingPages/{$template}", [
+            'usage' => app(CounterReadService::class)->landingPage($resource->landingPage, $resource->resourceType?->slug === 'physical-object'),
             'resource' => $resourceData,
             'documentTitle' => $documentMetadata['title'],
             'citationStyles' => $citationService->format($resource),

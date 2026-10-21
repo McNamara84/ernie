@@ -14,7 +14,8 @@ export type RightColumnSection =
     | 'funders'
     | 'keywords'
     | 'metadata_download'
-    | 'location';
+    | 'location'
+    | 'usage';
 
 /**
  * Left column section identifiers for landing page templates.
@@ -62,7 +63,8 @@ export type IgsnSection =
     | 'sample_image'
     | 'location'
     | 'map'
-    | 'version_notice';
+    | 'version_notice'
+    | 'usage';
 
 /** Every module supported by regular resource landing-page templates. */
 export type ResourceSection =
@@ -83,7 +85,8 @@ export type ResourceSection =
     | 'funders'
     | 'keywords'
     | 'metadata_download'
-    | 'location';
+    | 'location'
+    | 'usage';
 
 export type TemplateSection = LeftColumnSection | RightColumnSection | IgsnSection | ResourceSection;
 
@@ -318,6 +321,7 @@ export interface LandingPageFile {
  * Displayed below the primary download link on the public landing page.
  */
 export interface LandingPageLink {
+    tracked_url?: string | null;
     /** Primary key (undefined for new unsaved links) */
     id?: number;
 

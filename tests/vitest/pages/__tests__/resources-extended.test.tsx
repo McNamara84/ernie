@@ -591,12 +591,15 @@ describe('ResourcesPage - extended', () => {
             });
         });
 
-        it('reads valid sort from localStorage on mount', async () => {
+        it('requests server data for a saved sort on mount', async () => {
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'doi', direction: 'asc' }));
             renderPage();
 
             await waitFor(() => {
-                expect(screen.getByText(/sorted by: doi ascending/i)).toBeInTheDocument();
+                expect(routerMock.visit).toHaveBeenCalledWith(
+                    expect.stringContaining('sort_key=doi&sort_direction=asc'),
+                    expect.objectContaining({ preserveState: false, replace: true }),
+                );
             });
         });
     });

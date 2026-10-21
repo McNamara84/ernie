@@ -472,11 +472,12 @@ class LandingPageTemplateController extends Controller
             $orders = LandingPageTemplate::normalizeResourceSectionOrders(
                 $template->left_column_order,
                 $template->right_column_order,
+                $template->hidden_sections ?? [],
             );
         }
         $payload['left_column_order'] = $orders['left'];
         $payload['right_column_order'] = $orders['right'];
-        $payload['hidden_sections'] = $orders['hidden'] ?? [];
+        $payload['hidden_sections'] = $orders['hidden'];
         $payload['excluded_date_type_ids'] = $template->relationLoaded('excludedDateTypes')
             ? $template->excludedDateTypes->pluck('id')->map(static fn (mixed $id): int => (int) $id)->sort()->values()->all()
             : [];

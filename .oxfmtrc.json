@@ -11,7 +11,7 @@
         "stylesheet": "resources/css/app.css",
         "functions": ["clsx", "cn"]
     },
-    "ignorePatterns": ["resources/js/components/ui/*", "resources/views/mail/*"],
+    "ignorePatterns": ["resources/js/components/ui/*", "resources/views/mail/*", "resources/data/counter/counter-robots.json"],
     "overrides": [
         {
             "files": ["**/*.yml"],

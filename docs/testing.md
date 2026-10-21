@@ -415,6 +415,27 @@ CI formatter jobs are non-mutating and check the complete frontend and PHP codeb
 
 ## Browser Validation
 
+### Landing page geometry clicks
+
+The geolocation browser suite clicks actual SVG strokes as well as testing
+keyboard activation and focus restoration. Thin dashed lines need a hit-tested
+integer screen position with a one-pixel margin: Firefox uses integer mouse event
+coordinates, so a fractional hit near a stroke cap can become a background
+click. The helper checks the same pixel it clicks and avoids overlapping
+waypoints. Keep these checks active for public pages and previews in all browsers.
+
+### COUNTER CSV exports
+
+The usage statistics browser suite submits the real export form with both blank
+and bounded month ranges. It verifies the access-method and date parameters,
+the attachment filename, and the CSV columns. Chromium and Firefox also verify
+the completed file download, copied with `saveAs` so local and remote browser
+connections work alike. Playwright's Linux WebKit renders this CSV response
+as a document despite its attachment header, so WebKit checks the actual HTTP
+status, download headers and response body instead. This is the
+[known Playwright navigation/download limitation](https://github.com/microsoft/playwright/issues/34076);
+the export test still runs in every browser without mocking the response.
+
 ### Local browser verification
 
 The validation UX suite reuses a completed UI login per worker in memory.

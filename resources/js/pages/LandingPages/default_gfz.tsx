@@ -25,6 +25,7 @@ import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
 import { ResourceRelationHighlightSections } from './components/ResourceRelationHighlightSections';
 import { TombstoneNotice } from './components/TombstoneNotice';
+import { type UsageData, UsageSection } from './components/UsageSection';
 import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
@@ -48,6 +49,7 @@ import {
  */
 interface DefaultGfzTemplatePageProps {
     resource: LandingPageResource;
+    usage?: UsageData;
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
@@ -103,6 +105,7 @@ function composeResourceColumn(
 export default function DefaultGfzTemplate() {
     const {
         resource,
+        usage,
         documentTitle,
         landingPage,
         isPreview,
@@ -130,7 +133,7 @@ export default function DefaultGfzTemplate() {
     );
 
     const orders = sectionOrder
-        ? normalizeResourceColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn)
+        ? normalizeResourceColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn, sectionOrder.hiddenSections)
         : {
               left: RESOURCE_LEFT_COLUMN_SECTIONS as ResourceSection[],
               right: RIGHT_COLUMN_SECTIONS as ResourceSection[],
@@ -194,6 +197,7 @@ export default function DefaultGfzTemplate() {
                         additionalLinks={landingPage?.links}
                     />
                 ),
+            usage: usage ? <UsageSection key="usage" usage={usage} /> : null,
             licenses: (
                 <Fragment key="licenses">
                     <LicenseAndRightsSection licenses={resource.licenses || []} />
@@ -226,6 +230,7 @@ export default function DefaultGfzTemplate() {
             location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
     }, [
+        usage,
         resource,
         landingPage,
         mainTitle,

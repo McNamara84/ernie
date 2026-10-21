@@ -69,10 +69,12 @@ use App\Http\Controllers\VocabularyController;
 use App\Http\Middleware\PrioritizeInteractiveApiRequests;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\Usage\CounterReadService;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Inertia\Inertia;
 
 Route::get('/health', HealthController::class)->name('health');
 
@@ -104,6 +106,11 @@ Route::get('/data-centres/description', [StaticPageController::class, 'dataCentr
 Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
 Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');
+
+Route::get('/usage-statistics', fn () => Inertia::render('usage-statistics', [
+    'usageStatus' => app(CounterReadService::class)->status(),
+    'privacyUrl' => config('usage.privacy_url'),
+]))->name('usage-statistics');
 
 // Public Portals (DOI and IGSN discovery)
 // ===========================================================
@@ -166,6 +173,11 @@ Route::get('landing-page-downloads/{landingPage}/files/{landingPageFile}', [Land
     ->name('landing-page.download.file')
     ->whereNumber('landingPage')
     ->whereNumber('landingPageFile');
+
+Route::get('landing-page-downloads/{landingPage}/links/{landingPageLink}', [LandingPageDownloadRedirectController::class, 'link'])
+    ->middleware('throttle:public-landing-page')
+    ->name('landing-page.download.link')
+    ->whereNumber(['landingPage', 'landingPageLink']);
 
 // Landing Pages with DOI (e.g., /10.5880/test.001/my-dataset-title)
 // DOI prefix format: 10.NNNN/suffix where suffix contains valid DOI characters.
@@ -330,6 +342,8 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     Route::middleware(['can:access-statistics'])->group(function () {
         Route::get('statistics', [StatisticsController::class, 'index'])
             ->name('statistics');
+        Route::get('statistics/usage.csv', [StatisticsController::class, 'export'])
+            ->name('statistics.usage-export');
     });
 
     // Logs routes (Admin only - Issue #379)

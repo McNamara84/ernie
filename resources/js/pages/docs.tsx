@@ -950,46 +950,110 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Public Engagement Statistics</h3>
                         <p>
                             The <strong>Statistics</strong> page (<code>/statistics</code>) is available to Admins and Group Leaders in the{' '}
-                            <strong>Administration</strong> workspace of the sidebar. It summarizes how published landing pages perform after go-live.
+                            <strong>Administration</strong> workspace of the sidebar. The COUNTER dashboard summarizes public usage since an
+                            administrator explicitly activated collection for this environment. Deployment alone does not start COUNTER collection.
                         </p>
 
                         <h4>What is counted</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Landing page views</strong> for published landing pages only
+                                <strong>Investigations</strong> include successful visits to published landing pages, public metadata retrievals, and
+                                download-link clicks.
                             </li>
                             <li>
-                                <strong>Download clicks</strong> on real file targets from the <strong>Files</strong> section
+                                <strong>Requests / Download clicks</strong> count real download targets in the <strong>Files</strong> section,
+                                including additional curator-defined download links. A download also counts as an investigation. These are clicks, not
+                                confirmation of completed external file transfers. IGSNs have investigations only.
                             </li>
                             <li>
                                 <strong>Portal searches</strong> submitted explicitly through the public <code>/doi-search</code> or{' '}
-                                <code>/igsn-search</code> search box
+                                <code>/igsn-search</code> search box or a direct search URL. Successful searches with no results also count; filter
+                                changes and pagination do not.
                             </li>
                         </ul>
 
                         <h4>What is excluded</h4>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Preview and review links</li>
-                            <li>Draft landing pages</li>
-                            <li>Additional curator-defined links below the main download area</li>
-                            <li>Known bot traffic when bot protection is enabled</li>
+                            <li>Signed-in users, preview and review links, drafts, and external landing pages</li>
+                            <li>HEAD requests, failed responses, prefetches, and known crawlers, independently of bot-protection settings</li>
+                            <li>Repeated actions for the same target and event type within 30 seconds</li>
                         </ul>
+
+                        <h4>Select metrics and access methods</h4>
+                        <p>
+                            Keep <strong>Period</strong> on <strong>COUNTER</strong> and choose <strong>Unique</strong> or <strong>Total</strong>{' '}
+                            under <strong>Landing page metric</strong>. Unique counts one session per resource and metric in each UTC hour; Total
+                            counts actions after repeat filtering. The <strong>Access method</strong> filter separates <strong>Regular</strong> access
+                            from <strong>Machine</strong> clients such as curl and Python. Portal searches use filtered counts, have no unique metric,
+                            and follow only the access-method filter.
+                        </p>
+                        <p>
+                            Public DOI and IGSN landing pages show a <strong>Usage</strong> module with unique regular views, up to twelve monthly
+                            values, and an expandable <strong>Monthly data table</strong>. DOI pages also show download clicks. The{' '}
+                            <a href="/usage-statistics" className="underline">
+                                How we count
+                            </a>{' '}
+                            page explains the counting rules and links the existing privacy policy.
+                        </p>
 
                         <h4>Dashboard modules</h4>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Overview cards for landing page views, download clicks, portal searches, and tracked landing pages</li>
-                            <li>Daily trend charts for the last 14 days</li>
+                            <li>Overview cards for investigations, download clicks, portal searches, and tracked landing pages</li>
+                            <li>Daily trend charts for up to 14 completed UTC days</li>
                             <li>Top landing pages by views and by download clicks</li>
                             <li>Top normalized portal search terms</li>
                             <li>Separate engagement split for regular resources and Physical Objects</li>
                         </ul>
 
+                        <h4>Historical counters and CSV export</h4>
+                        <p>
+                            Select <strong>Before COUNTER</strong> under <strong>Period</strong> to inspect the earlier counters. They freeze at
+                            activation, remain separate, and are never converted into COUNTER metrics. Metric/access-method filters and the COUNTER
+                            CSV export are unavailable in this historical view.
+                        </p>
+                        <p>
+                            In the COUNTER view, optionally set <strong>From month</strong> and <strong>To month</strong>, then select{' '}
+                            <strong>Export monthly CSV</strong>. Blank dates export all months. The export includes all four resource metrics
+                            (total/unique investigations and total/unique requests) for the selected access method, regardless of the Unique/Total
+                            display filter. Request metrics remain empty for IGSNs.
+                        </p>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Go-live baseline:</strong> The dashboard starts counting from the moment this analytics feature is deployed.
-                                Older legacy counters are not backfilled into the new dashboard.
+                                <strong>Data freshness:</strong> Completed UTC days are aggregated nightly. Check <strong>Data through</strong> and{' '}
+                                <strong>Last aggregated</strong> before interpreting totals. Before activation or the first aggregation, the page
+                                shows the corresponding status. Partial months, missing observations, and paused collection are identified; incomplete
+                                totals may understate usage.
                             </p>
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'counter-operations',
+                title: 'COUNTER Operations',
+                icon: BarChart3,
+                minRole: 'admin',
+                content: (
+                    <>
+                        <h3>Activate and Monitor COUNTER Collection</h3>
+                        <p>
+                            An administrator with server access activates each environment separately after deployment and migrations. Configure a
+                            dedicated random <code>COUNTER_SESSION_SECRET</code> of at least 32 characters on every app and scheduler instance; use a
+                            different secret for Stage and Production. Recreate the containers and refresh the configuration cache through the normal
+                            deployment process before activating.
+                        </p>
+                        <DocsCodeBlock code={'php artisan counter:activate\nphp artisan counter:tracking status'} />
+                        <p>
+                            Prefer a UTC day boundary. Activation preserves the original start time permanently and freezes all legacy writers.
+                            Repeating activation keeps that start time. Existing counters are not imported. Verify that the scheduler runs: daily
+                            aggregation is scheduled for 00:15 UTC, and raw events are removed after aggregation and within seven days.
+                        </p>
+                        <p>
+                            Monitor the data-through date, last aggregation time, and incomplete days. Use{' '}
+                            <code>php artisan counter:tracking pause</code> before maintenance and <code>php artisan counter:tracking resume</code>{' '}
+                            afterwards. Pausing marks affected days incomplete and never restarts legacy counters. If aggregation fails, retry{' '}
+                            <code>php artisan counter:aggregate</code>; finalized days are not counted twice.
+                        </p>
                     </>
                 ),
             },
@@ -2682,6 +2746,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow.
                             {permissions.deleteResources && ' Curators and above can also delete draft landing pages.'}
                         </p>
+                        <h4>Reading Public Usage Statistics</h4>
+                        <p>
+                            The <strong>Usage</strong> module on published DOI and IGSN pages shows unique regular views since COUNTER activation.
+                            Views include landing-page visits, public metadata retrievals, and download-link clicks. DOI pages also show download
+                            clicks; IGSNs have views only. Downloads measure link clicks, not completed transfers from external servers.
+                        </p>
+                        <p>
+                            Expand <strong>Monthly data table</strong> to read the chart values and coverage labels. Check the data-through date and
+                            last aggregation time: completed UTC days are processed nightly, and partial months or missing observations are marked.
+                            Before activation or the first aggregation, the module explains why values are not available yet. Preview and draft pages
+                            do not collect usage, and visits while signed in are excluded.
+                        </p>
+                        <p>
+                            Follow{' '}
+                            <a href="/usage-statistics" className="underline">
+                                How we count
+                            </a>{' '}
+                            for the counting method and the existing privacy policy. Admins and Group Leaders can configure module visibility in a
+                            custom template; hiding Usage does not stop collection.
+                        </p>
                         <h4>Reading Coverage Descriptions on the Map</h4>
                         <p>
                             On dataset and IGSN landing pages, including previews, click a described point, bounding box, polygon, line, or line
@@ -2992,13 +3076,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Admins and Group Leaders can create custom landing page templates to control the layout, branding, and type visibility of
                             landing pages. Custom templates are cloned from the built-in <strong>Templates Resources</strong> or{' '}
-                            <strong>Templates IGSN</strong> copy template and allow customization of section order, header logo, displayed Date Types,
-                            and displayed Relation Types. Both template types can be assigned to any number of datacenters through independent
-                            assignment slots, including the GFZ datacenter. Custom templates may also remain unassigned. Every datacenter always has
-                            one persistent Resource assignment and one persistent IGSN assignment. New datacenters start on the matching copy
-                            templates; removing a datacenter from a custom template moves it back to that type's copy template automatically. A
-                            landing page in automatic mode inherits the compatible template assigned to its datacenter. An explicit landing-page
-                            selection always overrides datacenter inheritance. The two copy templates stay pinned at the top of template management.
+                            <strong>Templates IGSN</strong> copy template and allow customization of section order, module visibility, header logo,
+                            displayed Date Types, and displayed Relation Types. Both template types can be assigned to any number of datacenters
+                            through independent assignment slots, including the GFZ datacenter. Custom templates may also remain unassigned. Every
+                            datacenter always has one persistent Resource assignment and one persistent IGSN assignment. New datacenters start on the
+                            matching copy templates; removing a datacenter from a custom template moves it back to that type's copy template
+                            automatically. A landing page in automatic mode inherits the compatible template assigned to its datacenter. An explicit
+                            landing-page selection always overrides datacenter inheritance. The two copy templates stay pinned at the top of template
+                            management.
                         </p>
 
                         <WorkflowSteps>
@@ -3024,9 +3109,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Citation, Dates, Contact, Model Description, Related Work, <strong>Abstract</strong>, <strong>Methods</strong>,{' '}
                                     <strong>Technical Information</strong>, <strong>Series Information</strong>, <strong>Table of Contents</strong>,{' '}
                                     <strong>Additional Information</strong>, Creators, Contributors, Funding References, Keywords, Metadata Download,
-                                    and Location / Map. Every Resource module can be placed in either column. On Resource landing pages, the metadata
-                                    modules assigned to the same column still render together inside one shared card; <strong>Location / Map</strong>{' '}
-                                    remains a separate card at its selected position.
+                                    Location / Map, and <strong>Usage</strong>. Every Resource module can be placed in either column or in{' '}
+                                    <strong>Hidden cards</strong>. On Resource landing pages, the metadata modules assigned to the same column still
+                                    render together inside one shared card; <strong>Location / Map</strong> and <strong>Usage</strong> remain separate
+                                    cards at their selected positions.
                                 </p>
                                 <p>
                                     For IGSN landing pages, each module renders in its own card and can be placed in either column or in{' '}
@@ -3073,9 +3159,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Configure Visibility (Optional)">
                                 <p>
-                                    For a custom IGSN template, move any optional module to <strong>Hidden cards</strong> to omit it from every
-                                    landing page using that template. Move Drilling into a visible column when an ICDP landing page should show its
-                                    dedicated drilling metadata. On non-ICDP IGSNs, corresponding details remain in <strong>Acquisition</strong>.
+                                    For a custom DOI or IGSN template, move a module to <strong>Hidden cards</strong> to omit it from every landing
+                                    page using that template. Use <strong>Hide</strong> on a visible module or the left/right arrow buttons on a
+                                    hidden module to restore it without dragging. The IGSN Version Notice cannot be hidden.
+                                </p>
+                                <p>
+                                    The <strong>Usage</strong> module starts visible on DOI and IGSN templates. Hiding Usage changes its presentation
+                                    only; collection continues while COUNTER is active. Public Usage always shows unique regular usage, regardless of
+                                    the dashboard filters.
+                                </p>
+                                <p>
+                                    Move Drilling into a visible column when an ICDP landing page should show its dedicated drilling metadata. On
+                                    non-ICDP IGSNs, corresponding details remain in <strong>Acquisition</strong>.
                                 </p>
                                 <p>
                                     In the custom template editor, use <strong>Dates visibility</strong> and <strong>Related Work visibility</strong>{' '}

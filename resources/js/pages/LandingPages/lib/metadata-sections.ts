@@ -6,7 +6,7 @@ export const DESCRIPTION_SECTION_KEYS = ['abstract', 'methods', 'technical_info'
 
 export type DescriptionSectionKey = (typeof DESCRIPTION_SECTION_KEYS)[number];
 
-export type MetadataSectionKey = Exclude<RightColumnSection, 'location'>;
+export type MetadataSectionKey = Exclude<RightColumnSection, 'location' | 'usage'>;
 
 export type ExpandedMetadataSectionKey = Exclude<MetadataSectionKey, typeof LEGACY_DESCRIPTIONS_SECTION_KEY>;
 

@@ -6,6 +6,7 @@ namespace App\Services\BotProtection;
 
 use App\Models\LandingPage;
 use App\Services\Statistics\LandingPageAnalyticsService;
+use App\Services\Usage\CounterTrackingStateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -43,8 +44,10 @@ class LandingPageViewCounterService
 
     private function recordView(LandingPage $landingPage): void
     {
-        $landingPage->incrementViewCount();
-        $this->analyticsService->recordPageView($landingPage);
+        app(CounterTrackingStateService::class)->legacy(function () use ($landingPage): void {
+            $landingPage->incrementViewCount();
+            $this->analyticsService->recordPageView($landingPage);
+        });
     }
 
     private function debounceKey(Request $request, LandingPage $landingPage): string

@@ -470,7 +470,7 @@ describe('Session Preview Display', function () {
                 ->component('LandingPages/default_gfz')
                 ->where('landingPage.landing_page_template_id', $template->id)
                 ->where('sectionOrder.leftColumn', $left)
-                ->where('sectionOrder.rightColumn', $right)
+                ->where('sectionOrder.rightColumn', [...$right, 'usage'])
             );
     });
 

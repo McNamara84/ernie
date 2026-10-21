@@ -116,7 +116,11 @@ describe('usePortalFilters', () => {
                 result.current.setSearch('earthquake');
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith('/doi-search?q=earthquake', {}, { preserveState: true, preserveScroll: true });
+            expect(routerMock.get).toHaveBeenCalledWith(
+                '/doi-search?q=earthquake',
+                {},
+                { preserveState: true, preserveScroll: true, headers: { 'X-Ernie-Search-Intent': 'submit' } },
+            );
         });
 
         it('trims whitespace from query', () => {

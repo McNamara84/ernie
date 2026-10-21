@@ -3,9 +3,21 @@
 import importlib
 import importlib.util
 import os
+import ssl
 import tempfile
 
+import certifi
 from playwright.sync_api import sync_playwright
+
+# GHSA-6q48-6c7w-9gw2: the compromised CA must no longer be trusted by F-UJI.
+certificate_store = ssl.create_default_context(cafile=certifi.where())
+for certificate in certificate_store.get_ca_certs():
+    if any(
+        name == "commonName" and value == "emSign ECC Root CA - G3"
+        for relative_name in certificate["subject"]
+        for name, value in relative_name
+    ):
+        raise RuntimeError("F-UJI still trusts the compromised emSign ECC Root CA - G3")
 
 for installer in ("pip", "ensurepip"):
     if importlib.util.find_spec(installer) is not None:

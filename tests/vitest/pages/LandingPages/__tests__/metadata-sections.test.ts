@@ -67,6 +67,7 @@ describe('section-catalog helpers', () => {
             'keywords',
             'metadata_download',
             'location',
+            'usage',
         ]);
         expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'licenses', 'citation', 'dates', 'contact', 'related_work']);
         expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual([
@@ -90,6 +91,7 @@ describe('section-catalog helpers', () => {
             'contributors',
             'funders',
             'metadata_download',
+            'usage',
         ]);
     });
 
@@ -106,6 +108,7 @@ describe('section-catalog helpers', () => {
             'funders',
             'keywords',
             'metadata_download',
+            'usage',
             'location',
         ]);
     });
