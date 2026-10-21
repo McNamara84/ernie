@@ -580,3 +580,26 @@ it('caches filter options and invalidates them when projected resources change',
     expect(collect($updated->json('resource_types'))->pluck('slug'))
         ->toContain('first-type', 'second-type');
 });
+
+it('accepts the initial Inertia page cursor only with its original listing context', function (): void {
+    Resource::factory()->count(51)->create();
+
+    $page = $this->get('/resources')->assertOk()->viewData('page');
+    $props = $page['props'];
+    expect($props['sort'])->toBe(['key' => 'updated_at', 'direction' => 'desc'])
+        ->and($props['pagination']['per_page'])->toBe(50)
+        ->and($props['pagination']['has_more'])->toBeTrue()
+        ->and($props['resources'])->toHaveCount(50);
+
+    $cursor = $props['pagination']['next_cursor'];
+    expect($cursor)->toBeString()->not->toBeEmpty();
+
+    $this->getJson('/resources/load-more?'.http_build_query([
+        'per_page' => 50, 'sort_key' => 'id', 'sort_direction' => 'desc', 'cursor' => $cursor,
+    ]))->assertUnprocessable()
+        ->assertJsonPath('errors.cursor.0', 'The cursor does not match the active filters and sorting.');
+
+    $this->getJson('/resources/load-more?'.http_build_query([
+        'per_page' => 50, 'sort_key' => 'updated_at', 'sort_direction' => 'desc', 'cursor' => $cursor,
+    ]))->assertOk()->assertJsonCount(1, 'resources')->assertJsonPath('pagination.has_more', false);
+});
