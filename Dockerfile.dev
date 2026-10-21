@@ -181,10 +181,14 @@ RUN set -eux; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
 # Build the pinned Xdebug release without depending on PECL channel metadata.
-# Verify the official release archive before compiling (disabled at runtime by default).
+# The official website repository mirrors the same archive if xdebug.org is unavailable.
+# Verify either source before compiling (disabled at runtime by default).
 RUN set -eux; \
-    curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
-        "https://xdebug.org/files/xdebug-${XDEBUG_VERSION}.tgz" -o /tmp/xdebug.tgz; \
+    if ! curl -fsSL --retry 3 --retry-connrefused --connect-timeout 15 --max-time 120 \
+        "https://xdebug.org/files/xdebug-${XDEBUG_VERSION}.tgz" -o /tmp/xdebug.tgz; then \
+        curl -fsSL --retry 3 --retry-connrefused --connect-timeout 15 --max-time 120 \
+            "https://raw.githubusercontent.com/xdebug/xdebug.org/master/html/files/xdebug-${XDEBUG_VERSION}.tgz" -o /tmp/xdebug.tgz; \
+    fi; \
     echo "${XDEBUG_SHA256}  /tmp/xdebug.tgz" | sha256sum -c -; \
     mkdir -p /usr/src/php/ext/xdebug; \
     tar -xzf /tmp/xdebug.tgz -C /usr/src/php/ext/xdebug --strip-components=1 "xdebug-${XDEBUG_VERSION}"; \
