@@ -83,6 +83,6 @@ class ResourceTypeDescriptionSeeder extends Seeder
                 ->update(['description' => $description]);
         }
 
-        $this->command->info('Updated '.count(self::DESCRIPTIONS).' resource type descriptions.');
+        $this->command?->info('Updated '.count(self::DESCRIPTIONS).' resource type descriptions.');
     }
 }
