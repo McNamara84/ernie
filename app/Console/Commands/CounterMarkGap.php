@@ -16,9 +16,13 @@ class CounterMarkGap extends Command
 
     public function handle(CounterTrackingStateService $state): int
     {
-        $from = (string) $this->argument('from');
-        $through = (string) $this->argument('through');
-        if (! CarbonImmutable::hasFormat($from, 'Y-m-d') || ! CarbonImmutable::hasFormat($through, 'Y-m-d')) {
+        $from = $this->argument('from');
+        $through = $this->argument('through');
+        if (
+            ! is_string($from) || ! is_string($through)
+            || ! CarbonImmutable::hasFormat($from, 'Y-m-d')
+            || ! CarbonImmutable::hasFormat($through, 'Y-m-d')
+        ) {
             $this->error('Expected YYYY-MM-DD dates.');
 
             return self::INVALID;
