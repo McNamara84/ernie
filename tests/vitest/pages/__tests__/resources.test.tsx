@@ -82,18 +82,21 @@ vi.mock('@/components/resources-filters', () => ({
         onFilterChange,
         totalCount,
         countStatus,
+        onRetryCount,
         isLoading,
     }: {
         filters: { datacenter_id?: number; without_datacenter?: boolean; without_spdx_license?: boolean; search?: string };
         onFilterChange: (filters: Record<string, unknown>) => void;
         totalCount: number | null;
         countStatus?: string;
+        onRetryCount?: () => void;
         isLoading: boolean;
     }) => (
         <div data-testid="resources-filters">
             <span data-testid="resource-filter-state">{JSON.stringify(filters)}</span>
             <span data-testid="resource-total-count">{totalCount ?? 'pending'}</span>
             <span data-testid="resource-count-status">{countStatus}</span>
+            {countStatus === 'failed' && <button onClick={onRetryCount}>Retry count</button>}
             <span data-testid="resource-loading-state">{String(isLoading)}</span>
             <button type="button" data-testid="select-datacenter" onClick={() => onFilterChange({ ...filters, datacenter_id: 7 })}>
                 Select datacenter
@@ -865,6 +868,108 @@ describe('ResourcesPage', () => {
         expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
     });
 
+    describe('asynchronous counts after partial reloads', () => {
+        const props: Parameters<typeof ResourcesPage>[0] = {
+            resources: [{ id: 1, title: 'Original resource', publicstatus: 'draft' } as never],
+            pagination: {
+                per_page: 50,
+                total: null,
+                from: 1,
+                to: 1,
+                has_more: false,
+                count_status: 'pending',
+                filter_fingerprint: 'matching',
+            },
+            sort: { key: 'updated_at', direction: 'desc' },
+            filters: { search: 'climate' },
+        };
+        let requests: {
+            signal: AbortSignal;
+            params: URLSearchParams;
+            resolve: (total: number) => void;
+            reject: (error: unknown) => void;
+        }[];
+
+        beforeEach(() => {
+            requests = [];
+            axiosGetMock.mockImplementation((url: string, config: { signal: AbortSignal; params: URLSearchParams }) => {
+                if (url !== '/resources/count') return Promise.resolve({ data: { datacenters: [] } });
+
+                return new Promise((resolve, reject) => {
+                    requests.push({
+                        ...config,
+                        resolve: (total) => resolve({ data: { filter_fingerprint: 'matching', total, count_status: 'ready' } }),
+                        reject,
+                    });
+                });
+            });
+        });
+
+        it.each(['resources', 'pagination'] as const)('refreshes a completed count after a %s-only reload', async (prop) => {
+            const { rerender } = render(<ResourcesPage {...props} />);
+            await act(async () => requests[0].resolve(42));
+            expect(screen.getByTestId('resource-total-count')).toHaveTextContent('42');
+            expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+
+            // Inertia preserves the other prop references during a partial reload.
+            const refreshedProps = prop === 'resources' ? { resources: [...props.resources] } : { pagination: { ...props.pagination } };
+            rerender(<ResourcesPage {...props} {...refreshedProps} />);
+
+            expect(screen.getByTestId('resource-count-status')).toHaveTextContent('pending');
+            expect(requests).toHaveLength(2);
+            expect(requests[1].params.toString()).toBe('per_page=50&sort_key=updated_at&sort_direction=desc&search=climate');
+            await act(async () => requests[1].resolve(43));
+            expect(screen.getByTestId('resource-total-count')).toHaveTextContent('43');
+            expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+
+            rerender(<ResourcesPage {...props} {...refreshedProps} />);
+            expect(requests).toHaveLength(2);
+            expect(screen.getByTestId('resource-total-count')).toHaveTextContent('43');
+        });
+
+        it.each(['success', 'failure'] as const)('ignores a superseded count %s with the same fingerprint', async (outcome) => {
+            const { rerender } = render(<ResourcesPage {...props} />);
+            rerender(<ResourcesPage {...props} resources={[...props.resources]} />);
+
+            expect(requests[0].signal.aborted).toBe(true);
+            expect(requests).toHaveLength(2);
+            await act(async () => requests[1].resolve(43));
+
+            await act(async () => {
+                if (outcome === 'success') requests[0].resolve(42);
+                else requests[0].reject(new Error('Superseded count failed'));
+            });
+            expect(screen.getByTestId('resource-total-count')).toHaveTextContent('43');
+            expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+        });
+
+        it('allows retrying a count that fails after a partial reload', async () => {
+            const { rerender } = render(<ResourcesPage {...props} />);
+            await act(async () => requests[0].resolve(42));
+            rerender(<ResourcesPage {...props} resources={[...props.resources]} />);
+
+            expect(requests).toHaveLength(2);
+            await act(async () => requests[1].reject(new Error('Count temporarily unavailable')));
+            expect(screen.getByTestId('resource-count-status')).toHaveTextContent('failed');
+            fireEvent.click(screen.getByRole('button', { name: 'Retry count' }));
+
+            expect(requests).toHaveLength(3);
+            await act(async () => requests[2].resolve(43));
+            expect(screen.getByTestId('resource-total-count')).toHaveTextContent('43');
+            expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+        });
+
+        it('keeps a ready server count without requesting another count after a partial reload', () => {
+            const pagination = { ...props.pagination, total: 42, count_status: 'ready' as const };
+            const { rerender } = render(<ResourcesPage {...props} pagination={pagination} />);
+            rerender(<ResourcesPage {...props} pagination={pagination} resources={[...props.resources]} />);
+
+            expect(requests).toHaveLength(0);
+            expect(screen.getByTestId('resource-total-count')).toHaveTextContent('42');
+            expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+        });
+    });
+
     it('serializes the without SPDX license filter for navigation, counts, and cursor requests', async () => {
         axiosGetMock.mockImplementation((url: string) => {
             if (url === '/resources/filter-options') {
@@ -914,6 +1019,7 @@ describe('ResourcesPage', () => {
             expect(loadMoreCall?.[1].params.get('without_spdx_license')).toBe('1');
             expect(loadMoreCall?.[1].params.get('cursor')).toBe('spdx-cursor');
         });
+        expect(axiosGetMock.mock.calls.filter(([url]) => url === '/resources/count')).toHaveLength(1);
 
         fireEvent.click(screen.getByTestId('select-without-spdx-license'));
         expect(routerMock.visit).toHaveBeenCalledWith(

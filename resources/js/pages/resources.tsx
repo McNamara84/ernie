@@ -1063,6 +1063,8 @@ function ResourcesPage({
         void loadFilterOptions();
     }, []);
 
+    // Refresh the count whenever server props reset the list, including partial
+    // reloads that retain the pagination, sorting, and filter values.
     useEffect(() => {
         if (!initialPagination.filter_fingerprint || initialPagination.count_status === 'ready') {
             return;
@@ -1080,7 +1082,7 @@ function ResourcesPage({
         void axios
             .get<ResourceCountResponse>('/resources/count', { params, signal: controller.signal })
             .then(({ data }) => {
-                if (data.filter_fingerprint !== expectedFingerprint) return;
+                if (controller.signal.aborted || data.filter_fingerprint !== expectedFingerprint) return;
 
                 setListingState((current) =>
                     current.pagination.filter_fingerprint === data.filter_fingerprint
@@ -1099,7 +1101,7 @@ function ResourcesPage({
             });
 
         return () => controller.abort();
-    }, [countAttempt, initialFilters, initialPagination.count_status, initialPagination.filter_fingerprint, initialPagination.per_page, initialSort]);
+    }, [countAttempt, initialFilters, initialPagination, initialResources, initialSort]);
 
     // Persist only after preference resolution, never overwrite a saved sort
     // with the initial server default while a restoring visit is pending.
