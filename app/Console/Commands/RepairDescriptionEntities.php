@@ -30,7 +30,7 @@ final class RepairDescriptionEntities extends Command
             apply: (bool) $this->option('apply'),
             afterId: max(0, (int) $this->option('after-id')),
             limit: max(0, (int) $this->option('limit')),
-            dois: array_values(array_filter($this->option('doi'), 'is_string')),
+            dois: array_values(array_filter((array) $this->option('doi'), 'is_string')),
         );
 
         $this->info($this->option('apply') ? 'Description entity repair applied.' : 'Dry run only; no data was changed.');

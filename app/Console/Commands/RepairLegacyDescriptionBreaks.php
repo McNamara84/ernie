@@ -46,9 +46,9 @@ final class RepairLegacyDescriptionBreaks extends Command
             afterId: max(0, (int) $this->option('after-id')),
             limit: max(0, (int) $this->option('limit')),
             chunk: max(1, min(1000, (int) $this->option('chunk'))),
-            dois: array_values(array_filter($this->option('doi'), 'is_string')),
+            dois: array_values(array_filter((array) $this->option('doi'), 'is_string')),
             legacyIds: array_values(array_filter(
-                array_map('intval', $this->option('legacy-id')),
+                array_map('intval', (array) $this->option('legacy-id')),
                 static fn (int $id): bool => $id > 0,
             )),
         );
