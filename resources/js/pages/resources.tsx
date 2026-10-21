@@ -96,6 +96,13 @@ interface ResourceListingState {
     pagination: PaginationInfo;
 }
 
+interface ResourceLoadingError {
+    message: string;
+    action: 'retry' | 'reload';
+}
+
+const RELOAD_LIST_MESSAGE = 'The list could not be continued. Reload the list to continue.';
+
 interface ResourceCountResponse {
     filter_fingerprint: string;
     total: number;
@@ -792,7 +799,19 @@ function ResourcesPage({
     const [countAttempt, setCountAttempt] = useState(0);
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
     const [loading, setLoading] = useState(false);
-    const [loadingError, setLoadingError] = useState<string | null>(null);
+    const [loadingError, setLoadingError] = useState<ResourceLoadingError | null>(null);
+    const loadingErrorRef = useRef<ResourceLoadingError | null>(null);
+    const [preferencesReady, setPreferencesReady] = useState(false);
+    const preferencesReadyRef = useRef(false);
+    const [navigating, setNavigating] = useState(false);
+    const navigationRef = useRef<object | null>(null);
+    const [listingContext, setListingContext] = useState({ sort: initialSort || DEFAULT_SORT, filters: initialFilters ?? {} });
+    const serverContextKey = JSON.stringify([initialSort || DEFAULT_SORT, initialFilters ?? {}, initialPagination.per_page]);
+    const serverContextRef = useRef(serverContextKey);
+    serverContextRef.current = serverContextKey;
+    const nextCursorRef = useRef(pagination.next_cursor);
+    nextCursorRef.current = pagination.next_cursor;
+    const serverPropsRef = useRef({ initialResources, initialPagination, initialSort, initialFilters });
     const [showImportModal, setShowImportModal] = useState(false);
     const [isUploadingXml, setIsUploadingXml] = useState(false);
     const xmlUploadInputRef = useRef<HTMLInputElement>(null);
@@ -804,46 +823,94 @@ function ResourcesPage({
     const [isBulkExporting, setIsBulkExporting] = useState(false);
     const [filters, setFilters] = useState<ResourceFilterState>(() => initialFilters ?? {});
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
+    const [filterOptionsLoaded, setFilterOptionsLoaded] = useState(false);
     const [columnWidths, setColumnWidths] = useState<ResourceColumnWidths>(DEFAULT_RESOURCE_COLUMN_WIDTHS);
     const [tableCanResize, setTableCanResize] = useState<boolean>(true);
     const [copiedDoi, setCopiedDoi] = useState<string | null>(null);
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
-    const attemptedDatacenterFilterRestoreRef = useRef(false);
     const loadMoreControllerRef = useRef<AbortController | null>(null);
     const loadMoreInFlightRef = useRef(false);
     const doiCopyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    useEffect(() => {
-        setListingState((current) => ({ ...current, resources: initialResources }));
-    }, [initialResources]);
+    const setLoadError = useCallback((value: ResourceLoadingError | null) => {
+        loadingErrorRef.current = value;
+        setLoadingError(value);
+    }, []);
+
+    const abortLoadMore = useCallback(() => {
+        loadMoreControllerRef.current?.abort();
+        loadMoreControllerRef.current = null;
+        loadMoreInFlightRef.current = false;
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
-        setListingState((current) => ({ ...current, pagination: initialPagination }));
-    }, [initialPagination]);
+        const previous = serverPropsRef.current;
+        if (
+            previous.initialResources === initialResources &&
+            previous.initialPagination === initialPagination &&
+            previous.initialSort === initialSort &&
+            previous.initialFilters === initialFilters
+        )
+            return;
+        serverPropsRef.current = { initialResources, initialPagination, initialSort, initialFilters };
+        // A server response supplies one consistent list and request context,
+        // including partial reloads that retain the existing sort/filter props.
+        setListingState({ resources: initialResources, pagination: initialPagination });
+        setListingContext({ sort: initialSort || DEFAULT_SORT, filters: initialFilters ?? {} });
+        setSortState(initialSort || DEFAULT_SORT);
+        setFilters(initialFilters ?? {});
+        setLoadError(null);
+    }, [initialResources, initialPagination, initialSort, initialFilters, setLoadError]);
 
-    useEffect(() => {
-        if (initialFilters) {
-            setFilters(initialFilters);
-        }
-    }, [initialFilters]);
+    useEffect(() => abortLoadMore, [serverContextKey, abortLoadMore]);
 
-    useEffect(() => {
-        return () => {
-            const controller = loadMoreControllerRef.current;
+    const visitListing = useCallback(
+        (sort: ResourceSortState, nextFilters: ResourceFilterState) => {
+            const navigation = {};
+            navigationRef.current = navigation;
+            // Also prevents delayed filter-options responses from restoring preferences
+            // over an explicit user action.
+            preferencesReadyRef.current = true;
+            setPreferencesReady(true);
+            setNavigating(true);
+            abortLoadMore();
+            setSortState(sort);
+            setFilters(nextFilters);
+            const params = new URLSearchParams({
+                sort_key: sort.key,
+                sort_direction: sort.direction,
+                per_page: String(initialPagination.per_page),
+            });
+            appendResourceFilters(params, nextFilters);
 
-            if (controller) {
-                controller.abort();
-
-                if (loadMoreControllerRef.current === controller) {
-                    loadMoreControllerRef.current = null;
-                    loadMoreInFlightRef.current = false;
-                    setLoading(false);
-                }
+            let succeeded = false;
+            const finish = () => {
+                if (navigationRef.current !== navigation) return;
+                navigationRef.current = null;
+                setNavigating(false);
+                if (!succeeded) setLoadError({ message: 'The list could not be reloaded. Please try again.', action: 'reload' });
+            };
+            try {
+                router.visit(`/resources?${params.toString()}`, {
+                    preserveState: false,
+                    replace: true,
+                    onSuccess: () => {
+                        if (navigationRef.current !== navigation) return;
+                        succeeded = true;
+                        setSelectedIds(new Set());
+                        setLoadError(null);
+                    },
+                    onFinish: finish,
+                });
+            } catch {
+                finish();
             }
-        };
-    }, [filters, pagination.per_page, sortState.direction, sortState.key]);
+        },
+        [abortLoadMore, initialPagination.per_page, setLoadError],
+    );
 
     useEffect(() => {
         return () => {
@@ -858,44 +925,38 @@ function ResourcesPage({
     }, []);
 
     useEffect(() => {
-        if (attemptedDatacenterFilterRestoreRef.current || !filterOptions || typeof window === 'undefined') {
-            return;
+        if (preferencesReadyRef.current) return;
+        const query = new URLSearchParams(window.location.search);
+        let restoredSort = initialSort || DEFAULT_SORT;
+        if (!query.has('sort_key') && !query.has('sort_direction') && !query.has('cursor')) {
+            try {
+                const stored: unknown = JSON.parse(localStorage.getItem(SORT_PREFERENCE_STORAGE_KEY) ?? 'null');
+                if (isSortState(stored)) restoredSort = stored;
+            } catch {
+                // Storage is optional; the server sort remains usable.
+            }
         }
 
-        attemptedDatacenterFilterRestoreRef.current = true;
-
-        if (window.location.pathname !== '/resources' || window.location.search !== '') {
-            return;
+        const serverFilters = initialFilters ?? {};
+        let restoredFilters = serverFilters;
+        const storedFilter = window.location.pathname === '/resources' && window.location.search === '' ? readStoredResourceDatacenterFilter() : null;
+        if (storedFilter?.type === 'datacenter' && !filterOptionsLoaded) return;
+        if (storedFilter?.type === 'without_datacenter') {
+            restoredFilters = storedResourceDatacenterFilterToState(storedFilter);
+        } else if (storedFilter?.type === 'datacenter' && filterOptions) {
+            if ((filterOptions.datacenters ?? []).some((datacenter) => datacenter.id === storedFilter.datacenterId)) {
+                restoredFilters = storedResourceDatacenterFilterToState(storedFilter);
+            } else {
+                clearStoredResourceDatacenterFilter();
+            }
         }
 
-        const storedFilter = readStoredResourceDatacenterFilter();
-        if (!storedFilter) {
-            return;
+        preferencesReadyRef.current = true;
+        setPreferencesReady(true);
+        if (restoredSort.key !== sortState.key || restoredSort.direction !== sortState.direction || restoredFilters !== serverFilters) {
+            visitListing(restoredSort, restoredFilters);
         }
-
-        if (
-            storedFilter.type === 'datacenter' &&
-            !(filterOptions.datacenters ?? []).some((datacenter) => datacenter.id === storedFilter.datacenterId)
-        ) {
-            clearStoredResourceDatacenterFilter();
-
-            return;
-        }
-
-        const restoredFilters = storedResourceDatacenterFilterToState(storedFilter);
-        setFilters(restoredFilters);
-
-        const params = new URLSearchParams({
-            sort_key: sortState.key,
-            sort_direction: sortState.direction,
-        });
-        appendResourceFilters(params, restoredFilters);
-
-        router.visit(`/resources?${params.toString()}`, {
-            preserveState: false,
-            replace: true,
-        });
-    }, [filterOptions, sortState.direction, sortState.key]);
+    }, [filterOptions, filterOptionsLoaded, initialFilters, initialSort, sortState.direction, sortState.key, visitListing]);
 
     useEffect(() => {
         const handleViewportResize = () => {
@@ -909,57 +970,80 @@ function ResourcesPage({
     }, []);
 
     // Load more resources for infinite scrolling
-    const loadMore = useCallback(async () => {
-        if (loadMoreInFlightRef.current || !pagination.has_more) {
-            return;
-        }
-
-        const controller = new AbortController();
-        loadMoreControllerRef.current = controller;
-        loadMoreInFlightRef.current = true;
-        setLoading(true);
-        setLoadingError(null);
-
-        try {
-            const params = new URLSearchParams({
-                per_page: String(pagination.per_page),
-                sort_key: sortState.key,
-                sort_direction: sortState.direction,
-            });
-
-            if (pagination.next_cursor) {
-                params.set('cursor', pagination.next_cursor);
+    const loadMore = useCallback(
+        async (manualRetry = false) => {
+            if (
+                loadMoreInFlightRef.current ||
+                !pagination.has_more ||
+                !preferencesReadyRef.current ||
+                navigationRef.current ||
+                (loadingErrorRef.current && (!manualRetry || loadingErrorRef.current.action !== 'retry'))
+            ) {
+                return;
             }
 
-            appendResourceFilters(params, filters);
+            const requestContext = JSON.stringify([listingContext.sort, listingContext.filters, pagination.per_page]);
+            if (requestContext !== serverContextRef.current || pagination.next_cursor !== nextCursorRef.current) return;
+            if (!pagination.next_cursor) {
+                setLoadError({ message: RELOAD_LIST_MESSAGE, action: 'reload' });
+                return;
+            }
 
-            const response = await axios.get('/resources/load-more', { params, signal: controller.signal });
+            const controller = new AbortController();
+            loadMoreControllerRef.current = controller;
+            loadMoreInFlightRef.current = true;
+            setLoading(true);
+            setLoadError(null);
 
-            if (controller.signal.aborted) return;
+            try {
+                const params = new URLSearchParams({
+                    per_page: String(pagination.per_page),
+                    sort_key: listingContext.sort.key,
+                    sort_direction: listingContext.sort.direction,
+                });
 
-            const incomingResources = (response.data.resources || []) as Resource[];
-            setListingState((current) => mergeLoadMoreState(current, incomingResources, response.data.pagination));
-        } catch (err) {
-            if (controller.signal.aborted || (isAxiosError(err) && err.code === 'ERR_CANCELED')) return;
+                if (pagination.next_cursor) {
+                    params.set('cursor', pagination.next_cursor);
+                }
 
-            console.error('Error loading more resources:', err);
+                appendResourceFilters(params, listingContext.filters);
 
-            if (isAxiosError(err)) {
-                const errorMessage = err.response?.data?.error || err.message;
-                setLoadingError(`Failed to load more resources: ${errorMessage}`);
+                const response = await axios.get('/resources/load-more', { params, signal: controller.signal });
+
+                if (controller.signal.aborted || serverContextRef.current !== requestContext) return;
+
+                const incomingResources = (response.data.resources || []) as Resource[];
+                setListingState((current) => mergeLoadMoreState(current, incomingResources, response.data.pagination));
+            } catch (err) {
+                if (controller.signal.aborted || serverContextRef.current !== requestContext || (isAxiosError(err) && err.code === 'ERR_CANCELED'))
+                    return;
+
+                console.error('Error loading more resources:', err);
+
+                const cursorErrors: unknown = isAxiosError(err) ? err.response?.data?.errors?.cursor : undefined;
+                if (isAxiosError(err) && err.response?.status === 422 && Array.isArray(cursorErrors) && cursorErrors.length > 0) {
+                    setLoadError({ message: RELOAD_LIST_MESSAGE, action: 'reload' });
+                } else {
+                    const errorMessage: unknown = isAxiosError(err) ? err.response?.data?.error || err.response?.data?.message || err.message : null;
+                    setLoadError({
+                        message:
+                            typeof errorMessage === 'string'
+                                ? `Failed to load more resources: ${errorMessage}`
+                                : 'An unexpected error occurred while loading resources.',
+                        action: 'retry',
+                    });
+                }
                 toast.error('Failed to load more resources');
-            } else {
-                setLoadingError('An unexpected error occurred while loading resources.');
-                toast.error('Failed to load more resources');
+            } finally {
+                if (loadMoreControllerRef.current === controller) {
+                    loadMoreControllerRef.current = null;
+                    loadMoreInFlightRef.current = false;
+                    setLoading(false);
+                }
             }
-        } finally {
-            if (loadMoreControllerRef.current === controller) {
-                loadMoreControllerRef.current = null;
-                loadMoreInFlightRef.current = false;
-                setLoading(false);
-            }
-        }
-    }, [filters, pagination.has_more, pagination.next_cursor, pagination.per_page, sortState.direction, sortState.key]);
+        },
+        [listingContext, pagination.has_more, pagination.next_cursor, pagination.per_page, setLoadError],
+    );
 
     // Load filter options on mount
     useEffect(() => {
@@ -971,12 +1055,16 @@ function ResourcesPage({
                 if (import.meta.env.DEV) {
                     console.error('Failed to load filter options:', err);
                 }
+            } finally {
+                setFilterOptionsLoaded(true);
             }
         };
 
         void loadFilterOptions();
     }, []);
 
+    // Refresh the count whenever server props reset the list, including partial
+    // reloads that retain the pagination, sorting, and filter values.
     useEffect(() => {
         if (!initialPagination.filter_fingerprint || initialPagination.count_status === 'ready') {
             return;
@@ -994,7 +1082,7 @@ function ResourcesPage({
         void axios
             .get<ResourceCountResponse>('/resources/count', { params, signal: controller.signal })
             .then(({ data }) => {
-                if (data.filter_fingerprint !== expectedFingerprint) return;
+                if (controller.signal.aborted || data.filter_fingerprint !== expectedFingerprint) return;
 
                 setListingState((current) =>
                     current.pagination.filter_fingerprint === data.filter_fingerprint
@@ -1013,81 +1101,37 @@ function ResourcesPage({
             });
 
         return () => controller.abort();
-    }, [countAttempt, initialFilters, initialPagination.count_status, initialPagination.filter_fingerprint, initialPagination.per_page, initialSort]);
+    }, [countAttempt, initialFilters, initialPagination, initialResources, initialSort]);
 
-    // Load sort preference from localStorage
+    // Persist only after preference resolution, never overwrite a saved sort
+    // with the initial server default while a restoring visit is pending.
     useEffect(() => {
+        if (!preferencesReady || navigating || loadingError) return;
         try {
-            const stored = localStorage.getItem(SORT_PREFERENCE_STORAGE_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if (isSortState(parsed)) {
-                    setSortState(parsed);
-                }
-            }
+            localStorage.setItem(SORT_PREFERENCE_STORAGE_KEY, JSON.stringify(listingContext.sort));
         } catch {
-            // Ignore parse errors
+            // Storage is optional.
         }
-    }, []);
-
-    // Save sort preference to localStorage
-    useEffect(() => {
-        try {
-            localStorage.setItem(SORT_PREFERENCE_STORAGE_KEY, JSON.stringify(sortState));
-        } catch {
-            // Ignore storage errors
-        }
-    }, [sortState]);
+    }, [preferencesReady, navigating, loadingError, listingContext.sort]);
 
     const handleSortChange = useCallback(
         (key: ResourceSortKey) => {
-            const newDirection = determineNextDirection(sortState, key);
-            const newState = { key, direction: newDirection };
-
-            setSortState(newState);
-
-            // Build query string
-            const params = new URLSearchParams({
-                sort_key: newState.key,
-                sort_direction: newState.direction,
-            });
-
-            appendResourceFilters(params, filters);
-
-            // Navigate to same page with new query params
-            router.visit(`/resources?${params.toString()}`, {
-                preserveState: false,
-                replace: true,
-            });
+            visitListing({ key, direction: determineNextDirection(sortState, key) }, filters);
         },
-        [sortState, filters],
+        [sortState, filters, visitListing],
     );
 
     const handleFilterChange = useCallback(
         (newFilters: ResourceFilterState) => {
-            setFilters(newFilters);
             persistResourceDatacenterFilter(newFilters);
-
-            // Build query string with current sort state
-            const params = new URLSearchParams({
-                sort_key: sortState.key,
-                sort_direction: sortState.direction,
-            });
-
-            appendResourceFilters(params, newFilters);
-
-            // Navigate to same page with new query params
-            router.visit(`/resources?${params.toString()}`, {
-                preserveState: false,
-                replace: true,
-            });
+            visitListing(sortState, newFilters);
         },
-        [sortState],
+        [sortState, visitListing],
     );
 
     // Infinite scrolling
     useEffect(() => {
-        if (!lastResourceElementRef.current || loading || !pagination.has_more) {
+        if (!lastResourceElementRef.current || loading || !pagination.has_more || loadingError || navigating || !preferencesReady) {
             return;
         }
 
@@ -1110,11 +1154,16 @@ function ResourcesPage({
                 observerRef.current.disconnect();
             }
         };
-    }, [pagination.has_more, loading, loadMore, resources.length]);
+    }, [pagination.has_more, loading, loadingError, navigating, preferencesReady, loadMore, resources.length]);
 
     const handleRetry = useCallback(() => {
-        void loadMore();
-    }, [loadMore]);
+        if (navigationRef.current) return;
+        if (loadingError?.action === 'reload') {
+            visitListing(sortState, filters);
+        } else {
+            void loadMore(true);
+        }
+    }, [loadingError, loadMore, visitListing, sortState, filters]);
 
     const handleSetupLandingPage = useCallback((resource: Resource) => {
         setSelectedResourceForLandingPage(resource);
@@ -2344,9 +2393,9 @@ function ResourcesPage({
                         {loadingError && (
                             <Alert className="mb-4" variant="destructive">
                                 <AlertDescription>
-                                    {loadingError}
-                                    <Button variant="outline" size="sm" className="ml-2" onClick={handleRetry} disabled={loading}>
-                                        Retry
+                                    {loadingError.message}
+                                    <Button variant="outline" size="sm" className="ml-2" onClick={handleRetry} disabled={loading || navigating}>
+                                        {loadingError.action === 'reload' ? 'Reload list' : 'Retry'}
                                     </Button>
                                 </AlertDescription>
                             </Alert>

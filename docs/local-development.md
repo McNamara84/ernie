@@ -229,7 +229,8 @@ before removing the build-only `pip` installer and `ensurepip` bootstrap archive
 This removes the old libraries bundled inside pip; updating F-UJI's installed
 `setuptools` alone would not replace those copies. Runtime dependencies, including
 the `setuptools` package used by Tika, remain installed. Change dependencies through
-the Dockerfile and rebuild the image. CI checks that F-UJI dependencies import and
+the Dockerfile and rebuild the image. CI checks that F-UJI dependencies import,
+the certificate bundle excludes the compromised emSign ECC Root CA - G3, and
 Chromium launches without the installers, then scans the complete image alongside
 the application and Nginx images before Stage publication.
 
