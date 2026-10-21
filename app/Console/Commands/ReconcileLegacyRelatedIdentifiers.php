@@ -46,7 +46,7 @@ final class ReconcileLegacyRelatedIdentifiers extends Command
             return Command::INVALID;
         }
 
-        $doiOptions = array_values(array_filter($this->option('doi'), 'is_string'));
+        $doiOptions = array_values(array_filter((array) $this->option('doi'), 'is_string'));
         $invalidDois = array_values(array_filter(
             $doiOptions,
             fn (string $doi): bool => ! $this->doiSuggestionService->isValidDoiFormat($doi),

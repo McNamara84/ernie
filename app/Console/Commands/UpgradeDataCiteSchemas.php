@@ -58,7 +58,7 @@ final class UpgradeDataCiteSchemas extends Command
             $afterId = $this->integerOption('after-id');
             $limit = $this->integerOption('limit');
             $dois = array_values(array_filter(
-                $this->option('doi'),
+                (array) $this->option('doi'),
                 static fn (mixed $doi): bool => is_string($doi),
             ));
 

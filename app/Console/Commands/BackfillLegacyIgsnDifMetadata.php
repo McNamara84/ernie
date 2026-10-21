@@ -50,8 +50,8 @@ final class BackfillLegacyIgsnDifMetadata extends Command
                 afterId: $afterId,
                 limit: $limit,
                 chunk: $chunk,
-                dois: array_values(array_filter($this->option('doi'), 'is_string')),
-                datacenters: array_values(array_filter($this->option('datacenter'), 'is_string')),
+                dois: array_values(array_filter((array) $this->option('doi'), 'is_string')),
+                datacenters: array_values(array_filter((array) $this->option('datacenter'), 'is_string')),
             );
         } catch (\InvalidArgumentException $exception) {
             $this->error($exception->getMessage());

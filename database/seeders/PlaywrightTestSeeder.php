@@ -92,9 +92,9 @@ class PlaywrightTestSeeder extends Seeder
                 RightsSeeder::class,
                 PublisherSeeder::class,
             ]);
-            $this->command->info('Lookup table seeders completed successfully.');
+            $this->command?->info('Lookup table seeders completed successfully.');
         } catch (\Throwable $e) {
-            $this->command->error('Failed to seed lookup tables: '.$e->getMessage());
+            $this->command?->error('Failed to seed lookup tables: '.$e->getMessage());
             throw $e;
         }
 
@@ -180,7 +180,7 @@ class PlaywrightTestSeeder extends Seeder
         // Include the completed tombstone fixture in the shared local/CI setup.
         $this->call(TombstonePlaywrightSeeder::class);
 
-        $this->command->info('Playwright test users created successfully!');
+        $this->command?->info('Playwright test users created successfully!');
     }
 
     /** @return array<string, mixed>
@@ -538,7 +538,7 @@ class PlaywrightTestSeeder extends Seeder
             $this->ensureCompleteFixture($curationResource);
         }
 
-        $this->command->info('Playwright E2E resources ensured successfully!');
+        $this->command?->info('Playwright E2E resources ensured successfully!');
     }
 
     private function ensureCompleteFixture(Resource $resource): void

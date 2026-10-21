@@ -22,13 +22,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           tools: composer:v2
 
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: '.node-version'
 
@@ -129,7 +129,7 @@ jobs:
               -e TRIVY_DISABLE_VEX_NOTICE \
               -v "${{ github.workspace }}:/work" \
               -w /work \
-              aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa image \
+              aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
               --input "/work/ernie-${target}-security-scan.tar" \
               --cache-dir /work/.trivy-cache \
               --scanners vuln \
@@ -155,21 +155,21 @@ jobs:
 
       - name: Upload application Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.app_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-results/app.sarif
           category: trivy-app-image
 
       - name: Upload Nginx Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.nginx_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-results/nginx.sarif
           category: trivy-nginx-image
 
       - name: Upload F-UJI Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.fuji_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-results/fuji.sarif
           category: trivy-fuji-image
@@ -195,7 +195,7 @@ jobs:
               -e TRIVY_DISABLE_VEX_NOTICE \
               -v "${{ github.workspace }}:/work" \
               -w /work \
-              aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa image \
+              aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
               --input "/work/ernie-${target}-security-scan.tar" \
               --cache-dir /work/.trivy-cache \
               --scanners vuln \
