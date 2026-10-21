@@ -25,6 +25,7 @@ export const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
     keywords: 'Keywords / Subjects',
     metadata_download: 'Metadata Download',
     location: 'Location / Map',
+    usage: 'Usage',
 };
 
 export const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
@@ -71,6 +72,7 @@ export const IGSN_SECTION_LABELS: Record<IgsnSection, string> = {
     location: 'Location',
     map: 'Map',
     version_notice: 'Version Notice',
+    usage: 'Usage',
 };
 
 export const SECTION_LABELS: Record<TemplateSection, string> = {
@@ -87,6 +89,7 @@ export const RIGHT_COLUMN_SECTIONS: CanonicalRightColumnSection[] = [
     'keywords',
     'metadata_download',
     'location',
+    'usage',
 ];
 
 export const RESOURCE_LEFT_COLUMN_SECTIONS: Array<Extract<ResourceSection, LeftColumnSection>> = [
@@ -123,7 +126,15 @@ export const IGSN_LEFT_COLUMN_SECTIONS: IgsnSection[] = [
     'citation',
 ];
 
-export const IGSN_RIGHT_COLUMN_SECTIONS: IgsnSection[] = ['version_notice', 'contributors', 'creators', 'location', 'acquisition', 'funders'];
+export const IGSN_RIGHT_COLUMN_SECTIONS: IgsnSection[] = [
+    'version_notice',
+    'contributors',
+    'creators',
+    'location',
+    'acquisition',
+    'funders',
+    'usage',
+];
 
 export const IGSN_HIDDEN_SECTIONS: IgsnSection[] = [
     'igsn_methods',
@@ -291,6 +302,11 @@ export function normalizeIgsnColumnOrders(
         seen.add('version_notice');
     }
 
+    if (!seen.has('usage')) {
+        right.push('usage');
+        seen.add('usage');
+    }
+
     for (const section of IGSN_SECTIONS) {
         if (seen.has(section)) continue;
         seen.add(section);
@@ -325,11 +341,13 @@ function groupResourceMetadataSections(order: ResourceSection[]): ResourceSectio
 export function normalizeResourceColumnOrders(
     storedLeft: readonly TemplateSection[],
     storedRight: readonly TemplateSection[],
-): { left: ResourceSection[]; right: ResourceSection[] } {
+    storedHidden: readonly TemplateSection[] = [],
+): { left: ResourceSection[]; right: ResourceSection[]; hidden: ResourceSection[] } {
     const valid = new Set<ResourceSection>(RESOURCE_SECTIONS);
     const seen = new Set<ResourceSection>();
     const left: ResourceSection[] = [];
     const right: ResourceSection[] = [];
+    const hidden: ResourceSection[] = [];
 
     const appendKnown = (target: ResourceSection[], values: readonly TemplateSection[]) => {
         for (const value of values) {
@@ -346,6 +364,7 @@ export function normalizeResourceColumnOrders(
 
     appendKnown(left, storedLeft);
     appendKnown(right, storedRight);
+    appendKnown(hidden, storedHidden);
     const hasStoredCitation = seen.has('citation');
 
     if (!seen.has('licenses')) {
@@ -366,5 +385,6 @@ export function normalizeResourceColumnOrders(
     return {
         left: groupResourceMetadataSections(left),
         right: groupResourceMetadataSections(right),
+        hidden,
     };
 }

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\TombstoneReason;
 use App\Services\SlugGeneratorService;
+use App\Services\Usage\CounterTrackingStateService;
 use Database\Factories\LandingPageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -533,6 +534,11 @@ class LandingPage extends Model
      * Increment the view count.
      */
     public function incrementViewCount(): void
+    {
+        app(CounterTrackingStateService::class)->legacy(fn () => $this->incrementLegacyViewCount());
+    }
+
+    private function incrementLegacyViewCount(): void
     {
         $timestamp = now();
 

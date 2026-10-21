@@ -7,6 +7,10 @@ for `main` bugfixes, `dev` features, automatic synchronization, and publishing.
 To test immutable Production candidates while Stage follows `dev`, use
 [Release Candidate Testing](release-candidate-testing.md).
 
+For environment-specific COUNTER activation, aggregation, retention and recovery,
+see [COUNTER Usage Statistics](counter-usage.md). New usage collection stays
+inactive until explicitly activated; migrations alone preserve legacy counting.
+
 - Fast Mode is the default path for day-to-day development.
 - Optional profiles are available for assessment-specific and parity-specific work.
 - Canonical validation entry points remain `npm run check:backend`, `npm run check:frontend`, and `npm run check:parity`.
@@ -922,7 +926,7 @@ This command:
 - starts the backend and optional `test` profile once
 - verifies MySQL 9.7 before resetting a schema; `db-test` uses the exact image pinned for `db`
 - uses `ernie_test` on the disposable `db-test` server, backed by a bounded 2 GiB tmpfs without a host port
-- runs the manifest in `tests/mysql-sensitive-slices.json` with 27 serial reset boundaries, including editor/background concurrency, shared-Redis DOI retry checks and identifier-pattern collation conflicts
+- runs the manifest in `tests/mysql-sensitive-slices.json` with 28 serial reset boundaries, including COUNTER aggregation/activation concurrency, editor/background concurrency, shared-Redis DOI retry checks and identifier-pattern collation conflicts
 - copies the checkout into the Linux-native Pest workspace for the complete run; focused aliases keep using the checkout
 
 The development server and its versioned data volume are preserved. Focused

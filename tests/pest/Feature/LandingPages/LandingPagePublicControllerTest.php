@@ -1074,7 +1074,7 @@ describe('Landing Page with Custom Template', function () {
                 ->where('landingPageTemplateSource', 'datacenter')
                 ->where('effectiveLandingPageTemplate.id', $template->id)
                 ->where('sectionOrder.leftColumn', $left)
-                ->where('sectionOrder.rightColumn', $right)
+                ->where('sectionOrder.rightColumn', [...$right, 'usage'])
             );
     });
 
@@ -1190,6 +1190,7 @@ describe('Landing Page with Custom Template', function () {
                 ->has('sectionOrder', fn ($order) => $order
                     ->has('rightColumn')
                     ->has('leftColumn')
+                    ->where('hiddenSections', [])
                 )
                 ->where('sectionOrder.leftColumn', [
                     'contact',

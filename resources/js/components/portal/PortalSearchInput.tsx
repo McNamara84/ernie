@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { LoaderCircle, Search, Tag, X } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
@@ -59,13 +58,9 @@ export function PortalSearchInput({
             event.preventDefault();
             const query = value.trim();
 
-            if (query !== '') {
-                void axios.post(`${basePath}/search-analytics`, { search_term: query }).catch(() => undefined);
-            }
-
             onSubmit(query);
         },
-        [basePath, onSubmit, value],
+        [onSubmit, value],
     );
 
     const handleKeyDown = useCallback(

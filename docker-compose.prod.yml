@@ -21,6 +21,7 @@ services:
       start_period: 10s
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       # OAI-PMH identifiers are persistent and must not change with APP_URL.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
@@ -336,6 +337,7 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       # Keep this identical to the app service for observer/job consistency.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
@@ -470,6 +472,7 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
@@ -558,6 +561,7 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production

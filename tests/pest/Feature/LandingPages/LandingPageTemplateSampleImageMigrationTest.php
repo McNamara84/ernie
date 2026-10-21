@@ -26,6 +26,14 @@ const ISSUE_1168_FLEXIBLE_RIGHT_SECTIONS = [
     'keywords', 'metadata_download', 'sample_image', 'location',
 ];
 
+// Expected output of the historical September migration, before Usage existed.
+const ISSUE_1168_MIGRATED_SECTIONS = [
+    'general', 'sample_family', 'repositories', 'map', 'related_work', 'metadata_download', 'dates', 'citation',
+    'version_notice', 'contributors', 'creators', 'location', 'acquisition', 'funders',
+    'igsn_methods', 'igsn_drilling', 'licenses', 'contact', 'model_description',
+    'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'keywords', 'sample_image',
+];
+
 function issue1168TemplateMigration(): object
 {
     return require database_path('migrations/2026_08_27_000002_enable_flexible_igsn_template_sections.php');
@@ -77,8 +85,8 @@ it('preserves omitted modules while upgrading a sparse legacy layout through the
         ->and(array_search('sample_image', $legacyRight, true))->toBe(array_search('location', $legacyRight, true) - 1)
         ->and(collect([...$legacyLeft, ...$legacyRight])->duplicates()->all())->toBe([])
         ->and($resource->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
-        ->and($currentSections)->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS))
-        ->and(array_diff(LandingPageTemplate::IGSN_SECTIONS, $currentSections))->toBe([])
+        ->and($currentSections)->toHaveCount(count(ISSUE_1168_MIGRATED_SECTIONS))
+        ->and(array_diff(ISSUE_1168_MIGRATED_SECTIONS, $currentSections))->toBe([])
         ->and(collect($currentSections)->duplicates()->all())->toBe([])
         ->and($igsn->right_column_order)->toContain('sample_image')
         ->and($igsn->hidden_sections)->not->toContain('sample_image')

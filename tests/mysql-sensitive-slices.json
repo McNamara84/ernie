@@ -3,6 +3,7 @@
         "editor-settings",
         "dump-downloads",
         "statistics",
+        "usage",
         "sizes-unit",
         "related-items-edition",
         "igsn-user-code",
@@ -32,6 +33,13 @@
         "oai-pmh": ["oai-schema", "oai-services"]
     },
     "slices": {
+        "usage": [
+            "tests/pest/Feature/Usage/CounterDeletionTest.php",
+            "tests/pest/Feature/Usage/CounterDeletionMigrationTest.php",
+            "tests/pest/Feature/Usage/CounterProcessingTest.php",
+            "tests/pest/Feature/Usage/CounterReadAndLayoutTest.php",
+            "tests/pest/Feature/Usage/CounterConcurrencyTest.php"
+        ],
         "identifier-patterns": [
             "tests/pest/Feature/Database/CorrectElmoIdentifierTypePatternsMigrationTest.php",
             "tests/pest/Feature/Database/CorrectHtmlIdentifierTypePatternsMigrationTest.php",

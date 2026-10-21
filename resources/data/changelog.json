@@ -2,8 +2,30 @@
     {
         "version": "1.2.0dev",
         "date": "2026-10-20",
-        "features": [],
-        "improvements": [],
+        "features": [
+            {
+                "title": "Research Data Usage Statistics",
+                "description": "Published DOI and IGSN landing pages show unique regular usage, monthly trends, an accessible data table and the actual aggregation date. IGSNs display views only. A new How we count page explains research-data COUNTER rules, exclusions, incomplete periods and the limits of measuring downloads through link clicks.",
+                "references": [{ "type": "issue", "number": 1428, "url": "https://github.com/McNamara84/ernie/issues/1428" }]
+            },
+            {
+                "title": "COUNTER Dashboard and Monthly Export",
+                "description": "Administrators and Group Leaders can switch between total and unique resource usage and regular or machine access, inspect daily trends and successful portal searches, and export monthly metrics as CSV. Earlier counters remain available in a separate Before COUNTER view. IGSN download counts are excluded throughout.",
+                "references": [{ "type": "issue", "number": 1429, "url": "https://github.com/McNamara84/ernie/issues/1429" }]
+            },
+            {
+                "title": "Hide Resource Landing Page Modules",
+                "description": "Custom DOI templates now support a hidden area for all configurable modules, alongside the left and right columns. Modules can be hidden and restored with keyboard-accessible controls. The new Usage module is initially visible on existing DOI and IGSN templates; hiding it does not stop usage collection.",
+                "references": [{ "type": "issue", "number": 267, "url": "https://github.com/McNamara84/ernie/issues/267" }]
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Consistent Usage Collection and Retention",
+                "description": "An explicit activation starts new usage statistics and freezes all legacy counters. Successful public responses are classified with versioned robot and research-client rules, repeated actions are filtered, and completed UTC days are aggregated atomically. Raw pseudonymous events are deleted after aggregation and within seven days; ERNIE database dumps exclude their contents.",
+                "references": [{ "type": "issue", "number": 1427, "url": "https://github.com/McNamara84/ernie/issues/1427" }]
+            }
+        ],
         "fixes": []
     },
     {

@@ -83,7 +83,7 @@ describe('PortalSearchInput', () => {
         await user.click(screen.getByRole('button', { name: 'Search' }));
 
         expect(onSubmit).toHaveBeenCalledWith('climate change');
-        expect(axiosPostMock).toHaveBeenCalledWith('/doi-search/search-analytics', { search_term: 'climate change' });
+        expect(axiosPostMock).not.toHaveBeenCalled();
     });
 
     it('records IGSN searches on the IGSN endpoint', async () => {
@@ -92,7 +92,7 @@ describe('PortalSearchInput', () => {
 
         await user.click(screen.getByRole('button', { name: 'Search' }));
 
-        expect(axiosPostMock).toHaveBeenCalledWith('/igsn-search/search-analytics', { search_term: 'basalt sample' });
+        expect(axiosPostMock).not.toHaveBeenCalled();
     });
 
     it('explains the wildcard syntax only in the IGSN portal', () => {
