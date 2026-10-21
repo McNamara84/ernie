@@ -13,7 +13,7 @@ const primaryUrl = `https://xdebug.org/files/xdebug-${version}.tgz`;
 const mirrorUrl = `https://raw.githubusercontent.com/xdebug/xdebug.org/master/html/files/xdebug-${version}.tgz`;
 // Execute the Dockerfile's download and verification commands, stopping before compilation.
 const download = dockerfile.replaceAll(/\\\r?\n/gu, '').split('\n')
-    .find((line) => line.startsWith('RUN ') && line.includes('https://xdebug.org/files/'))
+    .find((line) => line.startsWith('RUN ') && line.includes('docker-php-ext-install xdebug;'))
     .slice(4).split('mkdir -p /usr/src/php/ext/xdebug')[0];
 const archive = 'verified release archive';
 const checksum = createHash('sha256').update(archive).digest('hex');
