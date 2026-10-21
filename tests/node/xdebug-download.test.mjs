@@ -7,6 +7,9 @@ import { join } from 'node:path';
 import process from 'node:process';
 import test from 'node:test';
 
+// Frontend validation also runs on Windows and macOS hosts without Docker's shell tools.
+const linuxOnly = { skip: process.platform !== 'linux' && 'Requires Linux shell tools (sh and sha256sum)' };
+
 const dockerfile = readFileSync(new URL('../../Dockerfile.dev', import.meta.url), 'utf8');
 const version = dockerfile.match(/^ARG XDEBUG_VERSION=(.+)$/mu)[1];
 const primaryUrl = `https://xdebug.org/files/xdebug-${version}.tgz`;
@@ -59,14 +62,14 @@ esac
     return { ...result, requests: readFileSync(requests, 'utf8').trim().split('\n'), archive: readFileSync(output, 'utf8') };
 }
 
-test('Xdebug download verifies the primary archive without contacting the mirror', (t) => {
+test('Xdebug download verifies the primary archive without contacting the mirror', linuxOnly, (t) => {
     const result = runDownload(t);
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(result.requests, [primaryUrl]);
     assert.match(result.stdout, /xdebug\.tgz: OK/u);
 });
 
-test('Xdebug download falls back after connection refusal and replaces the partial download', (t) => {
+test('Xdebug download falls back after connection refusal and replaces the partial download', linuxOnly, (t) => {
     const result = runDownload(t, { primaryExit: 7, primaryBody: 'incomplete download' });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(result.requests, [primaryUrl, mirrorUrl]);
@@ -74,21 +77,21 @@ test('Xdebug download falls back after connection refusal and replaces the parti
     assert.match(result.stdout, /xdebug\.tgz: OK/u);
 });
 
-test('Xdebug download fails when both sources are unavailable', (t) => {
+test('Xdebug download fails when both sources are unavailable', linuxOnly, (t) => {
     const result = runDownload(t, { primaryExit: 7, mirrorExit: 22 });
     assert.notEqual(result.status, 0);
     assert.deepEqual(result.requests, [primaryUrl, mirrorUrl]);
     assert.doesNotMatch(result.stdout, /xdebug\.tgz: OK/u);
 });
 
-test('Xdebug download rejects a corrupt primary archive without falling back', (t) => {
+test('Xdebug download rejects a corrupt primary archive without falling back', linuxOnly, (t) => {
     const result = runDownload(t, { primaryBody: 'corrupt archive' });
     assert.notEqual(result.status, 0);
     assert.deepEqual(result.requests, [primaryUrl]);
     assert.match(result.stdout, /xdebug\.tgz: FAILED/u);
 });
 
-test('Xdebug download also rejects a corrupt mirror archive', (t) => {
+test('Xdebug download also rejects a corrupt mirror archive', linuxOnly, (t) => {
     const result = runDownload(t, { primaryExit: 7, mirrorBody: 'corrupt archive' });
     assert.notEqual(result.status, 0);
     assert.deepEqual(result.requests, [primaryUrl, mirrorUrl]);
