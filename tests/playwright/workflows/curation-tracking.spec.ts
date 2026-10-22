@@ -43,12 +43,18 @@ test.describe('Curation tracking', () => {
             // Warm every query/sort path once. Measure inside the browser so
             // Playwright's IPC and assertion polling are reported separately.
             for (const phase of ['warmup', 'measured']) {
-                for (const sort of ['created', 'progress', 'activity']) {
-                    await page.getByLabel('Sort by').evaluate((select) => {
+                for (const [sort, label] of [
+                    ['created', 'First saved'],
+                    ['progress', 'Progress'],
+                    ['activity', 'Last activity'],
+                ]) {
+                    await page.getByRole('combobox', { name: 'Sort by' }).click();
+                    const option = page.getByRole('option', { name: label, exact: true });
+                    await option.evaluate((select) => {
                         const measuredWindow = window as Window & { curationRenderTime?: Promise<RenderTiming> };
                         measuredWindow.curationRenderTime = new Promise((resolve) => {
                             select.addEventListener(
-                                'change',
+                                'pointerup',
                                 () => {
                                     const start = performance.now();
                                     document.addEventListener(
@@ -72,7 +78,7 @@ test.describe('Curation tracking', () => {
                                         { once: true },
                                     );
                                 },
-                                { once: true },
+                                { once: true, capture: true },
                             );
                         });
                     });
@@ -80,7 +86,7 @@ test.describe('Curation tracking', () => {
                         (result) => result.url().includes('/curation?') && result.request().headers()['x-inertia'] === 'true',
                     );
                     const start = Date.now();
-                    await page.getByLabel('Sort by').selectOption(sort);
+                    await option.click();
                     const received = await response;
                     expect(received.ok()).toBe(true);
                     const renderTiming = await page.evaluate(
@@ -122,7 +128,8 @@ test.describe('Curation tracking', () => {
             await expect(page.getByRole('checkbox', { name: 'My Resources' })).toBeChecked();
             await page.getByRole('button', { name: 'Show details', exact: true }).click();
             await expect(page.getByRole('heading', { name: 'Open checklist items', exact: true })).toBeVisible();
-            await page.getByLabel('Sort by').selectOption('created');
+            await page.getByRole('combobox', { name: 'Sort by' }).click();
+            await page.getByRole('option', { name: 'First saved', exact: true }).click();
             await expect(page).toHaveURL(/sort=created/);
             await expect(page.getByRole('button', { name: 'Hide details', exact: true })).toBeVisible();
             await expect(page.getByRole('heading', { name: 'Open checklist items', exact: true })).toBeVisible();
@@ -142,7 +149,8 @@ test.describe('Curation tracking', () => {
             expect((await saved).status()).toBe(200);
             await expect(panel.getByRole('checkbox', { name: 'Data received', exact: true })).toBeChecked();
             await panel.getByRole('button', { name: 'Hand over', exact: true }).click();
-            await panel.getByLabel('New lead curator').selectOption(String(data.next));
+            await panel.getByRole('combobox', { name: 'New lead curator' }).click();
+            await page.getByRole('option', { name: `Browser Handover (next-${data.tag}@example.test)`, exact: true }).click();
             await panel.getByLabel('Handover note (optional)').fill('Check the time zone before review.');
             await panel.getByRole('button', { name: 'Save responsibility' }).click();
             await expect(panel.getByText('Lead: Browser Handover', { exact: true })).toBeVisible();

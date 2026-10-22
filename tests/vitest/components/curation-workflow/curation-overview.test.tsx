@@ -85,7 +85,8 @@ it('combines quick filter selections before a server response and ignores cancel
     const exportUrl = new URL(screen.getByRole('link', { name: 'Export CSV' }).getAttribute('href')!, 'https://example.test');
     expect(exportUrl.searchParams.get('mine')).toBe('1');
     expect(exportUrl.searchParams.get('waiting')).toBe('1');
-    await userEvent.selectOptions(screen.getByLabelText('Sort by'), 'deadline');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sort by' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Deadline' }));
     await userEvent.click(screen.getByRole('button', { name: 'Review (10)' }));
     expect(router.get).toHaveBeenLastCalledWith('/curation', { tab: 'review', mine: 1, waiting: 1, sort: 'deadline', page: 1 }, expect.any(Object));
 });
@@ -101,7 +102,7 @@ it('clears pending filters immediately and accepts server filters after navigati
     view.rerender(<CurationOverview {...props} filters={{ tab: 'published', curator: 3 }} />);
     act(() => pendingVisit?.onCancel?.());
     expect(screen.getByRole('checkbox', { name: 'Needs help' })).not.toBeChecked();
-    expect(screen.getByLabelText('Curator')).toHaveValue('3');
+    expect(screen.getByRole('combobox', { name: 'Curator' })).toHaveTextContent('Team Member');
     await userEvent.click(screen.getByRole('checkbox', { name: 'Overdue' }));
     expect(router.get).toHaveBeenLastCalledWith('/curation', { tab: 'published', curator: 3, overdue: 1, page: 1 }, expect.any(Object));
 });
@@ -116,6 +117,47 @@ it('restores confirmed filters if the current navigation fails', async () => {
     expect(screen.getByRole('checkbox', { name: 'Needs help' })).not.toBeChecked();
     await userEvent.click(screen.getByRole('checkbox', { name: 'Waiting for reply' }));
     expect(router.get).toHaveBeenLastCalledWith('/curation', { tab: 'all', mine: 1, open: 1, waiting: 1, page: 1 }, expect.any(Object));
+});
+
+it('selects and clears curator and data centre filters without sending sentinel values', async () => {
+    render(<CurationOverview {...props} />);
+    for (const [label, choice] of [
+        ['Curator', 'Team Member'],
+        ['Data centre', 'GFZ'],
+        ['Direction', 'Ascending'],
+    ]) {
+        await userEvent.click(screen.getByRole('combobox', { name: label }));
+        await userEvent.click(screen.getByRole('option', { name: choice }));
+    }
+    expect(router.get).toHaveBeenLastCalledWith(
+        '/curation',
+        { tab: 'all', mine: 1, open: 1, curator: '3', datacenter: '1', direction: 'asc', page: 1 },
+        expect.any(Object),
+    );
+    for (const [label, choice] of [
+        ['Curator', 'All curators'],
+        ['Data centre', 'All data centres'],
+    ]) {
+        await userEvent.click(screen.getByRole('combobox', { name: label }));
+        await userEvent.click(screen.getByRole('option', { name: choice }));
+    }
+    expect(router.get).toHaveBeenLastCalledWith('/curation', { tab: 'all', mine: 1, open: 1, direction: 'asc', page: 1 }, expect.any(Object));
+    const exportUrl = new URL(screen.getByRole('link', { name: 'Export CSV' }).getAttribute('href')!, 'https://example.test');
+    expect(exportUrl.searchParams.has('curator')).toBe(false);
+    expect(exportUrl.searchParams.has('datacenter')).toBe(false);
+});
+
+it('supports keyboard selection and toggling with the shared controls', async () => {
+    render(<CurationOverview {...props} />);
+    screen.getByRole('checkbox', { name: 'My Resources' }).focus();
+    await userEvent.keyboard(' ');
+    expect(screen.getByRole('checkbox', { name: 'My Resources' })).not.toBeChecked();
+    screen.getByRole('combobox', { name: 'Sort by' }).focus();
+    await userEvent.keyboard('{Enter}');
+    await screen.findByRole('option', { name: 'Last activity' });
+    await userEvent.keyboard('{End}{Enter}');
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveTextContent('Progress');
+    expect(router.get).toHaveBeenLastCalledWith('/curation', { tab: 'all', open: 1, sort: 'progress', page: 1 }, expect.any(Object));
 });
 
 it('loads expanded details on demand and safely displays internal paths and notes', async () => {

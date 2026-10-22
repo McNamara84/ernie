@@ -2,8 +2,10 @@ import axios from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import type { ChecklistItem, CurationEvent, CurationPanelData, CurationUser, DataLocation } from '@/types/curation';
@@ -12,26 +14,27 @@ import { CurationText, dateLabel, locationHref } from './curation-text';
 import { CurationUserSearch } from './curation-user-search';
 
 type Save = (path: string, data: Record<string, unknown>, method?: 'post' | 'patch' | 'put' | 'delete') => Promise<boolean>;
-const selectClass = 'w-full rounded-md border bg-background p-2 text-sm';
 
 function ChecklistRow({ item, writable, save, busy }: { item: ChecklistItem; writable: boolean; save: Save; busy: boolean }) {
     const [reason, setReason] = useState('');
     const [showReason, setShowReason] = useState(false);
     return (
         <li className="space-y-2 rounded-lg border p-3">
-            <label className="flex items-start gap-2">
-                <input
-                    type="checkbox"
+            <div className="flex items-start gap-2">
+                <Checkbox
+                    id={`curation-checklist-${item.key}`}
                     className="mt-1"
                     checked={item.state !== 'open'}
                     disabled={!writable || item.automatic || busy}
-                    onChange={() => void save(`/checklist/${item.key}`, { state: item.state === 'open' ? 'done' : 'open', revision: item.revision })}
+                    onCheckedChange={(checked) =>
+                        void save(`/checklist/${item.key}`, { state: checked === true ? 'done' : 'open', revision: item.revision })
+                    }
                 />
-                <span>
+                <Label htmlFor={`curation-checklist-${item.key}`} className="block leading-6">
                     {item.label}
                     {item.automatic && <span className="ml-2 text-xs text-muted-foreground">ERNIE · automatic</span>}
-                </span>
-            </label>
+                </Label>
+            </div>
             <p className="text-xs text-muted-foreground">{item.help}</p>
             {item.state === 'not_applicable' && (
                 <p className="text-sm">
@@ -125,28 +128,35 @@ function Responsibility({ data, save, busy }: { data: CurationPanelData; save: S
                 <div className="space-y-3 rounded-lg border p-3">
                     <CurationUserSearch onUsers={setUsers} />
                     <Label htmlFor="curation-lead">New lead curator</Label>
-                    <select id="curation-lead" className={selectClass} value={lead} onChange={(e) => setLead(e.target.value)}>
-                        <option value="">Select lead</option>
-                        {users.map((user) => (
-                            <option value={user.id} key={user.id}>
-                                {user.name} ({user.email})
-                            </option>
-                        ))}
-                    </select>
+                    <Select value={lead || 'none'} onValueChange={(value) => setLead(value === 'none' ? '' : value)}>
+                        <SelectTrigger id="curation-lead">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Select lead</SelectItem>
+                            {users.map((user) => (
+                                <SelectItem value={String(user.id)} key={user.id}>
+                                    {user.name} ({user.email})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     {editing === 'assign' && (
                         <fieldset>
                             <legend>Further curators</legend>
                             {users.map((user) => (
-                                <label key={user.id} className="flex gap-2 py-1">
-                                    <input
-                                        type="checkbox"
+                                <div key={user.id} className="flex items-center gap-2 py-1">
+                                    <Checkbox
+                                        id={`curation-member-${user.id}`}
                                         checked={members.includes(user.id)}
-                                        onChange={(e) =>
-                                            setMembers(e.target.checked ? [...members, user.id] : members.filter((id) => id !== user.id))
+                                        onCheckedChange={(checked) =>
+                                            setMembers((current) =>
+                                                checked === true ? [...current, user.id] : current.filter((id) => id !== user.id),
+                                            )
                                         }
                                     />
-                                    {user.name}
-                                </label>
+                                    <Label htmlFor={`curation-member-${user.id}`}>{user.name}</Label>
+                                </div>
                             ))}
                         </fieldset>
                     )}
@@ -233,17 +243,20 @@ function WorkingState({ data, save, busy }: { data: CurationPanelData; save: Sav
             {draft && data.can_write && (
                 <div className="space-y-3 rounded-lg border p-3">
                     <Label htmlFor="waiting-for">Waiting for reply from</Label>
-                    <select
-                        id="waiting-for"
-                        className={selectClass}
-                        value={draft.waiting_for}
-                        onChange={(e) => setDraft({ ...draft, waiting_for: e.target.value })}
+                    <Select
+                        value={draft.waiting_for || 'none'}
+                        onValueChange={(value) => setDraft({ ...draft, waiting_for: value === 'none' ? '' : value })}
                     >
-                        <option value="">Not waiting</option>
-                        <option value="submitters">Submitters</option>
-                        <option value="colleague">Colleague</option>
-                        <option value="other">Other</option>
-                    </select>
+                        <SelectTrigger id="waiting-for">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Not waiting</SelectItem>
+                            <SelectItem value="submitters">Submitters</SelectItem>
+                            <SelectItem value="colleague">Colleague</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Label htmlFor="waiting-text">Waiting details</Label>
                     <Textarea
                         id="waiting-text"
@@ -251,10 +264,14 @@ function WorkingState({ data, save, busy }: { data: CurationPanelData; save: Sav
                         maxLength={2000}
                         onChange={(e) => setDraft({ ...draft, waiting_text: e.target.value })}
                     />
-                    <label className="flex gap-2">
-                        <input type="checkbox" checked={draft.help} onChange={(e) => setDraft({ ...draft, help: e.target.checked })} />
-                        Needs help
-                    </label>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="curation-needs-help"
+                            checked={draft.help}
+                            onCheckedChange={(checked) => setDraft({ ...draft, help: checked === true })}
+                        />
+                        <Label htmlFor="curation-needs-help">Needs help</Label>
+                    </div>
                     {draft.help && (
                         <>
                             <Label htmlFor="help-text">Help needed (required)</Label>
@@ -372,18 +389,18 @@ function Locations({ data, save, busy }: { data: CurationPanelData; save: Save; 
             {draft && data.can_write && (
                 <div className="space-y-3 rounded border p-3">
                     <Label htmlFor="location-type">Location type</Label>
-                    <select
-                        id="location-type"
-                        className={selectClass}
-                        value={draft.type}
-                        onChange={(e) => setDraft({ ...draft, type: e.target.value })}
-                    >
-                        {['network_drive', 'sftp', 'nextcloud', 'data_server', 'external_server', 'other'].map((type) => (
-                            <option key={type} value={type}>
-                                {type.replaceAll('_', ' ')}
-                            </option>
-                        ))}
-                    </select>
+                    <Select value={draft.type} onValueChange={(value) => setDraft({ ...draft, type: value })}>
+                        <SelectTrigger id="location-type">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {['network_drive', 'sftp', 'nextcloud', 'data_server', 'external_server', 'other'].map((type) => (
+                                <SelectItem key={type} value={type}>
+                                    {type.replaceAll('_', ' ')}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Label htmlFor="location-path">Path or link</Label>
                     <Input
                         id="location-path"
@@ -485,17 +502,21 @@ function History({ base, writable, save, busy, version }: { base: string; writab
                             <CurationUserSearch mentions onUsers={setUsers} />
                             <legend>Notify mentioned colleagues</legend>
                             {users.map((user) => (
-                                <label className="flex gap-2 text-sm" key={user.id}>
-                                    <input
-                                        type="checkbox"
+                                <div className="flex items-center gap-2 text-sm" key={user.id}>
+                                    <Checkbox
+                                        id={`curation-mention-${user.id}`}
                                         checked={mentions.includes(user.id)}
-                                        onChange={(e) => {
-                                            setMentions(e.target.checked ? [...mentions, user.id] : mentions.filter((id) => id !== user.id));
-                                            if (e.target.checked) setBody((text) => `${text}${text ? ' ' : ''}@${user.name}`);
+                                        onCheckedChange={(checked) => {
+                                            setMentions((current) =>
+                                                checked === true ? [...current, user.id] : current.filter((id) => id !== user.id),
+                                            );
+                                            if (checked === true) setBody((text) => `${text}${text ? ' ' : ''}@${user.name}`);
                                         }}
                                     />
-                                    {user.name} ({user.email})
-                                </label>
+                                    <Label htmlFor={`curation-mention-${user.id}`}>
+                                        {user.name} ({user.email})
+                                    </Label>
+                                </div>
                             ))}
                         </fieldset>
                     )}
@@ -534,10 +555,10 @@ function History({ base, writable, save, busy, version }: { base: string; writab
                     )}
                 </div>
             )}
-            <label className="flex gap-2">
-                <input type="checkbox" checked={notesOnly} onChange={(e) => setNotesOnly(e.target.checked)} />
-                Notes only
-            </label>
+            <div className="flex items-center gap-2">
+                <Checkbox id="curation-notes-only" checked={notesOnly} onCheckedChange={(checked) => setNotesOnly(checked === true)} />
+                <Label htmlFor="curation-notes-only">Notes only</Label>
+            </div>
             {error && (
                 <div role="alert">
                     {error}

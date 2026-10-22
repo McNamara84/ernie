@@ -201,7 +201,8 @@ describe('Curation panel', () => {
         await userEvent.click(screen.getByRole('checkbox', { name: 'Needs help' }));
         expect(screen.getByRole('button', { name: 'Save working state' })).toBeDisabled();
         await userEvent.type(screen.getByLabelText('Help needed (required)'), 'Check coordinates');
-        await userEvent.selectOptions(screen.getByLabelText('Waiting for reply from'), 'colleague');
+        await userEvent.click(screen.getByRole('combobox', { name: 'Waiting for reply from' }));
+        await userEvent.click(screen.getByRole('option', { name: 'Colleague' }));
         await userEvent.click(screen.getByRole('button', { name: 'Save working state' }));
         expect(axios.request).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -231,6 +232,62 @@ describe('Curation panel', () => {
         expect(within(history).queryByRole('img')).not.toBeInTheDocument();
         expect(within(history).queryByRole('button', { name: 'Edit note' })).not.toBeInTheDocument();
         expect(within(history).getByRole('link', { name: 'https://example.org' })).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('clears waiting and help through the shared controls', async () => {
+        data.state!.waiting_for = 'submitters';
+        data.state!.needs_help_text = 'Check coordinates';
+        render(<CurationContent resourceId={1} />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Edit working state' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'Waiting for reply from' }));
+        await userEvent.click(screen.getByRole('option', { name: 'Not waiting' }));
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Needs help' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Save working state' }));
+        expect(axios.request).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ waiting_for: null, needs_help_text: null, revision: 3 }),
+            }),
+        );
+    });
+
+    it('selects lead and additional curators and can clear an invalid selection', async () => {
+        render(<CurationContent resourceId={1} />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Assign curators' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'New lead curator' }));
+        await userEvent.click(screen.getByRole('option', { name: 'Select lead' }));
+        expect(screen.getByRole('button', { name: 'Save responsibility' })).toBeDisabled();
+        await userEvent.click(screen.getByRole('combobox', { name: 'New lead curator' }));
+        await userEvent.click(screen.getByRole('option', { name: /Next Curator/ }));
+        const member = screen.getByRole('checkbox', { name: 'Next Curator' });
+        await userEvent.click(member);
+        expect(member).toBeChecked();
+        await userEvent.click(member);
+        expect(member).not.toBeChecked();
+        await userEvent.click(member);
+        await userEvent.click(screen.getByRole('button', { name: 'Save responsibility' }));
+        expect(axios.request).toHaveBeenCalledWith({
+            url: '/resources/1/curation/curators',
+            method: 'put',
+            data: { lead: 2, members: [1, 2], note: '', revision: 3 },
+        });
+    });
+
+    it('saves the selected location type and filters history with the shared controls', async () => {
+        render(<CurationContent resourceId={1} />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Add data location' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'Location type' }));
+        await userEvent.click(screen.getByRole('option', { name: 'sftp' }));
+        await userEvent.type(screen.getByLabelText('Path or link'), 'sftp://example.test/data');
+        await userEvent.click(screen.getByRole('button', { name: 'Save location' }));
+        expect(axios.request).toHaveBeenCalledWith({
+            url: '/resources/1/curation/locations',
+            method: 'post',
+            data: { type: 'sftp', location: 'sftp://example.test/data', revision: 0 },
+        });
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Notes only' }));
+        await waitFor(() => expect(axios.get).toHaveBeenLastCalledWith('/resources/1/curation/events', { params: { notes_only: 1 } }));
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Notes only' }));
+        await waitFor(() => expect(axios.get).toHaveBeenLastCalledWith('/resources/1/curation/events', { params: { notes_only: 0 } }));
     });
 
     it('selects mention recipients by id and adds a note separately from metadata', async () => {

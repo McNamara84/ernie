@@ -4,6 +4,9 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { CurationText, dateLabel, locationHref } from '@/components/curation-workflow/curation-text';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { CurationPanelData, CurationRow, CurationUser } from '@/types/curation';
 
@@ -127,45 +130,53 @@ export default function CurationOverview({ resources, filters: serverFilters, co
                         ['overdue', 'Overdue'],
                         ['unassigned', 'Unassigned'],
                     ].map(([key, label]) => (
-                        <label className="flex items-center gap-2" key={key}>
-                            <input
-                                type="checkbox"
+                        <div className="flex items-center gap-2" key={key}>
+                            <Checkbox
+                                id={`curation-filter-${key}`}
                                 checked={Boolean(Number(filters[key] ?? 0))}
-                                onChange={(e) => update({ [key]: e.target.checked ? 1 : null })}
+                                onCheckedChange={(checked) => update({ [key]: checked === true ? 1 : null })}
                             />
-                            {label}
-                        </label>
+                            <Label htmlFor={`curation-filter-${key}`}>{label}</Label>
+                        </div>
                     ))}
-                    <label className="flex items-center gap-2">
-                        Curator
-                        <select
-                            className="rounded border bg-background p-2"
-                            value={String(filters.curator ?? '')}
-                            onChange={(e) => update({ curator: e.target.value })}
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="curation-filter-curator">Curator</Label>
+                        <Select
+                            value={String(filters.curator || 'all')}
+                            onValueChange={(value) => update({ curator: value === 'all' ? null : value })}
                         >
-                            <option value="">All curators</option>
-                            {curators.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                    {user.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="flex items-center gap-2">
-                        Data centre
-                        <select
-                            className="rounded border bg-background p-2"
-                            value={String(filters.datacenter ?? '')}
-                            onChange={(e) => update({ datacenter: e.target.value })}
+                            <SelectTrigger id="curation-filter-curator" className="w-auto">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All curators</SelectItem>
+                                {curators.map((user) => (
+                                    <SelectItem key={user.id} value={String(user.id)}>
+                                        {user.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="curation-filter-datacenter">Data centre</Label>
+                        <Select
+                            value={String(filters.datacenter || 'all')}
+                            onValueChange={(value) => update({ datacenter: value === 'all' ? null : value })}
                         >
-                            <option value="">All data centres</option>
-                            {datacenters.map((centre) => (
-                                <option key={centre.id} value={centre.id}>
-                                    {centre.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                            <SelectTrigger id="curation-filter-datacenter" className="w-auto">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All data centres</SelectItem>
+                                {datacenters.map((centre) => (
+                                    <SelectItem key={centre.id} value={String(centre.id)}>
+                                        {centre.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <Button type="button" variant="ghost" onClick={() => navigate({})}>
                         Clear filters
                     </Button>
@@ -187,30 +198,32 @@ export default function CurationOverview({ resources, filters: serverFilters, co
                     ))}
                 </nav>
                 <div className="flex flex-wrap gap-3">
-                    <label>
-                        Sort by{' '}
-                        <select
-                            className="rounded border bg-background p-2"
-                            value={String(filters.sort ?? 'activity')}
-                            onChange={(e) => update({ sort: e.target.value })}
-                        >
-                            <option value="activity">Last activity</option>
-                            <option value="created">First saved</option>
-                            <option value="deadline">Deadline</option>
-                            <option value="progress">Progress</option>
-                        </select>
-                    </label>
-                    <label>
-                        Direction{' '}
-                        <select
-                            className="rounded border bg-background p-2"
-                            value={String(filters.direction ?? 'desc')}
-                            onChange={(e) => update({ direction: e.target.value })}
-                        >
-                            <option value="desc">Descending</option>
-                            <option value="asc">Ascending</option>
-                        </select>
-                    </label>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="curation-sort">Sort by</Label>
+                        <Select value={String(filters.sort ?? 'activity')} onValueChange={(value) => update({ sort: value })}>
+                            <SelectTrigger id="curation-sort" className="w-auto">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="activity">Last activity</SelectItem>
+                                <SelectItem value="created">First saved</SelectItem>
+                                <SelectItem value="deadline">Deadline</SelectItem>
+                                <SelectItem value="progress">Progress</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="curation-direction">Direction</Label>
+                        <Select value={String(filters.direction ?? 'desc')} onValueChange={(value) => update({ direction: value })}>
+                            <SelectTrigger id="curation-direction" className="w-auto">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="desc">Descending</SelectItem>
+                                <SelectItem value="asc">Ascending</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <div className="overflow-x-auto rounded-lg border">
                     <table className="w-full text-left">
