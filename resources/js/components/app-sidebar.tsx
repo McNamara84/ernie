@@ -95,6 +95,7 @@ export function AppSidebar() {
 
     // DATA CURATION section
     const dataCurationItems: NavItem[] = [
+        { title: 'Curation', href: '/curation', icon: ClipboardEdit },
         {
             title: 'Data Editor',
             href: '/editor',

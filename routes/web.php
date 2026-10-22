@@ -11,6 +11,7 @@ use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\CsrfCookieController;
+use App\Http\Controllers\CurationOverviewController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
@@ -47,6 +48,7 @@ use App\Http\Controllers\PublicMetadataExportController;
 use App\Http\Controllers\PublicTrafficController;
 use App\Http\Controllers\RelatedItemController;
 use App\Http\Controllers\ResourceController;
+use App\Http\Controllers\ResourceCurationController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
 use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
@@ -291,6 +293,20 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])->group(function () {
+    Route::get('curation', [CurationOverviewController::class, 'index'])->name('curation.index');
+    Route::get('curation/export', [CurationOverviewController::class, 'export'])->name('curation.export');
+    Route::get('curation/users', [CurationOverviewController::class, 'users'])->name('curation.users');
+    Route::get('resources/{resource}/curation', [ResourceCurationController::class, 'show'])->name('curation.resource.show');
+    Route::get('resources/{resource}/curation/events', [ResourceCurationController::class, 'events'])->name('curation.resource.events');
+    foreach ([
+        ['post', 'start', 'start'], ['patch', 'checklist/{key}', 'checklist'],
+        ['put', 'curators', 'assign'], ['post', 'handover', 'handover'], ['patch', 'state', 'state'],
+        ['post', 'notes', 'note'], ['patch', 'notes/{event}', 'note'], ['delete', 'notes/{event}', 'note'],
+        ['post', 'locations', 'location'], ['patch', 'locations/{location}', 'location'], ['delete', 'locations/{location}', 'location'],
+    ] as [$method, $path, $operation]) {
+        Route::$method('resources/{resource}/curation/'.$path, [ResourceCurationController::class, $operation.ucfirst($method)])
+            ->defaults('operation', $operation)->name('curation.resource.'.$operation.'.'.$method);
+    }
     // Assistance routes are registered dynamically by AssistantServiceProvider.
     // @see \App\Providers\AssistantServiceProvider::registerRoutes()
 

@@ -21,7 +21,7 @@ export function playwrightClientHeaders(headers, ip) {
     };
 }
 
-export function createPlaywrightNginxConfig(source) {
+export function createPlaywrightNginxConfig(source, { nativeBackend = false } = {}) {
     const anchor = '        include fastcgi_params;';
     if (source.split(anchor).length !== 2 || source.includes('ernie_playwright_forwarded_for')) {
         throw new Error('Unexpected development Nginx configuration; refusing test routing changes.');
@@ -34,5 +34,14 @@ export function createPlaywrightNginxConfig(source) {
         '}',
         '',
     ].join('\n');
-    return map + source.replace(anchor, `${anchor}\n        fastcgi_param HTTP_X_FORWARDED_FOR $ernie_playwright_forwarded_for;`);
+    let configuration = map + source.replace(anchor, `${anchor}\n        fastcgi_param HTTP_X_FORWARDED_FOR $ernie_playwright_forwarded_for;`);
+    if (nativeBackend) {
+        const script = 'fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;';
+        if (source.split(script).length !== 2) throw new Error('Unexpected development PHP routing; refusing native backend changes.');
+        configuration = configuration.replace(
+            script,
+            'fastcgi_param SCRIPT_FILENAME /var/www/pest-workspace/public$fastcgi_script_name;\n        add_header X-ERNIE-Backend-Time $upstream_header_time always;',
+        );
+    }
+    return configuration;
 }

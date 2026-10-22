@@ -10,11 +10,15 @@ use App\Models\ContributorType;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
+use App\Models\ResourceReviewLinkDispatch;
 use App\Models\User;
+use App\Services\Curation\CurationService;
 use Closure;
 use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -48,7 +52,7 @@ final readonly class ResourceReviewLinkService
      *     skipped_recipients_count:int
      * }
      */
-    public function queue(array $resourceIds, User $initiator, string $contactAddress): array
+    public function queue(array $resourceIds, User $initiator, string $contactAddress, ?string $operationId = null): array
     {
         return $this->queueWithMessageFactory(
             $resourceIds,
@@ -68,6 +72,9 @@ final readonly class ResourceReviewLinkService
                 initiatorEmail: $initiator->email,
                 contactAddress: $contactAddress,
             ),
+            $initiator,
+            'review',
+            $operationId,
         );
     }
 
@@ -80,7 +87,7 @@ final readonly class ResourceReviewLinkService
      *     skipped_recipients_count:int
      * }
      */
-    public function queueMigration(array $resourceIds, string $contactAddress): array
+    public function queueMigration(array $resourceIds, string $contactAddress, ?User $initiator = null, ?string $operationId = null): array
     {
         return $this->queueWithMessageFactory(
             $resourceIds,
@@ -98,6 +105,9 @@ final readonly class ResourceReviewLinkService
                 recipientName: $recipientName,
                 contactAddress: $contactAddress,
             ),
+            $initiator,
+            'migration',
+            $operationId,
         );
     }
 
@@ -111,8 +121,9 @@ final readonly class ResourceReviewLinkService
      *     skipped_recipients_count:int
      * }
      */
-    private function queueWithMessageFactory(array $resourceIds, Closure $messageFactory): array
+    private function queueWithMessageFactory(array $resourceIds, Closure $messageFactory, ?User $initiator, string $kind, ?string $operationId): array
     {
+        $operationId ??= (string) Str::uuid();
         $resources = Resource::query()
             ->with(self::RELATIONS)
             ->whereIn('id', $resourceIds)
@@ -160,7 +171,15 @@ final readonly class ResourceReviewLinkService
         foreach ($resourceIds as $resourceId) {
             /** @var Resource $resource */
             $resource = $resources->get($resourceId);
+            $skippedBefore = $result['skipped_recipients_count'];
             $recipients = [];
+            $previousDispatch = ResourceReviewLinkDispatch::where('resource_id', $resourceId)->where('operation_id', $operationId)->first();
+            if ($previousDispatch !== null) {
+                $result['successful_resources'][] = ['id' => $resourceId, 'queued_recipients' => $previousDispatch->queued_recipients];
+                $result['skipped_recipients_count'] += (int) $previousDispatch->getAttribute('skipped_recipients');
+
+                continue;
+            }
 
             foreach ($resource->contributors as $contributor) {
                 if (! $this->isContactPerson($contributor)) {
@@ -208,16 +227,37 @@ final readonly class ResourceReviewLinkService
 
             foreach ($recipients as $recipient) {
                 try {
-                    Mail::to($recipient['email'])->queue($messageFactory(
+                    $message = $messageFactory(
                         $resourceId,
                         $resourceTitle,
                         $resource->doi,
                         $reviewUrl,
                         $recipient['name'],
-                    ));
+                    );
+                    $queued = DB::transaction(function () use ($recipient, $message, $resource, $operationId, $initiator, $kind): bool {
+                        Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
+                        $dispatch = ResourceReviewLinkDispatch::firstOrNew(['resource_id' => $resource->id, 'operation_id' => $operationId]);
+                        $recipientKey = hash('sha256', strtolower($recipient['email']));
+                        $keys = $dispatch->queued_recipient_keys ?? [];
+                        if (in_array($recipientKey, $keys, true)) {
+                            return false;
+                        }
+                        assert($message instanceof ResourceReviewLink || $message instanceof ResourceReviewLinkMigration);
+                        Mail::to($recipient['email'])->queue($message->onConnection('curation'));
+                        $new = ! $dispatch->exists;
+                        $dispatch->fill(['kind' => $kind, 'sent_by' => $initiator?->id, 'queued_at' => $dispatch->queued_at ?? now(), 'queued_recipients' => ($dispatch->queued_recipients ?? 0) + 1, 'queued_recipient_keys' => [...$keys, $recipientKey]])->save();
+                        $curation = app(CurationService::class);
+                        if ($new && $resource->curationState()->exists()) {
+                            $curation->event($resource, 'review.queued', $initiator, ['operation_id' => $operationId, 'kind' => $kind, 'queued_at' => $dispatch->queued_at->toISOString()]);
+                        }
+                        $curation->reconcile($resource->id);
+                        app(ResourceListingProjectionRefreshService::class)->schedule($resource->id);
+
+                        return true;
+                    });
 
                     $queuedRecipients++;
-                    $result['queued_messages']++;
+                    $result['queued_messages'] += $queued ? 1 : 0;
                 } catch (Throwable $exception) {
                     $result['skipped_recipients_count']++;
 
@@ -229,6 +269,8 @@ final readonly class ResourceReviewLinkService
                 }
             }
 
+            ResourceReviewLinkDispatch::where('resource_id', $resourceId)->where('operation_id', $operationId)
+                ->update(['skipped_recipients' => $result['skipped_recipients_count'] - $skippedBefore]);
             if ($queuedRecipients === 0) {
                 $result['failed_resources'][] = [
                     'id' => $resourceId,

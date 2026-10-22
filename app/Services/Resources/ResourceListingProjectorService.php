@@ -12,6 +12,7 @@ use App\Models\ResourceListingProjection;
 use App\Models\Right;
 use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
+use App\Services\Curation\CurationProjectionService;
 use App\Services\DashboardMetricsCacheInvalidationService;
 use App\Services\Rights\CustomRightCatalogService;
 use Illuminate\Database\DatabaseManager;
@@ -122,6 +123,7 @@ final class ResourceListingProjectorService
             : DB::raw('0 as is_tombstone');
 
         return Resource::query()->with([
+            ...(Schema::hasTable('resource_curation_states') ? ['curationState', 'checklistItems', 'curators', 'registrationEvidence', 'reviewDispatches', 'igsnMetadata', 'contributors.contributorTypes'] : []),
             'resourceType:id,name,slug',
             'createdBy:id,name',
             'updatedBy:id,name',
@@ -157,11 +159,12 @@ final class ResourceListingProjectorService
         $firstResource = $resources->first();
         $hasPartySearchColumn = Schema::hasColumn('resource_listing_projections', 'party_search_text');
         $hasPartyNameSearchColumn = Schema::hasColumn('resource_listing_projections', 'party_name_search_text');
+        $hasCurationColumns = Schema::hasColumn('resource_listing_projections', 'curation_started');
 
         $now = now();
         $rows = $resources->map(fn (Resource $resource): array => [
             'resource_id' => $resource->id,
-            ...$this->valuesForSchema($resource, $hasPartySearchColumn, $hasPartyNameSearchColumn),
+            ...$this->valuesForSchema($resource, $hasPartySearchColumn, $hasPartyNameSearchColumn, $hasCurationColumns),
             'created_at' => $now,
             'updated_at' => $now,
         ])->all();
@@ -169,7 +172,7 @@ final class ResourceListingProjectorService
         ResourceListingProjection::query()->upsert(
             $rows,
             ['resource_id'],
-            array_keys($this->valuesForSchema($firstResource, $hasPartySearchColumn, $hasPartyNameSearchColumn)),
+            array_keys($this->valuesForSchema($firstResource, $hasPartySearchColumn, $hasPartyNameSearchColumn, $hasCurationColumns)),
         );
         $this->syncPartyNameTerms($resources);
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
@@ -233,6 +236,9 @@ final class ResourceListingProjectorService
             ->first();
         $status = $resource->publicStatus();
         $curator = $resource->updatedBy ?? $resource->createdBy;
+        if (($resource->relationLoaded('curationState') || Schema::hasTable('resource_curation_states')) && ! $resource->isIgsn() && $resource->igsnMetadata === null) {
+            $curator = $resource->curators->firstWhere('id', $resource->curationState?->lead_curator_id) ?? $curator;
+        }
         $resourceType = $resource->resourceType;
         $partyTerms = $this->partySearchTerms($resource);
 
@@ -285,6 +291,7 @@ final class ResourceListingProjectorService
             $resource,
             Schema::hasColumn('resource_listing_projections', 'party_search_text'),
             Schema::hasColumn('resource_listing_projections', 'party_name_search_text'),
+            Schema::hasColumn('resource_listing_projections', 'curation_started'),
         );
     }
 
@@ -293,8 +300,12 @@ final class ResourceListingProjectorService
         Resource $resource,
         bool $hasPartySearchColumn,
         bool $hasPartyNameSearchColumn,
+        bool $hasCurationColumns,
     ): array {
         $values = $this->values($resource);
+        if ($hasCurationColumns) {
+            $values = [...$values, ...app(CurationProjectionService::class)->values($resource)];
+        }
         if (! $hasPartySearchColumn) {
             unset($values['party_search_text']);
         }

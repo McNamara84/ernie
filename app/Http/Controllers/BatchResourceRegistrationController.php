@@ -6,8 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Batch\RegisterResourcesRequest;
 use App\Models\Resource;
+use App\Services\Curation\CurationRegistrationService;
 use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteServiceInterface;
 use App\Services\EmbargoService;
+use App\Services\FakeDataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceStorageService;
@@ -52,7 +55,7 @@ class BatchResourceRegistrationController extends Controller
         /** @var array{success: list<array<string, mixed>>, failed: list<array<string, mixed>>} $results */
         $results = ['success' => [], 'failed' => []];
 
-        /** @var DataCiteRegistrationService $service */
+        /** @var DataCiteServiceInterface $service */
         $service = app(DataCiteRegistrationService::class);
         $resourceStorageService = app(ResourceStorageService::class);
 
@@ -163,6 +166,8 @@ class BatchResourceRegistrationController extends Controller
                         }
                     }
                 }
+
+                app(CurationRegistrationService::class)->record($resource, $response, $service instanceof FakeDataCiteRegistrationService ? 'fake' : ($service->isTestMode() ? 'test' : 'production'), $wasAlreadyRegistered ? 'update' : 'registration');
 
                 $results['success'][] = [
                     'id' => $resourceId,

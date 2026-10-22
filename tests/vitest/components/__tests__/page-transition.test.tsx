@@ -101,6 +101,28 @@ describe('PageTransition', () => {
         );
     });
 
+    it('keeps the existing table mounted when its query changes with a stable transition key', () => {
+        mockPage.url = '/curation?sort=activity';
+        vi.mocked(useReducedMotion).mockReturnValue(false);
+        const view = render(
+            <PageTransition transitionKey="curation">
+                <input aria-label="Filter" defaultValue="" />
+            </PageTransition>,
+        );
+        const input = screen.getByRole('textbox', { name: 'Filter' });
+        fireEvent.change(input, { target: { value: 'Keep this state' } });
+
+        mockPage.url = '/curation?sort=created';
+        view.rerender(
+            <PageTransition transitionKey="curation">
+                <input aria-label="Filter" defaultValue="" />
+            </PageTransition>,
+        );
+
+        expect(screen.getByRole('textbox', { name: 'Filter' })).toBe(input);
+        expect(input).toHaveValue('Keep this state');
+    });
+
     it('remounts editor content when the resource ID changes', async () => {
         mockPage.url = '/editor?resourceId=42';
         mockPage.props = { draftSaveTransition: { fromUrl: '/editor', resourceId: '42' } };

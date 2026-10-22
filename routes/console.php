@@ -7,6 +7,7 @@ use App\Models\AssessmentRun;
 use App\Models\User;
 use App\Services\Assessment\AssessmentRunService;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
+use App\Services\Curation\CurationNotificationService;
 use App\Services\ResourceTombstoneSyncService;
 use App\Services\Usage\CounterTrackingStateService;
 use App\Services\VocabularyCacheService;
@@ -125,5 +126,7 @@ Schedule::call(fn () => app(ResourceAssessmentRefreshService::class)->recover())
     ->withoutOverlapping(2);
 
 Schedule::command('counter:aggregate')->dailyAt('00:15')->timezone('UTC')->withoutOverlapping();
+Schedule::call(fn () => app(CurationNotificationService::class)->dispatch())
+    ->everyMinute()->name('curation-notifications')->withoutOverlapping();
 Schedule::command('counter:prune')->everyThirtyMinutes()->timezone('UTC')->withoutOverlapping();
 Schedule::command('counter:update-lists')->weeklyOn(1, '04:00')->timezone('UTC')->withoutOverlapping();

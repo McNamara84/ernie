@@ -8,6 +8,7 @@ use App\Enums\CitationLabelResolutionMode;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\OldDataset;
 use App\Models\Resource;
+use App\Services\Curation\CurationService;
 use App\Support\LanguageTag;
 use App\Support\LegacyDescriptionBreakNormalizer;
 use Illuminate\Support\Facades\Log;
@@ -277,6 +278,8 @@ class SumarioPendingResourceImportService
             isPublished: false,
             createWhenEmpty: true,
         );
+
+        app(CurationService::class)->start($resource, null, 'import');
 
         return $resource->fresh(['landingPage', 'datacenter']) ?? $resource;
     }

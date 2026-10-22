@@ -24,6 +24,7 @@ import { snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curati
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { hasMslLaboratoryTrigger } from '@/components/curation/utils/msl-laboratories';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
+import CurationPanel from '@/components/curation-workflow/CurationPanel';
 import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
 import SetupLandingPageModal, { hasStoredLandingPageDraft } from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -3659,6 +3660,7 @@ export default function DataCiteForm({
 
     const renderEditorActions = () => (
         <>
+            <CurationPanel resourceId={resolvedResourceId} refreshKey={isEditorActionInFlight} />
             {!isPublishedResource && (
                 <Tooltip>
                     <TooltipTrigger asChild>

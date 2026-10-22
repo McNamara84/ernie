@@ -1102,3 +1102,69 @@ npm run test:php -- tests/pest/Unit/Deployment/ElmoCacheRefreshDeploymentTest.ph
 npm run test:php:mysql-sensitive:editor-settings
 npm run check:backend
 ```
+
+## Curation tracking
+
+After deploying the additive curation migration, finish or pause running imports
+before initializing existing unpublished resources:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan curation:initialize
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan curation:initialize --apply
+```
+
+The first command is a dry run. Repeated runs preserve existing curation work.
+Published resources, IGSNs and tombstones are excluded; eligible older drafts
+start unassigned. Published records require the editor's explicit **Start curation**
+action. Newly saved drafts and finished unpublished imports start automatically.
+Beginner users can read every curation section but cannot write or be newly assigned.
+
+Keep the scheduler and database queue worker running. Assignment and mention
+notifications use the `curation` database connection's `default` queue so the job
+and its receipt commit atomically. The scheduler retries pending notifications
+every minute. Existing DOI verification uses the configured DataCite queue.
+Review events mean queued, not delivered. Internal notes and locations are not
+included in public metadata exports; the authenticated curation CSV is intentional.
+
+`CURATION_WAITING_OVERDUE_DAYS` defaults to 14 (overdue on calendar day 15).
+Deadlines become overdue the following day for unpublished records. Application
+timezone boundaries apply. Completion requires publication, all applicable manual
+items, no waiting and no help request. Missing historical review evidence does
+not prevent completion. Embargos remain open and tombstones retain read-only history.
+
+Focused checks use the pinned Node version and MySQL 9.7:
+
+```bash
+npm run test:php -- tests/pest/Feature/Curation
+npm run test:run -- tests/vitest/components/curation-workflow
+npm run test:php:mysql-sensitive -- --slice curation
+npm run test:e2e:devstack -- workflows/curation-tracking.spec.ts --workers=1
+```
+
+The browser performance measurement requires a single worker so concurrent test
+fixtures and editor actions do not distort the one-second target. Functional
+curation scenarios also run with the normal parallel browser configuration.
+Set `ERNIE_PLAYWRIGHT_ASSETS=build` for performance acceptance with production
+assets; the wrapper restores the usual Vite development setup afterwards.
+On Docker Desktop, also set `ERNIE_PLAYWRIGHT_BACKEND=native` to serve the same
+PHP sources from the prepared Linux workspace, as the backend test wrapper does.
+This excludes Windows bind-mount file latency from the application benchmark.
+The native backend requires built assets and uses separate local storage; use it
+for database-backed scenarios such as curation. The default `bind` backend keeps
+the development filesystem for scenarios with file fixtures. Run native browser
+checks separately from PHP test/style wrappers because they share the Linux
+workspace. For example:
+
+```powershell
+$env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
+$env:ERNIE_PLAYWRIGHT_BACKEND = 'native'
+npm run test:e2e:devstack -- workflows/curation-tracking.spec.ts --workers=1
+Remove-Item Env:ERNIE_PLAYWRIGHT_ASSETS, Env:ERNIE_PLAYWRIGHT_BACKEND
+```
+
+Each sort path is warmed once before measuring from the actual change event
+through Inertia completion and browser painting. The attached JSON records
+response time, native PHP request time, navigation completion, browser frames, time until the page is
+usable, and Playwright control time separately. The rendered row IDs must match
+the response order. Sorting and filtering preserve the mounted overview and
+expanded details without replaying the page transition.

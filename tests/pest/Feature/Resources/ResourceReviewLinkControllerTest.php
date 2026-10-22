@@ -16,14 +16,17 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\ResourceCurationEvent;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Curation\CurationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 
 uses(RefreshDatabase::class);
@@ -138,6 +141,25 @@ function postReviewMailMigrationRequest(User $user, array $ids): TestResponse
         'ids' => $ids,
     ]);
 }
+
+it('records review evidence idempotently and retains author approval on deliberate resends', function (bool $migration): void {
+    $resource = createReviewMailResource();
+    addReviewMailContributor($resource, 'review@example.test');
+    $actor = User::factory()->curator()->create();
+    $curation = app(CurationService::class);
+    $curation->start($resource, $actor);
+    $curation->checklist($resource, $actor, 'authors_approved', 'done', null, 0);
+    $route = $migration ? 'resources.send-review-link-migrations' : 'resources.send-review-links';
+    $operation = (string) Str::uuid();
+    $this->actingAs($actor)->postJson(route($route), ['ids' => [$resource->id], 'operation_id' => $operation])->assertOk()->assertJsonPath('queued_messages', 1);
+    $this->postJson(route($route), ['ids' => [$resource->id], 'operation_id' => $operation])->assertOk()->assertJsonPath('queued_messages', 0);
+    $this->postJson(route($route), ['ids' => [$resource->id], 'operation_id' => (string) Str::uuid()])->assertOk()->assertJsonPath('queued_messages', 1);
+    expect($curation->automatic($resource->fresh())['review_link_sent'])->toBeTrue();
+    expect($resource->fresh()->checklistItems->firstWhere('item_key', 'authors_approved')->state)->toBe('done');
+    $events = ResourceCurationEvent::where('type', 'review.queued')->get();
+    expect($events)->toHaveCount(2)->and($events->first()->user_id)->toBe($actor->id);
+    Mail::assertQueued($migration ? ResourceReviewLinkMigration::class : ResourceReviewLink::class, 2);
+})->with([false, true]);
 
 it('logs queued review emails and their actor without recipient addresses or preview tokens', function (bool $migration): void {
     $resource = createReviewMailResource();

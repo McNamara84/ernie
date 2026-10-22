@@ -18,6 +18,7 @@ use App\Models\UserGuidedTourAssignment;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -39,18 +40,23 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
 
         $guidedTourAssignmentService->syncCatalogTours();
+        $openLeads = DB::table('resource_curation_states as curation')
+            ->join('resource_listing_projections as listing', 'listing.resource_id', '=', 'curation.resource_id')
+            ->where('listing.curation_open', true)->whereNotNull('curation.lead_curator_id')
+            ->groupBy('curation.lead_curator_id')->selectRaw('curation.lead_curator_id, COUNT(*) as total')->pluck('total', 'lead_curator_id');
 
         $users = User::query()
             ->with(['deactivatedBy:id,name', 'guidedTourAssignments.guidedTour:id,key,version,name'])
             ->orderBy('id')
             ->get()
-            ->map(function (User $user) {
+            ->map(function (User $user) use ($openLeads) {
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role->value,
                     'role_label' => $user->role->label(),
+                    'open_curation_leads' => (int) ($openLeads[$user->id] ?? 0),
                     'is_active' => $user->is_active,
                     'deactivated_at' => $user->deactivated_at !== null ? $user->deactivated_at->toISOString() : null,
                     'deactivated_by' => $user->deactivatedBy ? [
