@@ -22,6 +22,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -273,6 +274,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -400,6 +402,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -489,6 +492,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false

@@ -17,11 +17,13 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceCurationEvent;
+use App\Models\ResourceReviewLinkDispatch;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Curation\CurationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\PendingMail;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -159,6 +161,41 @@ it('records review evidence idempotently and retains author approval on delibera
     $events = ResourceCurationEvent::where('type', 'review.queued')->get();
     expect($events)->toHaveCount(2)->and($events->first()->user_id)->toBe($actor->id);
     Mail::assertQueued($migration ? ResourceReviewLinkMigration::class : ResourceReviewLink::class, 2);
+})->with([false, true]);
+
+it('resumes a partially queued operation without resending successful recipients', function (bool $migration): void {
+    $resource = createReviewMailResource();
+    addReviewMailContributor($resource, 'first@example.test');
+    addReviewMailContributor($resource, 'second@example.test');
+    $actor = User::factory()->curator()->create();
+    app(CurationService::class)->start($resource, $actor);
+    $mail = Mail::getFacadeRoot();
+    Mail::shouldReceive('to')->once()->with('first@example.test')
+        ->andReturn((new PendingMail($mail))->to('first@example.test'));
+    $attempt = 0;
+    Mail::shouldReceive('to')->twice()->with('second@example.test')
+        ->andReturnUsing(function () use (&$attempt, $mail): PendingMail {
+            if (++$attempt === 1) {
+                throw new RuntimeException('Queue temporarily unavailable');
+            }
+
+            return (new PendingMail($mail))->to('second@example.test');
+        });
+    $route = $migration ? 'resources.send-review-link-migrations' : 'resources.send-review-links';
+    $payload = ['ids' => [$resource->id], 'operation_id' => (string) Str::uuid()];
+    $this->actingAs($actor)->postJson(route($route), $payload)->assertStatus(207)
+        ->assertJsonPath('queued_messages', 1)->assertJsonPath('skipped_recipients_count', 1);
+    expect(ResourceReviewLinkDispatch::sole()->queued_recipients)->toBe(1);
+
+    $this->postJson(route($route), $payload)->assertOk()
+        ->assertJsonPath('queued_messages', 1)->assertJsonPath('skipped_recipients_count', 0)
+        ->assertJsonPath('successful_resources.0.queued_recipients', 2);
+    $this->postJson(route($route), $payload)->assertOk()->assertJsonPath('queued_messages', 0);
+    $dispatch = ResourceReviewLinkDispatch::sole();
+    expect($dispatch->queued_recipients)->toBe(2)->and($dispatch->queued_recipient_keys)->toHaveCount(2)
+        ->and($dispatch->skipped_recipients)->toBe(0)
+        ->and(ResourceCurationEvent::where('type', 'review.queued')->count())->toBe(1);
+    $mail->assertQueued($migration ? ResourceReviewLinkMigration::class : ResourceReviewLink::class, 2);
 })->with([false, true]);
 
 it('logs queued review emails and their actor without recipient addresses or preview tokens', function (bool $migration): void {

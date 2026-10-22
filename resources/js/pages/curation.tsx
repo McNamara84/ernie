@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { CurationText, dateLabel, locationHref } from '@/components/curation-workflow/curation-text';
 import { Button } from '@/components/ui/button';
@@ -66,15 +66,34 @@ function Details({ id }: { id: number }) {
     );
 }
 
-export default function CurationOverview({ resources, filters, counts, curators, datacenters }: Props) {
+export default function CurationOverview({ resources, filters: serverFilters, counts, curators, datacenters }: Props) {
     const [expanded, setExpanded] = useState<number[]>([]);
-    const update = (patch: Filters) => {
-        const next = { ...filters, ...patch, page: patch.page ?? 1 };
+    const [filters, setFilters] = useState(serverFilters);
+    const currentFilters = useRef(serverFilters);
+    const visitId = useRef(0);
+    useEffect(() => {
+        visitId.current++;
+        currentFilters.current = serverFilters;
+        setFilters(serverFilters);
+    }, [serverFilters]);
+    const navigate = (next: Filters) => {
+        const visit = ++visitId.current;
+        currentFilters.current = next;
+        setFilters(next);
+        const restore = () => {
+            // Cancelling an older request must not erase a newer selection.
+            if (visit !== visitId.current) return;
+            currentFilters.current = serverFilters;
+            setFilters(serverFilters);
+        };
         router.get('/curation', Object.fromEntries(Object.entries(next).filter(([, value]) => value !== '' && value !== null && value !== false)), {
             preserveScroll: true,
             preserveState: true,
+            onError: restore,
+            onCancel: restore,
         });
     };
+    const update = (patch: Filters) => navigate({ ...currentFilters.current, ...patch, page: patch.page ?? 1 });
     const query = new URLSearchParams(
         Object.entries(filters)
             .filter(([, value]) => value !== null)
@@ -147,7 +166,7 @@ export default function CurationOverview({ resources, filters, counts, curators,
                             ))}
                         </select>
                     </label>
-                    <Button type="button" variant="ghost" onClick={() => router.get('/curation')}>
+                    <Button type="button" variant="ghost" onClick={() => navigate({})}>
                         Clear filters
                     </Button>
                 </div>

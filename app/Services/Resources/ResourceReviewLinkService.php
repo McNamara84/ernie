@@ -173,14 +173,6 @@ final readonly class ResourceReviewLinkService
             $resource = $resources->get($resourceId);
             $skippedBefore = $result['skipped_recipients_count'];
             $recipients = [];
-            $previousDispatch = ResourceReviewLinkDispatch::where('resource_id', $resourceId)->where('operation_id', $operationId)->first();
-            if ($previousDispatch !== null) {
-                $result['successful_resources'][] = ['id' => $resourceId, 'queued_recipients' => $previousDispatch->queued_recipients];
-                $result['skipped_recipients_count'] += (int) $previousDispatch->getAttribute('skipped_recipients');
-
-                continue;
-            }
-
             foreach ($resource->contributors as $contributor) {
                 if (! $this->isContactPerson($contributor)) {
                     continue;
@@ -239,6 +231,8 @@ final readonly class ResourceReviewLinkService
                         $dispatch = ResourceReviewLinkDispatch::firstOrNew(['resource_id' => $resource->id, 'operation_id' => $operationId]);
                         $recipientKey = hash('sha256', strtolower($recipient['email']));
                         $keys = $dispatch->queued_recipient_keys ?? [];
+                        // A receipt can represent a partially completed operation.
+                        // Retry every recipient, skipping only confirmed queue writes.
                         if (in_array($recipientKey, $keys, true)) {
                             return false;
                         }

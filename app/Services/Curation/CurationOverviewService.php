@@ -82,7 +82,8 @@ final class CurationOverviewService
             'created' => 'resources.created_at', 'deadline' => 'listing.curation_deadline',
             'progress' => 'listing.curation_progress', default => 'listing.curation_activity_at',
         };
-        $query = $this->query($filters, $user)->with(['curators', 'datacenter']);
+        $query = $this->query($filters, $user)->with(['curators', 'datacenter'])
+            ->withCasts(['curation_activity_at' => 'immutable_datetime']);
         if ($column === 'listing.curation_deadline') {
             $query->orderByRaw('listing.curation_deadline IS NULL');
         }
@@ -111,7 +112,7 @@ final class CurationOverviewService
             'curators' => $resource->curators->map(fn (User $member): array => ['id' => $member->id, 'name' => $member->name])->all(),
             'progress' => (int) $resource->getAttribute('curation_progress'), 'waiting_days' => $days,
             'needs_help' => (bool) $resource->getAttribute('curation_needs_help'), 'overdue' => $overdue,
-            'deadline' => $deadline, 'last_activity_at' => $resource->getAttribute('curation_activity_at'),
+            'deadline' => $deadline, 'last_activity_at' => $resource->getAttribute('curation_activity_at')?->toISOString(),
         ];
     }
 

@@ -88,9 +88,7 @@ final class ResourceListingProjectionRefreshService
         $ids = array_keys($this->resourceIds);
         $this->resourceIds = [];
         $this->scheduled = false;
-        foreach ($ids as $id) {
-            app(CurationService::class)->reconcile($id);
-        }
+        app(CurationService::class)->reconcileMany($ids);
         $this->projector->refreshMany($ids);
         $this->resourceCacheService->invalidateAllResourceCaches();
         $this->listingCountService->scheduleInternalInvalidationAfterCommit();

@@ -14,6 +14,7 @@ use App\Services\Curation\CurationService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Resources\ResourceListingProjectorService;
 use App\Support\Curation\CurationChecklist;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -60,6 +61,42 @@ it('counts lead and member assignments once and keeps dashboard destinations con
     $this->get('/curation?tab=all&mine=1&open=1&waiting_overdue=1')->assertInertia(fn (Assert $page) => $page->where('resources.total', 1)->where('resources.data.0.id', $member->id));
     $this->get('/curation?tab=all&mine=1&open=1&help=1')->assertInertia(fn (Assert $page) => $page->where('resources.total', 1)->where('resources.data.0.title', 'Member resource'));
     $this->get('/curation?tab=progress&mine=1')->assertInertia(fn (Assert $page) => $page->where('resources.data.0.id', $mine->id));
+});
+
+it('serializes activity with its timezone for clients in different timezones', function (): void {
+    $resource = overviewDraft($this->actor);
+    ResourceCurationState::whereKey($resource->id)->update(['last_activity_at' => '2026-07-15 12:00:00']);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    app(ResourceListingProjectorService::class)->refreshMany([$resource->id]);
+
+    $this->get('/curation?mine=1')->assertInertia(fn (Assert $page) => $page
+        ->where('resources.data.0.last_activity_at', '2026-07-15T12:00:00.000000Z'));
+    $overview = app(CurationOverviewService::class);
+    $row = $overview->row($overview->rows(['mine' => true], $this->actor)->firstOrFail());
+    expect(Carbon::parse($row['last_activity_at'])->setTimezone('Europe/Berlin')->format('H:i'))->toBe('14:00');
+
+    DB::table('resource_listing_projections')->where('resource_id', $resource->id)->update(['curation_activity_at' => null]);
+    expect($overview->row($overview->rows(['mine' => true], $this->actor)->firstOrFail())['last_activity_at'])->toBeNull();
+});
+
+it('uses the configured waiting threshold consistently in panels filters and dashboard counts', function (): void {
+    config(['curation.waiting_overdue_days' => 3]);
+    $this->travelTo(now()->startOfDay());
+    $resources = collect([3, 4])->map(function (int $days): Resource {
+        $resource = overviewDraft($this->actor, 'Waiting '.$days);
+        ResourceCurationState::whereKey($resource->id)->update(['waiting_for' => 'submitters', 'waiting_since' => now()->subDays($days)]);
+
+        return $resource;
+    });
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    app(ResourceListingProjectorService::class)->refreshMany($resources->pluck('id')->all());
+    $overview = app(CurationOverviewService::class);
+    expect($overview->widget($this->actor)['waiting'])->toBe(1);
+    $this->get('/curation?mine=1&waiting_overdue=1')->assertInertia(fn (Assert $page) => $page
+        ->where('resources.total', 1)->where('resources.data.0.title', 'Waiting 4')->where('resources.data.0.overdue', true));
+    foreach ($resources as $index => $resource) {
+        $this->getJson('/resources/'.$resource->id.'/curation')->assertOk()->assertJsonPath('summary.waiting_overdue', $index === 1);
+    }
 });
 
 it('limits completed published work to ninety days but retains older unfinished work', function (): void {

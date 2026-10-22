@@ -16,6 +16,7 @@ use App\Policies\ResourceCurationPolicy;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Support\Curation\CurationChecklist;
 use Closure;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -93,30 +94,50 @@ final class CurationService
     /** Reconcile after the complete resource graph was saved, never during a projection rebuild. */
     public function reconcile(int $resourceId): void
     {
-        if (! $this->available() || ! ResourceCurationState::whereKey($resourceId)->exists()) {
+        $this->reconcileMany([$resourceId]);
+    }
+
+    /** @param iterable<int> $resourceIds */
+    public function reconcileMany(iterable $resourceIds): void
+    {
+        $ids = collect($resourceIds)->filter(fn (int $id): bool => $id > 0)->unique()->sort()->values();
+        if ($ids->isEmpty() || ! $this->available()) {
             return;
         }
-        DB::transaction(function () use ($resourceId): void {
-            $resource = Resource::query()->lockForUpdate()->find($resourceId);
-            if ($resource === null || ! $this->eligible($resource)) {
-                return;
-            }
-            $resource->load(self::RELATIONS);
-            $previous = ResourceCurationEvent::where('resource_id', $resourceId)
-                ->whereIn('type', ['curation.started', 'resource.changed'])->latest('id')->first();
-            $before = $previous?->payload['snapshot'] ?? [];
-            $after = $this->snapshot($resource);
-            if ($before !== $after) {
-                foreach ($after['automatic'] as $key => $done) {
-                    if (($before['automatic'][$key] ?? null) !== $done) {
-                        ResourceChecklistItem::updateOrCreate(['resource_id' => $resourceId, 'item_key' => $key], [
-                            'state' => $done ? 'done' : 'open', 'changed_by_name' => 'ERNIE', 'changed_at' => now(), 'reason' => null,
-                        ]);
-                    }
+        foreach ($ids->chunk(500) as $chunk) {
+            DB::transaction(function () use ($chunk): void {
+                // Lock in ID order and read each relation once for the whole batch.
+                $resources = Resource::query()->whereKey($chunk->all())->whereHas('curationState')
+                    ->orderBy('id')->lockForUpdate()->with(self::RELATIONS)->get();
+                if ($resources->isEmpty()) {
+                    return;
                 }
-                $this->event($resource, 'resource.changed', null, ['before' => $before, 'snapshot' => $after]);
-            }
-        });
+                $previous = ResourceCurationEvent::whereIn('id', ResourceCurationEvent::query()
+                    ->selectRaw('MAX(id)')->whereIn('resource_id', $resources->modelKeys())
+                    ->whereIn('type', ['curation.started', 'resource.changed'])->groupBy('resource_id'))
+                    ->get()->keyBy('resource_id');
+                foreach ($resources as $resource) {
+                    if (! $this->eligible($resource)) {
+                        continue;
+                    }
+                    /** @var array<string, mixed> $before */
+                    $before = $previous->get($resource->id)?->payload['snapshot'] ?? [];
+                    $after = $this->snapshot($resource);
+                    // MySQL JSON may reorder object keys; that is not a resource change.
+                    if (Arr::sortRecursive($before) === Arr::sortRecursive($after)) {
+                        continue;
+                    }
+                    foreach ($after['automatic'] as $key => $done) {
+                        if (($before['automatic'][$key] ?? null) !== $done) {
+                            ResourceChecklistItem::updateOrCreate(['resource_id' => $resource->id, 'item_key' => $key], [
+                                'state' => $done ? 'done' : 'open', 'changed_by_name' => 'ERNIE', 'changed_at' => now(), 'reason' => null,
+                            ]);
+                        }
+                    }
+                    $this->event($resource, 'resource.changed', null, ['before' => $before, 'snapshot' => $after]);
+                }
+            });
+        }
     }
 
     /** @param array<string, mixed> $payload */
