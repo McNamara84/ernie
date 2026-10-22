@@ -19,7 +19,8 @@ final class CurationRequest extends FormRequest
             return false;
         }
         if (! $resource instanceof Resource) {
-            return $this->isMethod('GET');
+            // Colleague lookup exposes emails for assignments and mentions, both writer-only actions.
+            return $this->isMethod('GET') && (! $this->routeIs('curation.users') || ! $user->isBeginner());
         }
         $policy = new ResourceCurationPolicy;
 
