@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 import { validateArtifact } from './ci/deployment-artifacts.mjs';
 
-const appServices = ['app', 'queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler'];
+const appServices = ['app', 'queue', 'curation-queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler'];
 const services = [...appServices, 'webserver', 'db', 'redis', 'fuji'];
 
 function namespaceVariables(value) {

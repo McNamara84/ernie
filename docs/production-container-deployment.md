@@ -265,7 +265,7 @@ exclusions, retention, recovery and the restriction on rolling back to old image
 Save the changes and manually select **Pull and redeploy** for the stack.
 Portainer must show:
 
-- `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
+- `app`, `queue`, `curation-queue`, `assistance-queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
 - `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
 - `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
@@ -381,6 +381,17 @@ Confirm that the stack follows `refs/heads/deploy/prod` and uses
 return to automatic promotion, then manually pull/redeploy once to inspect the
 registry response.
 
+
+## Curation mail worker
+
+The `curation-queue` service consumes the `curation` connection and queue from the
+application database, independently of the general worker's `DB_QUEUE_CONNECTION`.
+It inherits the pinned application image, database and mail configuration from
+`queue`. Redeploy the full stack to start it; restarting only `app` is insufficient.
+The worker has a 60-second timeout, three attempts and a 90-second reservation.
+The isolated release candidate also requires this worker to be running.
+See [curation mail queue](local-development.md#curation-mail-queue) for the atomic
+audit guarantee and draining pending jobs from earlier issue-409 builds.
 
 ## ELMO cache refresh worker
 

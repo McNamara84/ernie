@@ -180,6 +180,35 @@ npm run docker:dev:assessment
 npm run docker:dev:parity
 ```
 
+### Curation mail queue
+
+The standard stack includes `curation-queue` for review invitations, review-link
+migration emails, mentions and assignment notifications. It runs
+`php artisan queue:work curation --queue=curation --sleep=1 --tries=3 --timeout=60`.
+The `curation` connection always uses the application's database and its `jobs`
+table, even when `DB_QUEUE_CONNECTION`, `DB_QUEUE_TABLE` or `DB_QUEUE` sends the
+general worker elsewhere. Queue insertion and the curation audit receipt share
+one transaction; rolling it back removes both. Keep `after_commit=false` on this
+connection so a queue insertion failure also rolls back the receipt.
+
+The worker's 60-second timeout is shorter than the 90-second reservation, and
+Compose allows 75 seconds for graceful shutdown. New messages use the dedicated
+`curation` queue so the general worker does not reserve them with its longer
+timeout. Stage, Production and the isolated release candidate include this worker
+using the same application image and mail settings as the general worker.
+
+After pulling the change, start the consumer with:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml up -d curation-queue
+```
+
+Earlier issue-409 builds queued these messages on the application database's
+`default` queue. Existing jobs retain that routing: let the general worker finish
+them if it uses that database. With a separate general queue database, drain the
+old application `default` queue using the `curation` connection before completing
+the rollout. Do not delete pending jobs or their audit receipts.
+
 ### Assistant discovery queue
 
 The standard stack includes `assistance-queue`, separate from the general queue

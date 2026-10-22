@@ -437,6 +437,13 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
+  # Curation mail stays on the application DB for atomic queue/audit writes.
+  curation-queue:
+    <<: *ernie-queue
+    container_name: dockerized-laravel-curation-queue
+    stop_grace_period: 75s
+    command: php artisan queue:work curation --queue=curation --sleep=1 --tries=3 --timeout=60
+
   # Discovery scans have a separate consumer and reservation window.
   assistance-queue:
     <<: *ernie-queue

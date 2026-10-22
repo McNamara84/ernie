@@ -89,6 +89,24 @@ it('excludes both ways of identifying an IGSN', function (bool $metadata): void 
     $this->getJson('/resources/'.$resource->id.'/curation')->assertForbidden();
 })->with([true, false]);
 
+it('records system actors when starting and reconciling without a user', function (string $source): void {
+    $resource = Resource::factory()->create(['doi' => null]);
+    $this->service->start($resource, null, $source);
+    $started = ResourceCurationEvent::where('resource_id', $resource->id)->sole();
+    expect($started->type)->toBe('curation.started')
+        ->and($started->user_id)->toBeNull()
+        ->and($started->actor_name)->toBe('ERNIE');
+
+    $this->travel(1)->minutes();
+    DB::table('resources')->where('id', $resource->id)->update(['doi' => '10.1234/system-event']);
+    $this->service->reconcile($resource->id);
+    $changed = ResourceCurationEvent::where('resource_id', $resource->id)->where('type', 'resource.changed')->sole();
+    expect($changed->user_id)->toBeNull()
+        ->and($changed->actor_name)->toBe('ERNIE')
+        ->and($changed->payload['snapshot']['automatic']['doi_assigned'])->toBeTrue()
+        ->and($resource->fresh()->curationState->last_activity_at->equalTo($changed->created_at))->toBeTrue();
+})->with(['import', 'backfill']);
+
 it('resolves all live automatic items and retracts them when their evidence changes', function (): void {
     $resource = $this->resource;
     $resource->update(['doi' => '10.1234/curation', 'access_level' => AccessLevel::OPEN]);
