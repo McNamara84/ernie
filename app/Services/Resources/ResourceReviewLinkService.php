@@ -14,6 +14,7 @@ use App\Models\ResourceReviewLinkDispatch;
 use App\Models\User;
 use App\Services\Curation\CurationService;
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -128,6 +129,7 @@ final readonly class ResourceReviewLinkService
         $operationId ??= (string) Str::uuid();
         $resources = Resource::query()
             ->with(self::RELATIONS)
+            ->when($curationAvailable, fn (Builder $query): Builder => $query->withExists('curationState'))
             ->whereIn('id', $resourceIds)
             ->get()
             ->keyBy('id');
@@ -173,6 +175,9 @@ final readonly class ResourceReviewLinkService
         foreach ($resourceIds as $resourceId) {
             /** @var Resource $resource */
             $resource = $resources->get($resourceId);
+            // Read tracking state with the resource batch. Earlier review mail
+            // must not become evidence when curation is initialized later.
+            $tracksCuration = $curationAvailable && (bool) $resource->getAttribute('curation_state_exists');
             $skippedBefore = $result['skipped_recipients_count'];
             $recipients = [];
             foreach ($resource->contributors as $contributor) {
@@ -228,7 +233,7 @@ final readonly class ResourceReviewLinkService
                         $reviewUrl,
                         $recipient['name'],
                     );
-                    $queued = $curationAvailable ? DB::transaction(function () use ($recipient, $message, $resource, $operationId, $initiator, $kind, $curation): bool {
+                    $queued = $tracksCuration ? DB::transaction(function () use ($recipient, $message, $resource, $operationId, $initiator, $kind, $curation): bool {
                         Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
                         $dispatch = ResourceReviewLinkDispatch::firstOrNew(['resource_id' => $resource->id, 'operation_id' => $operationId]);
                         $recipientKey = hash('sha256', strtolower($recipient['email']));
@@ -242,7 +247,7 @@ final readonly class ResourceReviewLinkService
                         Mail::to($recipient['email'])->queue($message->onConnection('curation'));
                         $new = ! $dispatch->exists;
                         $dispatch->fill(['kind' => $kind, 'sent_by' => $initiator?->id, 'queued_at' => $dispatch->queued_at ?? now(), 'queued_recipients' => ($dispatch->queued_recipients ?? 0) + 1, 'queued_recipient_keys' => [...$keys, $recipientKey]])->save();
-                        if ($new && $resource->curationState()->exists()) {
+                        if ($new) {
                             $curation->event($resource, 'review.queued', $initiator, ['operation_id' => $operationId, 'kind' => $kind, 'queued_at' => $dispatch->queued_at->toISOString()]);
                         }
                         $curation->reconcile($resource->id);
@@ -264,7 +269,7 @@ final readonly class ResourceReviewLinkService
                 }
             }
 
-            if ($curationAvailable) {
+            if ($tracksCuration) {
                 ResourceReviewLinkDispatch::where('resource_id', $resourceId)->where('operation_id', $operationId)
                     ->update(['skipped_recipients' => $result['skipped_recipients_count'] - $skippedBefore]);
             }
@@ -288,8 +293,8 @@ final readonly class ResourceReviewLinkService
 
     private function queueWithoutCuration(string $email, Mailable $message): bool
     {
-        // Preserve the existing mail connection/queue until receipts can be
-        // committed atomically with jobs on the curation connection.
+        // Preserve the existing mail connection/queue while the schema is
+        // unavailable or this resource has not started curation.
         Mail::to($email)->queue($message);
 
         return true;

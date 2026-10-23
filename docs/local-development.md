@@ -1155,6 +1155,12 @@ start unassigned. Published records require the editor's explicit **Start curati
 action. Newly saved drafts and finished unpublished imports start automatically.
 Beginner users can read every curation section but cannot write or be newly assigned.
 
+Review dispatch receipts are recorded only for resources whose curation has
+already started. Untracked resources continue using the configured default mail
+queue without receipts or operation-ID deduplication, even after the migration.
+Initializing curation later does not retroactively count those earlier emails
+as observed review evidence or complete the automatic review-link checklist item.
+
 Keep the scheduler and dedicated `curation-queue` worker running. Assignment and mention
 notifications use the `curation` database connection's `curation` queue so the job
 and its receipt commit atomically. The scheduler retries pending notifications

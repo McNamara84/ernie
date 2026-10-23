@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\ContributorCategory;
 use App\Enums\UserRole;
+use App\Http\Resources\ResourceListItemResource;
 use App\Mail\ResourceReviewLink;
 use App\Mail\ResourceReviewLinkMigration;
 use App\Models\ContributorType;
@@ -53,10 +54,10 @@ it('serves the dashboard and preserves user-index access before the curation mig
     }
 })->with(UserRole::cases())->with(['dashboard', 'users.index']);
 
-it('returns zero counts for incomplete schemas and resumes live counts after completion', function (string $table, ?string $column): void {
+it('returns zero counts and legacy list curators for incomplete schemas and resumes after completion', function (string $table, ?string $column): void {
     $actor = User::factory()->admin()->create();
     $colleague = User::factory()->curator()->create();
-    $resource = Resource::factory()->create(['doi' => null]);
+    $resource = Resource::factory()->create(['doi' => null, 'updated_by_user_id' => $colleague->id]);
     app(CurationService::class)->start($resource, $actor);
     ResourceCurationState::whereKey($resource->id)->update([
         'waiting_for' => 'submitters', 'waiting_since' => now()->subDays(20), 'needs_help_text' => 'Please assist',
@@ -66,9 +67,17 @@ it('returns zero counts for incomplete schemas and resumes live counts after com
     $this->actingAs($actor);
     $overview = app(CurationOverviewService::class);
 
-    $assertCounts = function (bool $ready) use ($actor, $colleague, $overview, $table, $column): void {
+    $assertCounts = function (bool $ready) use ($actor, $colleague, $resource, $overview, $table, $column): void {
         $counts = $ready ? ['open' => 1, 'waiting' => 1, 'help' => 1] : ['open' => 0, 'waiting' => 0, 'help' => 0];
         expect($overview->widget($actor))->toBe($counts);
+        // Exercise the non-projected serializer with unloaded curation relations.
+        // The state may exist before assignments or projection columns do.
+        $listResource = $resource->fresh([
+            'creators.creatorable', 'titles.titleType', 'rights', 'language', 'landingPage.externalDomain',
+            'dates.dateType', 'descriptions.descriptionType', 'resourceType', 'createdBy', 'updatedBy',
+        ]);
+        $row = (new ResourceListItemResource($listResource))->resolve();
+        expect($row['curator'])->toBe($ready ? $actor->name : $colleague->name);
         // Recent dashboard resources already require the pre-existing listing table.
         if ($ready || $table !== 'resource_listing_projections' || $column !== null) {
             $this->get(route('dashboard'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('curationCounts', $counts));

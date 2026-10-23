@@ -111,3 +111,62 @@ it('rolls back and delivers curation mail independently of the general queue dat
         ->and(DB::table('failed_jobs')->count())->toBe(0)
         ->and($receipt())->not->toBeNull();
 })->with(['mention', 'assignment', 'review', 'migration'])->with([false, true]);
+
+it('records review evidence only after curation starts within mixed resource batches', function (bool $migration, string $initialization): void {
+    config([
+        'mail.default' => 'array',
+        'mail.landing_page_contact_cc' => 'curation@example.test',
+        'queue.default' => 'database',
+        'queue.connections.database.connection' => config('database.default'),
+        'queue.connections.database.queue' => 'legacy-review',
+        'queue.connections.database.after_commit' => false,
+    ]);
+    $actor = User::factory()->curator()->create();
+    $tracked = Resource::factory()->create(['doi' => null, 'force_review_status' => true]);
+    $untracked = Resource::factory()->create(['doi' => null, 'force_review_status' => true]);
+    $contactType = ContributorType::firstOrCreate(['slug' => 'ContactPerson'], ['name' => 'Contact Person', 'category' => ContributorCategory::PERSON]);
+    foreach ([$tracked, $untracked] as $resource) {
+        LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+        $contact = ResourceContributor::factory()->create([
+            'resource_id' => $resource->id, 'contributorable_type' => Person::class,
+            'contributorable_id' => Person::factory()->create()->id, 'email' => 'contact@example.test',
+        ]);
+        $contact->contributorTypes()->sync([$contactType->id]);
+    }
+    $curation = app(CurationService::class);
+    $curation->start($tracked, $actor);
+    $route = $migration ? 'resources.send-review-link-migrations' : 'resources.send-review-links';
+    $this->actingAs($actor)->postJson(route($route), [
+        'ids' => [$tracked->id, $untracked->id], 'operation_id' => (string) Str::uuid(),
+    ])->assertOk()->assertJsonPath('queued_messages', 2)->assertJsonPath('failed_resources', []);
+
+    expect($untracked->fresh()->curationState)->toBeNull()
+        ->and(ResourceCurationEvent::where('resource_id', $untracked->id)->count())->toBe(0)
+        ->and(ResourceReviewLinkDispatch::pluck('resource_id')->all())->toBe([$tracked->id])
+        ->and(DB::table('jobs')->where('queue', 'legacy-review')->count())->toBe(1)
+        ->and(DB::table('jobs')->where('queue', 'curation')->count())->toBe(1);
+    foreach (DB::table('jobs')->get() as $job) {
+        expect(json_decode($job->payload, true, flags: JSON_THROW_ON_ERROR)['displayName'])
+            ->toBe($migration ? ResourceReviewLinkMigration::class : ResourceReviewLink::class);
+    }
+
+    if ($initialization === 'backfill') {
+        $this->artisan('curation:initialize', ['--apply' => true])->assertSuccessful();
+    } else {
+        $this->postJson('/resources/'.$untracked->id.'/curation/start')->assertOk();
+    }
+    expect($untracked->fresh()->curationState)->not->toBeNull()
+        ->and($curation->automatic($untracked->fresh())['review_link_sent'])->toBeFalse()
+        ->and($untracked->fresh()->checklistItems->firstWhere('item_key', 'review_link_sent')->state)->toBe('open')
+        ->and(ResourceCurationEvent::where('resource_id', $untracked->id)->where('type', 'curation.started')->sole()->payload['snapshot']['automatic']['review_link_sent'])->toBeFalse();
+
+    $payload = ['ids' => [$untracked->id], 'operation_id' => (string) Str::uuid()];
+    $this->postJson(route($route), $payload)->assertOk()->assertJsonPath('queued_messages', 1);
+    $this->postJson(route($route), $payload)->assertOk()->assertJsonPath('queued_messages', 0);
+    $reviewItem = collect($curation->items($untracked->fresh()))->firstWhere('key', 'review_link_sent');
+    expect($reviewItem['state'])->toBe('done')->and($reviewItem['observed'])->toBeFalse()
+        ->and(ResourceReviewLinkDispatch::where('resource_id', $untracked->id)->count())->toBe(1)
+        ->and(ResourceCurationEvent::where('resource_id', $untracked->id)->where('type', 'review.queued')->count())->toBe(1)
+        ->and(DB::table('jobs')->where('queue', 'legacy-review')->count())->toBe(1)
+        ->and(DB::table('jobs')->where('queue', 'curation')->count())->toBe(2);
+})->with([false, true])->with(['explicit', 'backfill']);
