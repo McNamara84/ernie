@@ -1,124 +1,9 @@
-import { spawnSync } from 'node:child_process';
+import { expect, test } from '@playwright/test';
 
-import { expect, test, type TestInfo } from '@playwright/test';
-
+import { curationFixture as fixture } from '../helpers/curation-fixture';
 import { loginAsTestUser } from '../helpers/test-helpers';
 
-type Fixture = {
-    tag: string;
-    title: string;
-    id: number;
-    actor: number;
-    next: number;
-    beginner: number;
-    email: string;
-    beginnerEmail: string;
-    password: string;
-};
-type RenderTiming = { usableMs: number; finishMs: number; firstFrameMs: number; rowIds: number[] };
-function fixture(testInfo: TestInfo, action: 'create' | 'clean', data?: Fixture, count = 1): Fixture {
-    const docker = ['playwright.devstack.config.ts', 'playwright.docker.config.ts'].some((config) => testInfo.config.configFile?.endsWith(config));
-    const args = ['-d', 'memory_limit=2G', 'tests/playwright/fixtures/curation-state.php', action, String(count)];
-    const result = spawnSync(
-        docker ? 'docker' : 'php',
-        docker ? ['compose', '--env-file', '.env.docker', '-f', 'docker-compose.dev.yml', 'exec', '-T', 'app', 'php', ...args] : args,
-        { input: data ? JSON.stringify(data) : undefined, encoding: 'utf8', timeout: 120_000 },
-    );
-    if (result.error || result.status !== 0) throw result.error ?? new Error(result.stderr || result.stdout);
-    return action === 'create' ? (JSON.parse(result.stdout) as Fixture) : data!;
-}
-
 test.describe('Curation tracking', () => {
-    test('loads the first fifty of three hundred curations within one second after warmup', async ({ page }, testInfo) => {
-        test.skip(testInfo.config.workers !== 1, 'Use --workers=1 for an isolated performance measurement.');
-        test.setTimeout(180_000);
-        const data = fixture(testInfo, 'create', undefined, 300);
-        try {
-            await loginAsTestUser(page, data.email, data.password);
-            const coldStart = Date.now();
-            await page.goto('/curation?mine=1');
-            await expect(page.locator('tbody > tr')).toHaveCount(50);
-            const coldMs = Date.now() - coldStart;
-            const samples: (RenderTiming & { sort: string; phase: string; responseMs: number; serverMs?: number; automationMs: number })[] = [];
-            // Warm every query/sort path once. Measure inside the browser so
-            // Playwright's IPC and assertion polling are reported separately.
-            for (const phase of ['warmup', 'measured']) {
-                for (const [sort, label] of [
-                    ['created', 'First saved'],
-                    ['progress', 'Progress'],
-                    ['activity', 'Last activity'],
-                ]) {
-                    await page.getByRole('combobox', { name: 'Sort by' }).click();
-                    const option = page.getByRole('option', { name: label, exact: true });
-                    await option.evaluate((select) => {
-                        const measuredWindow = window as Window & { curationRenderTime?: Promise<RenderTiming> };
-                        measuredWindow.curationRenderTime = new Promise((resolve) => {
-                            select.addEventListener(
-                                'pointerup',
-                                () => {
-                                    const start = performance.now();
-                                    document.addEventListener(
-                                        'inertia:finish',
-                                        () => {
-                                            const finishMs = performance.now() - start;
-                                            requestAnimationFrame(() => {
-                                                const firstFrameMs = performance.now() - start;
-                                                requestAnimationFrame(() =>
-                                                    resolve({
-                                                        usableMs: performance.now() - start,
-                                                        finishMs,
-                                                        firstFrameMs,
-                                                        rowIds: Array.from(
-                                                            document.querySelectorAll<HTMLAnchorElement>('tbody a[href*="resourceId="]'),
-                                                        ).map((link) => Number(new URL(link.href).searchParams.get('resourceId'))),
-                                                    }),
-                                                );
-                                            });
-                                        },
-                                        { once: true },
-                                    );
-                                },
-                                { once: true, capture: true },
-                            );
-                        });
-                    });
-                    const response = page.waitForResponse(
-                        (result) => result.url().includes('/curation?') && result.request().headers()['x-inertia'] === 'true',
-                    );
-                    const start = Date.now();
-                    await option.click();
-                    const received = await response;
-                    expect(received.ok()).toBe(true);
-                    const renderTiming = await page.evaluate(
-                        () => (window as Window & { curationRenderTime: Promise<RenderTiming> }).curationRenderTime,
-                    );
-                    await received.finished();
-                    const timing = received.request().timing();
-                    const backendTime = received.headers()['x-ernie-backend-time'];
-                    if (backendTime) expect(backendTime).toMatch(/^\d+(\.\d+)?$/);
-                    const payload = await received.json();
-                    expect(renderTiming.rowIds).toEqual(payload.props.resources.data.map((row: { id: number }) => row.id));
-                    await expect(page).toHaveURL(new RegExp(`sort=${sort}`));
-                    await expect(page.locator('tbody > tr')).toHaveCount(50);
-                    samples.push({
-                        sort,
-                        phase,
-                        ...renderTiming,
-                        responseMs: timing.responseEnd - timing.requestStart,
-                        serverMs: backendTime ? Number(backendTime) * 1000 : undefined,
-                        automationMs: Date.now() - start,
-                    });
-                }
-            }
-            await testInfo.attach('curation-load-times.json', {
-                body: JSON.stringify({ resources: 300, pageSize: 50, coldMs, samples }),
-                contentType: 'application/json',
-            });
-            expect(Math.max(...samples.filter((sample) => sample.phase === 'measured').map((sample) => sample.usableMs))).toBeLessThan(1000);
-        } finally {
-            fixture(testInfo, 'clean', data);
-        }
-    });
     test('hands over a resource through My Resources and preserves unsaved metadata', async ({ page }, testInfo) => {
         test.setTimeout(180_000);
         const data = fixture(testInfo, 'create');
@@ -137,7 +22,9 @@ test.describe('Curation tracking', () => {
             await expect(page).toHaveURL(new RegExp(`resourceId=${data.id}`));
             await page.route('**/editor/resources/draft', (route) => route.abort());
             const titleInput = page.getByTestId('main-title-input');
+            await expect(titleInput).toHaveValue(data.title);
             await titleInput.fill(`${data.title} unsaved`);
+            await expect(titleInput).toHaveValue(`${data.title} unsaved`);
             const trigger = page.getByRole('button', { name: 'Curation', exact: true }).filter({ visible: true });
             await trigger.click();
             const panel = page.getByRole('dialog', { name: 'Curation', exact: true });

@@ -1183,12 +1183,16 @@ Focused checks use the pinned Node version and MySQL 9.7:
 npm run test:php -- tests/pest/Feature/Curation
 npm run test:run -- tests/vitest/components/curation-workflow
 npm run test:php:mysql-sensitive -- --slice curation
-npm run test:e2e:devstack -- workflows/curation-tracking.spec.ts --workers=1
+npm run test:e2e:devstack -- workflows/curation-performance.spec.ts workflows/curation-tracking.spec.ts --workers=1
 ```
 
 The browser performance measurement requires a single worker so concurrent test
-fixtures and editor actions do not distort the one-second target. Functional
-curation scenarios also run with the normal parallel browser configuration.
+fixtures and editor actions do not distort the one-second target. Its separate
+`curation-performance.spec.ts` file uses a common 1280 x 720 viewport at pixel
+ratio 1 in every browser and disables video and trace recording to avoid
+measuring capture overhead; timing attachments and failure screenshots remain
+available. Functional curation scenarios retain normal recording settings and
+also run with the normal parallel browser configuration.
 Set `ERNIE_PLAYWRIGHT_ASSETS=build` for performance acceptance with production
 assets; the wrapper restores the usual Vite development setup afterwards.
 On Docker Desktop, also set `ERNIE_PLAYWRIGHT_BACKEND=native` to serve the same
@@ -1203,7 +1207,7 @@ workspace. For example:
 ```powershell
 $env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
 $env:ERNIE_PLAYWRIGHT_BACKEND = 'native'
-npm run test:e2e:devstack -- workflows/curation-tracking.spec.ts --workers=1
+npm run test:e2e:devstack -- workflows/curation-performance.spec.ts workflows/curation-tracking.spec.ts --workers=1
 Remove-Item Env:ERNIE_PLAYWRIGHT_ASSETS, Env:ERNIE_PLAYWRIGHT_BACKEND
 ```
 

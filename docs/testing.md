@@ -458,6 +458,26 @@ browser server constrained to two CPUs, then verify the complete CI shards.
 Preserve the real backdrop styling, actionability checks and existing
 timeouts/retries when checking the replacement version.
 
+### Curation rendering budget
+
+`workflows/curation-performance.spec.ts` checks the first 50 of 300 curations
+against a one-second budget after warming all three sort paths. Every browser
+uses the same reference viewport of **1280 x 720 CSS pixels at pixel ratio 1**.
+The default Desktop Safari profile uses pixel ratio 2, which quadruples the
+pixel workload and makes the same timing budget incomparable with the other
+desktop projects on a software-rendered CI runner. Functional tests keep their
+normal device profiles, including Safari's pixel ratio 2. The benchmark measures
+from the real selection event through Inertia completion and two animation
+frames, then compares the rendered row IDs with the actual response.
+Run it with `--workers=1`; the WebKit CI shards already use that setting.
+
+This benchmark disables video and trace recording at file scope to keep capture
+overhead outside the measurement. `retain-on-failure` still records passing tests before
+discarding their videos. Failure screenshots and the `curation-load-times.json`
+attachment remain available. The functional scenarios in
+`workflows/curation-tracking.spec.ts` retain the normal recording settings and
+share the same fixture helper with the benchmark.
+
 ### Local browser verification
 
 The validation UX suite reuses a completed UI login per worker in memory.
