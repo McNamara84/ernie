@@ -82,7 +82,7 @@ it('serializes activity with its timezone for clients in different timezones', f
 it('uses the configured waiting threshold consistently in panels filters and dashboard counts', function (): void {
     config(['curation.waiting_overdue_days' => 3]);
     $this->travelTo(now()->startOfDay());
-    $resources = collect([3, 4])->map(function (int $days): Resource {
+    $resources = collect([2, 3])->map(function (int $days): Resource {
         $resource = overviewDraft($this->actor, 'Waiting '.$days);
         ResourceCurationState::whereKey($resource->id)->update(['waiting_for' => 'submitters', 'waiting_since' => now()->subDays($days)]);
 
@@ -93,11 +93,81 @@ it('uses the configured waiting threshold consistently in panels filters and das
     $overview = app(CurationOverviewService::class);
     expect($overview->widget($this->actor)['waiting'])->toBe(1);
     $this->get('/curation?mine=1&waiting_overdue=1')->assertInertia(fn (Assert $page) => $page
-        ->where('resources.total', 1)->where('resources.data.0.title', 'Waiting 4')->where('resources.data.0.overdue', true));
+        ->where('resources.total', 1)->where('resources.data.0.title', 'Waiting 3')->where('resources.data.0.overdue', true));
     foreach ($resources as $index => $resource) {
         $this->getJson('/resources/'.$resource->id.'/curation')->assertOk()->assertJsonPath('summary.waiting_overdue', $index === 1);
     }
 });
+
+it('includes the entire waiting start day at the calendar cutoff in every curation view', function (string $timezone, string $date, int $limit): void {
+    config(['app.timezone' => $timezone, 'curation.waiting_overdue_days' => $limit]);
+    $today = Carbon::parse($date, $timezone)->startOfDay();
+    $startDay = $today->copy()->subDays($limit);
+    $this->travelTo($today->copy()->subSecond());
+    $cases = [
+        'Older wait' => [$startDay->copy()->subDay()->endOfDay(), $limit + 1],
+        'Start at midnight' => [$startDay->copy(), $limit],
+        'Start at noon' => [$startDay->copy()->setTime(12, 0), $limit],
+        'Start at last second' => [$startDay->copy()->setTime(23, 59, 59), $limit],
+        'Next day midnight' => [$startDay->copy()->addDay(), $limit - 1],
+        'Not waiting' => [null, null],
+        'Future wait' => [$today->copy()->addDay(), 0],
+    ];
+    $resources = [];
+    foreach ($cases as $title => [$since, $days]) {
+        $resource = overviewDraft($this->actor, $title);
+        ResourceCurationState::whereKey($resource->id)->update([
+            'waiting_for' => $since === null ? null : 'submitters',
+            'waiting_since' => $since?->copy()->utc(),
+        ]);
+        $resources[] = [$resource, $days];
+    }
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    app(ResourceListingProjectorService::class)->refreshMany(array_map(fn (array $entry): int => $entry[0]->id, $resources));
+    $overview = app(CurationOverviewService::class);
+
+    // Crossing local midnight changes the classification without a projection refresh.
+    foreach ([false, true] as $atBoundary) {
+        if ($atBoundary) {
+            $this->travelTo($today);
+        }
+        $expectedIds = [];
+        $rows = $overview->rows(['tab' => 'all'], $this->actor)->get()->map($overview->row(...))->keyBy('id');
+        foreach ($resources as [$resource, $days]) {
+            $expectedDays = $days === null ? null : max(0, $days - ($atBoundary ? 0 : 1));
+            $overdue = $expectedDays !== null && $expectedDays >= $limit;
+            if ($overdue) {
+                $expectedIds[] = $resource->id;
+            }
+            $this->getJson('/resources/'.$resource->id.'/curation')->assertOk()
+                ->assertJsonPath('summary.waiting_days', $expectedDays)
+                ->assertJsonPath('summary.waiting_overdue', $overdue)
+                ->assertJsonPath('summary.overdue', $overdue);
+            expect($rows[$resource->id]['waiting_days'])->toBe($expectedDays)
+                ->and($rows[$resource->id]['overdue'])->toBe($overdue);
+        }
+        foreach (['waiting_overdue', 'overdue'] as $filter) {
+            expect($overview->query(['tab' => 'all', $filter => true], $this->actor)->orderBy('resources.id')->pluck('resources.id')->all())
+                ->toBe($expectedIds);
+            $this->get('/curation?tab=all&mine=1&'.$filter.'=1')->assertOk()->assertInertia(fn (Assert $page) => $page
+                ->where('resources.total', count($expectedIds)));
+        }
+        $this->get('/dashboard')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('curationCounts.waiting', count($expectedIds)));
+    }
+    $csv = $this->get('/curation/export?tab=all&waiting_overdue=1')->assertOk()->streamedContent();
+    expect($csv)->toContain('Start at midnight', 'Start at noon', 'Start at last second')
+        ->not->toContain('Next day midnight', 'Not waiting', 'Future wait');
+})->with([
+    'UTC default' => ['UTC', '2026-07-15', 14],
+    'Berlin summer' => ['Europe/Berlin', '2026-07-15', 14],
+    'spans spring DST change' => ['Europe/Berlin', '2026-03-30', 14],
+    'spans autumn DST change' => ['Europe/Berlin', '2026-10-26', 14],
+    'start day has 23 hours' => ['Europe/Berlin', '2026-04-12', 14],
+    'start day has 25 hours' => ['Europe/Berlin', '2026-11-08', 14],
+    'custom three-day limit' => ['UTC', '2026-07-15', 3],
+    'one-day limit across DST change' => ['Europe/Berlin', '2026-10-26', 1],
+]);
 
 it('limits completed published work to ninety days but retains older unfinished work', function (): void {
     $this->travelTo(now()->startOfDay());

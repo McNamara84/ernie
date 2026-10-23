@@ -1163,6 +1163,9 @@ Review events mean queued, not delivered. Internal notes and locations are not
 included in public metadata exports; the authenticated curation CSV is intentional.
 
 `CURATION_WAITING_OVERDUE_DAYS` defaults to 14 (overdue on calendar day 15).
+The start date is day 1: a wait started at any time on October 1 becomes overdue
+at 00:00 on October 15 in the application timezone. The same boundary applies to
+the panel, overview filters, CSV export and dashboard counts, including DST changes.
 Deadlines become overdue the following day for unpublished records. Application
 timezone boundaries apply. Completion requires publication, all applicable manual
 items, no waiting and no help request. Missing historical review evidence does

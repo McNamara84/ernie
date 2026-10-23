@@ -209,7 +209,7 @@ final class CurationService
             && ($status !== 'published' || $manualOpen > 0 || $state->waiting_for !== null || $state->needs_help_text !== null);
         $today = now(config('app.timezone'))->startOfDay();
         $days = $state?->waiting_since === null ? null : max(0, (int) $state->waiting_since->copy()->timezone(config('app.timezone'))->startOfDay()->diffInDays($today));
-        $waitingOverdue = $open && $days !== null && $days > (int) config('curation.waiting_overdue_days', 14);
+        $waitingOverdue = $open && $days !== null && $days >= (int) config('curation.waiting_overdue_days', 14);
         $deadlineOverdue = $open && $status !== 'published' && $state->deadline !== null && $state->deadline < $today->toDateString();
 
         return ['progress' => $progress, 'manual_open' => $manualOpen, 'open' => $open, 'waiting_days' => $days, 'waiting_overdue' => $waitingOverdue, 'deadline_overdue' => $deadlineOverdue, 'overdue' => $waitingOverdue || $deadlineOverdue];

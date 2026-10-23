@@ -57,7 +57,7 @@ final class CurationOverviewService
         }
         if (($filters['overdue'] ?? false) || ($filters['waiting_overdue'] ?? false)) {
             $query->where('listing.curation_open', true)->where(function ($q) use ($filters): void {
-                $q->where('listing.curation_waiting_since', '<', $this->waitingCutoff());
+                $q->where('listing.curation_waiting_since', '<=', $this->waitingCutoff());
                 if (! ($filters['waiting_overdue'] ?? false)) {
                     $q->orWhere(fn ($deadline) => $deadline->where('listing.workflow_status', '!=', 'published')->where('listing.curation_deadline', '<', now(config('app.timezone'))->toDateString()));
                 }
@@ -69,7 +69,9 @@ final class CurationOverviewService
 
     public function waitingCutoff(): Carbon
     {
-        return now(config('app.timezone'))->startOfDay()->subDays((int) config('curation.waiting_overdue_days', 14))->utc();
+        // Include every start time on the threshold date, matching the calendar
+        // day difference in panel summaries, then compare UTC storage values.
+        return now(config('app.timezone'))->subDays((int) config('curation.waiting_overdue_days', 14))->endOfDay()->utc();
     }
 
     /** @param Builder<Resource> $query */
@@ -106,7 +108,7 @@ final class CurationOverviewService
         $since = $resource->getAttribute('curation_waiting_since');
         $days = $since === null ? null : max(0, (int) Carbon::parse($since)->timezone(config('app.timezone'))->startOfDay()->diffInDays(now(config('app.timezone'))->startOfDay()));
         $deadline = $resource->getAttribute('curation_deadline');
-        $overdue = (bool) $resource->getAttribute('curation_open') && (($days !== null && $days > (int) config('curation.waiting_overdue_days', 14))
+        $overdue = (bool) $resource->getAttribute('curation_open') && (($days !== null && $days >= (int) config('curation.waiting_overdue_days', 14))
             || ($deadline !== null && $deadline < now(config('app.timezone'))->toDateString() && $resource->getAttribute('workflow_status') !== 'published'));
 
         return [

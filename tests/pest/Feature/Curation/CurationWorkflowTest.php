@@ -75,10 +75,10 @@ test('waiting becomes overdue only on day fifteen and text edits preserve its st
     $this->travelTo(now()->startOfDay());
     $this->patchJson($this->url.'/state', ['waiting_for' => 'submitters', 'revision' => 0])->assertOk();
     $since = $this->resource->fresh()->curationState->waiting_since;
-    $this->travel(14)->days();
-    $this->getJson($this->url)->assertJsonPath('summary.waiting_overdue', false);
+    $this->travelTo($since->copy()->addDays(14)->subSecond());
+    $this->getJson($this->url)->assertJsonPath('summary.waiting_days', 13)->assertJsonPath('summary.waiting_overdue', false);
     $this->patchJson($this->url.'/state', ['waiting_text' => 'Still waiting', 'revision' => 1])->assertOk();
     expect($this->resource->fresh()->curationState->waiting_since->equalTo($since))->toBeTrue();
-    $this->travel(1)->days();
-    $this->getJson($this->url)->assertJsonPath('summary.waiting_overdue', true);
+    $this->travel(1)->seconds();
+    $this->getJson($this->url)->assertJsonPath('summary.waiting_days', 14)->assertJsonPath('summary.waiting_overdue', true);
 });
