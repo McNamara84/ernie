@@ -168,6 +168,9 @@ jobs:
       env:
         CI: true
         PLAYWRIGHT_HTML_OPEN: never
+        # These Linux runners have no hardware GPU. Render directly with Skia
+        # instead of routing WebKit's rasterization through software OpenGL.
+        WEBKIT_SKIA_ENABLE_CPU_RENDERING: '1'
     - name: Stop Laravel server
       if: always()
       run: |

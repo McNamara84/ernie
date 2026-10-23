@@ -451,6 +451,15 @@ two workers still failed one of 21 usage statistics scenarios. With one worker,
 all 21 passed without retries and the longest desktop filter action decreased
 from the 15-second timeout to 7.3 seconds.
 
+The GPU-less Linux runners also set `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1`
+for direct Skia CPU rasterization. This avoids the software OpenGL path for
+WebKit's page rendering; Chromium and Firefox ignore the WebKit-specific setting.
+In three repeated curation benchmark runs on the same two-CPU Linux browser
+server, the slowest measured sort fell from 898 ms to 577 ms with this setting.
+Set it on the **browser server**, rather than the Playwright client, when
+reproducing CI with a remote Linux browser (for Docker, add
+`--env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` to `docker run`).
+
 Keep both exact pins until a stable release includes the corrected WebKit.
 Before upgrading or restoring two WebKit workers, repeat
 `workflows/counter-usage.spec.ts` with `--repeat-each=3` and the matching Linux
@@ -580,7 +589,7 @@ Firefox continue to use their normal host browsers. The server must match the
 installed Playwright version. For the current 1.63.0 dependency:
 
 ```powershell
-docker run --rm --init -d --name ernie-webkit-tests --workdir /home/pwuser --user pwuser -p 127.0.0.1:3043:3000 mcr.microsoft.com/playwright:v1.63.0-noble npx --yes playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
+docker run --rm --init -d --name ernie-webkit-tests --workdir /home/pwuser --user pwuser --env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1 -p 127.0.0.1:3043:3000 mcr.microsoft.com/playwright:v1.63.0-noble npx --yes playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
 $env:ERNIE_WEBKIT_WS_ENDPOINT = 'ws://127.0.0.1:3043/'
 npm run test:e2e:devstack -- --project=webkit
 Remove-Item Env:ERNIE_WEBKIT_WS_ENDPOINT
