@@ -9,9 +9,20 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 final class CurationOverviewService
 {
+    public function countsAvailable(): bool
+    {
+        // The state table is created before the assignments and projection columns.
+        return app(CurationService::class)->available()
+            && Schema::hasTable('resource_curators')
+            && Schema::hasColumns('resource_listing_projections', [
+                'curation_started', 'curation_open', 'curation_waiting_since', 'curation_needs_help',
+            ]);
+    }
+
     /** @param array<string, mixed> $filters
      * @return Builder<Resource>
      */
@@ -119,6 +130,10 @@ final class CurationOverviewService
     /** @return array{open: int, waiting: int, help: int} */
     public function widget(User $user): array
     {
+        if (! $this->countsAvailable()) {
+            return ['open' => 0, 'waiting' => 0, 'help' => 0];
+        }
+
         $filters = ['tab' => 'all', 'mine' => true, 'open' => true];
 
         return ['open' => $this->query($filters, $user)->count(),

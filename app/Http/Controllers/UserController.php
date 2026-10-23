@@ -15,6 +15,7 @@ use App\Mail\WelcomeNewUser;
 use App\Models\GuidedTour;
 use App\Models\User;
 use App\Models\UserGuidedTourAssignment;
+use App\Services\Curation\CurationOverviewService;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -35,15 +36,17 @@ class UserController extends Controller
     /**
      * Display a listing of users.
      */
-    public function index(GuidedTourAssignmentService $guidedTourAssignmentService): Response
+    public function index(GuidedTourAssignmentService $guidedTourAssignmentService, CurationOverviewService $curationOverviewService): Response
     {
         $this->authorize('viewAny', User::class);
 
         $guidedTourAssignmentService->syncCatalogTours();
-        $openLeads = DB::table('resource_curation_states as curation')
-            ->join('resource_listing_projections as listing', 'listing.resource_id', '=', 'curation.resource_id')
-            ->where('listing.curation_open', true)->whereNotNull('curation.lead_curator_id')
-            ->groupBy('curation.lead_curator_id')->selectRaw('curation.lead_curator_id, COUNT(*) as total')->pluck('total', 'lead_curator_id');
+        $openLeads = $curationOverviewService->countsAvailable()
+            ? DB::table('resource_curation_states as curation')
+                ->join('resource_listing_projections as listing', 'listing.resource_id', '=', 'curation.resource_id')
+                ->where('listing.curation_open', true)->whereNotNull('curation.lead_curator_id')
+                ->groupBy('curation.lead_curator_id')->selectRaw('curation.lead_curator_id, COUNT(*) as total')->pluck('total', 'lead_curator_id')
+            : collect();
 
         $users = User::query()
             ->with(['deactivatedBy:id,name', 'guidedTourAssignments.guidedTour:id,key,version,name'])

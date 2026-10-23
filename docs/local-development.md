@@ -1148,8 +1148,8 @@ start unassigned. Published records require the editor's explicit **Start curati
 action. Newly saved drafts and finished unpublished imports start automatically.
 Beginner users can read every curation section but cannot write or be newly assigned.
 
-Keep the scheduler and database queue worker running. Assignment and mention
-notifications use the `curation` database connection's `default` queue so the job
+Keep the scheduler and dedicated `curation-queue` worker running. Assignment and mention
+notifications use the `curation` database connection's `curation` queue so the job
 and its receipt commit atomically. The scheduler retries pending notifications
 every minute. Existing DOI verification uses the configured DataCite queue.
 Review events mean queued, not delivered. Internal notes and locations are not
