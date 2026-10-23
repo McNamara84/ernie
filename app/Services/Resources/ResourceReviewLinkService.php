@@ -123,6 +123,8 @@ final readonly class ResourceReviewLinkService
      */
     private function queueWithMessageFactory(array $resourceIds, Closure $messageFactory, ?User $initiator, string $kind, ?string $operationId): array
     {
+        $curation = app(CurationService::class);
+        $curationAvailable = $curation->available();
         $operationId ??= (string) Str::uuid();
         $resources = Resource::query()
             ->with(self::RELATIONS)
@@ -226,7 +228,7 @@ final readonly class ResourceReviewLinkService
                         $reviewUrl,
                         $recipient['name'],
                     );
-                    $queued = DB::transaction(function () use ($recipient, $message, $resource, $operationId, $initiator, $kind): bool {
+                    $queued = $curationAvailable ? DB::transaction(function () use ($recipient, $message, $resource, $operationId, $initiator, $kind, $curation): bool {
                         Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
                         $dispatch = ResourceReviewLinkDispatch::firstOrNew(['resource_id' => $resource->id, 'operation_id' => $operationId]);
                         $recipientKey = hash('sha256', strtolower($recipient['email']));
@@ -240,7 +242,6 @@ final readonly class ResourceReviewLinkService
                         Mail::to($recipient['email'])->queue($message->onConnection('curation'));
                         $new = ! $dispatch->exists;
                         $dispatch->fill(['kind' => $kind, 'sent_by' => $initiator?->id, 'queued_at' => $dispatch->queued_at ?? now(), 'queued_recipients' => ($dispatch->queued_recipients ?? 0) + 1, 'queued_recipient_keys' => [...$keys, $recipientKey]])->save();
-                        $curation = app(CurationService::class);
                         if ($new && $resource->curationState()->exists()) {
                             $curation->event($resource, 'review.queued', $initiator, ['operation_id' => $operationId, 'kind' => $kind, 'queued_at' => $dispatch->queued_at->toISOString()]);
                         }
@@ -248,7 +249,7 @@ final readonly class ResourceReviewLinkService
                         app(ResourceListingProjectionRefreshService::class)->schedule($resource->id);
 
                         return true;
-                    });
+                    }) : $this->queueWithoutCuration($recipient['email'], $message);
 
                     $queuedRecipients++;
                     $result['queued_messages'] += $queued ? 1 : 0;
@@ -263,8 +264,10 @@ final readonly class ResourceReviewLinkService
                 }
             }
 
-            ResourceReviewLinkDispatch::where('resource_id', $resourceId)->where('operation_id', $operationId)
-                ->update(['skipped_recipients' => $result['skipped_recipients_count'] - $skippedBefore]);
+            if ($curationAvailable) {
+                ResourceReviewLinkDispatch::where('resource_id', $resourceId)->where('operation_id', $operationId)
+                    ->update(['skipped_recipients' => $result['skipped_recipients_count'] - $skippedBefore]);
+            }
             if ($queuedRecipients === 0) {
                 $result['failed_resources'][] = [
                     'id' => $resourceId,
@@ -281,6 +284,15 @@ final readonly class ResourceReviewLinkService
         }
 
         return $result;
+    }
+
+    private function queueWithoutCuration(string $email, Mailable $message): bool
+    {
+        // Preserve the existing mail connection/queue until receipts can be
+        // committed atomically with jobs on the curation connection.
+        Mail::to($email)->queue($message);
+
+        return true;
     }
 
     private function isContactPerson(ResourceContributor $contributor): bool

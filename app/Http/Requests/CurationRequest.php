@@ -6,11 +6,20 @@ namespace App\Http\Requests;
 
 use App\Models\Resource;
 use App\Policies\ResourceCurationPolicy;
+use App\Services\Curation\CurationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 final class CurationRequest extends FormRequest
 {
+    protected function passedValidation(): void
+    {
+        // Authorize first, then stop reads and writes before any workflow query.
+        if (! $this->routeIs('curation.users')) {
+            app(CurationService::class)->ensureAvailable();
+        }
+    }
+
     public function authorize(): bool
     {
         $resource = $this->route('resource');

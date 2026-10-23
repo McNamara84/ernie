@@ -27,7 +27,30 @@ final class CurationService
 
     public function available(): bool
     {
-        return Schema::hasTable('resource_curation_states');
+        // An additive migration can expose the first table before the remaining
+        // tables and projection columns exist. Read the catalog once, not once
+        // per table or resource, and recheck on later calls during a rollout.
+        $tables = Schema::getTableListing(schemaQualified: false);
+        $prefix = DB::connection()->getTablePrefix();
+        foreach (['resource_curation_states', 'resource_curators', 'resource_checklist_items',
+            'resource_curation_events', 'resource_review_link_dispatches', 'resource_doi_registration_evidence',
+            'resource_data_locations', 'resource_curation_mentions', 'resource_curation_notifications',
+            'resource_listing_projections'] as $table) {
+            if (! in_array($prefix.$table, $tables, true)) {
+                return false;
+            }
+        }
+
+        return Schema::hasColumns('resource_listing_projections', [
+            'curation_started', 'curation_progress', 'curation_manual_open', 'curation_open',
+            'curation_activity_at', 'curation_published_at', 'curation_waiting_since',
+            'curation_needs_help', 'curation_deadline', 'curation_contact',
+        ]);
+    }
+
+    public function ensureAvailable(): void
+    {
+        abort_unless($this->available(), 503, 'Curation is temporarily unavailable. Please try again later.');
     }
 
     public function eligible(Resource $resource): bool
@@ -195,6 +218,7 @@ final class CurationService
     /** @return array<string, mixed> */
     public function panel(Resource $resource, User $user): array
     {
+        $this->ensureAvailable();
         $resource->load(self::RELATIONS);
         $state = $resource->curationState;
 

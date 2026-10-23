@@ -1134,6 +1134,13 @@ npm run check:backend
 
 ## Curation tracking
 
+Until all curation tables and projection columns exist, curation overview, export,
+panel, history and write requests return HTTP 503. Dashboard and user-list counts
+remain zero. Review invitations and review-link migration emails continue through
+the configured default mail queue, without curation receipts or operation-ID
+deduplication. Schema readiness is rechecked on subsequent requests, so normal
+curation tracking resumes once the migration is complete.
+
 After deploying the additive curation migration, finish or pause running imports
 before initializing existing unpublished resources:
 
