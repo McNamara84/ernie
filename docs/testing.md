@@ -436,6 +436,28 @@ status, download headers and response body instead. This is the
 [known Playwright navigation/download limitation](https://github.com/microsoft/playwright/issues/34076);
 the export test still runs in every browser without mocking the response.
 
+### Linux WebKit rendering regression
+
+`playwright` and `@playwright/test` are pinned to **1.63.0**. Playwright 1.64.0
+and 1.64.1 bundle WebKit r2370, which can stop producing animation frames on
+two-CPU Linux runners when a page uses `backdrop-filter`. This makes ordinary
+dropdown clicks and focus restoration time out, including the statistics filter
+scenario in WebKit shard 3. See [Playwright #43426](https://github.com/microsoft/playwright/issues/43426).
+
+The CI workflow also limits WebKit to **one worker per shard**, retaining all
+three shards and two workers for Chromium/Firefox. On a two-CPU Linux browser
+server, 1.64.1 failed all six repeated statistics filter scenarios; 1.63.0 with
+two workers still failed one of 21 usage statistics scenarios. With one worker,
+all 21 passed without retries and the longest desktop filter action decreased
+from the 15-second timeout to 7.3 seconds.
+
+Keep both exact pins until a stable release includes the corrected WebKit.
+Before upgrading or restoring two WebKit workers, repeat
+`workflows/counter-usage.spec.ts` with `--repeat-each=3` and the matching Linux
+browser server constrained to two CPUs, then verify the complete CI shards.
+Preserve the real backdrop styling, actionability checks and existing
+timeouts/retries when checking the replacement version.
+
 ### Local browser verification
 
 The validation UX suite reuses a completed UI login per worker in memory.
