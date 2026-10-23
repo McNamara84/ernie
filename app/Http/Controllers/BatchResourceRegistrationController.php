@@ -7,7 +7,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Batch\RegisterResourcesRequest;
 use App\Models\Resource;
 use App\Services\Curation\CurationRegistrationService;
-use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\EmbargoService;
 use App\Services\FakeDataCiteRegistrationService;
@@ -56,7 +55,7 @@ class BatchResourceRegistrationController extends Controller
         $results = ['success' => [], 'failed' => []];
 
         /** @var DataCiteServiceInterface $service */
-        $service = app(DataCiteRegistrationService::class);
+        $service = app(DataCiteServiceInterface::class);
         $resourceStorageService = app(ResourceStorageService::class);
 
         // Resolve the ORCID preflight validator once and reuse it for every
