@@ -218,6 +218,37 @@ it('paginates fifty rows and exports every filtered row with formula protection'
     expect($other->curationState)->not->toBeNull();
 });
 
+it('exports unassigned curations alongside assigned rows', function (bool $hasMember): void {
+    $unassigned = Resource::factory()->create();
+    $unassigned->titles()->create([
+        'value' => 'Unassigned resource',
+        'title_type_id' => TitleType::firstOrCreate(['slug' => 'MainTitle'], ['name' => 'Main Title'])->id,
+    ]);
+    $this->service->start($unassigned, null, 'backfill');
+    if ($hasMember) {
+        $unassigned->curators()->attach($this->actor->id, ['assigned_at' => now()]);
+    }
+    overviewDraft($this->actor, 'Assigned resource');
+
+    $csv = $this->get('/curation/export?tab=all&sort=created&direction=asc')
+        ->assertOk()->assertDownload('curation.csv')->streamedContent();
+    expect($csv)->toStartWith("\xEF\xBB\xBF");
+    $rows = array_map(
+        static fn (string $line): array => str_getcsv($line, escape: ''),
+        explode("\n", trim(substr($csv, 3))),
+    );
+
+    expect($rows)->toHaveCount(3)
+        ->and($rows[0][6])->toBe('Lead')
+        ->and($rows[0][7])->toBe('Curators')
+        ->and($rows[1][0])->toBe('Unassigned resource')
+        ->and($rows[1][6])->toBe('Unassigned')
+        ->and($rows[1][7])->toBe($hasMember ? $this->actor->name : '')
+        ->and($rows[2][0])->toBe('Assigned resource')
+        ->and($rows[2][6])->toBe($this->actor->name)
+        ->and($rows[2][7])->toBe($this->actor->name);
+})->with(['without curators' => false, 'with a member but no lead' => true]);
+
 it('serves three hundred ongoing resources with a bounded number of queries', function (): void {
     // Bulk seed source tables; projection still resolves the real model graph.
     $prototype = overviewDraft($this->actor);
