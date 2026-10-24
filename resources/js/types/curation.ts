@@ -1,0 +1,76 @@
+export type CurationUser = { id: number; name: string; email?: string; active?: boolean; eligible?: boolean };
+export type ChecklistItem = {
+    key: string;
+    stage: string;
+    label: string;
+    automatic: boolean;
+    allows_na: boolean;
+    help: string;
+    state: 'open' | 'done' | 'not_applicable';
+    reason: string | null;
+    changed_at: string | null;
+    changed_by: number | null;
+    changed_by_name?: string | null;
+    observed?: boolean;
+    revision: number;
+};
+export type CurationState = {
+    revision: number;
+    lead_curator_id: number | null;
+    waiting_for: string | null;
+    waiting_text: string | null;
+    waiting_since: string | null;
+    needs_help_text: string | null;
+    deadline: string | null;
+    deadline_reason: string | null;
+};
+export type DataLocation = { id: number; type: string; location: string; revision: number };
+export type CurationPanelData = {
+    resource_id: number;
+    started: boolean;
+    can_write: boolean;
+    state: CurationState | null;
+    items: ChecklistItem[];
+    curators: CurationUser[];
+    locations: DataLocation[];
+    latest_note: string | null;
+    summary: {
+        progress: number;
+        manual_open: number;
+        open: boolean;
+        waiting_days: number | null;
+        waiting_overdue: boolean;
+        deadline_overdue: boolean;
+        overdue: boolean;
+    };
+};
+export type CurationEvent = {
+    id: number;
+    type: string;
+    actor_name: string;
+    created_at: string;
+    body: string | null;
+    edited_at: string | null;
+    deleted_at: string | null;
+    revision: number;
+    can_edit: boolean;
+    payload: Record<string, unknown>;
+    description?: string;
+};
+export type CurationRow = {
+    id: number;
+    title: string;
+    doi: string | null;
+    datacenter: string | null;
+    contact: string | null;
+    created_at: string;
+    status: string;
+    lead_id: number | null;
+    curators: CurationUser[];
+    progress: number;
+    waiting_days: number | null;
+    needs_help: boolean;
+    overdue: boolean;
+    deadline: string | null;
+    last_activity_at: string | null;
+};

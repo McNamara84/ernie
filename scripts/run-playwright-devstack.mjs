@@ -35,9 +35,9 @@ function reloadWebserver(execute) {
     execute('docker', [...compose, 'exec', '-T', 'webserver', 'nginx', '-s', 'reload']);
 }
 
-function prepareBrowserRouting(rootDirectory) {
+function prepareBrowserRouting(rootDirectory, backend) {
     const source = readFileSync(new URL('../docker/nginx/conf.d/dev.conf', import.meta.url), 'utf8');
-    const configuration = createPlaywrightNginxConfig(source);
+    const configuration = createPlaywrightNginxConfig(source, { nativeBackend: backend === 'native' });
     const path = join(rootDirectory, 'storage', 'framework', 'testing', 'playwright-nginx.conf');
     mkdirSync(dirname(path), { recursive: true });
     try {
@@ -56,6 +56,7 @@ export function runPlaywrightDevstack(
         execute = run,
         timings = createTestTimings('playwright'),
         assets = process.env.ERNIE_PLAYWRIGHT_ASSETS?.trim() || 'vite',
+        backend = process.env.ERNIE_PLAYWRIGHT_BACKEND?.trim() || 'bind',
         rootDirectory = process.cwd(),
     } = {},
 ) {
@@ -68,6 +69,8 @@ export function runPlaywrightDevstack(
     if (!['vite', 'build'].includes(assets)) {
         throw new Error('ERNIE_PLAYWRIGHT_ASSETS must be vite or build.');
     }
+    if (!['bind', 'native'].includes(backend)) throw new Error('ERNIE_PLAYWRIGHT_BACKEND must be bind or native.');
+    if (backend === 'native' && assets !== 'build') throw new Error('The native browser backend requires ERNIE_PLAYWRIGHT_ASSETS=build.');
     timings.measure('Verify Vite dependencies', () =>
         execute('docker', [...compose, 'exec', '-T', 'vite', 'node', 'scripts/verify-vite-dependencies.mjs']),
     );
@@ -75,21 +78,39 @@ export function runPlaywrightDevstack(
         execute('docker', [...compose, 'exec', '-T', 'app', 'node', 'scripts/verify-php-dependencies.mjs']),
     );
     const hotPath = join(rootDirectory, 'public', 'hot');
-    const removeBrowserRouting = prepareBrowserRouting(rootDirectory);
+    const removeBrowserRouting = prepareBrowserRouting(rootDirectory, backend);
     let originalHot;
     let backendRestored = false;
     try {
+        if (backend === 'native') {
+            timings.measure('Browser backend workspace', () =>
+                execute('docker', [...compose, 'exec', '-T', 'app', 'sh', '/var/www/html/scripts/prepare-pest-workspace.sh']),
+            );
+        }
         timings.measure('Browser backend preparation', () =>
             execute('docker', [...compose, '-f', 'docker-compose.playwright-test.yml', 'up', '-d', '--wait', 'app', 'webserver']),
         );
         timings.measure('Refresh browser routing', () => reloadWebserver(execute));
         timings.measure('Verify browser backend', () =>
-            execute('docker', [...compose, 'exec', '-T', 'app', 'php', '-d', 'memory_limit=2G', '-r', verifyBrowserBackend]),
+            execute('docker', [
+                ...compose,
+                'exec',
+                '-T',
+                ...(backend === 'native' ? ['--workdir', '/var/www/pest-workspace'] : []),
+                'app',
+                'php',
+                '-d',
+                'memory_limit=2G',
+                '-r',
+                verifyBrowserBackend,
+            ]),
         );
         if (assets === 'build') {
-            timings.measure('Browser asset workspace', () =>
-                execute('docker', [...compose, 'exec', '-T', 'app', 'sh', '/var/www/html/scripts/prepare-pest-workspace.sh']),
-            );
+            if (backend !== 'native') {
+                timings.measure('Browser asset workspace', () =>
+                    execute('docker', [...compose, 'exec', '-T', 'app', 'sh', '/var/www/html/scripts/prepare-pest-workspace.sh']),
+                );
+            }
             timings.measure('Browser asset build', () =>
                 execute('docker', [...compose, 'exec', '-T', 'app', 'sh', '/var/www/html/scripts/build-playwright-assets.sh']),
             );

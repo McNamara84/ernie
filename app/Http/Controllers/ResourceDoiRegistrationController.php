@@ -9,9 +9,11 @@ use App\Exceptions\DataCiteWriteSupersededException;
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
+use App\Services\Curation\CurationRegistrationService;
 use App\Services\DataCiteModeResolverService;
-use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteServiceInterface;
 use App\Services\EmbargoService;
+use App\Services\FakeDataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceCacheService;
 use App\Services\ResourceStorageService;
@@ -39,7 +41,8 @@ class ResourceDoiRegistrationController extends Controller
             }
 
             // Resolve service from container (allows testing with fake service).
-            $service = app(DataCiteRegistrationService::class);
+            /** @var DataCiteServiceInterface $service */
+            $service = app(DataCiteServiceInterface::class);
 
             // Pre-flight ORCID validation (issue #610). Confirmed-invalid ORCIDs block
             // registration unconditionally; transient errors require resubmission with
@@ -82,6 +85,7 @@ class ResourceDoiRegistrationController extends Controller
                 ]);
 
                 $response = $service->updateMetadata($resource);
+                app(CurationRegistrationService::class)->record($resource, $response, $service instanceof FakeDataCiteRegistrationService ? 'fake' : ($service->isTestMode() ? 'test' : 'production'), 'update');
                 $doi = $response['data']['id'] ?? $resource->doi;
 
                 return response()->json([
@@ -140,6 +144,8 @@ class ResourceDoiRegistrationController extends Controller
                     ]);
                 }
             }
+
+            app(CurationRegistrationService::class)->record($resource, $response, $service instanceof FakeDataCiteRegistrationService ? 'fake' : ($service->isTestMode() ? 'test' : 'production'), 'registration');
 
             Log::info('DOI saved to resource', [
                 'resource_id' => $resource->id,

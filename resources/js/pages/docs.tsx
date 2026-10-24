@@ -363,6 +363,52 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 ),
             },
             {
+                id: 'curation-tracking',
+                title: 'Curation Tracking',
+                icon: Tags,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Checklist and handovers</h3>
+                        <p>
+                            Open Curation in the Data Editor after the first save. Eight manual checklist items and five automatic checks track the
+                            work independently of the metadata form. Automatic checks follow saved metadata, the landing page, queued review emails
+                            and confirmed DOI registration. They can become open again when the resource changes. A queued review is not a delivery
+                            confirmation.
+                        </p>
+                        <p>
+                            Beginners have read-only access to every curation function. Active Curators, Group Leaders and Admins can change the
+                            checklist, assign a lead and colleagues, hand over responsibility, add notes and record data locations. Not applicable
+                            requires a reason and is available only for the designated checklist items. Curation does not block publication.
+                        </p>
+                        <p>
+                            A handover retains the previous lead as a member. New assignments to another colleague and selected @ mentions queue an
+                            email. Only the author can edit or delete a note, for 24 hours after creation. Deleted notes leave a placeholder. Notes,
+                            internal paths and workflow history are excluded from public metadata exports.
+                        </p>
+                        <h4>Working state and overview</h4>
+                        <p>
+                            Waiting for a reply, needing help and a deadline are independent. Help requires an explanation. Editing waiting details
+                            keeps the start date; selecting a different waiting party starts a new waiting period. Waiting becomes overdue after 14
+                            calendar days by default. A deadline becomes overdue the following day while the resource is unpublished.
+                        </p>
+                        <p>
+                            The Curation overview has In progress, Review, Embargo and Published tabs. My Resources includes both lead and member
+                            assignments. Use Unassigned for drafts without a lead. Combine filters and sort orders, expand a row for open items, the
+                            latest note and locations, or export all matching rows as CSV. My curation on the dashboard links to open assignments
+                            across all tabs.
+                        </p>
+                        <p>
+                            Saved new drafts start automatically; eligible creators become lead. Beginner drafts and unpublished imports start
+                            unassigned. Existing published resources require Start curation. IGSNs are excluded. Tombstones keep readable history but
+                            are inactive. Curation finishes when the resource is published, all applicable manual items are complete, and no waiting
+                            or help request remains. Published records remain in the overview for 90 days, or longer while work is open. Historical
+                            review or registration evidence is never invented.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'completeness-badges',
                 title: 'Completeness Badges',
                 icon: Tags,

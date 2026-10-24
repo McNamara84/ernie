@@ -541,7 +541,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             throw new \RuntimeException('The earlier DataCite embargo registration is pending reconciliation. No second POST was sent.');
         }
 
-        return ['data' => ['id' => $matches[0]['id']]];
+        return ['data' => $matches[0]];
     }
 
     /** @return array<string, mixed> */

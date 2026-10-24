@@ -103,6 +103,7 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - DATACITE_INTERACTIVE_RESERVED_REQUESTS=${DATACITE_INTERACTIVE_RESERVED_REQUESTS:-30}
       - DATACITE_INTERACTIVE_MAX_WAIT_MS=${DATACITE_INTERACTIVE_MAX_WAIT_MS:-5000}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
@@ -397,6 +398,13 @@ services:
       - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
     command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default,imports --sleep=3 --tries=3
+
+  # Curation mail stays on the application DB for atomic queue/audit writes.
+  curation-queue:
+    <<: *ernie-queue
+    container_name: ernie-curation-queue-dev
+    stop_grace_period: 75s
+    command: php artisan queue:work curation --queue=curation --sleep=1 --tries=3 --timeout=60
 
   # Discovery scans have a separate consumer and reservation window.
   assistance-queue:

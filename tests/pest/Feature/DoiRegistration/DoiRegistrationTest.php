@@ -5,6 +5,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
+use App\Services\Curation\CurationService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Http;
 
@@ -92,6 +93,7 @@ test('doi registration validates prefix against allowed list in production mode'
 
 test('doi registration succeeds with valid data for new doi', function () {
     actingAs($this->user);
+    app(CurationService::class)->start($this->resource, $this->user);
 
     LandingPage::factory()->create([
         'resource_id' => $this->resource->id,
@@ -134,6 +136,7 @@ test('doi registration succeeds with valid data for new doi', function () {
     })->first();
 
     expect($this->resource->doi)->toBe('10.83279/test-12345')
+        ->and($this->resource->registrationEvidence()->where('environment', 'test')->value('state'))->toBe('findable')
         ->and($issuedDate)->not->toBeNull()
         ->and($issuedDate->date_value)->toBe($issuedDate->created_at->toDateString());
 });

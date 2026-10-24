@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\AccessLevel;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\Curation\CurationOverviewService;
 use App\Services\EmbargoService;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
@@ -81,6 +82,7 @@ final class DashboardController extends Controller
             ->values();
 
         return Inertia::render('dashboard', [
+            'curationCounts' => app(CurationOverviewService::class)->widget($user),
             'thesaurusReviewReminder' => $user->can('manage-thesauri') && $user->can('access-editor-settings')
                 ? $this->thesaurusReviewReminderService->status()
                 : null,

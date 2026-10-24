@@ -22,6 +22,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       # OAI-PMH identifiers are persistent and must not change with APP_URL.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
@@ -338,6 +339,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       # Keep this identical to the app service for observer/job consistency.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
@@ -435,6 +437,13 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
+  # Curation mail stays on the application DB for atomic queue/audit writes.
+  curation-queue:
+    <<: *ernie-queue
+    container_name: dockerized-laravel-curation-queue
+    stop_grace_period: 75s
+    command: php artisan queue:work curation --queue=curation --sleep=1 --tries=3 --timeout=60
+
   # Discovery scans have a separate consumer and reservation window.
   assistance-queue:
     <<: *ernie-queue
@@ -473,6 +482,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
@@ -562,6 +572,7 @@ services:
     environment:
       - APP_KEY=${APP_KEY}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production

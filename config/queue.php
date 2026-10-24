@@ -29,6 +29,12 @@ return [
     */
 
     'connections' => [
+        // Same database as curation events: queue insertion and audit commit atomically.
+        // Consumed by curation-queue independently of DB_QUEUE_CONNECTION/TABLE/QUEUE.
+        'curation' => [
+            'driver' => 'database', 'connection' => null, 'table' => 'jobs',
+            'queue' => 'curation', 'retry_after' => 90, 'after_commit' => false,
+        ],
 
         'sync' => [
             'driver' => 'sync',

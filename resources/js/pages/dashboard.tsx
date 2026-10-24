@@ -33,6 +33,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 type DashboardPageProps = SharedData & {
+    curationCounts?: { open: number; waiting: number; help: number };
     thesaurusReviewReminder?: ThesaurusReviewReminder | null;
     dataResourceCount?: number;
     igsnCount?: number;
@@ -188,6 +189,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         recentResources,
         dueEmbargos = [],
         dueEmbargoCount = 0,
+        curationCounts,
         pendingAssistanceTotalCount,
         guidedTour = null,
         phpVersion = '8.4.12',
@@ -433,6 +435,25 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
             <Head title="Dashboard" />
             <GuidedTourAutostart guidedTour={guidedTour} />
             <div data-testid="dashboard-page" className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4 lg:p-6">
+                {curationCounts && (
+                    <Card data-testid="my-curation">
+                        <CardHeader>
+                            <CardTitle>My curation</CardTitle>
+                            <CardDescription>Resources assigned to you across all statuses.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-wrap gap-6">
+                            <Link className="underline" href="/curation?tab=all&mine=1&open=1">
+                                {curationCounts.open} open
+                            </Link>
+                            <Link className="underline" href="/curation?tab=all&mine=1&open=1&waiting_overdue=1">
+                                {curationCounts.waiting} waiting too long
+                            </Link>
+                            <Link className="underline" href="/curation?tab=all&mine=1&open=1&help=1">
+                                {curationCounts.help} need help
+                            </Link>
+                        </CardContent>
+                    </Card>
+                )}
                 {dueEmbargoCount > 0 && (
                     <Card className="border-amber-400" data-testid="due-embargos">
                         <CardHeader>

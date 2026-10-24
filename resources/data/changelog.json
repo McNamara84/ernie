@@ -1,8 +1,13 @@
 [
     {
         "version": "1.2.0dev",
-        "date": "2026-10-20",
+        "date": "2026-10-22",
         "features": [
+            {
+                "title": "Resource Curation Tracking",
+                "description": "DOI resources have an internal curation workspace with a thirteen-point checklist, lead and team assignments, handovers, notes and activity history. Curators can track waiting periods, requests for help, deadlines and data locations. A new overview provides workflow tabs, combined filters, a My Resources view and CSV export, with personal counters on the dashboard. Beginners have read-only access. Existing unpublished resources can be initialized explicitly, while published legacy resources require an individual start.",
+                "references": [{ "type": "issue", "number": 409, "url": "https://github.com/McNamara84/ernie/issues/409" }]
+            },
             {
                 "title": "Research Data Usage Statistics",
                 "description": "Published DOI and IGSN landing pages show unique regular usage, monthly trends, an accessible data table and the actual aggregation date. IGSNs display views only. A new How we count page explains research-data COUNTER rules, exclusions, incomplete periods and the limits of measuring downloads through link clicks.",

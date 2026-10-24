@@ -436,6 +436,57 @@ status, download headers and response body instead. This is the
 [known Playwright navigation/download limitation](https://github.com/microsoft/playwright/issues/34076);
 the export test still runs in every browser without mocking the response.
 
+### Linux WebKit rendering regression
+
+`playwright` and `@playwright/test` are pinned to **1.63.0**. Playwright 1.64.0
+and 1.64.1 bundle WebKit r2370, which can stop producing animation frames on
+two-CPU Linux runners when a page uses `backdrop-filter`. This makes ordinary
+dropdown clicks and focus restoration time out, including the statistics filter
+scenario in WebKit shard 3. See [Playwright #43426](https://github.com/microsoft/playwright/issues/43426).
+
+The CI workflow also limits WebKit to **one worker per shard**, retaining all
+three shards and two workers for Chromium/Firefox. On a two-CPU Linux browser
+server, 1.64.1 failed all six repeated statistics filter scenarios; 1.63.0 with
+two workers still failed one of 21 usage statistics scenarios. With one worker,
+all 21 passed without retries and the longest desktop filter action decreased
+from the 15-second timeout to 7.3 seconds.
+
+The GPU-less Linux runners also set `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1`
+for direct Skia CPU rasterization. This avoids the software OpenGL path for
+WebKit's page rendering; Chromium and Firefox ignore the WebKit-specific setting.
+In three repeated curation benchmark runs on the same two-CPU Linux browser
+server, the slowest measured sort fell from 898 ms to 577 ms with this setting.
+Set it on the **browser server**, rather than the Playwright client, when
+reproducing CI with a remote Linux browser (for Docker, add
+`--env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` to `docker run`).
+
+Keep both exact pins until a stable release includes the corrected WebKit.
+Before upgrading or restoring two WebKit workers, repeat
+`workflows/counter-usage.spec.ts` with `--repeat-each=3` and the matching Linux
+browser server constrained to two CPUs, then verify the complete CI shards.
+Preserve the real backdrop styling, actionability checks and existing
+timeouts/retries when checking the replacement version.
+
+### Curation rendering budget
+
+`workflows/curation-performance.spec.ts` checks the first 50 of 300 curations
+against a one-second budget after warming all three sort paths. Every browser
+uses the same reference viewport of **1280 x 720 CSS pixels at pixel ratio 1**.
+The default Desktop Safari profile uses pixel ratio 2, which quadruples the
+pixel workload and makes the same timing budget incomparable with the other
+desktop projects on a software-rendered CI runner. Functional tests keep their
+normal device profiles, including Safari's pixel ratio 2. The benchmark measures
+from the real selection event through Inertia completion and two animation
+frames, then compares the rendered row IDs with the actual response.
+Run it with `--workers=1`; the WebKit CI shards already use that setting.
+
+This benchmark disables video and trace recording at file scope to keep capture
+overhead outside the measurement. `retain-on-failure` still records passing tests before
+discarding their videos. Failure screenshots and the `curation-load-times.json`
+attachment remain available. The functional scenarios in
+`workflows/curation-tracking.spec.ts` retain the normal recording settings and
+share the same fixture helper with the benchmark.
+
 ### Local browser verification
 
 The validation UX suite reuses a completed UI login per worker in memory.
@@ -538,7 +589,7 @@ Firefox continue to use their normal host browsers. The server must match the
 installed Playwright version. For the current 1.63.0 dependency:
 
 ```powershell
-docker run --rm --init -d --name ernie-webkit-tests --workdir /home/pwuser --user pwuser -p 127.0.0.1:3043:3000 mcr.microsoft.com/playwright:v1.63.0-noble npx --yes playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
+docker run --rm --init -d --name ernie-webkit-tests --workdir /home/pwuser --user pwuser --env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1 -p 127.0.0.1:3043:3000 mcr.microsoft.com/playwright:v1.63.0-noble npx --yes playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
 $env:ERNIE_WEBKIT_WS_ENDPOINT = 'ws://127.0.0.1:3043/'
 npm run test:e2e:devstack -- --project=webkit
 Remove-Item Env:ERNIE_WEBKIT_WS_ENDPOINT

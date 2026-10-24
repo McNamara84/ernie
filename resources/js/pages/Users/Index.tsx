@@ -22,6 +22,7 @@ interface UserData {
     email: string;
     role: string;
     role_label: string;
+    open_curation_leads?: number;
     is_active: boolean;
     deactivated_at: string | null;
     deactivated_by: {
@@ -328,6 +329,16 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
+                                                        {Boolean(user.open_curation_leads) && (
+                                                            <p className="mb-2 text-left text-xs text-amber-700 dark:text-amber-300">
+                                                                Leads{' '}
+                                                                <a className="underline" href={`/curation?tab=all&open=1&curator=${user.id}`}>
+                                                                    {user.open_curation_leads} open curations
+                                                                </a>
+                                                                . Arrange a handover before deactivation or changing to Beginner; assignments are
+                                                                retained.
+                                                            </p>
+                                                        )}
                                                         <div className="flex justify-end gap-2">
                                                             {user.id !== auth.user.id && user.id !== 1 && (
                                                                 <>

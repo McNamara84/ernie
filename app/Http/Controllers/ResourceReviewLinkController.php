@@ -44,11 +44,11 @@ final class ResourceReviewLinkController extends Controller
         $resourceIds = array_values(array_unique($validated['ids']));
 
         if ($migration) {
-            $result = $this->reviewLinkService->queueMigration($resourceIds, $contactAddress);
+            $result = $this->reviewLinkService->queueMigration($resourceIds, $contactAddress, $request->user(), $request->input('operation_id'));
         } else {
             /** @var User $initiator */
             $initiator = $request->user();
-            $result = $this->reviewLinkService->queue($resourceIds, $initiator, $contactAddress);
+            $result = $this->reviewLinkService->queue($resourceIds, $initiator, $contactAddress, $request->input('operation_id'));
         }
 
         $isPartial = $result['failed_resources'] !== [] || $result['skipped_recipients_count'] > 0;
