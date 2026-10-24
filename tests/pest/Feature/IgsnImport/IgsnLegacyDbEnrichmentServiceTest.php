@@ -10,6 +10,8 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
+    $ernieConnection = DB::connection();
+    DB::partialMock()->shouldReceive('connection')->withNoArgs()->andReturn($ernieConnection)->byDefault();
     $this->parser = Mockery::mock(IgsnDifXmlParser::class);
     $this->service = new IgsnLegacyDbEnrichmentService($this->parser);
 });

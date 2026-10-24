@@ -27,12 +27,14 @@
         "temporal-coverage",
         "identifier-patterns",
         "oai-schema",
-        "oai-services"
+        "oai-services",
+        "curation"
     ],
     "aliases": {
         "oai-pmh": ["oai-schema", "oai-services"]
     },
     "slices": {
+        "curation": ["tests/pest/Feature/Database/CurationConcurrencyTest.php", "tests/pest/Feature/Curation/CurationOverviewTest.php", "tests/pest/Feature/Curation/CurationQueueTest.php", "tests/pest/Feature/Curation/CurationReconciliationTest.php", "tests/pest/Feature/Curation/CurationSchemaAvailabilityTest.php", "tests/pest/Feature/Curation/CurationWorkflowTest.php"],
         "usage": [
             "tests/pest/Feature/Usage/CounterDeletionTest.php",
             "tests/pest/Feature/Usage/CounterDeletionMigrationTest.php",

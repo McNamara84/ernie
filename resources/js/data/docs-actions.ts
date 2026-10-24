@@ -16,6 +16,23 @@ export interface DocsAction {
 
 export const DOCS_ACTIONS: DocsAction[] = [
     {
+        id: 'editor-curation',
+        label: 'Curation',
+        area: 'editor',
+        requirements:
+            'Saved DOI resource or draft. Beginners can read; active Curators, Group Leaders and Admins can write. IGSNs are excluded and tombstones are read-only.',
+        onClick: 'Opens the checklist, responsible curators, working state, data locations and history without saving metadata.',
+        afterConfirmation:
+            'Each curation action saves separately. Start curation explicitly includes a published record; a handover keeps the old lead as a member.',
+        localEffect:
+            'Stores checklist decisions and an activity history. Authors can edit or delete their notes within 24 hours. Not applicable requires a reason.',
+        externalEffect:
+            'New assignments to other colleagues and selected mentions queue notifications. Review evidence confirms queuing, not delivery. Explicit start may verify an existing DOI at DataCite.',
+        publicEffect: 'Curation data is internal and does not block or trigger publication. It is excluded from public metadata exports.',
+        failure:
+            'A concurrent change returns a conflict: reload curation, reopen the form and apply your changes. Unsubmitted metadata remains in the editor.',
+    },
+    {
         id: 'editor-save-draft',
         label: 'Save Draft',
         area: 'editor',

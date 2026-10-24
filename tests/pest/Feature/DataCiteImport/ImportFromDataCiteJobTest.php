@@ -216,7 +216,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->twice()
-            ->andReturn(Resource::factory()->make());
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create());
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -308,7 +308,7 @@ describe('ImportFromDataCiteJob', function () {
                 $report->removedCount = $mergedCount;
             }
 
-            return Resource::factory()->make(['doi' => $record['id']]);
+            return Resource::factory()->create(['doi' => $record['id']]);
         });
 
         $importId = Str::uuid()->toString();
@@ -546,7 +546,7 @@ describe('ImportFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->once()
             ->with($mergedDoiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
-            ->andReturn(Resource::factory()->make(['doi' => '10.5880/legacy-relations']));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => '10.5880/legacy-relations']));
 
         $importId = Str::uuid()->toString();
         (new ImportFromDataCiteJob($this->user->id, $importId))
@@ -599,7 +599,7 @@ describe('ImportFromDataCiteJob', function () {
                         'source' => 'legacy-crc806',
                     ]];
             })
-            ->andReturn(Resource::factory()->make(['doi' => '10.5880/sfb806.80']));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => '10.5880/sfb806.80']));
 
         Http::fake([
             'https://crc806db.uni-koeln.de/*' => Http::response(crc806ImportJobPage()),
@@ -645,7 +645,7 @@ describe('ImportFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->once()
             ->with($preparedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
-            ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doiRecord['id']]));
 
         Http::fake();
         Http::preventStrayRequests();
@@ -711,7 +711,7 @@ describe('ImportFromDataCiteJob', function () {
                         ],
                     ];
             })
-            ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doiRecord['id']]));
 
         Http::fake([
             'https://crc806db.uni-koeln.de/*' => Http::response(crc806ImportJobPage(
@@ -747,7 +747,7 @@ describe('ImportFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->once()
             ->with($preparedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
-            ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doiRecord['id']]));
 
         Http::fake([
             'https://crc806db.uni-koeln.de/*' => Http::response('<html>legacy page without route data</html>'),
@@ -795,7 +795,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->twice()
-            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->make([
+            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->create([
                 'doi' => $record['attributes']['doi'],
             ]));
 
@@ -840,7 +840,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->twice()
-            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->make([
+            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->create([
                 'doi' => $record['attributes']['doi'],
             ]));
         $this->metaworksService->shouldReceive('lookupFileEntries')->never();
@@ -966,7 +966,7 @@ describe('ImportFromDataCiteJob', function () {
                     && $doiRecord['id'] === '10.5880/gfz.ojsj.2026.002'
                     && $doiRecord['attributes']['doi'] === '10.5880/gfz.ojsj.2026.002';
             })
-            ->andReturn(Resource::factory()->make(['doi' => '10.5880/gfz.ojsj.2026.002']));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => '10.5880/gfz.ojsj.2026.002']));
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -1007,7 +1007,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->andReturn(Resource::factory()->make());
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create());
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -1289,7 +1289,7 @@ describe('ImportFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->once()
             ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
-            ->andReturn(Resource::factory()->make());
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create());
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/sample.single');
@@ -1344,7 +1344,7 @@ describe('ImportFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->once()
             ->with($expectedRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
-            ->andReturn(Resource::factory()->make(['doi' => $doi]));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
 
         $importId = Str::uuid()->toString();
         (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
@@ -1781,7 +1781,7 @@ describe('ImportFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->once()
             ->with($doiRecord, $this->user->id, Mockery::type(GeoLocationWriteReport::class))
-            ->andReturn(Resource::factory()->make(['doi' => '10.5880/incomplete-citations']));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => '10.5880/incomplete-citations']));
 
         $importId = Str::uuid()->toString();
         (new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/incomplete-citations'))
@@ -2229,7 +2229,7 @@ describe('ImportFromDataCiteJob', function () {
                     'status' => 'cancelled',
                 ], now()->addHour());
 
-                return Resource::factory()->make();
+                return Resource::factory()->create();
             });
 
         $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/cancelled.single');
@@ -3135,6 +3135,9 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
     });
 
     it('continues the import when landing page creation fails after metaworks files were found', function () {
+        LandingPage::creating(static function (): void {
+            throw new RuntimeException('Simulated landing page persistence failure');
+        });
         $this->importService
             ->shouldReceive('getTotalDoiCount')
             ->once()
@@ -3156,7 +3159,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->andReturn(Resource::factory()->make(['doi' => '10.5880/lp.create.fail']));
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => '10.5880/lp.create.fail']));
 
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
         $metaworksService->shouldReceive('lookupFileEntries')

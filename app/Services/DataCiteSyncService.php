@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Resource;
+use App\Services\Curation\CurationRegistrationService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 
@@ -147,7 +148,13 @@ class DataCiteSyncService
                 'test_mode' => $this->registrationService->isTestMode(),
             ]);
 
-            $this->registrationService->updateMetadata($resource);
+            $response = $this->registrationService->updateMetadata($resource);
+            app(CurationRegistrationService::class)->record(
+                $resource,
+                $response,
+                $this->registrationService instanceof FakeDataCiteRegistrationService ? 'fake' : ($this->registrationService->isTestMode() ? 'test' : 'production'),
+                'automatic_sync',
+            );
 
             Log::info('DataCite sync completed successfully', [
                 'resource_id' => $resource->id,

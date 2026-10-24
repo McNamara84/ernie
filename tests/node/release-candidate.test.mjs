@@ -11,7 +11,7 @@ const artifact = { schema: 1, repository: 'Example/ernie', branch: 'main', sha: 
 function template() {
     return {
         name: 'production', networks: { traefik: { external: true } }, volumes: { 'storage-data': { name: 'live-storage' } },
-        services: Object.fromEntries(['app', 'queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler', 'webserver', 'db', 'redis', 'fuji'].map((name) => [name, {
+        services: Object.fromEntries(['app', 'queue', 'curation-queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler', 'webserver', 'db', 'redis', 'fuji'].map((name) => [name, {
             container_name: `production-${name}`, image: name === 'db' ? 'mysql:9.7.2@sha256:abc' : 'unused',
             networks: { traefik: {} }, ports: [{ published: '80' }], labels: { 'traefik.enable': 'true' },
             environment: { APP_URL: 'https://production.example', DATACITE_ENDPOINT: 'https://api.datacite.org', FUJI_PASSWORD: '${FUJI_PASSWORD}', KEEP_DEFAULT: '${SOME_SETTING:-default}', },
@@ -33,7 +33,7 @@ test('candidate uses original images with independent containers, networks, volu
         assert.ok(service.volumes.every((volume) => volume.type === 'volume'));
         assert.deepEqual(service.networks, { release: null });
     }
-    for (const name of ['app', 'queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler']) {
+    for (const name of ['app', 'queue', 'curation-queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler']) {
         const service = compose.services[name];
         assert.equal(service.image, artifact.images.app);
         assert.equal(service.environment.DATACITE_ENDPOINT, 'https://api.test.datacite.org');
@@ -67,7 +67,7 @@ test('all candidate app services receive the test credentials and repository ID 
     source.services.app.environment.DATACITE_PASSWORD = '${DATACITE_PASSWORD}';
     source.services.app.environment.DATACITE_CLIENT_ID = '${DATACITE_CLIENT_ID}';
     const compose = releaseCompose(source, artifact);
-    for (const name of ['app', 'queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler']) {
+    for (const name of ['app', 'queue', 'curation-queue', 'assistance-queue', 'assessment-queue', 'elmo-cache-refresh', 'scheduler']) {
         const env = compose.services[name].environment;
         assert.equal(env.DATACITE_TEST_MODE, 'true');
         assert.equal(env.DATACITE_TEST_ENDPOINT, 'https://api.test.datacite.org');
@@ -89,8 +89,9 @@ test('verification rejects another project, missing or unhealthy services, and s
     }));
     const result = inspectCandidateContainers(containers, artifact);
     assert.equal(result.appUrl, 'http://localhost:8181');
-    assert.equal(result.services.length, 10);
+    assert.equal(result.services.length, 11);
     assert.throws(() => inspectCandidateContainers(containers.slice(1), artifact), /required release service/u);
+    assert.throws(() => inspectCandidateContainers(containers.filter((c) => c.Config.Labels['com.docker.compose.service'] !== 'curation-queue'), artifact), /required release service/u);
     const change = (modify) => { const copy = structuredClone(containers); modify(copy[0]); return copy; };
     assert.throws(() => inspectCandidateContainers(change((c) => { c.Config.Image = 'ghcr.io/example/ernie-app:latest'; }), artifact), /different image/u);
     assert.throws(() => inspectCandidateContainers(change((c) => { c.Config.Labels['com.docker.compose.project'] = 'production'; }), artifact), /Unexpected/u);

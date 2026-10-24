@@ -320,9 +320,22 @@ entity "resource_listing_projections" as resource_listing_projections {
     * search_text : TEXT
     party_search_text : TEXT <<nullable>>
     party_name_search_text : TEXT <<nullable>>
+    * curation_started : BOOLEAN = false
+    * curation_progress : TINYINT = 0 //unsigned//
+    * curation_manual_open : TINYINT = 8 //unsigned//
+    * curation_open : BOOLEAN = false
+    curation_activity_at : TIMESTAMP <<nullable>>
+    curation_published_at : TIMESTAMP <<nullable>>
+    curation_waiting_since : TIMESTAMP <<nullable>>
+    * curation_needs_help : BOOLEAN = false
+    curation_deadline : DATE <<nullable>>
+    curation_contact : TEXT <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+' resource_listing_projections curation_activity_sort: index(curation_started, workflow_status, curation_activity_at, resource_id)
+' resource_listing_projections curation_deadline_sort: index(curation_started, curation_deadline, resource_id)
+' resource_listing_projections curation_progress_sort: index(curation_started, curation_progress, resource_id)
 
 entity "resource_party_name_terms" as resource_party_name_terms {
     * **id** : BIGINT <<PK>>
@@ -330,6 +343,124 @@ entity "resource_party_name_terms" as resource_party_name_terms {
     * resource_id : BIGINT <<FK>> //indexed, cascade delete//
     * term : TEXT //normalized public party name//
 }
+
+' RESOURCE CURATION WORKFLOW
+
+entity "resource_curation_states" as resource_curation_states {
+    * **resource_id** : BIGINT <<PK, FK>> //unsigned, CASCADE on delete//
+    --
+    started_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * start_source : VARCHAR(30)
+    * started_at : TIMESTAMP
+    * checklist_version : INT = 1 //unsigned//
+    lead_curator_id : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    waiting_for : VARCHAR(20) <<nullable>>
+    waiting_text : TEXT <<nullable>>
+    waiting_since : TIMESTAMP <<nullable>>
+    needs_help_text : TEXT <<nullable>>
+    deadline : DATE <<nullable>>
+    deadline_reason : TEXT <<nullable>>
+    * last_activity_at : TIMESTAMP
+    * revision : BIGINT = 0 //unsigned//
+}
+
+entity "resource_curators" as resource_curators {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * user_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    assigned_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * assigned_at : TIMESTAMP
+}
+' resource_curators unique(resource_id, user_id)
+' resource_curators index(user_id, resource_id)
+
+entity "resource_checklist_items" as resource_checklist_items {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * item_key : VARCHAR(80)
+    * state : VARCHAR(20)
+    reason : TEXT <<nullable>>
+    changed_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    changed_by_name : VARCHAR(255) <<nullable>>
+    * changed_at : TIMESTAMP
+    * revision : BIGINT = 0 //unsigned//
+}
+' resource_checklist_items unique(resource_id, item_key)
+
+entity "resource_curation_events" as resource_curation_events {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * type : VARCHAR(60)
+    user_id : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * actor_name : VARCHAR(255)
+    * payload : JSON
+    body : TEXT <<nullable>>
+    * revision : BIGINT = 0 //unsigned//
+    * created_at : TIMESTAMP
+    edited_at : TIMESTAMP <<nullable>>
+    deleted_at : TIMESTAMP <<nullable>>
+}
+' resource_curation_events curation_event_cursor: index(resource_id, created_at, id)
+' resource_curation_events curation_event_type: index(resource_id, type, id)
+
+entity "resource_review_link_dispatches" as resource_review_link_dispatches {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * operation_id : CHAR(36)
+    * kind : VARCHAR(20)
+    sent_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * queued_at : TIMESTAMP
+    * queued_recipients : INT //unsigned//
+    queued_recipient_keys : JSON <<nullable>>
+    * skipped_recipients : INT = 0 //unsigned//
+}
+' resource_review_link_dispatches curation_dispatch_operation: unique(resource_id, operation_id)
+
+entity "resource_doi_registration_evidence" as resource_doi_registration_evidence {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * doi : VARCHAR(255)
+    * environment : VARCHAR(20)
+    * state : VARCHAR(20)
+    * source : VARCHAR(30)
+    * confirmed_at : TIMESTAMP
+}
+' resource_doi_registration_evidence curation_registration_identity: unique(resource_id, doi, environment)
+
+entity "resource_data_locations" as resource_data_locations {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * type : VARCHAR(30)
+    * location : TEXT
+    created_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * revision : BIGINT = 0 //unsigned//
+    created_at : TIMESTAMP <<nullable>>
+    updated_at : TIMESTAMP <<nullable>>
+}
+
+entity "resource_curation_mentions" as resource_curation_mentions {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * event_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * user_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+}
+' resource_curation_mentions unique(event_id, user_id)
+
+entity "resource_curation_notifications" as resource_curation_notifications {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * event_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * user_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * type : VARCHAR(30)
+    queued_at : TIMESTAMP <<nullable>>
+}
+' resource_curation_notifications curation_notification_unique: unique(event_id, user_id, type)
 
 ' ==========================================================================
 ' RESOURCE RELATIONSHIP TABLES
@@ -1655,6 +1786,27 @@ users |o--o{ assessment_runs : "initiated_by_user_id"
 users |o--o{ assessment_runs : "last_controlled_by_user_id"
 assessment_runs ||--o{ assessment_run_items
 resources |o--o{ assessment_run_items
+
+' Resource curation relationships
+resources ||--o| resource_curation_states : "resource_id"
+users |o--o{ resource_curation_states : "started_by"
+users |o--o{ resource_curation_states : "lead_curator_id"
+resources ||--o{ resource_curators : "resource_id"
+users ||--o{ resource_curators : "user_id"
+users |o--o{ resource_curators : "assigned_by"
+resources ||--o{ resource_checklist_items : "resource_id"
+users |o--o{ resource_checklist_items : "changed_by"
+resources ||--o{ resource_curation_events : "resource_id"
+users |o--o{ resource_curation_events : "user_id"
+resources ||--o{ resource_review_link_dispatches : "resource_id"
+users |o--o{ resource_review_link_dispatches : "sent_by"
+resources ||--o{ resource_doi_registration_evidence : "resource_id"
+resources ||--o{ resource_data_locations : "resource_id"
+users |o--o{ resource_data_locations : "created_by"
+resource_curation_events ||--o{ resource_curation_mentions : "event_id"
+users ||--o{ resource_curation_mentions : "user_id"
+resource_curation_events ||--o{ resource_curation_notifications : "event_id"
+users ||--o{ resource_curation_notifications : "user_id"
 
 ' Resource core relationships
 resources ||--o| resource_listing_projections

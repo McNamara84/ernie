@@ -56,7 +56,7 @@ The Compose files on `main` and `dev` contains the deliberately unpublished
 direct Portainer deployment target. The workflow requires and replaces every
 marker before advancing `deploy/stage`.
 
-The `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler` services share
+The `app`, `queue`, `curation-queue`, `assistance-queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler` services share
 the same application image. `webserver` uses the Nginx image.
 
 ## One-time rollout
@@ -184,7 +184,7 @@ retention and recovery; an old image must not restart legacy writes.
 
 Portainer must show these image references:
 
-- `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
+- `app`, `queue`, `curation-queue`, `assistance-queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
 - `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
 - `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
@@ -304,6 +304,16 @@ transition can invalidate encrypted cookies and make application-encrypted
 values unreadable. Audit encrypted data first and use Laravel's previous-key
 support during the transition.
 
+
+## Curation mail worker
+
+The `curation-queue` service consumes the `curation` connection and queue from the
+application database, independently of the general worker's `DB_QUEUE_CONNECTION`.
+It inherits the pinned application image, database and mail configuration from
+`queue`. Redeploy the full stack to start it; restarting only `app` is insufficient.
+The worker has a 60-second timeout, three attempts and a 90-second reservation.
+See [curation mail queue](local-development.md#curation-mail-queue) for the atomic
+audit guarantee and draining pending jobs from earlier issue-409 builds.
 
 ## ELMO cache refresh worker
 

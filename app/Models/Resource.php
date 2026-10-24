@@ -76,12 +76,49 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, AlternateIdentifier> $alternateIdentifiers
  * @property-read Collection<int, ResourceInstrument> $instruments
  * @property-read Datacenter|null $datacenter
+ * @property-read ResourceCurationState|null $curationState
+ * @property-read Collection<int, ResourceChecklistItem> $checklistItems
+ * @property-read Collection<int, User> $curators
+ * @property-read Collection<int, ResourceDoiRegistrationEvidence> $registrationEvidence
+ * @property-read Collection<int, ResourceReviewLinkDispatch> $reviewDispatches
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
 #[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'legacy_description_breaks_normalized_at', 'force_review_status', 'workflow_status_override', 'access_level'])]
 class Resource extends Model
 {
+    protected $hidden = ['curationState', 'curation_state', 'checklistItems', 'checklist_items', 'curators', 'registrationEvidence', 'registration_evidence', 'reviewDispatches', 'review_dispatches'];
+
+    /** @return HasOne<ResourceCurationState, $this> */
+    public function curationState(): HasOne
+    {
+        return $this->hasOne(ResourceCurationState::class);
+    }
+
+    /** @return HasMany<ResourceChecklistItem, $this> */
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(ResourceChecklistItem::class);
+    }
+
+    /** @return BelongsToMany<User, $this> */
+    public function curators(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'resource_curators');
+    }
+
+    /** @return HasMany<ResourceDoiRegistrationEvidence, $this> */
+    public function registrationEvidence(): HasMany
+    {
+        return $this->hasMany(ResourceDoiRegistrationEvidence::class);
+    }
+
+    /** @return HasMany<ResourceReviewLinkDispatch, $this> */
+    public function reviewDispatches(): HasMany
+    {
+        return $this->hasMany(ResourceReviewLinkDispatch::class);
+    }
+
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
 

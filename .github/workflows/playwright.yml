@@ -161,10 +161,16 @@ jobs:
         echo "=== Testing login page ==="
         curl -s http://127.0.0.1:8000/login | grep -q "login" && echo "✅ Login page accessible" || echo "❌ Login page NOT accessible"
     - name: Run Playwright tests
-      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 --reporter=github,html
+      # Linux WebKit needs a full CPU budget for backdrop-filter rendering.
+      # Keep all three shards, but avoid competing renderers within each job.
+      # See docs/testing.md (Linux WebKit rendering regression).
+      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 --workers=${{ matrix.browser == 'webkit' && 1 || 2 }} --reporter=github,html
       env:
         CI: true
         PLAYWRIGHT_HTML_OPEN: never
+        # These Linux runners have no hardware GPU. Render directly with Skia
+        # instead of routing WebKit's rasterization through software OpenGL.
+        WEBKIT_SKIA_ENABLE_CPU_RENDERING: '1'
     - name: Stop Laravel server
       if: always()
       run: |

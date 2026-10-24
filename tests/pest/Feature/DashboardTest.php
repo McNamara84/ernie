@@ -600,8 +600,15 @@ test('dashboard initial response executes no global metric counts', function () 
     expect(array_filter(
         $queries,
         static fn (string $sql): bool => preg_match('/\bcount\s*\(/', $sql) === 1
-            && (str_contains($sql, 'resource_listing_projections') || str_contains($sql, 'affiliations')),
+            && (str_contains($sql, 'resource_listing_projections') || str_contains($sql, 'affiliations'))
+            && ! str_contains($sql, 'resource_curators'),
     ))->toBeEmpty();
+    // The new widget counts only resources assigned to the signed-in user.
+    $personalCounts = array_filter($queries, static fn (string $sql): bool => str_contains($sql, 'count(') && str_contains($sql, 'resource_curators'));
+    expect($personalCounts)->toHaveCount(3);
+    foreach ($personalCounts as $sql) {
+        expect($sql)->toContain('exists', 'user_id');
+    }
 });
 
 test('dashboard metric cache is invalidated after a projected resource change', function () {

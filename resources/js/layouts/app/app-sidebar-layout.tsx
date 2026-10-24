@@ -17,9 +17,10 @@ import { type BreadcrumbItem } from '@/types';
 interface AppSidebarLayoutProps {
     breadcrumbs?: BreadcrumbItem[];
     showFooter?: boolean;
+    transitionKey?: string;
 }
 
-export default function AppSidebarLayout({ children, breadcrumbs = [], showFooter = true }: PropsWithChildren<AppSidebarLayoutProps>) {
+export default function AppSidebarLayout({ children, breadcrumbs = [], showFooter = true, transitionKey }: PropsWithChildren<AppSidebarLayoutProps>) {
     // Ensure session/CSRF token is initialized on first mount
     useSessionWarmup();
     useNProgress();
@@ -32,7 +33,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [], showFoote
                 <AppContent variant="sidebar" className="min-w-0 overflow-x-clip">
                     <AppSidebarHeader breadcrumbs={breadcrumbs} />
                     <ErrorBoundary>
-                        <PageTransition>{children}</PageTransition>
+                        <PageTransition transitionKey={transitionKey}>{children}</PageTransition>
                     </ErrorBoundary>
                     {showFooter && <AppFooter />}
                 </AppContent>

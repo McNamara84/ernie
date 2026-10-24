@@ -289,15 +289,137 @@ erDiagram
         text search_text
         text party_search_text "nullable"
         text party_name_search_text "nullable"
+        boolean curation_started "default: false"
+        tinyint curation_progress "unsigned, default: 0"
+        tinyint curation_manual_open "unsigned, default: 8"
+        boolean curation_open "default: false"
+        timestamp curation_activity_at "nullable"
+        timestamp curation_published_at "nullable"
+        timestamp curation_waiting_since "nullable"
+        boolean curation_needs_help "default: false"
+        date curation_deadline "nullable"
+        text curation_contact "nullable"
         timestamp created_at
         timestamp updated_at
     }
+    %% resource_listing_projections curation_activity_sort: index(curation_started, workflow_status, curation_activity_at, resource_id)
+    %% resource_listing_projections curation_deadline_sort: index(curation_started, curation_deadline, resource_id)
+    %% resource_listing_projections curation_progress_sort: index(curation_started, curation_progress, resource_id)
 
     resource_party_name_terms {
         bigint id PK
         bigint resource_id FK "indexed, cascade delete"
         text term "normalized public party name"
     }
+
+    %% RESOURCE CURATION WORKFLOW
+
+    resource_curation_states {
+        bigint resource_id PK,FK "unsigned, CASCADE on delete"
+        bigint started_by FK "unsigned, nullable, SET NULL on delete"
+        varchar start_source "30"
+        timestamp started_at
+        int checklist_version "unsigned, default: 1"
+        bigint lead_curator_id FK "unsigned, nullable, SET NULL on delete"
+        varchar waiting_for "20, nullable"
+        text waiting_text "nullable"
+        timestamp waiting_since "nullable"
+        text needs_help_text "nullable"
+        date deadline "nullable"
+        text deadline_reason "nullable"
+        timestamp last_activity_at
+        bigint revision "unsigned, default: 0"
+    }
+
+    resource_curators {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        bigint user_id FK "unsigned, CASCADE on delete"
+        bigint assigned_by FK "unsigned, nullable, SET NULL on delete"
+        timestamp assigned_at
+    }
+    %% resource_curators unique(resource_id, user_id)
+    %% resource_curators index(user_id, resource_id)
+
+    resource_checklist_items {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar item_key "80"
+        varchar state "20"
+        text reason "nullable"
+        bigint changed_by FK "unsigned, nullable, SET NULL on delete"
+        varchar changed_by_name "255, nullable"
+        timestamp changed_at
+        bigint revision "unsigned, default: 0"
+    }
+    %% resource_checklist_items unique(resource_id, item_key)
+
+    resource_curation_events {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar type "60"
+        bigint user_id FK "unsigned, nullable, SET NULL on delete"
+        varchar actor_name "255"
+        json payload
+        text body "nullable"
+        bigint revision "unsigned, default: 0"
+        timestamp created_at
+        timestamp edited_at "nullable"
+        timestamp deleted_at "nullable"
+    }
+    %% resource_curation_events curation_event_cursor: index(resource_id, created_at, id)
+    %% resource_curation_events curation_event_type: index(resource_id, type, id)
+
+    resource_review_link_dispatches {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        char operation_id "36"
+        varchar kind "20"
+        bigint sent_by FK "unsigned, nullable, SET NULL on delete"
+        timestamp queued_at
+        int queued_recipients "unsigned"
+        json queued_recipient_keys "nullable"
+        int skipped_recipients "unsigned, default: 0"
+    }
+    %% resource_review_link_dispatches curation_dispatch_operation: unique(resource_id, operation_id)
+
+    resource_doi_registration_evidence {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar doi "255"
+        varchar environment "20"
+        varchar state "20"
+        varchar source "30"
+        timestamp confirmed_at
+    }
+    %% resource_doi_registration_evidence curation_registration_identity: unique(resource_id, doi, environment)
+
+    resource_data_locations {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar type "30"
+        text location
+        bigint created_by FK "unsigned, nullable, SET NULL on delete"
+        bigint revision "unsigned, default: 0"
+        timestamp created_at "nullable"
+        timestamp updated_at "nullable"
+    }
+
+    resource_curation_mentions {
+        bigint id PK "unsigned"
+        bigint event_id FK "unsigned, CASCADE on delete"
+        bigint user_id FK "unsigned, CASCADE on delete"
+    }
+    %% resource_curation_mentions unique(event_id, user_id)
+
+    resource_curation_notifications {
+        bigint id PK "unsigned"
+        bigint event_id FK "unsigned, CASCADE on delete"
+        bigint user_id FK "unsigned, CASCADE on delete"
+        varchar type "30"
+        timestamp queued_at "nullable"
+    }
+    %% resource_curation_notifications curation_notification_unique: unique(event_id, user_id, type)
 
     %% =========================================================================
     %% RESOURCE RELATIONSHIP TABLES
@@ -1535,6 +1657,27 @@ erDiagram
     users |o--o{ assessment_runs : "last controls"
     assessment_runs ||--o{ assessment_run_items : "contains"
     resources |o--o{ assessment_run_items : "assessment target"
+
+    %% Resource curation relationships
+    resources ||--o| resource_curation_states : "resource_id"
+    users |o--o{ resource_curation_states : "started_by"
+    users |o--o{ resource_curation_states : "lead_curator_id"
+    resources ||--o{ resource_curators : "resource_id"
+    users ||--o{ resource_curators : "user_id"
+    users |o--o{ resource_curators : "assigned_by"
+    resources ||--o{ resource_checklist_items : "resource_id"
+    users |o--o{ resource_checklist_items : "changed_by"
+    resources ||--o{ resource_curation_events : "resource_id"
+    users |o--o{ resource_curation_events : "user_id"
+    resources ||--o{ resource_review_link_dispatches : "resource_id"
+    users |o--o{ resource_review_link_dispatches : "sent_by"
+    resources ||--o{ resource_doi_registration_evidence : "resource_id"
+    resources ||--o{ resource_data_locations : "resource_id"
+    users |o--o{ resource_data_locations : "created_by"
+    resource_curation_events ||--o{ resource_curation_mentions : "event_id"
+    users ||--o{ resource_curation_mentions : "user_id"
+    resource_curation_events ||--o{ resource_curation_notifications : "event_id"
+    users ||--o{ resource_curation_notifications : "user_id"
 
     %% Resource core relationships
     resources ||--o| resource_listing_projections : "has listing projection"

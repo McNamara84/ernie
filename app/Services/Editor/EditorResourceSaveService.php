@@ -7,7 +7,9 @@ namespace App\Services\Editor;
 use App\Enums\EditorDraftSaveIntent;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Resource;
+use App\Models\ResourceCurationState;
 use App\Models\User;
+use App\Services\Curation\CurationService;
 use App\Services\ResourceStorageService;
 use App\Services\UserActivityService;
 use Illuminate\Support\Facades\DB;
@@ -127,6 +129,11 @@ final readonly class EditorResourceSaveService
      */
     private function logSave(Resource $resource, ?User $user, array $before, bool $isUpdate, ?array $autosaveData = null): void
     {
+        $curation = app(CurationService::class);
+        if (! $isUpdate) {
+            $curation->start($resource, $user);
+        }
+        $curation->reconcile($resource->id);
         if ($user === null) {
             return;
         }
@@ -137,6 +144,9 @@ final readonly class EditorResourceSaveService
             : $activities->editorSnapshot($resource, array_key_exists('relatedItems', $autosaveData));
         $fields = $activities->changedFields($before, $after);
         if (! $isUpdate || $fields !== []) {
+            if ($curation->available()) {
+                ResourceCurationState::whereKey($resource->id)->update(['last_activity_at' => now()]);
+            }
             $activities->record($activities->actor($user), $isUpdate ? 'resource.metadata_updated' : 'resource.created',
                 $isUpdate ? 'updated metadata in the Data Editor for' : 'created in the Data Editor',
                 $activities->subject($resource->fresh() ?? $resource), $fields);

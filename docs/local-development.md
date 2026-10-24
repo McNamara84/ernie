@@ -180,6 +180,35 @@ npm run docker:dev:assessment
 npm run docker:dev:parity
 ```
 
+### Curation mail queue
+
+The standard stack includes `curation-queue` for review invitations, review-link
+migration emails, mentions and assignment notifications. It runs
+`php artisan queue:work curation --queue=curation --sleep=1 --tries=3 --timeout=60`.
+The `curation` connection always uses the application's database and its `jobs`
+table, even when `DB_QUEUE_CONNECTION`, `DB_QUEUE_TABLE` or `DB_QUEUE` sends the
+general worker elsewhere. Queue insertion and the curation audit receipt share
+one transaction; rolling it back removes both. Keep `after_commit=false` on this
+connection so a queue insertion failure also rolls back the receipt.
+
+The worker's 60-second timeout is shorter than the 90-second reservation, and
+Compose allows 75 seconds for graceful shutdown. New messages use the dedicated
+`curation` queue so the general worker does not reserve them with its longer
+timeout. Stage, Production and the isolated release candidate include this worker
+using the same application image and mail settings as the general worker.
+
+After pulling the change, start the consumer with:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml up -d curation-queue
+```
+
+Earlier issue-409 builds queued these messages on the application database's
+`default` queue. Existing jobs retain that routing: let the general worker finish
+them if it uses that database. With a separate general queue database, drain the
+old application `default` queue using the `curation` connection before completing
+the rollout. Do not delete pending jobs or their audit receipts.
+
 ### Assistant discovery queue
 
 The standard stack includes `assistance-queue`, separate from the general queue
@@ -1102,3 +1131,89 @@ npm run test:php -- tests/pest/Unit/Deployment/ElmoCacheRefreshDeploymentTest.ph
 npm run test:php:mysql-sensitive:editor-settings
 npm run check:backend
 ```
+
+## Curation tracking
+
+Until all curation tables and projection columns exist, curation overview, export,
+panel, history and write requests return HTTP 503. Dashboard and user-list counts
+remain zero. Review invitations and review-link migration emails continue through
+the configured default mail queue, without curation receipts or operation-ID
+deduplication. Schema readiness is rechecked on subsequent requests, so normal
+curation tracking resumes once the migration is complete.
+
+After deploying the additive curation migration, finish or pause running imports
+before initializing existing unpublished resources:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan curation:initialize
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan curation:initialize --apply
+```
+
+The first command is a dry run. Repeated runs preserve existing curation work.
+Published resources, IGSNs and tombstones are excluded; eligible older drafts
+start unassigned. Published records require the editor's explicit **Start curation**
+action. Newly saved drafts and finished unpublished imports start automatically.
+Beginner users can read every curation section but cannot write or be newly assigned.
+
+Review dispatch receipts are recorded only for resources whose curation has
+already started. Untracked resources continue using the configured default mail
+queue without receipts or operation-ID deduplication, even after the migration.
+Initializing curation later does not retroactively count those earlier emails
+as observed review evidence or complete the automatic review-link checklist item.
+
+Keep the scheduler and dedicated `curation-queue` worker running. Assignment and mention
+notifications use the `curation` database connection's `curation` queue so the job
+and its receipt commit atomically. The scheduler retries pending notifications
+every minute. Existing DOI verification uses the configured DataCite queue.
+Review events mean queued, not delivered. Internal notes and locations are not
+included in public metadata exports; the authenticated curation CSV is intentional.
+
+`CURATION_WAITING_OVERDUE_DAYS` defaults to 14 (overdue on calendar day 15).
+The start date is day 1: a wait started at any time on October 1 becomes overdue
+at 00:00 on October 15 in the application timezone. The same boundary applies to
+the panel, overview filters, CSV export and dashboard counts, including DST changes.
+Deadlines become overdue the following day for unpublished records. Application
+timezone boundaries apply. Completion requires publication, all applicable manual
+items, no waiting and no help request. Missing historical review evidence does
+not prevent completion. Embargos remain open and tombstones retain read-only history.
+
+Focused checks use the pinned Node version and MySQL 9.7:
+
+```bash
+npm run test:php -- tests/pest/Feature/Curation
+npm run test:run -- tests/vitest/components/curation-workflow
+npm run test:php:mysql-sensitive -- --slice curation
+npm run test:e2e:devstack -- workflows/curation-performance.spec.ts workflows/curation-tracking.spec.ts --workers=1
+```
+
+The browser performance measurement requires a single worker so concurrent test
+fixtures and editor actions do not distort the one-second target. Its separate
+`curation-performance.spec.ts` file uses a common 1280 x 720 viewport at pixel
+ratio 1 in every browser and disables video and trace recording to avoid
+measuring capture overhead; timing attachments and failure screenshots remain
+available. Functional curation scenarios retain normal recording settings and
+also run with the normal parallel browser configuration.
+Set `ERNIE_PLAYWRIGHT_ASSETS=build` for performance acceptance with production
+assets; the wrapper restores the usual Vite development setup afterwards.
+On Docker Desktop, also set `ERNIE_PLAYWRIGHT_BACKEND=native` to serve the same
+PHP sources from the prepared Linux workspace, as the backend test wrapper does.
+This excludes Windows bind-mount file latency from the application benchmark.
+The native backend requires built assets and uses separate local storage; use it
+for database-backed scenarios such as curation. The default `bind` backend keeps
+the development filesystem for scenarios with file fixtures. Run native browser
+checks separately from PHP test/style wrappers because they share the Linux
+workspace. For example:
+
+```powershell
+$env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
+$env:ERNIE_PLAYWRIGHT_BACKEND = 'native'
+npm run test:e2e:devstack -- workflows/curation-performance.spec.ts workflows/curation-tracking.spec.ts --workers=1
+Remove-Item Env:ERNIE_PLAYWRIGHT_ASSETS, Env:ERNIE_PLAYWRIGHT_BACKEND
+```
+
+Each sort path is warmed once before measuring from the actual change event
+through Inertia completion and browser painting. The attached JSON records
+response time, native PHP request time, navigation completion, browser frames, time until the page is
+usable, and Playwright control time separately. The rendered row IDs must match
+the response order. Sorting and filtering preserve the mounted overview and
+expanded details without replaying the page transition.

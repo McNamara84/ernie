@@ -9,6 +9,8 @@ use App\Enums\CitationLabelResolutionMode;
 use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Models\Resource;
 use App\Services\Crc806LegacyRightsService;
+use App\Services\Curation\CurationRegistrationService;
+use App\Services\Curation\CurationService;
 use App\Services\DatacenterNameService;
 use App\Services\DataCiteCreatorNameMergeService;
 use App\Services\DataCiteImportService;
@@ -1173,6 +1175,8 @@ class ImportFromDataCiteJob implements ShouldQueue
             $activities = app(UserActivityService::class);
             $activities->record($this->activityActor, 'resource.imported', 'imported from DataCite',
                 $activities->subject($importedResource), operationId: $this->importId);
+            app(CurationService::class)->start($importedResource, null, 'import');
+            app(CurationRegistrationService::class)->record($importedResource, $doiRecord, 'production', 'import');
 
             if ($geoReport->removedCount > 0) {
                 $importedResource->getConnection()->afterCommit(function () use ($geoReport, $doi): void {
