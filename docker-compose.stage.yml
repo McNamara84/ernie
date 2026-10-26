@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:cd4d41a5d6ac4841266adff1410c44848dcd1ab4ea78e461acba6704af46243c}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:31fe3ea84d8c690853a5c0a041489904506f4eeaf05c4f6863cddb312a9bafe0}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -132,25 +132,12 @@ services:
       - DB_SUMARIOPMD_NAME=${DB_SUMARIOPMD_NAME:-sumario-pmd}
       - DB_SUMARIOPMD_USER=${DB_SUMARIOPMD_USER:-root}
       - DB_SUMARIOPMD_PASSWORD=${DB_SUMARIOPMD_PASSWORD:-}
-      - SOLR_HOST=${SOLR_HOST:-}
-      - SOLR_PORT=${SOLR_PORT:-443}
-      - SOLR_USER=${SOLR_USER:-}
-      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
       - DB_IGSN_HOST=${DB_IGSN_HOST:-127.0.0.1}
       - DB_IGSN_PORT=${DB_IGSN_PORT:-3306}
       - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
-      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
-      - GFZ_IGSN_PORTAL_PROXY_URL=${GFZ_IGSN_PORTAL_PROXY_URL:-https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php}
-      - GFZ_IGSN_PORTAL_CONNECT_TIMEOUT=${GFZ_IGSN_PORTAL_CONNECT_TIMEOUT:-5}
-      - GFZ_IGSN_PORTAL_TIMEOUT=${GFZ_IGSN_PORTAL_TIMEOUT:-30}
-      - GFZ_IGSN_PORTAL_RETRY_TIMES=${GFZ_IGSN_PORTAL_RETRY_TIMES:-3}
-      - GFZ_IGSN_PORTAL_RETRY_SLEEP_MS=${GFZ_IGSN_PORTAL_RETRY_SLEEP_MS:-500}
-      - GFZ_IGSN_PORTAL_RETRY_JITTER_MS=${GFZ_IGSN_PORTAL_RETRY_JITTER_MS:-100}
-      - GFZ_IGSN_PORTAL_PAGE_SIZE=${GFZ_IGSN_PORTAL_PAGE_SIZE:-500}
-      - GFZ_IGSN_PORTAL_CACHE_TTL=${GFZ_IGSN_PORTAL_CACHE_TTL:-600}
       # Mail configuration
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -164,7 +151,7 @@ services:
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:3cbd4789ea5a63a9f08e977609780fe79297d79e63d94ed023045cc04523ae6d}"
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:2135c1f2cd215562d3f8d26d5fc3d5156fc4e32b75f49c5be60197a1dd126b83}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -224,7 +211,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:7d80ff1c392a220431299348dcfcefde7103031b66b8cd99d6e80d6c967e119b}"
+    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:cc43c93ee339daecc0b78af0172e547a41ac3987a02ae8f15b208431e92af734}"
     container_name: ernie-fuji-stage
     restart: unless-stopped
     entrypoint:
@@ -255,11 +242,11 @@ services:
       start_period: 60s
 
   queue: &ernie-queue
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:cd4d41a5d6ac4841266adff1410c44848dcd1ab4ea78e461acba6704af46243c}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:31fe3ea84d8c690853a5c0a041489904506f4eeaf05c4f6863cddb312a9bafe0}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
-    command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,default,imports --verbose --tries=3 --timeout=7200
+    command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default --verbose --tries=3 --timeout=7200
     volumes:
       - storage-data:/var/www/html/storage
     networks:
@@ -333,25 +320,12 @@ services:
       - DB_METAWORKS_NAME=${DB_METAWORKS_NAME:-metaworks}
       - DB_METAWORKS_USER=${DB_METAWORKS_USER:-root}
       - DB_METAWORKS_PASSWORD=${DB_METAWORKS_PASSWORD:-}
-      - SOLR_HOST=${SOLR_HOST:-}
-      - SOLR_PORT=${SOLR_PORT:-443}
-      - SOLR_USER=${SOLR_USER:-}
-      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
       - DB_IGSN_HOST=${DB_IGSN_HOST:-127.0.0.1}
       - DB_IGSN_PORT=${DB_IGSN_PORT:-3306}
       - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
-      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
-      - GFZ_IGSN_PORTAL_PROXY_URL=${GFZ_IGSN_PORTAL_PROXY_URL:-https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php}
-      - GFZ_IGSN_PORTAL_CONNECT_TIMEOUT=${GFZ_IGSN_PORTAL_CONNECT_TIMEOUT:-5}
-      - GFZ_IGSN_PORTAL_TIMEOUT=${GFZ_IGSN_PORTAL_TIMEOUT:-30}
-      - GFZ_IGSN_PORTAL_RETRY_TIMES=${GFZ_IGSN_PORTAL_RETRY_TIMES:-3}
-      - GFZ_IGSN_PORTAL_RETRY_SLEEP_MS=${GFZ_IGSN_PORTAL_RETRY_SLEEP_MS:-500}
-      - GFZ_IGSN_PORTAL_RETRY_JITTER_MS=${GFZ_IGSN_PORTAL_RETRY_JITTER_MS:-100}
-      - GFZ_IGSN_PORTAL_PAGE_SIZE=${GFZ_IGSN_PORTAL_PAGE_SIZE:-500}
-      - GFZ_IGSN_PORTAL_CACHE_TTL=${GFZ_IGSN_PORTAL_CACHE_TTL:-600}
       # Mail configuration (needed for queued mail jobs)
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -387,7 +361,7 @@ services:
     command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:cd4d41a5d6ac4841266adff1410c44848dcd1ab4ea78e461acba6704af46243c}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:31fe3ea84d8c690853a5c0a041489904506f4eeaf05c4f6863cddb312a9bafe0}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -462,7 +436,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:cd4d41a5d6ac4841266adff1410c44848dcd1ab4ea78e461acba6704af46243c}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:31fe3ea84d8c690853a5c0a041489904506f4eeaf05c4f6863cddb312a9bafe0}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped

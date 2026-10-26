@@ -84,7 +84,6 @@ class ResourceController extends Controller
                 'direction' => $criteria['sortDirection'],
             ],
             'filters' => $criteria['filters'],
-            'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
             'canCreateResource' => $request->user()?->can('create', Resource::class) ?? false,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),

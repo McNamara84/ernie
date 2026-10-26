@@ -120,8 +120,6 @@ vi.mock('@/components/resources-filters', () => ({
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
     default: ({ isOpen, context }: { isOpen: boolean; context: string }) => (isOpen ? <div data-testid="setup-lp-context">{context}</div> : null),
 }));
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
 vi.mock('@/components/citations/CitationManagerModal', () => ({ CitationManagerModal: () => null }));
 vi.mock('@/components/datacite-url-update-modal', () => ({
@@ -659,7 +657,6 @@ describe('ResourcesPage', () => {
             pagination: { per_page: 25, total: 0, from: null, to: null, has_more: false },
             sort: { key: 'id' as const, direction: 'desc' as const },
             canCreateResource: true,
-            canImportFromDataCite: false,
         };
 
         render(<ResourcesPage {...props} />);

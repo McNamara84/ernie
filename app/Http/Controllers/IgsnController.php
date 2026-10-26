@@ -120,7 +120,6 @@ class IgsnController extends Controller
         $user = $request->user();
         $canDelete = $user !== null && $user->role === UserRole::ADMIN;
         $canRegister = $user?->can('register-doi') ?? false;
-        $canImport = $user?->can('importFromDataCite', Resource::class) ?? false;
 
         $canUpdateDataCiteLandingPageUrls = $user?->can('update-datacite-landing-page-urls') ?? false;
         $urlUpdateRun = $canUpdateDataCiteLandingPageUrls
@@ -153,11 +152,9 @@ class IgsnController extends Controller
             'totalCount' => null,
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
-            'canImport' => $canImport,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
             'igsnRegistrationRun' => $registrationRun === null ? null : $this->igsnRegistrationRunPresenter->run($registrationRun),
-            'igsnPrefix' => (string) config('datacite.production.igsn_prefix', '10.60510'),
             'filters' => array_filter([
                 'prefix' => $prefix,
                 'status' => $status,

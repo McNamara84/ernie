@@ -106,7 +106,7 @@ class DataCiteApiService
      * Fetch CSL metadata for multiple DOIs with bounded concurrency and retries.
      *
      * Transient-failure cache sentinels are deliberately retried here: this path
-     * backs strict single-resource imports, where a previous best-effort timeout
+     * backs citation-label hydration, where a previous best-effort timeout
      * must not turn into a guaranteed incomplete result.
      *
      * @param  array<int, string>  $dois

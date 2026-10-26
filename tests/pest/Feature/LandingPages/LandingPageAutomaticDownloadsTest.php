@@ -5,7 +5,6 @@ use App\Models\LandingPageDailyStatistic;
 use App\Models\LandingPageDomain;
 use App\Models\Resource;
 use App\Models\User;
-use App\Services\LegacyLandingPageImportService;
 use Illuminate\Support\Facades\Session;
 use Inertia\Testing\AssertableInertia;
 
@@ -92,14 +91,6 @@ it('does not trust an activation value from a legacy preview session', function 
     ]);
     $this->get($this->endpoint.'/preview')->assertOk()->assertInertia(fn (AssertableInertia $view) => $view
         ->where('landingPage.downloads_unavailable', true)->where('landingPage.ftp_url', null));
-});
-
-it('preserves suppression while importing more legacy file information', function () {
-    $page = LandingPage::factory()->create(['resource_id' => $this->resource->id, 'ftp_url' => 'https://example.org/hidden.zip', 'downloads_unavailable' => true]);
-    app(LegacyLandingPageImportService::class)->syncMissingFileEntries($this->resource, [
-        ['url' => 'https://example.org/hidden.zip', 'label' => 'Imported'],
-    ], false);
-    expect($page->fresh()->downloads_unavailable)->toBeTrue();
 });
 
 it('keeps imported files protected through external and internal template switches', function () {

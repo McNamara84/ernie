@@ -30,10 +30,6 @@
             <directory suffix=".php">modules/assistants/RelationTypeCorrection</directory>
         </include>
         <exclude>
-            <!-- Metaworks legacy DB: only reachable from GFZ VPN, cannot be tested in CI -->
-            <file>app/Models/OldDataset.php</file>
-            <file>app/Services/OldDatasetEditorLoader.php</file>
-            <file>app/Services/OldDatasetKeywordTransformer.php</file>
             <!-- Migrations are integration/schema changes; their behavior is tested without counting dialect branches as line coverage. -->
             <directory suffix=".php">database/migrations</directory>
             <!-- Legacy migration backups (excluded from coverage metrics, not from test discovery) -->

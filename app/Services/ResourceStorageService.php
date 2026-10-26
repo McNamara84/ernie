@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\CitationLabelResolutionMode;
 use App\Enums\PortalCacheArea;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -83,10 +82,9 @@ class ResourceStorageService
     public function store(
         array $data,
         ?int $userId = null,
-        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
         ?User $doiChangeActor = null,
     ): array {
-        return $this->storePrepared($this->prepareForStorage($data, $citationLabelResolutionMode), $userId, $doiChangeActor);
+        return $this->storePrepared($this->prepareForStorage($data), $userId, $doiChangeActor);
     }
 
     /**
@@ -222,21 +220,12 @@ class ResourceStorageService
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    public function prepareForStorage(
-        array $data,
-        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
-    ): array {
+    public function prepareForStorage(array $data): array
+    {
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
         if (! is_array($relatedIdentifiers)) {
             $data['relatedIdentifiers'] = [];
-
-            return $this->ensureAuthorContactPersonContributors($data);
-        }
-
-        if ($citationLabelResolutionMode === CitationLabelResolutionMode::EXHAUSTIVE) {
-            $data['relatedIdentifiers'] = $this->relatedIdentifierCitationLabelService
-                ->resolveExhaustiveForStorage($relatedIdentifiers);
 
             return $this->ensureAuthorContactPersonContributors($data);
         }

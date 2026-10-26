@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -196,28 +194,6 @@ final class UserActivityService
     {
         $description = implode(', ', array_map(static fn (string $key, int $count): string => "{$count} {$key}", array_keys($counts), array_values($counts)));
         $this->record($actor, 'batch.completed', "completed {$operation}: {$description} (operation {$operationId})", operationId: $operationId, testMode: $testMode);
-    }
-
-    /** @param array<string, mixed> $progress */
-    public function importSummary(string $operationId, array $progress): void
-    {
-        $actor = $progress['activity_actor'] ?? null;
-        $imported = (int) ($progress['imported'] ?? 0);
-        $enriched = (int) ($progress['enriched'] ?? 0);
-        $status = $progress['status'] ?? null;
-        if (! is_array($actor) || ! is_int($actor['id'] ?? null) || ! is_string($actor['name'] ?? null)
-            || $imported + $enriched === 0 || ! in_array($status, ['completed', 'cancelled', 'failed'], true)) {
-            return;
-        }
-        $actor = ['id' => $actor['id'], 'name' => $actor['name']];
-        DB::afterCommit(function () use ($operationId, $progress, $actor, $status, $imported, $enriched): void {
-            if (Cache::add(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->key($operationId), true, CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->ttl())) {
-                $this->summary($actor, 'import ('.$status.')', $operationId, [
-                    'imported' => $imported, 'enriched' => $enriched,
-                    'skipped' => (int) ($progress['skipped'] ?? 0), 'failed' => (int) ($progress['failed'] ?? 0),
-                ]);
-            }
-        });
     }
 
     private function text(string $value): string

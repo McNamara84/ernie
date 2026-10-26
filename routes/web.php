@@ -16,7 +16,6 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
-use App\Http\Controllers\DataCiteImportController;
 use App\Http\Controllers\DataCiteUrlUpdateController;
 use App\Http\Controllers\DebugController;
 use App\Http\Controllers\DocsController;
@@ -26,7 +25,6 @@ use App\Http\Controllers\EditorLoadProgressController;
 use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
-use App\Http\Controllers\IgsnImportController;
 use App\Http\Controllers\JsonLdContextController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPageDomainController;
@@ -532,27 +530,6 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
 
-    // DataCite Import (Admin/Group Leader only)
-    Route::get('datacite/import/datacenters', [DataCiteImportController::class, 'datacenters'])
-        ->name('datacite.import.datacenters');
-
-    Route::post('datacite/import/start', [DataCiteImportController::class, 'start'])
-        ->name('datacite.import.start');
-
-    Route::post('datacite/import/start-single', [DataCiteImportController::class, 'startSingle'])
-        ->name('datacite.import.start-single');
-
-    Route::post('datacite/import/start-datacenter', [DataCiteImportController::class, 'startDatacenter'])
-        ->name('datacite.import.start-datacenter');
-
-    Route::get('datacite/import/{importId}/status', [DataCiteImportController::class, 'status'])
-        ->name('datacite.import.status');
-
-    Route::post('datacite/import/{importId}/cancel', [DataCiteImportController::class, 'cancel'])
-        ->name('datacite.import.cancel');
-    Route::post('datacite/import/{importId}/retry-sync', [DataCiteImportController::class, 'retrySync'])
-        ->name('datacite.import.retry-sync');
-
     // Landing Page Management (Admin)
     Route::get('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'show'])->name('landing-page.tombstone.show');
     Route::post('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'activate'])->name('landing-page.tombstone.activate');
@@ -643,21 +620,6 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
         ->name('igsns.filter-options');
     Route::get('igsns/count', [IgsnController::class, 'count'])
         ->name('igsns.count');
-    // IGSN Import from DataCite
-    Route::post('igsns/import/start', [IgsnImportController::class, 'start'])
-        ->name('igsns.import.start');
-    Route::get('igsns/import/datacenters', [IgsnImportController::class, 'datacenters'])
-        ->name('igsns.import.datacenters');
-    Route::post('igsns/import/start-datacenter', [IgsnImportController::class, 'startDatacenter'])
-        ->name('igsns.import.start-datacenter');
-    Route::post('igsns/import/start-single', [IgsnImportController::class, 'startSingle'])
-        ->name('igsns.import.start-single');
-    Route::get('igsns/import/{importId}/status', [IgsnImportController::class, 'status'])
-        ->name('igsns.import.status');
-    Route::post('igsns/import/{importId}/cancel', [IgsnImportController::class, 'cancel'])
-        ->name('igsns.import.cancel');
-    Route::post('igsns/import/{importId}/retry-sync', [IgsnImportController::class, 'retrySync'])
-        ->name('igsns.import.retry-sync');
     // Batch operations must be defined before routes with {resource} parameter
     Route::delete('igsns/batch', [BatchIgsnController::class, 'destroy'])
         ->name('igsns.batch.destroy');

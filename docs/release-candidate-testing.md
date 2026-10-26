@@ -81,7 +81,7 @@ matching the development/test server line. Never attach an older MySQL volume.
 
 Settings are prefixed with `RELEASE_` to avoid inheriting live deployment
 credentials. Database and F-UJI passwords are separate. Mail goes to logs;
-DataCite is fixed to the test endpoint and test mode; legacy database access,
+DataCite is fixed to the test endpoint and test mode; legacy ingestion is removed;
 ELMO refresh, host metrics, and public traffic sampling are disabled. For tests
 that register DOIs or access a DataCite test repository, configure
 `RELEASE_DATACITE_TEST_USERNAME`, `RELEASE_DATACITE_TEST_PASSWORD`, and

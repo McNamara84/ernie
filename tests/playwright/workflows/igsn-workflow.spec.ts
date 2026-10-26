@@ -143,6 +143,9 @@ test.describe('IGSN Workflow', () => {
         // The IGSN appears in both IGSN column and title column, use getByRole for precision
         const igsnCell = page.getByRole('cell', { name: doveCsv.igsn, exact: true }).first();
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
+        await expect(page.getByRole('button', { name: 'Import all IGSNs', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Import single IGSN', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Import by datacenter', exact: true })).toHaveCount(0);
 
         // Verify sample type (appears only once per row in its column)
         await expect(page.getByRole('cell', { name: DOVE_CSV_DATA.sampleType }).first()).toBeVisible();

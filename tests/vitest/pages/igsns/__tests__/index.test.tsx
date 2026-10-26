@@ -137,24 +137,6 @@ vi.mock('@/components/igsns/igsn-filters', () => ({
 vi.mock('@/components/landing-pages/modals/SetupIgsnLandingPageModal', () => ({
     default: () => null,
 }));
-vi.mock('@/components/igsns/modals/ImportIgsnsModal', () => ({
-    default: ({ isOpen, mode }: { isOpen: boolean; mode?: 'all' | 'datacenter' }) =>
-        isOpen ? (
-            <div data-testid={mode === 'datacenter' ? 'import-datacenter-igsns-modal' : 'import-all-igsns-modal'}>
-                {mode === 'datacenter' ? 'Import datacenter modal' : 'Import all modal'}
-            </div>
-        ) : null,
-}));
-vi.mock('@/components/igsns/modals/ImportSingleIgsnModal', () => ({
-    default: ({ isOpen, igsnPrefix, onClose, onSuccess }: { isOpen: boolean; igsnPrefix?: string; onClose: () => void; onSuccess?: () => void }) =>
-        isOpen ? (
-            <div data-testid="import-single-igsn-modal" data-prefix={igsnPrefix}>
-                Import single modal
-                <button onClick={onClose}>Close single import modal</button>
-                <button onClick={onSuccess}>Finish single import</button>
-            </div>
-        ) : null,
-}));
 vi.mock('@/components/ui/validation-error-modal', () => ({
     ValidationErrorModal: () => null,
 }));
@@ -283,8 +265,6 @@ const defaultProps = {
     sort: { key: 'updated_at' as const, direction: 'desc' as const },
     canDelete: true,
     canRegister: true,
-    canImport: false,
-    igsnPrefix: '10.60510',
     search: '',
     totalCount: 2,
     filters: { prefix: '', status: '' },
@@ -333,16 +313,8 @@ describe('IgsnsPage', () => {
             expect(badges).toHaveLength(2);
         });
 
-        it('shows all three import buttons when canImport is true', () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            expect(screen.getByRole('button', { name: /import all igsns/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /import single igsn/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /import by datacenter/i })).toBeInTheDocument();
-        });
-
-        it('hides import buttons when canImport is false', () => {
-            render(<IgsnsPage {...defaultProps} canImport={false} />);
+        it('does not offer retired legacy IGSN imports', () => {
+            render(<IgsnsPage {...defaultProps} />);
 
             expect(screen.queryByRole('button', { name: /import all igsns/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import single igsn/i })).not.toBeInTheDocument();
@@ -357,36 +329,6 @@ describe('IgsnsPage', () => {
 
             rerender(<IgsnsPage {...defaultProps} canUpdateDataCiteLandingPageUrls={false} />);
             expect(screen.queryByTestId('igsns-datacite-url-update')).not.toBeInTheDocument();
-        });
-
-        it('opens the single IGSN import modal', async () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
-
-            expect(screen.getByTestId('import-single-igsn-modal')).toBeInTheDocument();
-            expect(screen.getByTestId('import-single-igsn-modal')).toHaveAttribute('data-prefix', '10.60510');
-        });
-
-        it('opens the datacenter IGSN import modal', async () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            await userEvent.click(screen.getByRole('button', { name: /import by datacenter/i }));
-
-            expect(screen.getByTestId('import-datacenter-igsns-modal')).toBeInTheDocument();
-        });
-
-        it('wires single IGSN import modal close and success callbacks', async () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
-            await userEvent.click(screen.getByRole('button', { name: /finish single import/i }));
-
-            expect(mockRouterReload).toHaveBeenCalledOnce();
-
-            await userEvent.click(screen.getByRole('button', { name: /close single import modal/i }));
-
-            expect(screen.queryByTestId('import-single-igsn-modal')).not.toBeInTheDocument();
         });
 
         it('shows pagination info', () => {
