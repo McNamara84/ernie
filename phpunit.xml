@@ -28,6 +28,7 @@
             <directory suffix=".php">database</directory>
             <directory suffix=".php">routes</directory>
             <directory suffix=".php">modules/assistants/RelationTypeCorrection</directory>
+            <directory suffix=".php">modules/assistants/FundingAwardUriEnrichment</directory>
         </include>
         <exclude>
             <!-- Migrations are integration/schema changes; their behavior is tested without counting dialect branches as line coverage. -->

@@ -58,7 +58,8 @@ jobs:
         NODE_ENV: production
         APP_ENV: local
         APP_URL: http://127.0.0.1:8000
-        ASSET_URL: http://127.0.0.1:8000
+        # The same build serves Playwright on port 8000 and Pest Browser on its dynamic port.
+        ASSET_URL: ''
         VITE_APP_URL: http://127.0.0.1:8000
     - name: Prepare application
       run: |
@@ -123,6 +124,9 @@ jobs:
         # See: docs/PLAYWRIGHT_GCMD_FIXTURES.md
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
+    - name: Review funding award URIs in Pest Browser
+      if: matrix.browser == 'chromium' && matrix.shard == 1
+      run: php -d memory_limit=2G ./vendor/bin/pest tests/pest/Browser/FundingAwardUriAssistanceTest.php --no-coverage
     - name: Start Laravel server
       run: php artisan serve --host=127.0.0.1 --port=8000 &
       env:

@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssistanceRequestError, assistanceReviewQueryOptions } from '@/hooks/use-assistance-review';
+import { awardUriInput, isAwardUriReady } from '@/lib/funding-award-uri';
 import { isRelationCorrectionReady, relationCorrectionInput } from '@/lib/relation-type-correction';
 import { isSubjectHierarchyReady } from '@/lib/subject-hierarchy';
 import { editor as editorRoute } from '@/routes';
@@ -427,7 +428,7 @@ export function ResourceReview({
     };
 
     const toggleSuggestion = (item: BaseSuggestionItem, checked: boolean) => {
-        if (checked && !isRelationCorrectionReady(item)) return;
+        if (checked && !(isRelationCorrectionReady(item) && isAwardUriReady(item))) return;
 
         setSelected((current) => {
             const next = new Set(current);
@@ -443,7 +444,12 @@ export function ResourceReview({
             const next = new Set(current);
             for (const item of group.suggestions) next.delete(identity(item));
             for (const item of group.suggestions) {
-                if (item.review?.can_accept === true && item.review.exclusive_target_key === null && isRelationCorrectionReady(item)) {
+                if (
+                    item.review?.can_accept === true &&
+                    item.review.exclusive_target_key === null &&
+                    isRelationCorrectionReady(item) &&
+                    isAwardUriReady(item)
+                ) {
                     next.add(identity(item));
                 }
             }
@@ -453,7 +459,7 @@ export function ResourceReview({
 
     const runBatch = async (action: 'accept' | 'decline', group: AssistanceResourceGroup, reason?: string) => {
         const items = group.suggestions.filter((item) => selected.has(identity(item)));
-        if (items.length === 0 || items.some((item) => !isRelationCorrectionReady(item))) return;
+        if (items.length === 0 || items.some((item) => !(isRelationCorrectionReady(item) && isAwardUriReady(item)))) return;
         if (
             action === 'decline' &&
             !reason &&
@@ -477,6 +483,7 @@ export function ResourceReview({
                         suggestion_id: item.id,
                         ...(acceptanceInput ?? {}),
                         ...relationCorrectionInput(item),
+                        ...awardUriInput(item),
                     };
                 }),
             });
@@ -519,9 +526,13 @@ export function ResourceReview({
         const selectedItems = group.suggestions.filter((item) => selected.has(identity(item)));
         const processing = processingResources.has(group.resource_id);
         const hasCompatibleSuggestions = group.suggestions.some(
-            (item) => item.review?.can_accept === true && item.review.exclusive_target_key === null && isRelationCorrectionReady(item),
+            (item) =>
+                item.review?.can_accept === true &&
+                item.review.exclusive_target_key === null &&
+                isRelationCorrectionReady(item) &&
+                isAwardUriReady(item),
         );
-        const unresolvedRelationCorrection = selectedItems.some((item) => !isRelationCorrectionReady(item));
+        const unresolvedRelationCorrection = selectedItems.some((item) => !(isRelationCorrectionReady(item) && isAwardUriReady(item)));
         const declineOnlySelected = selectedItems.some((item) => item.review?.can_accept !== true);
         const unresolvedSizeConflict = selectedItems.some((item) => isUnresolvedSizeConflict(item, acceptanceInputs[identity(item)]));
         const unresolvedHierarchy = selectedItems.some(
@@ -633,7 +644,11 @@ export function ResourceReview({
                                                 <Checkbox
                                                     className="mt-4"
                                                     checked={selected.has(identity(item))}
-                                                    disabled={processing || !review.can_decline || !isRelationCorrectionReady(item)}
+                                                    disabled={
+                                                        processing ||
+                                                        !review.can_decline ||
+                                                        !(isRelationCorrectionReady(item) && isAwardUriReady(item))
+                                                    }
                                                     aria-label={`Select ${review.assistant_name}: ${review.label}`}
                                                     onCheckedChange={(checked) => toggleSuggestion(item, checked === true)}
                                                 />

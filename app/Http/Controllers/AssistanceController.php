@@ -50,7 +50,11 @@ class AssistanceController extends Controller
         $manifests = [];
 
         foreach ($assistants as $assistant) {
-            $manifests[] = $assistant->getManifest()->toArray();
+            $manifest = $assistant->getManifest()->toArray();
+            if ($assistant->getId() === 'funding-award-uri-enrichment' && ! config('funding_award_uri.enabled')) {
+                $manifest['description'] = 'Disabled. Enable award URI enrichment in the server configuration to check funding references.';
+            }
+            $manifests[] = $manifest;
         }
 
         $user = $request->user();
@@ -183,7 +187,7 @@ class AssistanceController extends Controller
             return response()->json(['error' => 'Unknown assistant.'], 404);
         }
 
-        $result = $assistant->acceptSuggestion($suggestion, $request->validated());
+        $result = $assistant->acceptSuggestion($suggestion, $request->validated(), $request->user());
 
         return response()->json($result);
     }
