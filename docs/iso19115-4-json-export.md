@@ -1,10 +1,11 @@
 # ISO/TR 19115-4 JSON metadata export
 
-Eligible resource landing pages offer **ISO/TR 19115-4 · JSON (Preview)** in
-Download Metadata, alongside ISO 19115-3:2023 XML. IGSNs and Physical Objects
-retain their existing formats. This export is a preview of the selected schema
-implementation, not a certification or a claim of support for the entire ISO
-metadata model.
+Eligible resource landing pages offer **XML** and **JSON** downloads under the
+shared **ISO 19115** label in Download Metadata. Tooltips and accessible names
+identify ISO 19115-3 for XML and ISO/TR 19115-4 (Preview) for JSON. IGSNs and
+Physical Objects retain their existing formats. This export is a preview of the
+selected schema implementation, not a certification or a claim of support for
+the entire ISO metadata model.
 
 ## Reference and validation
 

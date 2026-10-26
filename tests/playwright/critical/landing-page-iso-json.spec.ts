@@ -8,8 +8,10 @@ test('downloads ISO JSON next to XML on a resource landing page', async ({ page 
     await landingPage.verifyPageLoaded();
     const jsonLink = page.getByRole('link', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' });
     await expect(jsonLink).toBeVisible();
-    await expect(jsonLink).toHaveText('ISO/TR 19115-4 · JSON (Preview)');
-    await expect(page.getByRole('link', { name: 'Download ISO 19115-3:2023 metadata as XML' })).toBeVisible();
+    await expect(jsonLink).toHaveText('JSON');
+    await expect(jsonLink).toHaveAttribute('title', 'Download as ISO/TR 19115-4 JSON (Preview)');
+    await expect(page.getByLabel('ISO 19115 metadata available', { exact: true })).toHaveText('ISO 19115');
+    await expect(page.getByRole('link', { name: 'Download ISO 19115-3:2023 metadata as XML' })).toHaveText('XML');
     const downloadEvent = page.waitForEvent('download');
     await jsonLink.click();
     const download = await downloadEvent;

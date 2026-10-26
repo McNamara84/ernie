@@ -116,35 +116,32 @@ export function DownloadMetadataSection({
 
             {(showIsoMetadata || showIsoJson) && (
                 <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <div
+                        aria-label="ISO 19115 metadata available"
+                        className="inline-flex items-center overflow-hidden rounded-md border border-gfz-primary bg-white text-gfz-primary dark:border-blue-300 dark:bg-gray-800 dark:text-blue-200"
+                    >
+                        <span className="inline-flex items-center gap-1 bg-gfz-primary px-2.5 py-1.5 text-sm font-bold tracking-wide text-white dark:bg-blue-300 dark:text-gray-900">
+                            <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+                            ISO{' '}
+                        </span>
+                        <span className="px-2.5 py-1.5 text-sm font-semibold">19115</span>
+                    </div>
                     {showIsoMetadata && (
-                        <>
-                            <div
-                                aria-label="ISO 19115-3 metadata available"
-                                className="inline-flex items-center overflow-hidden rounded-md border border-gfz-primary bg-white text-gfz-primary dark:border-blue-300 dark:bg-gray-800 dark:text-blue-200"
-                            >
-                                <span className="inline-flex items-center gap-1 bg-gfz-primary px-2.5 py-1.5 text-sm font-bold tracking-wide text-white dark:bg-blue-300 dark:text-gray-900">
-                                    <BadgeCheck className="h-4 w-4" aria-hidden="true" />
-                                    ISO
-                                </span>
-                                <span className="px-2.5 py-1.5 text-sm font-semibold">19115-3:2023 Metadata</span>
-                            </div>
-
-                            <MetadataDownloadAction
-                                href={isoMetadataLink?.url}
-                                icon={FileCode}
-                                label="XML"
-                                title="Download as ISO 19115-3 XML"
-                                ariaLabel="Download ISO 19115-3:2023 metadata as XML"
-                                isPreview={isPreview}
-                                onPreviewClick={openPreviewDialog}
-                            />
-                        </>
+                        <MetadataDownloadAction
+                            href={isoMetadataLink?.url}
+                            icon={FileCode}
+                            label="XML"
+                            title="Download as ISO 19115-3 XML"
+                            ariaLabel="Download ISO 19115-3:2023 metadata as XML"
+                            isPreview={isPreview}
+                            onPreviewClick={openPreviewDialog}
+                        />
                     )}
                     {showIsoJson && (
                         <MetadataDownloadAction
                             href={isoJsonLink?.url}
                             icon={FileJson}
-                            label="ISO/TR 19115-4 · JSON (Preview)"
+                            label="JSON"
                             title="Download as ISO/TR 19115-4 JSON (Preview)"
                             ariaLabel="Download ISO/TR 19115-4 metadata as JSON (Preview)"
                             isPreview={isPreview}
