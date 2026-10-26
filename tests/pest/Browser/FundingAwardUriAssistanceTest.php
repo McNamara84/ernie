@@ -11,7 +11,8 @@ use Tests\Support\FundingAwardUriFixtures as F;
 uses()->group('assistant', 'browser', 'funding-award-uri');
 
 beforeEach(function (): void {
-    app(Vite::class)->useHotFile(storage_path('framework/testing-vite.hot'))->useBuildDirectory('build');
+    app(Vite::class)->useHotFile(storage_path('framework/testing-vite.hot'))->useBuildDirectory('build')
+        ->createAssetPathsUsing(static fn (string $path): string => '/'.ltrim($path, '/'));
     F::fake();
 });
 
@@ -20,6 +21,7 @@ it('reviews the award preview in the browser and keeps an accepted or declined d
     F::discover();
     F::register();
     $this->actingAs(User::factory()->admin()->create());
+    expect(app(Vite::class)->asset('resources/js/app.tsx'))->toStartWith('/build/');
     visit('/assistance')->assertNoSmoke()->assertSee('Current award URI')->assertSee('Proposed award URI')
         ->click('Evidence and provenance')->assertSee('Crossref Grants')->assertSee('218300')
         ->click('Select all compatible')->click($action)->assertSee('1 suggestion(s) '.($action === 'Accept' ? 'accepted.' : 'declined.'));

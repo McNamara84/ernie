@@ -90,7 +90,7 @@ final class AwardMetadata
     /** @param array<string, mixed> $metadata */
     public static function fingerprint(array $metadata): string
     {
-        unset($metadata['review_fingerprint'], $metadata['review_status'], $metadata['live_current']);
+        unset($metadata['review_fingerprint'], $metadata['review_status'], $metadata['decline_status'], $metadata['live_current']);
 
         return self::hash($metadata);
     }

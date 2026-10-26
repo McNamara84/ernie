@@ -30,14 +30,57 @@ final readonly class FundingAwardUriReviewService
         private DataCiteSyncService $sync,
     ) {}
 
-    /** @return array{status: string|null, current: array<string, mixed>|null} */
+    /** @return array{status: string|null, decline_status: string|null, current: array<string, mixed>|null} */
     public function inspect(AssistantSuggestion $suggestion): array
     {
-        $funding = FundingReference::with(['funderIdentifierType', 'resource.landingPage'])
-            ->where('resource_id', $suggestion->resource_id)->find($suggestion->target_id);
+        return $this->inspectMany([$suggestion])[$suggestion->id];
+    }
 
-        return ['status' => $this->validation($suggestion, $funding),
-            'current' => $funding === null ? null : AwardMetadata::snapshot($funding)];
+    /**
+     * All context is local to this presentation call; writes always reload under locks.
+     *
+     * @param  array<int, AssistantSuggestion>  $suggestions
+     * @return array<int, array{status: string|null, decline_status: string|null, current: array<string, mixed>|null}>
+     */
+    public function inspectMany(array $suggestions): array
+    {
+        if ($suggestions === []) {
+            return [];
+        }
+        $this->identities->reset();
+        $resources = Resource::with(['landingPage', 'titles.titleType', 'fundingReferences.funderIdentifierType'])
+            ->whereKey(array_unique(array_map(static fn (AssistantSuggestion $suggestion): int => $suggestion->resource_id, $suggestions)))
+            ->get()->keyBy('id');
+        $fundings = [];
+        $funders = [];
+        $identities = [];
+        $counts = [];
+        foreach ($resources as $resource) {
+            foreach ($resource->fundingReferences as $funding) {
+                $funding->setRelation('resource', $resource);
+                $fundings[$resource->id][$funding->id] = $funding;
+                $funder = $funders[$funding->id] = $this->identities->resolve($funding);
+                if ($funder !== null) {
+                    $identity = $identities[$funding->id] = AwardMetadata::identity($funding, $funder);
+                    $counts[$resource->id][$identity] = ($counts[$resource->id][$identity] ?? 0) + 1;
+                }
+            }
+        }
+        $inspections = [];
+        foreach ($suggestions as $suggestion) {
+            $suggestion->setRelation('resource', $resources->get($suggestion->resource_id));
+            $funding = $fundings[$suggestion->resource_id][$suggestion->target_id] ?? null;
+            $funder = $funders[$suggestion->target_id] ?? null;
+            $identity = $identities[$suggestion->target_id] ?? '';
+            $unique = ($counts[$suggestion->resource_id][$identity] ?? 0) === 1;
+            $inspections[$suggestion->id] = [
+                'status' => $this->validation($suggestion, $funding, $funder, $unique),
+                'decline_status' => $this->declineValidation($suggestion, $funding, $funder),
+                'current' => $funding === null ? null : AwardMetadata::snapshot($funding),
+            ];
+        }
+
+        return $inspections;
     }
 
     /** @param array<string, mixed> $input
@@ -65,25 +108,16 @@ final readonly class FundingAwardUriReviewService
                 || ($metadata['review_fingerprint'] ?? null) !== $fingerprint) {
                 return $this->failure('The award URI preview changed. Reload and review it again.');
             }
-            if (! config('funding_award_uri.enabled')) {
-                return $this->failure('Award URI enrichment is disabled.');
+            $funding?->setRelation('resource', $resource);
+            $funder = $funding === null ? null : $this->identities->resolve($funding);
+            $status = $this->declineValidation($suggestion, $funding, $funder);
+            if ($status !== null || $funding === null || $funder === null) {
+                return $this->failure('The award URI cannot be reviewed: '.str_replace('_', ' ', $status ?? 'invalid_evidence').'. Run Check again.');
             }
-            if ($funding === null) {
-                return $this->failure('The funding reference no longer exists. Run Check again.');
-            }
-            $funding->setRelation('resource', $resource);
-            if (($metadata['source_snapshot_hash'] ?? null) !== AwardMetadata::hash(AwardMetadata::snapshot($funding))) {
-                return $this->failure('The funding reference changed. Run Check again.');
-            }
-            if ($decision === 'accepted' && ($status = $this->validation($suggestion, $funding)) !== null) {
+            if ($decision === 'accepted' && ($status = $this->validation($suggestion, $funding, $funder)) !== null) {
                 return $this->failure('The award URI cannot be accepted: '.str_replace('_', ' ', $status).'. Run Check again.');
             }
-            $funder = $this->identities->resolve($funding);
             $identity = $metadata['funding_identity_hash'] ?? null;
-            if ($funder === null || ! is_string($identity) || $identity !== AwardMetadata::identity($funding, $funder)
-                || AwardMetadata::uri($suggestion->suggested_value) !== $suggestion->suggested_value) {
-                return $this->failure('The award URI evidence is incomplete or changed. Run Check again.');
-            }
             $old = $funding->award_uri;
             $new = $decision === 'accepted' ? $suggestion->suggested_value : $old;
             $review = FundingAwardUriReview::create([
@@ -144,7 +178,8 @@ final readonly class FundingAwardUriReviewService
             'synced_dois' => $sync->attempted && $sync->success && $sync->doi !== null ? [$sync->doi] : []];
     }
 
-    private function validation(AssistantSuggestion $suggestion, ?FundingReference $funding): ?string
+    /** Preconditions shared by decline previews and the locked review transaction. */
+    private function declineValidation(AssistantSuggestion $suggestion, ?FundingReference $funding, ?FunderIdentity $funder): ?string
     {
         if (! config('funding_award_uri.enabled')) {
             return 'disabled';
@@ -152,6 +187,29 @@ final readonly class FundingAwardUriReviewService
         if ($suggestion->assistant_id !== AwardMetadata::ASSISTANT_ID || $suggestion->target_type !== 'funding_reference'
             || $funding === null || $funding->resource_id !== $suggestion->resource_id) {
             return 'target_missing';
+        }
+        $metadata = $suggestion->metadata ?? [];
+        if (($metadata['review_fingerprint'] ?? null) !== AwardMetadata::fingerprint($metadata)) {
+            return 'invalid_evidence';
+        }
+        if (($metadata['source_snapshot_hash'] ?? null) !== AwardMetadata::hash(AwardMetadata::snapshot($funding))) {
+            return 'local_data_changed';
+        }
+        if ($funder === null || ($metadata['funding_identity_hash'] ?? null) !== AwardMetadata::identity($funding, $funder)) {
+            return 'funder_unresolved';
+        }
+        if (AwardMetadata::uri($suggestion->suggested_value) !== $suggestion->suggested_value) {
+            return 'invalid_award_uri';
+        }
+
+        return null;
+    }
+
+    private function validation(AssistantSuggestion $suggestion, ?FundingReference $funding, ?FunderIdentity $funder, ?bool $unique = null): ?string
+    {
+        $status = $this->declineValidation($suggestion, $funding, $funder);
+        if ($status !== null || $funding === null || $funder === null) {
+            return $status ?? 'invalid_evidence';
         }
         if (! AwardMetadata::writable($funding->resource)) {
             return 'resource_locked';
@@ -175,12 +233,11 @@ final readonly class FundingAwardUriReviewService
         } catch (Throwable) {
             return 'invalid_evidence';
         }
-        $funder = $this->identities->resolve($funding);
         $number = AwardMetadata::number($funding->award_number);
-        if ($funder === null || $number === null || ($metadata['funding_identity_hash'] ?? null) !== AwardMetadata::identity($funding, $funder)) {
+        if ($number === null) {
             return 'funder_unresolved';
         }
-        if (! $this->identities->isUnique($funding, $funder)) {
+        if (! ($unique ?? $this->identities->isUnique($funding, $funder))) {
             return 'duplicate_local_funding';
         }
         $checks = $metadata['source_checks'] ?? [];

@@ -88,6 +88,9 @@ enum CacheKey: string
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
     case ASSISTANCE_DATACENTER_OPTIONS = 'assistance:datacenter_options';
 
+    // Reduced award source payloads; provider locks and cooldowns remain independent.
+    case FUNDING_AWARD_URI_SOURCE = 'award-uri:source:v1';
+
     // Relation correction source metadata (provider and hashed DOI suffixes)
     case RELATION_CORRECTION_RAW = 'relation-correction:raw:v1';
     case RELATION_CORRECTION_SUPPORT = 'relation-correction:support:v1';
@@ -218,6 +221,8 @@ enum CacheKey: string
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => 120,
 
+            self::FUNDING_AWARD_URI_SOURCE => (int) config('funding_award_uri.positive_cache_seconds', 86400),
+
             // Successful source reads - 24 hours; failed reads use a short retry TTL.
             self::RELATION_CORRECTION_RAW,
             self::RELATION_CORRECTION_SUPPORT => 86400,
@@ -319,6 +324,8 @@ enum CacheKey: string
 
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => ['assistance'],
+
+            self::FUNDING_AWARD_URI_SOURCE => ['assistance', 'funding_award_uri'],
 
             self::RELATION_CORRECTION_RAW,
             self::RELATION_CORRECTION_SUPPORT => ['assistance', 'relation_correction'],

@@ -75,12 +75,30 @@ final class Assistant extends GenericTableAssistant implements AcceptsDeclineInp
     /** @return array<string, mixed> */
     protected function transform(Model $suggestion): array
     {
+        return $suggestion instanceof AssistantSuggestion
+            ? $this->transformInspected($suggestion, $this->review->inspect($suggestion))
+            : parent::transform($suggestion);
+    }
+
+    protected function presentMany(array $suggestions): array
+    {
+        $inspections = $this->review->inspectMany(array_filter($suggestions, static fn (Model $suggestion): bool => $suggestion instanceof AssistantSuggestion));
+
+        return array_map(fn (Model $suggestion): array => $suggestion instanceof AssistantSuggestion
+            ? $this->presentTransformed($suggestion, $this->transformInspected($suggestion, $inspections[$suggestion->id]))
+            : $this->present($suggestion), $suggestions);
+    }
+
+    /**
+     * @param  array{status: string|null, decline_status: string|null, current: array<string, mixed>|null}  $inspection
+     * @return array<string, mixed>
+     */
+    private function transformInspected(AssistantSuggestion $suggestion, array $inspection): array
+    {
         $item = parent::transform($suggestion);
-        if ($suggestion instanceof AssistantSuggestion) {
-            $inspection = $this->review->inspect($suggestion);
-            $item['metadata']['review_status'] = $inspection['status'];
-            $item['metadata']['live_current'] = $inspection['current'];
-        }
+        $item['metadata']['review_status'] = $inspection['status'];
+        $item['metadata']['decline_status'] = $inspection['decline_status'];
+        $item['metadata']['live_current'] = $inspection['current'];
 
         return $item;
     }
@@ -92,7 +110,7 @@ final class Assistant extends GenericTableAssistant implements AcceptsDeclineInp
     {
         return [
             'can_accept' => ($item['metadata']['review_status'] ?? null) === null && (bool) config('funding_award_uri.enabled'),
-            'can_decline' => (bool) config('funding_award_uri.enabled'),
+            'can_decline' => ($item['metadata']['decline_status'] ?? null) === null && (bool) config('funding_award_uri.enabled'),
             // Discovery emits one unambiguous proposal per funding reference.
             'exclusive_target_key' => null,
             'label' => (string) ($item['suggested_label'] ?? 'Review award URI'),

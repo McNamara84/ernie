@@ -155,6 +155,17 @@ describe('award URI review', () => {
         expect(screen.queryByText('Current award URI')).not.toBeInTheDocument();
     });
 
+    it('prevents selecting a preview whose local target cannot be reviewed', () => {
+        const item = suggestion();
+        item.review = { ...item.review!, can_accept: false, can_decline: false };
+        const metadata = item.metadata as AwardUriMetadata;
+        metadata.review_status = 'target_missing';
+        metadata.live_current = null;
+        renderReview(item);
+        expect(screen.getByRole('checkbox', { name: 'Select Award URI enrichment: Research award' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Decline' })).toBeDisabled();
+    });
+
     it.each(['accept', 'decline'])('sends the exact preview fingerprint for a batch %s', async (action) => {
         vi.mocked(axios.post).mockResolvedValue({
             data: {

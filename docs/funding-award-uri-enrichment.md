@@ -31,7 +31,11 @@ Requests use fixed HTTPS hosts, no redirects, 5-second connection and 20-second 
 
 Successful evidence is cached for 24 hours, complete empty answers for one hour. Errors are never cached as empty answers. Evidence keeps its original retrieval time and expires after seven days. An incomplete source check blocks acceptance of an earlier proposal until a complete recheck. The scan stops starting new lookups after its five-minute budget; the current bounded lookup can finish before the resource is resumed.
 
+Source payloads use the `assistance` cache tag. `cache:clear-app assistance` and `cache:clear-app all` invalidate positive and empty results so the next Check fetches them again. On Redis and other tagged stores, provider locks and cooldowns survive this payload invalidation. Untagged drivers use the existing whole-store fallback.
+
 The preview displays local funding fields, current/proposed URI, confidence, source records, evidence and retrieval times. Individual and resource-scoped batch actions submit the displayed review fingerprint. The server independently checks that fingerprint, current local fields, funder identity, uniqueness, source status, expiry, rules version and resource editability. Client-supplied reviewer IDs are ignored.
+
+Preview dependencies are loaded together for the displayed page; sibling funding identities are counted once per resource. No preview result is reused for a write: the transaction reloads and checks its target under locks. Changed or missing funding references disable both actions and fail batch preflight before any decision is recorded. Decline remains available for expired evidence, provider outages and write-locked resources when its local target and review identity are still valid.
 
 Acceptance locks the resource, suggestion and funding reference, then writes only `award_uri`, a permanent review and suggestion removal in one transaction. It updates the resource datestamp and uses existing resource/cache observers plus OAI-PMH invalidation. A concurrent editor value or a second review cannot overwrite metadata or create a second decision. Source lookups and DataCite synchronization run outside the write transaction. DataCite sync failures leave the accepted local value intact and expose the existing retry action; a batch syncs once per resource.
 
