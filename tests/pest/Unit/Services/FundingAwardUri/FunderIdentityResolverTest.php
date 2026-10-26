@@ -66,3 +66,26 @@ it('skips corrupt crosswalk files, invalid dates and invalid FundRef identifiers
     Storage::disk('local')->put('ror/ror-fundref-index.json', $scenario === 'json' ? '{invalid' : json_encode(['data' => [$entry]], JSON_THROW_ON_ERROR));
     expect(app(FunderIdentityResolver::class)->resolve($funding))->toBeNull();
 })->with(['json', 'date', 'id']);
+
+it('requires valid sibling identifier lists before trusting a valid requested crosswalk row', function (mixed $siblingIds, string $status, bool $valid): void {
+    $funding = F::target(['funder_identifier' => 'https://ror.org/029chgv08']);
+    $funding->setRelation('funderIdentifierType', new FunderIdentifierType(['name' => 'ROR']));
+    $entry = ['ror_id' => $funding->funder_identifier, 'ror_status' => 'active', 'ror_types' => ['funder'],
+        'external_ids' => ['fundref' => ['all' => ['100010269']]],
+        'source' => ['source_retrieved_at' => now()->toIso8601String()]];
+    $sibling = [...$entry, 'ror_id' => 'https://ror.org/04z8jg394', 'ror_status' => $status,
+        'external_ids' => ['fundref' => ['all' => $siblingIds]]];
+    Storage::disk('local')->put('ror/ror-fundref-index.json', json_encode(['data' => [$entry, $sibling]], JSON_THROW_ON_ERROR));
+
+    expect(app(FunderIdentityResolver::class)->resolve($funding)?->crossrefId)->toBe($valid ? '10.13039/100010269' : null);
+})->with([
+    'string instead of list' => ['501100001659', 'active', false],
+    'associative list' => [['unexpected' => '501100001659'], 'active', false],
+    'non-string identifier' => [[501100001659], 'active', false],
+    'nested list' => [[['501100001659']], 'active', false],
+    'invalid identifier' => [['invalid'], 'active', false],
+    'valid unrelated sibling' => [['501100001659'], 'active', true],
+    'empty sibling list' => [[], 'active', true],
+    'inactive malformed sibling' => ['501100001659', 'inactive', true],
+    'duplicate canonical identifier' => [['https://doi.org/10.13039/100010269'], 'active', false],
+]);

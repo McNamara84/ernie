@@ -73,9 +73,19 @@ final class FunderIdentityResolver
         $crossref = '10.13039/'.$id['normalized'];
         // An external ID assigned to multiple active ROR records is not a unique crosswalk.
         foreach ($this->entries() as $other) {
-            if (($other['ror_id'] ?? null) !== $ror && ($other['ror_status'] ?? null) === 'active'
-                && in_array($id['normalized'], $other['external_ids']['fundref']['all'] ?? [], true)) {
+            if (($other['ror_id'] ?? null) === $ror || ($other['ror_status'] ?? null) !== 'active') {
+                continue;
+            }
+            $otherIds = $other['external_ids']['fundref']['all'] ?? [];
+            // Malformed sibling data cannot establish that this mapping is unique.
+            if (! is_array($otherIds) || ! array_is_list($otherIds)) {
                 return null;
+            }
+            foreach ($otherIds as $otherId) {
+                $normalized = $this->normalizer->normalizeCrossrefFunderId(is_string($otherId) ? $otherId : null, true);
+                if ($normalized === null || $normalized['normalized'] === $id['normalized']) {
+                    return null;
+                }
             }
         }
 
