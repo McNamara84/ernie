@@ -235,6 +235,20 @@ npm run test:php:mysql-sensitive -- --slice editor-background
 These checks pause background work inside its HTTP call and save the same resource
 through an authenticated editor request on an independent database connection.
 
+### Funding award URI enrichment
+
+The optional Award URI assistant uses Crossref Grants and the public CORDIS SPARQL
+endpoint. Set `FUNDING_AWARD_URI_ENABLED=true` in `.env.docker`, configure a monitored
+`CROSSREF_MAILTO`, and recreate the application and Assistance worker. Keep the
+existing Redis cache available for shared provider locks and cooldowns. ROR-based
+inputs also require the existing ROR/FundRef index to be current.
+
+Discovery proposes values only for empty award URI fields. Review is manual and
+retains source evidence and reviewer identity permanently. Partial checks expose
+source errors and can be resumed with Check. See the
+[award URI operating guide](funding-award-uri-enrichment.md) for source limitations,
+cache and timeout defaults, deployment/rollback steps and focused test commands.
+
 ### Persistent FAIR assessment queue
 
 Resource and IGSN assessments use database-backed runs and one short queue job per resource. Closing the browser, restarting a worker, or deploying the application therefore does not discard the run snapshot or its progress. Opening `/assessment` again reconnects to an active run; pressing `Check` while a run is active returns that same run, and a paused run is resumed instead of replaced.

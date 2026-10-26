@@ -1079,6 +1079,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 proposes safe ROR replacements from the local ROR FundRef index
                             </li>
                             <li>
+                                <strong>Funding Award URI Enrichment</strong> - Proposes missing award URIs from Crossref Grants and CORDIS when award
+                                number, funder and source evidence identify one award. Existing values are preserved. Review the current and proposed
+                                URI and the source evidence before accepting. Decisions, previous values, reviewer and source evidence are retained
+                                permanently. Accepted changes follow the existing DataCite synchronization workflow for registered resources. This
+                                optional assistant must be enabled by an administrator.
+                            </li>
+                            <li>
                                 <strong>Suggested Title Languages</strong> – Suggests missing language values for title records using title-text
                                 detection
                             </li>

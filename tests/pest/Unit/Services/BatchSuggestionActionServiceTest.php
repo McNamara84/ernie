@@ -45,11 +45,12 @@ function registerBatchAssistant(array $suggestions): array
 }
 
 it('executes a validated batch and returns complete per-item feedback', function (): void {
+    $user = new User;
     [$registrar, $assistant] = registerBatchAssistant([
         1 => reviewSuggestion(1, 10),
         2 => reviewSuggestion(2, 10),
     ]);
-    $assistant->shouldReceive('acceptSuggestion')->once()->with(1, ['defer_datacite_sync' => true])->andReturn([
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(1, ['defer_datacite_sync' => true], $user)->andReturn([
         'success' => true,
         'message' => 'Accepted first.',
         'synced_dois' => ['10.1/a'],
@@ -62,7 +63,7 @@ it('executes a validated batch and returns complete per-item feedback', function
             'suggested_ror_id' => 'https://ror.org/012345678',
         ],
     ]);
-    $assistant->shouldReceive('acceptSuggestion')->once()->with(2, ['defer_datacite_sync' => true])->andReturn([
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(2, ['defer_datacite_sync' => true], $user)->andReturn([
         'success' => false,
         'message' => 'Stale suggestion.',
         'synced_dois' => [],
@@ -71,7 +72,7 @@ it('executes a validated batch and returns complete per-item feedback', function
     $result = (new BatchSuggestionActionService($registrar))->execute('accept', 10, [
         ['assistant_id' => 'test-assistant', 'suggestion_id' => 1],
         ['assistant_id' => 'test-assistant', 'suggestion_id' => 2],
-    ], new User);
+    ], $user);
 
     expect($result['success'])->toBeFalse()
         ->and($result['success_count'])->toBe(1)
@@ -92,13 +93,13 @@ it('forwards a relation type override only when accepting', function (): void {
     $assistant->shouldReceive('acceptSuggestion')->once()->with(1, [
         'relation_type_id' => 42,
         'defer_datacite_sync' => true,
-    ])->andReturn([
+    ], $user)->andReturn([
         'success' => true, 'message' => 'Accepted with first override.',
     ]);
     $assistant->shouldReceive('acceptSuggestion')->once()->with(2, [
         'relation_type_id' => 43,
         'defer_datacite_sync' => true,
-    ])->andReturn([
+    ], $user)->andReturn([
         'success' => true, 'message' => 'Accepted with second override.',
     ]);
     $assistant->shouldReceive('declineSuggestion')->once()->with(3, $user, null)->andReturn([
@@ -117,6 +118,7 @@ it('forwards a relation type override only when accepting', function (): void {
 });
 
 it('coalesces deferred synchronization across assistants for the same resource', function (): void {
+    $user = new User;
     $resource = Resource::factory()->create(['doi' => '10.5880/test.batch.coalesced']);
     $registrar = new AssistantRegistrar;
 
@@ -130,7 +132,7 @@ it('coalesces deferred synchronization across assistants for the same resource',
             ->andReturn(reviewSuggestion($suggestionId, $resource->id));
         $assistant->shouldReceive('acceptSuggestion')
             ->once()
-            ->with($suggestionId, ['defer_datacite_sync' => true])
+            ->with($suggestionId, ['defer_datacite_sync' => true], $user)
             ->andReturn([
                 'success' => true,
                 'message' => 'Accepted.',
@@ -149,7 +151,7 @@ it('coalesces deferred synchronization across assistants for the same resource',
     $result = (new BatchSuggestionActionService($registrar, $syncService))->execute('accept', $resource->id, [
         ['assistant_id' => 'first-assistant', 'suggestion_id' => 1],
         ['assistant_id' => 'second-assistant', 'suggestion_id' => 2],
-    ], new User);
+    ], $user);
 
     expect($result['success'])->toBeTrue()
         ->and($result['synced_dois'])->toBe([$resource->doi])

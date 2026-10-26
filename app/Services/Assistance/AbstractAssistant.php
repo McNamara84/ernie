@@ -76,6 +76,17 @@ abstract class AbstractAssistant implements AssistantContract
      */
     abstract protected function decline(Model $suggestion, User $user, ?string $reason): void;
 
+    /**
+     * Pass the authenticated reviewer explicitly to assistants with durable audit records.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    protected function acceptWithReviewer(Model $suggestion, array $input, ?User $reviewer): array
+    {
+        return $this->acceptWithInput($suggestion, $input);
+    }
+
     // ── AssistantContract implementation ─────────────────────────────
 
     public function getId(): string
@@ -187,7 +198,7 @@ abstract class AbstractAssistant implements AssistantContract
         return $suggestion === null ? null : $this->present($suggestion);
     }
 
-    public function acceptSuggestion(int $id, array $input = []): array
+    public function acceptSuggestion(int $id, array $input = [], ?User $reviewer = null): array
     {
         $suggestion = $this->findById($id);
 
@@ -195,7 +206,7 @@ abstract class AbstractAssistant implements AssistantContract
             return ['success' => false, 'message' => 'Suggestion not found.'];
         }
 
-        $result = $this->acceptWithInput($suggestion, $input);
+        $result = $this->acceptWithReviewer($suggestion, $input, $reviewer);
 
         $this->forgetTotalPendingCount();
 

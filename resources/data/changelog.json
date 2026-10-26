@@ -4,6 +4,11 @@
         "date": "2026-10-26",
         "features": [
             {
+                "title": "Funding Award URI Assistant",
+                "description": "Administrators and Group Leaders can review missing funding award URIs found through Crossref Grants and CORDIS. Suggestions require matching award numbers and verified funders, preserve existing URI values, and show their evidence before acceptance. Individual and batch reviews retain the source evidence, previous value, reviewer and time permanently; stale or ambiguous proposals cannot be accepted.",
+                "references": [{ "type": "issue", "number": 774, "url": "https://github.com/McNamara84/ernie/issues/774" }]
+            },
+            {
                 "title": "Resource Curation Tracking",
                 "description": "DOI resources have an internal curation workspace with a thirteen-point checklist, lead and team assignments, handovers, notes and activity history. Curators can track waiting periods, requests for help, deadlines and data locations. A new overview provides workflow tabs, combined filters, a My Resources view and CSV export, with personal counters on the dashboard. Beginners have read-only access. Existing unpublished resources can be initialized explicitly, while published legacy resources require an individual start.",
                 "references": [{ "type": "issue", "number": 409, "url": "https://github.com/McNamara84/ernie/issues/409" }]
