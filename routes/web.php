@@ -209,6 +209,8 @@ Route::prefix('{doiPrefix}/{slug}/metadata')
             ->name('landing-page.metadata.datacite-jsonld');
         Route::get('iso-19115-3.xml', [PublicMetadataExportController::class, 'iso19115'])
             ->name('landing-page.metadata.iso19115-3');
+        Route::get('iso-19115-4.json', [PublicMetadataExportController::class, 'iso19115Json'])
+            ->name('landing-page.metadata.iso19115-4');
     });
 
 // Legacy JSON-LD download route retained for backwards compatibility.

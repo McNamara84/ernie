@@ -8,12 +8,19 @@ return [
     | ISO 19115-3 metadata export
     |--------------------------------------------------------------------------
     |
-    | ISO 19115-3 is enabled by default. Set ISO19115_ENABLED=false to remove
-    | the public representation and the OAI-PMH metadata format without
-    | affecting the existing DataCite exports.
+    | ISO exports are enabled by default. ISO19115_ENABLED=false removes both
+    | public representations and the XML OAI-PMH format. The JSON preview can
+    | also be disabled independently, without affecting XML or DataCite.
     |
     */
     'enabled' => env('ISO19115_ENABLED', true),
+
+    'json' => [
+        'enabled' => env('ISO19115_JSON_ENABLED', true),
+        'schema' => 'https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/19115-4.json',
+        'directory' => resource_path('data/scheme/iso-19115-4/1.0.0'),
+        'label' => 'ISO/TR 19115-4 · JSON (Preview)',
+    ],
 
     'metadata_prefix' => 'iso19115_3',
 

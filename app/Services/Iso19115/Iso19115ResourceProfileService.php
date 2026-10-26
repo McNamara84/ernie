@@ -53,6 +53,13 @@ class Iso19115ResourceProfileService
         return $slug !== null && array_key_exists($slug, $this->resourceScopes());
     }
 
+    public function supportsJson(Resource $resource): bool
+    {
+        return (bool) config('iso19115.json.enabled', true)
+            && $this->supports($resource)
+            && ! $resource->isIgsn();
+    }
+
     public function supportsDeletedRecord(OaiPmhDeletedRecord $record): bool
     {
         if (! $this->isEnabled()) {

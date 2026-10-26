@@ -45,7 +45,50 @@ const canonicalMetadataLinks = [
 
 const previewMessage = 'The feature you requested is only available after your dataset has been registered with DataCite.';
 
+const isoJsonLink: LandingPageMetadataLink = {
+    format: 'iso19115-4',
+    standard: 'ISO/TR 19115-4',
+    label: 'ISO/TR 19115-4 · JSON (Preview)',
+    url: 'https://example.com/10.5880/test/metadata/iso-19115-4.json',
+    mediaType: 'application/json',
+    profile: 'https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/19115-4.json',
+};
+
 describe('DownloadMetadataSection', () => {
+    it('offers the canonical ISO JSON download next to XML with a visible preview label', () => {
+        render(<DownloadMetadataSection resourceId={42} metadataLinks={[...canonicalMetadataLinks, isoJsonLink]} />);
+        const json = screen.getByRole('link', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' });
+        expect(json).toHaveAttribute('href', isoJsonLink.url);
+        expect(json).toHaveTextContent('ISO/TR 19115-4 · JSON (Preview)');
+        expect(screen.getByRole('link', { name: 'Download ISO 19115-3:2023 metadata as XML' })).toBeInTheDocument();
+    });
+
+    it('renders JSON independently when only that representation is supplied', () => {
+        render(<DownloadMetadataSection resourceId={42} metadataLinks={[isoJsonLink]} />);
+        expect(screen.getByRole('link', { name: /Download ISO\/TR 19115-4/ })).toHaveAttribute('href', isoJsonLink.url);
+        expect(screen.queryByLabelText('ISO 19115-3 metadata available')).not.toBeInTheDocument();
+    });
+
+    it('does not invent a public JSON URL from a type capability', () => {
+        render(<DownloadMetadataSection resourceId={42} supportsIso19115Json />);
+        expect(screen.queryByText('ISO/TR 19115-4 · JSON (Preview)')).not.toBeInTheDocument();
+    });
+
+    it('keeps ISO JSON unavailable for XML-only IGSN previews', () => {
+        render(<DownloadMetadataSection resourceId={42} isPreview supportsIso19115 />);
+        expect(screen.queryByText('ISO/TR 19115-4 · JSON (Preview)')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /ISO 19115-3/ })).toBeInTheDocument();
+    });
+
+    it('uses the existing dialog for ISO JSON previews without a navigable URL', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={42} isPreview supportsIso19115Json />);
+        const action = screen.getByRole('button', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' });
+        expect(action).not.toHaveAttribute('href');
+        await user.click(action);
+        expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toHaveTextContent(previewMessage);
+    });
+
     it('renders XML download link', () => {
         render(<DownloadMetadataSection resourceId={42} />);
         const xmlLink = screen.getByTitle('Download as DataCite XML');

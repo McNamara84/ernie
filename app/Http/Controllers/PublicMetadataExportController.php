@@ -9,6 +9,8 @@ use App\Models\Resource;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
+use App\Services\Iso19115\Iso19115JsonExporter;
+use App\Services\Iso19115\Iso19115JsonValidator;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\Iso19115\Iso19115XmlExporter;
 use App\Services\Iso19115\Iso19115XmlValidator;
@@ -84,6 +86,41 @@ class PublicMetadataExportController extends Controller
         }
 
         return response($xml, Response::HTTP_OK, $headers);
+    }
+
+    public function iso19115Json(
+        string $doiPrefix,
+        string $slug,
+        Iso19115ResourceProfileService $profile,
+        Iso19115JsonExporter $exporter,
+        Iso19115JsonValidator $validator,
+    ): JsonResponse {
+        [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
+        abort_unless($profile->supportsJson($resource), Response::HTTP_NOT_FOUND, 'Metadata representation not found');
+
+        try {
+            $json = $exporter->export($resource);
+            $validation = $validator->validate($json);
+        } catch (\Throwable $exception) {
+            Log::error('Failed to generate ISO 19115-4 JSON', [
+                'resource_id' => $resource->id,
+                'exception_type' => $exception::class,
+            ]);
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Failed to generate a valid metadata representation');
+        }
+
+        if (! $validation->isValid()) {
+            Log::error('Generated ISO 19115-4 JSON failed local validation', [
+                'resource_id' => $resource->id,
+                'errors' => $validation->errors,
+            ]);
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Failed to generate a valid metadata representation');
+        }
+
+        return response()->json($json, Response::HTTP_OK, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Content-Disposition' => $this->attachment("{$slug}-iso-19115-4.json"),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     /**

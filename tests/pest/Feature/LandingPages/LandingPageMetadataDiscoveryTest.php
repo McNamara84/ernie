@@ -55,7 +55,11 @@ test('eligible landing pages expose canonical metadata links and ISO describedby
         ->assertHeader('Link', $linkHeader)
         ->assertInertia(fn ($page) => $page
             ->where('supportsIso19115', true)
-            ->has('metadataLinks', 4)
+            ->has('metadataLinks', 5)
+            ->where('supportsIso19115Json', true)
+            ->where('metadataLinks.4.format', 'iso19115-4')
+            ->where('metadataLinks.4.url', "{$metadataBaseUrl}/iso-19115-4.json")
+            ->where('metadataLinks.4.profile', config('iso19115.json.schema'))
             ->where('metadataLinks.0.format', 'datacite-xml')
             ->where('metadataLinks.0.url', "{$metadataBaseUrl}/datacite.xml")
             ->where('metadataLinks.0.mediaType', 'application/vnd.datacite.datacite+xml')

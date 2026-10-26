@@ -424,6 +424,7 @@ class LandingPagePublicController extends Controller
                     'landingPage' => $landingPageData,
                     'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
                     'supportsIso19115' => $isoProfile->supports($resource),
+                    'supportsIso19115Json' => $isoProfile->supportsJson($resource),
                     'isPreview' => $isPreview,
                     'embargoDate' => $embargoDate,
                     'embargoPending' => $embargoPending,
