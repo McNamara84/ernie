@@ -49,7 +49,7 @@ npm run check:parity
 - **Resource CRUD:** `ResourceController` – List/store/update/delete resources
 - **Editor:** `EditorController` – Curation form with DataCite fields
 - **IGSN:** `IgsnController`, `BatchIgsnController`, `BatchIgsnRegistrationController`, `UploadIgsnCsvController`
-- **DataCite:** `DataCiteImportController`, `DoiValidationController`, `Api/DataCiteController`, `Api/DoiValidationController`
+- **DataCite:** `DoiValidationController`, `Api/DataCiteController`, `Api/DoiValidationController`
 - **Landing Pages:** `LandingPageController`, `LandingPageDomainController`, `LandingPagePreviewController`, `LandingPagePublicController`
 - **Portal:** `PortalController` – Public dataset search portal
 - **Settings:** `Settings/EditorSettingsController`, `Settings/FontSizeController`, `Settings/PasswordController`, `Settings/PidSettingsController`, `Settings/ProfileController`, `Settings/ThesaurusSettingsController`
@@ -64,7 +64,6 @@ npm run check:parity
 - **DataCite Export:** `DataCiteXmlExporter`, `DataCiteJsonExporter` – Export to DataCite XML/JSON; `DataCiteLinkedDataExporter` – Export to DataCite Linked Data JSON-LD; `SchemaOrgJsonLdExporter` – Generate Schema.org Dataset JSON-LD for SEO embedding
 - **DataCite Registration:** `DataCiteRegistrationService`, `DataCiteApiService`, `DataCiteServiceInterface`, `FakeDataCiteRegistrationService` (test double)
 - **DataCite Sync:** `DataCiteSyncService`, `DataCiteSyncResult` – Auto-sync metadata on save
-- **DataCite Import:** `DataCiteImportService`, `DataCiteToResourceTransformer` – Import from DataCite API
 - **DataCite Validation:** `DataCiteXmlValidator`, `JsonSchemaValidator` – Validate against DataCite Schema 4.7
 - **Resource Storage:** `ResourceStorageService` – Save/update Resource with all relations
 - **IGSN:** `IgsnCsvParserService` – Parse pipe-delimited CSV files; `IgsnStorageService` – Store parsed IGSN data
@@ -73,12 +72,11 @@ npm run check:parity
 - **Entities:** `Entities/AffiliationService`, `Entities/InstitutionService`, `Entities/PersonService` – Entity-specific business logic
 - **Landing Pages:** `LandingPageResourceTransformer`, `SlugGeneratorService`
 - **Portal:** `PortalSearchService` – Search published datasets
-- **Vocabularies:** `VocabularyCacheService`, `MslVocabularyService`, `MslKeywordTransformer`, `OldDatasetKeywordTransformer`
+- **Vocabularies:** `VocabularyCacheService`, `MslVocabularyService`
 - **ORCID/ROR:** `OrcidService`, `RorLookupService` (singleton)
 - **Status:** `Pid4instStatusService`, `ThesaurusStatusService`
 - **Logging:** `LogService`, `UploadLogService`
 - **Cache:** `ResourceCacheService`
-- **Legacy:** `OldDatasetEditorLoader` – Map old dataset metadata for automated imports
 - **Traits:** `Traits/DataCiteExporterHelpers` – Shared export logic
 
 #### Models (`app/Models/`)
@@ -90,7 +88,7 @@ npm run check:parity
 - **Rights/Funding:** `Right`, `FundingReference`, `FunderIdentifierType`
 - **Geo/Format:** `GeoLocation`, `Format`, `Size`, `Language`, `ResourceType`
 - **Publishing:** `Publisher`, `LandingPage`, `LandingPageDomain`, `ContributorType`
-- **System:** `User`, `Setting`, `PidSetting`, `ThesaurusSetting`, `ContactMessage`, `OldDataset`, `ResourceInstrument`
+- **System:** `User`, `Setting`, `PidSetting`, `ThesaurusSetting`, `ContactMessage`, `ResourceInstrument`
 
 #### Enums (`app/Enums/`)
 - `UserRole` – ADMIN, GROUP_LEADER, CURATOR, BEGINNER hierarchy
@@ -112,7 +110,6 @@ npm run check:parity
   - `manage-landing-pages` – Admin, Group Leader, Curator
 
 #### Jobs (`app/Jobs/`)
-- `ImportFromDataCiteJob` – Import metadata from DataCite API
 - `UpdatePidJob` – Update PID instrument registry
 - `UpdateThesaurusJob` – Update GCMD/MSL vocabularies
 
@@ -134,7 +131,7 @@ npm run check:parity
 - `ClearApplicationCache` – Clear all application caches
 
 #### Support (`app/Support/`)
-- `NameParser`, `BooleanNormalizer`, `UrlNormalizer`
+- `BooleanNormalizer`, `UrlNormalizer`
 - `GcmdVocabularyParser`, `GcmdUriHelper`, `UriHelper`
 - `FunderIdentifierTypeDetector`, `XmlKeywordExtractor`
 - `MslLaboratoryService` – MSL laboratory lookups
@@ -193,7 +190,6 @@ npm run check:parity
 2. **Editor Form** → `ResourceController@store` → `ResourceStorageService` → Database
 3. **DOI Registration** → `DataCiteRegistrationService` → DataCite API
 4. **DataCite Sync on Save** → `DataCiteSyncService` → Updates DataCite if DOI already registered
-5. **DataCite Import** → `DataCiteImportController` → `ImportFromDataCiteJob` → `DataCiteImportService` → Database
 6. **IGSN CSV Upload** → `UploadIgsnCsvController` → `IgsnCsvParserService` → `IgsnStorageService` → Database
 7. **IGSN Batch Registration** → `BatchIgsnRegistrationController` → DataCite API
 8. **Landing Page Generation** → `LandingPageController` → `LandingPageResourceTransformer` → Rendered page

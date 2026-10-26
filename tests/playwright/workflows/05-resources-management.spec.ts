@@ -96,6 +96,9 @@ test.describe('Resources Management', () => {
     
     // Should be accessible
     await expect(page).toHaveURL(/\/resources/);
+    await expect(page.getByRole('button', { name: 'Import all old Resources', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Import all Resources from a Datacenter', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Import old single Resource', exact: true })).toHaveCount(0);
   });
 
   test('successful single-resource editor openings show no blocked-tab feedback', async ({ page, context }) => {

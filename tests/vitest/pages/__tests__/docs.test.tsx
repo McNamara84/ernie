@@ -224,53 +224,6 @@ describe('Docs page', () => {
         expect(screen.queryByText('php artisan igsn:audit-legacy-handles')).not.toBeInTheDocument();
     });
 
-    it('documents the legacy IGSN classification repair workflow only for admins', () => {
-        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.getByText('Repair Legacy IGSN Classifications')).toBeInTheDocument();
-        expect(screen.getByText(/igsn:backfill-classifications --report=.*igsn-classification-audit\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/igsn:backfill-classifications --apply .*igsn-classification-apply\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/The default is always a dry run and does not change database records/i)).toBeInTheDocument();
-        expect(screen.getByText(/Review the CSV before applying changes/i)).toBeInTheDocument();
-
-        unmount();
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.queryByText('Repair Legacy IGSN Classifications')).not.toBeInTheDocument();
-        expect(screen.queryByText(/igsn:backfill-classifications/)).not.toBeInTheDocument();
-    });
-
-    it('documents legacy related-identifier reconciliation only for admins', () => {
-        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.getByRole('heading', { name: 'Reconcile Missing Legacy Related Identifiers', level: 4 })).toBeInTheDocument();
-        expect(screen.getByText(/resources:reconcile-legacy-related-identifiers --doi=.*related-work-audit\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/runs as a dry run by default/i)).toBeInTheDocument();
-        expect(screen.getByText(/does not publish metadata changes to DataCite unless/i)).toBeInTheDocument();
-
-        unmount();
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.queryByRole('heading', { name: 'Reconcile Missing Legacy Related Identifiers' })).not.toBeInTheDocument();
-        expect(screen.queryByText(/resources:reconcile-legacy-related-identifiers/)).not.toBeInTheDocument();
-    });
-
-    it('documents the legacy creator and MSL backfill workflow only for admins', () => {
-        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.getByRole('heading', { name: 'Backfill Legacy Creator Names and EPOS WP16 Subjects', level: 4 })).toBeInTheDocument();
-        expect(screen.getByText(/resources:backfill-legacy-creator-and-msl-metadata --doi=.*creator-msl-audit\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/audits migrated SUMARIO resources for resource-specific creator spellings/i)).toBeInTheDocument();
-        expect(screen.getByText(/resources:backfill-legacy-creator-and-msl-metadata --legacy-id=12345 --after-id=0/)).toBeInTheDocument();
-        expect(screen.getByText('php artisan resources:backfill-legacy-creator-and-msl-metadata --retry-sync=<uuid>')).toBeInTheDocument();
-
-        unmount();
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.queryByRole('heading', { name: 'Backfill Legacy Creator Names and EPOS WP16 Subjects' })).not.toBeInTheDocument();
-        expect(screen.queryByText(/resources:backfill-legacy-creator-and-msl-metadata/)).not.toBeInTheDocument();
-    });
-
     it('shows the complete DataCite landing-page URL migration workflow only to admins', async () => {
         const { user } = renderDocsPage('admin');
         await openDatasetsTab(user);
@@ -849,22 +802,6 @@ describe('Docs page', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Editor Configuration is the h3 inside the Editor Settings section
         expect(screen.queryByText('Editor Configuration')).not.toBeInTheDocument();
-    });
-
-    it('documents the portal and legacy sources used by datacenter imports', async () => {
-        const user = userEvent.setup();
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        await user.click(screen.getByRole('tab', { name: /Datasets/i }));
-
-        expect(screen.getByText('Import all Resources from a Datacenter')).toBeInTheDocument();
-        expect(screen.getByText(/uses the portal assignment for visible resources/i)).toBeInTheDocument();
-        expect(screen.getByText(/determined from the legacy databases and the established DOI rules/i)).toBeInTheDocument();
-        expect(screen.getByText(/not re-imported or overwritten/i)).toBeInTheDocument();
-        expect(screen.getByText(/current datacenter assignments are preserved/i)).toBeInTheDocument();
-        expect(
-            screen.getByText(/may still enrich them with missing legacy download links or an external landing page URL from DataCite/i),
-        ).toBeInTheDocument();
     });
 
     it('documents persistent IGSN page sizing and page controls for all physical-sample users', async () => {
@@ -1723,7 +1660,6 @@ describe('Docs page', () => {
             deleteResources: false,
             deletePublishedResources: false,
             manageLandingPages: false,
-            importFromDataCite: false,
             updateDataCiteUrls: false,
             manageUsers: false,
             accessEditorSettings: false,

@@ -318,28 +318,6 @@ describe('ResourcePolicy', function () {
             expect($this->policy->delete($user, $this->resource))->toBeFalse();
         });
     });
-    describe('importFromDataCite', function () {
-        it('allows admin to import from DataCite', function () {
-            $user = User::factory()->create(['role' => UserRole::ADMIN]);
-            expect($this->policy->importFromDataCite($user))->toBeTrue();
-        });
-
-        it('allows group leader to import from DataCite', function () {
-            $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
-            expect($this->policy->importFromDataCite($user))->toBeTrue();
-        });
-
-        it('denies curator from importing from DataCite', function () {
-            $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            expect($this->policy->importFromDataCite($user))->toBeFalse();
-        });
-
-        it('denies beginner from importing from DataCite', function () {
-            $user = User::factory()->create(['role' => UserRole::BEGINNER]);
-            expect($this->policy->importFromDataCite($user))->toBeFalse();
-        });
-    });
-
     describe('DOI editing', function () {
         it('exposes the DOI edit capability by role before publication', function (UserRole $role, bool $expected) {
             $user = User::factory()->create(['role' => $role]);

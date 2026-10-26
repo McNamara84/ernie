@@ -290,7 +290,7 @@ test('docs page passes correct user role for curators', function () {
         ->where('userRole', 'curator'));
 });
 
-test('docs capabilities follow the same gates and import policy as resource actions', function () {
+test('docs capabilities follow the same gates as resource actions', function () {
     withoutVite();
 
     $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
@@ -299,7 +299,7 @@ test('docs capabilities follow the same gates and import policy as resource acti
         ->where('capabilities.manageLandingPages', true)
         ->where('capabilities.sendReviewLinks', false)
         ->where('capabilities.deleteResources', false)
-        ->where('capabilities.importFromDataCite', false)
+        ->missing('capabilities.importFromDataCite')
         ->where('capabilities.updateDataCiteUrls', false));
 
     $curator = User::factory()->create(['role' => UserRole::CURATOR]);
@@ -307,14 +307,14 @@ test('docs capabilities follow the same gates and import policy as resource acti
         ->where('capabilities.sendReviewLinks', true)
         ->where('capabilities.deleteResources', true)
         ->where('capabilities.deletePublishedResources', false)
-        ->where('capabilities.importFromDataCite', false));
+        ->missing('capabilities.importFromDataCite'));
 
     $groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
     $this->actingAs($groupLeader)->get(route('docs'))->assertInertia(fn (Assert $page) => $page
         ->where('capabilities.manageUsers', true)
         ->where('capabilities.accessEditorSettings', true)
         ->where('capabilities.deletePublishedResources', true)
-        ->where('capabilities.importFromDataCite', true)
+        ->missing('capabilities.importFromDataCite')
         ->where('capabilities.updateDataCiteUrls', false));
 
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);

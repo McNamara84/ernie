@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { Braces, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudUpload, Download, FileJson, Globe, RefreshCw } from 'lucide-react';
+import { Braces, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudUpload, FileJson, Globe, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -9,8 +9,6 @@ import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
 import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 import { type IgsnRegistrationRun, IgsnRegistrationRunModal } from '@/components/igsns/igsn-registration-run-modal';
-import ImportIgsnsModal from '@/components/igsns/modals/ImportIgsnsModal';
-import ImportSingleIgsnModal from '@/components/igsns/modals/ImportSingleIgsnModal';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -91,12 +89,10 @@ interface IgsnsPageProps {
     pagination: PaginationInfo;
     sort: SortState<SortKey>;
     canDelete: boolean;
-    canImport: boolean;
     canRegister: boolean;
     canUpdateDataCiteLandingPageUrls?: boolean;
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
     igsnRegistrationRun?: IgsnRegistrationRun | null;
-    igsnPrefix: string;
     search: string;
     totalCount: number | null;
     filters: {
@@ -168,12 +164,10 @@ function IgsnsPage({
     pagination: initialPagination,
     sort: initialSort,
     canDelete,
-    canImport,
     canRegister,
     canUpdateDataCiteLandingPageUrls,
     dataCiteUrlUpdateRun,
     igsnRegistrationRun: initialIgsnRegistrationRun,
-    igsnPrefix,
     search: initialSearch,
     totalCount: initialTotalCount,
     filters: initialFilters,
@@ -192,9 +186,6 @@ function IgsnsPage({
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [isDatacenterImportModalOpen, setIsDatacenterImportModalOpen] = useState(false);
-    const [isSingleImportModalOpen, setIsSingleImportModalOpen] = useState(false);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [isDataCiteUrlUpdateModalOpen, setIsDataCiteUrlUpdateModalOpen] = useState(false);
     const [isIgsnRegistrationRunModalOpen, setIsIgsnRegistrationRunModalOpen] = useState(false);
@@ -705,7 +696,7 @@ function IgsnsPage({
                                 <CardTitle>Physical Samples (IGSNs)</CardTitle>
                                 <CardDescription>Manage physical sample metadata with International Generic Sample Numbers.</CardDescription>
                             </div>
-                            {(canImport || canUpdateDataCiteLandingPageUrls || (canRegister && igsnRegistrationRun)) && (
+                            {(canUpdateDataCiteLandingPageUrls || (canRegister && igsnRegistrationRun)) && (
                                 <div className="flex flex-wrap items-center gap-2">
                                     {canUpdateDataCiteLandingPageUrls && (
                                         <Button
@@ -726,22 +717,6 @@ function IgsnsPage({
                                             <CloudUpload className="mr-2 size-4" />
                                             View registration progress
                                         </Button>
-                                    )}
-                                    {canImport && (
-                                        <>
-                                            <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Import all IGSNs
-                                            </Button>
-                                            <Button variant="outline" onClick={() => setIsSingleImportModalOpen(true)}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Import single IGSN
-                                            </Button>
-                                            <Button variant="outline" onClick={() => setIsDatacenterImportModalOpen(true)}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Import by datacenter
-                                            </Button>
-                                        </>
                                     )}
                                 </div>
                             )}
@@ -1095,19 +1070,6 @@ function IgsnsPage({
                 />
             )}
 
-            <ImportIgsnsModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSuccess={() => router.reload()} />
-            <ImportSingleIgsnModal
-                isOpen={isSingleImportModalOpen}
-                igsnPrefix={igsnPrefix}
-                onClose={() => setIsSingleImportModalOpen(false)}
-                onSuccess={() => router.reload()}
-            />
-            <ImportIgsnsModal
-                mode="datacenter"
-                isOpen={isDatacenterImportModalOpen}
-                onClose={() => setIsDatacenterImportModalOpen(false)}
-                onSuccess={() => router.reload()}
-            />
             {canUpdateDataCiteLandingPageUrls && (
                 <DataCiteUrlUpdateModal
                     scope="igsns"

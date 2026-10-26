@@ -74,8 +74,6 @@ vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({
     default: ({ isOpen, resource }: { isOpen: boolean; resource: { id: number; title?: string } }) =>
         isOpen ? <div data-testid="register-doi-modal">Register DOI for {resource.title ?? resource.id}</div> : null,
 }));
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
 vi.mock('@/components/citations/CitationManagerModal', () => ({
     CitationManagerModal: ({ open, resourceId }: { open: boolean; resourceId: number }) =>
@@ -419,15 +417,8 @@ describe('ResourcesPage - extended', () => {
     });
 
     describe('imports and permissions', () => {
-        it('shows import buttons when canImportFromDataCite is true', () => {
-            renderPage({ canImportFromDataCite: true });
-            expect(screen.getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /import all resources from a datacenter/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
-        });
-
-        it('hides import buttons when canImportFromDataCite is false', () => {
-            renderPage({ canImportFromDataCite: false });
+        it('does not offer retired legacy resource imports', () => {
+            renderPage();
             expect(screen.queryByRole('button', { name: /import all old resources/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import all resources from a datacenter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
@@ -561,7 +552,6 @@ describe('ResourcesPage - extended', () => {
                 resources: [makeResource({ id: 1, title: 'Old Resource Title', doi: '10.5880/test.2024.001' })],
                 pagination: makePagination({ total: 1, to: 1 }),
                 sort: defaultSort,
-                canImportFromDataCite: true,
             };
 
             const { rerender } = render(<ResourcesPage {...initialProps} />);

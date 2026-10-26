@@ -239,20 +239,6 @@ export const DOCS_ACTIONS: DocsAction[] = [
         failure: 'Check the reported result and remaining rows before retrying; deletion cannot be undone in this interface.',
     },
     {
-        id: 'resources-legacy-import',
-        label: 'Import old resources',
-        area: 'resources',
-        capability: 'importFromDataCite',
-        requirements: 'Admin or Group Leader access. Choose all old resources, one datacenter, or a single legacy DOI.',
-        onClick: 'Opens the selected import flow and its scope controls.',
-        afterConfirmation:
-            'Imports eligible existing external metadata into ERNIE; existing ERNIE records are skipped or enriched only as described in the import result.',
-        localEffect: 'Creates local ERNIE records for eligible imports.',
-        externalEffect: 'Reads legacy or DataCite metadata; does not mint a new DOI.',
-        publicEffect: 'Importing is not a new DataCite publication.',
-        failure: 'Inspect skipped and failed items, then retry the appropriate import scope.',
-    },
-    {
         id: 'resources-datacite-url-migration',
         label: 'Update DataCite landing-page URLs',
         area: 'resources',

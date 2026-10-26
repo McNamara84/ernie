@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Services\DataCiteMemberApiClient;
 use App\Services\GeofonEventLandingPageUrlRepairService;
-use App\Services\LegacyMetaworksDatacenterLookupService;
+use App\Support\DatacenterNames;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -71,7 +71,7 @@ final class RepairGeofonEventLandingPageUrls extends Command
                 $this->client->isTestMode() ? 'test' : 'production',
                 $this->client->endpoint(),
                 $this->client->repositoryClientId(),
-                LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+                DatacenterNames::GEOFON_EVENTS_DATACENTER,
                 $apply ? 'APPLY' : 'DRY RUN',
             ]]);
 

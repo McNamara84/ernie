@@ -113,16 +113,4 @@ class ResourcePolicy
         return $user->role === UserRole::GROUP_LEADER
             || $user->role === UserRole::CURATOR;
     }
-
-    /**
-     * Determine whether the user can import resources from DataCite.
-     *
-     * Only Admin and Group Leader users can perform bulk imports
-     * from the DataCite API.
-     */
-    public function importFromDataCite(User $user): bool
-    {
-        return $user->role === UserRole::ADMIN
-            || $user->role === UserRole::GROUP_LEADER;
-    }
 }

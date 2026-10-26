@@ -58,9 +58,9 @@ return [
     | Exhaustive Citation Label Resolution
     |--------------------------------------------------------------------------
     |
-    | Single-resource imports exhaust all configured citation-label sources,
+    | Citation-label hydration exhausts the configured DOI metadata sources,
     | while unresolved labels remain optional. Requests are pooled in bounded
-    | chunks and retried for transient failures without changing bulk imports.
+    | chunks and retried for transient failures; interactive lookups stay bounded.
     |
     */
     'citation_labels' => [
@@ -105,51 +105,6 @@ return [
         'igsn_client_id' => env('DATACITE_IGSN_CLIENT_ID', 'gfz.igsn'),
         'igsn_username' => env('DATACITE_IGSN_USERNAME'),
         'igsn_password' => env('DATACITE_IGSN_PASSWORD'),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | GFZ Data Services Legacy Portal
-    |--------------------------------------------------------------------------
-    |
-    | The legacy portal exposes the authoritative datacentre_facet values used
-    | to group published GFZ resources. ERNIE accesses the proxy server-side;
-    | browsers never receive raw Solr query access.
-    |
-    */
-    'legacy_portal' => [
-        'proxy_url' => env(
-            'GFZ_DATA_SERVICES_PORTAL_PROXY_URL',
-            'https://dataservices.gfz-potsdam.de/portal/proxy/proxy.php',
-        ),
-        'timeout_seconds' => (int) env('GFZ_DATA_SERVICES_PORTAL_TIMEOUT', 30),
-        'retry_times' => (int) env('GFZ_DATA_SERVICES_PORTAL_RETRY_TIMES', 3),
-        'retry_sleep_ms' => (int) env('GFZ_DATA_SERVICES_PORTAL_RETRY_SLEEP_MS', 500),
-        'page_size' => (int) env('GFZ_DATA_SERVICES_PORTAL_PAGE_SIZE', 500),
-        'datacenter_cache_ttl_seconds' => (int) env('GFZ_DATA_SERVICES_PORTAL_CACHE_TTL', 600),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | GFZ Legacy IGSN Portal
-    |--------------------------------------------------------------------------
-    |
-    | The retired IGSN catalogue exposes the authoritative datacentre_facet
-    | values used to categorize legacy physical samples.
-    |
-    */
-    'legacy_igsn_portal' => [
-        'proxy_url' => env(
-            'GFZ_IGSN_PORTAL_PROXY_URL',
-            'https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php',
-        ),
-        'connect_timeout_seconds' => (int) env('GFZ_IGSN_PORTAL_CONNECT_TIMEOUT', 5),
-        'timeout_seconds' => (int) env('GFZ_IGSN_PORTAL_TIMEOUT', 30),
-        'retry_times' => (int) env('GFZ_IGSN_PORTAL_RETRY_TIMES', 3),
-        'retry_sleep_ms' => (int) env('GFZ_IGSN_PORTAL_RETRY_SLEEP_MS', 500),
-        'retry_jitter_ms' => (int) env('GFZ_IGSN_PORTAL_RETRY_JITTER_MS', 100),
-        'page_size' => (int) env('GFZ_IGSN_PORTAL_PAGE_SIZE', 500),
-        'datacenter_cache_ttl_seconds' => (int) env('GFZ_IGSN_PORTAL_CACHE_TTL', 600),
     ],
 
     /*
@@ -200,22 +155,6 @@ return [
     'publisher' => [
         'name' => 'GFZ Helmholtz Centre for Geosciences',
         'ror_id' => 'https://ror.org/04z8jg394',
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Solr IGSN Enrichment
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for the Solr index used to enrich imported IGSNs with
-    | legacy DIF XML metadata. The igsnaa core contains ~35k IGSN records.
-    |
-    */
-    'solr' => [
-        'host' => env('SOLR_HOST'),
-        'port' => env('SOLR_PORT', '443'),
-        'user' => env('SOLR_USER'),
-        'password' => env('SOLR_PASSWORD'),
     ],
 
     /*

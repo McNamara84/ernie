@@ -61,7 +61,7 @@
         ],
         "igsn-user-code": ["tests/pest/Feature/Database/WidenIgsnMetadataUserCodeMigrationTest.php"],
         "funder-name": ["tests/pest/Feature/Database/WidenFundingReferencesFunderNameMigrationTest.php"],
-        "medusa-import": ["tests/pest/Feature/IgsnImport/MedusaLegacyImportRegressionTest.php"],
+        "medusa-import": ["tests/pest/Feature/LandingPages/MedusaStoredMetadataTest.php"],
         "size-precision": ["tests/pest/Feature/Database/AlterSizesNumericValuePrecisionMigrationTest.php"],
         "rights-raw-fields": ["tests/pest/Feature/Database/RepairResourceRightsRawFieldsSchemaMigrationTest.php"],
         "suggested-relation-title": ["tests/pest/Feature/Database/WidenSuggestedRelationsSourceTitleMigrationTest.php"],
