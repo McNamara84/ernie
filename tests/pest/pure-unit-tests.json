@@ -1,6 +1,5 @@
 [
   "Unit/Enums/AccessLevelTest.php",
-  "Unit/Enums/CitationLabelResolutionModeTest.php",
   "Unit/Enums/ContributorCategoryTest.php",
   "Unit/Enums/FeedbackCategoryTest.php",
   "Unit/Enums/LogDownloadPeriodTest.php",
@@ -12,8 +11,6 @@
   "Unit/Support/FunderIdentifierTypeDetectorTest.php",
   "Unit/Support/GcmdUriHelperTest.php",
   "Unit/Support/LanguageTagTest.php",
-  "Unit/Support/LegacyDescriptionBreakNormalizerTest.php",
-  "Unit/Support/NameParserTest.php",
   "Unit/Support/NativeSleepTest.php",
   "Unit/Support/OrcidNormalizerTest.php",
   "Unit/Support/PortalIgsnSearchPatternTest.php",

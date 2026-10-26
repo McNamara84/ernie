@@ -1,7 +1,7 @@
 [
     {
         "version": "1.2.0dev",
-        "date": "2026-10-22",
+        "date": "2026-10-26",
         "features": [
             {
                 "title": "Resource Curation Tracking",
@@ -25,6 +25,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Legacy Resource and IGSN Import Retired",
+                "description": "Following the completed migration, the legacy import buttons, dialogs, endpoints, background jobs and migration repair commands have been removed. Citation labels and public pages no longer depend on the retired legacy services. Existing resources, IGSNs, landing pages and stored images remain available, as do regular file uploads and legacy database exports for final backups."
+            },
             {
                 "title": "Consistent Usage Collection and Retention",
                 "description": "An explicit activation starts new usage statistics and freezes all legacy counters. Successful public responses are classified with versioned robot and research-client rules, repeated actions are filtered, and completed UTC days are aggregated atomically. Raw pseudonymous events are deleted after aggregation and within seven days; ERNIE database dumps exclude their contents.",

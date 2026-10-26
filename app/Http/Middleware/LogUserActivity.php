@@ -46,7 +46,7 @@ final class LogUserActivity
     {
         $route = $request->route()?->getName() ?? '';
         $user = $request->user();
-        $control = preg_match('/^(datacite\.import|igsns\.import|igsns\.batch-register|datacite\.url-updates)\.(cancel|resume|retry-failed|retry-sync)$/', $route) === 1;
+        $control = preg_match('/^(igsns\.batch-register|datacite\.url-updates)\.(cancel|resume|retry-failed)$/', $route) === 1;
         if (! $user instanceof User || (! isset(self::ACTIONS[$route]) && ! $control)) {
             return $next($request);
         }
@@ -80,18 +80,15 @@ final class LogUserActivity
         $payload = $response instanceof JsonResponse ? $response->getData(true) : [];
         if ($control) {
             $run = $request->route('registrationRun') ?? $request->route('run');
-            $id = $run instanceof Model ? $run->getKey() : ($request->route('importId') ?? $operation);
+            $id = $run instanceof Model ? $run->getKey() : $operation;
             $name = match (true) {
-                str_starts_with($route, 'datacite.import.') => 'DataCite resource import',
-                str_starts_with($route, 'igsns.import.') => 'DataCite IGSN import',
                 str_starts_with($route, 'igsns.batch-register.') => 'IGSN registration run',
                 default => 'DataCite landing-page URL update run',
             };
             $controlVerb = match (true) {
                 str_ends_with($route, '.cancel') => 'requested cancellation of',
                 str_ends_with($route, '.resume') => 'resumed',
-                str_ends_with($route, '.retry-failed') => 'requested a retry of failed items in',
-                default => 'requested a DataCite synchronization retry for',
+                default => 'requested a retry of failed items in',
             };
             $this->activities->record($actor, $route, "{$controlVerb} the {$name} (operation {$id})", operationId: (string) $id);
 

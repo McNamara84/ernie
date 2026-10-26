@@ -13,15 +13,6 @@ it('retains editor date type usage for seven days independently of resource cach
         ->and(CacheKey::vocabularyKeys())->not->toContain(CacheKey::EDITOR_DATE_TYPE_USAGE);
 });
 
-it('preserves import activity namespaces and centralizes their retention', function (CacheKey $key, string $suffix, string $expected) {
-    expect($key->key($suffix))->toBe($expected)
-        ->and($key->ttl())->toBe(172800)
-        ->and($key->tags())->toBe([]);
-})->with([
-    [CacheKey::USER_ACTIVITY_IMPORT_SYNC, 'operation:42', 'activity:import-sync:operation:42'],
-    [CacheKey::USER_ACTIVITY_IMPORT_SUMMARY, 'operation', 'activity:import-summary:operation'],
-]);
-
 it('generates correct cache keys without suffix', function () {
     expect(CacheKey::RESOURCE_LIST->key())->toBe('resources:list');
     expect(CacheKey::RESOURCE_DETAIL->key())->toBe('resources:detail');

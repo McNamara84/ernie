@@ -14,7 +14,7 @@ it('forwards independent public page switches with the correct deployment defaul
 })->with([
     'development' => ['docker-compose.dev.yml', 'true'],
     'stage' => ['docker-compose.stage.yml', 'true'],
-    'production' => ['docker-compose.prod.yml', 'false'],
+    'production' => ['docker-compose.prod.yml', 'true'],
 ]);
 
 it('reads true and false environment values as public page booleans', function (string $value, bool $enabled): void {

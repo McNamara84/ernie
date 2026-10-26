@@ -24,8 +24,6 @@ use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
-use App\Models\User;
-use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
 use Database\Seeders\DateTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
@@ -38,6 +36,9 @@ uses(RefreshDatabase::class);
 covers(EditorDataTransformer::class);
 
 beforeEach(function (): void {
+    foreach (['metaworks', 'legacy_metaworks', 'igsn_legacy'] as $connection) {
+        config(["database.connections.{$connection}" => ['driver' => 'retired']]);
+    }
     $this->transformer = new EditorDataTransformer;
     $this->resource = Resource::factory()->create(['publication_year' => 2025, 'version' => '1.0']);
 });
@@ -1416,29 +1417,13 @@ describe('transformDates', function (): void {
         test()->seed(TitleTypeSeeder::class);
         test()->seed(DateTypeSeeder::class);
 
-        $user = User::factory()->create();
-        $importTransformer = new DataCiteToResourceTransformer;
-
-        $resource = $importTransformer->transform([
-            'attributes' => [
-                'doi' => '10.5880/editor.dates.2026.001',
-                'publicationYear' => 2026,
-                'publisher' => 'GFZ Test Publisher',
-                'types' => ['resourceTypeGeneral' => 'Dataset'],
-                'titles' => [
-                    ['title' => 'Imported Dates Resource'],
-                ],
-                'creators' => [
-                    ['familyName' => 'Doe', 'givenName' => 'Jane', 'nameType' => 'Personal'],
-                ],
-                'dates' => [
-                    ['date' => '2025-06-03', 'dateType' => 'Collected'],
-                    ['date' => '2026-02-10', 'dateType' => 'Issued'],
-                    ['date' => '2027-06', 'dateType' => 'Available'],
-                    ['date' => '2024-01-15', 'dateType' => 'Created'],
-                ],
-            ],
-        ], $user->id);
+        $resource = Resource::factory()->create();
+        foreach (['Collected' => '2025-06-03', 'Issued' => '2026-02-10', 'Available' => '2027-06', 'Created' => '2024-01-15'] as $type => $date) {
+            $resource->dates()->create([
+                'date_type_id' => DateType::where('name', $type)->sole()->id,
+                'date_value' => $date,
+            ]);
+        }
 
         $resource->load('dates.dateType');
 

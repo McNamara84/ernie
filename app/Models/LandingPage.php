@@ -321,7 +321,7 @@ class LandingPage extends Model
     /**
      * Get the file entries associated with this landing page.
      *
-     * Files are imported from the legacy metaworks database during DataCite import.
+     * Includes files retained from the completed legacy migration.
      * Ordered by position for consistent display.
      *
      * @return HasMany<LandingPageFile, $this>

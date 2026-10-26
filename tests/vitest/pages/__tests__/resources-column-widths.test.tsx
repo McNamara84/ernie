@@ -50,32 +50,6 @@ vi.mock('@/components/resources-filters', () => ({
 }));
 
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({
-    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) =>
-        isOpen ? (
-            <div data-testid="datacite-import-modal">
-                <button type="button" onClick={onSuccess}>
-                    Import all success
-                </button>
-                <button type="button" onClick={onClose}>
-                    Close all resources import
-                </button>
-            </div>
-        ) : null,
-}));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({
-    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) =>
-        isOpen ? (
-            <div data-testid="single-resource-import-modal">
-                <button type="button" onClick={onSuccess}>
-                    Import single success
-                </button>
-                <button type="button" onClick={onClose}>
-                    Close single resource import
-                </button>
-            </div>
-        ) : null,
-}));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
 vi.mock('@/components/citations/CitationManagerModal', () => ({
     CitationManagerModal: ({ open, onOpenChange, resourceId }: { open: boolean; onOpenChange: (open: boolean) => void; resourceId: number }) =>
@@ -438,28 +412,6 @@ describe('ResourcesPage column resizing', () => {
         expect(screen.getByTestId('resources-column-created_updated')).toHaveStyle({
             width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.created_updated}px`,
         });
-    });
-
-    it('opens and closes DataCite import modals from the import buttons', async () => {
-        render(<ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} canImportFromDataCite />);
-
-        await userEvent.click(screen.getByRole('button', { name: /import all old resources/i }));
-        expect(screen.getByTestId('datacite-import-modal')).toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('button', { name: /import all success/i }));
-        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
-
-        await userEvent.click(screen.getByRole('button', { name: /close all resources import/i }));
-        expect(screen.queryByTestId('datacite-import-modal')).not.toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('button', { name: /import old single resource/i }));
-        expect(screen.getByTestId('single-resource-import-modal')).toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('button', { name: /import single success/i }));
-        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
-
-        await userEvent.click(screen.getByRole('button', { name: /close single resource import/i }));
-        expect(screen.queryByTestId('single-resource-import-modal')).not.toBeInTheDocument();
     });
 
     it('opens and closes the citation manager from the selected resource action', async () => {

@@ -75,7 +75,6 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 deleteResources: userRole !== 'beginner',
                 deletePublishedResources: userRole === 'admin' || userRole === 'group_leader',
                 manageLandingPages: true,
-                importFromDataCite: userRole === 'admin' || userRole === 'group_leader',
                 updateDataCiteUrls: userRole === 'admin',
                 manageUsers: userRole === 'admin' || userRole === 'group_leader',
                 accessEditorSettings: userRole === 'admin' || userRole === 'group_leader',
@@ -746,8 +745,8 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         <p className="text-sm text-muted-foreground">
                             Run this once after deploying the citation-label update to an existing installation. It hydrates missing citation labels
                             for already stored DOI- and URL-based related identifiers without overwriting labels that were curated manually. DOI
-                            labels fall back to the configured metadata providers after a legacy citation-cache miss. URL labels are hydrated only
-                            when their exact URL exists in the PanMetaWorks citation cache; uncached URLs remain unresolved.
+                            labels use the configured DOI metadata providers. DOI resolver URLs are supported; other URLs remain without an automatic
+                            label when no citation has been supplied. Existing and manually curated labels are preserved.
                         </p>
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500" />
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500 --after-id=12345" />
@@ -756,51 +755,6 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             more rows remain, the command prints the next invocation with an <code>--after-id</code> cursor. Always use that printed
                             cursor for the following batch so unresolved URLs do not cause later rows to be selected repeatedly.
                         </p>
-
-                        <h4>Reconcile Missing Legacy Related Identifiers</h4>
-                        <p>
-                            This administrator command audits migrated SUMARIO resources for related identifiers that are still present in the legacy
-                            database but absent from ERNIE. It is additive and runs as a dry run by default: existing curated relations are never
-                            changed or deleted. Start with one or more repeatable <code>--doi</code> filters and write a CSV report for review.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --report=/path/to/related-work-audit.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            The report distinguishes missing legacy records, relations that would be added, invalid identifiers, collapsed legacy
-                            duplicates, and lookup errors. DOI resolver URLs and <code>doi:</code>-prefixed values are normalized as the same DOI;
-                            non-DOI identifiers retain their casing because URL paths and other identifier schemes may be case-sensitive. Resolve
-                            unexpected invalid rows and errors before applying the reviewed scope.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --apply --report=/path/to/related-work-apply.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Apply mode appends only relations that are still missing and invalidates affected published landing-page caches. It does
-                            not publish metadata changes to DataCite unless <code>--sync-datacite</code> is explicitly added. Without that option,
-                            synchronize the reported Resource IDs later through the established metadata-update workflow. Run the same dry-run scope
-                            again afterwards; an idempotent reconciliation proposes no further additions.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --apply --sync-datacite --report=/path/to/related-work-sync.csv" />
-
-                        <h4>Backfill Legacy Creator Names and EPOS WP16 Subjects</h4>
-                        <p>
-                            This administrator command audits migrated SUMARIO resources for resource-specific creator spellings and legacy EPOS WP16
-                            subjects. It is a dry run by default. Start with a narrow, repeatable filter and a CSV report, then review unmatched
-                            creators, subject conflicts, concurrent changes, and errors before applying anything.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --doi=10.5880/example --report=/path/to/creator-msl-audit.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            The repeatable <code>--doi</code> and <code>--legacy-id</code> options select known records. Use{' '}
-                            <code>--match-by-doi</code> only when auditing older resources without a SUMARIO link. Large runs can be resumed and
-                            bounded with <code>--after-id</code>, <code>--limit</code>, and <code>--chunk</code>. Keep the generated CSV as the
-                            per-resource audit trail.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --legacy-id=12345 --after-id=0 --limit=500 --chunk=100 --report=/path/to/creator-msl-audit.csv" />
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --doi=10.5880/example --apply --report=/path/to/creator-msl-apply.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Apply mode writes only unambiguous additions or enrichments, invalidates affected public output, and starts a
-                            full-metadata DataCite synchronization for changed resources with a DOI. Record the printed sync-run UUID. Local changes
-                            remain applied if an asynchronous synchronization item fails; retry only failed items with the same run ID. Finally,
-                            repeat the dry run over the applied scope and confirm that it proposes no further changes.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --retry-sync=&lt;uuid&gt;" />
 
                         <h4>Audit Legacy IGSN Handles</h4>
                         <DocsCodeBlock code="php artisan igsn:audit-legacy-handles" />
@@ -812,50 +766,6 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             the optional report can be written; missing Handles, transient or unknown responses, and report write errors produce a
                             failure exit code.
                         </p>
-
-                        <h4>Backfill Complete Legacy IGSN DIF Metadata</h4>
-                        <p>
-                            This dry-run-first administrator command audits all locally stored IGSNs against DIF 1.1, 1.2, and 1.3 from the legacy
-                            portal. It preserves every non-empty source field and adds missing standard metadata such as publication links, funders,
-                            dates, contributors, sample details, structured methods, and drilling values. Existing conflicting values are retained and
-                            reported for manual review.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --report=/path/to/igsn-dif-audit.csv" />
-                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --datacenter=IGSNDB.ICDP --doi=ICDP5052ECZI101" />
-                        <p className="text-sm text-muted-foreground">
-                            Review missing DIF records, unknown paths, and scalar or privacy conflicts before applying. Filters for <code>--doi</code>{' '}
-                            and <code>--datacenter</code> are repeatable; <code>--after-id</code>, <code>--limit</code>, and <code>--chunk</code>{' '}
-                            support bounded resumable runs. Total Length remains local drilling metadata and is not sent as a DataCite size.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --apply --report=/path/to/igsn-dif-apply.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Apply mode is additive and automatically starts a full-metadata DataCite synchronization for every changed registered
-                            IGSN. The command prints its sync-run UUID. Local repairs remain stored if a later asynchronous item fails; retry only
-                            those failed items with <code>php artisan igsn:backfill-legacy-dif-metadata --retry-sync=&lt;uuid&gt;</code>. A second dry
-                            run over the same scope should propose no further automatic changes.
-                        </p>
-
-                        <h4>Repair Legacy IGSN Classifications</h4>
-                        <p>
-                            Use this administrator-only maintenance command to audit classifications from the legacy IGSN portal and add values or
-                            types that are missing locally. The default is always a dry run and does not change database records.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --report=/path/to/igsn-classification-audit.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Limit an audit with repeatable <code>--doi</code> filters, resume after an ERNIE resource ID with <code>--after-id</code>,
-                            cap the number of records with <code>--limit</code>, and adjust legacy portal batches with <code>--chunk</code> (maximum
-                            100). Invalid DOI or Handle filters stop the command with an error instead of producing an empty successful audit.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --doi=ICDP5052EUYY001" />
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --after-id=12345 --limit=500 --chunk=100" />
-                        <p className="text-sm text-muted-foreground">
-                            Review the CSV before applying changes. Check the <code>status</code>, <code>inserted_values</code>,{' '}
-                            <code>types_filled</code>, <code>rejected_values</code>, <code>conflicts</code>, and <code>message</code> columns. Resolve
-                            unexpected rejections, conflicts, missing DIF records, and errors first. Then repeat the reviewed scope with{' '}
-                            <code>--apply</code> and write a separate result report. Apply mode remains additive: it inserts missing classifications
-                            and fills only missing types without replacing curated values or existing types.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --apply --report=/path/to/igsn-classification-apply.csv" />
 
                         <h4>DataCite Configuration</h4>
                         <p>
@@ -3696,64 +3606,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             On smaller screens, less critical sub-rows (Resource Type, Curator) and the Created/Updated column are hidden so the
                             essential columns (Title, Author/Year, Status, Actions) remain readable without horizontal scrolling.
                         </p>
-
-                        {permissions.importFromDataCite && (
-                            <>
-                                <h4>Import Existing GFZ Legacy Resources</h4>
-                                <p>
-                                    Admins and Group Leaders see three import actions to the right of the bulk toolbar on the <code>/resources</code>{' '}
-                                    page:
-                                </p>
-                                <ul className="list-inside list-disc space-y-1">
-                                    <li>
-                                        <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
-                                    </li>
-                                    <li>
-                                        <strong>Import all Resources from a Datacenter</strong> loads the current datacenter list from the GFZ Data
-                                        Services portal and imports resources for one selected datacenter.
-                                    </li>
-                                    <li>
-                                        <strong>Import old single Resource</strong> opens a dialog for a single DOI.
-                                    </li>
-                                </ul>
-                                <p>
-                                    The datacenter import uses the portal assignment for visible resources. It also includes matching pending SUMARIO
-                                    resources, whose datacenter is determined from the legacy databases and the established DOI rules. Pending
-                                    resources without a more specific assignment remain part of the general GFZ datacenter through the existing
-                                    fallback.
-                                </p>
-                                <p>
-                                    Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist
-                                    in ERNIE are not re-imported or overwritten, and their current datacenter assignments are preserved. Where
-                                    applicable, the job may still enrich them with missing legacy download links or an external landing page URL from
-                                    DataCite.
-                                </p>
-                                <p>
-                                    The import result reports identical location entries merged from DataCite metadata and SUMARIO coverage enrichment
-                                    together. Entries with different geometry, descriptions, time coverage, elevation, or location details remain
-                                    separate. Review the retained locations before publishing.
-                                </p>
-                                <p>
-                                    The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL
-                                    such as <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database
-                                    before the import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the
-                                    current record.
-                                </p>
-                                <p>
-                                    GEOFON seismic-event records retain a published external landing page when their findable DataCite record points
-                                    to a trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to{' '}
-                                    <code>https://</code>; this applies to both single-resource and datacenter imports. Because the target remains
-                                    externally hosted, the import does not write that normalized URL back to DataCite; automatic post-import DataCite
-                                    URL updates are reserved for published landing pages hosted by ERNIE.
-                                </p>
-                                <p>
-                                    ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation
-                                    cache before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup
-                                    resolves a label, the valid related DOI is still imported without one instead of failing the complete resource
-                                    import; its label can be curated later in the Data Editor.
-                                </p>
-                            </>
-                        )}
                     </>
                 ),
             },
@@ -4107,54 +3959,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             use <strong>View registration progress</strong> when you return. Individual errors do not stop later IGSNs, and failed
                             items can be retried after their cause is resolved. Total duration depends on the shared DataCite rate limit.
                         </p>
-                    </>
-                ),
-            },
-            {
-                id: 'igsn-legacy-import',
-                title: 'Legacy IGSN Import',
-                icon: Database,
-                minRole: 'group_leader',
-                content: (
-                    <>
-                        <h3>Importing IGSNs from DataCite</h3>
-                        <p>
-                            Admins and Group Leaders see three import actions on <code>/igsns</code>:
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <strong>Import all IGSNs</strong> imports the complete configured IGSN prefix.
-                            </li>
-                            <li>
-                                <strong>Import IGSNs from a Datacenter</strong> loads the current legacy IGSN portal datacenters and imports the
-                                complete selected group.
-                            </li>
-                            <li>
-                                <strong>Import single IGSN</strong> imports one sample together with discoverable parents, children, and siblings.
-                            </li>
-                        </ul>
-
-                        <h4>Datacenter Assignment</h4>
-                        <p>
-                            DataCite supplies the imported metadata. The legacy GFZ IGSN portal supplies the historical datacenter assignment. The
-                            portal name <strong>GFZ Potsdam</strong> is normalized to <strong>GFZ German Research Centre for Geosciences</strong>.
-                        </p>
-                        <p>
-                            Assignments apply only when a new IGSN is created. An IGSN that already exists in ERNIE is skipped without filling,
-                            replacing, or removing its current datacenter. If the portal responds successfully but contains no assignment for a new
-                            IGSN, the import continues, leaves the datacenter empty, and lists the IGSN in the result for manual curation.
-                        </p>
-                        <p>
-                            The import result reports identical location entries merged from DataCite metadata and legacy enrichment together. Review
-                            the retained locations before publishing; locations with different scientific details remain separate.
-                        </p>
-
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Availability:</strong> ERNIE stops before creating IGSNs when the legacy portal assignment cannot be loaded.
-                                Retry the import after the portal is available again.
-                            </p>
-                        </div>
                     </>
                 ),
             },

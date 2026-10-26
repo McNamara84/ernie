@@ -294,7 +294,7 @@ export interface LandingPageDownloadUrlSuggestions {
  * Landing Page File
  *
  * Represents a download file entry from the landing_page_files table.
- * Files are imported from the legacy metaworks database during DataCite import.
+ * Includes files retained from the completed legacy migration.
  */
 export interface LandingPageFile {
     /** Primary key */

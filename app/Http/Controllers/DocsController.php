@@ -6,7 +6,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Models\Language;
-use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\ThesaurusSetting;
@@ -47,7 +46,6 @@ class DocsController extends Controller
                 'deleteResources' => in_array($user->role, [UserRole::CURATOR, UserRole::GROUP_LEADER, UserRole::ADMIN], true),
                 'deletePublishedResources' => $user->can('delete-published-resources'),
                 'manageLandingPages' => $user->can('manage-landing-pages'),
-                'importFromDataCite' => $user->can('importFromDataCite', Resource::class),
                 'updateDataCiteUrls' => $user->can('update-datacite-landing-page-urls'),
                 'manageUsers' => $user->can('manage-users'),
                 'accessEditorSettings' => $user->can('access-editor-settings'),

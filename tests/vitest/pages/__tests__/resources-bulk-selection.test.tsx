@@ -96,8 +96,6 @@ vi.mock('@/components/citations/CitationManagerModal', () => ({
         open ? <div data-testid="citation-manager-modal">Related items for {resourceId}</div> : null,
 }));
 
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
 vi.mock('@/hooks/use-citation-vocabularies', () => ({
     useCitationVocabularies: () => ({
@@ -1185,13 +1183,15 @@ describe('ResourcesPage - bulk selection', () => {
         }
     });
 
-    it('renders the import buttons alongside the action toolbar', async () => {
-        const props = { ...buildProps(), canImportFromDataCite: true };
+    it('omits retired imports from the action toolbar', async () => {
+        const props = buildProps();
         render(<ResourcesPage {...props} />);
         await waitForFilterOptionsToLoad();
 
-        expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
-        expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import all resources from a datacenter/i })).toBeInTheDocument();
-        expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
+        expect(within(screen.getByTestId('app-layout')).queryByRole('button', { name: /import all old resources/i })).not.toBeInTheDocument();
+        expect(
+            within(screen.getByTestId('app-layout')).queryByRole('button', { name: /import all resources from a datacenter/i }),
+        ).not.toBeInTheDocument();
+        expect(within(screen.getByTestId('app-layout')).queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
     });
 });

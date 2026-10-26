@@ -54,7 +54,7 @@ export function releaseCompose(template, artifact) {
                 DATACITE_TEST_CLIENT_ID: '${RELEASE_DATACITE_TEST_CLIENT_ID:-}',
                 DATACITE_USERNAME: '', DATACITE_PASSWORD: '', DATACITE_CLIENT_ID: '',
                 DATACITE_IGSN_USERNAME: '', DATACITE_IGSN_PASSWORD: '', DATACITE_IGSN_CLIENT_ID: '',
-                IGSN_LEGACY_DB_ENABLED: 'false', ELMO_CACHE_REFRESH_ENABLED: 'false', ELMO_MSL_CACHE_REFRESH_READY: 'false',
+                ELMO_CACHE_REFRESH_ENABLED: 'false', ELMO_MSL_CACHE_REFRESH_READY: 'false',
                 MAIL_MAILER: 'log', SYSTEM_METRICS_ENABLED: 'false', PUBLIC_TRAFFIC_ENABLED: 'false',
                 FUJI_BASE_URL: 'http://fuji:1071', FUJI_USERNAME: 'ernie',
                 FUJI_PASSWORD: '${RELEASE_FUJI_PASSWORD:?Set RELEASE_FUJI_PASSWORD}',

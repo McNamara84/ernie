@@ -7,8 +7,6 @@ namespace App\Providers;
 use App\Enums\UserRole;
 use App\Jobs\CreateDatabaseDumpJob;
 use App\Jobs\DiscoverRelationsJob;
-use App\Jobs\ImportFromDataCiteJob;
-use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
 use App\Listeners\MarkContactMessageAsSent;
@@ -192,10 +190,7 @@ class AppServiceProvider extends ServiceProvider
         // Define authorization gates
         $this->defineGates();
 
-        // Route jobs to dedicated queues to prevent long-running imports
-        // from blocking shorter vocabulary/PID update tasks
-        Queue::route(ImportFromDataCiteJob::class, queue: 'imports');
-        Queue::route(ImportIgsnsFromDataCiteJob::class, queue: 'imports');
+        // Route independent background workflows to their dedicated queues
         Queue::route(UpdatePidJob::class, queue: 'vocabularies');
         Queue::route(UpdateThesaurusJob::class, queue: 'vocabularies');
         Queue::route(CreateDatabaseDumpJob::class, queue: 'database-dumps');
