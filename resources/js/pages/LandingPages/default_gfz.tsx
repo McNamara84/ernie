@@ -57,6 +57,7 @@ interface DefaultGfzTemplatePageProps {
     embargoPending?: boolean;
     embargoDue?: boolean;
     supportsIso19115?: boolean;
+    supportsIso19115Json?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
@@ -113,6 +114,7 @@ export default function DefaultGfzTemplate() {
         embargoPending = false,
         embargoDue = false,
         supportsIso19115 = false,
+        supportsIso19115Json = false,
         metadataLinks,
         sectionOrder,
         customLogoUrl,
@@ -161,6 +163,7 @@ export default function DefaultGfzTemplate() {
                     resourceId={resource.id}
                     isPreview={isPreview}
                     supportsIso19115={supportsIso19115}
+                    supportsIso19115Json={supportsIso19115Json}
                     jsonLdExportUrl={jsonLdExportUrl}
                     metadataLinks={metadataLinks}
                     sectionOrder={metadataOrder}
@@ -172,7 +175,17 @@ export default function DefaultGfzTemplate() {
             left: renderMetadataSection('left-metadata', leftMetadataOrder),
             right: renderMetadataSection('right-metadata', rightMetadataOrder),
         };
-    }, [resource, landingPage, isPreview, supportsIso19115, leftMetadataOrder, rightMetadataOrder, peopleDisplayLimits, metadataLinks]);
+    }, [
+        resource,
+        landingPage,
+        isPreview,
+        supportsIso19115,
+        supportsIso19115Json,
+        leftMetadataOrder,
+        rightMetadataOrder,
+        peopleDisplayLimits,
+        metadataLinks,
+    ]);
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {

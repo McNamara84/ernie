@@ -954,8 +954,8 @@ export interface LandingPageResource {
  * Canonical, anonymously retrievable metadata representation.
  */
 export interface LandingPageMetadataLink {
-    format: 'datacite-xml' | 'datacite-json' | 'datacite-jsonld' | 'iso19115-3';
-    standard: 'DataCite' | 'ISO 19115-3';
+    format: 'datacite-xml' | 'datacite-json' | 'datacite-jsonld' | 'iso19115-3' | 'iso19115-4';
+    standard: 'DataCite' | 'ISO 19115-3' | 'ISO/TR 19115-4';
     label: string;
     url: string;
     mediaType: string;

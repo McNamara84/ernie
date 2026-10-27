@@ -854,6 +854,26 @@ describe('Docs page', () => {
         expect(screen.getByText(/Creative Commons Attribution 4\.0 International \(CC BY 4\.0\)/i)).toBeInTheDocument();
     });
 
+    it.each<UserRole>(['beginner', 'curator', 'group_leader', 'admin'])(
+        'makes ISO JSON availability and preview limitations discoverable for %s users',
+        async (role) => {
+            const { user } = renderDocsPage(role);
+            await openDatasetsTab(user);
+
+            const section = screen.getByRole('heading', { name: 'Downloading Metadata', level: 4 }).closest('section');
+            expect(section).toHaveTextContent('ISO/TR 19115-4');
+            expect(section).toHaveTextContent('No separate activation is needed');
+            expect(section).toHaveTextContent('Computational Notebook');
+            expect(section).toHaveTextContent('IGSNs and Physical Objects do not offer ISO JSON');
+            expect(section).toHaveTextContent('does not claim support for the entire ISO metadata model');
+
+            const preview = screen.getByRole('heading', { name: 'Metadata Downloads in Previews', level: 4 }).nextElementSibling;
+            expect(preview).toHaveTextContent('ISO XML and ISO JSON');
+            expect(preview).toHaveTextContent('available after registration with DataCite');
+            expect(section).not.toHaveTextContent('ISO19115_JSON_ENABLED');
+        },
+    );
+
     it('documents forthcoming publications and independent version notices for dataset users', async () => {
         const { user } = renderDocsPage('beginner');
 

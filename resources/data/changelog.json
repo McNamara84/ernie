@@ -1,8 +1,12 @@
 [
     {
         "version": "1.2.0dev",
-        "date": "2026-10-26",
+        "date": "2026-10-27",
         "features": [
+            {
+                "title": "ISO JSON Metadata Downloads",
+                "description": "Eligible resource landing pages automatically offer an ISO/TR 19115-4 JSON preview download alongside ISO 19115-3 XML. Both formats appear under ISO 19115 with concise XML and JSON buttons; tooltips and accessible labels identify the specific standards and JSON preview status. The export includes supported metadata and geographic features, validates against a pinned local schema set, and is discoverable through machine-readable metadata links. Scientific plain text and date precision are preserved, and successful anonymous downloads contribute to COUNTER investigations. User documentation explains availability, eligible resource types, and preview limitations. IGSNs and Physical Objects retain their existing download formats."
+            },
             {
                 "title": "Funding Award URI Assistant",
                 "description": "Administrators and Group Leaders can review missing funding award URIs found through Crossref Grants and CORDIS. Suggestions require matching award numbers and verified funders, preserve existing URI values, and show their evidence before acceptance. Individual and batch reviews retain the source evidence, previous value, reviewer and time permanently; stale or ambiguous proposals cannot be accepted.",
