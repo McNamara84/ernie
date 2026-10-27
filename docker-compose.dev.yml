@@ -56,6 +56,7 @@ services:
       - APP_ENV=local
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_DEBUG=true
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
       - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-true}
       - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-true}
@@ -205,6 +206,7 @@ services:
       - APP_ENV=local
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_DEBUG=true
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - APP_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}
       - DB_CONNECTION=mysql
       - DB_HOST=db
@@ -343,6 +345,7 @@ services:
       - APP_ENV=local
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_DEBUG=true
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306
@@ -436,6 +439,7 @@ services:
       - APP_ENV=local
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_DEBUG=true
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306
@@ -518,6 +522,7 @@ services:
       - APP_ENV=local
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_DEBUG=true
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - APP_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}
       - DB_CONNECTION=mysql
       - DB_HOST=db

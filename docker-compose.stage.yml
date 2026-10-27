@@ -26,6 +26,7 @@ services:
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       # Preview each public page before enabling it in production.
       - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
       - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-true}
@@ -267,6 +268,7 @@ services:
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=queue
       - ERNIE_RUN_MIGRATIONS=0
       - INERTIA_SSR_ENABLED=false
@@ -391,6 +393,7 @@ services:
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=queue
       - ERNIE_RUN_MIGRATIONS=0
       - INERTIA_SSR_ENABLED=false
@@ -483,6 +486,7 @@ services:
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
+      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=scheduler
       - ERNIE_RUN_MIGRATIONS=0
       - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}

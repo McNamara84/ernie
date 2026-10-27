@@ -9,6 +9,7 @@ use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\GeoLocation;
 use App\Models\IdentifierType;
+use App\Models\Institution;
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
 use App\Models\Person;
@@ -104,6 +105,67 @@ test('keeps precise dates and omits intervals and invalid calendar dates', funct
     $json = validatedIsoJson($resource);
     expect($json['properties']['identificationInfo']['citation']['date'])->toBe(['publication' => '2026-10-26', 'creation' => '2025-04'])
         ->and(json_encode($json))->not->toContain('2024/2025');
+});
+
+test('omits citation date ranges including open-ended ranges', function (array $range) {
+    $resource = isoJsonResource();
+    foreach (['Issued', 'Created'] as $slug) {
+        $type = DateType::firstOrCreate(['slug' => $slug], ['name' => $slug]);
+        $resource->dates()->create(['date_type_id' => $type->id, ...$range]);
+    }
+
+    expect(validatedIsoJson($resource)['properties']['identificationInfo']['citation']['date'])
+        ->toBe(['publication' => '2026']);
+})->with([
+    'open end' => [['start_date' => '2024-01-01']],
+    'open start' => [['end_date' => '2024-12-31']],
+    'closed range' => [['start_date' => '2024-01-01', 'end_date' => '2024-12-31']],
+    'serialized interval' => [['date_value' => '2024/2025']],
+    'legacy mixed value and range' => [['date_value' => '2024', 'start_date' => '2024-01-01']],
+]);
+
+test('keeps the first eligible Issued year even when a later value is more precise', function (string $firstYear) {
+    $resource = isoJsonResource();
+    $type = DateType::firstOrCreate(['slug' => 'Issued'], ['name' => 'Issued']);
+    foreach ([['date_value' => '2024-02-30'], ['start_date' => '2023-01-01'], ['date_value' => $firstYear], ['date_value' => '2025-01']] as $date) {
+        $resource->dates()->create(['date_type_id' => $type->id, ...$date]);
+    }
+
+    expect(validatedIsoJson($resource)['properties']['identificationInfo']['citation']['date'])
+        ->toBe(['publication' => $firstYear]);
+})->with(['different from fallback' => '2024', 'same as fallback' => '2026']);
+
+test('preserves scientific notation and literal entities in plain-text metadata', function () {
+    $resource = isoJsonResource();
+    $title = 'Concentrations <10 mg/L in groundwater';
+    $name = '<ICP-MS> Research &amp; Development';
+    $place = 'Groundwater <5 m below ground';
+    $locationDescription = 'Samples <10 mg/L; pH >7';
+    $keyword = 'Ca <10 mg/L';
+    $resource->titles()->firstOrFail()->update(['value' => $title]);
+    $institution = Institution::factory()->create(['name' => $name]);
+    ResourceCreator::factory()->forInstitution($institution)->create(['resource_id' => $resource->id]);
+    GeoLocation::factory()->withPoint(13, 52)->create([
+        'resource_id' => $resource->id, 'place' => $place, 'location_description' => $locationDescription,
+    ]);
+    $resource->subjects()->create(['value' => $keyword]);
+
+    $identification = validatedIsoJson($resource)['properties']['identificationInfo'];
+    expect($identification['citation']['title'])->toBe($title)
+        ->and($identification['citation']['citedResponsibleParty'][0]['party'][0]['name'])->toBe($name)
+        ->and($identification['extent'][0]['geographicElement'][0]['geographicIdentifier']['code'])->toBe($place)
+        ->and($identification['extent'][0]['description'])->toBe($locationDescription)
+        ->and($identification['descriptiveKeywords'][0]['keyword'])->toBe([$keyword]);
+});
+
+test('converts rich descriptions to text while preserving encoded scientific comparisons', function () {
+    $resource = isoJsonResource();
+    $resource->descriptions()->firstOrFail()->update([
+        'value' => '<p>Concentrations &lt;10 mg/L in <strong>groundwater</strong></p><p>pH &gt;7 &amp; stable<br>Next measurement</p>',
+    ]);
+
+    expect(validatedIsoJson($resource)['properties']['identificationInfo']['abstract'])
+        ->toBe("Concentrations <10 mg/L in groundwater\npH >7 & stable\nNext measurement");
 });
 
 test('exports multiple geometries and ISO extents without temporal extensions', function () {

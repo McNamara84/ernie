@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "ISO JSON Metadata Downloads",
-                "description": "Eligible resource landing pages offer an ISO/TR 19115-4 JSON preview download alongside ISO 19115-3 XML. Both formats appear under ISO 19115 with concise XML and JSON buttons; tooltips and accessible labels identify the specific standards and JSON preview status. The export includes supported metadata and geographic features, validates against a pinned local schema set, and is discoverable through machine-readable metadata links. IGSNs and Physical Objects retain their existing download formats."
+                "description": "Eligible resource landing pages offer an ISO/TR 19115-4 JSON preview download alongside ISO 19115-3 XML. Both formats appear under ISO 19115 with concise XML and JSON buttons; tooltips and accessible labels identify the specific standards and JSON preview status. The export includes supported metadata and geographic features, validates against a pinned local schema set, and is discoverable through machine-readable metadata links. Scientific plain text and date precision are preserved; Docker deployments can disable the preview, and successful anonymous downloads contribute to COUNTER investigations. IGSNs and Physical Objects retain their existing download formats."
             },
             {
                 "title": "Funding Award URI Assistant",

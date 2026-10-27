@@ -208,13 +208,17 @@ class Iso19115JsonExporter
         if ($resource->publication_year !== null) {
             $dates['publication'] = (string) $resource->publication_year;
         }
+        $issuedDateSelected = false;
         foreach ($resource->dates->sortBy('id') as $date) {
             $type = ['Issued' => 'publication', 'Created' => 'creation', 'Available' => 'released',
                 'Updated' => 'revision', 'Withdrawn' => 'unavailable', 'Accepted' => 'adopted'][$date->dateType->slug] ?? null;
-            $value = $this->date($date->date_value ?? $date->start_date);
-            if ($type !== null && $value !== null && $date->end_date === null
-                && (! isset($dates[$type]) || ($type === 'publication' && strlen($dates[$type]) === 4))) {
+            $value = $this->date($date->date_value);
+            if ($type !== null && $value !== null && $date->start_date === null && $date->end_date === null
+                && (! isset($dates[$type]) || ($type === 'publication' && ! $issuedDateSelected))) {
                 $dates[$type] = $value;
+                if ($type === 'publication') {
+                    $issuedDateSelected = true;
+                }
             }
         }
         if ($dates !== []) {
@@ -269,7 +273,7 @@ class Iso19115JsonExporter
         $identification = ['citation' => $citation, 'abstract' => ''];
         $supplemental = [];
         foreach ($resource->descriptions as $description) {
-            $value = $this->text($description->value);
+            $value = $this->richText($description->value);
             if ($value === '') {
                 continue;
             }
@@ -465,6 +469,11 @@ class Iso19115JsonExporter
     }
 
     private function text(?string $value): string
+    {
+        return trim((string) $value);
+    }
+
+    private function richText(?string $value): string
     {
         $value = preg_replace('~<(?:br\s*/?|/p|/div|/li)>~i', "\n", (string) $value) ?? '';
 

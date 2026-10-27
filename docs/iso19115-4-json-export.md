@@ -57,6 +57,12 @@ configuration cache as in the normal deployment workflow. Invalidate cached
 landing-page render data when changing either switch. The render cache version
 was advanced for the initial JSON release so existing pages receive the link.
 
+For Docker, set `ISO19115_JSON_ENABLED` in the environment supplied to Compose
+(for example `.env.docker` with `--env-file .env.docker`). Development, stage
+and production forward this switch to the application, scheduler and workers.
+Recreate these containers through the normal deployment procedure after changing
+the value so their process environment and Laravel configuration are refreshed.
+
 Canonical metadata links also appear in HTTP and HTML `describedby` links with
 `application/json` and the schema URI as profile metadata. Preview pages show
 the existing registration-required dialog instead of offering a download;
@@ -99,6 +105,13 @@ creation, released, revision, unavailable and adopted. Dates are processed in
 stable database-ID order; the first eligible value per role wins (an Issued
 value can refine the year fallback). Year, month, day and timezone-bearing
 timestamp precision is retained. Ranges and invalid dates are omitted.
+This includes open-ended ranges; a range start is never used as a single date.
+Once an eligible Issued value has been selected, later Issued values cannot
+replace it, even when the selected value has only year precision.
+
+Plain-text fields such as titles, names, keywords and places retain literal
+angle brackets and entity-like text. Only rich-text resource descriptions have
+HTML markup removed and HTML entities decoded, preserving paragraph breaks.
 
 Coordinates retain longitude/latitude order. Valid numeric legacy strings are
 normalized to numbers. Polygon rings are closed; multiple distinct geometries

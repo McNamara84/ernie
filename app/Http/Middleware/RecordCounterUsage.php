@@ -55,6 +55,7 @@ final class RecordCounterUsage
             'landing-page.metadata.datacite-jsonld' => 'datacite-jsonld',
             'landing-page.export-jsonld' => 'datacite-jsonld',
             'landing-page.metadata.iso19115-3' => 'iso19115-3',
+            'landing-page.metadata.iso19115-4' => 'iso19115-4',
         ];
         if (isset($formats[$name]) && in_array($status, [200, 304], true)) {
             $page = LandingPage::query()->with('resource.resourceType')
