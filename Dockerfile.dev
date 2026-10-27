@@ -210,8 +210,10 @@ COPY --from=composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514
 RUN ln -s /usr/local/bin/php /bin/php
 
 # Copy development entrypoint
-COPY docker/dev-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/dev-entrypoint.sh
+COPY docker/dev-entrypoint.sh docker/laravel-runtime.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/dev-entrypoint.sh \
+    && command -v setpriv \
+    && command -v flock
 
 # PHP-FPM pool configuration for optimized worker management
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf

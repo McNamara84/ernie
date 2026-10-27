@@ -435,7 +435,6 @@ services:
       fuji:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
       - APP_ENV=local
       - APP_DEBUG=true
       - DB_CONNECTION=mysql

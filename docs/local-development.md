@@ -328,6 +328,61 @@ database server.
 
 ### Log retention and downloads
 
+Docker entrypoints run their Artisan commands, queue workers and scheduler as
+`www-data`. Root is retained only for container setup and the PHP-FPM master;
+FPM pool workers also use `www-data`. The shared runtime helper uses Debian's
+`setpriv`, whose availability is checked when both PHP images are built.
+
+When dependencies are missing, Composer also runs as `www-data`, including its
+plugins and the `post-autoload-dump` package discovery. Setup makes only the
+`vendor` dependency directory writable for installation; Composer keeps its
+configuration and cache under `storage/framework/.config/composer`.
+
+All development PHP services read their application key from the shared `.env`.
+The entrypoint unsets an exported empty `APP_KEY` before Laravel boots, so it
+cannot hide the file's value. First-time environment copying and key generation
+run under a file lock; simultaneous app/worker starts generate one key, and
+restarts reuse it. Artisan generates the key with `--show`, and root stores it
+without changing existing ownership or permissions. The web user receives no
+additional write access, and the key is not printed in container logs.
+Initialization and key generation reject a symbolic link at `.env`. Writes use
+no-follow file opens, including initial creation and template copying, so a
+link inserted after validation cannot redirect the write to another file.
+Git and Docker exclude `.env-key.*` temporary files, including any leftovers
+after an abrupt container stop, so they cannot enter normal commits or builds.
+Stage and Production instead require a shared key supplied by the deployment.
+
+The entrypoints recursively repair only `storage/framework`, `storage/logs`
+and `bootstrap/cache`. They initialize `storage`, `storage/app` and the private
+and public disk roots without traversing uploaded files. Existing upload
+ownership and permissions are preserved across restarts; repairing imported
+data is a separate, one-time administrative task.
+Startup rejects symbolic links at the managed runtime directories and their
+parents before changing files. Recursive permission repair does not follow
+links nested inside the runtime directories.
+Storage-link setup also rejects a symbolic link at `public/` before creating or
+replacing anything in that directory.
+
+The setgid bit on `storage/logs` makes new logs inherit group `www-data`, and the
+`single` and `daily` channels create files with mode `0664`. This also lets web
+workers append to a daily file first created by an accidental root CLI invocation.
+It does not replace running administrative Artisan commands as the application user.
+`npm run artisan -- <command>` selects `www-data`, sets a writable PsySH
+configuration path under `storage/framework/.config`, and uses a 2 GB PHP
+memory limit. The Docker command for the same behavior is:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T --user www-data -e XDG_CONFIG_HOME=/var/www/html/storage/framework/.config app php -d memory_limit=2G artisan list
+```
+
+In a Portainer app-container console, select user `www-data`, or switch from a
+root console with `su -s /bin/sh www-data` before running Artisan. For Tinker,
+set `export XDG_CONFIG_HOME=/var/www/html/storage/framework/.config` in that shell.
+Rebuild and
+recreate the PHP containers to apply entrypoint changes. Restarting an old image
+does not install this fix. The PHP images still start as root for setup; do not
+override the whole service with `user: www-data`.
+
 The **Application Logs** card at `/logs` also records successful user actions on
 resources, IGSNs and their landing pages at `INFO` level. English entries identify
 the user and dataset, name changed fields, and offer dataset and DOI links when
@@ -390,7 +445,7 @@ Useful Stage or Production checks are:
 ```bash
 docker compose -f docker-compose.stage.yml exec scheduler test -r /host/proc/stat
 docker compose -f docker-compose.stage.yml exec scheduler test -r /host/proc/meminfo
-docker compose -f docker-compose.stage.yml exec scheduler php artisan system-metrics:collect
+docker compose -f docker-compose.stage.yml exec --user www-data scheduler php artisan system-metrics:collect
 ```
 
 No Docker socket, privileged container, host PID namespace, or writable host
@@ -425,8 +480,8 @@ For a controlled local check, enable the feature and point the probe at a
 trusted reachable health URL before running:
 
 ```bash
-docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan public-traffic:observe-availability
-docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan public-traffic:prune
+npm run artisan -- public-traffic:observe-availability
+npm run artisan -- public-traffic:prune
 ```
 
 The UI groups UTC buckets in `Europe/Berlin`, including daylight-saving time,
