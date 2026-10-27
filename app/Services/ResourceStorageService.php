@@ -28,6 +28,7 @@ use App\Services\Editor\EditorDataTransformer;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\FundingAwardUri\FundingAwardUriSuggestionLifecycleService;
 use App\Services\GeoLocations\GeoLocationIdentityService;
 use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\GeoLocations\GeoLocationWriteSessionService;
@@ -1978,6 +1979,7 @@ class ResourceStorageService
     {
         // Save funding references
         if ($isUpdate) {
+            app(FundingAwardUriSuggestionLifecycleService::class)->invalidateForResource($resource->id);
             $resource->fundingReferences()->delete();
         }
 

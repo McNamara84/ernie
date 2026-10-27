@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DeclineReasonDialog } from '@/components/assistance/decline-reason-dialog';
+import { FundingAwardUriCard } from '@/components/assistance/funding-award-uri-card';
 import { RelationTypeCorrectionCard } from '@/components/assistance/relation-type-correction-card';
 import { RelationTypeSelect } from '@/components/assistance/relation-type-select';
 import { ResourceReview } from '@/components/assistance/resource-review';
@@ -20,6 +21,7 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import { AssistanceRequestError, useAssistanceSummary } from '@/hooks/use-assistance-review';
 import AppLayout from '@/layouts/app-layout';
+import { awardUriInput, isAwardUriReady } from '@/lib/funding-award-uri';
 import { queryKeys } from '@/lib/query-keys';
 import { relationCorrectionInput } from '@/lib/relation-type-correction';
 import { isSubjectHierarchyReady } from '@/lib/subject-hierarchy';
@@ -85,13 +87,17 @@ export function completionFeedback(manifest: AssistantManifest, status: CheckSta
 
     const details = isRecord(status.details) ? status.details : null;
     const diagnosticSummary =
-        details && manifest.id === 'relation-type-correction'
-            ? ` Checked ${Number(details.checked_identifiers ?? 0)} related identifier(s); ${Number(details.stale_suggestions_removed ?? 0)} stale removed; ${Number(details.incomplete_or_failed_identifiers ?? 0)} incomplete or failed.`
-            : details && manifest.id === 'subject-hierarchy-correction'
-              ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.subjects_unresolved ?? 0)} unresolved subject(s).${details.unavailable_vocabularies ? ` Unavailable vocabularies: ${String(details.unavailable_vocabularies)}` : ''}`
-              : details
-                ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.resources_with_suggestions ?? 0)} with suggestions; ${Number(details.stale_suggestions_removed ?? 0)} stale removed; ${Number(details.incomplete_or_failed_resources ?? 0)} incomplete or failed.`
-                : '';
+        details && manifest.id === 'funding-award-uri-enrichment'
+            ? details.disabled
+                ? ' Award URI enrichment is disabled.'
+                : ` Checked ${Number(details.checked_references ?? 0)} funding reference(s); ${Number(details.source_errors ?? 0)} source error(s).${details.partial ? ' Partially checked; run Check again to continue or retry.' : ''}`
+            : details && manifest.id === 'relation-type-correction'
+              ? ` Checked ${Number(details.checked_identifiers ?? 0)} related identifier(s); ${Number(details.stale_suggestions_removed ?? 0)} stale removed; ${Number(details.incomplete_or_failed_identifiers ?? 0)} incomplete or failed.`
+              : details && manifest.id === 'subject-hierarchy-correction'
+                ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.subjects_unresolved ?? 0)} unresolved subject(s).${details.unavailable_vocabularies ? ` Unavailable vocabularies: ${String(details.unavailable_vocabularies)}` : ''}`
+                : details
+                  ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.resources_with_suggestions ?? 0)} with suggestions; ${Number(details.stale_suggestions_removed ?? 0)} stale removed; ${Number(details.incomplete_or_failed_resources ?? 0)} incomplete or failed.`
+                  : '';
 
     return {
         message: label.replace('{count}', String(created)).replace('{updated}', String(updated)) + diagnosticSummary,
@@ -1993,8 +1999,9 @@ export default function AssistancePage({
         const isDateTypeHint = manifest.id === 'date-type-suggestion' && isRecord(item.metadata) && item.metadata.suggestion_kind === 'hint';
         const descriptionSegmentationTestId = ['description-segmentation', 'relation-type-correction'].includes(manifest.id) ? manifest.id : null;
         const suggestionIdentity = `${item.review?.assistant_id ?? item.assistant_id ?? manifest.id}:${item.id}`;
-        const acceptanceInput = { ...(acceptanceInputs[suggestionIdentity] ?? {}), ...relationCorrectionInput(item) };
-        const incompleteCorrection = manifest.id === 'relation-type-correction' && !acceptanceInput.relation_type_correction_fingerprint;
+        const acceptanceInput = { ...(acceptanceInputs[suggestionIdentity] ?? {}), ...relationCorrectionInput(item), ...awardUriInput(item) };
+        const incompleteCorrection =
+            (manifest.id === 'relation-type-correction' && !acceptanceInput.relation_type_correction_fingerprint) || !isAwardUriReady(item);
         const unresolvedHierarchy = manifest.id === 'subject-hierarchy-correction' && !isSubjectHierarchyReady(item, acceptanceInput);
         const unresolvedSizeConflict =
             manifest.id === 'size-format-suggestion' &&
@@ -2007,9 +2014,9 @@ export default function AssistancePage({
                 <Button
                     variant="outline"
                     size="sm"
-                    disabled={isProcessing || incompleteCorrection}
+                    disabled={isProcessing || incompleteCorrection || item.review?.can_decline === false}
                     data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-decline-${item.id}` : undefined}
-                    onClick={() => handleDecline(manifest, item.id, undefined, relationCorrectionInput(item))}
+                    onClick={() => handleDecline(manifest, item.id, undefined, { ...relationCorrectionInput(item), ...awardUriInput(item) })}
                 >
                     <X className="mr-1 h-4 w-4" />
                     {isDateTypeHint ? 'Dismiss' : 'Decline'}
@@ -2044,6 +2051,8 @@ export default function AssistancePage({
         const onAcceptanceInputChange = (input: SuggestionAcceptanceInput) => changeAcceptanceInput(suggestionIdentity, input);
 
         switch (manifest.id) {
+            case 'funding-award-uri-enrichment':
+                return <FundingAwardUriCard suggestion={item} />;
             case 'relation-type-correction':
                 return <RelationTypeCorrectionCard suggestion={item} />;
             case 'subject-hierarchy-correction':

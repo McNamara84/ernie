@@ -570,7 +570,11 @@ verify them after reopening:
 - [ ] `Preview` opens a new page or tab and correctly shows title, DOI/identifier,
       creators, abstract, licence, and download area.
 
-- [ ] DataCite XML, JSON, and JSON-LD actions, plus ISO 19115-3 for eligible
+- [ ] ISO/TR 19115-4 JSON (Preview) downloads beside XML on eligible resource
+  landing pages after redeployment without separate activation, validates against
+  the pinned schema, and is absent for IGSNs and Physical Objects. Check preview
+  dialogs, mobile layout and dark mode.
+- [ ] DataCite XML, JSON, and JSON-LD actions, plus ISO XML and JSON for eligible
       resources, show the same registration notice in both session-based and
       tokenized review previews without navigating away; the corresponding actions
       on a published page still download their metadata.

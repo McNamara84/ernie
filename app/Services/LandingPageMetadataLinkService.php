@@ -52,6 +52,17 @@ class LandingPageMetadataLinkService
             );
         }
 
+        if ($this->isoProfile->supportsJson($resource)) {
+            $links[] = $this->link(
+                'iso19115-4',
+                'ISO/TR 19115-4',
+                (string) config('iso19115.json.label'),
+                "{$baseUrl}/iso-19115-4.json",
+                'application/json',
+                (string) config('iso19115.json.schema'),
+            );
+        }
+
         return $links;
     }
 

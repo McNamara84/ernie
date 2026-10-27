@@ -776,7 +776,7 @@ describe('accept', function () {
         $assistant->shouldReceive('countPending')->andReturn(0);
         $assistant->shouldReceive('acceptSuggestion')
             ->once()
-            ->with(123, ['relation_type_id' => $relationType->id])
+            ->with(123, ['relation_type_id' => $relationType->id], $user)
             ->andReturn(['success' => true, 'message' => 'Accepted with override.']);
         $registrar->register($assistant);
         app()->instance(AssistantRegistrar::class, $registrar);

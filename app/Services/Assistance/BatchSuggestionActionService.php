@@ -25,7 +25,7 @@ final class BatchSuggestionActionService
     ) {}
 
     /**
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string, award_uri_review_fingerprint?: string}>  $selections
      * @return array<string, mixed>
      */
     public function execute(
@@ -61,7 +61,7 @@ final class BatchSuggestionActionService
             try {
                 $declineReason = $hasHierarchyDecline && $assistant->getId() !== 'subject-hierarchy-correction' ? null : $reason;
                 $result = $action === 'accept'
-                    ? $assistant->acceptSuggestion($suggestionId, $acceptanceInput)
+                    ? $assistant->acceptSuggestion($suggestionId, $acceptanceInput, $user)
                     : ($assistant instanceof AcceptsDeclineInput
                         ? $assistant->declineSuggestionWithInput($suggestionId, $user, $declineReason, $acceptanceInput)
                         : $assistant->declineSuggestion($suggestionId, $user, $declineReason));
@@ -173,7 +173,7 @@ final class BatchSuggestionActionService
      * leave a partially processed selection behind.
      *
      * @param  'accept'|'decline'  $action
-     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int, size_conflict_resolution?: string, selected_leaf_ids?: list<string>, subject_hierarchy_fingerprint?: string, relation_type_correction_fingerprint?: string, award_uri_review_fingerprint?: string}>  $selections
      * @return list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int, acceptance_input: array<string, mixed>}>
      */
     private function resolveSelection(string $action, int $resourceId, array $selections, ?string $reason): array
@@ -238,6 +238,13 @@ final class BatchSuggestionActionService
                 }
             }
 
+            if ($assistantId === 'funding-award-uri-enrichment') {
+                $fingerprint = $selection['award_uri_review_fingerprint'] ?? null;
+                if (! is_string($fingerprint) || ($suggestion['metadata']['review_fingerprint'] ?? null) !== $fingerprint) {
+                    throw new BatchSuggestionValidationException('Review the current award URI preview before processing the selection.');
+                }
+            }
+
             if ($assistantId === 'relation-type-correction') {
                 $metadata = is_array($suggestion['metadata'] ?? null) ? $suggestion['metadata'] : [];
                 $fingerprint = $selection['relation_type_correction_fingerprint'] ?? null;
@@ -251,6 +258,7 @@ final class BatchSuggestionActionService
                 'suggestion' => $suggestion,
                 'suggestion_id' => $suggestionId,
                 'acceptance_input' => array_filter([
+                    'award_uri_review_fingerprint' => $selection['award_uri_review_fingerprint'] ?? null,
                     'relation_type_correction_fingerprint' => $selection['relation_type_correction_fingerprint'] ?? null,
                     'selected_leaf_ids' => $selection['selected_leaf_ids'] ?? null,
                     'subject_hierarchy_fingerprint' => $selection['subject_hierarchy_fingerprint'] ?? null,

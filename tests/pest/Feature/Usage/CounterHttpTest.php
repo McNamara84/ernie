@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Statistics\StatisticsDashboardService;
 use App\Services\Usage\CounterAggregationService;
 use App\Services\Usage\CounterReadService;
+use App\Services\Usage\CounterSessionHasherService;
 use App\Services\Usage\CounterTrackingStateService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -44,11 +45,20 @@ it('records each successful public response even when rendering is cached and re
         ->where('usage.views', 1)->where('usage.dataThrough', '2026-10-01')->where('usage.state', 'ready'));
 });
 
-it('records public metadata formats and maps the old JSON-LD alias to the canonical target', function (string $suffix) {
+it('records public metadata formats and maps the old JSON-LD alias to the canonical target', function (string $suffix, string $format) {
     $this->get($this->page->public_url.$suffix)->assertOk();
     expect(DB::table('usage_events')->count())->toBe(1);
-    expect(DB::table('usage_events')->first()->event_type)->toBe('investigation');
-})->with(['/metadata/datacite.xml', '/metadata/datacite.json', '/metadata/datacite.jsonld', '/metadata/iso-19115-3.xml', '/jsonld']);
+    $event = DB::table('usage_events')->first();
+    expect($event->event_type)->toBe('investigation')
+        ->and($event->target_hash)->toBe(app(CounterSessionHasherService::class)->target($format));
+})->with([
+    ['/metadata/datacite.xml', 'datacite-xml'],
+    ['/metadata/datacite.json', 'datacite-json'],
+    ['/metadata/datacite.jsonld', 'datacite-jsonld'],
+    ['/metadata/iso-19115-3.xml', 'iso19115-3'],
+    ['/metadata/iso-19115-4.json', 'iso19115-4'],
+    ['/jsonld', 'datacite-jsonld'],
+]);
 
 it('counts a final not-modified response but excludes redirects and server errors', function () {
     $request = Request::create($this->page->public_url, 'GET', server: [
@@ -76,6 +86,7 @@ it('refreshes the displayed calendar window at the UTC month boundary before the
 it('does not count unavailable ISO exports or downloads awaiting activation', function () {
     config(['iso19115.enabled' => false]);
     $this->get($this->page->public_url.'/metadata/iso-19115-3.xml')->assertNotFound();
+    $this->get($this->page->public_url.'/metadata/iso-19115-4.json')->assertNotFound();
     $this->page->update(['downloads_unavailable' => true]);
     $this->get(route('landing-page.download.primary', $this->page))->assertNotFound();
     expect(DB::table('usage_events')->count())->toBe(0);

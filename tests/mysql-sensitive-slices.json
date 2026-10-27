@@ -77,7 +77,7 @@
         "tombstone-schema": ["tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php"],
         "tombstones": ["tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php", "tests/pest/Feature/LandingPages/ResourceTombstoneTest.php"],
         "igsn-layout": ["tests/pest/Feature/LandingPages/LandingPageTemplateIgsnLayoutMigrationTest.php"],
-        "assistance": ["tests/pest/Feature/Performance/AssistanceQueryPerformanceTest.php"],
+        "assistance": ["tests/pest/Feature/Performance/AssistanceQueryPerformanceTest.php", "tests/pest/Feature/Database/FundingAwardUriConcurrencyTest.php", "tests/pest/Feature/Services/FundingAwardUri"],
         "subject-hierarchy": ["tests/pest/Feature/Services/SubjectHierarchy/SubjectHierarchyCorrectionTest.php"],
         "relation-correction": ["tests/pest/Feature/Services/RelationTypeCorrection"],
         "description-language": ["tests/pest/Feature/Database/WidenDescriptionLanguageMigrationTest.php"],

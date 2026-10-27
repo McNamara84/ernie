@@ -117,7 +117,7 @@ interface AssistantContract
      * @param  array<string, mixed>  $input  Optional assistant-specific acceptance input
      * @return array<string, mixed> Result data (e.g. success status, message)
      */
-    public function acceptSuggestion(int $id, array $input = []): array;
+    public function acceptSuggestion(int $id, array $input = [], ?User $reviewer = null): array;
 
     /**
      * Decline a suggestion by its ID, recording who declined and why.

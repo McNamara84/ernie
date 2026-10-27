@@ -30,6 +30,7 @@ interface AbstractSectionProps {
     resourceId: number;
     isPreview?: boolean;
     supportsIso19115?: boolean;
+    supportsIso19115Json?: boolean;
     /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
@@ -55,6 +56,7 @@ export function AbstractSection({
     resourceId,
     isPreview = false,
     supportsIso19115 = false,
+    supportsIso19115Json = false,
     jsonLdExportUrl,
     metadataLinks,
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
@@ -109,6 +111,7 @@ export function AbstractSection({
                             resourceId={resourceId}
                             isPreview={isPreview}
                             supportsIso19115={supportsIso19115}
+                            supportsIso19115Json={supportsIso19115Json}
                             jsonLdExportUrl={jsonLdExportUrl}
                             metadataLinks={metadataLinks}
                         />

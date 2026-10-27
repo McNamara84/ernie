@@ -282,6 +282,7 @@ class LandingPagePreviewController extends Controller
             'landingPage' => $tempLandingPage,
             'hasDataPublicationTeamRecipient' => $dataPublicationTeamRecipientService->isAvailable(),
             'supportsIso19115' => $isoProfile->supports($resource),
+            'supportsIso19115Json' => $isoProfile->supportsJson($resource),
             'isPreview' => true,
             'embargoPending' => $embargoPending,
             'embargoDate' => $embargoPending ? app(EmbargoService::class)->availableDate($resource) : null,

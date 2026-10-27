@@ -1079,6 +1079,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 proposes safe ROR replacements from the local ROR FundRef index
                             </li>
                             <li>
+                                <strong>Funding Award URI Enrichment</strong> - Proposes missing award URIs from Crossref Grants and CORDIS when award
+                                number, funder and source evidence identify one award. Existing values are preserved. Review the current and proposed
+                                URI and the source evidence before accepting. Decisions, previous values, reviewer and source evidence are retained
+                                permanently. Accepted changes follow the existing DataCite synchronization workflow for registered resources. This
+                                optional assistant must be enabled by an administrator.
+                            </li>
+                            <li>
                                 <strong>Suggested Title Languages</strong> – Suggests missing language values for title records using title-text
                                 detection
                             </li>
@@ -2744,12 +2751,30 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             you close it from inside the popup, focus returns to the map object that opened it. If you have moved focus outside the
                             popup, it stays there.
                         </p>
+                        <h4>Downloading Metadata</h4>
+                        <p>
+                            On published Resource landing pages, <strong>Download Metadata</strong> offers the DataCite formats and, for eligible
+                            resource types, an <strong>ISO 19115</strong> row with <strong>XML</strong> and <strong>JSON</strong> buttons. XML uses
+                            ISO 19115-3:2023; JSON uses <strong>ISO/TR 19115-4</strong>. No separate activation is needed for ISO JSON. The button
+                            tooltips and accessible labels identify the standard and the JSON preview status.
+                        </p>
+                        <p>
+                            ISO JSON is available for Dataset, Collection, Model, Instrument, Service, Software, Computational Notebook, Workflow,
+                            Interactive Resource, and Image records. IGSNs and Physical Objects do not offer ISO JSON and keep their existing metadata
+                            formats. Other resource types are outside the supported ISO profile. Template settings may hide the Download Metadata
+                            section.
+                        </p>
+                        <p>
+                            The JSON format is marked <strong>Preview</strong> because it implements a selected schema version and does not claim
+                            support for the entire ISO metadata model. This label does not prevent downloads from published pages. It is separate from
+                            the landing-page preview used before publication.
+                        </p>
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
                             The <strong>Download Metadata</strong> section remains visible while you review a Resource or IGSN landing page. Selecting
-                            XML, JSON, JSON-LD, or the ISO 19115-3 option available for eligible records shows a notice that metadata downloads become
-                            available after registration with DataCite. On the published landing page, the same actions download the available
-                            metadata representations directly.
+                            a DataCite format or an eligible ISO format (ISO XML and ISO JSON for Resources, ISO XML for IGSNs) shows a notice that
+                            metadata downloads become available after registration with DataCite. On the published landing page, the same actions
+                            download the available metadata representations directly.
                         </p>
                         <h4>Newer-Version and Superseded Notices</h4>
                         <p>

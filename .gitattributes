@@ -14,3 +14,6 @@ resources/data/scheme/datacite-4.7/** -whitespace
 
 # Keep the official COUNTER classification snapshot byte-for-byte.
 resources/data/counter/counter-robots.json -whitespace
+
+# Keep the official ISO/TR 19115-4 schema snapshot byte-for-byte.
+resources/data/scheme/iso-19115-4/** -whitespace
