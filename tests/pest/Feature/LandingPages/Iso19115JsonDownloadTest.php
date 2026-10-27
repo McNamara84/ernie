@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\PublicMetadataExportController;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -11,6 +12,7 @@ use App\Services\Iso19115\Iso19115JsonExporter;
 use App\Services\Iso19115\Iso19115JsonValidator;
 use App\Services\LandingPageMetadataLinkService;
 use App\Support\Iso19115\Iso19115ValidationResult;
+use Illuminate\Support\Facades\Cache;
 
 covers(PublicMetadataExportController::class, LandingPageMetadataLinkService::class);
 
@@ -45,13 +47,29 @@ test('does not expose ISO JSON for physical objects unsupported types or drafts'
     }
 })->with([['physical-object', true], ['project', true], ['dataset', false]]);
 
-test('respects both ISO switches and never affects DataCite downloads', function (string $key) {
+test('respects the global ISO switch and never affects DataCite downloads', function () {
     $landingPage = isoJsonLandingPage();
-    config([$key => false]);
+    config(['iso19115.enabled' => false]);
     $this->get($landingPage->getPublicPath().'/metadata/iso-19115-4.json')->assertNotFound();
     $this->get($landingPage->getPublicPath().'/metadata/datacite.json')->assertOk();
     expect(array_column(app(LandingPageMetadataLinkService::class)->for($landingPage->resource, $landingPage), 'format'))->not->toContain('iso19115-4');
-})->with(['iso19115.json.enabled', 'iso19115.enabled']);
+});
+
+test('offers ISO JSON automatically despite a retired JSON-only switch or cached page', function () {
+    config(['iso19115.json.enabled' => false, 'bot_protection.enabled' => true, 'bot_protection.landing_cache_ttl' => 600]);
+    $landingPage = isoJsonLandingPage();
+    $legacyKey = 'landing_pages:render_data:v15:'.$landingPage->id;
+    Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($legacyKey, [
+        'template' => 'default_gfz',
+        'props' => ['supportsIso19115Json' => false, 'metadataLinks' => []],
+        'viewData' => [],
+    ], 600);
+
+    $this->get($landingPage->getPublicPath().'/metadata/iso-19115-4.json')->assertOk();
+    $this->get($landingPage->getPublicPath())->assertOk()
+        ->assertInertia(fn ($page) => $page->where('supportsIso19115Json', true)
+            ->where('metadataLinks.4.format', 'iso19115-4'));
+});
 
 test('returns not found for unknown DOI and slug pairs', function () {
     $this->get('/10.5880/missing/not-found/metadata/iso-19115-4.json')->assertNotFound();

@@ -28,7 +28,6 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
-      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       # Public pages are released independently; false returns a local HTTP 404.
       - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
       - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-true}
@@ -335,7 +334,6 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
-      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=queue
       - ERNIE_RUN_MIGRATIONS=0
       - INERTIA_SSR_ENABLED=false
@@ -466,7 +464,6 @@ services:
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
-      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=queue
       - ERNIE_RUN_MIGRATIONS=0
       - INERTIA_SSR_ENABLED=false
@@ -560,7 +557,6 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
-      - ISO19115_JSON_ENABLED=${ISO19115_JSON_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=scheduler
       - ERNIE_RUN_MIGRATIONS=0
       - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}

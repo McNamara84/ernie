@@ -55,9 +55,7 @@ class Iso19115ResourceProfileService
 
     public function supportsJson(Resource $resource): bool
     {
-        return (bool) config('iso19115.json.enabled', true)
-            && $this->supports($resource)
-            && ! $resource->isIgsn();
+        return $this->supports($resource) && ! $resource->isIgsn();
     }
 
     public function supportsDeletedRecord(OaiPmhDeletedRecord $record): bool

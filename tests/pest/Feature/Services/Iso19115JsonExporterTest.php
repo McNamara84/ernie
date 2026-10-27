@@ -63,14 +63,13 @@ test('supports every existing ISO resource type except physical objects', functi
     validatedIsoJson($resource);
 })->with(['dataset', 'collection', 'model', 'instrument', 'service', 'software', 'computational-notebook', 'workflow', 'interactive-resource', 'image']);
 
-test('rejects unsupported resources and disabled JSON without changing XML availability', function (string $slug, bool $enabled, bool $xml) {
+test('rejects unsupported JSON resource types without changing XML availability', function (string $slug, bool $xml) {
     $type = ResourceType::firstOrCreate(['slug' => $slug], ['name' => $slug, 'is_active' => true]);
     $resource = isoJsonResource(['resource_type_id' => $type->id]);
-    config(['iso19115.json.enabled' => $enabled]);
     expect(app(Iso19115ResourceProfileService::class)->supports($resource))->toBe($xml)
         ->and(app(Iso19115ResourceProfileService::class)->supportsJson($resource))->toBeFalse();
     expect(fn () => app(Iso19115JsonExporter::class)->export($resource))->toThrow(RuntimeException::class);
-})->with([['physical-object', true, true], ['project', true, false], ['dataset', false, true]]);
+})->with([['physical-object', true], ['project', false]]);
 
 test('handles missing legacy strings without synthetic metadata', function () {
     $resource = Resource::factory()->create(['language_id' => null, 'version' => null, 'publisher_id' => null]);

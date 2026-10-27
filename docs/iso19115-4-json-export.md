@@ -50,18 +50,16 @@ The eligibility rule uses the existing ISO type mapping, excluding
 computational-notebook, workflow, interactive-resource and image. Immutable
 type slugs determine eligibility, independently of display names or templates.
 
-`ISO19115_JSON_ENABLED=false` disables JSON only. The existing
-`ISO19115_ENABLED=false` disables both ISO formats. Both default to enabled.
-Configure these through the application's environment and refresh Laravel's
-configuration cache as in the normal deployment workflow. Invalidate cached
-landing-page render data when changing either switch. The render cache version
-was advanced for the initial JSON release so existing pages receive the link.
+ISO JSON is available automatically after redeployment for eligible published
+resource landing pages. There is no separate JSON feature flag or activation
+step. The preview label describes the selected schema implementation, not an
+access restriction. The landing-page render cache version was advanced so
+previously cached pages also receive the JSON link after redeployment.
 
-For Docker, set `ISO19115_JSON_ENABLED` in the environment supplied to Compose
-(for example `.env.docker` with `--env-file .env.docker`). Development, stage
-and production forward this switch to the application, scheduler and workers.
-Recreate these containers through the normal deployment procedure after changing
-the value so their process environment and Laravel configuration are refreshed.
+The existing global `ISO19115_ENABLED` setting still governs both ISO formats
+and the XML OAI-PMH format, and defaults to enabled. If changing that existing
+setting, refresh Laravel's configuration and landing-page render caches through
+the normal deployment workflow.
 
 Canonical metadata links also appear in HTTP and HTML `describedby` links with
 `application/json` and the schema URI as profile metadata. Preview pages show
