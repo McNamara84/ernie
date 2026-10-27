@@ -1,0 +1,127 @@
+{
+    "repository": "anti101/IGSN-Schema-by-GFZ-Data-Services",
+    "commit": "321df7287f8540960b99aeb55113cbf22274380c",
+    "retrieved": "2026-10-27",
+    "entrypoint": "IGSN_Core_by_GFZ_DataServices.xsd",
+    "files": [
+        {
+            "path": "IGSN_Core_by_GFZ_DataServices.xsd",
+            "git_blob": "8d75c8481b70fccc479c15ab6cc0d46fb68d9441",
+            "sha256": "965c1905ad7c200f341eeeac1c98343483645e612ba186c08494aa670cadc4e0",
+            "bytes": 39520,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/IGSN_Core_by_GFZ_DataServices.xsd"
+        },
+        {
+            "path": "DataCite4.7/metadata.xsd",
+            "git_blob": "df2046b2b6ff4f8d3b97a930736ed24c71644a69",
+            "sha256": "055a592150c17b309d981c108eb07478c9e141d230c9d3f6d8a7bc602761f755",
+            "bytes": 36985,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/metadata.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-contributorType-v4.xsd",
+            "git_blob": "686ee57697d7ed569ee14cfaa1a94dda8a12e630",
+            "sha256": "bf70f146ac4b1874877b8248b3f4cb2e1ba676ac90c52a8b862639cc7b2c8afa",
+            "bytes": 1845,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-contributorType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-dateType-v4.xsd",
+            "git_blob": "17db99214c16e01ce723763fd0b447f4c91367db",
+            "sha256": "d6bf5a93077dccfb53aa73929e41c3d16d0b95920c64e76e655240367dc48812",
+            "bytes": 1496,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-dateType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-descriptionType-v4.xsd",
+            "git_blob": "4f5e5f47fde33d9eccc7996e1135edb060c36162",
+            "sha256": "b69733e1cffe134eada14d604db17dcf913c21bc8552f6b7debcd3ce04eba3e9",
+            "bytes": 961,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-descriptionType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-funderIdentifierType-v4.xsd",
+            "git_blob": "754c97243f09730860f2120a3624a7c5ef6d5b61",
+            "sha256": "eab86e3c6fb0d24d3508559e667641862838b988fe14147dc187ebd79c9bcfe8",
+            "bytes": 752,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-funderIdentifierType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-nameType-v4.xsd",
+            "git_blob": "bf54922fb3719d00298b1a356a7abefe08ad9486",
+            "sha256": "a841e852c1cf00e6301f489ce6b85d94017b6cffbdce991d2b7a5e7e27921e5a",
+            "bytes": 496,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-nameType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-numberType-v4.xsd",
+            "git_blob": "0de90c70767848583ddfe7e34a4d6005ea5042f5",
+            "sha256": "e9f9e3c66b34a4476bab683058734f22922d167f76e642db0c05a50842b94241",
+            "bytes": 571,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-numberType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-relatedIdentifierType-v4.xsd",
+            "git_blob": "87760fd02ddd8ed82a4dc8b70ec8ed987f87d4c3",
+            "sha256": "2f3dfb0ad0b5eaada39f44f51c98802bb3b09f4c651af898ec18b9c1d6122cd2",
+            "bytes": 1729,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-relatedIdentifierType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-relationType-v4.xsd",
+            "git_blob": "756edb86cc7261f924841d567740d2eb423977e9",
+            "sha256": "248255d472bdb792065520d79f966c6d55d0997cf709877b3b8ebbf634e0d3d9",
+            "bytes": 3021,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-relationType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-resourceType-v4.xsd",
+            "git_blob": "1de0051f398b107790c967472411431ec682c6f3",
+            "sha256": "57098b3aac1af97ddc0dce5b33a3b1db9fa8e45f84fbcaa8cf7598dd1f08787a",
+            "bytes": 2663,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-resourceType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-titleType-v4.xsd",
+            "git_blob": "18efc0da05d72541a57d9c23ebb629b0a9bf269c",
+            "sha256": "03b4eb8c8b71ca2ef95b6a921be654f0dd18b4d89616a12708198d67f6fa463a",
+            "bytes": 699,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-titleType-v4.xsd"
+        },
+        {
+            "path": "DataCite4.7/include/xml.xsd",
+            "git_blob": "bd291f3d4be818edcb1498697ffd03f0226a9cf8",
+            "sha256": "cc701736c42cc64126fad063bb95f94484b5de3b5f808a86ea098b0957aff829",
+            "bytes": 8838,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/xml.xsd"
+        },
+        {
+            "path": "readme.md",
+            "git_blob": "f720f81bbd88c9f384f1e3bc5176ce51e8331bfc",
+            "sha256": "f302dba2c3d2527f08a355a33d743cca0a96946d8cadae8d3ad345cc8cb3efcc",
+            "bytes": 4426,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/readme.md"
+        },
+        {
+            "path": "documentation/Core_elements_dokumentation.md",
+            "git_blob": "833e035d1792741182acee9808fad3b72e4f0214",
+            "sha256": "f9048f0ba186179e71ea85aab71d2a226963742373ace4c7697c3b2268de6d59",
+            "bytes": 62770,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/documentation/Core_elements_dokumentation.md"
+        },
+        {
+            "path": "documentation/core_elements_attributes_overview.md",
+            "git_blob": "fd5db2211c2e5d5cc90b18817c8431ddae667ba5",
+            "sha256": "580267964415d7b9e17fcff56c3192c114137717fc3cd619b75774f5c85641bd",
+            "bytes": 15085,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/documentation/core_elements_attributes_overview.md"
+        },
+        {
+            "path": "documentation/mapping.md",
+            "git_blob": "fe50d136a3a18094c1f3401e12c140a72ab8baa8",
+            "sha256": "0c855f65106b6e1e6e6f5dc54eeba765d3571ebe52c38c0a5685f14ab02e64d6",
+            "bytes": 21143,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/documentation/mapping.md"
+        }
+    ]
+}

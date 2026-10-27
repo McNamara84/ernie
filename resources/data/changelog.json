@@ -4,6 +4,10 @@
         "date": "2026-10-27",
         "features": [
             {
+                "title": "IGSN 2.0 Core Metadata Downloads",
+                "description": "Published IGSN and Physical Object landing pages offer an IGSN 2.0 Core XML preview download. Metadata is mapped with XSLT and validated before delivery against a pinned, unchanged development schema snapshot, publicly available with its dependencies and provenance. The export uses Core only, without Geo or Bio extensions or IGSN 1.3. Missing required metadata and validation failures produce clear errors instead of invalid downloads. Mapping documentation, privacy safeguards and automated tests cover the new format."
+            },
+            {
                 "title": "ISO JSON Metadata Downloads",
                 "description": "Eligible resource landing pages automatically offer an ISO/TR 19115-4 JSON preview download alongside ISO 19115-3 XML. Both formats appear under ISO 19115 with concise XML and JSON buttons; tooltips and accessible labels identify the specific standards and JSON preview status. The export includes supported metadata and geographic features, validates against a pinned local schema set, and is discoverable through machine-readable metadata links. Scientific plain text and date precision are preserved, and successful anonymous downloads contribute to COUNTER investigations. User documentation explains availability, eligible resource types, and preview limitations. IGSNs and Physical Objects retain their existing download formats."
             },

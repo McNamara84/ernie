@@ -119,6 +119,7 @@ export default function DefaultGfzIgsnTemplate() {
                 resourceId={resource.id}
                 isPreview={isPreview}
                 supportsIso19115={supportsIso19115}
+                supportsIgsnCore
                 jsonLdExportUrl={jsonLdExportUrl}
                 metadataLinks={metadataLinks}
                 sectionOrder={[key]}

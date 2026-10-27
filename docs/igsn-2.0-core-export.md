@@ -1,0 +1,59 @@
+# IGSN 2.0 Core XML export
+
+Published Physical Objects (`Resource::isIgsn()`, slug `physical-object`) offer **IGSN 2.0 Core (Preview)** under **Download Metadata**. The canonical anonymous endpoint is `/{doiPrefix}/{slug}/metadata/igsn-core-2.0.xml`. Regular resources and unpublished pages return 404. Published tombstones retain metadata access. Template settings can hide the download section without removing the endpoint or discovery links. Landing-page previews open the existing registration notice and never request the export.
+
+This is the **Core only** development schema, pinned to upstream commit [`321df7287f8540960b99aeb55113cbf22274380c`](https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/tree/321df7287f8540960b99aeb55113cbf22274380c) (22 October 2026). It is not an official 2.0 release. Neither Geo nor Bio is required or used. IGSN 1.3 is not involved. Core itself supports simple geographic coordinates.
+
+## Schema provenance and validation
+
+Files live at `resources/data/scheme/igsn-core/2.0/<commit>/`. The public URLs start with `/schemas/igsn/2.0/core/<commit>/`. Original upstream files are stored in `upstream/`, but that prefix is omitted from public URLs. The manifest allowlist controls access. GET/HEAD are anonymous, with SHA-256 ETags, immutable caching and no session cookies. Unknown files/snapshots return 404. Every original file is hash checked before delivery or validation. `.gitattributes` prevents Git newline conversion; formatters exclude originals.
+
+The manifest records exact bytes, SHA-256, Git blob IDs, source URLs and retrieval date. The 13 original XSDs are Core, the upstream **modified** DataCite4.7 metadata schema and its eleven dependencies. Four original documentation files are retained too. ERNIE's existing ordinary DataCite schema is not substituted.
+
+The original Core imports `X:\IGSN\DataCiteSchema4-7\kernel-4.7\metadata.xsd`. PHP/libxml rejects this before its external loader can resolve it. The separate ERNIE `validation.xsd` imports DataCite first and Core second; it adds no declarations or constraints. This validates both minimal and complete fixtures in the actual PHP Docker runtime while preserving all original bytes. The scoped resolver permits only the verified local schema files, rejects unknown file/network references, and restores the previous loader even after exceptions. `LIBXML_NONET` is also enabled. DTD/entity declarations are rejected.
+
+`xsi:schemaLocation` points to the exact original public Core XSD. For external validation, download the public files keeping their relative paths and use `validation.xsd`. A standalone schemaLocation download cannot resolve the original Windows import automatically. `catalog.xml` describes equivalent mappings for processors supporting XML catalogs, but a catalog alone does not fix libxml's early URI rejection. See the public snapshot `README.md` for a command example.
+
+## Mapping contract
+
+The XSD determines XML structure; the pinned documentation determines meaning. References below use elements in [Core documentation](../resources/data/scheme/igsn-core/2.0/321df7287f8540960b99aeb55113cbf22274380c/upstream/documentation/Core_elements_dokumentation.md) and their declarations in the [Core XSD](../resources/data/scheme/igsn-core/2.0/321df7287f8540960b99aeb55113cbf22274380c/upstream/IGSN_Core_by_GFZ_DataServices.xsd). `i` denotes `urn:FAIR-AIMS:Core:1`; `d` denotes `http://datacite.org/schema/kernel-4`. Paths below are relative to `i:resource`.
+
+| ERNIE source | Target, cardinality and rule |
+| --- | --- |
+| `Resource.doi` | `i:identifier` (1), `i:identifierType="DOI"`. Actual full DOI, e.g. `10.58052/IEABC001`; no generated prefix or placeholder. |
+| Local accession/sample name alternate identifiers, then titles in ID order | `i:name` (1..n). Local identifiers use `titleType="Other"`; titles retain supported types, omitting the unsupported `MainTitle` attribute. Exact duplicate strings are removed. Titles require English; local identifiers are nonlinguistic names. |
+| Creators, polymorphic person/institution, snapshots, affiliations | `i:agents/i:creator` (1..n), in position order. Snapshot display/given/family names take precedence. Existing named identities are Personal or Organizational, with `creatorType="creator"`. ORCID/ROR and affiliation identifiers retain schemes/URIs. No `Unknown` fallback and no emails. |
+| `igsnMetadataValues.sampled_by` | Changes creator role to `collector` only for a unique exact match among the already typed creator identities. Ambiguous/unmatched free text is diagnosed; no new person/institution is inferred. |
+| Contributors and contributor types | `i:agents/i:contributor` (0..n), one entry per supported distinct role; an existing roleless contributor remains roleless. Unnamed or unsupported-role entries are omitted. |
+| Resource publisher, otherwise persisted ERNIE default publisher | `i:agents/i:publisher` (1), requiring real name, identifier, supported identifier scheme and scheme URI, with English language. An incomplete assigned publisher is an error; it is never replaced by a different publisher. |
+| IGSN sample type, otherwise stored ResourceType name | `i:entityTypeClassifications/i:resourceType` (1), fixed general type PhysicalObject. No inferred Sample/SamplingFeature. |
+| IGSN material and classification values | `i:entityTypeClassifications/i:material` (0..n), preserving hierarchy as text. If exactly one English controlled subject matches the complete material value, preserve its subjectScheme, schemeURI, valueURI and classificationCode. Arbitrary keywords are not materials. ERNIE has no explicit alternate-material relation, so `alternateMaterial` is not inferred. |
+| Resource descriptions, collection method description, platform description, normalized IGSN description groups | `i:entityTypeClassifications/i:description` (0..n). Resource description type retained; collection method becomes Methods; platform and allowlisted normalized description entries become Other. HTML becomes plain text without double escaping. Only English/German are allowed; explicit field language wins over resource language. Raw JSON is never dumped. |
+| Resource dates and publication year | `i:dates/i:date` (0..n), then `i:publicationYear` (1). Retain stored date precision and intervals (`2019/`, `/2021-03`, `2020-01/2020-05`), supported type and information. Sampling precision is appended only to Collected dates. Invalid optional dates are diagnosed. Year is required; no current-year fallback. |
+| Current archive | `i:archives/i:archive/i:archiveName` (0..1 in this exporter). Original archive is historical and is not asserted to be current. Archive contacts/emails and sample coordinates are not repurposed as archive details. |
+| Alternate identifiers | `i:relationshipIdentifiers/i:alternateIdentifier` (0..n), only DataCite identifier enums. Local names already appear as names, never as invented identifier enums. |
+| Public parent resource with known IGSN DOI prefix | `i:relationshipIdentifiers/i:parentIdentifier` (0..1), handle derived by the existing IGSN identifier helper; fixed IGSN/IsPartOf attributes. Matching redundant related DOI assertion is suppressed. Private/unpublished parents and matching related identifiers are excluded. Unknown prefixes are not stripped; an existing public DOI relationship can remain as relatedIdentifier. |
+| Related identifiers | `i:relationshipIdentifiers/i:relatedIdentifier` (0..n), supported identifier and relation enums; duplicate type/relation/value triples removed. |
+| Locations and IGSN coordinate system | `i:geoLocations`: places (0..n), point/box/polygon (each 0..1). Stored DataCite coordinates default to WGS84 unless an explicit IGSN override says otherwise. Accept WGS84/EPSG:4326/4326; no reprojection. Deduplicate identical shapes; omit a type with multiple distinct candidates. Bounds/rings must be valid; dateline-crossing boxes are preserved. Lines and polygon interior points have no supported mapping here. |
+| Funding references | `i:fundingReferences/i:fundingReference` (0..n), requires real funder name; supported identifiers, scheme URI, award number/URI and title retained. |
+| Resource language | `i:language` (0..1), only documented English. Unsupported languages are diagnosed; no automatic translation. |
+
+Root order is identifier, names, agents, entityTypeClassifications, dates, archives, relationshipIdentifiers, geoLocations, fundingReferences, language. In Core-defined types, attributes are namespace-qualified. Imported DataCite `nameIdentifier` and affiliation attributes are unqualified; imported point/box children retain the DataCite namespace. The repository's version label 2.0 does not change its `Core:1` namespace.
+
+Known documentation conflicts: documentation examples omit required namespace qualifications; archiveName is a simple string and cannot contain the documented nameIdentifier child; older mapping rows mention unavailable elements such as access. The upstream complete example has a local-file namespace and a 1.3 schema location and is not used as a valid fixture. ERNIE fixtures are explicitly independent examples. Narrow language enumerations/defaults constrain titles, publisher and material; stored IGSN material/classification terms follow the existing English vocabulary convention. German descriptions carry `i:lang="de"`.
+
+Core has no dedicated mapping for depth, cruise/platform identifiers, launch/navigation types, sample access/request, field names, classification comments, images or historical archives. These are not invented as extension elements. Contact email addresses, upload diagnostics and private parent details are never selected into the source XML.
+
+## Execution and errors
+
+`IgsnCoreSourceBuilder` eager-loads selected relations, checks real mandatory values and serializes a private source vocabulary. `resources/xslt/igsn-core/2.0/ernie-to-igsn-core.xsl` owns all target names, attributes, namespaces and order. `IgsnCoreXmlExporter` disables XSLT file/network reads and writes and does not enable PHP functions. `IgsnCoreXmlValidator` validates the complete transformed document before the controller emits an attachment.
+
+Missing/unsupported mandatory metadata returns 422 with a safe message and field names. Transformation, schema or validation failure returns a generic 500 JSON response without Content-Disposition. Logs contain resource IDs, exception classes and omission codes, never XML, contact values or libxml paths. The browser downloads only a successful XML response and shows retryable errors otherwise. Successful anonymous exports join existing COUNTER investigations; IGSN data-download requests remain excluded.
+
+Canonical metadata links feed HTML discovery and HTTP describedby signposting; the profile is the original Core XSD URL. Render-cache version 17 invalidates previously cached link lists. No editor, registration, migration, OAI-PMH or batch-export behavior changes.
+
+## Verification and updates
+
+Backend tests cover actual XSLT output plus local XSD validation, schema response hashes, namespace rules, mandatory failures, privacy, dates, language, geometry ambiguity, route scope and safe failures. Frontend tests cover capability visibility, preview, validated downloads, duplicate clicks, cancellation, errors and retry. Browser tests exercise the published landing-page path. Use repository npm wrappers and the versions in `docs/local-development.md`; full line coverage remains CI's responsibility.
+
+Never update files under an existing snapshot URL. Add a new upstream commit directory, verify the dependency closure and exact hashes, update the configured snapshot deliberately, compare mapping changes, and rerun the regression and final checks. Keep previous snapshot publication available if introducing multiple versions later.

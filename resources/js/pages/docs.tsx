@@ -2760,21 +2760,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             ISO JSON is available for Dataset, Collection, Model, Instrument, Service, Software, Computational Notebook, Workflow,
-                            Interactive Resource, and Image records. IGSNs and Physical Objects do not offer ISO JSON and keep their existing metadata
-                            formats. Other resource types are outside the supported ISO profile. Template settings may hide the Download Metadata
-                            section.
+                            Interactive Resource, and Image records. IGSNs and Physical Objects do not offer ISO JSON. Other resource types are
+                            outside the supported ISO profile. Template settings may hide the Download Metadata section.
                         </p>
                         <p>
                             The JSON format is marked <strong>Preview</strong> because it implements a selected schema version and does not claim
                             support for the entire ISO metadata model. This label does not prevent downloads from published pages. It is separate from
                             the landing-page preview used before publication.
                         </p>
+                        <p>
+                            Published IGSNs and Physical Objects also offer <strong>IGSN 2.0 Core (Preview)</strong> as XML, with a link to the exact
+                            schema snapshot. This uses an unpublished Core development version without Geo or Bio extensions. ERNIE validates each
+                            file before download. Missing required metadata or validation failures show an error instead of downloading an invalid
+                            file.
+                        </p>
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
                             The <strong>Download Metadata</strong> section remains visible while you review a Resource or IGSN landing page. Selecting
-                            a DataCite format or an eligible ISO format (ISO XML and ISO JSON for Resources, ISO XML for IGSNs) shows a notice that
-                            metadata downloads become available after registration with DataCite. On the published landing page, the same actions
-                            download the available metadata representations directly.
+                            a DataCite format, IGSN Core for physical objects, or an eligible ISO format (ISO XML and ISO JSON for Resources, ISO XML
+                            for IGSNs) shows a notice that metadata downloads become available after registration with DataCite. On the published
+                            landing page, the same actions download the available metadata representations directly.
                         </p>
                         <h4>Newer-Version and Superseded Notices</h4>
                         <p>
