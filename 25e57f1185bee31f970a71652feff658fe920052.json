@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "repository": "McNamara84/ernie",
+  "branch": "dev",
+  "sha": "25e57f1185bee31f970a71652feff658fe920052",
+  "version": "1.2.0dev",
+  "images": {
+    "app": "ghcr.io/mcnamara84/ernie-app@sha256:30bd21ed4b104fe11232622eaf7e2a977906f55c9c4b0555b5a78885a52f9b1d",
+    "nginx": "ghcr.io/mcnamara84/ernie-nginx@sha256:0f630b8acc14c9ca5b72dda29d0c096d0b2ea585c86f686994e82e4b3d327ea0",
+    "fuji": "ghcr.io/mcnamara84/ernie-fuji@sha256:beb00863806b866ed02eba99d2f5b6e7252a69d55479572ea7d0b42fb149116f"
+  }
+}
