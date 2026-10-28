@@ -260,10 +260,10 @@ final class IgsnCoreSourceBuilder
         }
         if ($metadata !== null) {
             $this->description($sample, $metadata->collection_method_description, 'Methods', $language);
-            $this->description($sample, $metadata->platform_description, 'Other', $language);
+            $this->description($sample, $metadata->platform_description, 'Other', $language, $language === 'de' ? 'Plattform' : 'Platform');
             foreach ($this->igsnDescriptions->normalizeCsvPayload($metadata->description_json) as $group) {
                 foreach ($group['entries'] as $entry) {
-                    $this->description($sample, $entry['value'], 'Other', $language);
+                    $this->description($sample, $entry['value'], 'Other', $language, $entry['scheme'] ?? '');
                 }
             }
             if ($this->names->filled($metadata->current_archive) !== null) {
@@ -290,7 +290,7 @@ final class IgsnCoreSourceBuilder
         }
     }
 
-    private function description(DOMElement $parent, ?string $value, ?string $type, ?string $language): void
+    private function description(DOMElement $parent, ?string $value, ?string $type, ?string $language, ?string $context = null): void
     {
         if ($value === null || trim($value) === '') {
             return;
@@ -302,6 +302,13 @@ final class IgsnCoreSourceBuilder
         }
         $text = $this->descriptions->formatForStorage($value)['plainText'];
         if ($text !== '') {
+            if ($context !== null) {
+                $label = $this->descriptions->formatForStorage($context)['plainText'];
+                if ($label === '') {
+                    $label = $language === 'de' ? 'Probenbeschreibung' : 'Sample description';
+                }
+                $text = $label.': '.$text;
+            }
             $this->node($parent, 'description', $text, ['type' => $type, 'language' => $language]);
         }
     }

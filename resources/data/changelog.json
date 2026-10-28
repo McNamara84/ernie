@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "IGSN 2.0 Core Metadata Downloads",
-                "description": "Published IGSN and Physical Object landing pages offer an IGSN 2.0 Core XML preview download. Metadata is mapped with XSLT and validated before delivery against a pinned, unchanged development schema snapshot, publicly available with its dependencies and provenance. The export uses Core only, without Geo or Bio extensions or IGSN 1.3. Missing required metadata and validation failures produce clear errors instead of invalid downloads. Mapping documentation, privacy safeguards and automated tests cover the new format."
+                "description": "Published IGSN and Physical Object landing pages offer an IGSN 2.0 Core XML preview download, including supported relationships and geographic coordinates while protecting private parent identifiers and contact details. Metadata is mapped with XSLT and validated before delivery against a pinned, unchanged development schema snapshot, publicly available with its dependencies and provenance. The export uses Core only, without Geo or Bio extensions or IGSN 1.3. Missing required metadata and validation failures produce clear errors instead of invalid downloads. Mapping documentation and automated tests cover the new format."
             },
             {
                 "title": "ISO JSON Metadata Downloads",
@@ -49,10 +49,6 @@
             }
         ],
         "fixes": [
-            {
-                "title": "IGSN Core Export Completeness and Parent Privacy",
-                "description": "IGSN 2.0 Core downloads preserve supported relationships using their vocabulary codes and consistently exclude private or unpublished parent identifiers across DOI casing, resolver URLs and IGSN handles. Equivalent public parent assertions are exported once. Valid polygons stored without explicit closure, including triangles, are retained; sampling lines remain excluded from area polygons. Numeric location labels no longer interrupt downloads."
-            },
             {
                 "title": "Email Header Security",
                 "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."

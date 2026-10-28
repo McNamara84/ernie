@@ -59,7 +59,7 @@ final class IgsnCoreGeometryMapper
                 if (count($points) >= 3 && $points[0] !== $points[count($points) - 1]) {
                     $points[] = $points[0];
                 }
-                if (count($points) < 4 || $points[0] !== $points[count($points) - 1]) {
+                if (count($points) < 4 || $points[0] !== $points[count($points) - 1] || ! $this->hasNonCollinearVertices($points)) {
                     $omissions[] = 'polygon_invalid';
                 } else {
                     $candidates['polygon'][json_encode($points, JSON_THROW_ON_ERROR)] = $points;
@@ -76,6 +76,38 @@ final class IgsnCoreGeometryMapper
         }
 
         return ['places' => array_map('strval', array_keys($places)), 'geometries' => $geometries, 'omissions' => array_values(array_unique($omissions))];
+    }
+
+    /** @param list<array{longitude: string, latitude: string}> $points */
+    private function hasNonCollinearVertices(array $points): bool
+    {
+        $origin = $points[0];
+        $direction = null;
+        foreach ($points as $point) {
+            $dx = (float) $point['longitude'] - (float) $origin['longitude'];
+            // Compare nearby longitudes continuously across the antimeridian.
+            if ($dx >= 180) {
+                $dx -= 360;
+            } elseif ($dx < -180) {
+                $dx += 360;
+            }
+            $dy = (float) $point['latitude'] - (float) $origin['latitude'];
+            if ($direction === null) {
+                if ($dx !== 0.0 || $dy !== 0.0) {
+                    $direction = [$dx, $dy];
+                }
+
+                continue;
+            }
+            $left = $direction[0] * $dy;
+            $right = $direction[1] * $dx;
+            // Relative rounding tolerance avoids imposing a minimum polygon area.
+            if (abs($left - $right) > 8 * PHP_FLOAT_EPSILON * max(abs($left), abs($right))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return array{longitude: string, latitude: string}|null */

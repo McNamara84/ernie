@@ -15,6 +15,7 @@ use App\Models\IgsnMetadata;
 use App\Models\IgsnMetadataValue;
 use App\Models\Institution;
 use App\Models\LandingPage;
+use App\Models\Language;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
@@ -113,6 +114,33 @@ test('reports missing required metadata without synthesizing values', function (
         expect($exception->fields)->toContain($field);
     }
 })->with(['identifier', 'publication_year', 'name', 'creators', 'publisher']);
+
+test('keeps the context of Other descriptions required by the Core documentation', function (string $language, string $platformLabel, string $sampleLabel) {
+    $resource = coreSample();
+    $resource->language()->associate(Language::firstOrCreate(['code' => $language], ['name' => $language]));
+    $resource->save();
+    IgsnMetadata::create([
+        'resource_id' => $resource->id,
+        'platform_description' => '<p>Polarstern &amp; equipment</p>',
+        'description_json' => ['description_groups' => [['entries' => [
+            ['value' => '<p>Fine grained &amp; layered</p>', 'scheme' => '<b>Texture</b>'],
+            ['value' => 'Black'],
+            ['value' => '<p></p>', 'scheme' => 'Empty'],
+        ]]]],
+    ]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+    $xpath = coreXpath($result->xml);
+    $descriptions = '//i:description[@i:descriptionType="Other"]';
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and($xpath->evaluate('count('.$descriptions.')'))->toBe(3.0)
+        ->and($xpath->evaluate('string(('.$descriptions.')[1])'))->toBe($platformLabel.': Polarstern & equipment')
+        ->and($xpath->evaluate('string(('.$descriptions.')[2])'))->toBe('Texture: Fine grained & layered')
+        ->and($xpath->evaluate('string(('.$descriptions.')[3])'))->toBe($sampleLabel.': Black')
+        ->and($xpath->evaluate('string(('.$descriptions.')[1]/@i:lang)'))->toBe($language)
+        ->and($result->xml)->not->toContain('&amp;amp;', '<b>', 'Empty:');
+})->with([['en', 'Platform', 'Sample description'], ['de', 'Plattform', 'Probenbeschreibung']]);
 
 test('does not relabel foreign titles as English', function () {
     $resource = coreSample();
@@ -388,6 +416,26 @@ test('does not repair invalid polygon coordinates or rings with too few vertices
     'closed two-vertex ring' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2], ['longitude' => 0, 'latitude' => 0]]],
     'out-of-range coordinate' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2], ['longitude' => 181, 'latitude' => 0]]],
     'missing coordinate' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2], ['longitude' => 1]]],
+    'repeated single vertex' => [[['longitude' => 1, 'latitude' => 1], ['longitude' => 1, 'latitude' => 1], ['longitude' => 1, 'latitude' => 1], ['longitude' => 1, 'latitude' => 1]]],
+    'two distinct vertices repeated' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2], ['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2]]],
+    'collinear triangle' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 1, 'latitude' => 1], ['longitude' => 2, 'latitude' => 2]]],
+    'collinear across dateline' => [[['longitude' => 179, 'latitude' => 0], ['longitude' => -180, 'latitude' => 1], ['longitude' => -179, 'latitude' => 2]]],
+    'antimeridian aliases' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 180, 'latitude' => 1], ['longitude' => -180, 'latitude' => 1]]],
+]);
+
+test('retains non-collinear polygons at small scales and across the dateline', function (array $vertices) {
+    $resource = coreSample();
+    GeoLocation::factory()->withPolygon($vertices)->create(['resource_id' => $resource->id]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and(coreXpath($result->xml)->evaluate('count(//i:geoLocationPolygon)'))->toBe(1.0)
+        ->and($result->omissions)->not->toContain('polygon_invalid');
+})->with([
+    'small triangle' => [[['longitude' => 13, 'latitude' => 52], ['longitude' => 13.00000001, 'latitude' => 52], ['longitude' => 13, 'latitude' => 52.00000001]]],
+    'dateline triangle' => [[['longitude' => 179, 'latitude' => 0], ['longitude' => -179, 'latitude' => 0], ['longitude' => -179, 'latitude' => 1]]],
+    'repeated first vertex' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 0, 'latitude' => 0], ['longitude' => 1, 'latitude' => 0], ['longitude' => 1, 'latitude' => 1]]],
 ]);
 
 test('blocks XSLT document access to local files and remote URLs', function (string $uri) {
