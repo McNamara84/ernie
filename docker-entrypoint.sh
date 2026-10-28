@@ -1,14 +1,10 @@
 #!/bin/bash
 set -e
 
+source "$(dirname "${BASH_SOURCE[0]}")/laravel-runtime.sh"
+
 APP_PATH=${APP_PATH:-/var/www/html}
 STORAGE_PATH="$APP_PATH/storage"
-FRAMEWORK_PATH="$STORAGE_PATH/framework"
-CACHE_PATH="$FRAMEWORK_PATH/cache"
-SESSIONS_PATH="$FRAMEWORK_PATH/sessions"
-VIEWS_PATH="$FRAMEWORK_PATH/views"
-PUBLIC_PATH="$STORAGE_PATH/app/public"
-BOOTSTRAP_CACHE="$APP_PATH/bootstrap/cache"
 ENV_FILE="$APP_PATH/.env"
 ENV_EXAMPLE_FILE="$APP_PATH/.env.example"
 ENV_PRODUCTION_FILE="$APP_PATH/.env.production"
@@ -38,14 +34,8 @@ configure_fpm_pool() {
     php-fpm -tt >/dev/null
 }
 
-mkdir -p "$CACHE_PATH"
-mkdir -p "$SESSIONS_PATH"
-mkdir -p "$VIEWS_PATH"
-mkdir -p "$PUBLIC_PATH"
-mkdir -p "$BOOTSTRAP_CACHE"
-
-chown -R www-data:www-data "$STORAGE_PATH" "$BOOTSTRAP_CACHE"
-chmod -R 775 "$STORAGE_PATH" "$BOOTSTRAP_CACHE"
+require_application_key
+prepare_laravel_permissions
 
 cd "$APP_PATH"
 
@@ -64,21 +54,17 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if [ -f "$ARTISAN_BIN" ]; then
+    prepare_storage_link
+
     # Each container has its own bootstrap/cache directory. Package discovery
     # artifacts are part of the immutable image and must remain available.
     echo "Clearing application caches..."
-    php artisan config:clear --no-interaction 2>/dev/null || true
-    php artisan event:clear --no-interaction 2>/dev/null || true
-    php artisan route:clear --no-interaction 2>/dev/null || true
-    php artisan view:clear --no-interaction 2>/dev/null || true
+    run_as_www_data php artisan config:clear --no-interaction 2>/dev/null || true
+    run_as_www_data php artisan event:clear --no-interaction 2>/dev/null || true
+    run_as_www_data php artisan route:clear --no-interaction 2>/dev/null || true
+    run_as_www_data php artisan view:clear --no-interaction 2>/dev/null || true
     
-    # In production, we use environment variables instead of .env file
-    if [ "${APP_KEY:-}" = "" ]; then
-        echo "Info: APP_KEY not set, generating new key..."
-        php artisan key:generate --force --no-interaction
-    else
-        echo "Info: using APP_KEY from environment"
-    fi
+    echo "Info: using shared APP_KEY from deployment environment"
 
     # Database migration with timeout and retry logic
     if [ "${DB_HOST:-}" != "" ] && [ "${ERNIE_RUN_MIGRATIONS:-0}" = "1" ]; then
@@ -115,7 +101,7 @@ if [ -f "$ARTISAN_BIN" ]; then
         while [ $MIGRATION_ATTEMPTS -lt $MAX_MIGRATION_ATTEMPTS ]; do
             echo "Migration attempt $((MIGRATION_ATTEMPTS + 1))/${MAX_MIGRATION_ATTEMPTS}..."
             
-            if php artisan migrate --force --no-interaction 2>/dev/null; then
+            if run_as_www_data php artisan migrate --force --no-interaction 2>/dev/null; then
                 echo "✓ Migration successful!"
                 break
             else
@@ -132,16 +118,12 @@ if [ -f "$ARTISAN_BIN" ]; then
         done
     fi
 
-    if [ "${SKIP_STORAGE_LINK:-}" != "1" ]; then
-        php artisan storage:link --force --no-interaction
-    fi
-
     if [ "${APP_ENV:-production}" = "production" ]; then
         echo "Building optimized Laravel caches..."
-        php artisan optimize --no-interaction
+        run_as_www_data php artisan optimize --no-interaction
     fi
 else
     echo "Warning: artisan not found at $ARTISAN_BIN; skipping artisan commands" >&2
 fi
 
-exec "$@"
+exec_laravel_runtime "$@"

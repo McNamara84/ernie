@@ -20,7 +20,7 @@ services:
       retries: 30
       start_period: 10s
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
@@ -326,7 +326,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
@@ -458,7 +458,7 @@ services:
       fuji:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
@@ -550,7 +550,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}

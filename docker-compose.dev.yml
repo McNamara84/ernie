@@ -432,7 +432,6 @@ services:
       fuji:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
       - APP_ENV=local
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - APP_DEBUG=true
