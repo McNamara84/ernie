@@ -12,6 +12,7 @@
     "ignorePatterns": [
         "vendor",
         "node_modules",
+        "packages/deepmerge",
         "public",
         "resources/js/actions/**",
         "resources/js/routes/**",
