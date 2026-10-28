@@ -4,6 +4,10 @@
         "date": "2026-10-27",
         "fixes": [
             {
+                "title": "Email Header Security",
+                "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."
+            },
+            {
                 "title": "Correct Contact Person Roles in XML and JSON Imports",
                 "description": "Contact Person contributors remain contributors when importing XML or JSON metadata instead of becoming additional authors. Contacts who are also authors retain their contact checkbox, while other contributor roles and affiliations are preserved. ELMO XML email addresses and websites are assigned to the corresponding contacts. Conflicting ORCIDs and ambiguous contact details no longer cause automatic person merges or incorrect contact assignments. The correction applies to new file imports; previously imported records can be corrected manually using their original metadata.",
                 "references": [{ "type": "issue", "number": 1496, "url": "https://github.com/McNamara84/ernie/issues/1496" }]
