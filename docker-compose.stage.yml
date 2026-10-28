@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:a68a7f06fb9e8f2b17e0cdf1c57d7db86e74be9e6083f6f5440bcc8c3b98e5ad}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:30bd21ed4b104fe11232622eaf7e2a977906f55c9c4b0555b5a78885a52f9b1d}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -20,7 +20,7 @@ services:
       retries: 30
       start_period: 10s
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de
@@ -153,7 +153,7 @@ services:
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:53a94888f81572480319f968d77a2eed9d335019438565335a00e4d925ae46f6}"
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:0f630b8acc14c9ca5b72dda29d0c096d0b2ea585c86f686994e82e4b3d327ea0}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -213,7 +213,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:387655a3a02df56783241df5bfd5f80eaf974abc11bfe1f887eba965dbec8d30}"
+    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:beb00863806b866ed02eba99d2f5b6e7252a69d55479572ea7d0b42fb149116f}"
     container_name: ernie-fuji-stage
     restart: unless-stopped
     entrypoint:
@@ -244,7 +244,7 @@ services:
       start_period: 60s
 
   queue: &ernie-queue
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:a68a7f06fb9e8f2b17e0cdf1c57d7db86e74be9e6083f6f5440bcc8c3b98e5ad}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:30bd21ed4b104fe11232622eaf7e2a977906f55c9c4b0555b5a78885a52f9b1d}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -261,7 +261,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de
@@ -365,7 +365,7 @@ services:
     command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:a68a7f06fb9e8f2b17e0cdf1c57d7db86e74be9e6083f6f5440bcc8c3b98e5ad}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:30bd21ed4b104fe11232622eaf7e2a977906f55c9c4b0555b5a78885a52f9b1d}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -385,7 +385,7 @@ services:
       fuji:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de
@@ -442,7 +442,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:a68a7f06fb9e8f2b17e0cdf1c57d7db86e74be9e6083f6f5440bcc8c3b98e5ad}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:30bd21ed4b104fe11232622eaf7e2a977906f55c9c4b0555b5a78885a52f9b1d}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped
@@ -477,7 +477,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=https://ernie.rz-vm182.gfz.de

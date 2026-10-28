@@ -63,6 +63,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'permission' => 0664,
         ],
 
         'daily' => [
@@ -71,6 +72,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 31),
             'replace_placeholders' => true,
+            'permission' => 0664,
         ],
 
         'slack' => [

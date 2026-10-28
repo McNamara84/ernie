@@ -130,8 +130,8 @@ samples:
 ```bash
 docker compose -f docker-compose.prod.yml exec scheduler test -r /host/proc/stat
 docker compose -f docker-compose.prod.yml exec scheduler test -r /host/proc/meminfo
-docker compose -f docker-compose.prod.yml exec scheduler php artisan system-metrics:collect
-docker compose -f docker-compose.prod.yml exec app php artisan tinker --execute="dump(App\\Models\\SystemMetricSample::query()->latest('recorded_at')->first()?->only(['recorded_at', 'cpu_usage_percent', 'memory_usage_percent']));"
+docker compose -f docker-compose.prod.yml exec --user www-data scheduler php artisan system-metrics:collect
+docker compose -f docker-compose.prod.yml exec --user www-data -e XDG_CONFIG_HOME=/var/www/html/storage/framework/.config app php artisan tinker --execute="dump(App\\Models\\SystemMetricSample::query()->latest('recorded_at')->first()?->only(['recorded_at', 'cpu_usage_percent', 'memory_usage_percent']));"
 ```
 
 The first CPU value is intentionally empty because it establishes the baseline.
@@ -160,8 +160,8 @@ traffic. `PUBLIC_TRAFFIC_RETENTION_DAYS` defaults to 400, which covers the
 Validate collection after deployment:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec scheduler php artisan public-traffic:observe-availability
-docker compose -f docker-compose.prod.yml exec app php artisan tinker --execute="dump(App\\Models\\PublicTrafficHourlyStatistic::query()->latest('bucket_started_at')->first()?->only(['bucket_started_at', 'observed_minute_count']));"
+docker compose -f docker-compose.prod.yml exec --user www-data scheduler php artisan public-traffic:observe-availability
+docker compose -f docker-compose.prod.yml exec --user www-data -e XDG_CONFIG_HOME=/var/www/html/storage/framework/.config app php artisan tinker --execute="dump(App\\Models\\PublicTrafficHourlyStatistic::query()->latest('bucket_started_at')->first()?->only(['bucket_started_at', 'observed_minute_count']));"
 ```
 
 If `/logs` reports gaps, check the scheduler, the externally routed health URL,
@@ -183,7 +183,7 @@ Explicit model invalidation increments a version per portal scope and cache area
 Warm all standard DOI and IGSN entries after deployment:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec app php artisan portal:cache-warm
+docker compose -f docker-compose.prod.yml exec --user www-data app php artisan portal:cache-warm
 ```
 
 Limit warm-up when only one area or portal was invalidated:

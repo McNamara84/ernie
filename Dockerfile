@@ -55,8 +55,9 @@ RUN set -eux; \
 
 COPY --from=composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac /usr/bin/composer /usr/bin/composer
 
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint.sh docker/laravel-runtime.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && command -v setpriv
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 COPY docker/php/opcache-production.ini /usr/local/etc/php/conf.d/opcache-production.ini
@@ -113,6 +114,7 @@ RUN composer install --no-interaction --no-plugins --no-scripts \
 
 # Copy package files and install node dependencies (cached unless package.json changes)
 COPY package.json package-lock.json .npmrc ./
+COPY packages/deepmerge ./packages/deepmerge
 RUN npm ci
 
 # NOW copy the rest of the application (this changes frequently)
@@ -141,7 +143,7 @@ RUN APP_ENV=production \
     NODE_ENV=production \
     npm run build \
     && rm -f public/hot \
-    && rm -rf node_modules /root/.npm /root/.cache \
+    && rm -rf node_modules packages/deepmerge /root/.npm /root/.cache \
     && rm -f package.json package-lock.json .npmrc
 
 FROM app-base AS app
