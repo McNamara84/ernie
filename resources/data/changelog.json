@@ -1,7 +1,7 @@
 [
     {
         "version": "1.2.0dev",
-        "date": "2026-10-27",
+        "date": "2026-10-28",
         "features": [
             {
                 "title": "IGSN 2.0 Core Metadata Downloads",
@@ -48,7 +48,12 @@
                 "references": [{ "type": "issue", "number": 1427, "url": "https://github.com/McNamara84/ernie/issues/1427" }]
             }
         ],
-        "fixes": []
+        "fixes": [
+            {
+                "title": "Reliable Settings Section Links",
+                "description": "Links to the thesaurus settings wait for fonts and layout to finish loading before focusing and scrolling to the requested card. This prevents incorrect initial scroll positions in WebKit on narrow screens and preserves focus when users start editing another field while the page loads."
+            }
+        ]
     },
     {
         "version": "1.1.2dev",

@@ -222,6 +222,78 @@ function expectBulkActions(expand: boolean, collapse: boolean) {
 }
 
 describe('EditorSettings accordion page', () => {
+    it('waits for font layout before focusing and scrolling to the linked section', async () => {
+        const fonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+        const ready = Promise.withResolvers<void>();
+        Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: ready.promise } });
+        const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+        const view = renderSettings({ focusSection: 'thesauri' });
+        try {
+            const trigger = sectionTrigger(/^Thesauri/);
+            await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+            expect(trigger).toHaveAttribute('aria-expanded', 'true');
+            expect(trigger).not.toHaveFocus();
+            expect(scroll).not.toHaveBeenCalled();
+            await act(async () => ready.resolve());
+            await waitFor(() => expect(trigger).toHaveFocus());
+            expect(scroll).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'instant' });
+            expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+        } finally {
+            view.unmount();
+            scroll.mockRestore();
+            if (fonts) Object.defineProperty(document, 'fonts', fonts);
+            else Reflect.deleteProperty(document, 'fonts');
+        }
+    });
+
+    it('cancels delayed section focus when the user closes the card before fonts finish loading', async () => {
+        const fonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+        const ready = Promise.withResolvers<void>();
+        Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: ready.promise } });
+        const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+        const view = renderSettings({ focusSection: 'thesauri' });
+        try {
+            const trigger = sectionTrigger(/^Thesauri/);
+            await userEvent.click(trigger);
+            await userEvent.click(sectionTrigger(/^Resource Types/));
+            const input = within(section('resource-types')).getAllByRole('textbox', { name: 'Name' })[0];
+            await userEvent.click(input);
+            await act(async () => ready.resolve());
+            await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+            expect(input).toHaveFocus();
+            expect(trigger).toHaveAttribute('aria-expanded', 'false');
+            expect(scroll).not.toHaveBeenCalled();
+        } finally {
+            view.unmount();
+            scroll.mockRestore();
+            if (fonts) Object.defineProperty(document, 'fonts', fonts);
+            else Reflect.deleteProperty(document, 'fonts');
+        }
+    });
+
+    it('preserves user focus when font loading finishes after the user starts editing another open card', async () => {
+        const fonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+        const ready = Promise.withResolvers<void>();
+        Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: ready.promise } });
+        const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+        const view = renderSettings({ focusSection: 'thesauri' });
+        try {
+            await userEvent.click(sectionTrigger(/^Resource Types/));
+            const input = within(section('resource-types')).getAllByRole('textbox', { name: 'Name' })[0];
+            await userEvent.click(input);
+            await act(async () => ready.resolve());
+            await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+            expect(input).toHaveFocus();
+            expect(sectionTrigger(/^Thesauri/)).toHaveAttribute('aria-expanded', 'true');
+            expect(scroll).not.toHaveBeenCalled();
+        } finally {
+            view.unmount();
+            scroll.mockRestore();
+            if (fonts) Object.defineProperty(document, 'fonts', fonts);
+            else Reflect.deleteProperty(document, 'fonts');
+        }
+    });
+
     it('opens and focuses only the linked thesauri section without dirtying settings or refocusing on reload', async () => {
         const view = renderSettings({ focusSection: 'thesauri' });
         const trigger = sectionTrigger(/^Thesauri/);
