@@ -17,6 +17,8 @@
 # Environment files (production will be copied explicitly)
 .env
 .env.backup
+# Key-generation leftovers can contain credentials after an abrupt container stop.
+.env-key.*
 .env.local
 /stack.env
 
@@ -26,6 +28,7 @@
 /playwright-report
 /test-results
 /storage/framework/testing
+/storage/framework/.config
 /.release-candidate
 
 # Build artifacts

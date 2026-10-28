@@ -41,6 +41,7 @@ tar \
     --exclude='./test-results' \
     --exclude='./vendor' \
     --exclude='./storage/framework/cache/*' \
+    --exclude='./storage/framework/.config' \
     --exclude='./storage/framework/sessions/*' \
     --exclude='./storage/framework/views/*' \
     --exclude='./storage/inertia-devtools' \

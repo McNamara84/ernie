@@ -37,6 +37,67 @@ and form a linear deployment history. The generated Compose file references
 the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
 `latest`, `production`, or version tag.
 
+## Laravel process users and log permissions
+
+The PHP entrypoint performs filesystem/FPM setup as root, then runs all startup
+Artisan commands and the queue/scheduler commands as `www-data`. The PHP-FPM
+master retains root; its request workers run as `www-data`. The storage link is
+created during filesystem setup, so `public/` does not need to become writable
+by the web user.
+Setup rejects a symbolic link at `public/` before creating or replacing the
+storage link. Docker build contexts exclude `.env-key.*` files left by interrupted
+development key generation.
+
+Stage and Production require one non-empty `APP_KEY` in the Portainer stack
+environment, shared by app, all queue services and scheduler. Compose rejects
+missing or empty values, and the PHP entrypoint independently refuses startup
+before changing files or running Artisan. The image's `.env` is a template;
+containers do not generate their own fallback keys. Retain the existing key
+when redeploying so encrypted data remains readable.
+
+For a new installation only, generate one key on a workstation with Node.js:
+
+```bash
+node -e "console.log('base64:' + require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+Store that value as `APP_KEY` in the stack environment before deployment. Stage
+and Production each use their own key. CI validates Compose templates with a
+non-secret placeholder scoped to the validation command; it is never written
+to the deployment file.
+
+Startup recursively repairs only `storage/framework`, `storage/logs` and
+`bootstrap/cache`. It prepares the `storage`, `storage/app`, `storage/app/private`
+and `storage/app/public` directories without traversing uploaded data. Any
+required permission migration for imported data is a separate, one-time
+administrative task, rather than work repeated by every container restart.
+Startup rejects symbolic links at the managed runtime directories and their
+parents before changing files. Recursive permission repair does not follow
+links nested inside the runtime directories.
+`storage/logs` has group `www-data` and mode `2775`; Laravel's single/daily log
+files use `0664`. New daily files therefore remain writable by web workers even
+if a root CLI invocation creates the file first. Recreating app, all queue services and scheduler with
+the corrected image applies this to the shared storage volume. Merely
+restarting the old image or changing the service's Compose `user` is insufficient.
+
+Run manual commands through the application identity on the Docker host:
+
+```bash
+docker exec --user www-data --env XDG_CONFIG_HOME=/var/www/html/storage/framework/.config --workdir /var/www/html dockerized-laravel-app php artisan list
+```
+
+For Portainer consoles, select `www-data`, or run `su -s /bin/sh www-data` from
+the root console. For Tinker, set
+`export XDG_CONFIG_HOME=/var/www/html/storage/framework/.config` in that shell.
+After deployment, check `stat -c '%U:%G %a %n' storage/logs`
+in the app container: expect `www-data:www-data 2775`. Check the actual worker
+processes with `docker top dockerized-laravel-queue -eo user,pid,args` and
+`docker top dockerized-laravel-scheduler -eo user,pid,args` on the Docker host;
+their Laravel processes must run as `www-data`. A plain `docker exec ... id`
+without `--user` still reports the image's setup identity and does not inspect
+the running worker. Verify that the next UTC day's log is writable by
+`www-data` and that both web and background activity reach it.
+
 ## Public page routing and feature switches
 
 ERNIE handles the public `/`, `/find`, `/data-centres`, and
