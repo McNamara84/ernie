@@ -1,5 +1,16 @@
 [
     {
+        "version": "1.1.2dev",
+        "date": "2026-10-27",
+        "fixes": [
+            {
+                "title": "Application Reliability and Security",
+                "description": "Improved container startup and log handling so web requests, background jobs and administrative Artisan commands use consistent permissions. Container restarts no longer scan all uploaded files, and setup rejects redirected runtime and public directories. Development environment initialization and key generation refuse symbolic links at .env, and temporary key-generation files are excluded from Git and Docker builds. Fixed a security issue in the API documentation's data-merging dependency while preserving valid schema property names.",
+                "references": [{ "type": "pull_request", "number": 1508, "url": "https://github.com/McNamara84/ernie/pull/1508" }]
+            }
+        ]
+    },
+    {
         "version": "1.1.1",
         "date": "2026-10-21",
         "improvements": [

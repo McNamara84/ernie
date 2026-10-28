@@ -26,7 +26,7 @@
     "docker:dev:backend:d": "docker compose --env-file .env.docker -f docker-compose.dev.yml up -d --wait db redis app",
     "docker:dev:down": "docker compose --env-file .env.docker -f docker-compose.dev.yml down",
     "docker:dev:reset": "docker compose --env-file .env.docker -f docker-compose.dev.yml down -v",
-    "artisan": "docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php artisan",
+    "artisan": "docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T --user www-data -e XDG_CONFIG_HOME=/var/www/html/storage/framework/.config app php -d memory_limit=2G artisan",
     "composer:app": "docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app composer",
     "db:dev:test:prepare": "node ./scripts/run-mysql-tests.mjs --prepare",
     "db:dev:test:reset": "node ./scripts/run-mysql-tests.mjs --reset",
@@ -148,6 +148,7 @@
     "concurrently": "^10.0.6",
     "d3": "^7.9.0",
     "date-fns": "^4.4.0",
+    "deepmerge": "file:packages/deepmerge",
     "driver.js": "^1.10.2",
     "framer-motion": "^14.5.0",
     "laravel-vite-plugin": "^3.2.0",
@@ -180,6 +181,7 @@
     "lightningcss-linux-x64-gnu": "^1.33.0"
   },
   "overrides": {
+    "deepmerge": "$deepmerge",
     "concurrently": {
       "shell-quote": "^1.11.0"
     },

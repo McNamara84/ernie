@@ -10,6 +10,16 @@ published latest stable release from the immutable `artifacts/main` records,
 after separate release-candidate testing and approval. See
 [production-container-deployment.md](production-container-deployment.md).
 
+Stage uses the same [Laravel process users and log permissions](production-container-deployment.md#laravel-process-users-and-log-permissions)
+as Production. Deploy the updated image to app, every queue service and scheduler.
+Run administrative Artisan commands as `www-data`; the entrypoint retains root
+only for setup and the FPM master.
+
+Set the existing Stage `APP_KEY` in the Portainer stack environment for app,
+every queue service and scheduler. Deployment rejects a missing or empty key;
+containers do not generate independent fallback keys. See the Production guide
+above for initial key creation and preserving the key across deployments.
+
 ## Deployment flow
 
 1. Features are reviewed and merged into `dev`. Stable-line fixes enter `main`

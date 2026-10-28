@@ -20,7 +20,7 @@ services:
       retries: 30
       start_period: 10s
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -270,7 +270,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -396,7 +396,7 @@ services:
       fuji:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -484,7 +484,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false

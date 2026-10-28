@@ -393,7 +393,8 @@ jobs:
             exit 1
           fi
 
-          docker compose -f docker-compose.stage.yml config --quiet
+          # Validate the template without a deployment secret; do not persist this value.
+          APP_KEY=validation-only docker compose -f docker-compose.stage.yml config --quiet
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
