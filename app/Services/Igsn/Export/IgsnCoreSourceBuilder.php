@@ -339,13 +339,14 @@ final class IgsnCoreSourceBuilder
             }
         }
         $parent = $resource->igsnMetadata?->parentResource;
-        $parentDoi = null;
+        $parentIdentity = is_string($parent?->doi) ? $this->canonicalDoi($parent->doi, 'DOI') : null;
+        $parentExported = false;
         $hiddenParent = $parent !== null && (! $parent->landingPage?->isPublished() || $parent->igsnMetadata?->is_private);
         if ($parent !== null && $parent->landingPage?->isPublished() && $parent->igsnMetadata !== null && ! $parent->igsnMetadata->is_private && is_string($parent->doi)) {
             $handle = IgsnIdentifier::handleFromDoi($parent->doi);
             if ($handle !== null) {
                 $this->node($relations, 'parent', $handle);
-                $parentDoi = $parent->doi;
+                $parentExported = true;
             } else {
                 $this->omissions[] = 'parent_identifier_unresolved';
             }
@@ -353,11 +354,12 @@ final class IgsnCoreSourceBuilder
         $seen = [];
         foreach ($resource->relatedIdentifiers->sortBy('position') as $identifier) {
             $type = $identifier->identifierType->name;
-            $relation = $identifier->relationType->name;
-            if ($hiddenParent && $identifier->identifier === $parent->doi) {
+            $relation = $identifier->relationType->slug;
+            $matchesParent = $parentIdentity !== null && $this->canonicalDoi($identifier->identifier, $type) === $parentIdentity;
+            if ($hiddenParent && $matchesParent) {
                 continue;
             }
-            if ($parentDoi !== null && $identifier->identifier === $parentDoi && $relation === 'IsPartOf') {
+            if ($parentExported && $matchesParent && $relation === 'IsPartOf') {
                 continue;
             }
             if (! $this->vocabulary->allows('relatedIdentifierType', $type) || ! $this->vocabulary->allows('relationType', $relation) || trim($identifier->identifier) === '') {
@@ -371,6 +373,28 @@ final class IgsnCoreSourceBuilder
                 $seen[$key] = true;
             }
         }
+    }
+
+    /** Compare DOI identities without treating unrelated identifier schemes as IGSN handles. */
+    private function canonicalDoi(string $identifier, string $type): ?string
+    {
+        if (! in_array($type, ['DOI', 'IGSN', 'URL'], true)) {
+            return null;
+        }
+
+        $value = trim($identifier);
+        if (preg_match('~^https?://(?:dx\.)?doi\.org/(.+)$~iD', $value, $matches)) {
+            $value = $matches[1];
+        } elseif ($type === 'URL') {
+            return null;
+        }
+
+        if (preg_match('~^10\.\d{4,9}/\S+$~D', $value)) {
+            return strtolower($value);
+        }
+
+        // Bare handles are meaningful only for IGSNs under the configured prefix.
+        return $type === 'IGSN' ? IgsnIdentifier::normalizeInputToDoi($value) : null;
     }
 
     private function buildFunding(Resource $resource, DOMElement $root): void

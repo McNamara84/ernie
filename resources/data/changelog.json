@@ -50,6 +50,10 @@
         ],
         "fixes": [
             {
+                "title": "IGSN Core Export Completeness and Parent Privacy",
+                "description": "IGSN 2.0 Core downloads preserve supported relationships using their vocabulary codes and consistently exclude private or unpublished parent identifiers across DOI casing, resolver URLs and IGSN handles. Equivalent public parent assertions are exported once. Valid polygons stored without explicit closure, including triangles, are retained; sampling lines remain excluded from area polygons. Numeric location labels no longer interrupt downloads."
+            },
+            {
                 "title": "Email Header Security",
                 "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."
             },

@@ -33,6 +33,7 @@ use App\Services\Igsn\Export\IgsnCoreSourceBuilder;
 use App\Services\Igsn\Export\IgsnCoreVocabulary;
 use App\Services\Igsn\Export\IgsnCoreXmlExporter;
 use App\Services\Igsn\Export\IgsnCoreXmlValidator;
+use Database\Seeders\RelationTypeSeeder;
 
 covers(IgsnCoreXmlExporter::class, IgsnCoreSourceBuilder::class, IgsnCoreGeometryMapper::class, IgsnCoreVocabulary::class, IgsnCoreSource::class, IgsnCoreExportResult::class, IgsnCoreMetadataException::class);
 
@@ -186,7 +187,106 @@ test('only assigns collector roles to uniquely matched existing typed creators',
     }
 })->with([false, true]);
 
+test('exports relation vocabulary slugs from the real seeded display names', function (string $slug, string $name) {
+    $this->seed(RelationTypeSeeder::class);
+    $resource = coreSample();
+    $type = IdentifierType::firstOrCreate(['slug' => 'DOI'], ['name' => 'DOI']);
+    $relation = RelationType::where('slug', $slug)->firstOrFail();
+    expect($relation->name)->toBe($name);
+    RelatedIdentifier::create(['resource_id' => $resource->id, 'identifier' => '10.1234/related', 'identifier_type_id' => $type->id, 'relation_type_id' => $relation->id, 'position' => 0]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and(coreXpath($result->xml)->evaluate('string(//i:relatedIdentifier/@i:relationType)'))->toBe($slug)
+        ->and(coreXpath($result->xml)->evaluate('string(//i:relatedIdentifier)'))->toBe('10.1234/related')
+        ->and($result->omissions)->not->toContain('related_identifier_unsupported');
+})->with([['IsPartOf', 'Is Part Of'], ['IsDescribedBy', 'Is Described By']]);
+
+dataset('core parent identifier representations', [
+    'DOI' => ['DOI', '10.58052/IEPARENT001'],
+    'lowercase DOI' => ['DOI', '10.58052/ieparent001'],
+    'DOI resolver' => ['DOI', 'https://doi.org/10.58052/ieparent001'],
+    'URL resolver' => ['URL', 'https://doi.org/10.58052/IEPARENT001'],
+    'legacy resolver and mixed casing' => ['URL', 'HTTP://DX.DOI.ORG/10.58052/IeParent001'],
+    'IGSN handle' => ['IGSN', 'IEPARENT001'],
+    'lowercase IGSN handle' => ['IGSN', 'ieparent001'],
+    'IGSN DOI' => ['IGSN', '10.58052/IEPARENT001'],
+    'IGSN resolver' => ['IGSN', 'https://doi.org/10.58052/IEPARENT001'],
+]);
+
+test('hides equivalent identifiers of private or unpublished parents for supported relations', function (string $scheme, string $identifier, ?bool $published, bool $private) {
+    config(['datacite.production.igsn_prefix' => '10.58052']);
+    $resource = coreSample();
+    $parent = Resource::factory()->create(['resource_type_id' => $resource->resource_type_id, 'doi' => '10.58052/IEPARENT001']);
+    IgsnMetadata::create(['resource_id' => $parent->id, 'is_private' => $private]);
+    if ($published !== null) {
+        LandingPage::factory()->create(['resource_id' => $parent->id, 'doi_prefix' => $parent->doi, 'is_published' => $published]);
+    }
+    IgsnMetadata::create(['resource_id' => $resource->id, 'parent_resource_id' => $parent->id]);
+    $type = IdentifierType::firstOrCreate(['slug' => $scheme], ['name' => $scheme]);
+    $relation = RelationType::firstOrCreate(['slug' => 'References'], ['name' => 'References']);
+    RelatedIdentifier::create(['resource_id' => $resource->id, 'identifier' => $identifier, 'identifier_type_id' => $type->id, 'relation_type_id' => $relation->id, 'position' => 0]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and(coreXpath($result->xml)->evaluate('count(//i:parentIdentifier | //i:relatedIdentifier)'))->toBe(0.0)
+        ->and(strtolower($result->xml))->not->toContain('ieparent001');
+})->with('core parent identifier representations')->with([
+    'private' => [true, true],
+    'unpublished' => [false, false],
+    'no landing page' => [null, false],
+]);
+
+test('deduplicates equivalent public parent assertions while preserving other relations', function (string $scheme, string $identifier) {
+    $this->seed(RelationTypeSeeder::class);
+    config(['datacite.production.igsn_prefix' => '10.58052']);
+    $resource = coreSample();
+    $parent = Resource::factory()->create(['resource_type_id' => $resource->resource_type_id, 'doi' => '10.58052/IEPARENT001']);
+    IgsnMetadata::create(['resource_id' => $parent->id, 'is_private' => false]);
+    LandingPage::factory()->create(['resource_id' => $parent->id, 'doi_prefix' => $parent->doi, 'is_published' => true]);
+    IgsnMetadata::create(['resource_id' => $resource->id, 'parent_resource_id' => $parent->id]);
+    $type = IdentifierType::firstOrCreate(['slug' => $scheme], ['name' => $scheme]);
+    foreach (['IsPartOf', 'References'] as $position => $slug) {
+        $relation = RelationType::where('slug', $slug)->firstOrFail();
+        RelatedIdentifier::create(['resource_id' => $resource->id, 'identifier' => $identifier, 'identifier_type_id' => $type->id, 'relation_type_id' => $relation->id, 'position' => $position]);
+    }
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+    $xpath = coreXpath($result->xml);
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and($xpath->evaluate('string(//i:parentIdentifier)'))->toBe('IEPARENT001')
+        ->and($xpath->evaluate('count(//i:relatedIdentifier)'))->toBe(1.0)
+        ->and($xpath->evaluate('string(//i:relatedIdentifier/@i:relationType)'))->toBe('References')
+        ->and($xpath->evaluate('string(//i:relatedIdentifier)'))->toBe($identifier)
+        ->and($result->omissions)->not->toContain('related_identifier_unsupported');
+})->with('core parent identifier representations');
+
+test('does not conflate other identifier schemes or DOI namespaces with a hidden parent', function (string $scheme, string $identifier) {
+    config(['datacite.production.igsn_prefix' => '10.58052']);
+    $resource = coreSample();
+    $parent = Resource::factory()->create(['doi' => '10.58052/IEPARENT001']);
+    IgsnMetadata::create(['resource_id' => $parent->id, 'is_private' => true]);
+    IgsnMetadata::create(['resource_id' => $resource->id, 'parent_resource_id' => $parent->id]);
+    $type = IdentifierType::firstOrCreate(['slug' => $scheme], ['name' => $scheme]);
+    $relation = RelationType::firstOrCreate(['slug' => 'References'], ['name' => 'References']);
+    RelatedIdentifier::create(['resource_id' => $resource->id, 'identifier' => $identifier, 'identifier_type_id' => $type->id, 'relation_type_id' => $relation->id, 'position' => 0]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and(coreXpath($result->xml)->evaluate('string(//i:relatedIdentifier)'))->toBe($identifier);
+})->with([
+    ['Handle', 'IEPARENT001'],
+    ['DOI', '10.9999/IEPARENT001'],
+    ['URL', 'https://example.org/10.58052/IEPARENT001'],
+    ['URL', 'https://doi.org.example.org/10.58052/IEPARENT001'],
+]);
+
 test('exports public parent handles once and hides private or unpublished parents', function (bool $published, bool $private, string $doi) {
+    $this->seed(RelationTypeSeeder::class);
     config(['datacite.production.igsn_prefix' => '10.58052']);
     $resource = coreSample();
     $parent = Resource::factory()->create(['resource_type_id' => $resource->resource_type_id, 'doi' => $doi]);
@@ -194,7 +294,7 @@ test('exports public parent handles once and hides private or unpublished parent
     LandingPage::factory()->create(['resource_id' => $parent->id, 'doi_prefix' => $doi, 'is_published' => $published]);
     IgsnMetadata::create(['resource_id' => $resource->id, 'parent_resource_id' => $parent->id]);
     $type = IdentifierType::firstOrCreate(['slug' => 'DOI'], ['name' => 'DOI']);
-    $relation = RelationType::firstOrCreate(['slug' => 'IsPartOf'], ['name' => 'IsPartOf']);
+    $relation = RelationType::where('slug', 'IsPartOf')->firstOrFail();
     RelatedIdentifier::create(['resource_id' => $resource->id, 'identifier' => $doi, 'identifier_type_id' => $type->id, 'relation_type_id' => $relation->id, 'position' => 0]);
     $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
     expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([]);
@@ -220,6 +320,75 @@ test('retains dateline boxes and closed polygons with DataCite coordinate childr
     expect($xpath->evaluate('string(//i:geoLocationBox/d:eastBoundLongitude)'))->toBe('-170')
         ->and($xpath->evaluate('count(//i:polygonPoint/d:pointLatitude)'))->toBe(4.0);
 });
+
+test('does not export closed sampling lines as polygons or let them obscure a polygon', function (bool $withPolygon) {
+    $resource = coreSample();
+    GeoLocation::factory()->create(['resource_id' => $resource->id, 'geo_type' => 'line', 'place' => 'Sampling track', 'polygon_points' => [
+        ['longitude' => 10, 'latitude' => 10],
+        ['longitude' => 12, 'latitude' => 10],
+        ['longitude' => 12, 'latitude' => 12],
+        ['longitude' => 10, 'latitude' => 10],
+    ]]);
+    if ($withPolygon) {
+        GeoLocation::factory()->withPolygon([
+            ['longitude' => 0, 'latitude' => 0],
+            ['longitude' => 2, 'latitude' => 0],
+            ['longitude' => 2, 'latitude' => 2],
+            ['longitude' => 0, 'latitude' => 0],
+        ])->create(['resource_id' => $resource->id]);
+    }
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+    $xpath = coreXpath($result->xml);
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and($xpath->evaluate('count(//i:geoLocationPolygon)'))->toBe($withPolygon ? 1.0 : 0.0)
+        ->and($result->xml)->toContain('Sampling track')
+        ->and($result->omissions)->not->toContain('polygon_ambiguous', 'polygon_invalid');
+    if ($withPolygon) {
+        expect($xpath->evaluate('string(//i:polygonPoint[1]/d:pointLongitude)'))->toBe('0');
+    }
+})->with([false, true]);
+
+test('closes editor polygons for Core export without modifying stored vertices', function (array $vertices) {
+    $resource = coreSample();
+    $location = GeoLocation::factory()->withPolygon($vertices)->create(['resource_id' => $resource->id, 'place' => 'Research area']);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+    $xpath = coreXpath($result->xml);
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and($xpath->evaluate('count(//i:polygonPoint)'))->toBe((float) count($vertices) + 1)
+        ->and($xpath->evaluate('string(//i:polygonPoint[last()]/d:pointLongitude)'))->toBe('13')
+        ->and($xpath->evaluate('string(//i:polygonPoint[last()]/d:pointLatitude)'))->toBe('52')
+        ->and($result->omissions)->not->toContain('polygon_invalid')
+        ->and($location->fresh()->polygon_points)->toBe($vertices);
+
+    // The same ring with explicit closure must remain a single candidate.
+    GeoLocation::factory()->withPolygon([...$vertices, $vertices[0]])->create(['resource_id' => $resource->id, 'place' => 'Research area']);
+    $duplicate = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+    expect($duplicate->xml)->toBe($result->xml)
+        ->and($duplicate->omissions)->not->toContain('polygon_ambiguous');
+})->with([
+    'editor triangle' => [[['longitude' => 13, 'latitude' => 52], ['longitude' => 14, 'latitude' => 52], ['longitude' => 14, 'latitude' => 53]]],
+    'four vertices' => [[['longitude' => 13, 'latitude' => 52], ['longitude' => 14, 'latitude' => 52], ['longitude' => 14, 'latitude' => 53], ['longitude' => 13, 'latitude' => 53]]],
+]);
+
+test('does not repair invalid polygon coordinates or rings with too few vertices', function (array $vertices) {
+    $resource = coreSample();
+    GeoLocation::factory()->withPolygon($vertices)->create(['resource_id' => $resource->id]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and(coreXpath($result->xml)->evaluate('count(//i:geoLocationPolygon)'))->toBe(0.0)
+        ->and($result->omissions)->toContain('polygon_invalid');
+})->with([
+    'two vertices' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2]]],
+    'closed two-vertex ring' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2], ['longitude' => 0, 'latitude' => 0]]],
+    'out-of-range coordinate' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2], ['longitude' => 181, 'latitude' => 0]]],
+    'missing coordinate' => [[['longitude' => 0, 'latitude' => 0], ['longitude' => 2, 'latitude' => 2], ['longitude' => 1]]],
+]);
 
 test('blocks XSLT document access to local files and remote URLs', function (string $uri) {
     $resource = coreSample();

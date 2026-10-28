@@ -45,7 +45,7 @@ final class IgsnCoreGeometryMapper
                     $candidates['box'][json_encode($box, JSON_THROW_ON_ERROR)] = [$box];
                 }
             }
-            if ($location->polygon_points !== null && $location->polygon_points !== []) {
+            if ($location->geo_type !== 'line' && $location->polygon_points !== null && $location->polygon_points !== []) {
                 $points = [];
                 foreach ($location->polygon_points as $raw) {
                     $point = $this->storedPoint($raw);
@@ -54,6 +54,10 @@ final class IgsnCoreGeometryMapper
                         break;
                     }
                     $points[] = $point;
+                }
+                // The editor stores valid rings with implicit closure; Core requires the closing vertex.
+                if (count($points) >= 3 && $points[0] !== $points[count($points) - 1]) {
+                    $points[] = $points[0];
                 }
                 if (count($points) < 4 || $points[0] !== $points[count($points) - 1]) {
                     $omissions[] = 'polygon_invalid';
@@ -71,7 +75,7 @@ final class IgsnCoreGeometryMapper
             }
         }
 
-        return ['places' => array_keys($places), 'geometries' => $geometries, 'omissions' => array_values(array_unique($omissions))];
+        return ['places' => array_map('strval', array_keys($places)), 'geometries' => $geometries, 'omissions' => array_values(array_unique($omissions))];
     }
 
     /** @return array{longitude: string, latitude: string}|null */

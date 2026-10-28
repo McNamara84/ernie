@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\IgsnCoreSchemaController;
 use App\Http\Controllers\PublicMetadataExportController;
+use App\Models\GeoLocation;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -43,6 +44,20 @@ test('rejects unpublished pages and regular resources', function (bool $physical
     $page = coreLandingPage($physical, $published);
     $this->get($page->getPublicPath().'/metadata/igsn-core-2.0.xml')->assertNotFound();
 })->with([[true, false], [false, true], [false, false]]);
+
+test('downloads numeric location labels as strings without losing or duplicating them', function (string $label) {
+    $page = coreLandingPage();
+    GeoLocation::factory()->create(['resource_id' => $page->resource_id, 'place' => $label, 'city' => $label]);
+
+    $response = $this->get($page->getPublicPath().'/metadata/igsn-core-2.0.xml')->assertOk();
+    expect(app(IgsnCoreXmlValidator::class)->validate($response->getContent())->errors)->toBe([]);
+    $document = new DOMDocument;
+    expect($document->loadXML($response->getContent()))->toBeTrue();
+    $xpath = new DOMXPath($document);
+    $xpath->registerNamespace('i', 'urn:FAIR-AIMS:Core:1');
+    expect($xpath->evaluate('string(//i:geoLocationPlace)'))->toBe($label)
+        ->and($xpath->evaluate('count(//i:geoLocationPlace)'))->toBe(1.0);
+})->with(['123', '0', '-123', '00123']);
 
 test('keeps published tombstone metadata available', function () {
     $page = coreLandingPage();
