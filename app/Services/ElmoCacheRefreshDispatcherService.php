@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\EditorContext;
+use App\Exceptions\ElmoCacheRefreshException;
 use App\Jobs\RefreshElmoCacheJob;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
@@ -41,6 +42,9 @@ final class ElmoCacheRefreshDispatcherService
 
                 if (! $this->service->isConfigured($editor)) {
                     Log::warning('ELMO cache refresh skipped: configuration is missing or invalid.', $context);
+                    if ($throwOnFailure) {
+                        throw new ElmoCacheRefreshException('ELMO cache refresh configuration is missing or invalid.');
+                    }
 
                     continue;
                 }

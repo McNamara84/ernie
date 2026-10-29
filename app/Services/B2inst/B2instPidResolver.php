@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\B2inst;
 
-use Illuminate\Support\Facades\Cache;
+use App\Enums\CacheKey;
+use App\Support\Traits\ChecksCacheTagging;
 use InvalidArgumentException;
 use RuntimeException;
 
 class B2instPidResolver
 {
+    use ChecksCacheTagging;
+
     public function __construct(private readonly B2instClient $client) {}
 
     public static function handle(string $value): string
@@ -63,16 +66,18 @@ class B2instPidResolver
 
     private function target(string $handle): ?string
     {
-        $key = 'b2inst:handle:'.hash('sha256', $handle);
+        $cacheKey = CacheKey::B2INST_HANDLE;
+        $key = $cacheKey->key(hash('sha256', $handle));
+        $cache = $this->getCacheInstance($cacheKey->tags());
         /** @var array{target: string|null}|null $cached */
-        $cached = Cache::get($key);
+        $cached = $cache->get($key);
         if ($cached !== null) {
             return $cached['target'];
         }
         $encoded = implode('/', array_map(rawurlencode(...), explode('/', $handle)));
         $response = $this->client->json('https://hdl.handle.net/api/handles/'.$encoded, true);
         if (($response['responseCode'] ?? null) === 100) {
-            Cache::put($key, ['target' => null], 60);
+            $cache->put($key, ['target' => null], 60);
 
             return null;
         }
@@ -93,7 +98,7 @@ class B2instPidResolver
         if (count($targets) !== 1) {
             throw new RuntimeException('Handle resolution has no unambiguous URL target.');
         }
-        Cache::put($key, ['target' => $targets[0]], max(1, min(3600, (int) config('b2inst.resolver_cache_ttl', 900))));
+        $cache->put($key, ['target' => $targets[0]], $cacheKey->ttl());
 
         return $targets[0];
     }

@@ -16,7 +16,7 @@ class Pid4instStatusService
     /**
      * Get the local status of a PID setting (from stored JSON file).
      *
-     * @return array{exists: bool, itemCount: int, lastUpdated: string|null}
+     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, serverCount: int|null}
      */
     public function getLocalStatus(PidSetting $setting): array
     {
@@ -27,6 +27,7 @@ class Pid4instStatusService
                 'exists' => false,
                 'itemCount' => 0,
                 'lastUpdated' => null,
+                'serverCount' => null,
             ];
         }
 
@@ -37,10 +38,11 @@ class Pid4instStatusService
                 'exists' => false,
                 'itemCount' => 0,
                 'lastUpdated' => null,
+                'serverCount' => null,
             ];
         }
 
-        /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>}|null $data */
+        /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>, _sync?: array{serverCount?: mixed}}|null $data */
         $data = json_decode($content, true);
 
         if (! is_array($data)) {
@@ -48,13 +50,17 @@ class Pid4instStatusService
                 'exists' => false,
                 'itemCount' => 0,
                 'lastUpdated' => null,
+                'serverCount' => null,
             ];
         }
+
+        $serverCount = data_get($data, '_sync.serverCount');
 
         return [
             'exists' => true,
             'itemCount' => $data['total'] ?? count($data['data'] ?? []),
             'lastUpdated' => $data['lastUpdated'] ?? null,
+            'serverCount' => is_int($serverCount) && $serverCount >= 0 ? $serverCount : null,
         ];
     }
 
@@ -75,7 +81,8 @@ class Pid4instStatusService
      * Compare local and remote instrument counts.
      *
      * An update is considered available when the remote count differs
-     * from the local count (instruments can be added or removed).
+     * from the last synchronized server count, including excluded records.
+     * Legacy snapshots fall back to their offered instrument count.
      *
      * Equal counts do not establish metadata freshness.
      *
@@ -91,7 +98,7 @@ class Pid4instStatusService
         return [
             'localCount' => $localStatus['itemCount'],
             'remoteCount' => $remoteCount,
-            'updateAvailable' => $remoteCount !== $localStatus['itemCount'],
+            'updateAvailable' => $remoteCount !== ($localStatus['serverCount'] ?? $localStatus['itemCount']),
             'lastUpdated' => $localStatus['lastUpdated'],
             'comparisonBasis' => 'count',
         ];

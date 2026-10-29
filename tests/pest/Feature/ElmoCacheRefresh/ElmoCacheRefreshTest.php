@@ -7,6 +7,8 @@ use App\Exceptions\ElmoCacheRefreshException;
 use App\Jobs\RefreshElmoCacheJob;
 use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
+use App\Services\B2inst\B2instSnapshotStore;
+use App\Services\B2inst\B2instSyncService;
 use App\Services\ElmoCacheRefreshDispatcherService;
 use App\Services\ElmoCacheRefreshService;
 use Illuminate\Http\Client\Request;
@@ -290,6 +292,42 @@ it('reports queue failures to B2INST when requested', function (): void {
     expect(fn () => app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting, throwOnFailure: true))
         ->toThrow(RuntimeException::class, 'Queue unavailable');
 });
+
+it('reports invalid enabled target configuration only in strict dispatch mode', function (EditorContext $editor, string $field, mixed $value, bool $strict): void {
+    config(['elmo.targets.'.$editor->value.'.'.$field => $value]);
+    Bus::fake();
+    $dispatch = fn () => app(ElmoCacheRefreshDispatcherService::class)->dispatch([$editor], 'pid:pid4inst', throwOnFailure: $strict);
+    if ($strict) {
+        expect($dispatch)->toThrow(ElmoCacheRefreshException::class, 'configuration is missing or invalid');
+    } else {
+        $dispatch();
+    }
+    Bus::assertNothingDispatched();
+})->with([EditorContext::ELMO, EditorContext::ELMO_MSL])
+    ->with([['api_key', ''], ['base_url', ''], ['base_url', 'http://unsafe.example/elmo']])
+    ->with([true, false]);
+
+it('keeps B2INST refresh pending until invalid target configuration is corrected', function (EditorContext $editor): void {
+    Bus::fake();
+    Storage::fake();
+    config(['b2inst.host' => 'https://b2inst.example.test', 'elmo.targets.'.$editor->value.'.api_key' => '']);
+    $setting = PidSetting::firstOrCreate(['type' => 'pid4inst'], ['display_name' => 'PIDINST']);
+    $setting->update(['is_elmo_active' => $editor === EditorContext::ELMO, 'is_elmo_msl_active' => $editor === EditorContext::ELMO_MSL]);
+    Http::fake(['https://b2inst.example.test/*' => Http::response(B2instFixture::page([B2instFixture::record()]))]);
+
+    $result = app(B2instSyncService::class)->sync();
+    expect($result['published'])->toBeTrue()->and($result['refreshPending'])->toBeTrue();
+    expect(Artisan::call('get-pid4inst-instruments', ['--refresh-caches' => true]))->toBe(1)
+        ->and(app(B2instSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeTrue();
+    Bus::assertNothingDispatched();
+
+    config(['elmo.targets.'.$editor->value.'.api_key' => 'corrected-secret']);
+    expect(Artisan::call('get-pid4inst-instruments', ['--refresh-caches' => true]))->toBe(0)
+        ->and(app(B2instSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeFalse();
+    Bus::assertDispatchedTimes(RefreshElmoCacheJob::class, 1);
+    Bus::assertDispatched(RefreshElmoCacheJob::class, fn ($job): bool => $job->editor === $editor);
+    Http::assertSentCount(2);
+})->with([EditorContext::ELMO, EditorContext::ELMO_MSL]);
 
 it('dispatches one refresh per active target for B2INST commands and background jobs', function (bool $background, bool $elmo, bool $msl): void {
     Bus::fake();

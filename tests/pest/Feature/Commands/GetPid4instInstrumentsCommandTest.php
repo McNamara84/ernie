@@ -10,6 +10,7 @@ use App\Models\ResourceInstrument;
 use App\Services\B2inst\B2instSnapshotStore;
 use App\Services\B2inst\B2instSyncService;
 use App\Services\DataCiteXmlExporter;
+use App\Services\Pid4instStatusService;
 use App\Services\VocabularyCacheService;
 use App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser;
 use Illuminate\Contracts\Cache\Lock;
@@ -110,6 +111,9 @@ it('reports excluded new records separately from the server count', function ():
     $result = app(B2instSyncService::class)->sync();
     expect($result['serverCount'])->toBe(2)->and($result['itemCount'])->toBe(1)
         ->and($result['excluded'][0]['id'])->toBe('unknown');
+    $status = app(Pid4instStatusService::class)->compareWithRemote(new PidSetting(['type' => 'pid4inst']));
+    expect($status['localCount'])->toBe(1)->and($status['remoteCount'])->toBe(2)
+        ->and($status['updateAvailable'])->toBeFalse();
 });
 
 it('refuses concurrent imports including direct commands', function (): void {

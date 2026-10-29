@@ -14,6 +14,8 @@ Duplicate IDs, inconsistent totals, empty intermediate pages, early termination 
 
 Matching metadata and ePIC Handles are normalized to bare Handles. The provider entry is registration evidence, not a guarantee of continuing resolution. OAI IDs are ignored. Missing provider IDs and conflicting Handle candidates require resolution through `https://hdl.handle.net/api/handles/…`. Only explicit Handle `responseCode=100` means not found; connection errors and other failures abort the import. Positive resolution results expire after at most one hour (default 15 minutes), negative results after one minute; unavailable results are not cached.
 
+Handle results use the `vocabularies` cache tag, so `cache:clear-app vocabularies` and `cache:clear-app all` also clear resolution evidence. Cache drivers without tag support use the same lifetimes and the command's existing whole-store fallback.
+
 Registered targets must match the instrument landing page or a B2INST record in the same version family. Legacy record URLs are read through the registry API and compared using the returned ID/parent. ERNIE never derives a Handle from a short record ID. Conflicts abort publication. DOI and URL identifiers retain their types; unsupported types and malformed records are diagnosed and excluded. Excluding an existing record because it cannot be normalized blocks replacement. An empty candidate cannot replace a non-empty list.
 
 The public GFZ regression fixture preserves the identity facts observed on 29 October 2026:
@@ -46,7 +48,9 @@ The `_sync` object contains provenance, comparison results and a `refreshPending
 
 After publication, the shared sync service invalidates ERNIE's instrument cache and requests refreshes for active ELMO and ELMO-MSL targets through the existing dispatcher. Both direct commands and the background job use this path, avoiding duplicate dispatch. A later cache/dispatch failure is reported as a published snapshot with refresh pending. `--refresh-caches` retries without harvesting again; already queued targets may receive another idempotent refresh. Dispatch success means queued, not confirmed delivery: monitor the existing ELMO refresh jobs/logs for remote failures. ROR and RAiD retain their existing job behavior.
 
-The quick status endpoint returns `comparisonBasis: "count"`. Equal counts do not prove fresh metadata; administrators and group leaders can always run a full PIDINST refresh. Job results provide the actual published count and timestamp.
+An enabled ELMO target with missing or invalid configuration leaves `refreshPending` set, just like a queue insertion failure. Correct the configuration before retrying `--refresh-caches`; ordinary non-strict dispatcher callers retain their skip behavior.
+
+The quick status endpoint returns `comparisonBasis: "count"`. It compares the remote total with the last successful snapshot's `_sync.serverCount`, including excluded records; legacy snapshots fall back to their offered count. The displayed local count remains the number of accepted instruments. Equal server counts do not prove fresh metadata; administrators and group leaders can always run a full PIDINST refresh. Job results provide the actual published count and timestamp.
 
 ## Configuration
 
@@ -60,6 +64,8 @@ The quick status endpoint returns `comparisonBasis: "count"`. Equal counts do no
 | `B2INST_MAX_PAGES` | `1000` | Maximum pages per snapshot attempt |
 | `B2INST_MAX_RECORDS` | `100000` | Maximum advertised total |
 | `B2INST_RESOLVER_CACHE_TTL` | `900` | Successful Handle lookup lifetime, capped at 3600 seconds |
+
+Development, Stage and Production Compose files forward all of these options to the application, scheduler and queue containers. `.env.docker.example` lists their defaults. Set overrides in the environment file supplied to Compose (or in the deployment process environment), then recreate the affected containers so Laravel rebuilds its configuration cache with the new values.
 
 Connection failures and HTTP 429/500/502/503/504 permit at most three attempts. Backoff and valid `Retry-After` values consume the shared budget; a delay beyond it fails immediately. A page, record or time limit is an error, never permission to publish a partial result. The job timeout remains 1200 seconds. Use `https://b2inst-test.gwdg.de` for separate live contract checks; automated tests fake all external requests.
 
