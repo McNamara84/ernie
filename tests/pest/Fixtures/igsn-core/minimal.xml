@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<igsn:resource xmlns:igsn="urn:FAIR-AIMS:Core:1">
+  <igsn:identifier igsn:identifierType="DOI">10.60510/example</igsn:identifier>
+  <igsn:name>Example sample</igsn:name>
+  <igsn:agents>
+    <igsn:creator igsn:creatorType="creator">
+      <igsn:creatorName igsn:nameType="Personal">Doe, Jane</igsn:creatorName>
+    </igsn:creator>
+    <igsn:publisher igsn:publisherIdentifier="https://ror.org/04z8jg394" igsn:publisherIdentifierScheme="ROR" igsn:schemeURI="https://ror.org/">GFZ</igsn:publisher>
+  </igsn:agents>
+  <igsn:entityTypeClassifications>
+    <igsn:resourceType igsn:resourceTypeGeneral="PhysicalObject">Sample</igsn:resourceType>
+  </igsn:entityTypeClassifications>
+  <igsn:dates><igsn:publicationYear>2026</igsn:publicationYear></igsn:dates>
+</igsn:resource>

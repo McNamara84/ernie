@@ -17,3 +17,6 @@ resources/data/counter/counter-robots.json -whitespace
 
 # Keep the official ISO/TR 19115-4 schema snapshot byte-for-byte.
 resources/data/scheme/iso-19115-4/** -whitespace
+
+# Preserve the pinned IGSN Core upstream blobs, including their original line endings.
+resources/data/scheme/igsn-core/**/upstream/** -text -whitespace
