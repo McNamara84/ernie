@@ -6032,7 +6032,7 @@
             },
             "Pid4instInstruments": {
                 "type": "object",
-                "description": "PID4INST instruments vocabulary from b2inst (EUDAT instrument registry)",
+                "description": "Public latest-version instruments synchronized from B2INST v3. Internal synchronization diagnostics are excluded from this response.",
                 "properties": {
                     "lastUpdated": {
                         "type": "string",
@@ -6061,17 +6061,18 @@
                 "properties": {
                     "id": {
                         "type": "string",
-                        "description": "Internal b2inst record ID (string-cast)",
-                        "example": "123"
+                        "description": "B2INST record ID, distinct from the instrument PID and version parent ID",
+                        "example": "7z780-7kj63"
                     },
                     "pid": {
                         "type": "string",
-                        "description": "Persistent Identifier (Handle PID) of the instrument",
+                        "description": "Instrument PID. Handles are normalized to bare identifiers, using verified provider identity when migrated metadata disagrees.",
                         "example": "21.T11998/0000-001A-3905-F"
                     },
                     "pidType": {
                         "type": "string",
                         "description": "Type of the persistent identifier",
+                        "enum": ["Handle", "DOI", "URL"],
                         "example": "Handle"
                     },
                     "name": {
@@ -6086,8 +6087,8 @@
                     },
                     "landingPage": {
                         "type": "string",
-                        "description": "URL to the landing page of the instrument in b2inst (empty string if not available)",
-                        "example": "https://b2inst.gwdg.de/records/123"
+                        "description": "Instrument landing page supplied in PIDINST metadata; not necessarily the B2INST record page (empty string if absent)",
+                        "example": "https://sensors.gfz.de/devices/842"
                     },
                     "owners": {
                         "type": "array",

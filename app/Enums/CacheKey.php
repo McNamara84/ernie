@@ -31,6 +31,7 @@ enum CacheKey: string
     case MSL_KEYWORDS = 'vocabularies:msl:keywords';
     case MSL_LABORATORIES = 'vocabularies:msl:laboratories';
     case PID4INST_INSTRUMENTS = 'vocabularies:pid4inst:instruments';
+    case B2INST_HANDLE = 'b2inst:handle';
     case RAID_PROJECTS = 'vocabularies:raid:projects';
     case CHRONOSTRAT_TIMESCALE = 'vocabularies:chronostrat:timescale';
     case GEMET_THESAURUS = 'vocabularies:gemet:thesaurus';
@@ -165,6 +166,9 @@ enum CacheKey: string
             self::EUROSCIVOC => 86400,
             self::CGI_SIMPLE_LITHOLOGY => 86400,
 
+            // Handle registration evidence is short-lived; negative results use 60 seconds.
+            self::B2INST_HANDLE => max(1, min(3600, (int) config('b2inst.resolver_cache_ttl', 900))),
+
             // ROR affiliations are relatively stable - 7 days
             self::ROR_AFFILIATION => 604800,
 
@@ -273,6 +277,7 @@ enum CacheKey: string
             self::MSL_KEYWORDS,
             self::MSL_LABORATORIES,
             self::PID4INST_INSTRUMENTS,
+            self::B2INST_HANDLE,
             self::RAID_PROJECTS,
             self::CHRONOSTRAT_TIMESCALE,
             self::GEMET_THESAURUS,

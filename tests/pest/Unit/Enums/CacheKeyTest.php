@@ -80,6 +80,12 @@ it('returns correct TTL for ROR and ORCID', function () {
     expect(CacheKey::ORCID_PERSON->ttl())->toBe(86400);
 });
 
+it('assigns Handle resolution evidence to the cleared vocabulary group', function () {
+    expect(CacheKey::B2INST_HANDLE->key('hash'))->toBe('b2inst:handle:hash')
+        ->and(CacheKey::B2INST_HANDLE->tags())->toBe(['vocabularies'])
+        ->and(CacheKey::vocabularyKeys())->not->toContain(CacheKey::B2INST_HANDLE);
+});
+
 it('returns configurable TTLs for public page payload caches', function () {
     config([
         'bot_protection.portal_cache_ttl' => 45,

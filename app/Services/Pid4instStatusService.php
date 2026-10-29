@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\PidSetting;
-use Illuminate\Support\Facades\Http;
+use App\Services\B2inst\B2instClient;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -16,7 +16,7 @@ class Pid4instStatusService
     /**
      * Get the local status of a PID setting (from stored JSON file).
      *
-     * @return array{exists: bool, itemCount: int, lastUpdated: string|null}
+     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, serverCount: int|null}
      */
     public function getLocalStatus(PidSetting $setting): array
     {
@@ -27,6 +27,7 @@ class Pid4instStatusService
                 'exists' => false,
                 'itemCount' => 0,
                 'lastUpdated' => null,
+                'serverCount' => null,
             ];
         }
 
@@ -37,24 +38,29 @@ class Pid4instStatusService
                 'exists' => false,
                 'itemCount' => 0,
                 'lastUpdated' => null,
+                'serverCount' => null,
             ];
         }
 
-        /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>}|null $data */
+        /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>, _sync?: array{serverCount?: mixed}}|null $data */
         $data = json_decode($content, true);
 
-        if ($data === null) {
+        if (! is_array($data)) {
             return [
                 'exists' => false,
                 'itemCount' => 0,
                 'lastUpdated' => null,
+                'serverCount' => null,
             ];
         }
+
+        $serverCount = data_get($data, '_sync.serverCount');
 
         return [
             'exists' => true,
             'itemCount' => $data['total'] ?? count($data['data'] ?? []),
             'lastUpdated' => $data['lastUpdated'] ?? null,
+            'serverCount' => is_int($serverCount) && $serverCount >= 0 ? $serverCount : null,
         ];
     }
 
@@ -68,32 +74,19 @@ class Pid4instStatusService
      */
     public function getRemoteCount(): int
     {
-        /** @var string $host */
-        $host = rtrim((string) config('b2inst.host'), '/');
-
-        $response = Http::timeout(30)
-            ->accept('application/json')
-            ->get("{$host}/api/records", [
-                'size' => 1,
-                'page' => 1,
-            ]);
-
-        if (! $response->successful()) {
-            throw new \RuntimeException(
-                "Failed to fetch from b2inst API: HTTP {$response->status()}"
-            );
-        }
-
-        return (int) $response->json('hits.total', 0);
+        return app(B2instClient::class)->count();
     }
 
     /**
      * Compare local and remote instrument counts.
      *
      * An update is considered available when the remote count differs
-     * from the local count (instruments can be added or removed).
+     * from the last synchronized server count, including excluded records.
+     * Legacy snapshots fall back to their offered instrument count.
      *
-     * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null}
+     * Equal counts do not establish metadata freshness.
+     *
+     * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null, comparisonBasis: string}
      *
      * @throws \RuntimeException If the API request fails
      */
@@ -105,8 +98,9 @@ class Pid4instStatusService
         return [
             'localCount' => $localStatus['itemCount'],
             'remoteCount' => $remoteCount,
-            'updateAvailable' => $remoteCount !== $localStatus['itemCount'],
+            'updateAvailable' => $remoteCount !== ($localStatus['serverCount'] ?? $localStatus['itemCount']),
             'lastUpdated' => $localStatus['lastUpdated'],
+            'comparisonBasis' => 'count',
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Enums\EditorContext;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
@@ -30,6 +31,19 @@ dataset('editor vocabulary files', [
     ['pid4inst', 'pid4inst-instruments', 'pid4inst-instruments.json', true],
     ['raid', 'raid-projects', 'raid/raid-projects.json', true],
 ]);
+
+it('never exposes internal B2INST provenance to any editor, including cached snapshots', function (): void {
+    $setting = PidSetting::firstOrCreate(['type' => 'pid4inst'], ['display_name' => 'PIDINST']);
+    $setting->update(['is_active' => true, 'is_elmo_active' => true, 'is_elmo_msl_active' => true]);
+    $public = ['lastUpdated' => '2026-10-29T10:00:00Z', 'total' => 1, 'data' => [['id' => 'abc', 'pid' => '21.11157/abc']]];
+    $internal = $public + ['_sync' => ['records' => ['internal provenance'], 'refreshPending' => true]];
+    Storage::put('pid4inst-instruments.json', json_encode($internal));
+    Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), $internal);
+    $this->actingAs(User::factory()->create());
+    foreach (['/vocabularies/', '/api/v1/vocabularies/', '/api/v1/elmo-msl/vocabularies/'] as $prefix) {
+        $this->getJson($prefix.'pid4inst-instruments', ['X-API-Key' => 'editor-test-key'])->assertExactJson($public);
+    }
+});
 
 it('checks each editor before reading shared cached vocabulary data', function (string $type, string $slug, string $file, bool $pid): void {
     $model = $pid ? PidSetting::class : ThesaurusSetting::class;

@@ -17,7 +17,8 @@ function pid4instStatusHost(): string
 
 describe('Pid4instStatusService', function () {
     beforeEach(function () {
-        config(['b2inst.host' => 'https://b2inst.example.test']);
+        config(['b2inst.host' => 'https://b2inst.example.test', 'b2inst.retry_delay' => 0]);
+        Http::preventStrayRequests();
         $this->service = new Pid4instStatusService;
     });
 
@@ -98,11 +99,59 @@ describe('Pid4instStatusService', function () {
         });
     });
 
+    describe('compareWithRemote', function () {
+        it('compares the synchronized server count while displaying accepted instruments', function (int $remoteCount, bool $updateAvailable) {
+            Storage::fake('local');
+            Storage::put('pid4inst-instruments.json', json_encode([
+                'lastUpdated' => '2026-10-29T05:57:58Z',
+                'total' => 812,
+                'data' => [],
+                '_sync' => ['serverCount' => 815],
+            ]));
+            Http::fake(['*' => Http::response(['hits' => ['total' => $remoteCount, 'hits' => []]])]);
+            $setting = new PidSetting(['type' => PidSetting::TYPE_PID4INST]);
+
+            expect($this->service->compareWithRemote($setting))->toBe([
+                'localCount' => 812,
+                'remoteCount' => $remoteCount,
+                'updateAvailable' => $updateAvailable,
+                'lastUpdated' => '2026-10-29T05:57:58Z',
+                'comparisonBasis' => 'count',
+            ]);
+        })->with([[815, false], [816, true], [814, true], [812, true]]);
+
+        it('falls back to the offered count for legacy or invalid synchronization metadata', function (array $sync, int $remoteCount, bool $updateAvailable) {
+            Storage::fake('local');
+            Storage::put('pid4inst-instruments.json', json_encode(['total' => 812, 'data' => [], ...$sync]));
+            Http::fake(['*' => Http::response(['hits' => ['total' => $remoteCount, 'hits' => []]])]);
+            $setting = new PidSetting(['type' => PidSetting::TYPE_PID4INST]);
+
+            $result = $this->service->compareWithRemote($setting);
+            expect($result['localCount'])->toBe(812)->and($result['updateAvailable'])->toBe($updateAvailable);
+        })->with([
+            [[], 812, false], [[], 815, true],
+            [['_sync' => []], 812, false],
+            [['_sync' => ['serverCount' => null]], 812, false],
+            [['_sync' => ['serverCount' => -1]], 812, false],
+            [['_sync' => ['serverCount' => '815']], 812, false],
+        ]);
+
+        it('recognizes a zero server baseline for an empty synchronized snapshot', function () {
+            Storage::fake('local');
+            Storage::put('pid4inst-instruments.json', json_encode(['data' => [], '_sync' => ['serverCount' => 0]]));
+            Http::fake(['*' => Http::response(['hits' => ['total' => 0, 'hits' => []]])]);
+            $setting = new PidSetting(['type' => PidSetting::TYPE_PID4INST]);
+
+            expect($this->service->getLocalStatus($setting)['serverCount'])->toBe(0)
+                ->and($this->service->compareWithRemote($setting)['updateAvailable'])->toBeFalse();
+        });
+    });
+
     describe('getRemoteCount', function () {
         it('returns total hits from b2inst API', function () {
             Http::fake([
                 pid4instStatusHost().'/api/records*' => Http::response([
-                    'hits' => ['total' => 500],
+                    'hits' => ['total' => 500, 'hits' => []],
                 ]),
             ]);
 
@@ -119,7 +168,8 @@ describe('Pid4instStatusService', function () {
                     && str_starts_with($request->url(), pid4instStatusHost().'/api/records?')
                     && ($query['size'] ?? null) === '1'
                     && ($query['page'] ?? null) === '1'
-                    && ! array_key_exists('sort', $query);
+                    && ($query['sort'] ?? null) === 'newest'
+                    && ($query['allversions'] ?? null) === 'false';
             });
         });
 

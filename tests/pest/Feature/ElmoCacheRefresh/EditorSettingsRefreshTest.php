@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tests\Fixtures\B2instFixture;
 
 require_once __DIR__.'/../../Helpers/ElmoCacheRefresh.php';
 
@@ -264,9 +265,15 @@ it('refreshes after genuine version changes and retains files for identical vers
 })->with([true, false]);
 
 it('refreshes only after successful data update commands', function (string $kind, int $exitCode): void {
-    Artisan::shouldReceive('call')->once()->andReturn($exitCode);
-    if ($exitCode !== 0) {
-        Artisan::shouldReceive('output')->once()->andReturn('command failed');
+    if ($kind === 'pid') {
+        Storage::fake();
+        config(['b2inst.host' => 'https://b2inst.example.test']);
+        Http::fake(['https://b2inst.example.test/*' => Http::response(B2instFixture::page([B2instFixture::record()]), $exitCode === 0 ? 200 : 400)]);
+    } else {
+        Artisan::shouldReceive('call')->once()->andReturn($exitCode);
+        if ($exitCode !== 0) {
+            Artisan::shouldReceive('output')->once()->andReturn('command failed');
+        }
     }
     $job = $kind === 'pid'
         ? new UpdatePidJob('pid4inst', (string) Str::uuid())
@@ -276,21 +283,32 @@ it('refreshes only after successful data update commands', function (string $kin
 })->with([['pid', 0], ['pid', 1], ['thesaurus', 0], ['thesaurus', 1]]);
 
 it('reads current activations after a data update has finished', function (): void {
-    Artisan::shouldReceive('call')->once()->andReturnUsing(function (): int {
+    Storage::fake();
+    config(['b2inst.host' => 'https://b2inst.example.test']);
+    Http::fake(['https://b2inst.example.test/*' => function () {
         PidSetting::where('type', 'pid4inst')->update(['is_elmo_active' => false, 'is_elmo_msl_active' => true]);
 
-        return 0;
-    });
+        return Http::response(B2instFixture::page([B2instFixture::record()]));
+    }]);
     (new UpdatePidJob('pid4inst', (string) Str::uuid()))->handle();
     Bus::assertDispatchedTimes(RefreshElmoCacheJob::class, 1);
     Bus::assertDispatched(RefreshElmoCacheJob::class, fn ($job): bool => $job->editor === EditorContext::ELMO_MSL);
 });
 
 it('preserves completed data updates when refresh queue insertion fails', function (string $kind): void {
-    Artisan::shouldReceive('call')->once()->andReturn(0);
-    Bus::shouldReceive('dispatch')->twice()->andThrow(new RuntimeException('queue failed'));
+    if ($kind === 'pid') {
+        Storage::fake();
+        config(['b2inst.host' => 'https://b2inst.example.test']);
+        Http::fake(['https://b2inst.example.test/*' => Http::response(B2instFixture::page([B2instFixture::record()]))]);
+    } else {
+        Artisan::shouldReceive('call')->once()->andReturn(0);
+    }
+    Bus::shouldReceive('dispatch')->times($kind === 'pid' ? 1 : 2)->andThrow(new RuntimeException('queue failed'));
     $id = (string) Str::uuid();
     $job = $kind === 'pid' ? new UpdatePidJob('pid4inst', $id) : new UpdateThesaurusJob('chronostratigraphy', $id);
     $job->handle();
     expect(cache()->get($job::getCacheKey($id))['status'])->toBe('completed');
+    if ($kind === 'pid') {
+        expect(cache()->get($job::getCacheKey($id))['refreshPending'])->toBeTrue();
+    }
 })->with(['pid', 'thesaurus']);

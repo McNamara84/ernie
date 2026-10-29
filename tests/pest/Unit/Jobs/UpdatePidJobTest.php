@@ -6,12 +6,14 @@ use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 covers(UpdatePidJob::class);
 
 beforeEach(function (): void {
     Cache::flush();
+    Storage::fake();
 });
 
 test('constructor rejects invalid PID type', function (): void {

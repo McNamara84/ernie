@@ -36,6 +36,7 @@ interface UpdateCheckResult {
     remoteCount: number;
     updateAvailable: boolean;
     lastUpdated: string | null;
+    comparisonBasis?: 'count';
 }
 
 interface PidLocalStatusOverride {
@@ -64,6 +65,9 @@ interface JobStatus {
     completedAt?: string;
     failedAt?: string;
     error?: string;
+    itemCount?: number;
+    lastUpdated?: string | null;
+    refreshPending?: boolean;
 }
 
 interface PidSettingRowProps {
@@ -172,7 +176,15 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                     setUpdateJobId(null);
 
                     if (status.status === 'completed') {
-                        setLocalStatusOverride(getCompletedPidLocalStatus(pidSetting, updateInfo, status.completedAt));
+                        setLocalStatusOverride(
+                            pidSetting.type === 'pid4inst'
+                                ? {
+                                      exists: true,
+                                      itemCount: status.itemCount ?? pidSetting.itemCount,
+                                      lastUpdated: status.lastUpdated ?? pidSetting.lastUpdated,
+                                  }
+                                : getCompletedPidLocalStatus(pidSetting, updateInfo, status.completedAt),
+                        );
                         setCheckStatus('idle');
                         setUpdateInfo(null);
                         onUpdateComplete?.();
@@ -330,7 +342,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                             )}
                         </Button>
 
-                        {updateInfo?.updateAvailable && !isUpdating && (
+                        {(pidSetting.type === 'pid4inst' || updateInfo?.updateAvailable) && !isUpdating && (
                             <Button size="sm" onClick={triggerUpdate}>
                                 <RefreshCw className="mr-1 h-3.5 w-3.5" />
                                 Update Now
@@ -352,7 +364,9 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                             className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
                                 updateInfo.updateAvailable
                                     ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
-                                    : 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
+                                    : pidSetting.type === 'pid4inst'
+                                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400'
+                                      : 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
                             }`}
                         >
                             {updateInfo.updateAvailable ? (
@@ -361,6 +375,14 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                                     <span>
                                         ERNIE contains {updateInfo.localCount.toLocaleString()} {countLabel}, but {sourceName} contains{' '}
                                         {updateInfo.remoteCount.toLocaleString()} {countLabel}. Would you like to update the registry?
+                                    </span>
+                                </>
+                            ) : pidSetting.type === 'pid4inst' ? (
+                                <>
+                                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>
+                                        Count unchanged ({updateInfo.localCount.toLocaleString()} instruments); metadata freshness has not been
+                                        checked. Use Update Now to refresh all metadata.
                                     </span>
                                 </>
                             ) : (
