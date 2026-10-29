@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\Igsn\Export\IgsnCoreSchemaResolver;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 
 /**
@@ -40,6 +41,17 @@ class LandingPageMetadataLinkService
             $this->link('datacite-json', 'DataCite', 'DataCite JSON', "{$baseUrl}/datacite.json", 'application/vnd.datacite.datacite+json'),
             $this->link('datacite-jsonld', 'DataCite', 'DataCite JSON-LD', "{$baseUrl}/datacite.jsonld", 'application/ld+json'),
         ];
+
+        if ($resource->isIgsn()) {
+            $links[] = $this->link(
+                'igsn-core-2.0',
+                'IGSN 2.0 Core',
+                'IGSN 2.0 Core (Preview)',
+                "{$baseUrl}/igsn-core-2.0.xml",
+                'application/xml',
+                app(IgsnCoreSchemaResolver::class)->url(),
+            );
+        }
 
         if ($this->isoProfile->supports($resource)) {
             $links[] = $this->link(

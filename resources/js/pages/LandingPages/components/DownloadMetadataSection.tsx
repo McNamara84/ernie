@@ -6,12 +6,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { LandingPageMetadataLink } from '@/types/landing-page';
 
 import { DarkModeImage } from './DarkModeImage';
+import { IgsnCoreDownload } from './IgsnCoreDownload';
 
 interface DownloadMetadataSectionProps {
     resourceId: number;
     isPreview?: boolean;
     supportsIso19115?: boolean;
     supportsIso19115Json?: boolean;
+    supportsIgsnCore?: boolean;
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
 }
@@ -66,6 +68,7 @@ export function DownloadMetadataSection({
     isPreview = false,
     supportsIso19115 = false,
     supportsIso19115Json = false,
+    supportsIgsnCore = false,
     jsonLdExportUrl,
     metadataLinks = [],
 }: DownloadMetadataSectionProps) {
@@ -77,6 +80,7 @@ export function DownloadMetadataSection({
     const isoJsonLink = metadataLinks.find((link) => link.format === 'iso19115-4');
     const showIsoJson = isoJsonLink !== undefined || (isPreview && supportsIso19115Json);
     const openPreviewDialog = () => setIsPreviewDialogOpen(true);
+    const igsnCoreLink = metadataLinks.find((link) => link.format === 'igsn-core-2.0');
 
     return (
         <section className="mt-6" aria-labelledby="heading-download-metadata">
@@ -148,6 +152,23 @@ export function DownloadMetadataSection({
                             onPreviewClick={openPreviewDialog}
                         />
                     )}
+                </div>
+            )}
+
+            {(igsnCoreLink !== undefined || (isPreview && supportsIgsnCore)) && (
+                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <span className="text-sm font-semibold">IGSN 2.0 Core (Preview)</span>
+                    {isPreview ? (
+                        <MetadataDownloadAction
+                            icon={FileCode}
+                            label="XML"
+                            title="Download as IGSN 2.0 Core XML (Preview)"
+                            isPreview
+                            onPreviewClick={openPreviewDialog}
+                        />
+                    ) : igsnCoreLink ? (
+                        <IgsnCoreDownload link={igsnCoreLink} />
+                    ) : null}
                 </div>
             )}
 

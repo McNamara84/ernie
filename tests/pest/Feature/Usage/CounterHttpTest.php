@@ -6,6 +6,7 @@ use App\Http\Middleware\RecordCounterUsage;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\User;
@@ -72,6 +73,20 @@ it('counts a final not-modified response but excludes redirects and server error
         expect($response->getStatusCode())->toBe($status);
     }
     expect(DB::table('usage_events')->count())->toBe(1);
+});
+
+it('counts successful Core exports as investigations and excludes incomplete IGSN metadata', function () {
+    $type = ResourceType::firstOrCreate(['slug' => 'physical-object'], ['name' => 'PhysicalObject']);
+    $this->page->resource->update(['resource_type_id' => $type->id]);
+    $url = $this->page->public_url.'/metadata/igsn-core-2.0.xml';
+    $this->get($url)->assertUnprocessable();
+    expect(DB::table('usage_events')->count())->toBe(0);
+    ResourceCreator::factory()->create(['resource_id' => $this->page->resource_id]);
+    $this->get($url)->assertOk();
+    expect(DB::table('usage_events')->count())->toBe(1);
+    $event = DB::table('usage_events')->first();
+    expect($event->event_type)->toBe('investigation')
+        ->and($event->target_hash)->toBe(app(CounterSessionHasherService::class)->target('igsn-core-2.0'));
 });
 
 it('refreshes the displayed calendar window at the UTC month boundary before the next aggregation', function () {

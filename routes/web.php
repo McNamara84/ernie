@@ -25,6 +25,7 @@ use App\Http\Controllers\EditorLoadProgressController;
 use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
+use App\Http\Controllers\IgsnCoreSchemaController;
 use App\Http\Controllers\JsonLdContextController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPageDomainController;
@@ -193,6 +194,12 @@ Route::get('landing-page-downloads/{landingPage}/links/{landingPageLink}', [Land
 // cannot contain slashes, so the slug is always unambiguous.
 
 // Canonical metadata downloads for published landing pages.
+Route::get('schemas/igsn/2.0/core/{snapshot}/{path}', IgsnCoreSchemaController::class)
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('snapshot', '[a-f0-9]{40}')
+    ->where('path', '.+')
+    ->name('schemas.igsn-core');
+
 // These routes must be defined BEFORE the catch-all show route.
 Route::prefix('{doiPrefix}/{slug}/metadata')
     ->middleware('throttle:public-landing-jsonld')
@@ -201,6 +208,8 @@ Route::prefix('{doiPrefix}/{slug}/metadata')
         'slug' => '[a-z0-9-]+',
     ])
     ->group(function (): void {
+        Route::get('igsn-core-2.0.xml', [PublicMetadataExportController::class, 'igsnCore'])
+            ->name('landing-page.metadata.igsn-core');
         Route::get('datacite.xml', [PublicMetadataExportController::class, 'dataCiteXml'])
             ->name('landing-page.metadata.datacite-xml');
         Route::get('datacite.json', [PublicMetadataExportController::class, 'dataCiteJson'])

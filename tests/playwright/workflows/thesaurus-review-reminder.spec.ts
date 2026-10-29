@@ -28,7 +28,7 @@ test.describe('Quarterly thesaurus review', () => {
             const heading = trigger(page);
             await expect(heading).toHaveAttribute('aria-expanded', 'true');
             await expect(heading).toBeFocused();
-            await expect(heading).toBeInViewport();
+            await expect(heading).toBeInViewport({ ratio: 1 });
             const headingBox = await heading.boundingBox();
             const saveBarBox = await page.getByTestId('settings-save-status').boundingBox();
             expect(headingBox!.y).toBeGreaterThan(saveBarBox!.y + saveBarBox!.height);
@@ -38,6 +38,7 @@ test.describe('Quarterly thesaurus review', () => {
             await page.reload();
             await expect(heading).toHaveAttribute('aria-expanded', 'true');
             await expect(heading).toBeFocused();
+            await expect(heading).toBeInViewport({ ratio: 1 });
             await page.goto('/settings');
             await expect(heading).toHaveAttribute('aria-expanded', 'false');
         });

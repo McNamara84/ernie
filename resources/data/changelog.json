@@ -1,8 +1,12 @@
 [
     {
         "version": "1.2.0dev",
-        "date": "2026-10-27",
+        "date": "2026-10-28",
         "features": [
+            {
+                "title": "IGSN 2.0 Core Metadata Downloads",
+                "description": "Published IGSN and Physical Object landing pages offer an IGSN 2.0 Core XML preview download, including supported relationships and geographic coordinates while protecting private parent identifiers and contact details. Metadata is mapped with XSLT and validated before delivery against a pinned, unchanged development schema snapshot, publicly available with its dependencies and provenance. The export uses Core only, without Geo or Bio extensions or IGSN 1.3. Missing required metadata and validation failures produce clear errors instead of invalid downloads. Mapping documentation and automated tests cover the new format."
+            },
             {
                 "title": "ISO JSON Metadata Downloads",
                 "description": "Eligible resource landing pages automatically offer an ISO/TR 19115-4 JSON preview download alongside ISO 19115-3 XML. Both formats appear under ISO 19115 with concise XML and JSON buttons; tooltips and accessible labels identify the specific standards and JSON preview status. The export includes supported metadata and geographic features, validates against a pinned local schema set, and is discoverable through machine-readable metadata links. Scientific plain text and date precision are preserved, and successful anonymous downloads contribute to COUNTER investigations. User documentation explains availability, eligible resource types, and preview limitations. IGSNs and Physical Objects retain their existing download formats."
@@ -44,7 +48,16 @@
                 "references": [{ "type": "issue", "number": 1427, "url": "https://github.com/McNamara84/ernie/issues/1427" }]
             }
         ],
-        "fixes": []
+        "fixes": [
+            {
+                "title": "Email Header Security",
+                "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."
+            },
+            {
+                "title": "Reliable Settings Section Links",
+                "description": "Links to the thesaurus settings wait for fonts and layout to finish loading before focusing and scrolling to the requested card. This prevents incorrect initial scroll positions in WebKit on narrow screens and preserves focus when users start editing another field while the page loads."
+            }
+        ]
     },
     {
         "version": "1.1.2dev",
