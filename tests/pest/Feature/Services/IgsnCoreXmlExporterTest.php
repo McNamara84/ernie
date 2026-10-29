@@ -26,6 +26,7 @@ use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Models\TitleType;
 use App\Services\Igsn\Export\IgsnCoreExportResult;
 use App\Services\Igsn\Export\IgsnCoreGeometryMapper;
 use App\Services\Igsn\Export\IgsnCoreMetadataException;
@@ -34,6 +35,7 @@ use App\Services\Igsn\Export\IgsnCoreSourceBuilder;
 use App\Services\Igsn\Export\IgsnCoreVocabulary;
 use App\Services\Igsn\Export\IgsnCoreXmlExporter;
 use App\Services\Igsn\Export\IgsnCoreXmlValidator;
+use App\Services\IgsnStorageService;
 use Database\Seeders\RelationTypeSeeder;
 
 covers(IgsnCoreXmlExporter::class, IgsnCoreSourceBuilder::class, IgsnCoreGeometryMapper::class, IgsnCoreVocabulary::class, IgsnCoreSource::class, IgsnCoreExportResult::class, IgsnCoreMetadataException::class);
@@ -151,6 +153,113 @@ test('does not relabel foreign titles as English', function () {
     expect($result->omissions)->toContain('title_language_unsupported')
         ->and(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([]);
 });
+
+test('exports imported titles and descriptions without language annotations', function () {
+    ResourceType::firstOrCreate(['slug' => 'physical-object'], ['name' => 'PhysicalObject']);
+    TitleType::firstOrCreate(['slug' => 'MainTitle'], ['name' => 'Main Title']);
+    DateType::firstOrCreate(['slug' => 'Collected'], ['name' => 'Collected']);
+    $import = app(IgsnStorageService::class)->storeFromCsv([[
+        'igsn' => '10.58052/IEIMPORTED001',
+        'title' => 'Imported sample title',
+        'depth_min' => null,
+        'depth_max' => null,
+        'collection_start_date' => '2026-03-01',
+        'collection_method_descr' => 'Collected by drilling',
+        'platform_descr' => 'Research vessel',
+        'description' => json_encode([['description' => 'Dark sample', 'descriptionScheme' => 'Colour']], JSON_THROW_ON_ERROR),
+        '_creator' => ['familyName' => 'Collector', 'givenName' => 'Anne'],
+    ]], 'core-language-regression.csv');
+    expect($import['errors'])->toBe([])->and($import['created'])->toBe(1);
+    $resource = Resource::where('doi', '10.58052/IEIMPORTED001')->firstOrFail();
+    expect($resource->language_id)->toBeNull()->and($resource->titles()->first()->language)->toBeNull();
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource);
+    $xpath = coreXpath($result->xml);
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and($xpath->evaluate('string(//i:name)'))->toBe('Imported sample title')
+        ->and($xpath->evaluate('string(//i:name/@i:lang)'))->toBe('en')
+        ->and($xpath->evaluate('count(//i:description[@i:lang="en"])'))->toBe(3.0)
+        ->and($result->xml)->toContain('Collected by drilling', 'Platform: Research vessel', 'Colour: Dark sample')
+        ->and($result->omissions)->not->toContain('title_language_unsupported', 'description_type_or_language_unsupported', 'resource_language_unsupported');
+});
+
+test('uses the Core language default for missing title and description languages', function (?string $missing) {
+    $resource = coreSample();
+    $resource->update(['language_id' => null]);
+    $resource->titles()->update(['language' => $missing]);
+    $description = Description::factory()->abstract()->create(['resource_id' => $resource->id, 'value' => 'Unlabelled abstract', 'language' => $missing]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+    $xpath = coreXpath($result->xml);
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and($xpath->evaluate('string(//i:name)'))->toBe('Core & sample <A>')
+        ->and($xpath->evaluate('string(//i:name/@i:lang)'))->toBe('en')
+        ->and($xpath->evaluate('string(//i:description)'))->toBe('Unlabelled abstract')
+        ->and($xpath->evaluate('string(//i:description/@i:lang)'))->toBe('en')
+        ->and($xpath->evaluate('string(//i:language)'))->toBe('en')
+        ->and($resource->fresh()->language_id)->toBeNull()
+        ->and($resource->titles()->first()->language)->toBe($missing)
+        ->and($description->fresh()->language)->toBeNull();
+})->with([null, '', ' ']);
+
+test('uses the Core language default for a publisher without a language', function (?string $missing) {
+    $resource = coreSample();
+    // The current publisher column is NOT NULL; also cover an incomplete hydrated model.
+    $resource->publisher->setAttribute('language', $missing);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource);
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and(coreXpath($result->xml)->evaluate('string(//i:publisher/@i:lang)'))->toBe('en')
+        ->and($resource->publisher->getAttribute('language'))->toBe($missing);
+})->with([null, '', ' ']);
+
+test('preserves explicit and inherited export languages ahead of the Core default', function (?string $resourceLanguage, ?string $fieldLanguage, ?string $descriptionLanguage, bool $titleSupported) {
+    $resource = coreSample();
+    $resource->update(['language_id' => $resourceLanguage === null ? null : Language::firstOrCreate(['code' => $resourceLanguage], ['name' => $resourceLanguage])->id]);
+    $resource->titles()->update(['language' => $fieldLanguage]);
+    Description::factory()->abstract()->create(['resource_id' => $resource->id, 'value' => 'Explicit language abstract', 'language' => $fieldLanguage]);
+    AlternateIdentifier::create(['resource_id' => $resource->id, 'type' => 'Local sample name', 'value' => 'LOCAL-LANGUAGE-SAMPLE', 'position' => 0]);
+
+    $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
+    $xpath = coreXpath($result->xml);
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([])
+        ->and($xpath->evaluate('count(//i:name[@i:lang="en"])'))->toBe($titleSupported ? 1.0 : 0.0)
+        ->and($xpath->evaluate('string(//i:description/@i:lang)'))->toBe($descriptionLanguage ?? '')
+        ->and($xpath->evaluate('count(//i:description)'))->toBe($descriptionLanguage === null ? 0.0 : 1.0)
+        ->and($xpath->evaluate('string(//i:language)'))->toBe($resourceLanguage === null ? 'en' : '');
+    if (! $titleSupported) {
+        expect($result->omissions)->toContain('title_language_unsupported');
+    }
+    if ($descriptionLanguage === null) {
+        expect($result->omissions)->toContain('description_type_or_language_unsupported');
+    }
+    if ($resourceLanguage !== null) {
+        expect($result->omissions)->toContain('resource_language_unsupported');
+    }
+})->with([
+    'inherit German' => ['de', null, 'de', false],
+    'inherit unsupported French' => ['fr', null, null, false],
+    'field overrides German resource' => ['de', 'en', 'en', true],
+    'explicit German without resource language' => [null, 'de', 'de', false],
+    'explicit French without resource language' => [null, 'fr', null, false],
+    'English language tag without resource language' => [null, 'en-GB', 'en', true],
+]);
+
+test('does not default an explicitly unsupported publisher language to English', function (string $language) {
+    $resource = coreSample();
+    $resource->publisher->update(['language' => $language]);
+
+    try {
+        app(IgsnCoreXmlExporter::class)->export($resource);
+        $this->fail('An unsupported publisher language must remain an error.');
+    } catch (IgsnCoreMetadataException $exception) {
+        expect($exception->fields)->toContain('publisher');
+    }
+})->with(['de', 'fr']);
 
 test('deduplicates identical geometry and omits ambiguous or unsupported coordinates', function () {
     $resource = coreSample();

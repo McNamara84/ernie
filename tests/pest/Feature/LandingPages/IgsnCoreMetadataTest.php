@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\IgsnCoreSchemaController;
 use App\Http\Controllers\PublicMetadataExportController;
+use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -37,6 +38,19 @@ test('downloads only locally validated Core XML on the canonical public route wi
     $response = $this->get($page->getPublicPath().'/metadata/igsn-core-2.0.xml')->assertOk()
         ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
         ->assertHeader('Content-Disposition', 'attachment; filename="core-sample-igsn-core-2.0.xml"');
+    expect(app(IgsnCoreXmlValidator::class)->validate($response->getContent())->errors)->toBe([]);
+});
+
+test('downloads titles and descriptions when their languages and the resource language are missing', function () {
+    $page = coreLandingPage();
+    $page->resource->update(['language_id' => null]);
+    $page->resource->titles()->update(['value' => 'Sample without language', 'language' => null]);
+    Description::factory()->abstract()->create(['resource_id' => $page->resource_id, 'value' => 'Description without language', 'language' => null]);
+
+    $response = $this->get($page->getPublicPath().'/metadata/igsn-core-2.0.xml')->assertOk()
+        ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
+        ->assertSee('Sample without language', false)->assertSee('Description without language', false);
+
     expect(app(IgsnCoreXmlValidator::class)->validate($response->getContent())->errors)->toBe([]);
 });
 

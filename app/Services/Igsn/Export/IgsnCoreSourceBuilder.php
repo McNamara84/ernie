@@ -70,7 +70,7 @@ final class IgsnCoreSourceBuilder
         $language = $this->language($resource->language?->code);
         if ($language === 'en') {
             $this->node($root, 'language', 'en');
-        } elseif ($language !== null) {
+        } else {
             $this->omissions[] = 'resource_language_unsupported';
         }
         $this->buildNames($resource, $root, $language);
@@ -99,7 +99,7 @@ final class IgsnCoreSourceBuilder
         return new IgsnCoreSource($this->document, array_values(array_unique($this->omissions)));
     }
 
-    private function buildNames(Resource $resource, DOMElement $root, ?string $language): void
+    private function buildNames(Resource $resource, DOMElement $root, string $language): void
     {
         $names = $this->node($root, 'names');
         $seen = [];
@@ -115,7 +115,7 @@ final class IgsnCoreSourceBuilder
         }
         foreach ($resource->titles->sortBy('id') as $title) {
             $value = trim($title->value);
-            $titleLanguage = $this->language($title->language) ?? $language;
+            $titleLanguage = $this->language($title->language, $language);
             $type = $title->titleType?->slug;
             if ($value === '' || isset($seen[$value])) {
                 continue;
@@ -241,7 +241,7 @@ final class IgsnCoreSourceBuilder
         ]);
     }
 
-    private function buildSample(Resource $resource, DOMElement $root, ?string $language): void
+    private function buildSample(Resource $resource, DOMElement $root, string $language): void
     {
         $metadata = $resource->igsnMetadata;
         $sample = $this->node($root, 'sample');
@@ -256,7 +256,7 @@ final class IgsnCoreSourceBuilder
             }
         }
         foreach ($resource->descriptions->sortBy('id') as $description) {
-            $this->description($sample, $description->value, $description->descriptionType->slug, $this->language($description->language) ?? $language);
+            $this->description($sample, $description->value, $description->descriptionType->slug, $this->language($description->language, $language));
         }
         if ($metadata !== null) {
             $this->description($sample, $metadata->collection_method_description, 'Methods', $language);
@@ -290,7 +290,7 @@ final class IgsnCoreSourceBuilder
         }
     }
 
-    private function description(DOMElement $parent, ?string $value, ?string $type, ?string $language, ?string $context = null): void
+    private function description(DOMElement $parent, ?string $value, ?string $type, string $language, ?string $context = null): void
     {
         if ($value === null || trim($value) === '') {
             return;
@@ -448,9 +448,10 @@ final class IgsnCoreSourceBuilder
         return $node;
     }
 
-    private function language(?string $value): ?string
+    private function language(?string $value, string $fallback = 'en'): string
     {
-        return $value === null || trim($value) === '' ? null : strtolower(explode('-', trim($value))[0]);
+        // Inherit explicit resource languages before using Core's English default.
+        return $value === null || trim($value) === '' ? $fallback : strtolower(explode('-', trim($value))[0]);
     }
 
     private function absoluteUri(?string $value): bool
