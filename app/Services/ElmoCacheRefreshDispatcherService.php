@@ -19,14 +19,14 @@ final class ElmoCacheRefreshDispatcherService
     public function __construct(private readonly ElmoCacheRefreshService $service) {}
 
     /** @param list<EditorContext> $editors */
-    public function dispatch(array $editors, string $trigger): void
+    public function dispatch(array $editors, string $trigger, bool $throwOnFailure = false): void
     {
         if (! $this->service->isEnabled() || $editors === []) {
             return;
         }
 
         $correlationId = (string) Str::uuid();
-        DB::afterCommit(function () use ($editors, $trigger, $correlationId): void {
+        DB::afterCommit(function () use ($editors, $trigger, $correlationId, $throwOnFailure): void {
             foreach (array_unique($editors, SORT_REGULAR) as $editor) {
                 if ($editor === EditorContext::ERNIE) {
                     continue;
@@ -48,19 +48,22 @@ final class ElmoCacheRefreshDispatcherService
                 try {
                     // Explicit dispatch keeps queue exceptions inside this catch, rather than a PendingDispatch destructor.
                     Bus::dispatch(new RefreshElmoCacheJob($editor, $trigger, $correlationId));
-                } catch (Throwable) {
+                } catch (Throwable $exception) {
                     Log::error('ELMO cache refresh could not be queued; a manual refresh is required.', $context);
+                    if ($throwOnFailure) {
+                        throw $exception;
+                    }
                 }
             }
         });
     }
 
-    public function dispatchForDataUpdate(ThesaurusSetting|PidSetting $setting): void
+    public function dispatchForDataUpdate(ThesaurusSetting|PidSetting $setting, bool $throwOnFailure = false): void
     {
         $editors = array_values(array_filter(
             [EditorContext::ELMO, EditorContext::ELMO_MSL],
             static fn (EditorContext $editor): bool => (bool) $setting->getAttribute($editor->activationColumn()),
         ));
-        $this->dispatch($editors, ($setting instanceof ThesaurusSetting ? 'thesaurus:' : 'pid:').$setting->type);
+        $this->dispatch($editors, ($setting instanceof ThesaurusSetting ? 'thesaurus:' : 'pid:').$setting->type, $throwOnFailure);
     }
 }

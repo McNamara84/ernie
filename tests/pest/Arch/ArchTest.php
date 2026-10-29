@@ -48,6 +48,12 @@ describe('Services', function () {
         ->expect('App\Services')
         ->toHaveSuffix('Service')
         ->ignoring([
+            // B2INST transport, normalization, snapshot storage and consistency signal.
+            'App\Services\B2inst\B2instClient',
+            'App\Services\B2inst\B2instInstrumentNormalizer',
+            'App\Services\B2inst\B2instPidResolver',
+            'App\Services\B2inst\B2instSnapshotStore',
+            'App\Services\B2inst\B2instSnapshotChanged',
             'App\Services\DataCiteJsonExporter',
             'App\Services\DataCiteXmlExporter',
             'App\Services\DataCiteLinkedDataExporter',

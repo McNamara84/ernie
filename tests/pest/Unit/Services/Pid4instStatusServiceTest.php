@@ -17,7 +17,8 @@ function pid4instStatusHost(): string
 
 describe('Pid4instStatusService', function () {
     beforeEach(function () {
-        config(['b2inst.host' => 'https://b2inst.example.test']);
+        config(['b2inst.host' => 'https://b2inst.example.test', 'b2inst.retry_delay' => 0]);
+        Http::preventStrayRequests();
         $this->service = new Pid4instStatusService;
     });
 
@@ -102,7 +103,7 @@ describe('Pid4instStatusService', function () {
         it('returns total hits from b2inst API', function () {
             Http::fake([
                 pid4instStatusHost().'/api/records*' => Http::response([
-                    'hits' => ['total' => 500],
+                    'hits' => ['total' => 500, 'hits' => []],
                 ]),
             ]);
 
@@ -119,7 +120,8 @@ describe('Pid4instStatusService', function () {
                     && str_starts_with($request->url(), pid4instStatusHost().'/api/records?')
                     && ($query['size'] ?? null) === '1'
                     && ($query['page'] ?? null) === '1'
-                    && ! array_key_exists('sort', $query);
+                    && ($query['sort'] ?? null) === 'newest'
+                    && ($query['allversions'] ?? null) === 'false';
             });
         });
 

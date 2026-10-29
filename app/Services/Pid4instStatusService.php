@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\PidSetting;
-use Illuminate\Support\Facades\Http;
+use App\Services\B2inst\B2instClient;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -43,7 +43,7 @@ class Pid4instStatusService
         /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>}|null $data */
         $data = json_decode($content, true);
 
-        if ($data === null) {
+        if (! is_array($data)) {
             return [
                 'exists' => false,
                 'itemCount' => 0,
@@ -68,23 +68,7 @@ class Pid4instStatusService
      */
     public function getRemoteCount(): int
     {
-        /** @var string $host */
-        $host = rtrim((string) config('b2inst.host'), '/');
-
-        $response = Http::timeout(30)
-            ->accept('application/json')
-            ->get("{$host}/api/records", [
-                'size' => 1,
-                'page' => 1,
-            ]);
-
-        if (! $response->successful()) {
-            throw new \RuntimeException(
-                "Failed to fetch from b2inst API: HTTP {$response->status()}"
-            );
-        }
-
-        return (int) $response->json('hits.total', 0);
+        return app(B2instClient::class)->count();
     }
 
     /**
@@ -93,7 +77,9 @@ class Pid4instStatusService
      * An update is considered available when the remote count differs
      * from the local count (instruments can be added or removed).
      *
-     * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null}
+     * Equal counts do not establish metadata freshness.
+     *
+     * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null, comparisonBasis: string}
      *
      * @throws \RuntimeException If the API request fails
      */
@@ -107,6 +93,7 @@ class Pid4instStatusService
             'remoteCount' => $remoteCount,
             'updateAvailable' => $remoteCount !== $localStatus['itemCount'],
             'lastUpdated' => $localStatus['lastUpdated'],
+            'comparisonBasis' => 'count',
         ];
     }
 }

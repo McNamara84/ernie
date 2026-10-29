@@ -7,6 +7,9 @@ for `main` bugfixes, `dev` features, automatic synchronization, and publishing.
 To test immutable Production candidates while Stage follows `dev`, use
 [Release Candidate Testing](release-candidate-testing.md).
 
+For PIDINST instrument refreshes, dry runs, identity checks and recovery, see
+[B2INST v3 Integration](b2inst-integration.md).
+
 For environment-specific COUNTER activation, aggregation, retention and recovery,
 see [COUNTER Usage Statistics](counter-usage.md). New usage collection stays
 inactive until explicitly activated; migrations alone preserve legacy counting.

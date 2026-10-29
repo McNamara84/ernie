@@ -5,15 +5,20 @@ declare(strict_types=1);
 use App\Enums\EditorContext;
 use App\Exceptions\ElmoCacheRefreshException;
 use App\Jobs\RefreshElmoCacheJob;
+use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
 use App\Services\ElmoCacheRefreshDispatcherService;
 use App\Services\ElmoCacheRefreshService;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Tests\Fixtures\B2instFixture;
 
 require_once __DIR__.'/../../Helpers/ElmoCacheRefresh.php';
 
@@ -278,6 +283,34 @@ it('dispatches data updates only to currently active variants', function (bool $
     app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting);
     Bus::assertDispatchedTimes(RefreshElmoCacheJob::class, $count);
 })->with([[true, false, 1], [false, true, 1], [true, true, 2], [false, false, 0]]);
+
+it('reports queue failures to B2INST when requested', function (): void {
+    Bus::shouldReceive('dispatch')->once()->andThrow(new RuntimeException('Queue unavailable'));
+    $setting = new PidSetting(['type' => 'pid4inst', 'is_elmo_active' => true]);
+    expect(fn () => app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting, throwOnFailure: true))
+        ->toThrow(RuntimeException::class, 'Queue unavailable');
+});
+
+it('dispatches one refresh per active target for B2INST commands and background jobs', function (bool $background, bool $elmo, bool $msl): void {
+    Bus::fake();
+    Storage::fake();
+    config(['b2inst.host' => 'https://b2inst.example.test']);
+    $setting = PidSetting::firstOrCreate(['type' => 'pid4inst'], ['display_name' => 'PIDINST']);
+    $setting->update(['is_elmo_active' => $elmo, 'is_elmo_msl_active' => $msl]);
+    Http::fake(['https://b2inst.example.test/*' => Http::response(B2instFixture::page([B2instFixture::record()]))]);
+    if ($background) {
+        (new UpdatePidJob('pid4inst', (string) Str::uuid()))->handle();
+    } else {
+        expect(Artisan::call('get-pid4inst-instruments'))->toBe(0);
+    }
+    Bus::assertDispatchedTimes(RefreshElmoCacheJob::class, (int) $elmo + (int) $msl);
+    if ($elmo) {
+        Bus::assertDispatched(RefreshElmoCacheJob::class, fn ($job) => $job->editor === EditorContext::ELMO);
+    }
+    if ($msl) {
+        Bus::assertDispatched(RefreshElmoCacheJob::class, fn ($job) => $job->editor === EditorContext::ELMO_MSL);
+    }
+})->with([[false, true, false], [false, false, true], [true, true, true], [true, false, false]]);
 
 it('completes successful jobs without releasing or failing them', function (): void {
     Http::fake(['*' => Http::response(elmoCacheRefreshSuccessResponse())]);

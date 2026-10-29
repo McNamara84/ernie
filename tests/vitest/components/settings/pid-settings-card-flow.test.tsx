@@ -53,45 +53,88 @@ describe('PidSettingsCard update flow', () => {
         vi.restoreAllMocks();
     });
 
-    it('shows downloaded RAiD projects immediately after the update job completes', async () => {
+    it('allows PIDINST refresh at equal counts and displays the actual published result', async () => {
         const user = userEvent.setup();
-        const fetchMock = vi.fn()
+        globalThis.fetch = vi
+            .fn()
             .mockResolvedValueOnce({
                 ok: true,
-                json: () => Promise.resolve({
-                    localCount: 0,
-                    remoteCount: 570,
-                    updateAvailable: true,
-                    lastUpdated: null,
-                }),
+                json: async () => ({ localCount: 12, remoteCount: 12, updateAvailable: false, comparisonBasis: 'count' }),
             })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ jobId: 'pidinst-job' }) })
             .mockResolvedValueOnce({
                 ok: true,
-                json: () => Promise.resolve({
-                    jobId: '00000000-0000-4000-8000-000000000000',
-                    type: 'raid',
-                    displayName: 'RAiD (Research Activity Identifier)',
-                    message: 'Update job started',
-                }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({
+                json: async () => ({
                     status: 'completed',
-                    pidType: 'raid',
+                    pidType: 'pid4inst',
                     progress: 'Update completed successfully',
-                    completedAt: '2026-06-26T03:00:00Z',
+                    itemCount: 11,
+                    lastUpdated: '2026-10-29T09:00:00Z',
+                    completedAt: '2026-10-29T09:05:00Z',
                 }),
             });
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
-
         render(
             <PidSettingsCard
-                pidSettings={[raidSetting]}
+                pidSettings={[{ ...raidSetting, type: 'pid4inst', displayName: 'PIDINST', exists: true, itemCount: 12 }]}
                 onActiveChange={vi.fn()}
                 onElmoActiveChange={vi.fn()}
             />,
         );
+        expect(screen.getByRole('button', { name: /update now/i })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: /check for updates/i }));
+        expect(await screen.findByText(/metadata freshness has not been checked/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Registry is up to date/i)).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /update now/i }));
+        expect(await screen.findByText(/11 instruments/i)).toBeInTheDocument();
+        expect(screen.queryByText(/12 instruments/i)).not.toBeInTheDocument();
+    });
+
+    it('retains the ROR and RAiD update gating when counts match', async () => {
+        const user = userEvent.setup();
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ localCount: 10, remoteCount: 10, updateAvailable: false }) });
+        render(<PidSettingsCard pidSettings={[{ ...raidSetting, itemCount: 10 }]} onActiveChange={vi.fn()} onElmoActiveChange={vi.fn()} />);
+        await user.click(screen.getByRole('button', { name: /check for updates/i }));
+        expect(await screen.findByText(/Registry is up to date/i)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /update now/i })).not.toBeInTheDocument();
+    });
+
+    it('shows downloaded RAiD projects immediately after the update job completes', async () => {
+        const user = userEvent.setup();
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                json: () =>
+                    Promise.resolve({
+                        localCount: 0,
+                        remoteCount: 570,
+                        updateAvailable: true,
+                        lastUpdated: null,
+                    }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: () =>
+                    Promise.resolve({
+                        jobId: '00000000-0000-4000-8000-000000000000',
+                        type: 'raid',
+                        displayName: 'RAiD (Research Activity Identifier)',
+                        message: 'Update job started',
+                    }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: () =>
+                    Promise.resolve({
+                        status: 'completed',
+                        pidType: 'raid',
+                        progress: 'Update completed successfully',
+                        completedAt: '2026-06-26T03:00:00Z',
+                    }),
+            });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        render(<PidSettingsCard pidSettings={[raidSetting]} onActiveChange={vi.fn()} onElmoActiveChange={vi.fn()} />);
 
         expect(screen.getByText('Not yet downloaded')).toBeInTheDocument();
 
