@@ -82,6 +82,7 @@ class HandleInertiaRequests extends Middleware
                     // Assistance page permission
                     'can_access_assistance' => $request->user()->can('access-assistance'),
                     'can_access_assessment' => $request->user()->can('access-assessment'),
+                    'can_access_contact_persons' => $request->user()->can('access-contact-persons'),
                     'can_access_database_dumps' => $request->user()->can('access-database-dumps'),
                 ] : null,
             ],

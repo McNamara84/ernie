@@ -179,6 +179,7 @@ class PlaywrightTestSeeder extends Seeder
 
         // Include the completed tombstone fixture in the shared local/CI setup.
         $this->call(TombstonePlaywrightSeeder::class);
+        $this->call(ContactPersonsPlaywrightSeeder::class);
 
         $this->command?->info('Playwright test users created successfully!');
     }

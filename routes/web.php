@@ -10,6 +10,7 @@ use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\ContactPersonController;
 use App\Http\Controllers\CsrfCookieController;
 use App\Http\Controllers\CurationOverviewController;
 use App\Http\Controllers\DashboardController;
@@ -302,6 +303,9 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])->group(function () {
+    Route::get('contact-persons', ContactPersonController::class)
+        ->middleware('can:access-contact-persons')->name('contact-persons.index');
+
     Route::get('curation', [CurationOverviewController::class, 'index'])->name('curation.index');
     Route::get('curation/export', [CurationOverviewController::class, 'export'])->name('curation.export');
     Route::get('curation/users', [CurationOverviewController::class, 'users'])->name('curation.users');

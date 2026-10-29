@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { type ContactSelection, contactSelectionLabel } from '@/types/contact-persons';
 
 /**
  * Minimum number of characters required for search query.
@@ -29,6 +30,7 @@ export interface IgsnFilterOptions {
 }
 
 export interface IgsnFilterState {
+    contact?: string;
     prefix?: string;
     status?: string;
     search?: string;
@@ -37,6 +39,7 @@ export interface IgsnFilterState {
 }
 
 interface IgsnFiltersProps {
+    contactSelection?: ContactSelection | null;
     /** Current filter state from the URL / server */
     filters: IgsnFilterState;
     /** Called when any filter changes (search, prefix, status) */
@@ -57,7 +60,16 @@ interface IgsnFiltersProps {
 // Component
 // ============================================================================
 
-export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCount, totalCount, countStatus, isLoading = false }: IgsnFiltersProps) {
+export function IgsnFilters({
+    filters,
+    onFilterChange,
+    filterOptions,
+    resultCount,
+    totalCount,
+    countStatus,
+    isLoading = false,
+    contactSelection,
+}: IgsnFiltersProps) {
     // Local state for search input (for immediate UI feedback)
     const [searchInput, setSearchInput] = useState(filters.search || '');
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -279,6 +291,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const formatFilterLabel = useCallback(
         (key: keyof IgsnFilterState, value: unknown): string => {
+            if (key === 'contact') return contactSelectionLabel(contactSelection);
             const labelMap: Record<string, string> = {
                 prefix: 'Prefix',
                 status: 'Status',
@@ -303,7 +316,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
             return `${label}: ${String(value)}`;
         },
-        [filterOptions],
+        [filterOptions, contactSelection],
     );
 
     return (

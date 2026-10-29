@@ -1295,6 +1295,32 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'contact-persons',
+                title: 'Contact Persons',
+                icon: Users,
+                minRole: 'curator',
+                content: (
+                    <>
+                        <h3>Find Recorded Contact Details</h3>
+                        <p>
+                            Admins, Group Leaders, and Curators can open <strong>Tools → Contact Persons</strong>. The page groups contacts by valid
+                            ORCID and shows their recorded name and email variants. Contacts without a valid ORCID remain separate by their stored
+                            person identity. Search by name, ORCID, or email; matching groups retain all their variants.
+                        </p>
+                        <p>
+                            Use the copy button beside an email address to copy it. Each Resources or IGSNs button opens the existing list with an
+                            exact contact filter for that name and address. Remove the contact filter to return to the wider list, or combine it with
+                            other filters. Counts refer to distinct records, including drafts and tombstones.
+                        </p>
+                        <p>
+                            This overview shows current contact assignments, including contact authors and ContactPerson contributors. Removed
+                            assignments and free-text archive contacts are not included. Contributor names reflect the stored person name; previously
+                            unrecorded spellings cannot be recovered. An address being listed does not confirm that it is still in use.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'assessment',
                 title: 'Assessment',
                 icon: ClipboardCheck,

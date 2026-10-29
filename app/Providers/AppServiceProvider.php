@@ -142,6 +142,7 @@ class AppServiceProvider extends ServiceProvider
         ResourceContributor::observe(PortalResourceDependencyObserver::class);
         ResourceContributor::observe(AssistanceDatacenterOptionsObserver::class);
         ResourceContributorTypePivot::observe(PortalResourceDependencyObserver::class);
+        ResourceContributorTypePivot::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(PortalResourceDependencyObserver::class);
         ResourceRight::observe(ResourceListingProjectionObserver::class);
@@ -323,6 +324,10 @@ class AppServiceProvider extends ServiceProvider
      */
     private function defineGates(): void
     {
+        Gate::define('access-contact-persons', fn (User $user): bool => in_array($user->role, [
+            UserRole::ADMIN, UserRole::GROUP_LEADER, UserRole::CURATOR,
+        ], true));
+
         // Access to Logs page (Admin only)
         Gate::define('access-logs', function (User $user): bool {
             return $user->role === UserRole::ADMIN;

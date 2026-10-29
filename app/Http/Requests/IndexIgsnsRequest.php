@@ -17,7 +17,7 @@ final class IndexIgsnsRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return ! $this->filled('contact') || ($this->user()?->can('access-contact-persons') ?? false);
     }
 
     /**
@@ -26,6 +26,7 @@ final class IndexIgsnsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'contact' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'per_page' => ['nullable', 'integer', Rule::in([...self::PER_PAGE_OPTIONS, ...self::LEGACY_PER_PAGE_OPTIONS])],
             'datacenter_id' => [
                 'nullable',

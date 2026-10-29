@@ -1,5 +1,6 @@
 {
     "complete": [
+        "contact-persons",
         "editor-settings",
         "dump-downloads",
         "statistics",
@@ -34,6 +35,7 @@
         "oai-pmh": ["oai-schema", "oai-services"]
     },
     "slices": {
+        "contact-persons": ["tests/pest/Feature/ContactPersons/ContactPersonOverviewTest.php", "tests/pest/Feature/Database/ContactPersonProjectionTest.php", "tests/pest/Feature/Database/ContactPersonConcurrencyTest.php"],
         "curation": ["tests/pest/Feature/Database/CurationConcurrencyTest.php", "tests/pest/Feature/Curation/CurationOverviewTest.php", "tests/pest/Feature/Curation/CurationQueueTest.php", "tests/pest/Feature/Curation/CurationReconciliationTest.php", "tests/pest/Feature/Curation/CurationSchemaAvailabilityTest.php", "tests/pest/Feature/Curation/CurationWorkflowTest.php"],
         "usage": [
             "tests/pest/Feature/Usage/CounterDeletionTest.php",
