@@ -1,7 +1,7 @@
 [
     {
         "version": "1.2.0dev",
-        "date": "2026-10-28",
+        "date": "2026-10-29",
         "features": [
             {
                 "title": "IGSN 2.0 Core Metadata Downloads",
@@ -38,6 +38,11 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Reliable PIDINST Synchronization",
+                "description": "Instrument lists now synchronize with B2INST v3 using complete-list validation, migrated Handle identity checks and safe publication that preserves existing dataset links. Admins and Group Leaders can refresh metadata even when record counts are unchanged; excluded records no longer cause repeated update notices. Administrators can preview changes with get-pid4inst-instruments --dry-run and recover pending cache or ELMO refreshes with --refresh-caches without downloading the registry again. User documentation explains the workflow and recovery steps.",
+                "references": [{ "type": "pull_request", "number": 1511, "url": "https://github.com/McNamara84/ernie/pull/1511" }]
+            },
             {
                 "title": "Legacy Resource and IGSN Import Retired",
                 "description": "Following the completed migration, the legacy import buttons, dialogs, endpoints, background jobs and migration repair commands have been removed. Citation labels and public pages no longer depend on the retired legacy services. Existing resources, IGSNs, landing pages and stored images remain available, as do regular file uploads and legacy database exports for final backups."
