@@ -155,6 +155,11 @@ class VocabularyController extends Controller
                 }
             );
 
+            // Project after cache lookup too, including entries from older deployments.
+            if ($cacheKey === CacheKey::PID4INST_INSTRUMENTS) {
+                $data = array_intersect_key($data, array_flip(['lastUpdated', 'total', 'data']));
+            }
+
             return response()->json($data);
         } catch (VocabularyNotFoundException $e) {
             return response()->json([

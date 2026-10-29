@@ -64,6 +64,7 @@ class PidSettingsController extends Controller
                 'remoteCount' => $comparison['remoteCount'],
                 'updateAvailable' => $comparison['updateAvailable'],
                 'lastUpdated' => $comparison['lastUpdated'],
+                ...($type === PidSetting::TYPE_PID4INST ? ['comparisonBasis' => 'count'] : []),
             ]);
         } catch (\RuntimeException $e) {
             return response()->json([

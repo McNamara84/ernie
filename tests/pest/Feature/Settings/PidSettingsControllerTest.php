@@ -25,6 +25,19 @@ function createAdmin(): User
     return User::factory()->admin()->create();
 }
 
+test('PIDINST count checks do not claim metadata freshness and still allow refresh', function (): void {
+    config(['b2inst.host' => 'https://b2inst.example.test']);
+    PidSetting::firstOrCreate(['type' => 'pid4inst'], ['display_name' => 'PIDINST']);
+    Storage::put('pid4inst-instruments.json', json_encode(['total' => 1, 'data' => [], 'lastUpdated' => '2026-10-29T10:00:00Z']));
+    Http::preventStrayRequests();
+    Http::fake(['https://b2inst.example.test/*' => Http::response(['hits' => ['total' => 1, 'hits' => []]])]);
+    actingAs(createAdmin())->postJson('/pid-settings/pid4inst/check')->assertOk()
+        ->assertJsonPath('comparisonBasis', 'count')->assertJsonPath('updateAvailable', false);
+    Queue::fake();
+    $this->postJson('/pid-settings/pid4inst/update')->assertOk();
+    Queue::assertPushed(UpdatePidJob::class);
+});
+
 describe('checkStatus for ROR', function () {
     test('returns comparison data for ROR type', function () {
         Storage::put('ror/ror-affiliations.json', json_encode([

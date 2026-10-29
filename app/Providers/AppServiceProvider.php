@@ -64,6 +64,7 @@ use App\Observers\ResourceTypeObserver;
 use App\Observers\SizeObserver;
 use App\Observers\SubjectObserver;
 use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
+use App\Services\B2inst\B2instClient;
 use App\Services\BotProtection\BotClassifierService;
 use App\Services\DashboardMetricsCacheInvalidationService;
 use App\Services\DatabaseDumps\DatabaseDumpProcessRunner;
@@ -99,6 +100,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Share the synchronization deadline across registry and Handle requests.
+        $this->app->scoped(B2instClient::class);
         // Bind DataCiteServiceInterface to the real implementation
         // This binding is overridden by TestingServiceProvider in testing environment
         $this->app->bind(DataCiteServiceInterface::class, DataCiteRegistrationService::class);

@@ -646,9 +646,28 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                                 RAiD projects can be updated from Editor Settings and provided to ELMO via the API.
                             </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
-                            <li>Check for updates by comparing local item count with the remote registry</li>
+                            <li>Check registry counts for possible updates</li>
                             <li>Trigger background downloads of the full vocabulary data</li>
                         </ul>
+
+                        <h4>Refresh PID4INST Instrument Metadata</h4>
+                        <p>
+                            In <strong>Editor Settings → Persistent Identifiers → PID4INST</strong>, use <strong>Check for Updates</strong> to compare
+                            the source record count with the last successful synchronization. Records excluded from the instrument list are included
+                            in that comparison; the local instrument count shows only accepted instruments. Older local files without a recorded
+                            source count use their local instrument count instead.
+                        </p>
+                        <p>
+                            An unchanged count does not prove that instrument metadata is current. Admins and Group Leaders can select{' '}
+                            <strong>Update Now</strong> even when the count is unchanged or without checking first. Wait for the background job to
+                            finish and review its result. The displayed count comes from the published list, and the date records the last content
+                            change, so it can remain unchanged after a successful refresh. Existing instrument links in datasets are preserved.
+                        </p>
+                        <p>
+                            If the result says that the list was published but cache refresh remains pending, the new instrument list has already been
+                            saved. Ask an administrator to resolve the cache or ELMO configuration problem and retry the cache refresh using the
+                            recovery command in System Administration.
+                        </p>
                     </>
                 ),
             },
@@ -711,9 +730,34 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         </p>
 
                         <h4>Update PID4INST Instruments (CLI)</h4>
+                        <p>
+                            Synchronizes public, published, current instrument records from B2INST v3 and validates their identifiers. A full refresh
+                            also checks metadata changes when the record count is unchanged. Run these commands in the application container.
+                        </p>
+                        <p>Preview the synchronization and review the report before publishing:</p>
+                        <DocsCodeBlock code="php artisan get-pid4inst-instruments --dry-run" />
+                        <p>
+                            The report includes source and accepted counts, exclusions, additions, removals, metadata changes and PID changes. A dry
+                            run leaves the published list unchanged and sends no ELMO refresh requests; it may populate short-lived Handle lookup
+                            caches.
+                        </p>
+                        <p>Publish the validated list and request refreshes for enabled ELMO targets:</p>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
-                        <p className="text-sm text-muted-foreground">
-                            Downloads all instruments from the b2inst registry. Can also be triggered from Editor Settings.
+                        <p>
+                            The list is replaced only after the complete candidate passes validation. A fetch, validation or file publication failure
+                            keeps the previous list available. Changed lists retain a backup in <code>pid4inst-instruments.json.previous</code>.
+                            Existing instrument links in datasets are never rewritten by this command.
+                        </p>
+                        <p>
+                            Check the report even when the command exits successfully. If <code>published</code> and <code>refreshPending</code> are
+                            both <code>true</code>, publication succeeded but cache invalidation or ELMO refresh dispatch needs attention. Correct the
+                            cache, credentials or queue configuration problem, then retry without downloading the registry again:
+                        </p>
+                        <DocsCodeBlock code="php artisan get-pid4inst-instruments --refresh-caches" />
+                        <p>
+                            This retry uses the already published list. For enabled targets, a successful request means that ELMO refresh jobs were
+                            queued; check their logs for delivery failures. Retrying can queue another refresh for targets already notified. Use{' '}
+                            <code>--dry-run</code> and <code>--refresh-caches</code> separately; they cannot be combined.
                         </p>
 
                         <h4>Update ROR Affiliations (CLI)</h4>
