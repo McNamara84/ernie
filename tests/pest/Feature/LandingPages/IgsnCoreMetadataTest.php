@@ -17,6 +17,7 @@ use App\Services\Igsn\Export\IgsnCoreVocabulary;
 use App\Services\Igsn\Export\IgsnCoreXmlExporter;
 use App\Services\Igsn\Export\IgsnCoreXmlValidator;
 use App\Services\LandingPageMetadataLinkService;
+use Illuminate\Support\Facades\File;
 
 covers(IgsnCoreSchemaController::class, PublicMetadataExportController::class, IgsnCoreSchemaResolver::class, LandingPageMetadataLinkService::class, IgsnCoreXmlExporter::class, IgsnCoreXmlValidator::class, IgsnCoreSourceBuilder::class, IgsnCoreVocabulary::class);
 
@@ -90,7 +91,7 @@ test('returns a safe metadata error without an attachment for incomplete samples
 test('fails closed if the stylesheet or schema is unavailable or produces invalid XML', function (string $failure) {
     $page = coreLandingPage();
     if ($failure === 'schema') {
-        config(['igsn_core.directory' => storage_path('does-not-exist')]);
+        config(['igsn_core.revisions.preview-1' => storage_path('does-not-exist')]);
     } elseif ($failure === 'stylesheet') {
         config(['igsn_core.stylesheet' => storage_path('does-not-exist.xsl')]);
     } else {
@@ -123,29 +124,134 @@ test('exposes Core in metadata discovery only for published physical objects', f
     }
 })->with([[true, true], [true, false], [false, true]]);
 
-test('serves every original schema artifact byte for byte and supports immutable HEAD and ETag responses', function () {
+test('serves portable schemas with revalidated aliases and immutable revision URLs', function (?string $revision) {
     $schemas = app(IgsnCoreSchemaResolver::class);
     foreach ($schemas->files() as $file) {
-        $response = $this->get($schemas->url($file['path']))->assertOk();
+        $response = $this->get($schemas->url($file['path'], $revision))->assertOk()
+            ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')->assertHeaderMissing('Set-Cookie');
         ob_start();
         $response->baseResponse->sendContent();
         $bytes = ob_get_clean();
         expect(strlen($bytes))->toBe($file['bytes'])
-            ->and(hash('sha256', $bytes))->toBe($file['sha256'])
-            ->and(sha1('blob '.strlen($bytes)."\0".$bytes))->toBe($file['git_blob']);
+            ->and(hash('sha256', $bytes))->toBe($file['sha256']);
     }
-    $head = $this->head($schemas->url())->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
-    expect($head->headers->get('Cache-Control'))->toContain('public', 'immutable', 'max-age=31536000');
-    $this->get($schemas->url(), ['If-None-Match' => $head->headers->get('ETag')])->assertStatus(304);
-    foreach (['manifest.json', 'catalog.xml', 'validation.xsd', 'README.md'] as $path) {
-        $this->get($schemas->url($path))->assertOk();
+    $url = $schemas->url(revision: $revision);
+    $head = $this->head($url)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeaderMissing('Set-Cookie');
+    if ($revision === null) {
+        expect($head->headers->get('Cache-Control'))->toContain('public', 'no-cache')->not->toContain('immutable');
+    } else {
+        expect($head->headers->get('Cache-Control'))->toContain('public', 'immutable', 'max-age=31536000');
+    }
+    $this->get($url, ['If-None-Match' => $head->headers->get('ETag')])->assertStatus(304);
+    $this->head($url, ['If-None-Match' => $head->headers->get('ETag')])->assertStatus(304);
+    $this->get($url, ['If-None-Match' => '"outdated"'])->assertOk();
+    foreach (['manifest.json', 'README.md'] as $path) {
+        $this->get($schemas->url($path, $revision))->assertOk();
+    }
+})->with([null, 'preview-1']);
+
+test('validates exported XML using only downloaded schemas and the standard XML loader', function (?string $revision) {
+    $page = coreLandingPage();
+    $xml = $this->get($page->getPublicPath().'/metadata/igsn-core-2.0.xml')->assertOk()->getContent();
+    $export = new DOMDocument;
+    expect($export->loadXML($xml))->toBeTrue();
+    expect($export->documentElement->getAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'schemaLocation'))
+        ->toBe('urn:FAIR-AIMS:Core:1 '.url('/schemas/igsn/2.0/core.xsd'));
+
+    $base = '/schemas/igsn/2.0/'.($revision === null ? '' : $revision.'/');
+    $directory = sys_get_temp_dir().'/core-download-'.bin2hex(random_bytes(8));
+    $pending = ['core.xsd'];
+    $downloaded = [];
+    $previousLoader = libxml_get_external_entity_loader();
+    $previousErrors = libxml_use_internal_errors(true);
+    libxml_clear_errors();
+    libxml_set_external_entity_loader(null);
+    try {
+        // Follow only imports/includes from the public entry point, without the
+        // manifest, ERNIE's resolver, a catalog, or a wrapper XSD.
+        while ($pending !== []) {
+            $path = array_shift($pending);
+            if (isset($downloaded[$path])) {
+                continue;
+            }
+            $response = $this->get($base.$path)->assertOk();
+            ob_start();
+            $response->baseResponse->sendContent();
+            $bytes = ob_get_clean();
+            File::ensureDirectoryExists(dirname($directory.'/'.$path));
+            file_put_contents($directory.'/'.$path, $bytes);
+            $downloaded[$path] = true;
+            $schema = new DOMDocument;
+            expect($schema->loadXML($bytes, LIBXML_NONET))->toBeTrue();
+            $xpath = new DOMXPath($schema);
+            $xpath->registerNamespace('xs', 'http://www.w3.org/2001/XMLSchema');
+            foreach ($xpath->query('/xs:schema/xs:import/@schemaLocation | /xs:schema/xs:include/@schemaLocation') as $location) {
+                $relative = $location->nodeValue;
+                expect($relative)->not->toContain(':', '\\', '..')->not->toStartWith('/');
+                $pending[] = (dirname($path) === '.' ? '' : dirname($path).'/').$relative;
+            }
+        }
+        expect($downloaded)->toHaveCount(13);
+        foreach ([$xml, file_get_contents(base_path('tests/pest/Fixtures/igsn-core/full.xml'))] as $documentXml) {
+            $document = new DOMDocument;
+            expect($document->loadXML($documentXml, LIBXML_NONET))->toBeTrue();
+            expect($document->schemaValidate($directory.'/core.xsd', LIBXML_NONET))->toBeTrue();
+            expect(libxml_get_errors())->toBe([]);
+        }
+        $invalid = new DOMDocument;
+        $invalid->loadXML(str_replace(' igsn:', ' ', $xml), LIBXML_NONET);
+        expect($invalid->schemaValidate($directory.'/core.xsd', LIBXML_NONET))->toBeFalse();
+    } finally {
+        libxml_set_external_entity_loader($previousLoader);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        File::deleteDirectory($directory);
+    }
+})->with([null, 'preview-1']);
+
+test('updates the short alias without changing existing revision URLs or reusing stale ETags', function () {
+    $alias = '/schemas/igsn/2.0/core.xsd';
+    $fixed = '/schemas/igsn/2.0/preview-1/core.xsd';
+    $etag = $this->head($alias)->assertOk()->headers->get('ETag');
+    $directory = sys_get_temp_dir().'/core-revision-'.bin2hex(random_bytes(8));
+    File::copyDirectory(app(IgsnCoreSchemaResolver::class)->directory(), $directory);
+    try {
+        $manifest = json_decode(file_get_contents($directory.'/manifest.json'), true, flags: JSON_THROW_ON_ERROR);
+        $manifest['revision'] = 'preview-2';
+        $bytes = file_get_contents($directory.'/core.xsd')."\n<!-- Next revision fixture. -->\n";
+        file_put_contents($directory.'/core.xsd', $bytes);
+        foreach ($manifest['files'] as &$file) {
+            if ($file['path'] === 'core.xsd') {
+                $file['sha256'] = hash('sha256', $bytes);
+                $file['bytes'] = strlen($bytes);
+            }
+        }
+        unset($file);
+        file_put_contents($directory.'/manifest.json', json_encode($manifest, JSON_THROW_ON_ERROR));
+        config(['igsn_core.revision' => 'preview-2', 'igsn_core.revisions.preview-2' => $directory]);
+        $updated = $this->get($alias, ['If-None-Match' => $etag])->assertOk();
+        expect($updated->headers->get('ETag'))->not->toBe($etag);
+        $this->get($fixed, ['If-None-Match' => $etag])->assertStatus(304);
+        $this->head('/schemas/igsn/2.0/preview-2/core.xsd')->assertOk()
+            ->assertHeader('ETag', $updated->headers->get('ETag'));
+    } finally {
+        File::deleteDirectory($directory);
     }
 });
 
-test('does not expose unlisted files or other snapshots', function (string $path) {
-    $this->get(app(IgsnCoreSchemaResolver::class)->url($path))->assertNotFound();
-})->with(['.env', 'upstream/IGSN_Core_by_GFZ_DataServices.xsd', 'DataCite4.7/include/../../../../.env', 'IGSN_Geo_by_GFZ_DataServices.xsd', 'igsn/1.3/metadata.xsd']);
+test('does not expose unlisted files or retired validation helpers', function (string $path) {
+    foreach ([null, 'preview-1'] as $revision) {
+        $this->get(app(IgsnCoreSchemaResolver::class)->url($path, $revision))->assertNotFound();
+    }
+})->with(['.env', 'upstream/IGSN_Core_by_GFZ_DataServices.xsd', 'DataCite4.7/include/../../../../.env', 'IGSN_Geo_by_GFZ_DataServices.xsd', 'igsn/1.3/metadata.xsd', 'IGSN_Core_by_GFZ_DataServices.xsd', 'validation.xsd', 'catalog.xml']);
 
-test('unknown schema snapshots return 404', function () {
-    $this->get('/schemas/igsn/2.0/core/'.str_repeat('0', 40).'/IGSN_Core_by_GFZ_DataServices.xsd')->assertNotFound();
-});
+test('removed snapshot URLs and unknown revisions return 404 without redirects', function (string $path) {
+    $this->get('/schemas/igsn/2.0/'.$path)->assertNotFound()->assertHeaderMissing('Location');
+    $this->head('/schemas/igsn/2.0/'.$path)->assertNotFound()->assertHeaderMissing('Location');
+})->with([
+    'core/321df7287f8540960b99aeb55113cbf22274380c/IGSN_Core_by_GFZ_DataServices.xsd',
+    'core/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/metadata.xsd',
+    'core/321df7287f8540960b99aeb55113cbf22274380c/validation.xsd',
+    'preview-999/core.xsd',
+    'preview-999/DataCite4.7/metadata.xsd',
+]);

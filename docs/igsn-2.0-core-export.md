@@ -6,13 +6,17 @@ This is the **Core only** development schema, pinned to upstream commit [`321df7
 
 ## Schema provenance and validation
 
-Files live at `resources/data/scheme/igsn-core/2.0/<commit>/`. The public URLs start with `/schemas/igsn/2.0/core/<commit>/`. Original upstream files are stored in `upstream/`, but that prefix is omitted from public URLs. The manifest allowlist controls access. GET/HEAD are anonymous, with SHA-256 ETags, immutable caching and no session cookies. Unknown files/snapshots return 404. Every original file is hash checked before delivery or validation. `.gitattributes` prevents Git newline conversion; formatters exclude originals.
+The canonical public schema is **`https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd`**. Exported XML uses `xsi:schemaLocation="urn:FAIR-AIMS:Core:1 <APP_URL>/schemas/igsn/2.0/core.xsd"`; landing-page discovery uses the same profile URL. The namespace is unchanged.
 
-The manifest records exact bytes, SHA-256, Git blob IDs, source URLs and retrieval date. The 13 original XSDs are Core, the upstream **modified** DataCite4.7 metadata schema and its eleven dependencies. Four original documentation files are retained too. ERNIE's existing ordinary DataCite schema is not substituted.
+The short URL follows the revision selected in `config/igsn_core.php`. The current fixed entry point is `/schemas/igsn/2.0/preview-1/core.xsd`. Both directories expose the same relative dependencies, `manifest.json` and `README.md`. GET/HEAD are anonymous, with SHA-256 ETags and no session cookies. Short URLs use `Cache-Control: public, no-cache` so updates are revalidated; fixed revision URLs use `public, max-age=31536000, immutable`. Unknown files/revisions return 404. The old `/schemas/igsn/2.0/core/<commit>/` URLs have been removed without redirects before the Production release.
 
-The original Core imports `X:\IGSN\DataCiteSchema4-7\kernel-4.7\metadata.xsd`. PHP/libxml rejects this before its external loader can resolve it. The separate ERNIE `validation.xsd` imports DataCite first and Core second; it adds no declarations or constraints. This validates both minimal and complete fixtures in the actual PHP Docker runtime while preserving all original bytes. The scoped resolver permits only the verified local schema files, rejects unknown file/network references, and restores the previous loader even after exceptions. `LIBXML_NONET` is also enabled. DTD/entity declarations are rejected.
+Portable files live at `resources/data/scheme/igsn-core/2.0/preview-1/`. The Core file is renamed to `core.xsd`, and its Windows-local DataCite import is replaced by `DataCite4.7/metadata.xsd`. These are the only changes: all declarations and constraints are preserved. The other twelve XSDs are the upstream **modified** DataCite4.7 schema and its eleven dependencies, copied byte for byte. ERNIE's ordinary DataCite schema is not substituted. The portable manifest records published checksums and sizes, upstream checksums, source URLs and the source commit. Original files and documentation remain in the local `<commit>/upstream/` archive with their original manifest. `.gitattributes` and formatter exclusions preserve both originals and portable revisions.
 
-`xsi:schemaLocation` points to the exact original public Core XSD. For external validation, download the public files keeping their relative paths and use `validation.xsd`. A standalone schemaLocation download cannot resolve the original Windows import automatically. `catalog.xml` describes equivalent mappings for processors supporting XML catalogs, but a catalog alone does not fix libxml's early URI rejection. See the public snapshot `README.md` for a command example.
+External validators can follow `xsi:schemaLocation` and the relative imports/includes when HTTPS retrieval is enabled. For offline validation, download the thirteen XSDs from either public directory, preserve relative paths, and run `xmllint --nonet --schema core.xsd sample.xml`. No catalog, Windows mapping or `validation.xsd` wrapper is needed. Regression tests download the dependency closure through the public routes and validate exported and complete fixture XML with the standard libxml loader, without the ERNIE resolver.
+
+Internal validation uses the same portable `core.xsd` and verifies every XSD checksum first. The scoped resolver permits only those local files, rejects unknown file/network references and restores the previous loader after exceptions. `LIBXML_NONET` remains enabled; DTD/entity declarations are rejected.
+
+For updates, add a new portable revision and manifest, retain all existing revision directories and configuration entries, and change `igsn_core.revision` only after validation tests pass. Never overwrite a published revision. The short URL can change; consumers needing reproducibility should use the fixed revision URL. Schema revisions are independent of ERNIE release numbers.
 
 ## Mapping contract
 
@@ -70,7 +74,7 @@ The PDF links to a **different schema source**: [GFZ GitLab commit `71592b7190c2
 | pp. 19–20, funding | Funder names/identifiers, schemes, award numbers/URIs and award titles retain their meaning. The duplicated award-number heading in the PDF does not override the XSD's distinct `awardTitle` element. |
 | p. 21, language | Keep explicit language metadata wherever the pinned enums permit it. The PDF's general/free-text presentation does not remove the XSD's English-only root/title/material restrictions or its English/German description restriction. |
 
-The regression tests exercise the compatible corrections through XSLT and the unchanged local XSD. The PDF's structural alternatives are recorded here as migration differences, not encoded as changes to the published original schema files.
+The regression tests exercise the compatible corrections through XSLT and the portable local XSD, whose validation rules remain unchanged. The PDF's structural alternatives are recorded here as migration differences, not encoded as changes to the schema declarations.
 
 ## Execution and errors
 

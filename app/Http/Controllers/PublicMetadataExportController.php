@@ -46,7 +46,7 @@ class PublicMetadataExportController extends Controller
             return $this->igsnCoreFailure();
         }
         if (! $validation->isValid()) {
-            Log::error('IGSN Core XML failed local validation', ['resource_id' => $resource->id, 'error_count' => count($validation->errors), 'snapshot' => config('igsn_core.snapshot')]);
+            Log::error('IGSN Core XML failed local validation', ['resource_id' => $resource->id, 'error_count' => count($validation->errors), 'revision' => config('igsn_core.revision')]);
 
             return $this->igsnCoreFailure();
         }

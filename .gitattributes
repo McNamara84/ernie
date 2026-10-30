@@ -20,3 +20,6 @@ resources/data/scheme/iso-19115-4/** -whitespace
 
 # Preserve the pinned IGSN Core upstream blobs, including their original line endings.
 resources/data/scheme/igsn-core/**/upstream/** -text -whitespace
+
+# Preserve published portable revisions and their checksum manifests byte-for-byte.
+resources/data/scheme/igsn-core/2.0/preview-*/** -text -whitespace
