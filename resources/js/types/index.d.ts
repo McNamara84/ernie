@@ -99,6 +99,7 @@ export interface User {
     // Assistance page permission
     can_access_assistance?: boolean;
     can_access_assessment?: boolean;
+    can_access_contact_persons?: boolean;
     deactivated_at?: string | null;
     deactivated_by?: {
         id: number;

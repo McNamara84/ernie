@@ -11,6 +11,7 @@ use App\Models\Resource;
 use App\Models\ResourceListingProjection;
 use App\Models\Right;
 use App\Models\Title;
+use App\Services\ContactPersons\ResourceContactProjectorService;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Curation\CurationProjectionService;
 use App\Services\Curation\CurationService;
@@ -56,6 +57,7 @@ final class ResourceListingProjectorService
             $this->valuesForCurrentSchema($resource),
         );
         $this->syncPartyNameTerms(new Collection([$resource]));
+        app(ResourceContactProjectorService::class)->refreshMany([$resourceId]);
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
 
@@ -176,6 +178,7 @@ final class ResourceListingProjectorService
             array_keys($this->valuesForSchema($firstResource, $hasPartySearchColumn, $hasPartyNameSearchColumn, $hasCurationColumns)),
         );
         $this->syncPartyNameTerms($resources);
+        app(ResourceContactProjectorService::class)->refreshMany($resources->modelKeys());
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
 

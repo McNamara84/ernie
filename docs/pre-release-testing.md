@@ -987,6 +987,22 @@ reason.
 - [ ] If the F-UJI service is unavailable, an understandable message appears
       instead of an endless loading indicator or blank page.
 
+#### 3.17.1 Contact Persons
+
+- [ ] As curator and administrator, open **Tools → Contact Persons**. For the
+      administrator, the entry remains available in both workspaces.
+- [ ] Search by name, email, and ORCID. A matching person keeps all their contact
+      variants together, including when changing the page size or page.
+- [ ] Copy an email and verify the clipboard contents and success feedback.
+      Missing email addresses have no copy action.
+- [ ] Follow both resource and IGSN links where available. The visible contact
+      filter identifies the selected name and email; results and counts agree
+      with that variant. Sorting and paging retain the selection.
+- [ ] Remove the contact filter while another filter is active. The other filter
+      remains; browser Back restores the previous contact selection.
+- [ ] Check the contact table on a narrow screen and operate search, copy, and
+      resource links with the keyboard.
+
 ### 3.18 Statistics
 
 - [ ] `Statistics` loads all visible metrics, charts, and tables; values, legends,

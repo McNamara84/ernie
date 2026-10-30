@@ -6,6 +6,7 @@ namespace App\Services\Resources;
 
 use App\Enums\CacheKey;
 use App\Models\Resource;
+use App\Services\ContactPersons\ContactPersonFilterService;
 use App\Services\ListingCountService;
 use App\Services\ResourceCacheService;
 use Illuminate\Contracts\Pagination\CursorPaginator;
@@ -165,6 +166,8 @@ final readonly class ResourceQueryBuilder
      */
     public function applyFilters(Builder $query, array $filters): void
     {
+        app(ContactPersonFilterService::class)->apply($query, $filters['contact'] ?? null);
+
         if (! empty($filters['resource_type'])) {
             $query->whereIn('listing.resource_type_slug', $filters['resource_type']);
         }

@@ -79,7 +79,7 @@ final class ResourceListingProjectionDependencyObserver
         return match (true) {
             $model instanceof ResourceType => $model->wasChanged(['name', 'slug']),
             $model instanceof User => $model->wasChanged(['name', 'role', 'is_active']),
-            $model instanceof Person => $model->wasChanged(['family_name', 'given_name']),
+            $model instanceof Person => $model->wasChanged(['family_name', 'given_name', 'name_identifier', 'name_identifier_scheme']),
             $model instanceof Institution => $model->wasChanged('name'),
             $model instanceof TitleType,
             $model instanceof DescriptionType,

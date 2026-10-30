@@ -85,6 +85,7 @@ interface IgsnCountResponse {
 }
 
 interface IgsnsPageProps {
+    contactSelection?: import('@/types/contact-persons').ContactSelection | null;
     igsns: Igsn[];
     pagination: PaginationInfo;
     sort: SortState<SortKey>;
@@ -96,6 +97,7 @@ interface IgsnsPageProps {
     search: string;
     totalCount: number | null;
     filters: {
+        contact?: string;
         prefix: string;
         status: string;
         datacenter_id?: number;
@@ -160,6 +162,7 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // ============================================================================
 
 function IgsnsPage({
+    contactSelection,
     igsns: initialIgsns,
     pagination: initialPagination,
     sort: initialSort,
@@ -196,6 +199,7 @@ function IgsnsPage({
 
     // Filter state
     const [activeFilters, setActiveFilters] = useState<IgsnFilterState>({
+        contact: initialFilters?.contact,
         search: initialSearch || undefined,
         prefix: initialFilters?.prefix || undefined,
         status: initialFilters?.status || undefined,
@@ -217,6 +221,7 @@ function IgsnsPage({
         setSortState(initialSort || DEFAULT_SORT);
         setSearchQuery(initialSearch || '');
         setActiveFilters({
+            contact: initialFilters?.contact,
             search: initialSearch || undefined,
             prefix: initialFilters?.prefix || undefined,
             status: initialFilters?.status || undefined,
@@ -353,6 +358,7 @@ function IgsnsPage({
             const currentFilters = overrides.filters ?? activeFilters;
             const search = overrides.search ?? currentFilters.search ?? searchQuery;
             const params = new URLSearchParams();
+            if (currentFilters.contact) params.set('contact', currentFilters.contact);
             params.set('sort', sort.key);
             params.set('direction', sort.direction);
             if (search) {
@@ -389,6 +395,7 @@ function IgsnsPage({
         const params = new URLSearchParams({ per_page: String(initialPagination.per_page) });
 
         if (initialSearch) params.set('search', initialSearch);
+        if (initialFilters.contact) params.set('contact', initialFilters.contact);
         if (initialFilters.prefix) params.set('prefix', initialFilters.prefix);
         if (initialFilters.status) params.set('status', initialFilters.status);
         if (initialFilters.without_datacenter) {
@@ -426,6 +433,7 @@ function IgsnsPage({
 
         return () => controller.abort();
     }, [
+        initialFilters.contact,
         initialFilters.datacenter_id,
         initialFilters.prefix,
         initialFilters.status,
@@ -726,6 +734,7 @@ function IgsnsPage({
                         <div className="space-y-4">
                             {/* Filters (Search + Prefix + Status) */}
                             <IgsnFilters
+                                contactSelection={contactSelection}
                                 filters={activeFilters}
                                 onFilterChange={handleFilterChange}
                                 filterOptions={filterOptions}

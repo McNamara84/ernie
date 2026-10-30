@@ -967,6 +967,48 @@ describe('ResourcesPage', () => {
         });
     });
 
+    it('preserves a contact selection through counts, cursor loading, sorting and additional filters', async () => {
+        const contact = 'a'.repeat(64);
+        axiosGetMock.mockImplementation((url: string) =>
+            Promise.resolve({
+                data:
+                    url === '/resources/count'
+                        ? { filter_fingerprint: 'contact-filter', total: 2, count_status: 'ready' }
+                        : url === '/resources/load-more'
+                          ? { resources: [], pagination: { has_more: false, next_cursor: null } }
+                          : { datacenters: [] },
+            }),
+        );
+        window.history.replaceState({}, '', `/resources?contact=${contact}`);
+        localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ type: 'datacenter', datacenterId: 7 }));
+        render(
+            <ResourcesPage
+                resources={[{ id: 1, title: 'Contact resource', publicstatus: 'draft' } as never]}
+                pagination={{
+                    per_page: 25,
+                    total: null,
+                    from: 1,
+                    to: 1,
+                    has_more: true,
+                    next_cursor: 'contact-cursor',
+                    count_status: 'pending',
+                    filter_fingerprint: 'contact-filter',
+                }}
+                sort={{ key: 'id', direction: 'asc' }}
+                filters={{ contact }}
+            />,
+        );
+        await waitFor(() => expect(axiosGetMock.mock.calls.find(([url]) => url === '/resources/count')?.[1].params.get('contact')).toBe(contact));
+        await waitFor(() => expect(intersectionCallback).not.toBeNull());
+        act(() => intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+        await waitFor(() => expect(axiosGetMock.mock.calls.find(([url]) => url === '/resources/load-more')?.[1].params.get('contact')).toBe(contact));
+        expect(routerMock.visit).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByTestId('select-datacenter'));
+        expect(new URL(routerMock.visit.mock.calls.at(-1)![0], 'https://example.test').searchParams.get('contact')).toBe(contact);
+        fireEvent.click(screen.getByRole('button', { name: /sort by the resource title/i }));
+        expect(new URL(routerMock.visit.mock.calls.at(-1)![0], 'https://example.test').searchParams.get('contact')).toBe(contact);
+    });
+
     it('serializes the without SPDX license filter for navigation, counts, and cursor requests', async () => {
         axiosGetMock.mockImplementation((url: string) => {
             if (url === '/resources/filter-options') {

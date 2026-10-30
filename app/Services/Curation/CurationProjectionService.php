@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Curation;
 
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Services\Creators\ResourceCreatorNameResolverService;
@@ -19,7 +20,10 @@ final readonly class CurationProjectionService
         $state = $resource->curationState;
         $contact = $resource->contributors->first(fn ($contributor): bool => $contributor->contributorTypes->contains('slug', 'ContactPerson'))?->contributorable;
         $creator = $resource->creators->first();
-        $name = $contact === null ? ($creator === null ? '' : ($creator->creatorable instanceof Person ? app(ResourceCreatorNameResolverService::class)->resolve($creator, $creator->creatorable)['name'] : $creator->creatorable->name))
+        // A polymorphic target can have been deleted while its creator row remains.
+        /** @var Person|Institution|null $creatorParty */
+        $creatorParty = $creator?->creatorable;
+        $name = $contact === null ? ($creator === null ? '' : ($creatorParty instanceof Person ? app(ResourceCreatorNameResolverService::class)->resolve($creator, $creatorParty)['name'] : ($creatorParty->name ?? '')))
             : ($contact->name ?? trim(($contact->given_name ?? '').' '.($contact->family_name ?? '')));
 
         return [

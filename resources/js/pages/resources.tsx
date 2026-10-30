@@ -147,6 +147,7 @@ export function mergeLoadMoreState(
 }
 
 interface ResourcesProps {
+    contactSelection?: import('@/types/contact-persons').ContactSelection | null;
     resources: Resource[];
     pagination: PaginationInfo;
     error?: string;
@@ -771,6 +772,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 function ResourcesPage({
+    contactSelection,
     resources: initialResources,
     pagination: initialPagination,
     error,
@@ -2391,6 +2393,7 @@ function ResourcesPage({
 
                         {/* Filter Component - Always visible so filters can be adjusted */}
                         <ResourcesFilters
+                            contactSelection={contactSelection}
                             filters={filters}
                             onFilterChange={handleFilterChange}
                             filterOptions={filterOptions}

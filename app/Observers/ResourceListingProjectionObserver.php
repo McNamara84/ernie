@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\Resource;
+use App\Models\ResourceContributor;
+use App\Models\ResourceContributorTypePivot;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,7 +16,7 @@ final class ResourceListingProjectionObserver
 
     public function saved(Model $model): void
     {
-        $resourceId = $model instanceof Resource ? $model->id : $model->getAttribute('resource_id');
+        $resourceId = $this->resourceId($model);
 
         if (is_numeric($resourceId)) {
             $this->scheduler->schedule((int) $resourceId);
@@ -23,7 +25,7 @@ final class ResourceListingProjectionObserver
 
     public function deleted(Model $model): void
     {
-        $resourceId = $model instanceof Resource ? $model->id : $model->getAttribute('resource_id');
+        $resourceId = $this->resourceId($model);
 
         if (! is_numeric($resourceId)) {
             return;
@@ -36,5 +38,14 @@ final class ResourceListingProjectionObserver
         }
 
         $this->scheduler->schedule((int) $resourceId);
+    }
+
+    private function resourceId(Model $model): mixed
+    {
+        if ($model instanceof ResourceContributorTypePivot) {
+            return ResourceContributor::query()->whereKey($model->getAttribute('resource_contributor_id'))->value('resource_id');
+        }
+
+        return $model instanceof Resource ? $model->id : $model->getAttribute('resource_id');
     }
 }

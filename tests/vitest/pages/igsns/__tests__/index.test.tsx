@@ -284,6 +284,25 @@ describe('IgsnsPage', () => {
         });
     });
 
+    it('preserves the exact contact filter for counts and subsequent filter navigation', async () => {
+        const contact = 'a'.repeat(64);
+        mockAxiosGet.mockResolvedValue({
+            data: { filter_fingerprint: 'contact-test', filtered_total: 1, inventory_total: 2, last_page: 1, count_status: 'ready' },
+        });
+        render(
+            <IgsnsPage
+                {...defaultProps}
+                filters={{ ...defaultProps.filters, contact }}
+                pagination={createPagination({ count_status: 'pending', filter_fingerprint: 'contact-test' })}
+            />,
+        );
+        await waitFor(() => expect(mockAxiosGet).toHaveBeenCalled());
+        const call = mockAxiosGet.mock.calls.find(([url]) => url === '/igsns/count');
+        expect(call?.[1].params.get('contact')).toBe(contact);
+        fireEvent.click(screen.getByTestId('select-datacenter'));
+        expect(new URL(mockRouterVisit.mock.calls.at(-1)![0], 'https://example.test').searchParams.get('contact')).toBe(contact);
+    });
+
     describe('rendering', () => {
         it('renders the IGSNs title', () => {
             render(<IgsnsPage {...defaultProps} />);
