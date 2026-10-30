@@ -344,6 +344,23 @@ entity "resource_party_name_terms" as resource_party_name_terms {
     * term : TEXT //normalized public party name//
 }
 
+' Derived current contact variants from creators and contact contributors.
+entity "resource_contact_points" as resource_contact_points {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>> //indexed, cascade delete//
+    * identity_key : VARCHAR(64)
+    * variant_key : CHAR(64)
+    orcid : VARCHAR(19) <<nullable>>
+    * display_name : VARCHAR(1000)
+    email : VARCHAR(255) <<nullable>>
+    email_normalized : VARCHAR(255) <<nullable>>
+    * name_sort : VARCHAR(1000)
+}
+' resource_contact_points contact_resource_variant_unique: unique(resource_id, variant_key)
+' resource_contact_points contact_variant_resource_index: index(variant_key, resource_id)
+' resource_contact_points contact_identity_variant_index: index(identity_key, variant_key)
+
 ' RESOURCE CURATION WORKFLOW
 
 entity "resource_curation_states" as resource_curation_states {
@@ -1811,6 +1828,7 @@ users ||--o{ resource_curation_notifications : "user_id"
 ' Resource core relationships
 resources ||--o| resource_listing_projections
 resources ||--o{ resource_party_name_terms
+resources ||--o{ resource_contact_points
 resources ||--o{ titles
 resources ||--o{ resource_creators
 resources ||--o{ resource_contributors

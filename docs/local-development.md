@@ -293,6 +293,35 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 
 ## Command Reference
 
+### Contact person index
+
+Admins, Group Leaders and Curators reach **Contact Persons** under **Tools** in
+either sidebar workspace. The overview and exact contact filters read the
+derived `resource_contact_points` table. Deploy the migration and build the index
+in the deployment maintenance window before reopening the application:
+
+```bash
+npm run artisan -- migrate --force
+npm run artisan -- contact-persons:rebuild
+```
+
+The rebuild is idempotent, processes resources in batches and replaces only the
+derived contact index. It does not edit person identities or metadata. Run it
+again after a bulk data repair that bypasses model events. Resource edits and
+contact-role changes refresh the index automatically. Changes to shared person
+names or ORCIDs propagate through the existing listing dependency queue; ensure
+those workers finish before judging the new grouping. Restart workers with the
+new application code during deployment. Rollback removes only the derived table;
+restore the previous application code before rolling back its migration.
+
+Focused validation uses `npm run test:php -- tests/pest/Feature/ContactPersons`,
+`npm run test:php:mysql-sensitive -- --slice contact-persons` and
+`npm run test:e2e:devstack -- workflows/contact-persons.spec.ts`. On Windows use
+`npm.cmd` if PowerShell consumes arguments after `--`. The browser fixtures are
+included in `PlaywrightTestSeeder` through `ContactPersonsPlaywrightSeeder`.
+
+### Development commands
+
 | Task                                             | Recommended place              | Command                                             |
 | ------------------------------------------------ | ------------------------------ | --------------------------------------------------- |
 | Start the core stack                             | Host shell                     | `npm run docker:dev:up`                             |

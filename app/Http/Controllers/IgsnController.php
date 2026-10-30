@@ -19,8 +19,8 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
-use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Services\ContactPersons\ContactPersonFilterService;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
@@ -31,6 +31,8 @@ use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\ListingCountService;
+use App\Services\Resources\IgsnListingQueryService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -102,6 +104,7 @@ class IgsnController extends Controller
 
         $this->applyFilters($query, $prefix, $status, $datacenterId, $withoutDatacenter);
         $this->applySearch($query, $search);
+        app(ContactPersonFilterService::class)->apply($query, $criteria['contact']);
         $this->applySorting($query, $sortKey, $sortDirection);
 
         $paginated = $query->simplePaginate($perPage, ['*'], 'page', $page);
@@ -149,6 +152,7 @@ class IgsnController extends Controller
                 'direction' => $sortDirection,
             ],
             'search' => $search,
+            'contactSelection' => app(ContactPersonFilterService::class)->describe($criteria['contact']),
             'totalCount' => null,
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
@@ -156,6 +160,7 @@ class IgsnController extends Controller
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
             'igsnRegistrationRun' => $registrationRun === null ? null : $this->igsnRegistrationRunPresenter->run($registrationRun),
             'filters' => array_filter([
+                'contact' => $criteria['contact'],
                 'prefix' => $prefix,
                 'status' => $status,
                 'datacenter_id' => $datacenterId,
@@ -187,12 +192,14 @@ class IgsnController extends Controller
                     $criteria['without_datacenter'],
                 );
                 $this->applySearch($query, $criteria['search']);
+                app(ContactPersonFilterService::class)->apply($query, $criteria['contact']);
 
                 return $query->count();
             },
         );
 
         $hasFilters = $criteria['search'] !== ''
+            || $criteria['contact'] !== null
             || $criteria['prefix'] !== ''
             || $criteria['status'] !== ''
             || $criteria['datacenter_id'] !== null
@@ -635,16 +642,7 @@ class IgsnController extends Controller
      */
     private function baseQuery(): Builder
     {
-        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
-
-        $query = Resource::query()
-            ->whereHas('igsnMetadata');
-
-        if ($physicalObjectType !== null) {
-            $query->where('resource_type_id', $physicalObjectType->id);
-        }
-
-        return $query;
+        return app(IgsnListingQueryService::class)->baseQuery();
     }
 
     /**
@@ -798,6 +796,7 @@ class IgsnController extends Controller
      *     page:int,
      *     per_page:int,
      *     search:string,
+     *     contact:?string,
      *     prefix:string,
      *     status:string,
      *     datacenter_id:int|null,
@@ -808,6 +807,7 @@ class IgsnController extends Controller
      */
     private function resolveListingCriteria(IndexIgsnsRequest $request): array
     {
+        app(ResourceListingProjectionRefreshService::class)->flushPending();
         $search = trim((string) $request->query('search', ''));
 
         if (mb_strlen($search) < self::MIN_SEARCH_LENGTH) {
@@ -824,6 +824,7 @@ class IgsnController extends Controller
 
         return [
             'page' => max(1, (int) $request->query('page', 1)),
+            'contact' => $request->validated('contact'),
             'per_page' => $request->perPage(),
             'search' => $search,
             'prefix' => trim((string) $request->query('prefix', '')),
@@ -843,6 +844,7 @@ class IgsnController extends Controller
     {
         return [
             'search' => $criteria['search'],
+            'contact' => $criteria['contact'],
             'prefix' => $criteria['prefix'],
             'status' => $criteria['status'],
             'datacenter_id' => $criteria['datacenter_id'],

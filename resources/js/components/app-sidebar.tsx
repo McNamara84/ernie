@@ -154,6 +154,9 @@ export function AppSidebar() {
     const operationsItems: NavItem[] = [];
     const administrationItems: NavItem[] = [];
     const toolsItems: NavItem[] = [];
+    const sharedToolsItems: NavItem[] = auth.user?.can_access_contact_persons
+        ? [{ title: 'Contact Persons', href: '/contact-persons', icon: Users }]
+        : [];
 
     if (auth.user?.can_access_assistance) {
         const assistanceItem: NavItem = {
@@ -281,11 +284,19 @@ export function AppSidebar() {
             : curationSections
         : [
               ...curationSections,
-              ...(toolsItems.length > 0 ? [{ label: 'Tools', items: toolsItems, showSeparator: true }] : []),
+              ...(toolsItems.length + sharedToolsItems.length > 0
+                  ? [{ label: 'Tools', items: [...toolsItems, ...sharedToolsItems], showSeparator: true }]
+                  : []),
               ...(administrationItems.length > 0 ? [{ label: 'Administration', items: administrationItems, showSeparator: true }] : []),
           ];
 
-    const renderedSections = isWorkspaceSwitcherEnabled ? [...currentPageSections, ...visibleWorkspaceSections] : visibleWorkspaceSections;
+    const renderedSections = isWorkspaceSwitcherEnabled
+        ? [
+              ...currentPageSections,
+              ...visibleWorkspaceSections,
+              ...(sharedToolsItems.length > 0 ? [{ label: 'Tools', items: sharedToolsItems, showSeparator: true }] : []),
+          ]
+        : visibleWorkspaceSections;
 
     // Footer navigation contains only informational links.
     const footerNavItems: NavItem[] = [];

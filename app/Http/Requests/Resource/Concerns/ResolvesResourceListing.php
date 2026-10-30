@@ -98,6 +98,7 @@ trait ResolvesResourceListing
             'year_to' => ['nullable', 'integer', 'between:1000,9999'],
 
             'search' => ['nullable', 'string', 'max:255'],
+            'contact' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/D'],
 
             'created_from' => ['nullable', 'date'],
             'created_to' => ['nullable', 'date'],
@@ -147,6 +148,10 @@ trait ResolvesResourceListing
     protected function extractFilters(): array
     {
         $filters = [];
+
+        if ($this->filled('contact')) {
+            $filters['contact'] = $this->validated('contact');
+        }
 
         $filters = $this->collectMultiValueFilter($filters, 'resource_type');
         $filters = $this->collectMultiValueFilter($filters, 'curator');

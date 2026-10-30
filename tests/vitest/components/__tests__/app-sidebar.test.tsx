@@ -47,6 +47,7 @@ let mockUser = {
     can_manage_landing_page_templates: false,
     can_access_assistance: false,
     can_access_assessment: false,
+    can_access_contact_persons: false,
 };
 
 type MockSharedProps = {
@@ -75,6 +76,7 @@ const setMockUser = (
         can_manage_landing_page_templates: boolean;
         can_access_assistance: boolean;
         can_access_assessment: boolean;
+        can_access_contact_persons: boolean;
     }> = {},
 ) => {
     mockUser = {
@@ -93,6 +95,7 @@ const setMockUser = (
         can_manage_landing_page_templates: false,
         can_access_assistance: false,
         can_access_assessment: false,
+        can_access_contact_persons: false,
         ...overrides,
     };
 };
@@ -210,6 +213,25 @@ describe('AppSidebar', () => {
         setMockUser();
         setMockSharedProps();
         axiosGetMock.mockResolvedValue({ data: { dataResourceCount: 12, igsnCount: 5 } });
+    });
+
+    it.each(['admin', 'group_leader', 'curator'])('shows Contact Persons once under Tools for %s', (role) => {
+        setMockUser({ role, can_access_contact_persons: true });
+        mockUrl = '/contact-persons';
+        window.localStorage.setItem(SIDEBAR_WORKSPACE_STORAGE_KEY, 'administration');
+        render(<AppSidebar />);
+        expect(screen.getAllByRole('link', { name: 'Contact Persons' })).toHaveLength(1);
+        const tools = NavSectionMock.mock.calls.find((call) => call[0].label === 'Tools');
+        expect(tools?.[0].items.map((item) => item.title)).toContain('Contact Persons');
+        expect(NavSectionMock.mock.calls.filter((call) => call[0].label === 'Tools')).toHaveLength(1);
+        expect(NavSectionMock.mock.calls.some((call) => call[0].label === 'Open Page')).toBe(false);
+        if (role !== 'curator') expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
+    });
+
+    it('hides Contact Persons when its permission is absent', () => {
+        setMockUser({ role: 'beginner', can_access_contact_persons: false });
+        render(<AppSidebar />);
+        expect(screen.queryByRole('link', { name: 'Contact Persons' })).not.toBeInTheDocument();
     });
 
     it('renders the curation workspace by default for admin users on curation pages', () => {
@@ -455,7 +477,12 @@ describe('AppSidebar', () => {
         const administrationSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Administration');
         const dataCurationSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Data Curation');
 
-        expect(dataCurationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Curation', 'Data Editor', 'Resources List', 'Data Portal']);
+        expect(dataCurationSection?.[0].items.map((item: NavItem) => item.title)).toEqual([
+            'Curation',
+            'Data Editor',
+            'Resources List',
+            'Data Portal',
+        ]);
         expect(toolsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assistance', 'Assessment']);
         expect(administrationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Logs', 'Editor Settings', 'Landing Pages']);
     });

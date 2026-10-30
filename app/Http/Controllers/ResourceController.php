@@ -15,6 +15,7 @@ use App\Http\Requests\StoreResourceRequest;
 use App\Models\DataCiteUrlUpdateRun;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\ContactPersons\ContactPersonFilterService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\Editor\EditorResourceSaveService;
 use App\Services\Resources\DeleteAllResourcesService;
@@ -84,6 +85,7 @@ class ResourceController extends Controller
                 'direction' => $criteria['sortDirection'],
             ],
             'filters' => $criteria['filters'],
+            'contactSelection' => app(ContactPersonFilterService::class)->describe($criteria['filters']['contact'] ?? null),
             'canCreateResource' => $request->user()?->can('create', Resource::class) ?? false,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),

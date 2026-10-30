@@ -312,6 +312,22 @@ erDiagram
         text term "normalized public party name"
     }
 
+    %% Derived current contact variants from creators and contact contributors.
+    resource_contact_points {
+        bigint id PK
+        bigint resource_id FK "indexed, cascade delete"
+        varchar identity_key "64"
+        char variant_key "64"
+        varchar orcid "19, nullable"
+        varchar display_name "1000"
+        varchar email "255, nullable"
+        varchar email_normalized "255, nullable"
+        varchar name_sort "1000"
+    }
+    %% resource_contact_points contact_resource_variant_unique: unique(resource_id, variant_key)
+    %% resource_contact_points contact_variant_resource_index: index(variant_key, resource_id)
+    %% resource_contact_points contact_identity_variant_index: index(identity_key, variant_key)
+
     %% RESOURCE CURATION WORKFLOW
 
     resource_curation_states {
@@ -1682,6 +1698,7 @@ erDiagram
     %% Resource core relationships
     resources ||--o| resource_listing_projections : "has listing projection"
     resources ||--o{ resource_party_name_terms : "has searchable party names"
+    resources ||--o{ resource_contact_points : "has contact variants"
     resources ||--o{ titles : "has"
     resources ||--o{ resource_creators : "has"
     resources ||--o{ resource_contributors : "has"
