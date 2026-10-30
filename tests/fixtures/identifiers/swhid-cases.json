@@ -1,0 +1,818 @@
+{
+    "cases": [
+        {
+            "name": "cnt",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "dir",
+            "input": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "rev",
+            "input": "swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "normalized": "swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "rel",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "snp",
+            "input": "swh:1:snp:c7c108084bc0bf3d81436bf980b46e98bd338453",
+            "normalized": "swh:1:snp:c7c108084bc0bf3d81436bf980b46e98bd338453",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "specification qualified file (cnt with path)",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": ";origin=https://github.com/mjziebarth/FlotteKarte",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://github.com/mjziebarth/FlotteKarte",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://github.com/mjziebarth/FlotteKarte",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": ";origin=https://github.com/bbrainfuckk/qorx/",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://github.com/bbrainfuckk/qorx/",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://github.com/bbrainfuckk/qorx/",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": ";origin=git+ssh://git@example.org/repo",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=git+ssh://git@example.org/repo",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=git+ssh://git@example.org/repo",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": ";origin=https://例え.example/Ä",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://例え.example/Ä",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://例え.example/Ä",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": ";origin=https://example.org/r?a=1&b=2#readme",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://example.org/r?a=1&b=2#readme",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=https://example.org/r?a=1&b=2#readme",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": ";origin=file:///tmp/repo",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=file:///tmp/repo",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;origin=file:///tmp/repo",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https archive.softwareheritage.org/",
+            "input": "https://archive.softwareheritage.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https qualified archive.softwareheritage.org/",
+            "input": "https://archive.softwareheritage.org/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https archive.softwareheritage.org/browse/",
+            "input": "https://archive.softwareheritage.org/browse/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https qualified archive.softwareheritage.org/browse/",
+            "input": "https://archive.softwareheritage.org/browse/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https identifiers.org/",
+            "input": "https://identifiers.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https qualified identifiers.org/",
+            "input": "https://identifiers.org/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https n2t.net/",
+            "input": "https://n2t.net/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "https qualified n2t.net/",
+            "input": "https://n2t.net/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http archive.softwareheritage.org/",
+            "input": "http://archive.softwareheritage.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http qualified archive.softwareheritage.org/",
+            "input": "http://archive.softwareheritage.org/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http archive.softwareheritage.org/browse/",
+            "input": "http://archive.softwareheritage.org/browse/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http qualified archive.softwareheritage.org/browse/",
+            "input": "http://archive.softwareheritage.org/browse/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http identifiers.org/",
+            "input": "http://identifiers.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http qualified identifiers.org/",
+            "input": "http://identifiers.org/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http n2t.net/",
+            "input": "http://n2t.net/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "http qualified n2t.net/",
+            "input": "http://n2t.net/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://gitorious.org/ocamlp3l/ocamlp3l_cvs.git;visit=swh:1:snp:d7f1b9eb7ccb596c2622c4780febaa02549830f9;anchor=swh:1:rev:2db189928c94d62a3b4757b3eec68f0a4d4113f0;path=/Examples/SimpleFarm/simplefarm.ml;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "uppercase outer core",
+            "input": "SWH:1:DIR:D198BC9D7A6BCF6DB04F476D29314F157507D505;origin=https://example.org/Mixed/Path",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505;origin=https://example.org/Mixed/Path",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "uppercase resolver",
+            "input": "HTTPS://ARCHIVE.SOFTWAREHERITAGE.ORG/BROWSE/SWH:1:DIR:D198BC9D7A6BCF6DB04F476D29314F157507D505/",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "trim outer spaces",
+            "input": " \tswh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505\n　",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "lines=1",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "lines=9-15",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "lines=001-015",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=001-015",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=001-015",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "lines=99999999999999999999-100000000000000000000",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=99999999999999999999-100000000000000000000",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=99999999999999999999-100000000000000000000",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "bytes=0",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=0",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=0",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "bytes=0-99",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=0-99",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=0-99",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "bytes=10",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=10",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=10",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "path=/file.c",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/file.c",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/file.c",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "path=%2FExamples%2Ffile.c",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=%2FExamples%2Ffile.c",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=%2FExamples%2Ffile.c",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "path=/A%3B+B%FF%25,=x",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/A%3B+B%FF%25,=x",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/A%3B+B%FF%25,=x",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "path=/Ä/file.c",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/Ä/file.c",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/Ä/file.c",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "path=/repo/",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/repo/",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/repo/",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "empty",
+            "input": "",
+            "normalized": "",
+            "candidate": false,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "wrong scheme",
+            "input": "swa:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "normalized": "swa:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": false,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "bad hash length",
+            "input": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d50",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d50",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "long hash",
+            "input": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d5050",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d5050",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "non hex",
+            "input": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d50g",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d50g",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "bad version",
+            "input": "swh:2:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "normalized": "swh:2:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": false,
+            "error": "unsupported_version"
+        },
+        {
+            "name": "bad object",
+            "input": "swh:1:ori:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "normalized": "swh:1:ori:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": true,
+            "valid": false,
+            "error": "unsupported_object_type"
+        },
+        {
+            "name": "partial candidate",
+            "input": "swh:1:",
+            "normalized": "swh:1:",
+            "candidate": true,
+            "valid": false,
+            "error": "unsupported_object_type"
+        },
+        {
+            "name": "hash slash before qualifiers",
+            "input": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/;origin=https://example.org",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505/;origin=https://example.org",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "core newline before qualifier",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b\n;path=/x",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b\n;path=/x",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "non-SWH archive URL",
+            "input": "https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://github.com/example/repo",
+            "normalized": "https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://github.com/example/repo",
+            "candidate": false,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "lookalike host",
+            "input": "https://archive.softwareheritage.org.example.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "normalized": "https://archive.softwareheritage.org.example.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": false,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "foreign host",
+            "input": "https://example.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "normalized": "https://example.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": false,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "wrong resolver path",
+            "input": "https://n2t.net/other/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "normalized": "https://n2t.net/other/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505",
+            "candidate": false,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "resolver typo hash",
+            "input": "https://archive.softwareheritage.org/swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d50",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d50",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "foo=bar",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;foo=bar",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;foo=bar",
+            "candidate": true,
+            "valid": false,
+            "error": "unknown_qualifier"
+        },
+        {
+            "name": "origin=https://a.example;origin=https://b.example",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://a.example;origin=https://b.example",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://a.example;origin=https://b.example",
+            "candidate": true,
+            "valid": false,
+            "error": "duplicate_qualifier"
+        },
+        {
+            "name": "origin",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin=",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;",
+            "candidate": true,
+            "valid": false,
+            "error": "unknown_qualifier"
+        },
+        {
+            "name": "path=/x;",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/x;",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/x;",
+            "candidate": true,
+            "valid": false,
+            "error": "unknown_qualifier"
+        },
+        {
+            "name": "Origin=https://example.org",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;Origin=https://example.org",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;Origin=https://example.org",
+            "candidate": true,
+            "valid": false,
+            "error": "unknown_qualifier"
+        },
+        {
+            "name": "origin=example.org",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=example.org",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=example.org",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin=https://",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin=https://example.org:bad/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://example.org:bad/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://example.org:bad/repo",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin=https://a.example/a b",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://a.example/a b",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://a.example/a b",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin=https://a.example/a\nb",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://a.example/a\nb",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://a.example/a\nb",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "path=/bad%xx",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/bad%xx",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/bad%xx",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "path=/bad%",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/bad%",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/bad%",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "path=relative/path",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=relative/path",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=relative/path",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "path=/a?b",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a?b",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a?b",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "path=/a#b",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a#b",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a#b",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "path=/a\\b",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a\\b",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a\\b",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "visit=swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;visit=swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;visit=swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "visit=swh:1:snp:c7c108084bc0bf3d81436bf980b46e98bd338453",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;visit=swh:1:snp:c7c108084bc0bf3d81436bf980b46e98bd338453",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;visit=swh:1:snp:c7c108084bc0bf3d81436bf980b46e98bd338453",
+            "candidate": true,
+            "valid": false,
+            "error": "missing_qualifier_dependency"
+        },
+        {
+            "name": "anchor=swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/x",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;anchor=swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/x",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;anchor=swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/x",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "anchor=swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;anchor=swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;anchor=swh:1:rev:309cf2674ee7a0749978cf8265ab91a60aea0f7d",
+            "candidate": true,
+            "valid": false,
+            "error": "missing_qualifier_dependency"
+        },
+        {
+            "name": "lines=a-b",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=a-b",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=a-b",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_range"
+        },
+        {
+            "name": "lines=0",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=0",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=0",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_range"
+        },
+        {
+            "name": "lines=-1",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=-1",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=-1",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_range"
+        },
+        {
+            "name": "lines=15-9",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=15-9",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=15-9",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_range"
+        },
+        {
+            "name": "bytes=2-1",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=2-1",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=2-1",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_range"
+        },
+        {
+            "name": "bytes=100000000000000000000-99999999999999999999",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=100000000000000000000-99999999999999999999",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;bytes=100000000000000000000-99999999999999999999",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_range"
+        },
+        {
+            "name": "lines=1-2-3",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1-2-3",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1-2-3",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_range"
+        },
+        {
+            "name": "lines=1;bytes=0",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1;bytes=0",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1;bytes=0",
+            "candidate": true,
+            "valid": false,
+            "error": "conflicting_fragment_qualifiers"
+        },
+        {
+            "name": "lines=1;lines=2",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1;lines=2",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1;lines=2",
+            "candidate": true,
+            "valid": false,
+            "error": "duplicate_qualifier"
+        },
+        {
+            "name": "non-file lines",
+            "input": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505;lines=9-15",
+            "normalized": "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505;lines=9-15",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "non-file bytes",
+            "input": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;bytes=0",
+            "normalized": "swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f;bytes=0",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "invalid non-ASCII core preserves Unicode case",
+            "input": "SWH:1:DIR:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAÄ",
+            "normalized": "swh:1:dir:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaÄ",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_core"
+        },
+        {
+            "name": "origin authority https://:80/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://:80/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://:80/repo",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin authority https://user@:80/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://user@:80/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://user@:80/repo",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin authority https://[abcd]/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[abcd]/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[abcd]/repo",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin authority https://[:::1]/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[:::1]/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[:::1]/repo",
+            "candidate": true,
+            "valid": false,
+            "error": "invalid_qualifier_value"
+        },
+        {
+            "name": "origin authority https://[::1]:443/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[::1]:443/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[::1]:443/repo",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "origin authority https://[::ffff:192.0.2.1]/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[::ffff:192.0.2.1]/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[::ffff:192.0.2.1]/repo",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "origin authority https://[v1.example:future]/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[v1.example:future]/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://[v1.example:future]/repo",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        },
+        {
+            "name": "origin authority https://user@example.org:443/repo",
+            "input": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://user@example.org:443/repo",
+            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://user@example.org:443/repo",
+            "candidate": true,
+            "valid": true,
+            "error": null
+        }
+    ],
+    "equivalent": [
+        ["swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505", "https://n2t.net/SWH:1:DIR:D198BC9D7A6BCF6DB04F476D29314F157507D505/"],
+        [
+            "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;origin=https://example.org/;path=/A+B%FF",
+            "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=%2FA+B%ff;origin=https://example.org/"
+        ],
+        ["swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/Ä", "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/%C3%84"]
+    ],
+    "distinct": [
+        ["swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/A", "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a"],
+        ["swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a+b", "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;path=/a%20b"],
+        ["swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=1", "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=2"],
+        ["swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505", "swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505;origin=https://example.org/"]
+    ]
+}

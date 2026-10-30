@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
+import { validateIdentifierFormat } from '@/lib/doi-validation';
 import { getAllRelationTypes, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
+import { normalizeSwhid } from '@/lib/swhid';
 import { identifierTypes } from '@/schemas/related-work.schema';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
@@ -68,12 +70,16 @@ export default function RelatedWorkAdvancedAdd({
     });
 
     const handleAdd = () => {
-        if (!identifier.trim() || validation.status === 'invalid') {
+        if (
+            !identifier.trim() ||
+            validation.status === 'invalid' ||
+            (identifierType === 'SWHID' && !validateIdentifierFormat(identifier, identifierType).isValid)
+        ) {
             return;
         }
 
         onAdd({
-            identifier: identifier.trim(),
+            identifier: identifierType === 'SWHID' ? normalizeSwhid(identifier) : identifier.trim(),
             identifierType,
             relationType,
             ...(relationType === 'Other' && relationTypeInformation.trim() ? { relationTypeInformation: relationTypeInformation.trim() } : {}),
@@ -135,7 +141,9 @@ export default function RelatedWorkAdvancedAdd({
                             </div>
                         )}
                     </div>
-                    {validation.status === 'invalid' && <p className="mt-1 text-xs text-red-600">Invalid {identifierType} format</p>}
+                    {validation.status === 'invalid' && (
+                        <p className="mt-1 text-xs text-red-600">{validation.message || `Invalid ${identifierType} format`}</p>
+                    )}
                     {validation.status === 'warning' && (
                         <p className="mt-1 text-xs text-yellow-600">
                             <Info className="mr-1 inline h-3 w-3" />

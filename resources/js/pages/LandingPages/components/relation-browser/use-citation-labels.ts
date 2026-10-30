@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 
+import { normalizeSwhid } from '@/lib/swhid';
+
 import { normalizeDoiKey } from '../../lib/resolveIdentifierUrl';
 import type { CitationLabel } from './graph-types';
 
@@ -72,7 +74,7 @@ export function useCitationLabels(identifiers: IdentifierInput[], citationTexts?
                     });
                 }
             } else {
-                const key = `${item.identifier_type}:${item.identifier}`;
+                const key = getCitationKey(item.identifier_type, item.identifier);
                 if (!labels.has(key)) {
                     labels.set(key, {
                         shortLabel: persistedCitation
@@ -90,6 +92,7 @@ export function useCitationLabels(identifiers: IdentifierInput[], citationTexts?
 }
 
 export function getCitationKey(identifierType: string, identifier: string): string {
+    if (identifierType === 'SWHID') return `SWHID:${normalizeSwhid(identifier)}`;
     if (identifierType === 'DOI') {
         return normalizeDoiKey(identifier);
     }

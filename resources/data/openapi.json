@@ -4,7 +4,7 @@
         "title": "ERNIE API",
         "summary": "Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.",
         "version": "1.1.0",
-        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems. Version 1.1 adds ELMO-MSL editor configuration. ERNIE, ELMO and ELMO-MSL activation and resource-type license exclusions are independent.",
+        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems. Version 1.1 adds ELMO-MSL editor configuration. ERNIE, ELMO and ELMO-MSL activation and resource-type license exclusions are independent. SWHID validation is available as a stateless POST operation with the ernie-swhid-v1 profile.",
         "termsOfService": "https://ernie.rz-vm182.gfz.de/legal-notice",
         "contact": {
             "name": "Holger Ehrmann",
@@ -1445,14 +1445,14 @@
                             }
                         }
                     },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
                     "422": {
                         "description": "Missing or invalid DOI query parameter"
                     },
                     "429": {
                         "description": "Rate limit exceeded (30 requests/minute)"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/UnauthorizedError"
                     },
                     "502": {
                         "description": "Transient upstream failure. Returned when the primary metadata provider (Crossref) errored and the DataCite fallback did not produce a confirming hit. Clients should retry after a short delay rather than treat this as `not_found`.",
@@ -4586,6 +4586,126 @@
                     }
                 ]
             }
+        },
+        "/api/v1/identifiers/validate": {
+            "post": {
+                "tags": ["Editor Configuration"],
+                "summary": "Validate and normalize a SWHID",
+                "operationId": "validateIdentifier",
+                "description": "Stateless, authenticated validation against SWHID 1.2 and the ernie-swhid-v1 profile. Accepts cnt, dir, rev, rel and snp cores and origin, visit, anchor, path, lines and bytes qualifiers. Enforces uniqueness, valid values, visit/origin and anchor/path dependencies, and exclusive ordered fragment ranges on cnt objects. Does not query an archive or check object existence. Supported HTTP/HTTPS wrappers are archive.softwareheritage.org (root and /browse/), identifiers.org and n2t.net. Core case is normalized; qualifiers are preserved. A well-formed request returns HTTP 200 even when the identifier is invalid. Limited to 60 requests per minute per API key and client IP; send keys only from a trusted client backend.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IdentifierValidationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Validation result; inspect valid and errors.",
+                        "headers": {
+                            "Cache-Control": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "no-store"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IdentifierValidationResult"
+                                },
+                                "examples": {
+                                    "valid": {
+                                        "value": {
+                                            "identifierType": "SWHID",
+                                            "profile": "ernie-swhid-v1",
+                                            "valid": true,
+                                            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15",
+                                            "core": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b",
+                                            "objectType": "cnt",
+                                            "qualifiers": {
+                                                "lines": "9-15"
+                                            },
+                                            "resolverUrl": "https://archive.softwareheritage.org/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15",
+                                            "errors": []
+                                        }
+                                    },
+                                    "invalid": {
+                                        "value": {
+                                            "identifierType": "SWHID",
+                                            "profile": "ernie-swhid-v1",
+                                            "valid": false,
+                                            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=15-9",
+                                            "core": null,
+                                            "objectType": null,
+                                            "qualifiers": null,
+                                            "resolverUrl": null,
+                                            "errors": [
+                                                {
+                                                    "code": "invalid_range",
+                                                    "field": "qualifiers.lines",
+                                                    "message": "Invalid SWHID lines. Expected N or N-M, starting at 1, with N no greater than M."
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "422": {
+                        "description": "Missing, unsupported, non-string or oversized request fields.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["message", "errors"],
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded. Retry after the indicated delay.",
+                        "headers": {
+                            "Retry-After": {
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -6455,6 +6575,9 @@
                             }
                         },
                         "required": ["validation", "detection"]
+                    },
+                    "semanticValidation": {
+                        "$ref": "#/components/schemas/IdentifierSemanticValidation"
                     }
                 },
                 "required": ["id", "name", "slug", "description", "patterns"]
@@ -6493,7 +6616,12 @@
                                     }
                                 },
                                 "required": ["algorithms", "mode"],
-                                "examples": [{ "algorithms": ["isbn10-mod11", "isbn13-mod10"], "mode": "advisory" }]
+                                "examples": [
+                                    {
+                                        "algorithms": ["isbn10-mod11", "isbn13-mod10"],
+                                        "mode": "advisory"
+                                    }
+                                ]
                             }
                         },
                         "required": ["pattern"]
@@ -6544,6 +6672,126 @@
                         "required": ["data"]
                     }
                 ]
+            },
+            "IdentifierSemanticValidation": {
+                "type": "object",
+                "description": "Present for SWHID only. Regex patterns are a syntax precheck; use this operation for complete semantic validation. Existing identifier-type activation rules still apply.",
+                "required": ["method", "endpoint", "profile", "specificationVersion", "requiresApiKey"],
+                "properties": {
+                    "method": {
+                        "type": "string",
+                        "const": "POST"
+                    },
+                    "endpoint": {
+                        "type": "string",
+                        "const": "/api/v1/identifiers/validate"
+                    },
+                    "profile": {
+                        "type": "string",
+                        "const": "ernie-swhid-v1"
+                    },
+                    "specificationVersion": {
+                        "type": "string",
+                        "const": "1.2"
+                    },
+                    "requiresApiKey": {
+                        "type": "boolean",
+                        "const": true
+                    }
+                }
+            },
+            "IdentifierValidationRequest": {
+                "type": "object",
+                "required": ["identifierType", "identifier"],
+                "properties": {
+                    "identifierType": {
+                        "type": "string",
+                        "enum": ["SWHID"]
+                    },
+                    "identifier": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2183,
+                        "description": "Bare or supported resolver-form SWHID, with optional qualifiers.",
+                        "example": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15"
+                    }
+                }
+            },
+            "IdentifierValidationError": {
+                "type": "object",
+                "required": ["code", "field", "message"],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "enum": [
+                            "unsupported_version",
+                            "unsupported_object_type",
+                            "invalid_core",
+                            "unknown_qualifier",
+                            "duplicate_qualifier",
+                            "invalid_qualifier_value",
+                            "missing_qualifier_dependency",
+                            "conflicting_fragment_qualifiers",
+                            "invalid_range"
+                        ]
+                    },
+                    "field": {
+                        "type": "string",
+                        "description": "identifier, qualifiers, or qualifiers.<name>.",
+                        "example": "qualifiers.lines"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Human-readable explanation. Branch on code, not message text."
+                    }
+                }
+            },
+            "IdentifierValidationResult": {
+                "type": "object",
+                "required": ["identifierType", "profile", "valid", "normalized", "core", "objectType", "qualifiers", "resolverUrl", "errors"],
+                "properties": {
+                    "identifierType": {
+                        "type": "string",
+                        "const": "SWHID"
+                    },
+                    "profile": {
+                        "type": "string",
+                        "const": "ernie-swhid-v1"
+                    },
+                    "valid": {
+                        "type": "boolean"
+                    },
+                    "normalized": {
+                        "type": "string",
+                        "description": "Normalization preserves qualifier values and their order, including invalid values. Invalid input never produces a resolver URL."
+                    },
+                    "core": {
+                        "type": ["string", "null"]
+                    },
+                    "objectType": {
+                        "type": ["string", "null"],
+                        "enum": ["cnt", "dir", "rev", "rel", "snp", null]
+                    },
+                    "qualifiers": {
+                        "type": ["object", "null"],
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "description": "Original encoded qualifier values; an empty object for a valid core SWHID, null for invalid input."
+                    },
+                    "resolverUrl": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "description": "Complete Software Heritage resolver URL, including qualifiers; null for invalid input."
+                    },
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IdentifierValidationError"
+                        },
+                        "description": "Empty on success. The current profile returns the first error."
+                    }
+                }
             }
         }
     }

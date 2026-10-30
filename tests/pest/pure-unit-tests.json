@@ -13,6 +13,7 @@
   "Unit/Support/LanguageTagTest.php",
   "Unit/Support/NativeSleepTest.php",
   "Unit/Support/OrcidNormalizerTest.php",
+  "Unit/Support/SwhidTest.php",
   "Unit/Support/PortalIgsnSearchPatternTest.php",
   "Unit/Support/SubjectBreadcrumbPathTest.php",
   "Unit/Support/UploadErrorTest.php",

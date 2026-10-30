@@ -1,3 +1,4 @@
+import { isSwhidCandidate, normalizeSwhid } from '@/lib/swhid';
 import type { IdentifierType } from '@/types';
 
 // Pre-compiled regex patterns for better performance
@@ -130,6 +131,7 @@ const URL_HTTP = /^https?:\/\//i;
  * @returns The detected IdentifierType
  */
 export function detectIdentifierType(value: string): IdentifierType {
+    if (isSwhidCandidate(value)) return 'SWHID';
     const trimmed = value.trim();
     const len = trimmed.length;
 
@@ -356,6 +358,7 @@ export function detectIdentifierType(value: string): IdentifierType {
  * @returns The normalized identifier
  */
 export function normalizeIdentifier(identifier: string, identifierType: IdentifierType): string {
+    if (identifierType === 'SWHID') return normalizeSwhid(identifier);
     if (identifierType === 'DOI') {
         let normalized = identifier.trim();
 

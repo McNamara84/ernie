@@ -2338,7 +2338,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Add a Card and Enter the Identifier">
                                 <p>
-                                    Choose <strong>Add Related Work</strong>, then paste a DOI, URL, Handle, IGSN, URN, or another supported
+                                    Choose <strong>Add Related Work</strong>, then paste a DOI, URL, Handle, IGSN, URN, SWHID, or another supported
                                     identifier into the new card. ERNIE auto-detects the type and still lets you override it manually when needed.
                                 </p>
                             </WorkflowSteps.Step>
@@ -2347,11 +2347,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     When you leave the field, ERNIE normalizes DOI input, shows a safe preview link, and tries to fill an empty
                                     Citation Label for DOI and URL identifiers. You can continue editing while the best-effort lookup runs.
                                 </p>
+                                <p>
+                                    Software Heritage identifiers (SWHIDs) and supported archive URLs are also detected and normalized when you leave
+                                    the field. Qualifiers such as origin, path and line ranges are preserved. Invalid SWHIDs show a specific error and
+                                    block <strong>Validate</strong>; <strong>Save Draft</strong> remains available. A valid preview link confirms the
+                                    format, without checking whether the object exists in the archive.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Pick the Relation Type">
                                 <p>
                                     The relation menu keeps the most frequently used DataCite relation types in a dedicated <em>Most used</em> block,
                                     with the full schema available below it.
+                                </p>
+                                <p>
+                                    Use <code>IsIdenticalTo</code> for the SWHID of the exact archived software version described by your resource.
+                                    Use <code>IsVariantFormOf</code> for its repository URL. Only valid SWHIDs marked <code>IsIdenticalTo</code>
+                                    become additional Schema.org identifiers alongside the resource DOI.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Refine and Reorder">
@@ -2368,6 +2379,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             related-work cards. Drop a CSV file onto the upload area or select one from your device. The required columns are{' '}
                             <code>identifier</code> and <code>relation_type</code>; <code>identifier_type</code> is optional and is auto-detected when
                             omitted. An example file is available from <strong>Download Example</strong> in the importer.
+                        </p>
+                        <p>
+                            Quote CSV fields containing commas, including SWHID origins or paths. SWHIDs receive the same normalization and qualifier
+                            validation as manually entered values.
                         </p>
                         <p>
                             Review the preview and resolve every reported validation error before importing. An exact duplicate with the same
