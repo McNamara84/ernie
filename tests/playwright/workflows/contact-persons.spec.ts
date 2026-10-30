@@ -40,6 +40,31 @@ test('keeps contact controls accessible on a narrow screen', async ({ page }) =>
     expect(result.violations).toEqual([]);
 });
 
+test('changes group page size with the keyboard while preserving search and resetting the page', async ({ page }) => {
+    await loginAsTestUser(page);
+    await page.goto('/contact-persons?search=contact1352&page=2');
+    const pageSize = page.getByRole('combobox', { name: 'Groups per page' });
+    await expect(pageSize).toHaveText('25');
+    await pageSize.press('Enter');
+    await expect(page.getByRole('option')).toHaveText(['25', '50', '100']);
+    await page.keyboard.press('End');
+    await expect(page.getByRole('option', { name: '100', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(
+        (url) =>
+            url.searchParams.get('search') === 'contact1352' && url.searchParams.get('page') === '1' && url.searchParams.get('per_page') === '100',
+    );
+    await expect(pageSize).toHaveText('100');
+    await expect(pageSize).toBeFocused();
+    await expect(page.getByRole('row').filter({ hasText: 'PlaywrightContact1352, Ada' })).toHaveCount(1);
+    await pageSize.press('Enter');
+    await page.keyboard.press('Home');
+    await expect(page.getByRole('option', { name: '25', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL((url) => url.searchParams.get('per_page') === '25');
+    await expect(pageSize).toHaveText('25');
+});
+
 test('preserves newer input across a delayed search response and synchronizes browser history', async ({ page }) => {
     await loginAsTestUser(page);
     await page.goto('/contact-persons');
@@ -62,6 +87,7 @@ test('preserves newer input across a delayed search response and synchronizes br
         await search.fill('contact1352');
         await page.clock.runFor(400);
         await responseReady.promise;
+        await expect(page.getByRole('combobox', { name: 'Groups per page' })).toBeDisabled();
         await search.fill('contact1352@example.test');
         await page.clock.runFor(200);
         releaseResponse.resolve();

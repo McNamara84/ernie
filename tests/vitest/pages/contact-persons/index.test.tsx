@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import type { GlobalEvent, Page, VisitOptions } from '@inertiajs/core';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ComponentProps, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -167,20 +168,30 @@ describe('Contact persons', () => {
         expect(get).not.toHaveBeenCalled();
     });
 
-    it('preserves search on pagination and page-size changes', () => {
-        render(<ContactPersons {...props} search="Ada" />);
+    it('preserves search on pagination and page-size changes', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<ContactPersons {...props} search="Ada" />);
         expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
         fireEvent.click(screen.getByRole('button', { name: 'Next' }));
         expect(get).toHaveBeenLastCalledWith('/contact-persons', { search: 'Ada', page: 2, per_page: 25 }, expect.any(Object));
-        fireEvent.change(screen.getByRole('combobox'), { target: { value: '50' } });
+        const pageSize = screen.getByRole('combobox', { name: 'Groups per page' });
+        expect(pageSize).toHaveTextContent('25');
+        await user.click(pageSize);
+        expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['25', '50', '100']);
+        await user.click(screen.getByRole('option', { name: '50', exact: true }));
         expect(get).toHaveBeenLastCalledWith('/contact-persons', { search: 'Ada', page: 1, per_page: 50 }, expect.any(Object));
+        rerender(<ContactPersons {...props} search="Ada" pagination={{ ...props.pagination, per_page: 50 }} />);
+        expect(pageSize).toHaveTextContent('50');
     });
 
     it('does not replay a pending search after an explicit page-size change', () => {
         vi.useFakeTimers();
         render(<ContactPersons {...props} />);
         fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Ada' } });
-        fireEvent.change(screen.getByRole('combobox'), { target: { value: '50' } });
+        fireEvent.keyDown(screen.getByRole('combobox', { name: 'Groups per page' }), { key: 'Enter' });
+        const option = screen.getByRole('option', { name: '50', exact: true });
+        act(() => option.focus());
+        fireEvent.keyDown(option, { key: 'Enter' });
         act(() => vi.advanceTimersByTime(400));
         expect(get).toHaveBeenCalledExactlyOnceWith('/contact-persons', { search: 'Ada', page: 1, per_page: 50 }, expect.any(Object));
     });

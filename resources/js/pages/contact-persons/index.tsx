@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { ContactPersonsPageProps } from '@/types/contact-persons';
 
@@ -114,21 +116,25 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
                             onChange={(event) => changeSearch(event.target.value)}
                         />
                     </div>
-                    <label className="flex items-center gap-2 text-sm">
-                        Groups per page
-                        <select
-                            className="rounded-md border bg-background px-3 py-2"
-                            value={pagination.per_page}
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="contact-persons-per-page">Groups per page</Label>
+                        <Select
+                            value={String(pagination.per_page)}
                             disabled={loading}
-                            onChange={(event) => visit(input.trim(), 1, Number(event.target.value))}
+                            onValueChange={(value) => visit(input.trim(), 1, Number(value))}
                         >
-                            {[25, 50, 100].map((size) => (
-                                <option key={size} value={size}>
-                                    {size}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                            <SelectTrigger id="contact-persons-per-page" className="w-20">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {[25, 50, 100].map((size) => (
+                                    <SelectItem key={size} value={String(size)}>
+                                        {size}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <div aria-busy={loading} role="region" aria-label="Contact details" tabIndex={0} className="overflow-x-auto rounded-lg border">
                     <table className="w-full min-w-3xl text-left text-sm">
