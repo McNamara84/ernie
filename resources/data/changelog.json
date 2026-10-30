@@ -4,6 +4,15 @@
         "date": "2026-10-30",
         "features": [
             {
+                "title": "Software Heritage Identifiers",
+                "description": "Related Work recognizes, normalizes and validates core and qualified SWHIDs, including archive URLs and CSV imports. Clear validation errors preserve editable drafts. Landing pages and the relation browser provide archive links and readable object and qualifier labels; SWHIDs marked IsIdenticalTo also appear as additional Schema.org identifiers alongside the DOI. An authenticated API offers the same complete validation for ELMO and other clients.",
+                "references": [
+                    { "type": "issue", "number": 1384, "url": "https://github.com/McNamara84/ernie/issues/1384" },
+                    { "type": "issue", "number": 1385, "url": "https://github.com/McNamara84/ernie/issues/1385" },
+                    { "type": "issue", "number": 1386, "url": "https://github.com/McNamara84/ernie/issues/1386" }
+                ]
+            },
+            {
                 "title": "Contact Persons Overview and Filters",
                 "description": "Administrators, Group Leaders and Curators can open Contact Persons under Tools to search current contact details across resources and IGSNs of every status. Contacts are grouped by valid ORCID while preserving recorded name and email variants; contacts without a valid ORCID remain separate by person. Email addresses can be copied, and each variant links to the exact matching resources or IGSNs through a visible, removable contact filter.",
                 "references": [

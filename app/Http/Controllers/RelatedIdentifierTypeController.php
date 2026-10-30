@@ -6,9 +6,13 @@ namespace App\Http\Controllers;
 
 use App\Models\IdentifierType;
 use App\Models\IdentifierTypePattern;
+use App\Support\Swhid;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * @phpstan-type SemanticValidation array{method: string, endpoint: string, profile: string, specificationVersion: string, requiresApiKey: bool}
+ */
 class RelatedIdentifierTypeController extends Controller
 {
     /**
@@ -67,7 +71,7 @@ class RelatedIdentifierTypeController extends Controller
      * Add the legacy ELMO validation field without conflating detection rules.
      *
      * @param  Collection<int, IdentifierType>  $types
-     * @return list<array{id: int, name: string, slug: string, description: string|null, patterns: array{validation: list<array{pattern: string, priority: int}>, detection: list<array{pattern: string, priority: int}>}, pattern: string, checksum?: array{algorithms: list<string>, mode: string}}>
+     * @return list<array{id: int, name: string, slug: string, description: string|null, patterns: array{validation: list<array{pattern: string, priority: int}>, detection: list<array{pattern: string, priority: int}>}, pattern: string, checksum?: array{algorithms: list<string>, mode: string}, semanticValidation?: SemanticValidation}>
      */
     private function formatElmoResponse(Collection $types): array
     {
@@ -99,7 +103,7 @@ class RelatedIdentifierTypeController extends Controller
      * Format the response with grouped patterns.
      *
      * @param  Collection<int, IdentifierType>  $types
-     * @return list<array{id: int, name: string, slug: string, description: string|null, patterns: array{validation: list<array{pattern: string, priority: int}>, detection: list<array{pattern: string, priority: int}>}}>
+     * @return list<array{id: int, name: string, slug: string, description: string|null, patterns: array{validation: list<array{pattern: string, priority: int}>, detection: list<array{pattern: string, priority: int}>}, semanticValidation?: SemanticValidation}>
      */
     private function formatResponse(Collection $types): array
     {
@@ -108,6 +112,13 @@ class RelatedIdentifierTypeController extends Controller
             'name' => $type->name,
             'slug' => $type->slug,
             'description' => $type->description,
+            ...($type->slug === 'SWHID' ? ['semanticValidation' => [
+                'method' => 'POST',
+                'endpoint' => '/api/v1/identifiers/validate',
+                'profile' => Swhid::PROFILE,
+                'specificationVersion' => '1.2',
+                'requiresApiKey' => true,
+            ]] : []),
             'patterns' => [
                 'validation' => array_values($type->patterns
                     ->where('type', 'validation')

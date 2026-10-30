@@ -11,6 +11,7 @@ use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\Institution;
+use App\Models\LandingPage;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
@@ -22,6 +23,7 @@ use App\Models\ResourceCreator;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Policies\ResourcePolicy;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Editor\EditorDataTransformer;
@@ -37,6 +39,7 @@ use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
+use App\Support\Swhid;
 use App\Support\UriHelper;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
@@ -196,6 +199,17 @@ class ResourceStorageService
             $this->storeRelatedItems($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
             $this->storeInstruments($resource, $data, $isUpdate);
+
+            if ($isUpdate) {
+                // Resource observers run before child rows are replaced. Evict again
+                // after commit in case another request cached the previous relations.
+                DB::afterCommit(static function () use ($resource): void {
+                    $landingPage = LandingPage::where('resource_id', $resource->id)->first();
+                    if ($landingPage !== null) {
+                        app(LandingPageRenderDataCacheService::class)->forget($landingPage);
+                    }
+                });
+            }
 
             return [
                 $resource->load([
@@ -1859,7 +1873,9 @@ class ResourceStorageService
 
                 $existingRelatedIdentifier = $this->existingRelatedIdentifierForUpdate($relatedIdentifier, $existingRelatedIdentifiersById);
                 $attributes = [
-                    'identifier' => trim($relatedIdentifier['identifier']),
+                    'identifier' => $relatedIdentifier['identifierType'] === 'SWHID'
+                        ? Swhid::normalize($relatedIdentifier['identifier'])
+                        : trim($relatedIdentifier['identifier']),
                     'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                     'relation_type_information' => isset($relatedIdentifier['relationTypeInformation']) && trim($relatedIdentifier['relationTypeInformation']) !== '' ? trim($relatedIdentifier['relationTypeInformation']) : null,

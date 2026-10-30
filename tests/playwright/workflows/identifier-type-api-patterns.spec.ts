@@ -22,6 +22,10 @@ const cases: IdentifierPatternCase[] = JSON.parse(
     readFileSync(path.resolve('tests/pest/Fixtures/Identifiers/identifier-pattern-cases.json'), 'utf8'),
 );
 
+const swhidCases: { input: string; normalized: string; valid: boolean }[] = JSON.parse(
+    readFileSync(path.resolve('tests/fixtures/identifiers/swhid-cases.json'), 'utf8'),
+).cases;
+
 test('ELMO API patterns work after one JSON decode in JavaScript and native HTML validation', async ({ page, request }) => {
     const response = await request.get('/api/v1/identifier-types/elmo', {
         headers: { 'X-API-Key': process.env.PLAYWRIGHT_ERNIE_API_KEY ?? 'playwright-identifier-api-test-key' },
@@ -82,4 +86,42 @@ test('ELMO API patterns work after one JSON decode in JavaScript and native HTML
     );
 
     expect(failures).toEqual([]);
+});
+
+test('SWHID API syntax patterns accept all valid fixtures in native HTML and expose semantic validation', async ({ page, request }) => {
+    const headers = { 'X-API-Key': process.env.PLAYWRIGHT_ERNIE_API_KEY ?? 'playwright-identifier-api-test-key' };
+    const response = await request.get('/api/v1/identifier-types/elmo', { headers });
+    expect(response.status()).toBe(200);
+    const type = (await response.json()).find((entry: IdentifierTypeResponse) => entry.slug === 'SWHID');
+    expect(type.semanticValidation).toEqual({
+        method: 'POST',
+        endpoint: '/api/v1/identifiers/validate',
+        profile: 'ernie-swhid-v1',
+        specificationVersion: '1.2',
+        requiresApiKey: true,
+    });
+    await page.setContent('<input id="identifier" type="text" required>');
+    const failures = await page.evaluate(
+        ({ pattern, inputs }) => {
+            const input = document.querySelector<HTMLInputElement>('#identifier')!;
+            input.pattern = pattern;
+            const regex = new RegExp(pattern, 'v');
+            return inputs.filter((value) => {
+                input.value = value;
+                return !input.checkValidity() || !regex.test(value);
+            });
+        },
+        {
+            pattern: type.pattern,
+            inputs: swhidCases
+                .filter((entry) => entry.valid)
+                .flatMap((entry) => [entry.input.replace(/^[\s\u0085]+|[\s\u0085]+$/g, ''), entry.normalized]),
+        },
+    );
+    expect(failures).toEqual([]);
+    for (const identifier of [swhidCases[0].input, swhidCases[0].input + ';lines=15-9', swhidCases[0].input + ';path=/a;path=/b']) {
+        const result = await request.post(type.semanticValidation.endpoint, { headers, data: { identifierType: 'SWHID', identifier } });
+        expect(result.status()).toBe(200);
+        expect((await result.json()).valid).toBe(identifier === swhidCases[0].input);
+    }
 });

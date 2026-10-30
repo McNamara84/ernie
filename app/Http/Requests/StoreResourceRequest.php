@@ -20,6 +20,7 @@ use App\Rules\TemporalCoverageTimezone;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use App\Support\LanguageTag;
+use App\Support\Swhid;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -1185,6 +1186,21 @@ class StoreResourceRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $identifiers = $this->input('relatedIdentifiers', []);
+                if (! is_array($identifiers)) {
+                    return;
+                }
+                foreach ($identifiers as $index => $identifier) {
+                    if (! is_array($identifier) || ($identifier['identifierType'] ?? null) !== 'SWHID' || ! is_string($identifier['identifier'] ?? null)) {
+                        continue;
+                    }
+                    $result = Swhid::validate($identifier['identifier']);
+                    foreach ($result['errors'] as $error) {
+                        $validator->errors()->add("relatedIdentifiers.{$index}.identifier", '[Related Work] '.$error['message']);
+                    }
+                }
+            },
             function (Validator $validator): void {
                 $this->validateEditorDates($validator);
             },
