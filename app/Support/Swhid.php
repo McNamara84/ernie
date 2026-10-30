@@ -143,8 +143,17 @@ final class Swhid
     public static function resolveUrl(string $value): ?string
     {
         $parsed = self::parse($value);
+        if ($parsed === null) {
+            return null;
+        }
 
-        return $parsed === null ? null : self::RESOLVER.$parsed['normalized'];
+        // Encode the URL transport layer, including existing SWHID percent escapes.
+        // Software Heritage keeps :;=/ readable in resolver paths; ? and # are data.
+        $path = strtr(rawurlencode($parsed['normalized']), [
+            '%3A' => ':', '%3B' => ';', '%3D' => '=', '%2F' => '/',
+        ]);
+
+        return self::RESOLVER.$path;
     }
 
     public static function comparisonKey(string $value): ?string

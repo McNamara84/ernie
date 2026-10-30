@@ -19,11 +19,16 @@ it('implements the shared SWHID contract', function (array $case): void {
         ->and($result['normalized'])->toBe($case['normalized'])
         ->and($result['errors'][0]['code'] ?? null)->toBe($case['error'])
         ->and(Swhid::parse($case['input']))->toBe($result['parsed'])
-        ->and(Swhid::resolveUrl($case['input']))->toBe($case['valid'] ? Swhid::RESOLVER.$case['normalized'] : null);
+        ->and(Swhid::resolveUrl($case['input']))->toBe($case['resolverUrl']);
 
     if ($case['valid']) {
+        $url = parse_url(Swhid::resolveUrl($case['input']));
         expect($result['parsed']['core'])->toBe(explode(';', $case['normalized'])[0])
-            ->and($result['errors'])->toBe([]);
+            ->and($result['errors'])->toBe([])
+            ->and($url['scheme'])->toBe('https')
+            ->and($url['host'])->toBe('archive.softwareheritage.org')
+            ->and($url)->not->toHaveKeys(['query', 'fragment'])
+            ->and(rawurldecode(substr($url['path'], 1)))->toBe($case['normalized']);
     } else {
         expect($result['parsed'])->toBeNull()
             ->and($result['errors'][0]['field'])->not->toBeEmpty()

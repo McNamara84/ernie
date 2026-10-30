@@ -212,12 +212,12 @@ class SchemaOrgJsonLdExporter
             }
             $value = $relatedIdentifier['relatedIdentifier'];
             $key = Swhid::comparisonKey($value);
-            if ($key === null || isset($seen[$key])) {
+            $url = Swhid::resolveUrl($value);
+            if ($key === null || $url === null || isset($seen[$key])) {
                 continue;
             }
             $seen[$key] = true;
             $swhid = Swhid::normalize($value);
-            $url = Swhid::RESOLVER.$swhid;
             $identifiers[] = [
                 '@id' => $url,
                 '@type' => 'PropertyValue',

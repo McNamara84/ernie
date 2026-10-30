@@ -26,7 +26,7 @@ class IdentifierValidationController extends Controller
             'core' => $parsed['core'] ?? null,
             'objectType' => $parsed['objectType'] ?? null,
             'qualifiers' => $parsed === null ? null : (object) $parsed['qualifiers'],
-            'resolverUrl' => $parsed === null ? null : Swhid::RESOLVER.$parsed['normalized'],
+            'resolverUrl' => Swhid::resolveUrl($identifier),
             'errors' => $result['errors'],
         ])->header('Cache-Control', 'no-store');
     }

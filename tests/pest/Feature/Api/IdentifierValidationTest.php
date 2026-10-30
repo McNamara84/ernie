@@ -32,7 +32,7 @@ it('exposes the full shared validation contract without archive requests', funct
             ->assertJsonPath('profile', 'ernie-swhid-v1')
             ->assertJsonPath('valid', $case['valid'])
             ->assertJsonPath('normalized', $case['normalized'])
-            ->assertJsonPath('resolverUrl', $case['valid'] ? Swhid::RESOLVER.$case['normalized'] : null);
+            ->assertJsonPath('resolverUrl', $case['resolverUrl']);
 
         expect($response->json('errors.0.code'))->toBe($case['error']);
         if ($case['valid']) {

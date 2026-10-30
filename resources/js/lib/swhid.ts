@@ -164,7 +164,13 @@ export function isValidSwhid(value: string): boolean {
 
 export function resolveSwhidUrl(value: string): string | null {
     const parsed = parseSwhid(value);
-    return parsed ? SWHID_RESOLVER + parsed.normalized : null;
+    if (!parsed) return null;
+    // Match PHP rawurlencode and Software Heritage's readable :;=/ path delimiters.
+    // This is URL transport encoding, separate from the identifier's own escapes.
+    const path = encodeURIComponent(parsed.normalized)
+        .replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)
+        .replace(/%(?:3A|3B|3D|2F)/g, decodeURIComponent);
+    return SWHID_RESOLVER + path;
 }
 
 export function getSwhidComparisonKey(value: string): string | null {

@@ -13,7 +13,7 @@ import {
 } from '@/lib/swhid';
 
 describe('SWHID shared PHP/TypeScript contract', () => {
-    it.each(cases.cases)('$name', ({ input, normalized, candidate, valid, error }) => {
+    it.each(cases.cases)('$name', ({ input, normalized, candidate, valid, error, resolverUrl }) => {
         expect(isSwhidCandidate(input)).toBe(candidate);
         expect(normalizeSwhid(input)).toBe(normalized);
         expect(normalizeSwhid(normalized)).toBe(normalized);
@@ -23,10 +23,15 @@ describe('SWHID shared PHP/TypeScript contract', () => {
         expect(result.normalized).toBe(normalized);
         expect(result.errors[0]?.code ?? null).toBe(error);
         expect(parseSwhid(input)).toEqual(result.parsed);
-        expect(resolveSwhidUrl(input)).toBe(valid ? `https://archive.softwareheritage.org/${normalized}` : null);
+        expect(resolveSwhidUrl(input)).toBe(resolverUrl);
         if (valid) {
+            const url = new URL(resolveSwhidUrl(input)!);
             expect(result.parsed?.core).toBe(normalized.split(';')[0]);
             expect(result.errors).toEqual([]);
+            expect(url.origin).toBe('https://archive.softwareheritage.org');
+            expect(url.search).toBe('');
+            expect(url.hash).toBe('');
+            expect(decodeURIComponent(url.pathname.slice(1))).toBe(normalized);
         } else {
             expect(result.parsed).toBeNull();
             expect(result.errors[0].field).toBeTruthy();

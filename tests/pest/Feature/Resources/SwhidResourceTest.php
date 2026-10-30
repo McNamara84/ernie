@@ -105,7 +105,9 @@ it('refreshes public JSON-LD after adding editing changing relation and removing
             $cache->put($cacheKey, $cached, 600);
         }
     });
-    $qualified = $this->swhid.';origin=https://example.org/Mixed/';
+    $file = str_replace('swh:1:rel:', 'swh:1:cnt:', $this->swhid);
+    $qualified = $file.';origin=https://example.org/r?a=1&b=2#readme;path=/A%20B.c;lines=9-15';
+    $qualifiedUrl = 'https://archive.softwareheritage.org/'.$file.';origin=https://example.org/r%3Fa=1%26b=2%23readme;path=/A%2520B.c;lines=9-15';
     foreach ([[$this->swhid, 'IsIdenticalTo'], [$qualified, 'IsIdenticalTo'], [$qualified, 'IsVariantFormOf'], [null, null]] as $index => [$identifier, $relation]) {
         $references = $identifier === null ? [] : [[
             'identifier' => $identifier, 'identifierType' => 'SWHID', 'relationType' => $relation,
@@ -120,7 +122,9 @@ it('refreshes public JSON-LD after adding editing changing relation and removing
         if ($relation === 'IsIdenticalTo') {
             expect($jsonLd['identifier'][0]['value'])->toBe('doi:10.5880/swhid.test')
                 ->and($jsonLd['identifier'][1]['value'])->toBe($identifier)
-                ->and($jsonLd['identifier'][1]['url'])->toBe('https://archive.softwareheritage.org/'.$identifier);
+                ->and($jsonLd['identifier'][1]['url'])->toBe($index === 0 ? 'https://archive.softwareheritage.org/'.$identifier : $qualifiedUrl)
+                ->and($jsonLd['identifier'][1]['@id'])->toBe($jsonLd['identifier'][1]['url'])
+                ->and(parse_url($jsonLd['identifier'][1]['url']))->not->toHaveKeys(['query', 'fragment']);
         } else {
             expect($jsonLd['identifier']['value'])->toBe('doi:10.5880/swhid.test');
         }

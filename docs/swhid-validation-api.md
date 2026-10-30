@@ -35,6 +35,13 @@ HTTP 200 returns `valid`, `normalized`, `core`, `objectType`, `qualifiers`, `res
 and use `code` and `field` for programmatic handling. The current profile returns the
 first error. An unqualified valid SWHID returns an empty qualifier object.
 
+Use `resolverUrl` directly as the link target. It encodes the full SWHID as URL path
+data, including `?`, `#` and existing percent escapes; it has no outer query or fragment.
+For example, an origin ending in `r?a=1&b=2#readme` appears in the link as
+`r%3Fa=1%26b=2%23readme`, and a SWHID path containing `%20` appears as `%2520`.
+The `normalized` identifier and qualifier values retain their original representation.
+This follows [Software Heritage's resolver path encoding](https://docs.softwareheritage.org/_modules/swh/web/browse/views/iframe.html).
+
 Malformed requests (including unsupported types and values longer than 2183 characters)
 return 422; missing/invalid credentials return 401. The endpoint permits 60 requests per
 minute per API key and IP and returns 429 with `Retry-After` when exceeded. Responses

@@ -6,8 +6,8 @@ import { detectIdentifierType, normalizeIdentifier } from '@/lib/identifier-type
 import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 
 describe('SWHID resolver and editor integration', () => {
-    it.each(fixtures.cases)('$name', ({ input, valid, normalized, candidate }) => {
-        expect(resolveIdentifierUrl(input, 'SWHID')).toBe(valid ? `https://archive.softwareheritage.org/${normalized}` : null);
+    it.each(fixtures.cases)('$name', ({ input, valid, normalized, candidate, resolverUrl }) => {
+        expect(resolveIdentifierUrl(input, 'SWHID')).toBe(resolverUrl);
         expect(validateIdentifierFormat(input, 'SWHID').isValid).toBe(valid);
         expect(normalizeIdentifier(input, 'SWHID')).toBe(normalized);
         if (candidate) expect(detectIdentifierType(input)).toBe('SWHID');

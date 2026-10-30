@@ -16,8 +16,8 @@ import { VersionNotice } from '@/pages/LandingPages/components/VersionNotice';
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
 const core = 'swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b';
-const qualified = `${core};origin=https://example.org/Repo/;path=/A%20B.c;lines=9-15`;
-const url = `https://archive.softwareheritage.org/${qualified}`;
+const qualified = `${core};origin=https://example.org/Repo/?a=1&b=2#readme;path=/A%20B.c;lines=9-15`;
+const url = `https://archive.softwareheritage.org/${core};origin=https://example.org/Repo/%3Fa=1%26b=2%23readme;path=/A%2520B.c;lines=9-15`;
 const resource: LandingPageResource = {
     id: 1,
     identifier: '10.5880/test',
@@ -27,7 +27,7 @@ const resource: LandingPageResource = {
     creators: [],
     titles: [{ id: 1, title: 'Test resource', title_type: null }],
 };
-const related: LandingPageRelatedIdentifier = { id: 2, identifier: url, identifier_type: 'SWHID', relation_type: 'IsIdenticalTo' };
+const related: LandingPageRelatedIdentifier = { id: 2, identifier: qualified, identifier_type: 'SWHID', relation_type: 'IsIdenticalTo' };
 
 beforeEach(() => {
     vi.stubGlobal(
@@ -51,8 +51,12 @@ describe('SWHID landing-page modules', () => {
         expect(screen.getByText('Is Identical To')).toBeInTheDocument();
         const link = screen.getByRole('link');
         expect(link).toHaveTextContent(`File · ${core}`);
-        expect(link).toHaveTextContent('Origin: https://example.org/Repo/ · Path: /A B.c · Lines 9–15');
+        expect(link).toHaveTextContent('Origin: https://example.org/Repo/?a=1&b=2#readme · Path: /A B.c · Lines 9–15');
         expect(link).toHaveAttribute('href', url);
+        const target = new URL(link.getAttribute('href')!);
+        expect(target.search).toBe('');
+        expect(target.hash).toBe('');
+        expect(decodeURIComponent(target.pathname.slice(1))).toBe(qualified);
         expect(link).toHaveAttribute('target', '_blank');
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });

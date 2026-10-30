@@ -18,6 +18,20 @@ function Editor({ initial = [item] }: { initial?: RelatedIdentifier[] }) {
 }
 
 describe('SWHID editor workflows', () => {
+    it('encodes the preview URL without rewriting stored qualifiers', async () => {
+        const qualified = `${core};origin=https://example.org/r?a=1&b=2#readme;path=/A%20B.c`;
+        render(<Editor initial={[{ ...item, identifier: qualified, identifier_type: 'SWHID' }]} />);
+        const input = screen.getByTestId('related-work-0-identifier-input');
+        fireEvent.blur(input);
+        await waitFor(() => expect(screen.getByLabelText('Valid')).toBeInTheDocument());
+        expect(input).toHaveValue(qualified);
+        const target = new URL(screen.getByRole('link').getAttribute('href')!);
+        expect(target.search).toBe('');
+        expect(target.hash).toBe('');
+        expect(decodeURIComponent(target.pathname.slice(1))).toBe(qualified);
+        expect(target.href).toContain('r%3Fa=1%26b=2%23readme;path=/A%2520B.c');
+    });
+
     it('detects a pasted resolver, normalizes on blur and displays a valid archive preview', async () => {
         render(<Editor />);
         const input = screen.getByTestId('related-work-0-identifier-input');

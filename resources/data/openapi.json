@@ -6782,7 +6782,7 @@
                     "resolverUrl": {
                         "type": ["string", "null"],
                         "format": "uri",
-                        "description": "Complete Software Heritage resolver URL, including qualifiers; null for invalid input."
+                        "description": "Complete Software Heritage resolver URL with the identifier encoded as path data, including existing percent escapes. No outer query or fragment; normalized and qualifier values remain unchanged. Null for invalid input."
                     },
                     "errors": {
                         "type": "array",

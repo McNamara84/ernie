@@ -695,22 +695,28 @@ describe('SWHID identifiers', function () {
         $create(substr($release, 0, -1), 1);
         expect($this->exporter->export($resource->fresh()))->toBe($before);
 
-        $qualified = $file.';origin=https://example.org/;path=/A.c;lines=9-15';
+        $qualified = $file.';origin=https://example.org/r?a=1&b=2#readme;path=/A%20B.c;lines=9-15';
         $create($qualified, 3);
         $create('https://archive.softwareheritage.org/'.$release.'/', 2);
         $create($release, 4);
-        $create($file.';lines=9-15;path=/A.c;origin=https://example.org/', 5);
+        $create($file.';lines=9-15;path=/A%20B.c;origin=https://example.org/r?a=1&b=2#readme', 5);
         $create($file.';lines=16', 6);
         $result = $this->exporter->export($resource->fresh());
         expect($result['identifier'])->toHaveCount(4)
             ->and($result['identifier'][0])->toBe($before['identifier'])
             ->and(array_column(array_slice($result['identifier'], 1), 'value'))->toBe([$release, $qualified, $file.';lines=16']);
+        $expectedUrls = [
+            $release => 'https://archive.softwareheritage.org/'.$release,
+            $qualified => 'https://archive.softwareheritage.org/'.$file.';origin=https://example.org/r%3Fa=1%26b=2%23readme;path=/A%2520B.c;lines=9-15',
+            $file.';lines=16' => 'https://archive.softwareheritage.org/'.$file.';lines=16',
+        ];
         foreach (array_slice($result['identifier'], 1) as $identifier) {
             expect($identifier)->toBe([
-                '@id' => 'https://archive.softwareheritage.org/'.$identifier['value'],
+                '@id' => $expectedUrls[$identifier['value']],
                 '@type' => 'PropertyValue', 'propertyID' => 'https://registry.identifiers.org/registry/swh',
-                'value' => $identifier['value'], 'url' => 'https://archive.softwareheritage.org/'.$identifier['value'],
-            ]);
+                'value' => $identifier['value'], 'url' => $expectedUrls[$identifier['value']],
+            ])->and(parse_url($identifier['url']))->not->toHaveKeys(['query', 'fragment'])
+                ->and(rawurldecode(substr(parse_url($identifier['url'], PHP_URL_PATH), 1)))->toBe($identifier['value']);
         }
         unset($result['identifier'], $before['identifier']);
         expect($result)->toBe($before);

@@ -98,14 +98,22 @@ test.describe('Related Work Identifier Type Detection', () => {
 
     test('normalizes SWHID archive URLs and preserves qualified paths in preview links', async ({ page }) => {
         const core = 'swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b';
-        const qualified = `${core};origin=https://example.org/Mixed/;path=/src/Main.c;lines=9-15`;
+        const qualified = `${core};origin=https://example.org/Mixed/?a=1&b=2#readme;path=/src/Main%20File.c;lines=9-15`;
         const input = page.getByTestId('related-work-0-identifier-input');
         await input.fill(`https://archive.softwareheritage.org/browse/${core.toUpperCase()}` + qualified.slice(core.length));
         await input.press('Tab');
         await expect(input).toHaveValue(qualified);
         await expect(page.getByTestId('identifier-type-badge')).toHaveText('SWHID');
         await expect(page.getByLabel('Valid', { exact: true })).toBeVisible();
-        await expect(page.getByRole('link', { name: /swh:1:cnt:/ })).toHaveAttribute('href', `https://archive.softwareheritage.org/${qualified}`);
+        const preview = page.getByRole('link', { name: /swh:1:cnt:/ });
+        await expect(preview).toHaveAttribute(
+            'href',
+            `https://archive.softwareheritage.org/${core};origin=https://example.org/Mixed/%3Fa=1%26b=2%23readme;path=/src/Main%2520File.c;lines=9-15`,
+        );
+        const target = new URL((await preview.getAttribute('href'))!);
+        expect(target.search).toBe('');
+        expect(target.hash).toBe('');
+        expect(decodeURIComponent(target.pathname.slice(1))).toBe(qualified);
         await expect(page.getByLabel('Citation label')).toHaveValue('');
 
         await input.fill(`${core};lines=15-9`);
