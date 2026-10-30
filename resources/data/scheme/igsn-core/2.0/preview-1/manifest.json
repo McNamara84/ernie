@@ -1,0 +1,115 @@
+{
+    "revision": "preview-1",
+    "entrypoint": "core.xsd",
+    "repository": "anti101/IGSN-Schema-by-GFZ-Data-Services",
+    "commit": "321df7287f8540960b99aeb55113cbf22274380c",
+    "modifications": [
+        "Rename the Core entry point to core.xsd and replace its Windows-local DataCite import with DataCite4.7/metadata.xsd. All schema declarations and dependency bytes are unchanged."
+    ],
+    "files": [
+        {
+            "path": "core.xsd",
+            "sha256": "e8f3fd681dd1af577306fe85cdf24a8cc9c10444795ae672d8952f3579f210cf",
+            "bytes": 39495,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/IGSN_Core_by_GFZ_DataServices.xsd",
+            "upstream_path": "IGSN_Core_by_GFZ_DataServices.xsd",
+            "upstream_sha256": "965c1905ad7c200f341eeeac1c98343483645e612ba186c08494aa670cadc4e0"
+        },
+        {
+            "path": "DataCite4.7/metadata.xsd",
+            "sha256": "055a592150c17b309d981c108eb07478c9e141d230c9d3f6d8a7bc602761f755",
+            "bytes": 36985,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/metadata.xsd",
+            "upstream_path": "DataCite4.7/metadata.xsd",
+            "upstream_sha256": "055a592150c17b309d981c108eb07478c9e141d230c9d3f6d8a7bc602761f755"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-contributorType-v4.xsd",
+            "sha256": "bf70f146ac4b1874877b8248b3f4cb2e1ba676ac90c52a8b862639cc7b2c8afa",
+            "bytes": 1845,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-contributorType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-contributorType-v4.xsd",
+            "upstream_sha256": "bf70f146ac4b1874877b8248b3f4cb2e1ba676ac90c52a8b862639cc7b2c8afa"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-dateType-v4.xsd",
+            "sha256": "d6bf5a93077dccfb53aa73929e41c3d16d0b95920c64e76e655240367dc48812",
+            "bytes": 1496,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-dateType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-dateType-v4.xsd",
+            "upstream_sha256": "d6bf5a93077dccfb53aa73929e41c3d16d0b95920c64e76e655240367dc48812"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-descriptionType-v4.xsd",
+            "sha256": "b69733e1cffe134eada14d604db17dcf913c21bc8552f6b7debcd3ce04eba3e9",
+            "bytes": 961,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-descriptionType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-descriptionType-v4.xsd",
+            "upstream_sha256": "b69733e1cffe134eada14d604db17dcf913c21bc8552f6b7debcd3ce04eba3e9"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-funderIdentifierType-v4.xsd",
+            "sha256": "eab86e3c6fb0d24d3508559e667641862838b988fe14147dc187ebd79c9bcfe8",
+            "bytes": 752,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-funderIdentifierType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-funderIdentifierType-v4.xsd",
+            "upstream_sha256": "eab86e3c6fb0d24d3508559e667641862838b988fe14147dc187ebd79c9bcfe8"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-nameType-v4.xsd",
+            "sha256": "a841e852c1cf00e6301f489ce6b85d94017b6cffbdce991d2b7a5e7e27921e5a",
+            "bytes": 496,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-nameType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-nameType-v4.xsd",
+            "upstream_sha256": "a841e852c1cf00e6301f489ce6b85d94017b6cffbdce991d2b7a5e7e27921e5a"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-numberType-v4.xsd",
+            "sha256": "e9f9e3c66b34a4476bab683058734f22922d167f76e642db0c05a50842b94241",
+            "bytes": 571,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-numberType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-numberType-v4.xsd",
+            "upstream_sha256": "e9f9e3c66b34a4476bab683058734f22922d167f76e642db0c05a50842b94241"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-relatedIdentifierType-v4.xsd",
+            "sha256": "2f3dfb0ad0b5eaada39f44f51c98802bb3b09f4c651af898ec18b9c1d6122cd2",
+            "bytes": 1729,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-relatedIdentifierType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-relatedIdentifierType-v4.xsd",
+            "upstream_sha256": "2f3dfb0ad0b5eaada39f44f51c98802bb3b09f4c651af898ec18b9c1d6122cd2"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-relationType-v4.xsd",
+            "sha256": "248255d472bdb792065520d79f966c6d55d0997cf709877b3b8ebbf634e0d3d9",
+            "bytes": 3021,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-relationType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-relationType-v4.xsd",
+            "upstream_sha256": "248255d472bdb792065520d79f966c6d55d0997cf709877b3b8ebbf634e0d3d9"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-resourceType-v4.xsd",
+            "sha256": "57098b3aac1af97ddc0dce5b33a3b1db9fa8e45f84fbcaa8cf7598dd1f08787a",
+            "bytes": 2663,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-resourceType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-resourceType-v4.xsd",
+            "upstream_sha256": "57098b3aac1af97ddc0dce5b33a3b1db9fa8e45f84fbcaa8cf7598dd1f08787a"
+        },
+        {
+            "path": "DataCite4.7/include/datacite-titleType-v4.xsd",
+            "sha256": "03b4eb8c8b71ca2ef95b6a921be654f0dd18b4d89616a12708198d67f6fa463a",
+            "bytes": 699,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/datacite-titleType-v4.xsd",
+            "upstream_path": "DataCite4.7/include/datacite-titleType-v4.xsd",
+            "upstream_sha256": "03b4eb8c8b71ca2ef95b6a921be654f0dd18b4d89616a12708198d67f6fa463a"
+        },
+        {
+            "path": "DataCite4.7/include/xml.xsd",
+            "sha256": "cc701736c42cc64126fad063bb95f94484b5de3b5f808a86ea098b0957aff829",
+            "bytes": 8838,
+            "source": "https://github.com/anti101/IGSN-Schema-by-GFZ-Data-Services/blob/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/include/xml.xsd",
+            "upstream_path": "DataCite4.7/include/xml.xsd",
+            "upstream_sha256": "cc701736c42cc64126fad063bb95f94484b5de3b5f808a86ea098b0957aff829"
+        }
+    ]
+}

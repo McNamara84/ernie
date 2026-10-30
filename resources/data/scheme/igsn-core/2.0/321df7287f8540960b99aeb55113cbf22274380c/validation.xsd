@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- ERNIE validation entry point. Only loads unchanged upstream schemas, in dependency order. -->
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-  <xs:import namespace="http://datacite.org/schema/kernel-4" schemaLocation="DataCite4.7/metadata.xsd"/>
-  <xs:import namespace="urn:FAIR-AIMS:Core:1" schemaLocation="IGSN_Core_by_GFZ_DataServices.xsd"/>
-</xs:schema>

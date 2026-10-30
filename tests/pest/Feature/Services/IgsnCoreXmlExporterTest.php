@@ -71,7 +71,7 @@ test('exports a physical object without extension metadata through XSLT and the 
         ->and($xpath->evaluate('string(//i:name)'))->toBe('Core & sample <A>')
         ->and($xpath->evaluate('string(//i:creatorName)'))->toBe('Sample, Anna')
         ->and($xpath->evaluate('string(//i:resourceType/@i:resourceTypeGeneral)'))->toBe('PhysicalObject')
-        ->and($result->xml)->toContain('/schemas/igsn/2.0/core/'.config('igsn_core.snapshot'))
+        ->and($result->xml)->toContain('xsi:schemaLocation="urn:FAIR-AIMS:Core:1 '.url('/schemas/igsn/2.0/core.xsd').'"')
         ->not->toContain('Unknown', 'igsn.org/schema', 'Core:2');
     expect(app(IgsnCoreXmlExporter::class)->export($resource)->xml)->toBe($result->xml);
 });

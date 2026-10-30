@@ -8,7 +8,22 @@ use App\Services\Igsn\Export\IgsnCoreXmlValidator;
 
 covers(IgsnCoreXmlValidator::class, IgsnCoreSchemaResolver::class, IgsnCoreValidationResult::class);
 
-test('validates the unchanged Core snapshot with local dependencies and restores the loader', function () {
+test('changes only the Core import location and retains exact upstream dependency bytes', function () {
+    $directory = app(IgsnCoreSchemaResolver::class)->directory('preview-1');
+    $manifest = json_decode(file_get_contents($directory.'/manifest.json'), true, flags: JSON_THROW_ON_ERROR);
+    $originalDirectory = resource_path('data/scheme/igsn-core/2.0/'.$manifest['commit'].'/upstream');
+    foreach ($manifest['files'] as $file) {
+        $original = file_get_contents($originalDirectory.'/'.$file['upstream_path']);
+        expect(hash('sha256', $original))->toBe($file['upstream_sha256']);
+        if ($file['path'] === 'core.xsd') {
+            $original = str_replace('X:\\IGSN\\DataCiteSchema4-7\\kernel-4.7\\metadata.xsd', 'DataCite4.7/metadata.xsd', $original, $count);
+            expect($count)->toBe(1);
+        }
+        expect(file_get_contents($directory.'/'.$file['path']))->toBe($original);
+    }
+});
+
+test('validates the portable Core revision with local dependencies and restores the loader', function () {
     $previous = libxml_get_external_entity_loader();
     $reject = static fn () => null;
     libxml_set_external_entity_loader($reject);
@@ -60,20 +75,19 @@ test('blocks unknown local and network schema references and restores the loader
     expect(libxml_get_external_entity_loader())->toBe($previous);
 });
 
-test('rejects a changed upstream artifact before loading it', function () {
+test('rejects a changed portable artifact before loading it', function () {
     $schemas = app(IgsnCoreSchemaResolver::class);
     $manifest = file_get_contents($schemas->directory().'/manifest.json');
     $directory = sys_get_temp_dir().'/core-integrity-'.bin2hex(random_bytes(8));
-    mkdir($directory.'/upstream', 0777, true);
+    mkdir($directory, 0777, true);
     file_put_contents($directory.'/manifest.json', $manifest);
-    file_put_contents($directory.'/upstream/'.IgsnCoreSchemaResolver::ENTRYPOINT, '<changed/>');
-    config(['igsn_core.directory' => $directory]);
+    file_put_contents($directory.'/'.IgsnCoreSchemaResolver::ENTRYPOINT, '<changed/>');
+    config(['igsn_core.revisions.preview-1' => $directory]);
     try {
         expect(fn () => $schemas->publicFile(IgsnCoreSchemaResolver::ENTRYPOINT))->toThrow(RuntimeException::class, 'has changed');
     } finally {
-        unlink($directory.'/upstream/'.IgsnCoreSchemaResolver::ENTRYPOINT);
+        unlink($directory.'/'.IgsnCoreSchemaResolver::ENTRYPOINT);
         unlink($directory.'/manifest.json');
-        rmdir($directory.'/upstream');
         rmdir($directory);
     }
 });

@@ -195,9 +195,14 @@ Route::get('landing-page-downloads/{landingPage}/links/{landingPageLink}', [Land
 // cannot contain slashes, so the slug is always unambiguous.
 
 // Canonical metadata downloads for published landing pages.
-Route::get('schemas/igsn/2.0/core/{snapshot}/{path}', IgsnCoreSchemaController::class)
+Route::get('schemas/igsn/2.0/{revision}/{path}', [IgsnCoreSchemaController::class, 'revision'])
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
-    ->where('snapshot', '[a-f0-9]{40}')
+    ->where('revision', 'preview-[1-9][0-9]*')
+    ->where('path', '.+')
+    ->name('schemas.igsn-core.revision');
+
+Route::get('schemas/igsn/2.0/{path}', [IgsnCoreSchemaController::class, 'current'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->where('path', '.+')
     ->name('schemas.igsn-core');
 

@@ -7,28 +7,25 @@ The namespace is exactly `urn:FAIR-AIMS:Core:1`. No Geo, Bio or IGSN 1.3 schema 
 
 The 17 original files in `upstream/` retain their exact bytes and original notices.
 `manifest.json` records their repository paths, Git blob IDs, SHA-256 hashes and sizes.
-The public snapshot URLs omit the storage-only `upstream/` prefix.
-The manifest, this README, catalog and validation entry point are ERNIE additions.
+This directory is a local provenance archive, not a public schema package.
+The manifest and this README are ERNIE additions.
 
 ## Validation
 
 The original Core XSD imports a Windows-local DataCite path. Its dependency is the
 modified DataCite4.7 schema from this repository, not the ordinary DataCite schema.
-`catalog.xml` provides mappings for processors that support XML catalogs.
-PHP/libxml rejects that Windows import before invoking its resolver. Therefore
-ERNIE validates via `validation.xsd`, which imports DataCite first and then Core.
-It adds no declarations, restrictions or replacements. Both original schemas
-remain unchanged. The runtime resolver permits only the verified local XSD files
-and blocks all other file and network access.
+The portable package in `../preview-1/` replaces that import with a relative path
+and renames the Core entry point to `core.xsd`. It retains every declaration and
+all dependency bytes. ERNIE uses that same portable package for public schema
+downloads and internal validation. No catalog or wrapper schema is required.
 
-For external validation, download the original files with the public relative
-paths and `validation.xsd` into one directory, then validate against
-`validation.xsd` (e.g. `xmllint --nonet --schema validation.xsd sample.xml`).
-A warning about the unused Windows import may remain. Do not rely on automatic
-validation from the exported `xsi:schemaLocation` alone.
-When using the repository storage layout instead, resolve the public relative
-paths to `upstream/` as the ERNIE resolver does.
+Public entry point: https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd
+
+Fixed revision: https://dataservices.gfz.de/schemas/igsn/2.0/preview-1/core.xsd
+
+The former `/schemas/igsn/2.0/core/<commit>/` URLs have been removed and return
+404 without redirects. This snapshot had not been released to Production.
 
 Mapping, semantics and known limitations: `docs/igsn-2.0-core-export.md` in ERNIE.
-Updates must use a new commit-addressed snapshot, with freshly verified hashes
-and regression tests; existing public snapshot URLs are immutable.
+Keep these original files unchanged for provenance. Publish changes in a new
+portable revision with freshly verified hashes and regression tests.

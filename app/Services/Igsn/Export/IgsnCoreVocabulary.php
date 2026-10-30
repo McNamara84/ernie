@@ -35,7 +35,8 @@ final class IgsnCoreVocabulary
         $path = $type === 'publisherIdentifierScheme'
             ? IgsnCoreSchemaResolver::ENTRYPOINT
             : "DataCite4.7/include/datacite-{$type}-v4.xsd";
-        if (! $document->load($this->schemas->directory().'/upstream/'.$path, LIBXML_NONET)) {
+        $file = $this->schemas->publicFile($path);
+        if ($file === null || ! $document->load($file['path'], LIBXML_NONET)) {
             throw new RuntimeException('The IGSN Core vocabulary is unavailable.');
         }
         $xpath = new DOMXPath($document);
