@@ -31,6 +31,8 @@ function CopyEmail({ email }: { email: string }) {
 export default function ContactPersons({ groups, search, pagination }: ContactPersonsPageProps) {
     const [input, setInput] = useState(search);
     const [loading, setLoading] = useState(false);
+    const inputRevision = useRef(0);
+    const activeVisit = useRef<{ revision: number; query: string } | null>(null);
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cancelPendingSearch = useCallback(() => {
         if (searchTimeout.current !== null) clearTimeout(searchTimeout.current);
@@ -39,26 +41,58 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
     const visit = useCallback(
         (query: string, page = 1, perPage = pagination.per_page) => {
             cancelPendingSearch();
+            const request = { revision: inputRevision.current, query };
+            activeVisit.current = request;
             router.get(
                 '/contact-persons',
-                { ...(query ? { search: query } : {}), page, per_page: perPage },
+                { ...(query ? { search: query } : {}), page: query === search ? page : 1, per_page: perPage },
                 {
                     preserveState: true,
                     preserveScroll: true,
                     onStart: () => setLoading(true),
-                    onFinish: () => setLoading(false),
+                    onSuccess: (response) => {
+                        // A response must not replace edits made after this visit started.
+                        if (activeVisit.current === request && inputRevision.current === request.revision) {
+                            setInput(response.props.search as string);
+                        }
+                    },
+                    onFinish: () => {
+                        if (activeVisit.current === request) {
+                            activeVisit.current = null;
+                            setLoading(false);
+                        }
+                    },
                 },
             );
         },
-        [pagination.per_page, cancelPendingSearch],
+        [search, pagination.per_page, cancelPendingSearch],
     );
 
-    useEffect(() => setInput(search), [search]);
+    const changeSearch = (value: string) => {
+        inputRevision.current += 1;
+        setInput(value);
+        cancelPendingSearch();
+        const query = value.trim();
+        if (query === search && (!activeVisit.current || activeVisit.current.query === query)) return;
+        // Keep the debounce tied to the edit, independent of incoming response props.
+        searchTimeout.current = setTimeout(() => visit(query), 400);
+    };
+
     useEffect(() => {
-        if (input.trim() === search) return;
-        searchTimeout.current = setTimeout(() => visit(input.trim()), 400);
-        return cancelPendingSearch;
-    }, [input, search, visit, cancelPendingSearch]);
+        const unsubscribe = router.on('navigate', ({ detail }) => {
+            if (detail.type !== 'history' || detail.page.component !== 'contact-persons/index') return;
+            inputRevision.current += 1;
+            activeVisit.current = null;
+            cancelPendingSearch();
+            setInput(detail.page.props.search as string);
+            setLoading(false);
+        });
+        return () => {
+            activeVisit.current = null;
+            cancelPendingSearch();
+            unsubscribe();
+        };
+    }, [cancelPendingSearch]);
 
     return (
         <AppLayout breadcrumbs={[{ title: 'Contact Persons', href: '/contact-persons' }]}>
@@ -77,7 +111,7 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
                             aria-label="Search contact persons"
                             placeholder="Search name, ORCID, or email…"
                             value={input}
-                            onChange={(event) => setInput(event.target.value)}
+                            onChange={(event) => changeSearch(event.target.value)}
                         />
                     </div>
                     <label className="flex items-center gap-2 text-sm">

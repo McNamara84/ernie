@@ -39,3 +39,52 @@ test('keeps contact controls accessible on a narrow screen', async ({ page }) =>
     const result = await new AxeBuilder({ page }).include('section[aria-label="Contact person overview"]').analyze();
     expect(result.violations).toEqual([]);
 });
+
+test('preserves newer input across a delayed search response and synchronizes browser history', async ({ page }) => {
+    await loginAsTestUser(page);
+    await page.goto('/contact-persons');
+    await page.clock.pauseAt(new Date());
+    const responseReady = Promise.withResolvers<void>();
+    const releaseResponse = Promise.withResolvers<void>();
+    await page.route('**/contact-persons?**', async (route) => {
+        if (new URL(route.request().url()).searchParams.get('search') !== 'contact1352') {
+            await route.continue();
+            return;
+        }
+        const response = await route.fetch();
+        responseReady.resolve();
+        await releaseResponse.promise;
+        await route.fulfill({ response });
+    });
+
+    try {
+        const search = page.getByRole('searchbox', { name: 'Search contact persons' });
+        await search.fill('contact1352');
+        await page.clock.runFor(400);
+        await responseReady.promise;
+        await search.fill('contact1352@example.test');
+        await page.clock.runFor(200);
+        releaseResponse.resolve();
+        await expect(page).toHaveURL((url) => url.searchParams.get('search') === 'contact1352');
+        await expect(search).toHaveValue('contact1352@example.test');
+        await page.clock.runFor(200);
+        await expect(page).toHaveURL(/search=contact1352%40example\.test/);
+        await expect(page.getByRole('row').filter({ hasText: 'PlaywrightContact1352, Ada' })).toHaveCount(1);
+
+        // Inertia uses Date.now() for history remount keys; avoid frozen, identical keys.
+        await page.clock.runFor(1);
+        await page.goBack();
+        await expect(search).toHaveValue('contact1352');
+        await search.fill('Pending');
+        await page.clock.runFor(1);
+        await page.goBack();
+        await expect(search).toHaveValue('');
+        await page.clock.runFor(400);
+        await expect(page).toHaveURL(/\/contact-persons$/);
+        await page.clock.runFor(1);
+        await page.goForward();
+        await expect(search).toHaveValue('contact1352');
+    } finally {
+        releaseResponse.resolve();
+    }
+});

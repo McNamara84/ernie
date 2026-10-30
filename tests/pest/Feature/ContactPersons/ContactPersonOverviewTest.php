@@ -107,7 +107,7 @@ it('updates contact projection after address edits, role attachment and detachme
     expect(contactOverviewData()['groups'][0]['variants'])->toHaveCount(1);
     $creator->update(['email' => 'new@example.test']);
     expect(contactOverviewData()['groups'][0]['variants'])->toHaveCount(2);
-    $contributor->contributorTypes()->detach();
+    $contributor->contributorTypes()->sync([]);
     expect(contactOverviewData()['groups'][0]['variants'])->toHaveCount(1);
     $creator->update(['is_contact' => false]);
     expect(contactOverviewData()['groups'])->toBe([]);

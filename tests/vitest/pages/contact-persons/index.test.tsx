@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
+import type { GlobalEvent, Page, VisitOptions } from '@inertiajs/core';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,8 +8,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ContactPersons from '@/pages/contact-persons';
 import type { ContactPersonsPageProps } from '@/types/contact-persons';
 
-const { get, success, error } = vi.hoisted(() => ({ get: vi.fn(), success: vi.fn(), error: vi.fn() }));
-vi.mock('@inertiajs/react', () => ({ Head: () => null, Link: (props: ComponentProps<'a'>) => <a {...props} />, router: { get } }));
+const { get, on, unsubscribe, success, error } = vi.hoisted(() => {
+    const unsubscribe = vi.fn();
+    return {
+        get: vi.fn<(url: string, data: Record<string, unknown>, options: VisitOptions) => void>(),
+        on: vi.fn<(event: 'navigate', callback: (event: GlobalEvent<'navigate'>) => void) => () => void>().mockReturnValue(unsubscribe),
+        unsubscribe,
+        success: vi.fn(),
+        error: vi.fn(),
+    };
+});
+vi.mock('@inertiajs/react', () => ({ Head: () => null, Link: (props: ComponentProps<'a'>) => <a {...props} />, router: { get, on } }));
 vi.mock('@/layouts/app-layout', () => ({ default: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 vi.mock('sonner', () => ({ toast: { success, error } }));
 
@@ -26,6 +36,18 @@ const props: ContactPersonsPageProps = {
         },
     ],
 };
+
+function responsePage(search: string): Page {
+    return {
+        component: 'contact-persons/index',
+        props: { ...props, search, errors: {} },
+        url: `/contact-persons?search=${encodeURIComponent(search)}`,
+        version: null,
+        flash: {},
+        rescuedProps: [],
+        rememberedState: {},
+    };
+}
 
 describe('Contact persons', () => {
     beforeEach(() => vi.clearAllMocks());
@@ -74,15 +96,66 @@ describe('Contact persons', () => {
         expect(get).toHaveBeenCalledWith('/contact-persons', { search: 'Ada', page: 1, per_page: 25 }, expect.any(Object));
     });
 
-    it('cancels pending searches on unmount and synchronizes browser navigation', () => {
+    it.each(['Grace', ''])('keeps a newer search "%s" and its debounce when an earlier response arrives', (newerSearch) => {
         vi.useFakeTimers();
-        const { rerender, unmount } = render(<ContactPersons {...props} />);
+        const { rerender } = render(<ContactPersons {...props} />);
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Ada' } });
+        act(() => vi.advanceTimersByTime(400));
+        const earlierVisit = get.mock.calls[0][2];
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: newerSearch } });
+        act(() => vi.advanceTimersByTime(200));
+        rerender(<ContactPersons {...props} search="Ada" />);
+        act(() => {
+            on.mock.calls[0][1](new CustomEvent('inertia:navigate', { detail: { type: 'visit', page: responsePage('Ada') } }));
+            earlierVisit.onSuccess?.(responsePage('Ada'));
+        });
+        expect(screen.getByRole('searchbox')).toHaveValue(newerSearch);
+        act(() => vi.advanceTimersByTime(199));
+        expect(get).toHaveBeenCalledTimes(1);
+        act(() => vi.advanceTimersByTime(1));
+        expect(get).toHaveBeenCalledTimes(2);
+        expect(get).toHaveBeenLastCalledWith(
+            '/contact-persons',
+            { ...(newerSearch ? { search: newerSearch } : {}), page: 1, per_page: 25 },
+            expect.any(Object),
+        );
+    });
+
+    it('synchronizes an unchanged input with the successful response without another visit', () => {
+        vi.useFakeTimers();
+        const { rerender } = render(<ContactPersons {...props} />);
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: ' Ada ' } });
+        act(() => vi.advanceTimersByTime(400));
+        rerender(<ContactPersons {...props} search="Ada" />);
+        act(() => {
+            get.mock.calls[0][2].onSuccess?.(responsePage('Ada'));
+        });
+        expect(screen.getByRole('searchbox')).toHaveValue('Ada');
+        act(() => vi.advanceTimersByTime(400));
+        expect(get).toHaveBeenCalledTimes(1);
+    });
+
+    it('synchronizes browser history and cancels a newer pending search', () => {
+        vi.useFakeTimers();
+        const { rerender } = render(<ContactPersons {...props} />);
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pending' } });
         rerender(<ContactPersons {...props} search="Previous" />);
+        act(() => {
+            on.mock.calls[0][1](new CustomEvent('inertia:navigate', { detail: { type: 'history', page: responsePage('Previous') } }));
+        });
         expect(screen.getByRole('searchbox')).toHaveValue('Previous');
+        act(() => vi.advanceTimersByTime(400));
+        expect(get).not.toHaveBeenCalled();
+    });
+
+    it('cancels pending searches and removes its navigation listener on unmount', () => {
+        vi.useFakeTimers();
+        const { unmount } = render(<ContactPersons {...props} />);
         fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pending' } });
         unmount();
         act(() => vi.advanceTimersByTime(400));
         expect(get).not.toHaveBeenCalled();
+        expect(unsubscribe).toHaveBeenCalledOnce();
     });
 
     it('cancels a pending search immediately when following a resource link', () => {
@@ -110,6 +183,33 @@ describe('Contact persons', () => {
         fireEvent.change(screen.getByRole('combobox'), { target: { value: '50' } });
         act(() => vi.advanceTimersByTime(400));
         expect(get).toHaveBeenCalledExactlyOnceWith('/contact-persons', { search: 'Ada', page: 1, per_page: 50 }, expect.any(Object));
+    });
+
+    it.each(['Next', 'Previous'])('starts an edited search on page one when clicking %s before the debounce', (button) => {
+        vi.useFakeTimers();
+        render(<ContactPersons {...props} search="Ada" pagination={{ ...props.pagination, current_page: 3, last_page: 5 }} />);
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Grace' } });
+        fireEvent.click(screen.getByRole('button', { name: button }));
+        act(() => vi.advanceTimersByTime(400));
+        expect(get).toHaveBeenCalledExactlyOnceWith('/contact-persons', { search: 'Grace', page: 1, per_page: 25 }, expect.any(Object));
+    });
+
+    it('starts on page one when pagination clears the applied search', () => {
+        vi.useFakeTimers();
+        render(<ContactPersons {...props} search="Ada" />);
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        act(() => vi.advanceTimersByTime(400));
+        expect(get).toHaveBeenCalledExactlyOnceWith('/contact-persons', { page: 1, per_page: 25 }, expect.any(Object));
+    });
+
+    it('keeps the requested page when only surrounding search whitespace changes', () => {
+        vi.useFakeTimers();
+        render(<ContactPersons {...props} search="Ada" />);
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: ' Ada ' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        act(() => vi.advanceTimersByTime(400));
+        expect(get).toHaveBeenCalledExactlyOnceWith('/contact-persons', { search: 'Ada', page: 2, per_page: 25 }, expect.any(Object));
     });
 
     it('shows missing identities and unavailable targets without fake links', () => {
