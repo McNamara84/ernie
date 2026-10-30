@@ -13,7 +13,7 @@
             },
             {
                 "title": "IGSN 2.0 Core Metadata Downloads",
-                "description": "Published IGSN and Physical Object landing pages offer an IGSN 2.0 Core XML preview download, including supported relationships and geographic coordinates while protecting private parent identifiers and contact details. Metadata is mapped with XSLT and validated before delivery against a pinned, unchanged development schema snapshot, publicly available with its dependencies and provenance. The export uses Core only, without Geo or Bio extensions or IGSN 1.3. Missing required metadata and validation failures produce clear errors instead of invalid downloads. Mapping documentation and automated tests cover the new format."
+                "description": "Published IGSN and Physical Object landing pages offer an IGSN 2.0 Core XML preview download, including supported relationships and geographic coordinates while protecting private parent identifiers and contact details. Metadata is mapped with XSLT and validated before delivery against a pinned development schema with portable relative imports. The public schema at /schemas/igsn/2.0/core.xsd supports external validation, with fixed revision URLs, dependencies and provenance available alongside it. Unreleased commit-addressed schema URLs have been removed. The export uses Core only, without Geo or Bio extensions or IGSN 1.3. Missing required metadata and validation failures produce clear errors instead of invalid downloads. Mapping documentation and automated tests cover the new format."
             },
             {
                 "title": "ISO JSON Metadata Downloads",

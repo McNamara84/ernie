@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- ERNIE resolver metadata; upstream files are unchanged. Relative to this public snapshot directory. -->
-<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
-  <uri name="urn:FAIR-AIMS:Core:1" uri="IGSN_Core_by_GFZ_DataServices.xsd"/>
-  <uri name="http://datacite.org/schema/kernel-4" uri="DataCite4.7/metadata.xsd"/>
-  <system systemId="X:\IGSN\DataCiteSchema4-7\kernel-4.7\metadata.xsd" uri="DataCite4.7/metadata.xsd"/>
-  <system systemId="X:/IGSN/DataCiteSchema4-7/kernel-4.7/metadata.xsd" uri="DataCite4.7/metadata.xsd"/>
-  <system systemId="file:///X:/IGSN/DataCiteSchema4-7/kernel-4.7/metadata.xsd" uri="DataCite4.7/metadata.xsd"/>
-</catalog>

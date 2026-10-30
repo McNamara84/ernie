@@ -1,0 +1,812 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- bearbeitet mit XMLSpy v2026 (x64) (https://www.altova.com) von Tanja (Fachhochschule Potsdam) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:igsn="urn:FAIR-AIMS:Core:1" xmlns:daci="http://datacite.org/schema/kernel-4" xmlns:altova="http://www.altova.com/xml-schema-extensions" targetNamespace="urn:FAIR-AIMS:Core:1" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:import namespace="http://datacite.org/schema/kernel-4" schemaLocation="DataCite4.7/metadata.xsd"/>
+	<xs:element name="resource">
+		<xs:annotation>
+			<xs:documentation>Root element of a single record. This wrapper element is for XML implementation only 
+				and is not defined in the IGSN metadata schema.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="identifier">
+					<xs:annotation>
+						<xs:documentation>This element is used to store the identifier of the resource, thereby ensuring that the resource can be uniquely identified</xs:documentation>
+						<xs:appinfo>test</xs:appinfo>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attribute name="identifierType" type="daci:relatedIdentifierType" use="required" fixed="DOI">
+									<xs:annotation>
+										<xs:documentation>The type of Identifier. Mandatory for registration with DataCite</xs:documentation>
+									</xs:annotation>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="name" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>This element is used to name and identify a resource in a technical and linguistic context. It refers to the resource by its common name and is designed to be readable by humans. The name element should be used when the common name of the resource must be specified. The primary name of the resource should be entered. Variant spellings, abbreviated forms or alternative names should only be used if they correspond to the officially used or technically authoritative name. The element does not need to be unique and may occur multiple times.</xs:documentation>
+						<xs:documentation>Collector's or contributor's local/field name used to name the specimen; not globally unique but typically unique within a set of specimens</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attribute name="titleType" type="daci:titleType" default="Other">
+									<xs:annotation>
+										<xs:documentation>This attribute is used to specify the type of entry contained within the "name" element.</xs:documentation>
+									</xs:annotation>
+								</xs:attribute>
+								<xs:attribute name="lang" default="en">
+									<xs:annotation>
+										<xs:documentation>distinguishes the language</xs:documentation>
+									</xs:annotation>
+									<xs:simpleType>
+										<xs:restriction base="xs:language">
+											<xs:enumeration value="en"/>
+										</xs:restriction>
+									</xs:simpleType>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="agents">
+					<xs:annotation>
+						<xs:documentation>This wrapper is designed to group together all the people involved in the resource and make them available in a single location within the schema</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="creator" minOccurs="1" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>This element is required for registering the sample with DataCite; it contains all the information needed to uniquely identify the collector and/or creator of the resource</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="creatorName" minOccurs="1" maxOccurs="1">
+											<xs:annotation>
+												<xs:documentation>full Name of the creator</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attribute name="nameType" type="daci:nameType" use="required">
+															<xs:annotation>
+																<xs:documentation>Type of creator or contributer, "personal" for persons or "organiszational" for Institutions</xs:documentation>
+															</xs:annotation>
+														</xs:attribute>
+														<xs:attribute name="lang" use="optional" default="en">
+															<xs:annotation>
+																<xs:documentation>distinguishes the language</xs:documentation>
+															</xs:annotation>
+															<xs:simpleType>
+																<xs:restriction base="xs:language">
+																	<xs:enumeration value="en"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="givenName" type="xs:string" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>This element is used to retrieve the first name of the person from the Crator element in normalised format.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="familyName" type="xs:string" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>This element is used to retrieve the person’s surname from the 'creator' or 'contributor' element in normalised form</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="nameIdentifier" type="daci:nameIdentifier" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>This element contains the identifier, which is used to uniquely identify the person or organization given in the parentelement e.g. the Contributer or the Archive</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="affiliation" type="daci:affiliation" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>The organizational or institutional affiliation of the creator.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="creatorType" use="required">
+										<xs:annotation>
+											<xs:documentation>This type attribute is used to build the landingpages and credit the persons according to they´re function</xs:documentation>
+										</xs:annotation>
+										<xs:simpleType>
+											<xs:restriction base="xs:string">
+												<xs:enumeration value="collector"/>
+												<xs:enumeration value="creator"/>
+											</xs:restriction>
+										</xs:simpleType>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="contributor" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>a bundle of all the elements and attributes required to uniquely identify a contributor</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="contributorName">
+											<xs:annotation>
+												<xs:documentation>The institution or person responsible for collecting, managing, distributing, or otherwise contributing to the development of the resource. To supply multiple contributors, repeat this property.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attribute name="nameType" type="daci:nameType" use="required">
+															<xs:annotation>
+																<xs:documentation>type of the contributer. Contributers may be persons or institutions.</xs:documentation>
+															</xs:annotation>
+														</xs:attribute>
+														<xs:attribute name="lang" default="en">
+															<xs:annotation>
+																<xs:documentation>distinguishes the language</xs:documentation>
+															</xs:annotation>
+															<xs:simpleType>
+																<xs:restriction base="xs:language">
+																	<xs:enumeration value="en"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="givenName" type="xs:string" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Given Name of the Person</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="familyName" type="xs:string" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Family Name of the Person</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="nameIdentifier" type="daci:nameIdentifier" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Uniquely identifies an individual or legal entity, according to various schemes.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="affiliation" type="daci:affiliation" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>The contributor’s nameType may be Organizational or Personal. In the case of an organizational contributor, e.g., a research group, this will often be the name of the institution to which that organization belongs.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="contributorType" type="daci:contributorType">
+										<xs:annotation>
+											<xs:documentation>The type of contributor of the resource.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="publisher">
+								<xs:annotation>
+									<xs:documentation>necessary to provide a complete and DataCite-compliant statement identifying the publishing institution</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="publisherIdentifier" type="xs:anyURI" use="required">
+												<xs:annotation>
+													<xs:documentation>Uniquely identifies the publisher, according to various schemes.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="publisherIdentifierScheme" use="required">
+												<xs:simpleType>
+													<xs:restriction base="xs:string">
+														<xs:enumeration value="ROR"/>
+														<xs:enumeration value="re3data"/>
+														<xs:enumeration value="VIAF"/>
+														<xs:enumeration value="Wikidata"/>
+														<xs:enumeration value="Crossref Funder ID"/>
+														<xs:enumeration value="ISNI"/>
+														<xs:enumeration value="OpenDOAR"/>
+														<xs:enumeration value="FAIRsharing"/>
+														<xs:enumeration value="ISSN"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+											<xs:attribute name="schemeURI" type="xs:anyURI" use="required"/>
+											<xs:attribute name="lang" default="en">
+												<xs:annotation>
+													<xs:documentation>distinguishes the language</xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:language">
+														<xs:enumeration value="en"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="entityTypeClassifications">
+					<xs:annotation>
+						<xs:documentation>
+							Wrapper to hold all material and classification information about the resource
+						</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="resourceType">
+								<xs:annotation>
+									<xs:appinfo>
+										<altova:exampleValues>
+											<altova:example value="Sample"/>
+											<altova:example value="SamplingFeature"/>
+										</altova:exampleValues>
+									</xs:appinfo>
+									<xs:documentation>An element declared as mandatory by DataCite.  A description of the resource. </xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="resourceTypeGeneral" type="daci:resourceType" fixed="PhysicalObject">
+												<xs:annotation>
+													<xs:documentation>This attribute is required for DataCite-compliant registration</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="material" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Subject, keyword, classification code, or key phrase describing the resource.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="subjectScheme" type="xs:string" use="optional">
+												<xs:annotation>
+													<xs:documentation>The name of the subject scheme or classification code or authority if one is used.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="schemeURI" type="xs:anyURI" use="optional">
+												<xs:annotation>
+													<xs:documentation>This attribute enables the origin of the vocabulary to be traced. </xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="valueURI" type="xs:anyURI" use="optional">
+												<xs:annotation>
+													<xs:documentation>The URI of the subject term.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="classificationCode" type="xs:string" use="optional">
+												<xs:annotation>
+													<xs:documentation>The classification code used for the subject term in the subject scheme.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="lang" default="en">
+												<xs:annotation>
+													<xs:documentation>distinguishes the language</xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:language">
+														<xs:enumeration value="en"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="alternateMaterial" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>element to alow material classification for resources that do not match the availabel material vocabulrys.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="subjectScheme" type="xs:string" use="optional">
+												<xs:annotation>
+													<xs:documentation>The name of the subject scheme or classification code or authority if one is used.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="schemeURI" type="xs:anyURI" use="optional">
+												<xs:annotation>
+													<xs:documentation>This attribute enables the origin of the vocabulary to be traced. </xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="valueURI" type="xs:anyURI" use="optional">
+												<xs:annotation>
+													<xs:documentation>The URI of the subject term.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="classificationCode" type="xs:string" use="optional">
+												<xs:annotation>
+													<xs:documentation>The classification code used for the subject term in the subject scheme.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="lang" default="en">
+												<xs:annotation>
+													<xs:documentation>distinguishes the language</xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:language">
+														<xs:enumeration value="en"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="description" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>This element is used to provide further details about the resource to be registered. All additional information that does not fit in any of the other categories. May be used for technical information or detailed information associated with</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="descriptionType" use="required">
+												<xs:annotation>
+													<xs:documentation>This attribute ensures that the description can be explicitly assigned.</xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="daci:descriptionType">
+														<xs:enumeration value="Abstract"/>
+														<xs:enumeration value="Methods"/>
+														<xs:enumeration value="SeriesInformation"/>
+														<xs:enumeration value="TableOfContents"/>
+														<xs:enumeration value="TechnicalInfo"/>
+														<xs:enumeration value="Other"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+											<xs:attribute name="lang" default="en">
+												<xs:annotation>
+													<xs:documentation>distinguishes the language</xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:language">
+														<xs:enumeration value="en"/>
+														<xs:enumeration value="de"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="dates">
+					<xs:annotation>
+						<xs:documentation>contains all the dates, in regads to the sampel and the metadata</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="date" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>any date relevant for the samle or the metadata entry</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="dateType" type="daci:dateType" use="required">
+												<xs:annotation>
+													<xs:documentation>This attribute is used to provide a more detailed description of the 'date' element in order to unambiguously identify what the 'date' element refers to
+</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="dateInformation" type="xs:string" use="optional">
+												<xs:annotation>
+													<xs:documentation>specific information about the date</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="publicationYear" type="daci:yearType">
+								<xs:annotation>
+									<xs:documentation>year when the data was or will be made publicly availible</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="archives" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>shows where the sample is currently located</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="archive" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="archiveName">
+											<xs:annotation>
+												<xs:documentation>This element allows the storage location of the sample to be specified by name</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attribute name="lang" default="en">
+															<xs:annotation>
+																<xs:documentation>distinguishes the language</xs:documentation>
+															</xs:annotation>
+															<xs:simpleType>
+																<xs:restriction base="xs:language">
+																	<xs:enumeration value="en"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="geoLocationPlace" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>option to specify a location without providing coordinates; this feature allows you to enter a location without specifying coordinates, whilst still establishing a geographical reference</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attribute name="lang" fixed="en">
+															<xs:annotation>
+																<xs:documentation>distinguishes the language</xs:documentation>
+															</xs:annotation>
+															<xs:simpleType>
+																<xs:restriction base="xs:language">
+																	<xs:enumeration value="en"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="geoLocationPoint" minOccurs="0" maxOccurs="1">
+											<xs:annotation>
+												<xs:documentation>a geographical point described by a single pair of latitude and longitude coordinates</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:complexContent>
+													<xs:extension base="daci:point">
+														<xs:attribute name="coordinateSystem" use="required" fixed="WGS84">
+															<xs:annotation>
+																<xs:documentation>This attribute is necessary to ensure, regardless of the system used, that the coordinates can be assigned to the correct coordinate system. </xs:documentation>
+															</xs:annotation>
+															<xs:simpleType>
+																<xs:restriction base="xs:string">
+																	<xs:enumeration value="WGS84"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:complexContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="contactPerson" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Contact person regarding the sample. This person is authorised to decide whether the sample can be processed further and how it is to be retrieved from the archive.
+</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="contributorName">
+														<xs:annotation>
+															<xs:documentation>full name</xs:documentation>
+														</xs:annotation>
+														<xs:complexType>
+															<xs:simpleContent>
+																<xs:extension base="xs:string">
+																	<xs:attribute name="nameType" type="daci:nameType" default="Personal">
+																		<xs:annotation>
+																			<xs:documentation>type of the contributer. Contributers may be persons or institutions.</xs:documentation>
+																		</xs:annotation>
+																	</xs:attribute>
+																	<xs:attribute name="lang" fixed="en">
+																		<xs:annotation>
+																			<xs:documentation>distinguishes the language</xs:documentation>
+																		</xs:annotation>
+																		<xs:simpleType>
+																			<xs:restriction base="xs:language">
+																				<xs:enumeration value="en"/>
+																			</xs:restriction>
+																		</xs:simpleType>
+																	</xs:attribute>
+																</xs:extension>
+															</xs:simpleContent>
+														</xs:complexType>
+													</xs:element>
+													<xs:element name="givenName" type="xs:string" minOccurs="0">
+														<xs:annotation>
+															<xs:documentation>Given Name of the Person</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element name="familyName" type="xs:string" minOccurs="0">
+														<xs:annotation>
+															<xs:documentation>Family Name of the Person</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element name="nameIdentifier" type="daci:nameIdentifier" minOccurs="0">
+														<xs:annotation>
+															<xs:documentation>Uniquely identifies an individual or legal entity, according to various schemes.</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element name="affiliation" type="daci:affiliation" minOccurs="0">
+														<xs:annotation>
+															<xs:documentation>The contributor’s nameType may be Organizational or Personal. In the case of an organizational contributor, e.g., a research group, this will often be the name of the institution to which that organization belongs.</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element name="email" type="xs:string"/>
+												</xs:sequence>
+												<xs:attribute name="contributorType" type="daci:contributorType" fixed="ContactPerson">
+													<xs:annotation>
+														<xs:documentation>The type of contributor of the resource.</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="sampleCondition" type="xs:string" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Incicates whether the Sample may be reused by others or has been destroid or discarded</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="relationshipIdentifiers" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>wrapper to sort all identifiers representing resources having a relation to the registed resource</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="alternateIdentifier" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Identifiers other than the primary Identifier applied to the resource being registered. This may be any alphanumeric string which is unique within its domain of use. May be used for local identifiers. AlternateIdentifier should be used for another identifier of the same instance (same location, same file).</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="alternateIdentifierType" type="daci:relatedIdentifierType" use="required">
+												<xs:annotation>
+													<xs:documentation>The type of the alternateIdentifier</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="parentIdentifier" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>IGSN of a resource from which this resource derives</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="identifierType" type="daci:relatedIdentifierType" use="required" fixed="IGSN">
+												<xs:annotation>
+													<xs:documentation>type of the Identifier, since it must be an IGSN, this value is fixed</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="relationType" type="daci:relationType" use="required" fixed="IsPartOf">
+												<xs:annotation>
+													<xs:documentation>This attribute is used to specify, in a machine-readable and standardised manner, the relationship between the resource specified in the element and the resource described here.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="relatedIdentifier" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Identifiers of related resources. These must be globally unique identifiers. enables the unambiguous hierarchical assignment of relationships for samples</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="identifierType" type="daci:relatedIdentifierType" use="required">
+												<xs:annotation>
+													<xs:documentation>type of the Identifier,</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="relationType" type="daci:relationType" use="required">
+												<xs:annotation>
+													<xs:documentation>This attribute is used to specify, in a machine-readable and standardised manner, the relationship between the resource specified in the element and the resource described here.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="geoLocations" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>aggregation of all information relating to the geographical resolution or extent of the registered sample</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="geoLocationPlace" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>this element allows to enter a location without specifying coordinates, whilst still establishing a geographical reference</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="lang" fixed="en">
+												<xs:annotation>
+													<xs:documentation>distinguishes the language</xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:language">
+														<xs:enumeration value="en"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="geoLocationPoint" minOccurs="0" maxOccurs="1">
+								<xs:annotation>
+									<xs:documentation>a geographical point described by a single pair of latitude and longitude coordinates</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:complexContent>
+										<xs:extension base="daci:point">
+											<xs:attribute name="coordinateSystem" use="required" fixed="WGS84">
+												<xs:annotation>
+													<xs:documentation>This attribute is necessary to ensure, regardless of the system used, that the coordinates can be assigned to the correct coordinate system. </xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:string">
+														<xs:enumeration value="WGS84"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:complexContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="geoLocationBox" minOccurs="0" maxOccurs="1">
+								<xs:annotation>
+									<xs:documentation>This element is used to define a geographical area as a rectangle. It is useful if you want to capture the location where the sample was collected, or to which it relates, as a general area rather than an exact position. This allows geographical references in metadata to be represented more precisely, whilst also making them easier to search, display and filter.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:complexContent>
+										<xs:extension base="daci:box">
+											<xs:attribute name="coordinateSystem" use="required" fixed="WGS84">
+												<xs:annotation>
+													<xs:documentation>This attribute is necessary to ensure, regardless of the system used, that the coordinates can be assigned to the correct coordinate system. </xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:string">
+														<xs:enumeration value="WGS84"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:complexContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="geoLocationPolygon" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>enables the precise representation of administrative boundaries, natural areas, research areas or other non-rectangular areas. Whilst a 'geoLocationBox' always describes a square area, a polygon can, for example, accurately represent the boundaries of a national park, a river catchment area or an administrative unit.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="polygonPoint" minOccurs="4" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:complexContent>
+													<xs:extension base="daci:point">
+														<xs:attribute name="coordinateSystem" use="required" fixed="WGS84">
+															<xs:annotation>
+																<xs:documentation>This attribute is necessary to ensure, regardless of the system used, that the coordinates can be assigned to the correct coordinate system. </xs:documentation>
+															</xs:annotation>
+															<xs:simpleType>
+																<xs:restriction base="xs:string">
+																	<xs:enumeration value="WGS84"/>
+																</xs:restriction>
+															</xs:simpleType>
+														</xs:attribute>
+													</xs:extension>
+												</xs:complexContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="fundingReferences" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Information about financial support (funding) for the resource being registered.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="fundingReference" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Information about financial support (funding) for the resource being registered.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="funderName" type="xs:string">
+											<xs:annotation>
+												<xs:documentation>Name of the funding provider.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="funderIdentifier" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Uniquely identifies a funding entity, according to various types.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attribute name="funderIdentifierType" type="daci:funderIdentifierType" use="required">
+															<xs:annotation>
+																<xs:documentation>The type of the funderIdentifier.</xs:documentation>
+															</xs:annotation>
+														</xs:attribute>
+														<xs:attribute name="schemeURI" type="xs:anyURI" use="optional"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="awardNumber" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>The code assigned by the funder to a sponsored award (grant).</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attribute name="awardURI" type="xs:anyURI">
+															<xs:annotation>
+																<xs:documentation>The URI leading to a page provided by the funder for more information about the award (grant).</xs:documentation>
+															</xs:annotation>
+														</xs:attribute>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="awardTitle" type="xs:string" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>The human readable title or name of the award (grant).</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="language" default="en" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Primary language of the resource. Allowed values are taken from  IETF BCP 47, ISO 639-1 language codes. will continue to enable the language of the metadata record to be stored and processed in a unambiguous and machine-readable format</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:language">
+							<xs:enumeration value="en"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="resourceType">
+		<xs:simpleContent>
+			<xs:extension base="xs:string"/>
+		</xs:simpleContent>
+	</xs:complexType>
+</xs:schema>

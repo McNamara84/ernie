@@ -10,16 +10,27 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class IgsnCoreSchemaController extends Controller
 {
-    public function __invoke(Request $request, string $snapshot, string $path, IgsnCoreSchemaResolver $schemas): BinaryFileResponse
+    public function current(Request $request, string $path, IgsnCoreSchemaResolver $schemas): BinaryFileResponse
     {
-        abort_unless($snapshot === config('igsn_core.snapshot'), 404);
-        $file = $schemas->publicFile($path);
+        return $this->respond($request, $path, $schemas);
+    }
+
+    public function revision(Request $request, string $revision, string $path, IgsnCoreSchemaResolver $schemas): BinaryFileResponse
+    {
+        abort_unless(is_string(config('igsn_core.revisions.'.$revision)), 404);
+
+        return $this->respond($request, $path, $schemas, $revision);
+    }
+
+    private function respond(Request $request, string $path, IgsnCoreSchemaResolver $schemas, ?string $revision = null): BinaryFileResponse
+    {
+        $file = $schemas->publicFile($path, $revision);
         abort_if($file === null, 404);
 
         $response = response()->file($file['path'], [
             'Content-Type' => $file['type'].'; charset=UTF-8',
             'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'Cache-Control' => $revision === null ? 'public, no-cache' : 'public, max-age=31536000, immutable',
         ]);
         $response->setEtag($file['hash']);
         $response->isNotModified($request);
