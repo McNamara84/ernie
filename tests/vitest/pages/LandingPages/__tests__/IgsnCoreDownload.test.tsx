@@ -12,7 +12,7 @@ const link: LandingPageMetadataLink = {
     label: 'IGSN 2.0 Core (Preview)',
     url: '/10.58052/TEST/sample/metadata/igsn-core-2.0.xml',
     mediaType: 'application/xml',
-    profile: '/schemas/igsn/core.xsd',
+    profile: '/schemas/igsn/2.0/core.xsd',
 };
 const action = () => screen.getByRole('button', { name: 'Download IGSN 2.0 Core metadata as XML (Preview)' });
 afterEach(() => {
