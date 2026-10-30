@@ -36,12 +36,14 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
     const inputRevision = useRef(0);
     const activeVisit = useRef<{ revision: number; query: string } | null>(null);
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pageSizeTrigger = useRef<HTMLButtonElement>(null);
+    const pendingFocus = useRef<HTMLElement | null>(null);
     const cancelPendingSearch = useCallback(() => {
         if (searchTimeout.current !== null) clearTimeout(searchTimeout.current);
         searchTimeout.current = null;
     }, []);
     const visit = useCallback(
-        (query: string, page = 1, perPage = pagination.per_page) => {
+        (query: string, page = 1, perPage = pagination.per_page, focusTarget: HTMLElement | null = null) => {
             cancelPendingSearch();
             const request = { revision: inputRevision.current, query };
             activeVisit.current = request;
@@ -61,6 +63,7 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
                     onFinish: () => {
                         if (activeVisit.current === request) {
                             activeVisit.current = null;
+                            pendingFocus.current = focusTarget;
                             setLoading(false);
                         }
                     },
@@ -69,6 +72,15 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
         },
         [search, pagination.per_page, cancelPendingSearch],
     );
+
+    useEffect(() => {
+        if (loading) return;
+        const target = pendingFocus.current;
+        pendingFocus.current = null;
+        // Radix cannot return focus to a disabled trigger. Wait until it is enabled,
+        // and leave focus alone if the user moved to another control while loading.
+        if (document.activeElement === document.body) target?.focus({ preventScroll: true });
+    }, [loading]);
 
     const changeSearch = (value: string) => {
         inputRevision.current += 1;
@@ -97,7 +109,7 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
     }, [cancelPendingSearch]);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Contact Persons', href: '/contact-persons' }]}>
+        <AppLayout breadcrumbs={[{ title: 'Contact Persons', href: '/contact-persons' }]} transitionKey="contact-persons">
             <Head title="Contact Persons" />
             <section aria-label="Contact person overview" className="flex flex-1 flex-col gap-6 p-4 md:p-6">
                 <div>
@@ -121,9 +133,9 @@ export default function ContactPersons({ groups, search, pagination }: ContactPe
                         <Select
                             value={String(pagination.per_page)}
                             disabled={loading}
-                            onValueChange={(value) => visit(input.trim(), 1, Number(value))}
+                            onValueChange={(value) => visit(input.trim(), 1, Number(value), pageSizeTrigger.current)}
                         >
-                            <SelectTrigger id="contact-persons-per-page" className="w-20">
+                            <SelectTrigger ref={pageSizeTrigger} id="contact-persons-per-page" className="w-20">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

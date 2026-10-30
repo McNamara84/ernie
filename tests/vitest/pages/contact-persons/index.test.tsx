@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import type { GlobalEvent, Page, VisitOptions } from '@inertiajs/core';
+import type { ActiveVisit, GlobalEvent, Page, VisitOptions } from '@inertiajs/core';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps, ReactNode } from 'react';
@@ -178,7 +178,7 @@ describe('Contact persons', () => {
         expect(pageSize).toHaveTextContent('25');
         await user.click(pageSize);
         expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['25', '50', '100']);
-        await user.click(screen.getByRole('option', { name: '50', exact: true }));
+        await user.click(screen.getByRole('option', { name: '50' }));
         expect(get).toHaveBeenLastCalledWith('/contact-persons', { search: 'Ada', page: 1, per_page: 50 }, expect.any(Object));
         rerender(<ContactPersons {...props} search="Ada" pagination={{ ...props.pagination, per_page: 50 }} />);
         expect(pageSize).toHaveTextContent('50');
@@ -189,11 +189,51 @@ describe('Contact persons', () => {
         render(<ContactPersons {...props} />);
         fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Ada' } });
         fireEvent.keyDown(screen.getByRole('combobox', { name: 'Groups per page' }), { key: 'Enter' });
-        const option = screen.getByRole('option', { name: '50', exact: true });
+        const option = screen.getByRole('option', { name: '50' });
         act(() => option.focus());
         fireEvent.keyDown(option, { key: 'Enter' });
         act(() => vi.advanceTimersByTime(400));
         expect(get).toHaveBeenCalledExactlyOnceWith('/contact-persons', { search: 'Ada', page: 1, per_page: 50 }, expect.any(Object));
+    });
+
+    it.each([false, true])('restores page-size focus after loading unless the user moved it (moved: %s)', async (moveFocus) => {
+        const user = userEvent.setup();
+        const visit = {} as ActiveVisit;
+        get.mockImplementationOnce((_url, _data, options) => options.onStart?.(visit));
+        render(<ContactPersons {...props} />);
+        const pageSize = screen.getByRole('combobox', { name: 'Groups per page' });
+        await user.click(pageSize);
+        await user.click(screen.getByRole('option', { name: '50' }));
+        await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+        expect(pageSize).toBeDisabled();
+        const search = screen.getByRole('searchbox');
+        if (moveFocus) await user.click(search);
+        else expect(document.body).toHaveFocus();
+
+        act(() => get.mock.calls[0][2].onFinish?.(visit));
+
+        expect(pageSize).toBeEnabled();
+        expect(moveFocus ? search : pageSize).toHaveFocus();
+    });
+
+    it('does not restore page-size focus or clear loading when a newer search supersedes its visit', async () => {
+        const user = userEvent.setup();
+        const visit = {} as ActiveVisit;
+        get.mockImplementationOnce((_url, _data, options) => options.onStart?.(visit));
+        render(<ContactPersons {...props} />);
+        const pageSize = screen.getByRole('combobox', { name: 'Groups per page' });
+        await user.click(pageSize);
+        await user.click(screen.getByRole('option', { name: '50' }));
+        const search = screen.getByRole('searchbox');
+        await user.type(search, 'Ada');
+        await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+
+        act(() => get.mock.calls[0][2].onFinish?.(visit));
+        expect(pageSize).toBeDisabled();
+        expect(search).toHaveFocus();
+        act(() => get.mock.calls[1][2].onFinish?.(visit));
+        expect(pageSize).toBeEnabled();
+        expect(search).toHaveFocus();
     });
 
     it.each(['Next', 'Previous'])('starts an edited search on page one when clicking %s before the debounce', (button) => {
