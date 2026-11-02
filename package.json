@@ -181,6 +181,9 @@
     "lightningcss-linux-x64-gnu": "^1.33.0"
   },
   "overrides": {
+    "@swagger-api/apidom-reference": {
+      "minimatch": "^11.0.1"
+    },
     "deepmerge": "$deepmerge",
     "concurrently": {
       "shell-quote": "^1.11.0"
