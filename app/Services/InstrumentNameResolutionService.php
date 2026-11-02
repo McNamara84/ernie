@@ -122,6 +122,7 @@ final class InstrumentNameResolutionService
             $value = ltrim($parts['path'] ?? '', '/');
         }
 
-        return $value === '' ? '' : $type.':'.$value;
+        // DOI comparisons ignore case; Handle suffixes and stored identifiers retain it.
+        return $value === '' ? '' : $type.':'.($type === 'DOI' ? strtolower($value) : $value);
     }
 }

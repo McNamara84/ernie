@@ -41,6 +41,53 @@ it('uses only explicit typed identifiers and never record id guesses', function 
     ['21.11157/3F8XQ-M8W44', 'Handle'],
 ]);
 
+it('resolves DOI case variants and placeholders without changing identifiers or curated names', function (string $pid, string $name, string $expectedName) {
+    $record = [
+        'pid' => '10.1234/Example', 'pidType' => 'DOI', 'name' => 'Research instrument',
+        'lookupIdentifiers' => [
+            ['value' => '10.1234/Example', 'type' => 'DOI', 'source' => 'metadata'],
+            ['value' => 'https://doi.org/10.1234/EXAMPLE', 'type' => 'DOI', 'source' => 'provider'],
+        ],
+    ];
+    app(Pid4instVocabularyService::class)->replace(json_encode(['data' => [$record]]));
+    $resolved = app(InstrumentNameResolutionService::class)->resolve([['pid' => $pid, 'pidType' => 'DOI', 'name' => $name]]);
+    expect($resolved[0])->toBe(['pid' => $pid, 'pidType' => 'DOI', 'name' => $expectedName, 'resolution' => ['status' => 'matched']])
+        ->and(app(Pid4instVocabularyService::class)->getLocalPayload()['data'][0])->toBe($record);
+    Http::assertNothingSent();
+})->with([
+    ['10.1234/example', '10.1234/EXAMPLE', 'Research instrument'],
+    ['https://doi.org/10.1234/example', '10.1234/Example', 'Research instrument'],
+    [' HTTP://DOI.ORG/10.1234/EXAMPLE ', '', 'Research instrument'],
+    ['10.1234/example', 'Curated instrument name', 'Curated instrument name'],
+]);
+
+it('does not pick a registry record when DOI case variants are ambiguous', function () {
+    app(Pid4instVocabularyService::class)->replace(json_encode(['data' => [
+        ['pid' => '10.1234/Example', 'pidType' => 'DOI', 'name' => 'Instrument A'],
+        ['pid' => '10.1234/EXAMPLE', 'pidType' => 'DOI', 'name' => 'Instrument B'],
+    ]]));
+    $input = ['pid' => 'https://doi.org/10.1234/example', 'pidType' => 'DOI', 'name' => '10.1234/example'];
+    expect(app(InstrumentNameResolutionService::class)->resolve([$input])[0])
+        ->toMatchArray($input + ['resolution' => ['status' => 'ambiguous']]);
+});
+
+it('preserves real DOI identifier conflicts and their original spelling', function () {
+    $identifiers = [
+        ['value' => '10.1234/Example', 'type' => 'DOI', 'source' => 'metadata'],
+        ['value' => '10.1234/Different', 'type' => 'DOI', 'source' => 'provider'],
+    ];
+    app(Pid4instVocabularyService::class)->replace(json_encode(['data' => [[
+        'pid' => '10.1234/Example', 'pidType' => 'DOI', 'name' => 'Research instrument', 'lookupIdentifiers' => $identifiers,
+    ]]]));
+    $resolved = app(InstrumentNameResolutionService::class)->resolve([
+        ['pid' => 'https://doi.org/10.1234/example', 'pidType' => 'DOI', 'name' => '10.1234/EXAMPLE'],
+    ]);
+    expect($resolved[0])->toBe([
+        'pid' => 'https://doi.org/10.1234/example', 'pidType' => 'DOI', 'name' => 'Research instrument',
+        'resolution' => ['status' => 'identifier_conflict', 'identifiers' => $identifiers],
+    ]);
+});
+
 it('reports conflicts through either explicit identifier while preserving real names', function (string $pid, string $name) {
     $result = app(InstrumentNameResolutionService::class)->resolve([['pid' => $pid, 'pidType' => 'Handle', 'name' => $name]]);
     expect($result[0]['pid'])->toBe($pid)

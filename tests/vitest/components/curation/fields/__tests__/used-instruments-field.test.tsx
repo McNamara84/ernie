@@ -187,6 +187,32 @@ describe('UsedInstrumentsField', () => {
         expect(mockOnChange).toHaveBeenLastCalledWith(selected);
     });
 
+    it.each([
+        ['DOI', '10.1234/Example', 'https://doi.org/10.1234/example', true],
+        ['DOI', 'https://doi.org/10.1234/Example', '10.1234/EXAMPLE', true],
+        ['Handle', '21.test/Example', 'https://hdl.handle.net/21.test/example', false],
+        ['URL', 'https://example.org/Example', 'https://example.org/example', false],
+    ] as const)('excludes equivalent %s identifiers without changing the selection (%s)', async (pidType, registryPid, selectedPid, equivalent) => {
+        const { usePid4instInstruments } = await import('@/hooks/use-pid4inst-instruments');
+        const hook = vi.mocked(usePid4instInstruments);
+        const original = hook.getMockImplementation()!();
+        hook.mockReturnValueOnce({
+            ...original,
+            instruments: [{ ...original.instruments![0], pid: registryPid, pidType, name: 'Registry instrument' }],
+        });
+        const user = userEvent.setup();
+        render(<UsedInstrumentsField selectedInstruments={[{ pid: selectedPid, pidType, name: 'Selected instrument' }]} onChange={mockOnChange} />);
+        await user.click(screen.getByRole('combobox'));
+        const option = screen.queryByRole('option', { name: /Registry instrument/ });
+        if (equivalent) {
+            expect(option).not.toBeInTheDocument();
+        } else {
+            expect(option).toBeInTheDocument();
+        }
+        expect(screen.getByText(`${pidType}: ${selectedPid}`)).toBeInTheDocument();
+        expect(mockOnChange).not.toHaveBeenCalled();
+    });
+
     it('generates correct Handle landing page URL', () => {
         const selected: InstrumentSelection[] = [{ pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' }];
 

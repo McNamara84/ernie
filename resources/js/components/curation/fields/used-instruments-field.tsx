@@ -12,10 +12,8 @@ import { usePid4instInstruments } from '@/hooks/use-pid4inst-instruments';
 import type { InstrumentSelection } from '@/types';
 
 /**
- * Normalize a Handle PID by stripping known resolver URL prefixes.
- * This ensures matching works regardless of whether the PID is stored
- * as a bare handle (e.g. "21.T11998/XYZ") or a resolver URL
- * (e.g. "https://hdl.handle.net/21.T11998/XYZ").
+ * Compare bare identifiers and known resolver URLs, ignoring case only for DOIs.
+ * This key never replaces the selected identifier.
  */
 function instrumentKey(pid: string, type: string): string {
     let value = pid.trim();
@@ -28,7 +26,7 @@ function instrumentKey(pid: string, type: string): string {
     } catch {
         // Bare identifiers keep their exact value.
     }
-    return type + ':' + value;
+    return type + ':' + (type === 'DOI' ? value.toLowerCase() : value);
 }
 
 interface UsedInstrumentsFieldProps {
