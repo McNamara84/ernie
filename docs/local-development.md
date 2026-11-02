@@ -916,6 +916,32 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile test s
 Stopping it discards test data; the next wrapper call starts and initializes it
 again. For broader testing and optional timing reports, see [testing.md](testing.md).
 
+### Contact persons in XML and JSON file imports
+
+The dashboard upload and editor file-import preview preserve authorship from the
+source creators. A standalone `ContactPerson` remains in Contributors. When a
+contact unambiguously matches an author, the editor uses that author's contact
+checkbox and retains any additional contributor roles. Saving expands the
+checkbox back into the ContactPerson contributor representation used by DataCite.
+An incomplete name without an ORCID cannot establish that association: an author
+and a standalone contact both named only `Doe` remain separate after saving and
+reopening the editor. Explicitly checking the author's contact checkbox still
+preserves the separate contact and its contact details. Organizational
+contributors are aggregated by their normalized institution name; a shared
+affiliation ROR identifies the affiliated organization and does not merge them.
+
+XML imports read email addresses and websites from ELMO's embedded ISO
+`pointOfContact` entries for both author contacts and standalone contributors.
+Conflicting ORCIDs prevent name-based merges, and ambiguous ISO contact details
+remain empty for curation. JSON without contact details imports as a draft without
+inventing email addresses. The normal complete-save validation still applies.
+
+This corrects new uploads (issue #1496); it does not rewrite existing records.
+Compare an affected record with its original file and correct its authors and
+contributors in the editor. Dashboard re-upload is not an update mechanism and
+rejects duplicate DOIs. Use the existing metadata synchronization workflow for
+corrections to registered resources.
+
 ### Digital resource access metadata
 
 Resource landing pages and the DataCite JSON/XML exports resolve access from the curated `access_level` first. When it is empty, an internal digital-resource landing page with an active usable primary Download URL or imported file URL implies Open access. An internal page without automatic downloads exposes Metadata only access, including pages whose saved download links are still hidden. External landing pages and resources without a landing page remain unresolved unless a curator provides a reliable access level. This inference does not apply to Physical Objects or resources with IGSN metadata.

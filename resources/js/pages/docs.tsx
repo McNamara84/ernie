@@ -1650,6 +1650,23 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+
+                        <h4>Contact Roles after Import</h4>
+                        <p>XML and JSON uploads preserve the authors and contact roles from the source metadata:</p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Standalone contact persons remain in <strong>Contributors</strong> with the <strong>Contact Person</strong> role.
+                            </li>
+                            <li>
+                                When a contact unambiguously matches an author, that author has the <strong>CP</strong> checkbox selected. Any
+                                additional contributor roles remain in <strong>Contributors</strong>.
+                            </li>
+                            <li>
+                                Ambiguous identities stay separate, including conflicting ORCIDs or incomplete names without an ORCID. For example, an
+                                author and a contact both named only "Doe" remain separate after saving and reopening the editor. Review these entries
+                                against the source metadata before publishing.
+                            </li>
+                        </ul>
                     </>
                 ),
             },
