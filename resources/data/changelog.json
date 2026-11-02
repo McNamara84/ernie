@@ -4,6 +4,20 @@
         "date": "2026-10-30",
         "features": [
             {
+                "title": "ICGEM Model Harvesting",
+                "description": "The new icgem OAI-PMH set provides published Model resources whose own DOI contains 10.5880/icgem, ignoring letter case. ICGEM clients can harvest current DataCite metadata and reconcile active models through identifier lists. Historical withdrawals are included when the saved resource type identifies a model. Metadata-only editor changes are included in incremental harvests. The public harvesting documentation explains selection, pagination, incremental updates and safe handling of resource-type changes.",
+                "references": [{ "type": "issue", "number": 1433, "url": "https://github.com/McNamara84/ernie/issues/1433" }]
+            },
+            {
+                "title": "Software Heritage Identifiers",
+                "description": "Related Work recognizes, normalizes and validates core and qualified SWHIDs, including archive URLs and CSV imports. Clear validation errors preserve editable drafts. Landing pages and the relation browser provide archive links and readable object and qualifier labels; SWHIDs marked IsIdenticalTo also appear as additional Schema.org identifiers alongside the DOI. An authenticated API offers the same complete validation for ELMO and other clients.",
+                "references": [
+                    { "type": "issue", "number": 1384, "url": "https://github.com/McNamara84/ernie/issues/1384" },
+                    { "type": "issue", "number": 1385, "url": "https://github.com/McNamara84/ernie/issues/1385" },
+                    { "type": "issue", "number": 1386, "url": "https://github.com/McNamara84/ernie/issues/1386" }
+                ]
+            },
+            {
                 "title": "Contact Persons Overview and Filters",
                 "description": "Administrators, Group Leaders and Curators can open Contact Persons under Tools to search current contact details across resources and IGSNs of every status. Contacts are grouped by valid ORCID while preserving recorded name and email variants; contacts without a valid ORCID remain separate by person. Email addresses can be copied, and each variant links to the exact matching resources or IGSNs through a visible, removable contact filter.",
                 "references": [
@@ -62,6 +76,14 @@
             }
         ],
         "fixes": [
+            {
+                "title": "OAI-PMH Harvesting Guidance",
+                "description": "Bounded ICGEM and EPOS-MSL harvest examples now limit the next checkpoint to the earlier of the requested until boundary and the first response date, with overlap to avoid missed updates. The identifier documentation explains why the persistent repository namespace can retain a historical hostname after the public endpoint changes."
+            },
+            {
+                "title": "JavaScript Dependency Security",
+                "description": "Updated indirect HTTP and validation dependencies to address credential handling during redirects and denial-of-service vulnerabilities in email and file-pattern processing. Swagger UI retains its current functionality, with regression tests covering its file allowlist and the affected dependency behavior."
+            },
             {
                 "title": "Email Header Security",
                 "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."

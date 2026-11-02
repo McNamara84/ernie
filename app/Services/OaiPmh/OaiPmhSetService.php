@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Models\Subject;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,15 +18,25 @@ use Illuminate\Support\Str;
  * - resourcetype:{slug} – By resource type slug (lowercase, e.g. dataset, physical-object)
  * - year:{YYYY} – By publication year
  * - epos-msl – By the free project keywords EPOS or MSL
+ * - icgem – Models whose own DOI contains 10.5880/icgem
  */
 class OaiPmhSetService
 {
-    public function __construct(private readonly EposMslSetService $projectSet) {}
+    public function __construct(
+        private readonly EposMslSetService $projectSet,
+        private readonly IcgemSetService $icgemSet,
+    ) {}
 
     /** @return array{spec: string, name: string, description: string} */
     public function projectSetDefinition(): array
     {
         return $this->projectSet->definition();
+    }
+
+    /** @return array{spec: string, name: string, description: string} */
+    public function icgemSetDefinition(): array
+    {
+        return $this->icgemSet->definition();
     }
 
     /**
@@ -35,7 +46,7 @@ class OaiPmhSetService
      */
     public function listSets(): array
     {
-        $sets = [$this->projectSetDefinition()];
+        $sets = [$this->projectSetDefinition(), $this->icgemSetDefinition()];
 
         // Resource type sets via SQL join + distinct (avoids loading all models)
         $types = DB::table('resources')
@@ -89,6 +100,7 @@ class OaiPmhSetService
     public function applySetFilter(Builder $query, string $setSpec): Builder
     {
         return match (true) {
+            $setSpec === IcgemSetService::SPEC => $this->icgemSet->applyToResourceQuery($query),
             $setSpec === EposMslSetService::SPEC => $query->whereHas(
                 'subjects',
                 fn (Builder $q) => $this->projectSet->applyToSubjects($q),
@@ -127,6 +139,32 @@ class OaiPmhSetService
             $sets[] = EposMslSetService::SPEC;
         }
 
+        if ($this->icgemSet->matches($resource->doi, $typeSlug)) {
+            $sets[] = IcgemSetService::SPEC;
+        }
+
+        return $sets;
+    }
+
+    /**
+     * @param  Builder<OaiPmhDeletedRecord>  $query
+     * @return Builder<OaiPmhDeletedRecord>
+     */
+    public function applyDeletedSetFilter(Builder $query, string $setSpec): Builder
+    {
+        return $setSpec === IcgemSetService::SPEC
+            ? $this->icgemSet->applyToDeletedRecordQuery($query)
+            : $query->whereJsonContains('sets', $setSpec);
+    }
+
+    /** @return list<string> */
+    public function getSetsForDeletedRecord(OaiPmhDeletedRecord $record): array
+    {
+        $sets = array_values($record->sets ?? []);
+        if ($this->icgemSet->matchesDeletedRecord($record) && ! in_array(IcgemSetService::SPEC, $sets, true)) {
+            $sets[] = IcgemSetService::SPEC;
+        }
+
         return $sets;
     }
 
@@ -140,6 +178,7 @@ class OaiPmhSetService
     public function isValidSetSpec(string $setSpec): bool
     {
         return $setSpec === EposMslSetService::SPEC
+            || $setSpec === IcgemSetService::SPEC
             || (bool) preg_match('/^resourcetype:[a-z0-9_-]+$/', $setSpec)
             || (bool) preg_match('/^year:\d{4}$/', $setSpec);
     }

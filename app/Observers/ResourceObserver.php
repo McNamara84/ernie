@@ -201,8 +201,8 @@ class ResourceObserver
     public function deleting(Resource $resource): void
     {
         // Refresh before the cascade; the deleted event must use this snapshot.
-        $resource->load('subjects');
-        $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment', 'resourceType']);
+        $resource->load(['subjects', 'resourceType']);
+        $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment']);
 
         if ($resource->igsnMetadata !== null) {
             $this->landingPageRenderDataCache->forgetForIgsnFamilies([(int) $resource->id]);

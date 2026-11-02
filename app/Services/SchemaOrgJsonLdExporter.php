@@ -14,6 +14,7 @@ use App\Services\SchemaOrg\DescribedObjectMetadataService;
 use App\Services\SchemaOrg\MediaObjectMetadataService;
 use App\Services\SchemaOrg\SoftwareMetadataService;
 use App\Support\OrcidNormalizer;
+use App\Support\Swhid;
 
 /**
  * Generates Schema.org-compatible JSON-LD for inline embedding on landing pages.
@@ -88,6 +89,12 @@ class SchemaOrgJsonLdExporter
             $jsonLd['@id'] = $doiUrl;
             $jsonLd['url'] = $doiUrl;
             $jsonLd['identifier'] = $this->buildDoiIdentifier($attributes['doi']);
+        }
+
+        $swhids = $this->buildSwhidIdentifiers($attributes['relatedIdentifiers'] ?? []);
+        if ($swhids !== []) {
+            $identifiers = isset($jsonLd['identifier']) ? [$jsonLd['identifier'], ...$swhids] : $swhids;
+            $jsonLd['identifier'] = count($identifiers) === 1 ? $identifiers[0] : $identifiers;
         }
 
         if ($landingPage !== null) {
@@ -187,6 +194,40 @@ class SchemaOrgJsonLdExporter
             SchemaOrgProfile::MEDIA => $this->media->map($jsonLd, $content),
             SchemaOrgProfile::DESCRIBED_OBJECT => $this->describedObject->map($jsonLd, $content),
         };
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $relatedIdentifiers
+     * @return list<array<string, string>>
+     */
+    private function buildSwhidIdentifiers(array $relatedIdentifiers): array
+    {
+        $identifiers = [];
+        $seen = [];
+        foreach ($relatedIdentifiers as $relatedIdentifier) {
+            if (($relatedIdentifier['relatedIdentifierType'] ?? null) !== 'SWHID'
+                || ($relatedIdentifier['relationType'] ?? null) !== 'IsIdenticalTo'
+                || ! is_string($relatedIdentifier['relatedIdentifier'] ?? null)) {
+                continue;
+            }
+            $value = $relatedIdentifier['relatedIdentifier'];
+            $key = Swhid::comparisonKey($value);
+            $url = Swhid::resolveUrl($value);
+            if ($key === null || $url === null || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $swhid = Swhid::normalize($value);
+            $identifiers[] = [
+                '@id' => $url,
+                '@type' => 'PropertyValue',
+                'propertyID' => 'https://registry.identifiers.org/registry/swh',
+                'value' => $swhid,
+                'url' => $url,
+            ];
+        }
+
+        return $identifiers;
     }
 
     /**

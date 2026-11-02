@@ -40,7 +40,7 @@ export function RelationBrowserTooltip({ tooltip, containerRect }: RelationBrows
     return (
         <div
             data-testid="relation-browser-tooltip"
-            className="pointer-events-none absolute z-50 max-w-[280px] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm shadow-lg transition-opacity duration-150"
+            className="pointer-events-none absolute z-50 max-w-[min(280px,100%)] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm [overflow-wrap:anywhere] shadow-lg transition-opacity duration-150"
             style={{ left, top }}
         >
             {tooltip.type === 'node' && tooltip.content.nodeType === 'creator' && (

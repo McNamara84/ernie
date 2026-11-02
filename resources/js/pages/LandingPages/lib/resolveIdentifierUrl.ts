@@ -1,4 +1,5 @@
 import { validateDOIFormat } from '@/lib/doi-validation';
+import { resolveSwhidUrl } from '@/lib/swhid';
 
 /**
  * Resolves an identifier to its full URL based on the identifier type.
@@ -20,6 +21,8 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
     }
 
     switch (identifierType) {
+        case 'SWHID':
+            return resolveSwhidUrl(identifier);
         case 'DOI': {
             const doi = normalizeDoiKey(id);
             return validateDOIFormat(doi).isValid ? `https://doi.org/${doi}` : null;

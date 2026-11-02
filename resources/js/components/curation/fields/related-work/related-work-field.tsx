@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { normalizeDOI, validateIdentifierFormat } from '@/lib/doi-validation';
+import { getSwhidComparisonKey, normalizeSwhid } from '@/lib/swhid';
 import type { IdentifierType, RelatedIdentifier, RelatedIdentifierFormData, RelationType } from '@/types';
 
 import RelatedWorkCsvImport from './related-work-csv-import';
@@ -27,6 +28,7 @@ interface CitationLookupResult {
 }
 
 function normalizeIdentifier(identifier: string, identifierType: string): string {
+    if (identifierType === 'SWHID') return normalizeSwhid(identifier);
     return identifierType === 'DOI' ? normalizeDOI(identifier) : identifier.trim();
 }
 
@@ -73,6 +75,10 @@ function isDuplicate(identifier: string, identifierType: string, relationType: s
 
         const existingNormalized = normalizeIdentifier(item.identifier, item.identifier_type);
 
+        if (identifierType === 'SWHID') {
+            const key = getSwhidComparisonKey(normalized);
+            return key !== null ? key === getSwhidComparisonKey(existingNormalized) : existingNormalized === normalized;
+        }
         return existingNormalized === normalized;
     });
 }
@@ -316,7 +322,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             }
 
             const importedItem: RelatedIdentifier = {
-                identifier: item.identifier,
+                identifier: normalizeIdentifier(item.identifier, item.identifierType),
                 identifier_type: item.identifierType,
                 relation_type: item.relationType,
                 ...(item.relationTypeInformation ? { relation_type_information: item.relationTypeInformation } : {}),
@@ -462,6 +468,16 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         onChange(reindexed);
     };
 
+    const swhidValidationStatuses = useMemo(() => {
+        const states = new Map<number, { status: 'valid' | 'invalid'; message?: string }>();
+        relatedWorks.forEach((item, index) => {
+            if (item.identifier_type !== 'SWHID' || item.identifier.trim() === '') return;
+            const result = validateIdentifierFormat(item.identifier, 'SWHID');
+            states.set(index, { status: result.isValid ? 'valid' : 'invalid', message: result.message });
+        });
+        return states;
+    }, [relatedWorks]);
+
     const resolutionStatesByIndex = useMemo(() => {
         const states = new Map<number, CitationResolutionState>();
 
@@ -525,6 +541,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                         activeRelationTypes={activeRelationTypes}
                         activeIdentifierTypes={activeIdentifierTypes}
                         citationResolutionStates={resolutionStatesByIndex}
+                        validationStatuses={swhidValidationStatuses}
                     />
 
                     <div className="flex flex-wrap justify-end gap-2">

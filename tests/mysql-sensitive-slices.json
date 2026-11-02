@@ -91,7 +91,8 @@
         "oai-services": [
             "tests/pest/Unit/OaiPmh/OaiPmhSetServiceTest.php",
             "tests/pest/Unit/OaiPmh/OaiPmhHarvestServiceTest.php",
-            "tests/pest/Feature/OaiPmh/OaiPmhEposMslSetTest.php"
+            "tests/pest/Feature/OaiPmh/OaiPmhEposMslSetTest.php",
+            "tests/pest/Feature/OaiPmh/OaiPmhIcgemSetTest.php"
         ]
     }
 }

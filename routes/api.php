@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\DataCiteController;
+use App\Http\Controllers\Api\IdentifierValidationController;
 use App\Http\Controllers\Api\RorResolveController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\DateTypeController;
@@ -43,6 +44,7 @@ Route::get('/v1/relation-types/ernie', [RelationTypeController::class, 'ernie'])
 Route::get('/v1/identifier-types', [RelatedIdentifierTypeController::class, 'index']);
 Route::middleware('ernie.api-key')->get('/v1/identifier-types/elmo', [RelatedIdentifierTypeController::class, 'elmo']);
 Route::get('/v1/identifier-types/ernie', [RelatedIdentifierTypeController::class, 'ernie']);
+Route::middleware(['ernie.api-key', 'throttle:identifier-validation'])->post('/v1/identifiers/validate', IdentifierValidationController::class);
 Route::get('/v1/roles/authors/ernie', [RoleController::class, 'authorRolesForErnie']);
 Route::middleware('ernie.api-key')->get('/v1/roles/authors/elmo', [RoleController::class, 'authorRolesForElmo']);
 Route::get(
