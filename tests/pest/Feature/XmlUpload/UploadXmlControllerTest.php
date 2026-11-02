@@ -645,7 +645,7 @@ XML;
     $response->assertSessionDataCount(0, 'contributors');
 });
 
-test('adds ContactPerson as new author when not matching existing creator', function () {
+test('keeps ContactPerson as contributor when not matching an existing creator', function () {
     $this->actingAs(User::factory()->create());
 
     $xml = <<<'XML'
@@ -674,22 +674,22 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    // Two authors: original creator and new contact person
-    $response->assertSessionDataCount(2, 'authors');
+    // Only the original creator is an author.
+    $response->assertSessionDataCount(1, 'authors');
 
     // First author (original creator) should NOT be contact person
     $response->assertSessionDataPath('authors.0.firstName', 'Jane');
     $response->assertSessionDataPath('authors.0.lastName', 'Doe');
     expect($response->sessionData('authors.0.isContact'))->toBeFalsy();
 
-    // Second author (added from ContactPerson) should be contact person
-    $response->assertSessionDataPath('authors.1.firstName', 'Person');
-    $response->assertSessionDataPath('authors.1.lastName', 'Different');
-    $response->assertSessionDataPath('authors.1.isContact', true);
-    $response->assertSessionDataPath('authors.1.orcid', '0000-0009-8765-4321');
+    // The independent contact retains its contributor role.
+    $response->assertSessionDataPath('contributors.0.firstName', 'Person');
+    $response->assertSessionDataPath('contributors.0.lastName', 'Different');
+    $response->assertSessionDataPath('contributors.0.roles', ['Contact Person']);
+    $response->assertSessionDataPath('contributors.0.orcid', '0000-0009-8765-4321');
 
-    // ContactPerson should NOT be in contributors
-    $response->assertSessionDataCount(0, 'contributors');
+    // Preserve the standalone contributor.
+    $response->assertSessionDataCount(1, 'contributors');
 });
 
 test('extracts email and website from ISO pointOfContact for contact person', function () {

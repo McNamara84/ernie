@@ -30,8 +30,10 @@ test.describe('XML Upload', () => {
         const [uploadResponse] = await Promise.all([
             // The full XML fixture performs real parsing and draft persistence;
             // use the same backend budget as the critical XML smoke test.
-            page.waitForResponse((response) => response.request().method() === 'POST'
-                && new URL(response.url()).pathname === '/dashboard/upload-xml', { timeout: 30000 }),
+            page.waitForResponse(
+                (response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/dashboard/upload-xml',
+                { timeout: 30000 },
+            ),
             fileInput.setInputFiles(xmlFilePath),
         ]);
         expect(uploadResponse.status()).toBe(200);
@@ -75,8 +77,9 @@ test.describe('XML Upload', () => {
         const buffer = Buffer.from(invalidXml, 'utf-8');
 
         const [uploadResponse] = await Promise.all([
-            page.waitForResponse((response) => response.request().method() === 'POST'
-                && new URL(response.url()).pathname === '/dashboard/upload-xml'),
+            page.waitForResponse(
+                (response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/dashboard/upload-xml',
+            ),
             fileInput.setInputFiles({ name: 'invalid.xml', mimeType: 'application/xml', buffer }),
         ]);
         expect(uploadResponse.status()).toBe(422);
@@ -87,4 +90,72 @@ test.describe('XML Upload', () => {
         await expect(page.getByTestId('dropzone-error-alert')).toContainText(result.message);
         await expect(page).toHaveURL(/\/dashboard/);
     });
+
+    for (const format of ['xml', 'json'] as const) {
+        test(`keeps standalone contact contributors after ${format} upload, draft save and reload (issue 1496)`, async ({ page }) => {
+            const author = { name: 'Author, Anna', nameType: 'Personal', givenName: 'Anna', familyName: 'Author' };
+            const contact = { name: 'Contact, Chris', nameType: 'Personal', givenName: 'Chris', familyName: 'Contact' };
+            const file =
+                format === 'xml'
+                    ? resolveDatasetExample('issue-1496-contact-persons.xml')
+                    : {
+                          name: 'issue-1496.json',
+                          mimeType: 'application/json',
+                          buffer: Buffer.from(
+                              JSON.stringify({
+                                  data: {
+                                      attributes: {
+                                          titles: [{ title: 'Issue 1496 contact persons' }],
+                                          creators: [author],
+                                          contributors: [
+                                              { ...author, contributorType: 'ContactPerson' },
+                                              { ...contact, contributorType: 'ContactPerson' },
+                                          ],
+                                          publicationYear: '2026',
+                                          publisher: { name: 'GFZ Data Services' },
+                                          types: { resourceTypeGeneral: 'Dataset' },
+                                      },
+                                  },
+                              }),
+                          ),
+                      };
+            const [upload] = await Promise.all([
+                page.waitForResponse(
+                    (response) => response.request().method() === 'POST' && new URL(response.url()).pathname === `/dashboard/upload-${format}`,
+                ),
+                page.getByTestId('unified-file-input').setInputFiles(file),
+            ]);
+            expect(upload.status()).toBe(200);
+            await page.getByRole('button', { name: /open in editor/i }).click();
+            await page.waitForURL(/\/editor\?resourceId=\d+/);
+
+            for (let cycle = 0; cycle < 2; cycle++) {
+                for (const section of ['Authors', 'Contributors']) {
+                    const trigger = page.locator('[data-slot="accordion-trigger"]', { hasText: new RegExp(section, 'i') }).first();
+                    if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+                        await trigger.click();
+                    }
+                }
+                await expect(page.getByTestId('author-0-fields-grid').getByLabel('First name')).toHaveValue('Anna');
+                await expect(page.getByTestId('author-1-fields-grid')).toHaveCount(0);
+                await expect(page.getByTestId('author-0-contact-field').getByRole('checkbox')).toBeChecked();
+                await expect(page.getByTestId('contributor-0-roles-input')).toHaveValue('Contact Person');
+                await expect(page.getByTestId('contributor-1-roles-input')).toHaveCount(0);
+                const contributors = page.getByRole('region', { name: /^Contributors/ });
+                await expect(contributors.getByLabel('First name', { exact: true })).toHaveValue('Chris');
+                await expect(contributors.getByRole('textbox', { name: /^Email/ })).toHaveValue(format === 'xml' ? 'chris@example.org' : '');
+                if (format === 'xml') {
+                    await expect(contributors.getByLabel('Website', { exact: true })).toHaveValue('https://example.org/chris');
+                }
+                if (cycle === 0) {
+                    const saved = page.waitForResponse(
+                        (response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/editor/resources/draft',
+                    );
+                    await page.getByTestId('save-draft-button').click();
+                    expect((await saved).status()).toBe(200);
+                    await page.reload();
+                }
+            }
+        });
+    }
 });

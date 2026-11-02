@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Xml;
 
+use App\Services\Imports\ContactPersonImportService;
 use App\Services\Xml\Sections\AuthorSectionParser;
 use App\Services\Xml\Sections\ContributorSectionParser;
 use App\Services\Xml\Sections\CoverageSectionParser;
@@ -27,6 +28,7 @@ use Saloon\XmlWrangler\XmlReader;
 final readonly class DataCiteXmlImportParser
 {
     public function __construct(
+        private ContactPersonImportService $contactPersonResolver,
         private IdentifierSectionParser $identifierParser,
         private TitleSectionParser $titleParser,
         private RightsSectionParser $rightsParser,
@@ -51,10 +53,10 @@ final readonly class DataCiteXmlImportParser
         $contributorsAndLabs = $this->contributorParser->parse($reader);
         $contributors = $contributorsAndLabs['contributors'];
         $mslLaboratories = $contributorsAndLabs['mslLaboratories'];
-        $contactPersons = $contributorsAndLabs['contactPersons'];
 
         $isoContactInfo = $this->isoContactParser->parse($reader);
-        $authors = $this->mergeContactPersonsIntoAuthors($authors, $contactPersons, $isoContactInfo);
+        ['authors' => $authors, 'contributors' => $contributors] =
+            $this->contactPersonResolver->resolve($authors, $contributors, $isoContactInfo);
 
         $descriptions = $this->descriptionParser->parse($reader, $xmlContents);
         $dates = $this->dateParser->parse($reader);
@@ -107,110 +109,5 @@ final readonly class DataCiteXmlImportParser
             mslLaboratories: $mslLaboratories,
             relatedItems: $relatedItems,
         );
-    }
-
-    /**
-     * Merge ContactPerson contributors into authors with isContact flag and contact info.
-     *
-     * Matching priority:
-     * 1. ORCID (if both have it)
-     * 2. Name (familyName + givenName, case-insensitive)
-     *
-     * @param  array<int, array<string, mixed>>  $authors
-     * @param  array<int, array<string, mixed>>  $contactPersons
-     * @param  array<string, array{email: string, website: string}>  $isoContactInfo
-     * @return array<int, array<string, mixed>>
-     */
-    private function mergeContactPersonsIntoAuthors(array $authors, array $contactPersons, array $isoContactInfo): array
-    {
-        foreach ($contactPersons as $cp) {
-            if (($cp['type'] ?? '') === 'institution') {
-                continue;
-            }
-
-            $matched = false;
-
-            $cpOrcid = $cp['orcid'] ?? '';
-            if ($cpOrcid !== '') {
-                foreach ($authors as &$author) {
-                    if (($author['type'] ?? '') === 'person' && ($author['orcid'] ?? '') === $cpOrcid) {
-                        $author['isContact'] = true;
-                        $this->enrichAuthorWithContactInfo($author, $isoContactInfo);
-                        $matched = true;
-                        break;
-                    }
-                }
-                unset($author);
-            }
-
-            if (! $matched) {
-                $cpLastName = trim($cp['lastName'] ?? '');
-                $cpFirstName = trim($cp['firstName'] ?? '');
-
-                if ($cpLastName === '') {
-                    continue;
-                }
-
-                $cpNameKey = self::buildNameKey($cpLastName, $cpFirstName);
-
-                foreach ($authors as &$author) {
-                    if (($author['type'] ?? '') === 'person') {
-                        $authorNameKey = self::buildNameKey(
-                            (string) ($author['lastName'] ?? ''),
-                            (string) ($author['firstName'] ?? ''),
-                        );
-                        if ($cpNameKey === $authorNameKey) {
-                            $author['isContact'] = true;
-                            $this->enrichAuthorWithContactInfo($author, $isoContactInfo);
-                            $matched = true;
-                            break;
-                        }
-                    }
-                }
-                unset($author);
-            }
-
-            if (! $matched) {
-                $newAuthor = [
-                    'type' => 'person',
-                    'orcid' => $cp['orcid'] ?? '',
-                    'firstName' => $cp['firstName'] ?? '',
-                    'lastName' => $cp['lastName'] ?? '',
-                    'affiliations' => $cp['affiliations'] ?? [],
-                    'isContact' => true,
-                    'email' => '',
-                    'website' => '',
-                ];
-                $this->enrichAuthorWithContactInfo($newAuthor, $isoContactInfo);
-                $authors[] = $newAuthor;
-            }
-        }
-
-        return $authors;
-    }
-
-    /**
-     * @param  array<string, mixed>  $author
-     * @param  array<string, array{email: string, website: string}>  $isoContactInfo
-     */
-    private function enrichAuthorWithContactInfo(array &$author, array $isoContactInfo): void
-    {
-        $nameKey = self::buildNameKey(
-            (string) ($author['lastName'] ?? ''),
-            (string) ($author['firstName'] ?? ''),
-        );
-
-        if (isset($isoContactInfo[$nameKey])) {
-            $author['email'] = $isoContactInfo[$nameKey]['email'];
-            $author['website'] = $isoContactInfo[$nameKey]['website'];
-        } else {
-            $author['email'] = $author['email'] ?? '';
-            $author['website'] = $author['website'] ?? '';
-        }
-    }
-
-    private static function buildNameKey(string $familyName, string $firstName): string
-    {
-        return mb_strtolower(trim($familyName).', '.trim($firstName));
     }
 }
