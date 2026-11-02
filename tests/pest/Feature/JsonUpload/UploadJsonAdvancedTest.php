@@ -577,7 +577,7 @@ describe('JSON Upload - Contributor edge cases', function () {
         expect($data['contributors'][0]['institutionName'])->toBe('Some Research Group');
     });
 
-    test('adds unmatched contact person as new author', function () {
+    test('preserves unmatched contact person as contributor', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes([
@@ -605,10 +605,11 @@ describe('JSON Upload - Contributor edge cases', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['authors'])->toHaveCount(2);
-        expect($data['authors'][1]['firstName'])->toBe('Jane');
-        expect($data['authors'][1]['lastName'])->toBe('Doe');
-        expect($data['authors'][1]['isContact'])->toBeTrue();
+        expect($data['authors'])->toHaveCount(1);
+        expect($data['contributors'])->toHaveCount(1);
+        expect($data['contributors'][0]['firstName'])->toBe('Jane');
+        expect($data['contributors'][0]['lastName'])->toBe('Doe');
+        expect($data['contributors'][0]['roles'])->toBe(['Contact Person']);
     });
 
     test('matches contact person by ORCID', function () {
@@ -649,7 +650,7 @@ describe('JSON Upload - Contributor edge cases', function () {
         expect($data['authors'][0]['isContact'])->toBeTrue();
     });
 
-    test('skips organizational contact persons', function () {
+    test('preserves organizational contact persons as contributors', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes([
@@ -668,7 +669,9 @@ describe('JSON Upload - Contributor edge cases', function () {
         $data = getJsonUploadData($response);
 
         expect($data['authors'])->toHaveCount(1); // Only default creator
-        expect($data['contributors'])->toHaveCount(0);
+        expect($data['contributors'])->toHaveCount(1);
+        expect($data['contributors'][0]['type'])->toBe('institution');
+        expect($data['contributors'][0]['roles'])->toBe(['Contact Person']);
     });
 });
 

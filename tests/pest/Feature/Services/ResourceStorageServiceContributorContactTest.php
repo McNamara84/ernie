@@ -71,6 +71,18 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
         ];
     }
 
+    it('ignores incoming author association markers on standalone contacts', function () {
+        $data = contributorResourceData(['_contactAuthorIndex' => 0]);
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        $contributor = $resource->contributors()->sole();
+        expect($contributor->contributorable_id)->not->toBe($creator->creatorable_id)
+            ->and($contributor->contributorable->given_name)->toBe('Contact')
+            ->and($contributor->contributorable->family_name)->toBe('Person');
+    });
+
     it('stores email and website when contributor has Contact Person role', function () {
         $data = contributorResourceData();
 
