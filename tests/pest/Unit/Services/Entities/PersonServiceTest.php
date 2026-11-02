@@ -57,6 +57,37 @@ describe('PersonService', function () {
             expect($found->given_name)->toBe('Max');
         });
 
+        it('keeps an unidentified surname-only contact separate from excluded authors and identified people', function () {
+            $author = Person::factory()->create([
+                'given_name' => null, 'family_name' => 'Doe', 'name_identifier' => null,
+            ]);
+            Person::factory()->withOrcid('0000-0002-1825-0097')->create([
+                'given_name' => null, 'family_name' => 'Doe',
+            ]);
+            $data = ['firstName' => null, 'lastName' => 'Doe'];
+
+            $contact = $this->service->findOrCreate($data, requireMissingIdentifier: true, excludedPersonIds: [$author->id]);
+            $savedAgain = $this->service->findOrCreate($data, requireMissingIdentifier: true, excludedPersonIds: [$author->id]);
+
+            expect($contact->id)->not->toBe($author->id)
+                ->and($contact->name_identifier)->toBeNull()
+                ->and($savedAgain->id)->toBe($contact->id)
+                ->and(Person::count())->toBe(3);
+        });
+
+        it('allows an explicit ORCID match even when name-based matching excludes that person', function () {
+            $author = Person::factory()->withOrcid('0000-0002-1825-0097')->create([
+                'given_name' => null, 'family_name' => 'Doe',
+            ]);
+
+            $contact = $this->service->findOrCreate([
+                'firstName' => null, 'lastName' => 'Doe', 'orcid' => 'https://orcid.org/0000-0002-1825-0097',
+            ], excludedPersonIds: [$author->id]);
+
+            expect($contact->id)->toBe($author->id)
+                ->and(Person::count())->toBe(1);
+        });
+
         it('reuses and canonicalizes an ORCID person whose scheme uses different casing', function () {
             $orcid = 'https://orcid.org/0000-0001-2345-6789';
             $existing = Person::factory()->create([
