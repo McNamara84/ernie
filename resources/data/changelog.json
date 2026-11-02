@@ -4,6 +4,10 @@
         "date": "2026-10-27",
         "fixes": [
             {
+                "title": "JavaScript Dependency Security",
+                "description": "Updated indirect HTTP and validation dependencies to address credential handling during redirects and denial-of-service vulnerabilities in email and file-pattern processing. Swagger UI retains its current functionality, with regression tests covering its file allowlist and the affected dependency behavior."
+            },
+            {
                 "title": "Email Header Security",
                 "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."
             },
