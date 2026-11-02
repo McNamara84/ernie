@@ -49,6 +49,17 @@ The tooling tests verify that concurrently's resolved dependency rejects the
 reported comment/line-terminator injection and preserves ordinary arguments.
 Remove this override when concurrently depends on a corrected release.
 
+The locked dependency tree includes Follow Redirects 1.16.2 and Joi 18.3.1 or
+newer for credential handling and email-validation fixes. ApiDOM still requests
+Minimatch 10, so an override scoped to `@swagger-api/apidom-reference` requires
+Minimatch 11.0.1 or newer to bound glob-pattern preprocessing. Remove this
+override when ApiDOM's dependency range includes the fix. Tooling regression
+tests exercise cross-realm sensitive headers, long email whitespace, bounded
+pattern expansion and Swagger's actual file allowlist. The advisories are
+[GHSA-mrwp-f3q8-3g9p](https://github.com/advisories/GHSA-mrwp-f3q8-3g9p),
+[GHSA-4528-x5fx-h6hg](https://github.com/advisories/GHSA-4528-x5fx-h6hg) and
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+
 ## Recommended Commands
 
 | Check                      | Where to run it            | Command                                     | Notes                                                          |
@@ -62,7 +73,7 @@ Remove this override when concurrently depends on a corrected release.
 | PHPStan                    | Host shell via npm wrapper | `npm run phpstan:check`                     | Required before finishing PHP changes                          |
 | Pest type coverage         | Host shell via npm wrapper | `npm run test:php:type-coverage`            | Enforces the measured 92% minimum; expensive on a cold cache   |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
-| MySQL-sensitive OAI-PMH | Host shell via npm wrapper | `npm run test:php:mysql-sensitive:oai-pmh` | Snapshot migration, indexed page ranges, and EPOS-MSL matching/harvesting on MySQL 9.7 |
+| MySQL-sensitive OAI-PMH | Host shell via npm wrapper | `npm run test:php:mysql-sensitive:oai-pmh` | Snapshot migration, indexed page ranges, and EPOS-MSL/ICGEM matching and harvesting on MySQL 9.7 |
 | Vitest one-shot            | Host shell                 | `npm run test:run`                          | Preferred for focused frontend validation                      |
 | Vitest coverage            | Host shell                 | `npm run test:coverage`                     | Use only when coverage detail is needed                        |
 | Vitest performance doctor  | Host shell                 | `npm run test:doctor`                       | Runs the suite repeatedly; use for measured tuning only        |

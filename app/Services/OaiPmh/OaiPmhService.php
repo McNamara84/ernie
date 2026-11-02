@@ -289,7 +289,7 @@ class OaiPmhService
                 $container,
                 $deletedRecord->oai_identifier,
                 $deletedRecord->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                array_values($deletedRecord->sets ?? []),
+                $this->setService->getSetsForDeletedRecord($deletedRecord),
             );
 
             return $builder->toXml();
@@ -455,7 +455,7 @@ class OaiPmhService
             ->when($until !== null, fn ($q) => $q->where('datestamp', '<=', $until));
 
         if ($setSpec !== null) {
-            $deletedQuery->whereJsonContains('sets', $setSpec);
+            $this->setService->applyDeletedSetFilter($deletedQuery, $setSpec);
         }
 
         if ($this->isIsoMetadataPrefix($metadataPrefix)) {
@@ -503,7 +503,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        array_values($deleted->sets ?? []),
+                        $this->setService->getSetsForDeletedRecord($deleted),
                         deleted: true,
                     );
                 } else {
@@ -511,7 +511,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        array_values($deleted->sets ?? []),
+                        $this->setService->getSetsForDeletedRecord($deleted),
                     );
                 }
                 $emitted++;
@@ -641,7 +641,7 @@ class OaiPmhService
                 }
                 $identifier = $deleted->oai_identifier;
                 $datestamp = $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z');
-                $sets = array_values($deleted->sets ?? []);
+                $sets = $this->setService->getSetsForDeletedRecord($deleted);
                 if ($headersOnly) {
                     $builder->addHeader($container, $identifier, $datestamp, $sets, deleted: true);
                 } else {

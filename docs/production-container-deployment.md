@@ -37,6 +37,23 @@ and form a linear deployment history. The generated Compose file references
 the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
 `latest`, `production`, or version tag.
 
+## Persistent OAI-PMH identifiers
+
+`APP_URL` defines the current public endpoint, `https://dataservices.gfz.de`.
+`OAI_IDENTIFIER_PREFIX` defines a persistent repository namespace and remains
+`oai:ernie.rz-vm499.gfz.de` on Production. Its historical hostname is intentional:
+OAI identifiers are names, rather than endpoint URLs, and must remain stable
+after a domain change. The public OAI documentation displays this configured
+namespace independently of its Base URL.
+
+Keep the same prefix in app, queue and scheduler, including any Portainer stack
+override. Changing it renames active records, makes their previous identifiers
+unrecognizable to `GetRecord`, and leaves stored deleted-record identifiers in
+the previous namespace. A namespace change therefore needs a separate migration
+and harvester transition; do not change it when updating the public hostname.
+
+See the [OAI identifier specification](https://www.openarchives.org/OAI/2.0/guidelines-oai-identifier.htm).
+
 ## Laravel process users and log permissions
 
 The PHP entrypoint performs filesystem/FPM setup as root, then runs all startup
