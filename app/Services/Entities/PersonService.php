@@ -29,8 +29,9 @@ class PersonService
      * Find an existing person or create a new one from the provided data.
      *
      * @param  array<string, mixed>  $data  Expected keys: orcid, firstName, lastName
+     * @param  list<int>  $excludedPersonIds  People whose name alone cannot establish this association
      */
-    public function findOrCreate(array $data, bool $requireMissingIdentifier = false): Person
+    public function findOrCreate(array $data, bool $requireMissingIdentifier = false, array $excludedPersonIds = []): Person
     {
         if (! empty($data['orcid'])) {
             $orcid = trim((string) $data['orcid']);
@@ -49,7 +50,7 @@ class PersonService
         if ($requireMissingIdentifier && empty($data['orcid'])) {
             $searchCriteria['name_identifier'] = null;
         }
-        $person = Person::query()->firstOrNew($searchCriteria);
+        $person = Person::query()->whereNotIn('id', $excludedPersonIds)->firstOrNew($searchCriteria);
 
         // Only populate data for new persons (not yet saved to database)
         if (! $person->exists) {

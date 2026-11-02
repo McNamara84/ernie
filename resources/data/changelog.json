@@ -13,7 +13,7 @@
             },
             {
                 "title": "Correct Contact Person Roles in XML and JSON Imports",
-                "description": "Contact Person contributors remain contributors when importing XML or JSON metadata instead of becoming additional authors. Contacts who are also authors retain their contact checkbox, while other contributor roles and affiliations are preserved. ELMO XML email addresses and websites are assigned to the corresponding contacts. Conflicting ORCIDs and ambiguous contact details no longer cause automatic person merges or incorrect contact assignments. The correction applies to new file imports; previously imported records can be corrected manually using their original metadata.",
+                "description": "Contact Person contributors remain contributors when importing XML or JSON metadata instead of becoming additional authors. Contacts who are also authors retain their contact checkbox, while other contributor roles and affiliations are preserved. ELMO XML email addresses and websites are assigned to the corresponding contacts. Conflicting ORCIDs and ambiguous contact details no longer cause automatic person merges or incorrect contact assignments. Authors and standalone contacts with incomplete names remain separate after saving and reopening the editor. Different institutional contributors sharing an affiliation ROR retain their own names. The correction applies to new file imports; previously imported records can be corrected manually using their original metadata.",
                 "references": [{ "type": "issue", "number": 1496, "url": "https://github.com/McNamara84/ernie/issues/1496" }]
             },
             {

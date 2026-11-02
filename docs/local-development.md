@@ -1002,6 +1002,12 @@ source creators. A standalone `ContactPerson` remains in Contributors. When a
 contact unambiguously matches an author, the editor uses that author's contact
 checkbox and retains any additional contributor roles. Saving expands the
 checkbox back into the ContactPerson contributor representation used by DataCite.
+An incomplete name without an ORCID cannot establish that association: an author
+and a standalone contact both named only `Doe` remain separate after saving and
+reopening the editor. Explicitly checking the author's contact checkbox still
+preserves the separate contact and its contact details. Organizational
+contributors are aggregated by their normalized institution name; a shared
+affiliation ROR identifies the affiliated organization and does not merge them.
 
 XML imports read email addresses and websites from ELMO's embedded ISO
 `pointOfContact` entries for both author contacts and standalone contributors.

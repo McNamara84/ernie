@@ -331,44 +331,14 @@ final class ContactPersonImportService
         }
 
         if ($type === 'institution') {
-            $keys = [];
-            $affiliations = is_array($contributor['affiliations'] ?? null)
-                ? $contributor['affiliations']
-                : [];
-
-            foreach ($affiliations as $affiliation) {
-                if (! is_array($affiliation)) {
-                    continue;
-                }
-
-                $rorId = $this->normaliseIdentifier($affiliation['rorId'] ?? null);
-
-                if ($rorId !== null) {
-                    $keys[] = 'institution:ror:'.$rorId;
-                }
-            }
-
+            // Affiliation identifiers describe affiliated organizations, not
+            // necessarily this contributor (e.g. two labs at the same institute).
             $institutionName = $this->normaliseKeyString($contributor['institutionName'] ?? null);
 
-            if ($institutionName !== null) {
-                $keys[] = 'institution:name:'.$institutionName;
-            }
-
-            return $keys;
+            return $institutionName !== null ? ['institution:name:'.$institutionName] : [];
         }
 
         return [];
-    }
-
-    private function normaliseIdentifier(mixed $value): ?string
-    {
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? null : Str::lower($trimmed);
     }
 
     private function normaliseKeyString(mixed $value): ?string

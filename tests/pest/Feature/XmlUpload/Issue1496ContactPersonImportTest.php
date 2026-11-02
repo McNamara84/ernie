@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\ContributorType;
+use App\Models\Person;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
@@ -78,11 +79,91 @@ function issue1496PartiesFile(string $format, array $authors, array $contributor
             foreach ($party['nameIdentifiers'] ?? [] as $identifier) {
                 $entry->addChild('nameIdentifier', $identifier['nameIdentifier'])->addAttribute('nameIdentifierScheme', 'ORCID');
             }
+            foreach ($party['affiliation'] ?? [] as $affiliation) {
+                $affiliationElement = $entry->addChild('affiliation', $affiliation['name']);
+                $affiliationElement->addAttribute('affiliationIdentifier', $affiliation['affiliationIdentifier']);
+                $affiliationElement->addAttribute('affiliationIdentifierScheme', 'ROR');
+            }
         }
     }
 
     return UploadedFile::fake()->createWithContent('contacts.xml', $xml->asXML());
 }
+
+it('keeps different institutional contributors sharing a parent ROR after upload save and reload', function (string $format) {
+    $authors = [['name' => 'Author, Anna', 'givenName' => 'Anna', 'familyName' => 'Author']];
+    $contributors = array_map(fn (string $name): array => [
+        'name' => $name, 'nameType' => 'Organizational', 'contributorType' => 'ContactPerson',
+        'affiliation' => [['name' => 'Parent Institute', 'affiliationIdentifier' => 'https://ror.org/04z8jg394', 'affiliationIdentifierScheme' => 'ROR']],
+    ], ['Laboratory A', 'Laboratory B']);
+    $preview = $this->postJson('/editor/upload-'.$format.'/preview', [
+        'file' => issue1496PartiesFile($format, $authors, $contributors),
+    ])->assertOk()->json('metadata');
+    expect(array_column($preview['contributors'], 'institutionName'))->toBe(['Laboratory A', 'Laboratory B']);
+
+    $response = $this->postJson('/dashboard/upload-'.$format, [
+        'file' => issue1496PartiesFile($format, $authors, $contributors),
+    ])->assertOk();
+    $resource = Resource::findOrFail($response->json('resourceId'));
+    for ($cycle = 0; $cycle < 3; $cycle++) {
+        $editor = app(EditorDataTransformer::class)->transformResource($resource->fresh());
+        expect(array_column($editor['contributors'], 'institutionName'))->toBe(['Laboratory A', 'Laboratory B']);
+        foreach ($editor['contributors'] as $contributor) {
+            expect($contributor['affiliations'][0]['rorId'])->toBe('https://ror.org/04z8jg394');
+        }
+        if ($cycle < 2) {
+            $this->postJson('/editor/resources/draft', [
+                'resourceId' => $resource->id, 'authors' => $editor['authors'], 'contributors' => $editor['contributors'],
+                'titles' => [['title' => 'Institution contact regression', 'titleType' => 'MainTitle']],
+            ])->assertOk();
+        }
+    }
+})->with(['xml', 'json']);
+
+it('preserves unresolved surname-only contacts through upload draft saves and editor reconstruction', function (string $format, bool $markAuthorAsContact) {
+    $person = ['name' => 'Doe', 'familyName' => 'Doe', 'nameType' => 'Personal'];
+    $contact = $person + ['contributorType' => 'ContactPerson'];
+    $preview = $this->postJson('/editor/upload-'.$format.'/preview', [
+        'file' => issue1496PartiesFile($format, [$person], [$contact]),
+    ])->assertOk()->json('metadata');
+    expect($preview['authors'][0]['isContact'] ?? false)->toBeFalse()
+        ->and($preview['contributors'])->toHaveCount(1);
+
+    $response = $this->postJson('/dashboard/upload-'.$format, [
+        'file' => issue1496PartiesFile($format, [$person], [$contact]),
+    ])->assertOk();
+    $resource = Resource::findOrFail($response->json('resourceId'));
+    $creatorPersonId = $resource->creators()->sole()->creatorable_id;
+    $contributorPersonId = $resource->contributors()->sole()->contributorable_id;
+    expect($contributorPersonId)->not->toBe($creatorPersonId);
+
+    for ($cycle = 0; $cycle < 3; $cycle++) {
+        $editor = app(EditorDataTransformer::class)->transformResource($resource->fresh());
+        expect($editor['authors'])->toHaveCount(1)
+            ->and($editor['authors'][0]['isContact'])->toBe($cycle > 0 && $markAuthorAsContact)
+            ->and($editor['contributors'])->toHaveCount(1)
+            ->and($editor['contributors'][0]['lastName'])->toBe('Doe')
+            ->and($editor['contributors'][0]['firstName'])->toBe('')
+            ->and($editor['contributors'][0]['roles'])->toBe(['Contact Person']);
+        expect($resource->contributors()->where('contributorable_id', $contributorPersonId)->count())->toBe(1)
+            ->and($resource->creators()->sole()->creatorable_id)->toBe($creatorPersonId)
+            ->and(Person::count())->toBe(2);
+        if ($cycle > 0) {
+            expect($editor['contributors'][0]['email'])->toBe('standalone@example.org')
+                ->and($editor['authors'][0]['email'] ?? null)->toBe($markAuthorAsContact ? 'author@example.org' : null)
+                ->and($resource->contributors()->count())->toBe($markAuthorAsContact ? 2 : 1);
+        }
+        if ($cycle < 2) {
+            $editor['authors'][0]['isContact'] = $markAuthorAsContact;
+            $editor['authors'][0]['email'] = $markAuthorAsContact ? 'author@example.org' : '';
+            $editor['contributors'][0]['email'] = 'standalone@example.org';
+            $this->postJson('/editor/resources/draft', [
+                'resourceId' => $resource->id, 'authors' => $editor['authors'], 'contributors' => $editor['contributors'],
+                'titles' => [['title' => 'Surname contact regression', 'titleType' => 'MainTitle']],
+            ])->assertOk();
+        }
+    }
+})->with(['xml', 'json'])->with([false, true]);
 
 it('keeps an unidentified contact separate from conflicting same-name authors after saving twice', function (string $format) {
     $person = ['name' => 'Shared, Morgan', 'givenName' => 'Morgan', 'familyName' => 'Shared', 'nameType' => 'Personal'];

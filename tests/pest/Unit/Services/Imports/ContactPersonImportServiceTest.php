@@ -142,3 +142,27 @@ it('recognizes legacy compound roles and normalizes whitespace for matching', fu
     expect($result['authors'][0]['isContact'])->toBeTrue()
         ->and($result['contributors'][0]['roles'])->toBe(['Data Curator']);
 });
+
+it('does not identify institutions by the ROR of a shared affiliation', function (array $names) {
+    $contributors = array_map(fn (string $name): array => [
+        'type' => 'institution', 'institutionName' => $name, 'roles' => ['Contact Person'],
+        'affiliations' => [['value' => 'Parent Institute', 'rorId' => 'https://ror.org/04z8jg394']],
+    ], $names);
+
+    expect((new ContactPersonImportService)->resolve([], $contributors)['contributors'])->toBe($contributors);
+})->with([
+    [['Laboratory A', 'Laboratory B']],
+    [['', '']],
+]);
+
+it('aggregates an institutions roles by its normalized name while preserving affiliations', function () {
+    $first = ['type' => 'institution', 'institutionName' => ' Laboratory A ', 'roles' => ['Contact Person'],
+        'affiliations' => [['value' => 'Parent Institute', 'rorId' => 'https://ror.org/04z8jg394']]];
+    $second = ['type' => 'institution', 'institutionName' => 'laboratory  a', 'roles' => ['Data Collector'],
+        'affiliations' => [['value' => 'Other Institute', 'rorId' => null]]];
+
+    $result = (new ContactPersonImportService)->resolve([], [$first, $second]);
+    expect($result['contributors'])->toHaveCount(1)
+        ->and($result['contributors'][0]['roles'])->toBe(['Contact Person', 'Data Collector'])
+        ->and($result['contributors'][0]['affiliations'])->toHaveCount(2);
+});
