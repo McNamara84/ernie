@@ -69,7 +69,7 @@ export default function RelatedWorkItem({
         ? identifierTypes.filter((type) => activeIdentifierTypes.includes(type))
         : [...identifierTypes];
 
-    const previewLinkIdentifierTypes = new Set(['DOI', 'URL', 'Handle']);
+    const previewLinkIdentifierTypes = new Set(['DOI', 'URL', 'Handle', 'SWHID']);
     const linkUrl = previewLinkIdentifierTypes.has(item.identifier_type) ? resolveIdentifierUrl(item.identifier, item.identifier_type) : null;
     const isClickable = linkUrl !== null;
     const isRepositoryCuration = isRepositoryCurationRelatedIdentifier(item);

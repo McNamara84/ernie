@@ -2,6 +2,8 @@
  * DOI Validation and DataCite API utilities
  */
 
+import { validateSwhid } from '@/lib/swhid';
+
 export interface DataCiteMetadata {
     title?: string;
     creators?: string[];
@@ -154,6 +156,10 @@ export function validateHandleFormat(handle: string): ValidationResult {
  */
 export function validateIdentifierFormat(identifier: string, type: string): ValidationResult {
     switch (type) {
+        case 'SWHID': {
+            const result = validateSwhid(identifier);
+            return { isValid: result.valid, format: result.valid ? 'valid' : 'invalid', message: result.errors[0]?.message };
+        }
         case 'DOI':
             return validateDOIFormat(identifier);
         case 'URL':

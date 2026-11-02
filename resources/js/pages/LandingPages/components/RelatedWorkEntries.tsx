@@ -3,6 +3,7 @@ import { Check, Copy, ExternalLink, Quote } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { isRepositoryCurationRelatedIdentifier } from '@/lib/related-identifier-provenance';
+import { getSwhidQualifierLabel, parseSwhid, SWHID_OBJECT_LABELS } from '@/lib/swhid';
 import { cn } from '@/lib/utils';
 import type { LandingPageRelatedIdentifier, LandingPageRelatedItem } from '@/types/landing-page';
 
@@ -34,6 +35,11 @@ function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifi
 
     if (relatedIdentifier.identifier_type === 'DOI') {
         return `DOI: ${normalizeDoiKey(relatedIdentifier.identifier) ?? relatedIdentifier.identifier}`;
+    }
+
+    if (relatedIdentifier.identifier_type === 'SWHID') {
+        const parsed = parseSwhid(relatedIdentifier.identifier);
+        if (parsed) return `${SWHID_OBJECT_LABELS[parsed.objectType]} · ${parsed.core}`;
     }
 
     return relatedIdentifier.identifier;
@@ -73,9 +79,15 @@ function RelatedIdentifierLabel({
     relatedIdentifier: LandingPageRelatedIdentifier;
     useIgsnHandles: boolean;
 }) {
+    const swhid =
+        relatedIdentifier.identifier_type === 'SWHID' && !relatedIdentifier.citation_label?.trim() && !relatedIdentifier.related_title?.trim()
+            ? parseSwhid(relatedIdentifier.identifier)
+            : null;
+    const qualifierLabel = swhid ? getSwhidQualifierLabel(swhid) : '';
     return (
         <span id={id} className="min-w-0 flex-1 [overflow-wrap:anywhere]">
             {getRelatedIdentifierLabel(relatedIdentifier, useIgsnHandles)}
+            {qualifierLabel && <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">{qualifierLabel}</span>}
         </span>
     );
 }

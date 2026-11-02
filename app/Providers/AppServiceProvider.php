@@ -232,6 +232,13 @@ class AppServiceProvider extends ServiceProvider
      */
     private function configureRateLimiting(): void
     {
+        RateLimiter::for('identifier-validation', function (Request $request) {
+            // Keep API keys out of cache keys; isolate callers and this endpoint.
+            $key = $request->header('X-API-Key') ?: $request->bearerToken() ?: '';
+
+            return Limit::perMinute(60)->by(hash('sha256', $key).'|'.$request->ip());
+        });
+
         // Rate limiter for ORCID API endpoints
         // Allows 30 requests per minute per IP address
         RateLimiter::for('orcid-api', function (Request $request) {
