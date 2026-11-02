@@ -17,6 +17,7 @@ use App\Services\Imports\ContactPersonImportService;
 use App\Services\Imports\Subjects\ImportedSubjectData;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\Imports\Subjects\SubjectImportResult;
+use App\Services\InstrumentNameResolutionService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
@@ -79,6 +80,7 @@ class UploadJsonController extends Controller
     ];
 
     public function __construct(
+        private readonly InstrumentNameResolutionService $instrumentResolver,
         private readonly ContactPersonImportService $contactPersonResolver,
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
@@ -861,7 +863,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $relatedIdentifiers
-     * @return array{relatedWorks: array<int, array<string, mixed>>, instruments: array<int, array<string, string>>}
+     * @return array{relatedWorks: array<int, array<string, mixed>>, instruments: array<int, array<string, mixed>>}
      */
     private function extractRelatedWorksAndInstruments(array $relatedIdentifiers, string $filename): array
     {
@@ -917,7 +919,7 @@ class UploadJsonController extends Controller
 
         return [
             'relatedWorks' => $relatedWorks,
-            'instruments' => $instruments,
+            'instruments' => $this->instrumentResolver->resolve($instruments),
         ];
     }
 

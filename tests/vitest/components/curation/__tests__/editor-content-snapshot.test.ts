@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curation/utils/editor-content-snapshot';
 
 describe('editor content snapshot', () => {
+    it('ignores instrument diagnostics but tracks newly resolved names and original PIDs', () => {
+        const instrument = { pid: '21.test/a', pidType: 'Handle', name: 'Name' };
+        const before = snapshotEditorContent({ instruments: [instrument] });
+        expect(snapshotEditorContent({ instruments: [{ ...instrument, resolution: { status: 'identifier_conflict' } }] })).toBe(before);
+        expect(snapshotEditorContent({ instruments: [{ ...instrument, name: 'Resolved name' }] })).not.toBe(before);
+        expect(snapshotEditorContent({ instruments: [{ ...instrument, pid: '21.test/b' }] })).not.toBe(before);
+    });
     it('ignores generated row IDs and object key order while preserving real content', () => {
         const first = {
             titles: [{ id: '5a1b0f42-3e6e-4b32-b741-97b442d50200', title: 'A title', titleType: 'main-title' }],
@@ -14,9 +21,7 @@ describe('editor content snapshot', () => {
         };
 
         expect(snapshotEditorContent(first)).toBe(snapshotEditorContent(sameContent));
-        expect(snapshotEditorContent({ ...first, titles: [{ ...first.titles[0], title: 'Another title' }] })).not.toBe(
-            snapshotEditorContent(first),
-        );
+        expect(snapshotEditorContent({ ...first, titles: [{ ...first.titles[0], title: 'Another title' }] })).not.toBe(snapshotEditorContent(first));
     });
 
     it('keeps server IDs and updates only the saved DOI after registration', () => {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Console\Commands\GetPid4instInstruments;
+use App\Services\Pid4instVocabularyService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
@@ -170,3 +171,44 @@ it('fails without creating a registry file when b2inst rejects the request', fun
 
     Storage::assertMissing('pid4inst-instruments.json');
 });
+
+it('preserves explicit conflicting identifiers for local resolution but not public responses', function () {
+    Storage::fake('local');
+    Http::fake([pid4instRecordsUrlPattern() => Http::response(['hits' => ['total' => 1, 'hits' => [[
+        'id' => 'epmy8-2k126',
+        'metadata' => ['Name' => 'GNSS receiver', 'Identifier' => ['identifierType' => 'Handle', 'identifierValue' => '21.11157/epmy8-2k126']],
+        'pids' => ['epic' => ['identifier' => 'http://hdl.handle.net/21.11157/uuid']],
+    ]]]])]);
+    expect(Artisan::call('get-pid4inst-instruments'))->toBe(0);
+    $vocabulary = app(Pid4instVocabularyService::class);
+    expect($vocabulary->getLocalPayload()['data'][0]['lookupIdentifiers'])->toBe([
+        ['value' => '21.11157/epmy8-2k126', 'type' => 'Handle', 'source' => 'metadata'],
+        ['value' => 'http://hdl.handle.net/21.11157/uuid', 'type' => 'Handle', 'source' => 'epic'],
+    ])->and($vocabulary->getPublicPayload()['data'][0])->not->toHaveKey('lookupIdentifiers');
+});
+
+it('preserves the previous registry and cache after an incomplete or invalid download', function (string $scenario) {
+    Storage::fake('local');
+    $vocabulary = app(Pid4instVocabularyService::class);
+    $previous = json_encode(['data' => [['id' => 'old', 'pid' => '21.test/old', 'pidType' => 'Handle', 'name' => 'Old instrument']]]);
+    $vocabulary->replace($previous);
+    $cached = $vocabulary->getLocalPayload();
+    $hit = ['id' => 'one', 'metadata' => ['Name' => 'New instrument', 'Identifier' => ['identifierValue' => '21.test/new']]];
+    if ($scenario === 'network') {
+        Http::fake([pid4instRecordsUrlPattern() => Http::failedConnection()]);
+    } else {
+        $sequence = Http::fakeSequence(pid4instRecordsUrlPattern());
+        match ($scenario) {
+            'truncated' => $sequence->push(['hits' => ['total' => 2, 'hits' => [$hit]]])->push(['hits' => ['total' => 2, 'hits' => []]]),
+            'changing' => $sequence->push(['hits' => ['total' => 2, 'hits' => [$hit]]])->push(['hits' => ['total' => 3, 'hits' => []]]),
+            'duplicate' => $sequence->push(['hits' => ['total' => 2, 'hits' => [$hit, $hit]]]),
+            'overfull' => $sequence->push(['hits' => ['total' => 0, 'hits' => [$hit]]]),
+            'malformed' => $sequence->push(['hits' => ['total' => '2', 'hits' => []]]),
+            'invalid record' => $sequence->push(['hits' => ['total' => 1, 'hits' => [['id' => 'broken']]]]),
+            'http' => $sequence->push([], 503),
+        };
+    }
+    expect(Artisan::call('get-pid4inst-instruments'))->toBe(1)
+        ->and(Storage::get(Pid4instVocabularyService::FILE))->toBe($previous)
+        ->and($vocabulary->getLocalPayload())->toBe($cached);
+})->with(['truncated', 'changing', 'duplicate', 'overfull', 'malformed', 'invalid record', 'http', 'network']);

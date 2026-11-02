@@ -4,6 +4,11 @@
         "date": "2026-10-27",
         "fixes": [
             {
+                "title": "Consistent Instrument Names in XML and JSON Imports",
+                "description": "The Data Editor resolves instrument names from the local PID4INST registry during XML and JSON imports and when opening existing resources. Imported PIDs and curated names are preserved. Conflicting registry identifiers, missing names and unavailable registry data are explained beside the affected instrument. Resolve names again refreshes names without losing other form changes. Admins and Group Leaders can update PID4INST even when instrument counts match. Incomplete downloads retain the previous registry. Existing resources retain newly resolved names when saved normally.",
+                "references": [{ "type": "issue", "number": 1498, "url": "https://github.com/McNamara84/ernie/issues/1498" }]
+            },
+            {
                 "title": "JavaScript Dependency Security",
                 "description": "Updated indirect HTTP and validation dependencies to address credential handling during redirects and denial-of-service vulnerabilities in email and file-pattern processing. Swagger UI retains its current functionality, with regression tests covering its file allowlist and the affected dependency behavior."
             },

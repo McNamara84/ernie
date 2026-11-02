@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\Editor\EditorLoadProgressService;
+use App\Services\InstrumentNameResolutionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -51,6 +52,7 @@ class EditorController extends Controller
     public function __construct(
         private readonly EditorDataTransformer $transformer,
         private readonly EditorLoadProgressService $progressTracker,
+        private readonly InstrumentNameResolutionService $instrumentResolver,
     ) {}
 
     /**
@@ -146,7 +148,7 @@ class EditorController extends Controller
                 'coverages' => $sessionData['coverages'] ?? [],
                 'relatedWorks' => $sessionData['relatedWorks'] ?? [],
                 'relatedItems' => $sessionData['relatedItems'] ?? [],
-                'instruments' => $sessionData['instruments'] ?? [],
+                'instruments' => $this->instrumentResolver->resolve($sessionData['instruments'] ?? []),
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
             ]
@@ -211,7 +213,7 @@ class EditorController extends Controller
                 'coverages' => $sessionData['coverages'] ?? [],
                 'relatedWorks' => $sessionData['relatedWorks'] ?? [],
                 'relatedItems' => $sessionData['relatedItems'] ?? [],
-                'instruments' => $sessionData['instruments'] ?? [],
+                'instruments' => $this->instrumentResolver->resolve($sessionData['instruments'] ?? []),
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
             ]

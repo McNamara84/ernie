@@ -34,7 +34,9 @@ dataset('editor vocabulary files', [
 it('checks each editor before reading shared cached vocabulary data', function (string $type, string $slug, string $file, bool $pid): void {
     $model = $pid ? PidSetting::class : ThesaurusSetting::class;
     $setting = $model::firstOrCreate(['type' => $type], ['display_name' => $type]);
-    $payload = ['data' => [['id' => 'test', 'text' => 'Test']]];
+    $payload = ['data' => [$type === 'pid4inst'
+        ? ['id' => 'test', 'pid' => '21.test/a', 'pidType' => 'Handle', 'name' => 'Test']
+        : ['id' => 'test', 'text' => 'Test']]];
     Storage::put($file, json_encode($payload));
 
     for ($flags = 0; $flags < 8; $flags++) {

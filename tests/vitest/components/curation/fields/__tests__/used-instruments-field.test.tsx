@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -124,9 +124,7 @@ describe('UsedInstrumentsField', () => {
     });
 
     it('displays selected instruments as cards', () => {
-        const selected: InstrumentSelection[] = [
-            { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' },
-        ];
+        const selected: InstrumentSelection[] = [{ pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' }];
 
         render(<UsedInstrumentsField selectedInstruments={selected} onChange={mockOnChange} />);
 
@@ -158,16 +156,12 @@ describe('UsedInstrumentsField', () => {
         const removeButton = screen.getByRole('button', { name: /Remove Magnetometer XYZ-500/ });
         await user.click(removeButton);
 
-        expect(mockOnChange).toHaveBeenCalledWith([
-            { pid: '21.T11998/0000-001A-2B3C-5', pidType: 'Handle', name: 'Seismometer ABC-100' },
-        ]);
+        expect(mockOnChange).toHaveBeenCalledWith([{ pid: '21.T11998/0000-001A-2B3C-5', pidType: 'Handle', name: 'Seismometer ABC-100' }]);
     });
 
     it('excludes already selected instruments from dropdown options', async () => {
         const user = userEvent.setup();
-        const selected: InstrumentSelection[] = [
-            { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' },
-        ];
+        const selected: InstrumentSelection[] = [{ pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' }];
 
         render(<UsedInstrumentsField selectedInstruments={selected} onChange={mockOnChange} />);
 
@@ -180,10 +174,21 @@ describe('UsedInstrumentsField', () => {
         expect(await screen.findByText('Seismometer ABC-100')).toBeInTheDocument();
     });
 
+    it('keeps matching PID values of different types separate when selecting and removing', async () => {
+        const user = userEvent.setup();
+        const selected: InstrumentSelection[] = [{ pid: '21.T11998/0000-001A-2B3C-4', pidType: 'DOI', name: 'Different identifier type' }];
+        const { rerender } = render(<UsedInstrumentsField selectedInstruments={selected} onChange={mockOnChange} />);
+        await user.click(screen.getByRole('combobox'));
+        await user.click(await screen.findByRole('option', { name: /Magnetometer XYZ-500/ }));
+        const handle = { pid: selected[0].pid, pidType: 'Handle', name: 'Magnetometer XYZ-500' };
+        expect(mockOnChange).toHaveBeenLastCalledWith([...selected, handle]);
+        rerender(<UsedInstrumentsField selectedInstruments={[...selected, handle]} onChange={mockOnChange} />);
+        await user.click(screen.getByRole('button', { name: 'Remove Magnetometer XYZ-500' }));
+        expect(mockOnChange).toHaveBeenLastCalledWith(selected);
+    });
+
     it('generates correct Handle landing page URL', () => {
-        const selected: InstrumentSelection[] = [
-            { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' },
-        ];
+        const selected: InstrumentSelection[] = [{ pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' }];
 
         render(<UsedInstrumentsField selectedInstruments={selected} onChange={mockOnChange} />);
 
@@ -197,9 +202,7 @@ describe('UsedInstrumentsField', () => {
     });
 
     it('does not show empty state when instruments are selected', () => {
-        const selected: InstrumentSelection[] = [
-            { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' },
-        ];
+        const selected: InstrumentSelection[] = [{ pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' }];
 
         render(<UsedInstrumentsField selectedInstruments={selected} onChange={mockOnChange} />);
 
@@ -274,7 +277,7 @@ describe('UsedInstrumentsField', () => {
     });
 
     describe('PID name resolution', () => {
-        it('resolves PID-as-name when vocabulary becomes available', async () => {
+        it('displays server-resolved names without overwriting the selection', async () => {
             const { usePid4instInstruments } = await import('@/hooks/use-pid4inst-instruments');
             (usePid4instInstruments as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
                 instruments: [
@@ -299,17 +302,53 @@ describe('UsedInstrumentsField', () => {
 
             // Simulate instrument imported via XML where name = pid (placeholder)
             const selected: InstrumentSelection[] = [
-                { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: '21.T11998/0000-001A-2B3C-4' },
+                { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Resolved name', resolution: { status: 'matched' } },
             ];
 
             render(<UsedInstrumentsField selectedInstruments={selected} onChange={mockOnChange} />);
 
-            // The useEffect resolves names asynchronously after render
-            await waitFor(() => {
-                expect(mockOnChange).toHaveBeenCalledWith([
-                    { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' },
-                ]);
-            });
+            expect(screen.getByRole('heading', { name: 'Resolved name' })).toBeInTheDocument();
+            expect(mockOnChange).not.toHaveBeenCalled();
         });
+    });
+
+    it.each([
+        ['not_found', 'Instrument name not found in the local registry.'],
+        ['unavailable', 'The local instrument registry is unavailable or disabled.'],
+        ['ambiguous', 'Multiple registry records match this identifier.'],
+        ['identifier_conflict', 'B2INST lists different identifiers for this instrument.'],
+    ] as const)('shows the %s diagnosis while retaining the original PID', (status, message) => {
+        render(
+            <UsedInstrumentsField
+                selectedInstruments={[
+                    {
+                        pid: '21.test/original',
+                        pidType: 'Handle',
+                        name: 'Instrument',
+                        resolution: { status, identifiers: [{ value: '21.test/other', type: 'Handle', source: 'epic' }] },
+                    },
+                ]}
+                onChange={mockOnChange}
+            />,
+        );
+        expect(screen.getByText((text) => text.startsWith(message))).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Handle: 21.test\/original/ })).toHaveAttribute('href', 'https://hdl.handle.net/21.test/original');
+        expect(mockOnChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps existing instruments visible when selection is disabled and allows name retry', async () => {
+        const resolveAgain = vi.fn();
+        render(
+            <UsedInstrumentsField
+                selectedInstruments={[{ pid: '21.test/a', pidType: 'Handle', name: 'Retained' }]}
+                selectionEnabled={false}
+                onChange={mockOnChange}
+                resolveAgain={resolveAgain}
+            />,
+        );
+        expect(screen.getByRole('combobox')).toBeDisabled();
+        expect(screen.getByRole('heading', { name: 'Retained' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Resolve names again' }));
+        expect(resolveAgain).toHaveBeenCalledOnce();
     });
 });

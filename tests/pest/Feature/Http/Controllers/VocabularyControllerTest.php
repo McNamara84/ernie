@@ -150,7 +150,7 @@ describe('pid4inst instruments', function () {
             'is_elmo_active' => true,
         ]);
 
-        Storage::put('pid4inst-instruments.json', json_encode([['name' => 'Magnetometer']]));
+        Storage::put('pid4inst-instruments.json', json_encode(['data' => [['pid' => '21.test/magnetometer', 'pidType' => 'Handle', 'name' => 'Magnetometer']]]));
 
         $response = $this->getJson('/api/v1/vocabularies/pid4inst-instruments', [
             'X-API-Key' => config('services.ernie.api_key'),

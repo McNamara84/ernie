@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\Pid4instVocabularyService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Fetch all public instruments from the b2inst API and store locally as JSON.
@@ -25,13 +24,26 @@ use Illuminate\Support\Facades\Storage;
 #[Signature('get-pid4inst-instruments')]
 class GetPid4instInstruments extends Command
 {
-    public function handle(): int
+    public function handle(Pid4instVocabularyService $vocabulary): int
+    {
+        try {
+            return $this->download($vocabulary);
+        } catch (\Throwable $exception) {
+            $this->error('Failed to update instrument registry: '.$exception->getMessage());
+
+            return self::FAILURE;
+        }
+    }
+
+    private function download(Pid4instVocabularyService $vocabulary): int
     {
         /** @var string $host */
         $host = rtrim((string) config('b2inst.host'), '/');
         /** @var int $pageSize */
         $pageSize = config('b2inst.page_size', 100);
         $page = 1;
+        $expectedTotal = null;
+        $seenIds = [];
 
         /** @var list<array{id: string, pid: string, pidType: string, name: string, description: string, landingPage: string, owners: list<string>, manufacturers: list<string>, model: string|null, instrumentTypes: list<string>, measuredVariables: list<string>}> $allInstruments */
         $allInstruments = [];
@@ -53,20 +65,32 @@ class GetPid4instInstruments extends Command
                 return self::FAILURE;
             }
 
-            /** @var array{hits: array{hits: list<array<string, mixed>>, total: int}, links: array<string, string>} $data */
             $data = $response->json();
-            /** @var list<array<string, mixed>> $hits */
-            $hits = $data['hits']['hits'];
-            /** @var int $total */
-            $total = $data['hits']['total'];
+            $hits = $data['hits']['hits'] ?? null;
+            $total = $data['hits']['total'] ?? null;
+            if (! is_array($hits) || ! array_is_list($hits) || ! is_int($total) || $total < 0
+                || ($expectedTotal !== null && $expectedTotal !== $total)) {
+                throw new \RuntimeException('Invalid or changing instrument result set.');
+            }
+            $expectedTotal = $total;
 
             foreach ($hits as $hit) {
+                if (! is_array($hit) || ! is_string($hit['id'] ?? null) || $hit['id'] === ''
+                    || isset($seenIds[$hit['id']]) || ! is_array($hit['metadata'] ?? null)
+                    || ! is_string($hit['metadata']['Name'] ?? null)
+                    || ! is_string($hit['metadata']['Identifier']['identifierValue'] ?? null)) {
+                    throw new \RuntimeException('Invalid or repeated instrument record.');
+                }
+                $seenIds[$hit['id']] = true;
                 $allInstruments[] = $this->transformRecord($hit);
             }
 
             $this->info("Page {$page}: fetched ".count($hits).' records (total so far: '.count($allInstruments)."/{$total})");
             $page++;
         } while (count($allInstruments) < $total && count($hits) > 0);
+        if (count($allInstruments) !== $total) {
+            throw new \RuntimeException('Incomplete instrument result set.');
+        }
 
         // Store as JSON
         $json = json_encode([
@@ -81,10 +105,7 @@ class GetPid4instInstruments extends Command
             return self::FAILURE;
         }
 
-        Storage::put('pid4inst-instruments.json', $json);
-
-        // Clear vocabulary cache
-        Artisan::call('cache:clear-app', ['category' => 'vocabularies']);
+        $vocabulary->replace($json);
 
         $this->info('Successfully stored '.count($allInstruments).' instruments.');
 
@@ -104,6 +125,15 @@ class GetPid4instInstruments extends Command
 
         /** @var array{identifierValue?: string, identifierType?: string} $identifier */
         $identifier = $meta['Identifier'] ?? [];
+        $lookupIdentifiers = [[
+            'value' => (string) ($identifier['identifierValue'] ?? ''),
+            'type' => $this->normalizePidType((string) ($identifier['identifierType'] ?? 'Handle')),
+            'source' => 'metadata',
+        ]];
+        $providerPid = $hit['pids']['epic']['identifier'] ?? null;
+        if (is_string($providerPid) && trim($providerPid) !== '') {
+            $lookupIdentifiers[] = ['value' => $providerPid, 'type' => 'Handle', 'source' => 'epic'];
+        }
 
         /** @var list<array{ownerName?: string}> $owners */
         $owners = $meta['Owner'] ?? [];
@@ -124,6 +154,7 @@ class GetPid4instInstruments extends Command
             'id' => (string) ($hit['id'] ?? ''),
             'pid' => (string) ($identifier['identifierValue'] ?? ''),
             'pidType' => $this->normalizePidType((string) ($identifier['identifierType'] ?? 'Handle')),
+            'lookupIdentifiers' => $lookupIdentifiers,
             'name' => (string) ($meta['Name'] ?? ''),
             'description' => (string) ($meta['Description'] ?? ''),
             'landingPage' => (string) ($meta['LandingPage'] ?? ''),
