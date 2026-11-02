@@ -201,6 +201,14 @@ class ResourceStorageService
             $this->storeInstruments($resource, $data, $isUpdate);
 
             if ($isUpdate) {
+                // Child-only edits can leave every parent attribute unchanged.
+                // Timestamp the completed editor save within the same transaction
+                // so incremental OAI harvests also discover those metadata edits.
+                app(OaiPmhDatestampService::class)->touchResource((int) $resource->id);
+                // A full refresh would also reload cached child collections.
+                $resource->setAttribute('updated_at', Resource::query()->whereKey($resource->id)->value('updated_at'));
+                $resource->syncOriginalAttribute('updated_at');
+
                 // Resource observers run before child rows are replaced. Evict again
                 // after commit in case another request cached the previous relations.
                 DB::afterCommit(static function () use ($resource): void {

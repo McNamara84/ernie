@@ -4,6 +4,11 @@
         "date": "2026-10-30",
         "features": [
             {
+                "title": "ICGEM Model Harvesting",
+                "description": "The new icgem OAI-PMH set provides published Model resources whose own DOI contains 10.5880/icgem, ignoring letter case. ICGEM clients can harvest current DataCite metadata and reconcile active models through identifier lists. Historical withdrawals are included when the saved resource type identifies a model. Metadata-only editor changes are included in incremental harvests. The public harvesting documentation explains selection, pagination, incremental updates and safe handling of resource-type changes.",
+                "references": [{ "type": "issue", "number": 1433, "url": "https://github.com/McNamara84/ernie/issues/1433" }]
+            },
+            {
                 "title": "Software Heritage Identifiers",
                 "description": "Related Work recognizes, normalizes and validates core and qualified SWHIDs, including archive URLs and CSV imports. Clear validation errors preserve editable drafts. Landing pages and the relation browser provide archive links and readable object and qualifier labels; SWHIDs marked IsIdenticalTo also appear as additional Schema.org identifiers alongside the DOI. An authenticated API offers the same complete validation for ELMO and other clients.",
                 "references": [

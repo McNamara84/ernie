@@ -18,6 +18,11 @@ const defaultProps = {
         name: 'EPOS-MSL Project',
         description: 'Published resources with the complete free keyword EPOS or MSL (or both).',
     },
+    icgemSet: {
+        spec: 'icgem',
+        name: 'ICGEM Models',
+        description: 'Published models whose own DOI contains 10.5880/icgem.',
+    },
     adminEmail: 'datapub@gfz.de',
     metadataFormats: {
         oai_dc: {
@@ -128,13 +133,53 @@ describe('OaiPmhDocs', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         expect(screen.getByText('Keeping an EPOS-MSL Harvest in Sync')).toBeInTheDocument();
         expect(screen.getByText(/daily incremental updates and a weekly complete/)).toBeInTheDocument();
-        expect(screen.getByText(/Never remove local records based on an incomplete or failed harvest/)).toBeInTheDocument();
-        expect(screen.getByText(/Technical errors do not confirm removal/)).toBeInTheDocument();
+        expect(screen.getAllByText(/Never remove local records based on an incomplete or failed harvest/)).toHaveLength(2);
+        expect(screen.getAllByText(/Technical errors do not confirm removal/)).toHaveLength(2);
         expect(screen.getByText(/Keyword removal does not generate a deleted header/)).toBeInTheDocument();
         expect(screen.getByText(/later pages do not extend it/)).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'OAI-PMH 2.0 sets' })).toHaveAttribute(
             'href',
             'https://www.openarchives.org/OAI/openarchivesprotocol.html#Set',
         );
+    });
+
+    it('documents the model and own-DOI intersection, historical evidence and formats', () => {
+        render(<OaiPmhDocs {...defaultProps} />);
+        const set = screen.getByLabelText('ICGEM model set');
+        for (const text of [
+            defaultProps.icgemSet.name,
+            defaultProps.icgemSet.description,
+            'Both conditions must hold',
+            'anywhere, ignoring ASCII letter case',
+            'Resource Type is Model',
+            'Related identifiers and datacenter affiliation do not determine membership',
+            '10.5880/icgem.2026.004',
+            '10.5880/icgem.2015.1',
+            'noRecordsMatch',
+            '<setSpec>icgem</setSpec>',
+            'resourcetype:model',
+            'original deletion datestamps are preserved',
+            'without saved type evidence cannot be classified',
+            'Deleted headers do not count towards the active inventory',
+            'iso19115_3 for models when ISO export is enabled',
+        ]) {
+            expect(set).toHaveTextContent(text);
+        }
+        expect(screen.getByText('Keeping an ICGEM Harvest in Sync')).toBeInTheDocument();
+        expect(screen.getByText(/Changing a resource from Model to another type/)).toHaveTextContent('does not generate a deleted header');
+        expect(screen.getByText(/An invalid or expired token requires/)).toBeInTheDocument();
+    });
+
+    it('uses the configured ICGEM definition and base URL in initial and incremental examples', () => {
+        const baseUrl = 'https://example.org/harvest';
+        render(<OaiPmhDocs {...defaultProps} baseUrl={baseUrl} icgemSet={{ ...defaultProps.icgemSet, spec: 'custom-icgem' }} />);
+        for (const query of [
+            'verb=ListRecords&metadataPrefix=oai_datacite&set=custom-icgem',
+            'verb=ListIdentifiers&metadataPrefix=oai_dc&set=custom-icgem',
+            'verb=ListRecords&metadataPrefix=oai_datacite&set=custom-icgem&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z',
+        ]) {
+            expect(screen.getByText(`${baseUrl}?${query}`)).toBeInTheDocument();
+        }
+        expect(screen.getByLabelText('ICGEM model set')).toHaveTextContent('<setSpec>custom-icgem</setSpec>');
     });
 });

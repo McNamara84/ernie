@@ -16,6 +16,7 @@ use App\Models\ResourceAssessment;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
+use App\Services\OaiPmh\IcgemSetService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ final class DeleteAllResourcesService
         private readonly ResourceCacheService $resourceCacheService,
         private readonly PortalCacheInvalidationService $portalCacheInvalidationService,
         private readonly AssessmentAverageSummaryVersionService $assessmentSummaryVersionService,
+        private readonly IcgemSetService $icgemSet,
     ) {}
 
     public function deleteAll(): int
@@ -121,6 +123,10 @@ final class DeleteAllResourcesService
 
                     if ($resource->publication_year !== null) {
                         $sets[] = 'year:'.$resource->publication_year;
+                    }
+
+                    if ($this->icgemSet->matches($resource->doi, $resource->resource_type_slug)) {
+                        $sets[] = IcgemSetService::SPEC;
                     }
 
                     $records[] = [
