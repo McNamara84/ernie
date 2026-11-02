@@ -21,6 +21,7 @@ final readonly class IsoContactSectionParser
     public function parse(XmlReader $reader): array
     {
         $contactInfo = [];
+        $ambiguousNames = [];
 
         $pointOfContactElements = $reader
             ->xpathElement('//*[local-name()="identificationInfo"]//*[local-name()="pointOfContact"]/*[local-name()="CI_ResponsibleParty"]')
@@ -39,19 +40,26 @@ final readonly class IsoContactSectionParser
                 continue;
             }
 
-            $normalizedName = mb_strtolower(trim($individualName));
+            $normalizedName = mb_strtolower(preg_replace('/\s+/u', ' ', trim($individualName)) ?? trim($individualName));
 
-            if (isset($contactInfo[$normalizedName])) {
+            if (isset($ambiguousNames[$normalizedName])) {
                 continue;
             }
 
             $email = $this->extractEmail($content);
             $website = $this->normalizeWebsite($this->extractWebsite($content));
 
-            $contactInfo[$normalizedName] = [
+            $details = [
                 'email' => $email ?? '',
                 'website' => $website ?? '',
             ];
+            if (isset($contactInfo[$normalizedName]) && $contactInfo[$normalizedName] !== $details) {
+                unset($contactInfo[$normalizedName]);
+                $ambiguousNames[$normalizedName] = true;
+
+                continue;
+            }
+            $contactInfo[$normalizedName] = $details;
         }
 
         return $contactInfo;

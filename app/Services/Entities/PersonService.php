@@ -30,7 +30,7 @@ class PersonService
      *
      * @param  array<string, mixed>  $data  Expected keys: orcid, firstName, lastName
      */
-    public function findOrCreate(array $data): Person
+    public function findOrCreate(array $data, bool $requireMissingIdentifier = false): Person
     {
         if (! empty($data['orcid'])) {
             $orcid = trim((string) $data['orcid']);
@@ -44,6 +44,11 @@ class PersonService
         }
 
         $searchCriteria = $this->buildSearchCriteria($data);
+        // An ambiguous imported name must not acquire a known person's ORCID
+        // through a name-only lookup after the import resolved them separately.
+        if ($requireMissingIdentifier && empty($data['orcid'])) {
+            $searchCriteria['name_identifier'] = null;
+        }
         $person = Person::query()->firstOrNew($searchCriteria);
 
         // Only populate data for new persons (not yet saved to database)

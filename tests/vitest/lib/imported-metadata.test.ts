@@ -8,6 +8,40 @@ const languages: Language[] = [{ id: 1, code: 'en', name: 'English' }];
 const licenses: License[] = [{ id: 1, identifier: 'MIT', name: 'MIT License' }];
 
 describe('DataCite metadata merge', () => {
+    it('keeps author contacts and standalone contributor contacts in their respective fields', () => {
+        const imported = toImportedFormParts(
+            {
+                authors: [{ type: 'person', firstName: 'Anna', lastName: 'Author', isContact: true, email: 'anna@example.org' }],
+                contributors: [
+                    {
+                        type: 'person',
+                        firstName: 'Chris',
+                        lastName: 'Contact',
+                        roles: ['Contact Person', 'Data Collector'],
+                        email: 'chris@example.org',
+                        website: 'https://example.org/chris',
+                        affiliations: [{ value: 'Contributor Institute', rorId: null }],
+                    },
+                ],
+            },
+            languages,
+            licenses,
+        );
+
+        expect(imported.authors).toHaveLength(1);
+        expect(imported.authors[0]).toMatchObject({ firstName: 'Anna', isContact: true, email: 'anna@example.org' });
+        expect(imported.contributors).toHaveLength(1);
+        expect(imported.contributors[0]).toMatchObject({
+            type: 'person',
+            firstName: 'Chris',
+            lastName: 'Contact',
+            email: 'chris@example.org',
+            website: 'https://example.org/chris',
+            roles: [{ value: 'Contact Person' }, { value: 'Data Collector' }],
+            affiliations: [{ value: 'Contributor Institute' }],
+        });
+    });
+
     it('replaces an empty main-title row while keeping a typed main title and its local ID', () => {
         const imported = toImportedFormParts(
             {
@@ -121,10 +155,14 @@ describe('DataCite metadata merge', () => {
             rightsIdentifierScheme: 'Local',
             rightsUri: 'https://example.test/terms',
         };
-        const imported = toImportedFormParts({
-            licenses: ['MIT', 'UNLISTED-LICENSE'],
-            rawRights: [{ rights: 'MIT License', rightsIdentifier: 'MIT' }, right],
-        }, languages, licenses);
+        const imported = toImportedFormParts(
+            {
+                licenses: ['MIT', 'UNLISTED-LICENSE'],
+                rawRights: [{ rights: 'MIT License', rightsIdentifier: 'MIT' }, right],
+            },
+            languages,
+            licenses,
+        );
 
         expect(imported.licenses).toHaveLength(2);
         expect(imported.licenses[0]).toMatchObject({ mode: 'catalog', license: 'MIT' });

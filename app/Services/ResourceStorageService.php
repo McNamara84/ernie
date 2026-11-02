@@ -36,6 +36,7 @@ use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
+use App\Support\PersonIdentityMatcher;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -100,6 +101,21 @@ class ResourceStorageService
     {
 
         return DB::transaction(function () use ($data, $userId, $doiChangeActor): array {
+            $partyIdentities = new PersonIdentityMatcher([
+                ...array_filter(is_array($data['authors'] ?? null) ? $data['authors'] : [], is_array(...)),
+                ...array_filter(is_array($data['contributors'] ?? null) ? $data['contributors'] : [], is_array(...)),
+            ]);
+            foreach (['authors', 'contributors'] as $group) {
+                if (! is_array($data[$group] ?? null)) {
+                    continue;
+                }
+                foreach ($data[$group] as &$party) {
+                    if (is_array($party)) {
+                        $party['_requireMissingIdentifier'] = $partyIdentities->hasConflictingOrcids($party);
+                    }
+                }
+                unset($party);
+            }
             $languageId = null;
 
             if (! empty($data['language'])) {
@@ -672,7 +688,7 @@ class ResourceStorageService
             $person = match (true) {
                 $usesUnstructuredPersonIdentity => $this->personService->findOrCreateWithoutStructuredName($orcid),
                 $identityChanged && $orcid === null => $this->personService->createWithoutOrcid($givenName, $familyName),
-                default => $this->personService->findOrCreate($data),
+                default => $this->findPersonForStorage($data),
             };
         }
         $storedScheme = $this->normalizeNullableString($person->name_identifier_scheme);
@@ -810,7 +826,7 @@ class ResourceStorageService
      */
     private function storePersonContributor(Resource $resource, array $data, int $position): ResourceContributor
     {
-        $person = $this->personService->findOrCreate($data);
+        $person = $this->findPersonForStorage($data);
 
         $hasContactPersonRole = $this->hasContactPersonRole($data);
         $contactInfo = $this->validatedContactInfo($data);
@@ -823,6 +839,14 @@ class ResourceStorageService
             'email' => $hasContactPersonRole ? $contactInfo['email'] : null,
             'website' => $hasContactPersonRole ? $contactInfo['website'] : null,
         ]);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function findPersonForStorage(array $data): Person
+    {
+        return ! empty($data['_requireMissingIdentifier'])
+            ? $this->personService->findOrCreate($data, requireMissingIdentifier: true)
+            : $this->personService->findOrCreate($data);
     }
 
     /**

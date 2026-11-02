@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope>
+  <resource xmlns="http://datacite.org/schema/kernel-4">
+    <creators>
+      <creator>
+        <creatorName nameType="Personal">Author, Anna</creatorName>
+        <givenName>Anna</givenName><familyName>Author</familyName>
+        <affiliation>Author Institute</affiliation>
+      </creator>
+    </creators>
+    <titles><title>Issue 1496 contact persons</title></titles>
+    <publisher>GFZ Data Services</publisher>
+    <publicationYear>2026</publicationYear>
+    <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+    <contributors>
+      <contributor contributorType="ContactPerson">
+        <contributorName nameType="Personal">Author, Anna</contributorName>
+        <givenName>Anna</givenName><familyName>Author</familyName>
+        <affiliation>Contact Institute</affiliation>
+      </contributor>
+      <contributor contributorType="ContactPerson">
+        <contributorName nameType="Personal">Contact, Chris</contributorName>
+        <givenName>Chris</givenName><familyName>Contact</familyName>
+        <affiliation>Contributor Institute</affiliation>
+      </contributor>
+    </contributors>
+  </resource>
+  <MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
+    <identificationInfo><MD_DataIdentification>
+      <pointOfContact><CI_ResponsibleParty>
+        <individualName><gco:CharacterString>Author, Anna</gco:CharacterString></individualName>
+        <contactInfo><CI_Contact>
+          <address><CI_Address><electronicMailAddress><gco:CharacterString>anna@example.org</gco:CharacterString></electronicMailAddress></CI_Address></address>
+          <onlineResource><CI_OnlineResource><linkage><URL>https://example.org/anna</URL></linkage></CI_OnlineResource></onlineResource>
+        </CI_Contact></contactInfo>
+      </CI_ResponsibleParty></pointOfContact>
+      <pointOfContact><CI_ResponsibleParty>
+        <individualName><gco:CharacterString>Contact, Chris</gco:CharacterString></individualName>
+        <contactInfo><CI_Contact>
+          <address><CI_Address><electronicMailAddress><gco:CharacterString>chris@example.org</gco:CharacterString></electronicMailAddress></CI_Address></address>
+          <onlineResource><CI_OnlineResource><linkage><URL>example.org/chris</URL></linkage></CI_OnlineResource></onlineResource>
+        </CI_Contact></contactInfo>
+      </CI_ResponsibleParty></pointOfContact>
+    </MD_DataIdentification></identificationInfo>
+  </MD_Metadata>
+</envelope>
