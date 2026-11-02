@@ -68,6 +68,24 @@ function ExampleUrl({ url }: { url: string }) {
     );
 }
 
+function HarvestCheckpointGuidance() {
+    return (
+        <>
+            <p>
+                Without an <code>until</code> boundary, use the first response&apos;s <code>responseDate</code> as the checkpoint. With an explicit{' '}
+                <code>until</code>, use the earlier of that boundary and the first response&apos;s <code>responseDate</code>. Never advance the
+                checkpoint beyond the requested upper boundary, even if the request runs much later.
+            </p>
+            <p>
+                For the bounded example above, a first <code>responseDate</code> of <code>2026-11-02T12:00:00Z</code> means a checkpoint of{' '}
+                <code>2026-10-05T00:00:00Z</code>. Start the next request with <code>from=2026-10-04T23:59:55Z</code> for a five-second overlap, so
+                updates after October 5 are still retrieved. Overlap by at least one datestamp increment; for day-granularity requests, use at least
+                one day.
+            </p>
+        </>
+    );
+}
+
 export default function OaiPmhDocs({
     baseUrl,
     projectSet,
@@ -466,7 +484,7 @@ export default function OaiPmhDocs({
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card aria-label="ICGEM harvesting guidance">
                     <CardHeader>
                         <CardTitle>Keeping an ICGEM Harvest in Sync</CardTitle>
                         <CardDescription>Metadata updates, withdrawals and resource-type changes</CardDescription>
@@ -474,12 +492,13 @@ export default function OaiPmhDocs({
                     <CardContent className="space-y-3 text-sm">
                         <p>
                             After the complete first harvest, request incremental updates with overlapping inclusive UTC date boundaries and follow
-                            every resumption token. Save the next checkpoint only after every page succeeds; the first response&apos;s{' '}
-                            <code>responseDate</code> is a useful checkpoint. An invalid or expired token requires restarting the list request.
+                            every resumption token. Save the next checkpoint only after every page succeeds. An invalid or expired token requires
+                            restarting the list request.
                         </p>
                         <ExampleUrl
                             url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${icgemSet.spec}&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z`}
                         />
+                        <HarvestCheckpointGuidance />
                         <p>
                             Changing a resource from Model to another type removes it from this set without deleting it from ERNIE. This set exit does
                             not generate a deleted header and cannot be reported by an incremental request restricted to this set. Periodically
@@ -494,7 +513,7 @@ export default function OaiPmhDocs({
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card aria-label="EPOS-MSL harvesting guidance">
                     <CardHeader>
                         <CardTitle>Keeping an EPOS-MSL Harvest in Sync</CardTitle>
                         <CardDescription>Incremental updates and a complete identifier reconciliation</CardDescription>
@@ -507,11 +526,11 @@ export default function OaiPmhDocs({
                         <ExampleUrl
                             url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${projectSet.spec}&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z`}
                         />
+                        <HarvestCheckpointGuidance />
                         <ol className="list-inside list-decimal space-y-2 text-muted-foreground">
                             <li>
                                 Follow every resumption token. Use inclusive UTC date boundaries with overlap, update records by identifier, and save
-                                the next incremental checkpoint only after every page succeeds. The first response&apos;s <code>responseDate</code> is
-                                a useful checkpoint for the next harvest.
+                                the next incremental checkpoint only after every page succeeds.
                             </li>
                             <li>
                                 Periodically request the complete identifier list below with no <code>from</code> or <code>until</code> filter,
@@ -604,7 +623,7 @@ export default function OaiPmhDocs({
                 </Card>
 
                 {/* OAI Identifier Format */}
-                <Card>
+                <Card aria-label="OAI identifier format">
                     <CardHeader>
                         <CardTitle>OAI Identifier Format</CardTitle>
                     </CardHeader>
@@ -615,6 +634,11 @@ export default function OaiPmhDocs({
                         </div>
                         <p className="text-muted-foreground">
                             Example: <code>{identifierPrefix}:10.5880/GFZ.1.2.2024.001</code>
+                        </p>
+                        <p className="text-muted-foreground">
+                            The prefix <code>{identifierPrefix}</code> is a persistent repository namespace, independent of the endpoint&apos;s
+                            current hostname. It may retain an earlier hostname after a domain change. Keep harvested identifiers unchanged and use
+                            the current Base URL for requests, including <code>GetRecord</code>.
                         </p>
                     </CardContent>
                 </Card>

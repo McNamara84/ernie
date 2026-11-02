@@ -24,7 +24,8 @@ services:
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
-      # OAI-PMH identifiers are persistent and must not change with APP_URL.
+      # Preserve the published OAI namespace, including its historical hostname.
+      # Changing APP_URL must not rename identifiers already held by harvesters.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
@@ -578,6 +579,7 @@ services:
       - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
       - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
+      # Keep the persistent OAI namespace identical to app and queue.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false

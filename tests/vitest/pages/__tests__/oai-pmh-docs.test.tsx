@@ -107,6 +107,34 @@ describe('OaiPmhDocs', () => {
         expect(screen.getByText(`${defaultProps.identifierPrefix}:10.5880/GFZ.1.2.2024.001`)).toBeInTheDocument();
     });
 
+    it('keeps the persistent identifier namespace independent of the current endpoint hostname', () => {
+        const baseUrl = 'https://dataservices.gfz.de/oai-pmh';
+        const identifierPrefix = 'oai:ernie.rz-vm499.gfz.de';
+        render(<OaiPmhDocs {...defaultProps} baseUrl={baseUrl} identifierPrefix={identifierPrefix} />);
+
+        expect(screen.getByText(baseUrl)).toBeInTheDocument();
+        const format = screen.getByLabelText('OAI identifier format');
+        expect(format).toHaveTextContent(`${identifierPrefix}:{DOI}`);
+        expect(format).toHaveTextContent(`${identifierPrefix}:10.5880/GFZ.1.2.2024.001`);
+        expect(format).toHaveTextContent('persistent repository namespace, independent of the endpoint');
+        expect(format).toHaveTextContent('Keep harvested identifiers unchanged and use the current Base URL');
+        expect(format).not.toHaveTextContent('oai:dataservices.gfz.de');
+    });
+
+    it.each(['ICGEM', 'EPOS-MSL'])('documents bounded and unbounded checkpoints with overlap for %s', (setName) => {
+        render(<OaiPmhDocs {...defaultProps} />);
+
+        const guidance = screen.getByLabelText(`${setName} harvesting guidance`);
+        expect(guidance).toHaveTextContent('until=2026-10-05T00:00:00Z');
+        expect(guidance).toHaveTextContent("Without an until boundary, use the first response's responseDate as the checkpoint");
+        expect(guidance).toHaveTextContent("With an explicit until, use the earlier of that boundary and the first response's responseDate");
+        expect(guidance).toHaveTextContent('Never advance the checkpoint beyond the requested upper boundary');
+        expect(guidance).toHaveTextContent('responseDate of 2026-11-02T12:00:00Z means a checkpoint of 2026-10-05T00:00:00Z');
+        expect(guidance).toHaveTextContent('from=2026-10-04T23:59:55Z for a five-second overlap');
+        expect(guidance).toHaveTextContent('for day-granularity requests, use at least one day');
+        expect(guidance).toHaveTextContent('only after every page succeeds');
+    });
+
     it('documents the project keyword rules and complete inventory formats', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         const project = screen.getByLabelText('EPOS-MSL project set');

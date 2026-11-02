@@ -77,6 +77,10 @@
         ],
         "fixes": [
             {
+                "title": "OAI-PMH Harvesting Guidance",
+                "description": "Bounded ICGEM and EPOS-MSL harvest examples now limit the next checkpoint to the earlier of the requested until boundary and the first response date, with overlap to avoid missed updates. The identifier documentation explains why the persistent repository namespace can retain a historical hostname after the public endpoint changes."
+            },
+            {
                 "title": "JavaScript Dependency Security",
                 "description": "Updated indirect HTTP and validation dependencies to address credential handling during redirects and denial-of-service vulnerabilities in email and file-pattern processing. Swagger UI retains its current functionality, with regression tests covering its file allowlist and the affected dependency behavior."
             },
