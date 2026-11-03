@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Xml\Sections;
 
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\InstrumentNameResolutionService;
 use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use Saloon\XmlWrangler\XmlReader;
 
@@ -19,6 +20,7 @@ final readonly class RelatedWorkAndInstrumentSectionParser
     public function __construct(
         private OriginalDataCiteRelatedIdentifierExtractionService $relatedIdentifierExtractor,
         private RelatedIdentifierCitationLabelService $citationLabelService,
+        private InstrumentNameResolutionService $instrumentResolver,
     ) {}
 
     /**
@@ -62,7 +64,7 @@ final readonly class RelatedWorkAndInstrumentSectionParser
 
         return [
             'relatedWorks' => $relatedWorks,
-            'instruments' => $instruments,
+            'instruments' => $this->instrumentResolver->resolve($instruments),
         ];
     }
 }

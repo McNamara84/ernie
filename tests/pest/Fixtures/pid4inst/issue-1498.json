@@ -1,0 +1,28 @@
+{
+    "lastUpdated": "2026-11-02T00:00:00Z",
+    "total": 3,
+    "data": [
+        {
+            "id": "3f8xq-m8w44",
+            "pid": "21.11157/3f8xq-m8w44",
+            "pidType": "Handle",
+            "name": "Green Roof Measurements MDR"
+        },
+        {
+            "id": "epmy8-2k126",
+            "pid": "21.11157/epmy8-2k126",
+            "pidType": "Handle",
+            "name": "GNSS_receiver_8512000319",
+            "lookupIdentifiers": [
+                {"value": "21.11157/epmy8-2k126", "type": "Handle", "source": "metadata"},
+                {"value": "http://hdl.handle.net/21.11157/957458ca-d31e-4041-95af-55b1ca251166", "type": "Handle", "source": "epic"}
+            ]
+        },
+        {
+            "id": "pyfqn-93022",
+            "pid": "21.11157/a9250866-bbec-4542-86b3-a5f78c0c6922",
+            "pidType": "Handle",
+            "name": "MFC_001000_02 - Merck KGaA - FC-2926V - DH9806004"
+        }
+    ]
+}

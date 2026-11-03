@@ -20,6 +20,7 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Right;
 use App\Services\Creators\ResourceCreatorNameResolverService;
+use App\Services\InstrumentNameResolutionService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
@@ -858,13 +859,13 @@ class EditorDataTransformer
      */
     public function transformInstruments(Resource $resource): array
     {
-        return $resource->instruments
+        return app(InstrumentNameResolutionService::class)->resolve($resource->instruments
             ->map(fn ($instrument): array => [
                 'pid' => $instrument->instrument_pid,
                 'pidType' => $instrument->instrument_pid_type,
                 'name' => $instrument->instrument_name,
             ])
-            ->toArray();
+            ->toArray());
     }
 
     /**

@@ -1,5 +1,5 @@
 import { AlertCircle, ExternalLink, Fingerprint, Info, X } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -12,21 +12,30 @@ import { usePid4instInstruments } from '@/hooks/use-pid4inst-instruments';
 import type { InstrumentSelection } from '@/types';
 
 /**
- * Normalize a Handle PID by stripping known resolver URL prefixes.
- * This ensures matching works regardless of whether the PID is stored
- * as a bare handle (e.g. "21.T11998/XYZ") or a resolver URL
- * (e.g. "https://hdl.handle.net/21.T11998/XYZ").
+ * Compare bare identifiers and known resolver URLs, ignoring case only for DOIs.
+ * This key never replaces the selected identifier.
  */
-function normalizeHandlePid(pid: string): string {
-    return pid
-        .replace(/^https?:\/\/hdl\.handle\.net\//i, '')
-        .replace(/^https?:\/\/doi\.org\//i, '')
-        .replace(/[?#].*$/, '');
+function instrumentKey(pid: string, type: string): string {
+    let value = pid.trim();
+    try {
+        const url = new URL(value);
+        const host = type === 'Handle' ? 'hdl.handle.net' : type === 'DOI' ? 'doi.org' : null;
+        if (url.hostname === host && ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.port) {
+            value = url.pathname.replace(/^\//, '');
+        }
+    } catch {
+        // Bare identifiers keep their exact value.
+    }
+    return type + ':' + (type === 'DOI' ? value.toLowerCase() : value);
 }
 
 interface UsedInstrumentsFieldProps {
     selectedInstruments: InstrumentSelection[];
     onChange: (instruments: InstrumentSelection[]) => void;
+    selectionEnabled?: boolean;
+    isResolving?: boolean;
+    resolutionError?: string | null;
+    resolveAgain?: () => void;
 }
 
 /**
@@ -44,43 +53,25 @@ interface UsedInstrumentsFieldProps {
  * - Error handling and retry functionality
  * - Accessibility compliant (WCAG 2.1 AA)
  */
-export default function UsedInstrumentsField({ selectedInstruments, onChange }: UsedInstrumentsFieldProps) {
+export default function UsedInstrumentsField({
+    selectedInstruments,
+    onChange,
+    selectionEnabled = true,
+    isResolving = false,
+    resolutionError,
+    resolveAgain,
+}: UsedInstrumentsFieldProps) {
     const { instruments, isLoading, error, refetch } = usePid4instInstruments();
-
-    // Resolve instrument names from vocabulary when instruments are loaded.
-    // This handles the case where an XML import only provides PIDs (not names),
-    // so the PID is used as a placeholder name until the vocabulary is available.
-    // Runs whenever selectedInstruments changes, but only calls onChange when
-    // the resolved array actually differs (avoids infinite loops).
-    useEffect(() => {
-        if (!instruments || instruments.length === 0) return;
-
-        const needsResolution = selectedInstruments.some((sel) => sel.name === sel.pid);
-        if (!needsResolution) return;
-
-        const resolved = selectedInstruments.map((sel) => {
-            if (sel.name !== sel.pid) return sel;
-            const normalizedSelPid = normalizeHandlePid(sel.pid);
-            const match = instruments.find((inst) => normalizeHandlePid(inst.pid) === normalizedSelPid);
-            return match ? { ...sel, name: match.name } : sel;
-        });
-
-        // Only call onChange if resolution actually changed something
-        const hasChanges = resolved.some((r, i) => r.name !== selectedInstruments[i].name);
-        if (hasChanges) {
-            onChange(resolved);
-        }
-    }, [instruments, selectedInstruments, onChange]);
 
     // Convert instruments to ComboboxOption format, excluding already selected
     const comboboxOptions: ComboboxOption[] = useMemo(() => {
         if (!instruments) return [];
 
-        const selectedPids = new Set(selectedInstruments.map((inst) => normalizeHandlePid(inst.pid)));
+        const selectedPids = new Set(selectedInstruments.map((inst) => instrumentKey(inst.pid, inst.pidType)));
         return instruments
-            .filter((inst) => !selectedPids.has(normalizeHandlePid(inst.pid)))
+            .filter((inst) => !selectedPids.has(instrumentKey(inst.pid, inst.pidType)))
             .map((inst) => ({
-                value: inst.pid,
+                value: inst.pidType + ':' + inst.pid,
                 label: inst.name,
                 data: {
                     pid: inst.pid,
@@ -95,7 +86,7 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
     const handleSelectInstrument = (value: string | undefined) => {
         if (!value) return;
 
-        const instrument = instruments?.find((inst) => inst.pid === value);
+        const instrument = instruments?.find((inst) => inst.pidType + ':' + inst.pid === value);
         if (instrument) {
             onChange([
                 ...selectedInstruments,
@@ -108,8 +99,8 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
         }
     };
 
-    const handleRemoveInstrument = (pid: string) => {
-        onChange(selectedInstruments.filter((inst) => inst.pid !== pid));
+    const handleRemoveInstrument = (pid: string, pidType: string) => {
+        onChange(selectedInstruments.filter((inst) => inst.pid !== pid || inst.pidType !== pidType));
     };
 
     /**
@@ -180,7 +171,7 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
                     placeholder="Search for an instrument (e.g., magnetometer, spectrometer...)"
                     searchPlaceholder="Type to search..."
                     emptyMessage="No instruments found"
-                    disabled={isLoading || !!error}
+                    disabled={!selectionEnabled || isLoading || !!error}
                     clearable={false}
                     renderOption={(option) => (
                         <div className="flex flex-col gap-0.5">
@@ -202,6 +193,19 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
                 </div>
             )}
 
+            {!selectionEnabled && (
+                <p className="text-sm text-muted-foreground">Instrument selection is disabled. Existing instruments are retained.</p>
+            )}
+            {resolutionError && (
+                <Alert variant="destructive">
+                    <AlertDescription>{resolutionError}</AlertDescription>
+                </Alert>
+            )}
+            {selectedInstruments.length > 0 && resolveAgain && (
+                <Button type="button" variant="outline" onClick={resolveAgain} disabled={isResolving}>
+                    {isResolving ? 'Resolving names…' : 'Resolve names again'}
+                </Button>
+            )}
             {/* Selected Instruments */}
             {selectedInstruments.length > 0 && (
                 <div className="space-y-4">
@@ -211,7 +215,7 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
 
                     <div className="grid gap-4 md:grid-cols-2">
                         {selectedInstruments.map((inst) => (
-                            <Card key={inst.pid} className="p-4">
+                            <Card key={inst.pidType + ':' + inst.pid} className="p-4">
                                 <div className="space-y-3">
                                     {/* Instrument Name with Remove Button */}
                                     <div className="flex items-start justify-between gap-2">
@@ -219,7 +223,7 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => handleRemoveInstrument(inst.pid)}
+                                            onClick={() => handleRemoveInstrument(inst.pid, inst.pidType)}
                                             className="h-8 w-8 shrink-0 p-0"
                                             aria-label={`Remove ${inst.name}`}
                                         >
@@ -227,6 +231,34 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
                                         </Button>
                                     </div>
 
+                                    {inst.resolution?.status === 'identifier_conflict' && (
+                                        <div className="text-sm text-amber-800 dark:text-amber-200" role="status">
+                                            <p>B2INST lists different identifiers for this instrument. The imported PID has been retained.</p>
+                                            <ul className="mt-1 list-inside list-disc break-all">
+                                                {inst.resolution.identifiers?.map((identifier, index) => (
+                                                    <li key={index}>
+                                                        {identifier.type}: {identifier.value} ({identifier.source})
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {inst.resolution?.status === 'not_found' && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Instrument name not found in the local registry. Ask an administrator to update the registry, then resolve
+                                            names again.
+                                        </p>
+                                    )}
+                                    {inst.resolution?.status === 'ambiguous' && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Multiple registry records match this identifier. Please verify the instrument.
+                                        </p>
+                                    )}
+                                    {inst.resolution?.status === 'unavailable' && (
+                                        <p className="text-sm text-muted-foreground">
+                                            The local instrument registry is unavailable or disabled. The instrument has been retained.
+                                        </p>
+                                    )}
                                     {/* PID Badge */}
                                     <div className="flex flex-wrap items-center gap-2">
                                         <a

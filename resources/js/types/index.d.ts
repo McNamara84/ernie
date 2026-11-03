@@ -310,4 +310,8 @@ export interface InstrumentSelection {
     pid: string;
     pidType: string;
     name: string;
+    resolution?: {
+        status: 'matched' | 'identifier_conflict' | 'not_found' | 'ambiguous' | 'unavailable';
+        identifiers?: { value: string; type: string; source: string }[];
+    };
 }

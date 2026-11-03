@@ -1,8 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type PidSettingData, PidSettingsCard } from '@/components/settings/pid-settings-card';
+
+import { renderWithQueryClient as render } from '../../helpers/render-with-query-client';
 
 const inertiaMocks = vi.hoisted(() => ({
     reload: vi.fn(),
@@ -53,45 +55,57 @@ describe('PidSettingsCard update flow', () => {
         vi.restoreAllMocks();
     });
 
+    it.each([false, true])('offers a PID4INST refresh even without a count difference (exists: %s)', async (exists) => {
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ localCount: 3, remoteCount: 3, updateAvailable: false }),
+        }) as typeof fetch;
+        render(
+            <PidSettingsCard pidSettings={[{ ...raidSetting, type: 'pid4inst', exists }]} onActiveChange={vi.fn()} onElmoActiveChange={vi.fn()} />,
+        );
+        expect(screen.getByRole('button', { name: 'Update Now' })).toBeEnabled();
+        await userEvent.click(screen.getByRole('button', { name: 'Check for Updates' }));
+        await screen.findByText('Instrument counts match. Names and identifiers may still have changed.');
+        expect(screen.getByRole('button', { name: 'Update Now' })).toBeEnabled();
+    });
+
     it('shows downloaded RAiD projects immediately after the update job completes', async () => {
         const user = userEvent.setup();
-        const fetchMock = vi.fn()
+        const fetchMock = vi
+            .fn()
             .mockResolvedValueOnce({
                 ok: true,
-                json: () => Promise.resolve({
-                    localCount: 0,
-                    remoteCount: 570,
-                    updateAvailable: true,
-                    lastUpdated: null,
-                }),
+                json: () =>
+                    Promise.resolve({
+                        localCount: 0,
+                        remoteCount: 570,
+                        updateAvailable: true,
+                        lastUpdated: null,
+                    }),
             })
             .mockResolvedValueOnce({
                 ok: true,
-                json: () => Promise.resolve({
-                    jobId: '00000000-0000-4000-8000-000000000000',
-                    type: 'raid',
-                    displayName: 'RAiD (Research Activity Identifier)',
-                    message: 'Update job started',
-                }),
+                json: () =>
+                    Promise.resolve({
+                        jobId: '00000000-0000-4000-8000-000000000000',
+                        type: 'raid',
+                        displayName: 'RAiD (Research Activity Identifier)',
+                        message: 'Update job started',
+                    }),
             })
             .mockResolvedValueOnce({
                 ok: true,
-                json: () => Promise.resolve({
-                    status: 'completed',
-                    pidType: 'raid',
-                    progress: 'Update completed successfully',
-                    completedAt: '2026-06-26T03:00:00Z',
-                }),
+                json: () =>
+                    Promise.resolve({
+                        status: 'completed',
+                        pidType: 'raid',
+                        progress: 'Update completed successfully',
+                        completedAt: '2026-06-26T03:00:00Z',
+                    }),
             });
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        render(
-            <PidSettingsCard
-                pidSettings={[raidSetting]}
-                onActiveChange={vi.fn()}
-                onElmoActiveChange={vi.fn()}
-            />,
-        );
+        render(<PidSettingsCard pidSettings={[raidSetting]} onActiveChange={vi.fn()} onElmoActiveChange={vi.fn()} />);
 
         expect(screen.getByText('Not yet downloaded')).toBeInTheDocument();
 
