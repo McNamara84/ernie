@@ -7,7 +7,7 @@ import process from 'node:process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { extensionBuildFailure, hasTestFailure, includeSnapshotPath, jsonLdFailure, platformFailures, resultOf, runtimePins, selectRelease, skipFollowing, stages, summaryOf } from '../../scripts/ci/php86-result.mjs';
+import { extensionBuildFailure, hasPhpstanFailure, hasTestFailure, includeSnapshotPath, jsonLdFailure, platformFailures, resultOf, runtimePins, selectRelease, skipFollowing, stages, summaryOf } from '../../scripts/ci/php86-result.mjs';
 import { composeArguments } from '../../scripts/docker-compose.mjs';
 
 const digest = 'a'.repeat(64);
@@ -102,6 +102,34 @@ test('JSON-LD semantic failures are distinct from missing reports and transport 
     assert.equal(jsonLdFailure(`Pest passed\n${evidence}\n[jsonld] wrong resource type`), 'JSON-LD contract: wrong resource type');
     for (const log of ['[jsonld] Report missing', 'Docker daemon unavailable', 'null', '{"type":"jsonld-semantic-failure"}', '']) {
         assert.equal(jsonLdFailure(log), undefined);
+    }
+});
+
+const phpstanFileFailure = {
+    totals: { errors: 0, file_errors: 1 },
+    files: { 'app/Example.php': { errors: 1, messages: [{ message: 'Call to an undefined method Example::missing().', line: 12, ignorable: true, identifier: 'method.notFound' }] } },
+    errors: [],
+};
+
+test('PHPStan global analyzer errors never establish incompatibility, including errors-only reports', () => {
+    for (const message of ['Child process error: Allowed memory size of 2147483648 bytes exhausted.', 'Child process error (exit code 255): worker crashed.']) {
+        const errorsOnly = { totals: { errors: 1, file_errors: 0 }, files: {}, errors: [message] };
+        assert.equal(hasPhpstanFailure(JSON.stringify(errorsOnly)), false, message);
+        const mixed = { ...phpstanFileFailure, totals: { errors: 1, file_errors: 1 }, errors: [message] };
+        assert.equal(hasPhpstanFailure(JSON.stringify(mixed)), false, 'A partial analysis with file diagnostics is still unavailable.');
+        assert.equal(hasPhpstanFailure(JSON.stringify({ ...mixed, totals: { errors: 0, file_errors: 1 } })), false, 'Global diagnostics cannot be hidden by inconsistent totals.');
+        assert.equal(hasPhpstanFailure(JSON.stringify({ ...mixed, errors: [] })), false, 'Global error totals cannot be hidden by missing diagnostics.');
+    }
+});
+
+test('PHPStan incompatibility requires concrete file diagnostics without global analyzer errors', () => {
+    const log = `Preparing PHPStan workspace\n${JSON.stringify(phpstanFileFailure)}\nPHPStan exited with code 1.\n`;
+    assert.equal(hasPhpstanFailure(log), true);
+    for (const files of [undefined, null, [], {}, { 'app/Example.php': { errors: 1, messages: [] } }, { 'app/Example.php': { errors: 1, messages: [{}] } }, { 'app/Example.php': { errors: 1, messages: [{ message: ' ' }] } }]) {
+        assert.equal(hasPhpstanFailure(JSON.stringify({ ...phpstanFileFailure, files })), false);
+    }
+    for (const output of [undefined, '', 'Docker daemon unavailable', '{"totals":', '{"totals":null}', 'null', '[]', JSON.stringify({ totals: { errors: 0, file_errors: 0 }, files: {}, errors: [] })]) {
+        assert.equal(hasPhpstanFailure(output), false);
     }
 });
 

@@ -105,6 +105,20 @@ export function jsonLdFailure(log) {
     return undefined;
 }
 
+export function hasPhpstanFailure(log) {
+    const start = log?.indexOf('{"totals"') ?? -1;
+    if (start < 0) return false;
+    try {
+        const result = JSON.parse(log.slice(start, log.lastIndexOf('}') + 1));
+        // Global errors mean the analysis is incomplete, even if some workers reported file diagnostics.
+        if (result?.totals?.errors !== 0 || !Array.isArray(result.errors) || result.errors.length > 0
+            || !Number.isInteger(result.totals.file_errors) || result.totals.file_errors <= 0
+            || !result.files || typeof result.files !== 'object' || Array.isArray(result.files)) return false;
+        return Object.values(result.files).some((file) => Array.isArray(file?.messages)
+            && file.messages.some((diagnostic) => typeof diagnostic?.message === 'string' && diagnostic.message.trim().length > 0));
+    } catch { return false; }
+}
+
 export function extensionBuildFailure(text) {
     if (/Killed signal|out of memory|No space left on device/i.test(text)) return undefined;
     const match = text.match(/\/usr\/src\/php\/ext\/([a-z0-9_-]+)\/[^\r\n]+?:\d+:\d+: error: (?:implicit declaration of function [^\r\n]*(?:ZEND_|zend_|zval_)[^\r\n]*|[^\r\n]*incompatible[^\r\n]*)/);

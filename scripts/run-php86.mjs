@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extensionBuildFailure, hasTestFailure, includeSnapshotPath, jsonLdFailure, labels, platformFailures, resultOf, runtimePins, selectRelease, skipFollowing, stages, summaryOf } from './ci/php86-result.mjs';
+import { extensionBuildFailure, hasPhpstanFailure, hasTestFailure, includeSnapshotPath, jsonLdFailure, labels, platformFailures, resultOf, runtimePins, selectRelease, skipFollowing, stages, summaryOf } from './ci/php86-result.mjs';
 import { composeArguments } from './docker-compose.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -200,13 +200,7 @@ const actions = {
         try { command(process.execPath, [join(root, 'scripts/run-phpstan.mjs'), '--configuration=phpstan.php86.neon', '--error-format=json', '--no-progress'], 'phpstan'); }
         catch (error) {
             const log = error.log && readFileSync(error.log, 'utf8');
-            const start = log?.indexOf('{"totals"');
-            if (start >= 0) {
-                try {
-                    const result = JSON.parse(log.slice(start, log.lastIndexOf('}') + 1));
-                    if (result.totals.file_errors > 0 || result.totals.errors > 0) error.status = 'incompatible';
-                } catch { /* A broken analyzer is not a completed analysis. */ }
-            }
+            if (hasPhpstanFailure(log)) error.status = 'incompatible';
             throw error;
         }
     },
