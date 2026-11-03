@@ -851,6 +851,11 @@
     {
       "image": "traefik:v3.7.17",
       "digest": "sha256:68ae5fe5b64ca166704b746a9e8afcd385e36b3f569a5691401bf652d57b3748"
+    },
+    {
+      "image": "mcr.microsoft.com/playwright:v1.64.1-resolute",
+      "digest": "sha256:f76885029244e5a384243a930ff283cef67d90653978ee27a77dd4cff8882fb4",
+      "purpose": "Optional local browser server; host test runner uses pinned Node 26.13.0 and the existing Playwright 1.64.1 package. Replaces the stale 1.63.0 documentation example."
     }
   ],
   "python": [
@@ -1792,12 +1797,12 @@
         },
         {
           "target": "app",
-          "imageId": "sha256:a0bd264d7fbcb7b87679651f3bc3efb95d8cddedb4f5b080dd3db594ca752c7c",
+          "imageId": "sha256:2bce7bcb33388976989b61acda91aeda979e460d8762f4f5a018857e9f59d87d",
           "findings": 0
         },
         {
           "target": "nginx",
-          "imageId": "sha256:1177787a6861f93b62fc385905b5dccd31c1cb46558dc9532bbc493ea9c1f9d8",
+          "imageId": "sha256:e152c49feef717f789e029f9f5847c01a470d5709d11269e071b2eb40522a920",
           "findings": 0
         },
         {
@@ -1823,22 +1828,108 @@
     }
   },
   "validation": {
-    "frontend": "check:frontend passed: 522 files, 8930 passed, 1 skipped",
-    "tooling": "110 tests: 105 passed and 5 Linux-only tests skipped; after the final semantic-error classification and advisory-report integration tests, all 18 focused PHP 8.6/JSON-LD runner tests passed",
+    "frontend": "Final npm run check:frontend passed after the basemap lifecycle correction: lint, OpenAPI, types, complete tooling suite and 523 Vitest files with 8931 tests passed and 1 existing skip.",
+    "tooling": "Final complete tooling suite passed: 112 tests, 107 passed and 5 Linux-only shell tests skipped. The real advisory report entrypoint also covers missing, truncated, null, array and scalar JSON, preserves explicit status output and exits successfully.",
     "format": "format:check passed",
     "workflowSyntax": "actionlint 1.7.12 passed for all workflows",
-    "builds": "Production app/nginx, development app/vite, F-UJI and client/SSR builds passed",
+    "builds": "Production app and Nginx rebuilt after the basemap lifecycle fix and both final images passed the existing Trivy HIGH/CRITICAL gate. Final client/SSR rebuild passed. Development and F-UJI image builds remain unchanged and passed.",
     "fuji": "Dependency imports and Chromium smoke test passed without pip or ensurepip",
     "legacyDumpClient": "MySQL 8.4.13 binary starts in the production app image",
     "composerPlatform": "An isolated lock requiring PHP <8.5 was correctly rejected on real PHP 8.5.12 despite config.platform.php=8.4.0; structured failure classification passed",
     "php86": "8.6.0RC4 extension compilation failure reproduced; report exits successfully and marks later stages skipped; private stack cleanup passed",
-    "githubRun": "Not executed remotely; green job display and event triggers require the first GitHub Actions run after publishing the workflow.",
+    "githubRun": "Verified real pull-request workflow run 41625766305 for PR #1525: overall success, green result job explicitly named inkompatibel ? Umgebung, verified artifact with phpredis compilation failure and skipped later stages, successful cleanup. All seven observed CI workflows succeeded on published head 7449ddb70c3fd4956c3d428309c2e9d30f7bf638. Subsequent local corrections are outside that published commit. Push, schedule and manual events still require live verification after merge.",
     "phpstan": "Complete analysis of 1098 files passed with 2 GB and a Linux-native workspace; the updated type checker required removing an unreachable string check in the internal Wayfinder command",
     "backend": "npm run check:backend passed: Pint, serial and architecture tests, full parallel Unit/Feature suite, JSON-LD semantics and PHPStan",
     "buildContext": "Verified final application and Nginx images exclude local environment files, logs, private application files and sessions. The build creates its own compiled Blade views.",
     "mysql": "All 27 MySQL-sensitive test groups passed on MySQL 9.7.4; JUnit export succeeded for every group",
-    "browser": "Incomplete: the full run was stopped after shared blank-page startup failures and the development backend was restored. Docker Vite dependencies were restored with npm ci. Vite took over two minutes to start and then optimized dependencies; this is not yet proven to explain the failure. Further diagnosis was not executed because automatic approval review timed out twice.",
-    "jsonldFollowup": "The complete backend run included successful real JSON-LD validation. The later semantic-error classification change passed focused runner regressions; re-running the individual container wrapper remains pending."
+    "browser": "Verified all 1185 scenario identities across the complete baseline and targeted follow-ups: 1169 passed and the same 16 pre-existing skips. This combines runs and does not claim a single clean full invocation. The baseline had one Firefox month-dropdown failure, which did not recur in eight unchanged focused repeats or the subsequent calendar tests across all browsers. A Firefox follow-up exposed three asynchronous layout races in import/pagination tests and stopped after three failures; interrupted and unexecuted cases were not counted as passes. After readiness/keyboard corrections, calendar, pagination and cluster cases passed across all browsers, and the final import run passed all 18 repeated XML/JSON cases. Official remote Playwright 1.64.1 browsers with the host Node 26.13.0 runner; Windows Firefox issue: https://github.com/microsoft/playwright/issues/43413.",
+    "jsonldFollowup": "Final individual container wrapper passed after semantic-error classification: 43 DataCite and 34 Schema.org documents",
+    "viteDevelopment": "Final ordinary Vite page passed with the normal browser cache on both Linux (3.37 seconds) and Windows Chromium (5.82 seconds): expected heading, injected application CSS, connected HMR and no uncaught page errors. Initial cold CSS request took 28.25 seconds. Polling excludes toolchains, scanner caches, vendor/runtime storage and generated test reports.",
+    "basemapRegression": "Actual Leaflet/MapLibre lifecycle regression reproduced the missing-WebGL teardown crash. After cleanup correction: 28 focused map tests passed; 18 repeated catalogue journeys passed across Chromium, Firefox and WebKit, with zero uncaught page errors in their traces.",
+    "githubEvidence": {
+      "url": "https://github.com/McNamara84/ernie/actions/runs/41625766305",
+      "event": "pull_request",
+      "pr": "https://github.com/McNamara84/ernie/pull/1525",
+      "prHead": "7449ddb70c3fd4956c3d428309c2e9d30f7bf638",
+      "testedMergeCommit": "1f62c4cbaceabd4a1557462a0f135a50d0091f8b",
+      "conclusion": "success",
+      "resultJob": "current / PHP 8.6 (chore/php-upgrade-check-8-6): inkompatibel – Umgebung",
+      "php": "8.6.0RC4",
+      "status": "incompatible",
+      "firstBlocker": "environment",
+      "skippedStages": [
+        "composer",
+        "backend",
+        "mysql",
+        "phpstan"
+      ],
+      "artifact": {
+        "id": 13225756755,
+        "name": "php86-current-1",
+        "digest": "sha256:422281589e44cebc8c26ba0a8e5803ca4ef96bcfd70b011716623f774b5defd9",
+        "expiresAt": "2026-11-17T11:17:38Z"
+      },
+      "cleanup": "success",
+      "scope": "Published commit 7449ddb70c3fd4956c3d428309c2e9d30f7bf638; subsequent local fixes are validated locally and are not part of this remote run.",
+      "remainingEvents": "PR execution verified. Push to main/dev, daily scheduling and manual dispatch still require live verification after the workflow is merged into the target/default branches."
+    },
+    "browserEvidence": {
+      "total": 1185,
+      "passed": 1169,
+      "skipped": 16,
+      "projects": {
+        "chromium": {
+          "expected": 392,
+          "skipped": 3
+        },
+        "firefox": {
+          "expected": 389,
+          "skipped": 6
+        },
+        "webkit": {
+          "expected": 388,
+          "skipped": 7
+        }
+      },
+      "note": "Combined evidence from the complete baseline and focused follow-ups; this is not a claim that one complete browser invocation passed without retries or follow-ups.",
+      "baseline": {
+        "startTime": "2026-11-03T11:59:21.764Z",
+        "duration": 4552109.252,
+        "expected": 1168,
+        "skipped": 16,
+        "unexpected": 1,
+        "flaky": 0
+      },
+      "firefoxFollowup": {
+        "startTime": "2026-11-03T13:17:32.334Z",
+        "duration": 1386393.3909999998,
+        "expected": 347,
+        "skipped": 45,
+        "unexpected": 3,
+        "flaky": 0,
+        "stoppedAfterThreeFailures": true,
+        "interrupted": 1,
+        "didNotRun": 40
+      },
+      "focused": {
+        "startTime": "2026-11-03T13:45:46.225Z",
+        "duration": 395097.90900000004,
+        "expected": 43,
+        "skipped": 0,
+        "unexpected": 2,
+        "flaky": 0
+      },
+      "finalImports": {
+        "startTime": "2026-11-03T13:54:44.750Z",
+        "duration": 214526.785,
+        "expected": 18,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "browserFixtures": "The import fixture also provides registry availability, waits for the enabled instrument selector, uses native keyboard activation to avoid unrelated editor layout shifts during pointer dispatch, and requires the resolution response before asserting names, PIDs, conflict diagnostics and draft persistence. Pagination waits for the asynchronously inserted page-number controls. No assertions were removed and no skips or retries were added. Final lint and changed import test formatting passed.",
+    "cleanup": "The browser wrapper restored docker-compose.dev.yml as the sole app configuration, restored public/hot and removed the temporary browser routing file. The uniquely labelled temporary remote Playwright container was removed after all tests. Development services remain running."
   },
   "npmTransitiveConstraints": [
     {
