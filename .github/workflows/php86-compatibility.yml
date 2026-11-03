@@ -21,18 +21,16 @@ jobs:
     if: github.event_name != 'schedule'
     uses: ./.github/workflows/php86-probe.yml
     with:
-      ref: ${{ github.sha }}
       target: ${{ github.head_ref || github.ref_name }}
       pr_head: ${{ github.event.pull_request.head.sha || '' }}
   main:
     if: github.event_name == 'schedule'
     uses: ./.github/workflows/php86-probe.yml
     with:
-      ref: refs/heads/main
       target: main
   dev:
     if: github.event_name == 'schedule'
     uses: ./.github/workflows/php86-probe.yml
     with:
-      ref: refs/heads/dev
+      scheduled_dev: true
       target: dev

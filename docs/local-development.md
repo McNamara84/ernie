@@ -1257,6 +1257,14 @@ both branch heads explicitly and records each tested SHA. PR execution records
 the merge commit as well as the PR head. The workflow must exist on the default
 branch for scheduled execution to become active.
 
+PR, push and manual runs check out the triggering `github.sha`; choose the
+branch or tag through GitHub's dispatch ref for a manual run. The reusable
+workflow accepts no arbitrary checkout ref. Only a scheduled run can switch
+between the fixed `refs/heads/main` and `refs/heads/dev` integration branches,
+using a boolean selector. This prevents a caller from selecting untrusted code
+inside the default branch's cache scope. Automatic npm caching is disabled for
+this probe.
+
 The result job is green for an ordinary completed probe and names its outcome:
 **kompatibel**, **inkompatibel**, or **nicht prüfbar**. Only **kompatibel** means
 all five stages passed. Download failures, incomplete reports and unavailable

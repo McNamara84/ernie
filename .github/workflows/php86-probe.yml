@@ -3,9 +3,10 @@ name: PHP 8.6 staged probe
 on:
   workflow_call:
     inputs:
-      ref:
-        required: true
-        type: string
+      scheduled_dev:
+        description: Test the trusted dev branch instead of main during scheduled runs only
+        default: false
+        type: boolean
       target:
         required: true
         type: string
@@ -36,7 +37,10 @@ jobs:
         continue-on-error: true
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.ref }}
+          # Keep PR/push/manual execution in its triggering commit's trust context.
+          # The scheduled run may select only our two trusted integration branches;
+          # never accept a caller-supplied ref in the default branch's cache scope.
+          ref: ${{ github.event_name == 'schedule' && (inputs.scheduled_dev && 'refs/heads/dev' || 'refs/heads/main') || github.sha }}
           persist-credentials: false
 
       - name: Setup Node
@@ -46,6 +50,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+          package-manager-cache: false
 
       - name: Install JSON-LD validation dependencies
         id: npm
