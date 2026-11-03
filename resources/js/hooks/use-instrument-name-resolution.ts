@@ -15,6 +15,7 @@ export function useInstrumentNameResolution(instruments: InstrumentSelection[], 
         const force = refresh !== handledRefresh.current;
         handledRefresh.current = refresh;
         if (instruments.length === 0 || (!force && instruments.every((instrument) => instrument.resolution))) {
+            setError(null);
             setIsResolving(false);
             return;
         }
@@ -34,7 +35,8 @@ export function useInstrumentNameResolution(instruments: InstrumentSelection[], 
                 const resolved = instruments.map((instrument, index) => {
                     const replacement = result.instruments[index];
                     if (
-                        replacement.pid !== instrument.pid.trim() ||
+                        typeof replacement.pid !== 'string' ||
+                        replacement.pid.trim() !== instrument.pid.trim() ||
                         replacement.pidType !== instrument.pidType ||
                         typeof replacement.name !== 'string' ||
                         !replacement.resolution

@@ -49,6 +49,19 @@ describe('instrument name resolution', () => {
         await waitFor(() => expect(result.current.instruments).toEqual([resolved]));
     });
 
+    it.each([
+        [' 21.test/a ', ' 21.test/a '],
+        [' 21.test/a ', '21.test/a'],
+        ['21.test/a', ' 21.test/a '],
+    ])('accepts surrounding PID whitespace in the response while retaining the selection (%j, %j)', async (selectedPid, returnedPid) => {
+        const selection = { ...unresolved, pid: selectedPid };
+        request.mockResolvedValue({ instruments: [{ ...resolved, pid: returnedPid }] });
+        const { result } = setup([selection]);
+        await waitFor(() => expect(result.current.instruments).toEqual([{ ...resolved, pid: selectedPid }]));
+        expect(result.current.resolutionError).toBeNull();
+        expect(request).toHaveBeenCalledTimes(1);
+    });
+
     it('does not restore instruments removed while the request is in flight', async () => {
         let finish!: (value: unknown) => void;
         request.mockImplementation(
@@ -92,13 +105,32 @@ describe('instrument name resolution', () => {
         expect(result.current.resolutionError).toBeNull();
     });
 
-    it.each([{ instruments: [] }, { instruments: [{ ...resolved, pid: 'wrong' }] }, { instruments: [{ ...resolved, resolution: undefined }] }])(
-        'rejects an inconsistent response without rewriting selections',
-        async (response) => {
-            request.mockResolvedValue(response);
-            const { result } = setup([unresolved]);
-            await waitFor(() => expect(result.current.resolutionError).toBeTruthy());
-            expect(result.current.instruments).toEqual([unresolved]);
-        },
-    );
+    it.each([
+        { scenario: 'all instruments are removed', next: [] },
+        { scenario: 'only resolved instruments remain', next: [resolved] },
+    ])('clears a previous resolution error when $scenario without retrying', async ({ next }) => {
+        request.mockRejectedValueOnce(new Error('Unavailable'));
+        const { result } = setup([unresolved]);
+        await waitFor(() => expect(result.current.resolutionError).toBe('Unavailable'));
+
+        act(() => result.current.setInstruments(next));
+
+        await waitFor(() => expect(result.current.resolutionError).toBeNull());
+        expect(result.current.instruments).toEqual(next);
+        expect(result.current.isResolving).toBe(false);
+        expect(request).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        { instruments: [] },
+        { instruments: [{ ...resolved, pid: 'wrong' }] },
+        { instruments: [{ ...resolved, pid: null }] },
+        { instruments: [{ ...resolved, pid: 42 }] },
+        { instruments: [{ ...resolved, resolution: undefined }] },
+    ])('rejects an inconsistent response without rewriting selections', async (response) => {
+        request.mockResolvedValue(response);
+        const { result } = setup([unresolved]);
+        await waitFor(() => expect(result.current.resolutionError).toBeTruthy());
+        expect(result.current.instruments).toEqual([unresolved]);
+    });
 });

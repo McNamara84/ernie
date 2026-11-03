@@ -78,7 +78,8 @@ class GetPid4instInstruments extends Command
                 if (! is_array($hit) || ! is_string($hit['id'] ?? null) || $hit['id'] === ''
                     || isset($seenIds[$hit['id']]) || ! is_array($hit['metadata'] ?? null)
                     || ! is_string($hit['metadata']['Name'] ?? null)
-                    || ! is_string($hit['metadata']['Identifier']['identifierValue'] ?? null)) {
+                    || ! is_string($hit['metadata']['Identifier']['identifierValue'] ?? null)
+                    || trim($hit['metadata']['Identifier']['identifierValue']) === '') {
                     throw new \RuntimeException('Invalid or repeated instrument record.');
                 }
                 $seenIds[$hit['id']] = true;

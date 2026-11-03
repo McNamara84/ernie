@@ -212,3 +212,24 @@ it('preserves the previous registry and cache after an incomplete or invalid dow
         ->and(Storage::get(Pid4instVocabularyService::FILE))->toBe($previous)
         ->and($vocabulary->getLocalPayload())->toBe($cached);
 })->with(['truncated', 'changing', 'duplicate', 'overfull', 'malformed', 'invalid record', 'http', 'network']);
+
+it('rejects blank instrument PIDs on later pages without replacing the registry or cache', function (string $pid) {
+    Storage::fake('local');
+    $vocabulary = app(Pid4instVocabularyService::class);
+    $previous = json_encode(['data' => [['pid' => '21.test/old', 'pidType' => 'Handle', 'name' => 'Old instrument']]]);
+    $vocabulary->replace($previous);
+    $cached = $vocabulary->getLocalPayload();
+    Http::fakeSequence(pid4instRecordsUrlPattern())
+        ->push(['hits' => ['total' => 2, 'hits' => [[
+            'id' => 'valid', 'metadata' => ['Name' => 'Valid instrument', 'Identifier' => ['identifierValue' => '21.test/valid']],
+        ]]]])
+        ->push(['hits' => ['total' => 2, 'hits' => [[
+            'id' => 'blank', 'metadata' => ['Name' => 'Invalid instrument', 'Identifier' => ['identifierValue' => $pid]],
+        ]]]]);
+
+    expect(Artisan::call('get-pid4inst-instruments'))->toBe(1)
+        ->and(Artisan::output())->not->toContain('Successfully stored')
+        ->and(Storage::get(Pid4instVocabularyService::FILE))->toBe($previous)
+        ->and($vocabulary->getLocalPayload())->toBe($cached);
+    Http::assertSentCount(2);
+})->with(['empty' => '', 'spaces' => '   ', 'tabs and newlines' => "\t\r\n"]);

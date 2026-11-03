@@ -7,6 +7,7 @@ use App\Models\PidSetting;
 use App\Services\InstrumentNameResolutionService;
 use App\Services\Pid4instVocabularyService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -122,6 +123,18 @@ it('does not choose between multiple records or use empty registry names', funct
     expect($result[0]['name'])->toBe('21.test/a')
         ->and($result[0]['resolution']['status'])->toBe($ambiguous ? 'ambiguous' : 'not_found');
 })->with([true, false]);
+
+it('does not read the registry when activation is stored as integer zero', function () {
+    DB::table('pid_settings')->where('type', PidSetting::TYPE_PID4INST)->update(['is_active' => 0]);
+    Storage::spy();
+    $input = ['pid' => '21.11157/3f8xq-m8w44', 'pidType' => 'Handle', 'name' => '21.11157/3f8xq-m8w44'];
+
+    expect(app(InstrumentNameResolutionService::class)->resolve([$input]))
+        ->toBe([$input + ['resolution' => ['status' => 'unavailable']]]);
+    Storage::shouldNotHaveReceived('exists');
+    Storage::shouldNotHaveReceived('get');
+    Http::assertNothingSent();
+});
 
 it('invalidates cached snapshots and strips internal identifiers on every public read', function () {
     $service = app(Pid4instVocabularyService::class);
