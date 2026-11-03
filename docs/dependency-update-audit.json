@@ -1,0 +1,3232 @@
+{
+  "checkedOn": "2026-11-03",
+  "sources": {
+    "npm": "https://registry.npmjs.org",
+    "composer": "https://repo.packagist.org",
+    "python": "https://pypi.org",
+    "images": "https://hub.docker.com",
+    "actions": "https://api.github.com/repos"
+  },
+  "toolchain": {
+    "node": "26.13.0",
+    "npm": "12.2.1",
+    "php": "8.5.12",
+    "composer": "2.11.1",
+    "shadcn": "4.23.0"
+  },
+  "npm": [
+    {
+      "name": "@dnd-kit/core",
+      "previousConstraint": "^6.3.1",
+      "latestStable": "6.3.1",
+      "installed": "6.3.1"
+    },
+    {
+      "name": "@dnd-kit/sortable",
+      "previousConstraint": "^10.0.0",
+      "latestStable": "10.0.0",
+      "installed": "10.0.0"
+    },
+    {
+      "name": "@tailwindcss/vite",
+      "previousConstraint": "^4.3.3",
+      "latestStable": "4.3.4",
+      "installed": "4.3.4"
+    },
+    {
+      "name": "@maplibre/maplibre-gl-leaflet",
+      "previousConstraint": "^0.1.4",
+      "latestStable": "0.1.4",
+      "installed": "0.1.4"
+    },
+    {
+      "name": "@dnd-kit/utilities",
+      "previousConstraint": "^3.2.2",
+      "latestStable": "3.2.2",
+      "installed": "3.2.2"
+    },
+    {
+      "name": "@inertiajs/react",
+      "previousConstraint": "^3.9.1",
+      "latestStable": "3.11.0",
+      "installed": "3.11.0"
+    },
+    {
+      "name": "@americana/diplomat",
+      "previousConstraint": "^0.6.0",
+      "latestStable": "0.6.0",
+      "installed": "0.6.0"
+    },
+    {
+      "name": "@hookform/resolvers",
+      "previousConstraint": "^6.0.0",
+      "latestStable": "7.0.1",
+      "installed": "7.0.1"
+    },
+    {
+      "name": "@typescript/native",
+      "previousConstraint": "npm:typescript@^7.0.2",
+      "latestStable": "7.0.2",
+      "registryPackage": "typescript",
+      "installed": "7.0.2"
+    },
+    {
+      "name": "@tanstack/react-query",
+      "previousConstraint": "^5.104.5",
+      "latestStable": "5.105.3",
+      "installed": "5.105.3"
+    },
+    {
+      "name": "@types/leaflet.markercluster",
+      "previousConstraint": "^1.5.6",
+      "latestStable": "1.5.6",
+      "installed": "1.5.6"
+    },
+    {
+      "name": "@yaireo/tagify",
+      "previousConstraint": "^4.39.0",
+      "latestStable": "4.39.0",
+      "installed": "4.39.0"
+    },
+    {
+      "name": "axios",
+      "previousConstraint": "^1.20.0",
+      "latestStable": "1.21.0",
+      "installed": "1.21.0"
+    },
+    {
+      "name": "@tanstack/react-table",
+      "previousConstraint": "^9.3.1",
+      "latestStable": "9.3.1",
+      "installed": "9.3.1"
+    },
+    {
+      "name": "@vis.gl/react-google-maps",
+      "previousConstraint": "^1.10.1",
+      "latestStable": "1.10.2",
+      "installed": "1.10.2"
+    },
+    {
+      "name": "class-variance-authority",
+      "previousConstraint": "^0.7.1",
+      "latestStable": "0.7.1",
+      "installed": "0.7.1"
+    },
+    {
+      "name": "cmdk",
+      "previousConstraint": "^1.1.1",
+      "latestStable": "1.1.1",
+      "installed": "1.1.1"
+    },
+    {
+      "name": "clsx",
+      "previousConstraint": "^2.1.1",
+      "latestStable": "2.1.1",
+      "installed": "2.1.1"
+    },
+    {
+      "name": "concurrently",
+      "previousConstraint": "^10.0.6",
+      "latestStable": "10.0.6",
+      "installed": "10.0.6"
+    },
+    {
+      "name": "framer-motion",
+      "previousConstraint": "^14.5.0",
+      "latestStable": "14.9.0",
+      "installed": "14.9.0"
+    },
+    {
+      "name": "driver.js",
+      "previousConstraint": "^1.10.2",
+      "latestStable": "1.10.2",
+      "installed": "1.10.2"
+    },
+    {
+      "name": "d3",
+      "previousConstraint": "^7.9.0",
+      "latestStable": "7.9.1",
+      "installed": "7.9.1"
+    },
+    {
+      "name": "date-fns",
+      "previousConstraint": "^4.4.0",
+      "latestStable": "4.4.0",
+      "installed": "4.4.0"
+    },
+    {
+      "name": "qrcode.react",
+      "previousConstraint": "^4.2.0",
+      "latestStable": "4.2.0",
+      "installed": "4.2.0"
+    },
+    {
+      "name": "laravel-vite-plugin",
+      "previousConstraint": "^3.2.0",
+      "latestStable": "3.2.0",
+      "installed": "3.2.0"
+    },
+    {
+      "name": "leaflet",
+      "previousConstraint": "^1.9.4",
+      "latestStable": "1.9.4",
+      "installed": "1.9.4"
+    },
+    {
+      "name": "leaflet.markercluster",
+      "previousConstraint": "^1.5.3",
+      "latestStable": "1.5.3",
+      "installed": "1.5.3"
+    },
+    {
+      "name": "lucide-react",
+      "previousConstraint": "^1.61.0",
+      "latestStable": "1.67.0",
+      "installed": "1.67.0"
+    },
+    {
+      "name": "react-hook-form",
+      "previousConstraint": "^7.90.0",
+      "latestStable": "7.91.0",
+      "installed": "7.91.0"
+    },
+    {
+      "name": "react-leaflet",
+      "previousConstraint": "^5.0.0",
+      "latestStable": "5.0.0",
+      "installed": "5.0.0"
+    },
+    {
+      "name": "maplibre-gl",
+      "previousConstraint": "^6.15.0",
+      "latestStable": "6.16.0",
+      "installed": "6.16.0"
+    },
+    {
+      "name": "recharts",
+      "previousConstraint": "^3.10.1",
+      "latestStable": "3.10.1",
+      "installed": "3.10.1"
+    },
+    {
+      "name": "nprogress",
+      "previousConstraint": "^0.2.0",
+      "latestStable": "0.2.0",
+      "installed": "0.2.0"
+    },
+    {
+      "name": "papaparse",
+      "previousConstraint": "^5.7.0",
+      "latestStable": "5.7.0",
+      "installed": "5.7.0"
+    },
+    {
+      "name": "radix-ui",
+      "previousConstraint": "^1.8.1",
+      "latestStable": "1.8.1",
+      "installed": "1.8.1"
+    },
+    {
+      "name": "react",
+      "previousConstraint": "^19.3.1",
+      "latestStable": "19.3.1",
+      "installed": "19.3.1"
+    },
+    {
+      "name": "react-day-picker",
+      "previousConstraint": "^10.0.2",
+      "latestStable": "10.0.2",
+      "installed": "10.0.2"
+    },
+    {
+      "name": "react-dom",
+      "previousConstraint": "^19.3.1",
+      "latestStable": "19.3.1",
+      "installed": "19.3.1"
+    },
+    {
+      "name": "sonner",
+      "previousConstraint": "^2.0.8",
+      "latestStable": "2.0.8",
+      "installed": "2.0.8"
+    },
+    {
+      "name": "react-resizable-panels",
+      "previousConstraint": "^4.14.8",
+      "latestStable": "4.17.0",
+      "installed": "4.17.0"
+    },
+    {
+      "name": "tailwind-merge",
+      "previousConstraint": "^3.7.0",
+      "latestStable": "3.7.0",
+      "installed": "3.7.0"
+    },
+    {
+      "name": "swagger-ui-react",
+      "previousConstraint": "^5.34.0",
+      "latestStable": "5.34.1",
+      "installed": "5.34.1"
+    },
+    {
+      "name": "tailwindcss",
+      "previousConstraint": "^4.3.3",
+      "latestStable": "4.3.4",
+      "installed": "4.3.4"
+    },
+    {
+      "name": "tailwindcss-animate",
+      "previousConstraint": "^1.0.7",
+      "latestStable": "1.0.7",
+      "installed": "1.0.7"
+    },
+    {
+      "name": "typescript",
+      "previousConstraint": "npm:@typescript/typescript6@^6.0.2",
+      "latestStable": "6.0.2",
+      "registryPackage": "@typescript/typescript6",
+      "installed": "6.0.2"
+    },
+    {
+      "name": "zod",
+      "previousConstraint": "^4.6.7",
+      "latestStable": "4.6.7",
+      "installed": "4.6.7"
+    },
+    {
+      "name": "vaul",
+      "previousConstraint": "^1.1.2",
+      "latestStable": "1.1.2",
+      "installed": "1.1.2"
+    },
+    {
+      "name": "@laravel/vite-plugin-wayfinder",
+      "previousConstraint": "^0.1.11",
+      "latestStable": "0.1.11",
+      "installed": "0.1.11"
+    },
+    {
+      "name": "@playwright/test",
+      "previousConstraint": "^1.64.1",
+      "latestStable": "1.64.1",
+      "installed": "1.64.1"
+    },
+    {
+      "name": "@redocly/cli",
+      "previousConstraint": "^2.66.1",
+      "latestStable": "2.72.1",
+      "installed": "2.72.1"
+    },
+    {
+      "name": "@tanstack/react-query-devtools",
+      "previousConstraint": "^5.104.5",
+      "latestStable": "5.105.3",
+      "installed": "5.105.3"
+    },
+    {
+      "name": "@testing-library/jest-dom",
+      "previousConstraint": "^7.0.1",
+      "latestStable": "7.0.1",
+      "installed": "7.0.1"
+    },
+    {
+      "name": "@testing-library/react",
+      "previousConstraint": "^16.3.3",
+      "latestStable": "16.3.3",
+      "installed": "16.3.3"
+    },
+    {
+      "name": "@types/d3",
+      "previousConstraint": "^7.4.3",
+      "latestStable": "7.4.3",
+      "installed": "7.4.3"
+    },
+    {
+      "name": "@testing-library/user-event",
+      "previousConstraint": "^14.6.8",
+      "latestStable": "14.6.8",
+      "installed": "14.6.8"
+    },
+    {
+      "name": "@axe-core/playwright",
+      "previousConstraint": "^4.14.0",
+      "latestStable": "4.14.0",
+      "installed": "4.14.0"
+    },
+    {
+      "name": "@types/leaflet",
+      "previousConstraint": "^1.9.22",
+      "latestStable": "1.9.22",
+      "installed": "1.9.22"
+    },
+    {
+      "name": "@types/node",
+      "previousConstraint": "^26.6.5",
+      "latestStable": "26.6.6",
+      "installed": "26.6.6"
+    },
+    {
+      "name": "@types/nprogress",
+      "previousConstraint": "^0.2.3",
+      "latestStable": "0.2.3",
+      "installed": "0.2.3"
+    },
+    {
+      "name": "@types/papaparse",
+      "previousConstraint": "^5.5.2",
+      "latestStable": "5.5.2",
+      "installed": "5.5.2"
+    },
+    {
+      "name": "@testing-library/dom",
+      "previousConstraint": "^10.4.2",
+      "latestStable": "10.4.2",
+      "installed": "10.4.2"
+    },
+    {
+      "name": "@types/react-dom",
+      "previousConstraint": "^19.3.0",
+      "latestStable": "19.3.0",
+      "installed": "19.3.0"
+    },
+    {
+      "name": "@types/yaireo__tagify",
+      "previousConstraint": "^4.27.0",
+      "latestStable": "4.27.0",
+      "installed": "4.27.0"
+    },
+    {
+      "name": "@types/react",
+      "previousConstraint": "^19.3.0",
+      "latestStable": "19.3.0",
+      "installed": "19.3.0"
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "previousConstraint": "^6.1.2",
+      "latestStable": "6.2.1",
+      "installed": "6.2.1"
+    },
+    {
+      "name": "@vitejs/devtools",
+      "previousConstraint": "^0.8.0",
+      "latestStable": "0.8.0",
+      "installed": "0.8.0"
+    },
+    {
+      "name": "@vitest/browser-playwright",
+      "previousConstraint": "^5.0.5",
+      "latestStable": "5.1.0",
+      "installed": "5.1.0"
+    },
+    {
+      "name": "@vitest/browser",
+      "previousConstraint": "^5.0.5",
+      "latestStable": "5.1.0",
+      "installed": "5.1.0"
+    },
+    {
+      "name": "dotenv",
+      "previousConstraint": "^18.0.8",
+      "latestStable": "18.0.9",
+      "installed": "18.0.9"
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "previousConstraint": "^5.0.5",
+      "latestStable": "5.1.0",
+      "installed": "5.1.0"
+    },
+    {
+      "name": "eslint-plugin-simple-import-sort",
+      "previousConstraint": "^14.0.0",
+      "latestStable": "14.0.0",
+      "installed": "14.0.0"
+    },
+    {
+      "name": "jsdom",
+      "previousConstraint": "^30.1.3",
+      "latestStable": "30.1.3",
+      "installed": "30.1.3"
+    },
+    {
+      "name": "jsonld",
+      "previousConstraint": "9.0.0",
+      "latestStable": "9.0.0",
+      "installed": "9.0.0"
+    },
+    {
+      "name": "msw",
+      "previousConstraint": "^3.0.3",
+      "latestStable": "3.0.3",
+      "installed": "3.0.3"
+    },
+    {
+      "name": "oxfmt",
+      "previousConstraint": "^0.74.0",
+      "latestStable": "0.75.0",
+      "installed": "0.75.0"
+    },
+    {
+      "name": "oxlint",
+      "previousConstraint": "^1.89.0",
+      "latestStable": "1.90.0",
+      "installed": "1.90.0"
+    },
+    {
+      "name": "playwright",
+      "previousConstraint": "^1.64.1",
+      "latestStable": "1.64.1",
+      "installed": "1.64.1"
+    },
+    {
+      "name": "start-server-and-test",
+      "previousConstraint": "^3.0.13",
+      "latestStable": "3.0.13",
+      "installed": "3.0.13"
+    },
+    {
+      "name": "vite",
+      "previousConstraint": "^8.3.5",
+      "latestStable": "8.3.5",
+      "installed": "8.3.5"
+    },
+    {
+      "name": "vitest",
+      "previousConstraint": "^5.0.5",
+      "latestStable": "5.1.0",
+      "installed": "5.1.0"
+    },
+    {
+      "name": "@tailwindcss/oxide-linux-x64-gnu",
+      "previousConstraint": "^4.3.3",
+      "latestStable": "4.3.4",
+      "installed": "4.3.4"
+    },
+    {
+      "name": "lightningcss-linux-x64-gnu",
+      "previousConstraint": "^1.33.0",
+      "latestStable": "1.33.0",
+      "installed": "1.33.0"
+    },
+    {
+      "name": "eslint",
+      "previousConstraint": null,
+      "latestStable": "10.14.0",
+      "installed": "10.14.0",
+      "reason": "Peer required by eslint-plugin-simple-import-sort used through Oxlint."
+    },
+    {
+      "name": "ajv",
+      "previousConstraint": null,
+      "latestStable": "8.20.0",
+      "installed": "8.20.0",
+      "reason": "Resolve @hookform/resolvers optional AJV 8 peer without selecting ESLint's AJV 6."
+    }
+  ],
+  "composer": [
+    {
+      "name": "citation-style-language/locales",
+      "previous": "v0.0.104",
+      "installed": "v0.0.106"
+    },
+    {
+      "name": "doctrine/inflector",
+      "previous": "2.1.0",
+      "installed": "2.1.1"
+    },
+    {
+      "name": "guzzlehttp/guzzle",
+      "previous": "8.3.0",
+      "installed": "8.3.1"
+    },
+    {
+      "name": "inertiajs/inertia-laravel",
+      "previous": "v3.5.1",
+      "installed": "v3.7.0"
+    },
+    {
+      "name": "laravel/framework",
+      "previous": "v13.38.0",
+      "installed": "v13.39.0"
+    },
+    {
+      "name": "league/commonmark",
+      "previous": "2.10.4",
+      "installed": "2.10.7"
+    },
+    {
+      "name": "league/uri",
+      "previous": "7.9.0",
+      "installed": "7.9.1"
+    },
+    {
+      "name": "league/uri-interfaces",
+      "previous": "7.9.0",
+      "installed": "7.9.1"
+    },
+    {
+      "name": "nesbot/carbon",
+      "previous": "3.15.0",
+      "installed": "3.15.1"
+    },
+    {
+      "name": "nette/schema",
+      "previous": "v1.3.7",
+      "installed": "v1.4.0"
+    },
+    {
+      "name": "php-standard-library/php-standard-library",
+      "previous": "6.3.0",
+      "installed": "6.4.2"
+    },
+    {
+      "name": "phpstan/phpdoc-parser",
+      "previous": "2.3.6",
+      "installed": "2.4.1"
+    },
+    {
+      "name": "symfony/console",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/css-selector",
+      "previous": "v8.1.6",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/error-handler",
+      "previous": "v8.1.8",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/finder",
+      "previous": "v8.1.8",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/http-foundation",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/http-kernel",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/mailer",
+      "previous": "v8.1.7",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/polyfill-intl-grapheme",
+      "previous": "v1.43.0",
+      "installed": "v1.43.3"
+    },
+    {
+      "name": "symfony/polyfill-mbstring",
+      "previous": "v1.43.0",
+      "installed": "v1.43.3"
+    },
+    {
+      "name": "symfony/process",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/routing",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/string",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/translation",
+      "previous": "v8.1.5",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "symfony/var-dumper",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    },
+    {
+      "name": "vlucas/phpdotenv",
+      "previous": "v5.7.0",
+      "installed": "v5.8.0"
+    },
+    {
+      "name": "amphp/byte-stream",
+      "previous": "v2.1.2",
+      "installed": "v2.1.3"
+    },
+    {
+      "name": "amphp/dns",
+      "previous": "v2.4.1",
+      "installed": "v2.4.2"
+    },
+    {
+      "name": "amphp/http-client",
+      "previous": "v5.3.6",
+      "installed": "v5.3.7"
+    },
+    {
+      "name": "amphp/http-server",
+      "previous": "v3.4.7",
+      "installed": "v3.4.8"
+    },
+    {
+      "name": "amphp/process",
+      "previous": "v2.1.0",
+      "installed": "v2.1.1"
+    },
+    {
+      "name": "amphp/sync",
+      "previous": "v2.3.0",
+      "installed": "v2.3.1"
+    },
+    {
+      "name": "amphp/websocket",
+      "previous": "v2.0.4",
+      "installed": "v2.0.5"
+    },
+    {
+      "name": "brianium/paratest",
+      "previous": "v7.27.4",
+      "installed": "v7.27.5"
+    },
+    {
+      "name": "entropy/entropy",
+      "previous": "0.4.31",
+      "installed": "0.4.36"
+    },
+    {
+      "name": "filp/whoops",
+      "previous": "2.18.7",
+      "installed": "2.19.1"
+    },
+    {
+      "name": "larastan/larastan",
+      "previous": "v3.13.0",
+      "installed": "v3.13.2"
+    },
+    {
+      "name": "league/uri-components",
+      "previous": "7.9.0",
+      "installed": "7.9.1"
+    },
+    {
+      "name": "pestphp/pest",
+      "previous": "v5.3.4",
+      "installed": "v5.3.5"
+    },
+    {
+      "name": "pestphp/pest-plugin-browser",
+      "previous": "v5.1.2",
+      "installed": "v5.2.0"
+    },
+    {
+      "name": "pestphp/pest-plugin-phpstan",
+      "previous": "v5.2.2",
+      "installed": "v5.3.1"
+    },
+    {
+      "name": "pestphp/pest-plugin-type-coverage",
+      "previous": "v5.0.3",
+      "installed": "v5.1.0"
+    },
+    {
+      "name": "phpstan/phpstan",
+      "previous": "2.3.1",
+      "installed": "2.3.4"
+    },
+    {
+      "name": "phpunit/php-code-coverage",
+      "previous": "14.4.1",
+      "installed": "14.5.1"
+    },
+    {
+      "name": "symfony/yaml",
+      "previous": "v8.1.9",
+      "installed": "v8.1.10"
+    }
+  ],
+  "actions": [
+    {
+      "repo": "actions/checkout",
+      "tag": "v7.0.1",
+      "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1"
+    },
+    {
+      "repo": "actions/setup-node",
+      "tag": "v7.1.0",
+      "sha": "949feb2413d6458794dcd2491c4babbbce0c15c1"
+    },
+    {
+      "repo": "actions/cache",
+      "tag": "v6.1.0",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+    },
+    {
+      "repo": "actions/upload-artifact",
+      "tag": "v7.0.2",
+      "sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+    },
+    {
+      "repo": "actions/download-artifact",
+      "tag": "v8.0.2",
+      "sha": "9000827ccba6bdab643e8b6fd33ac0654aef8333"
+    },
+    {
+      "repo": "shivammathur/setup-php",
+      "tag": "2.40.0",
+      "sha": "eb7c497e18156a6bbabfef1d3a82760b9eda3962"
+    },
+    {
+      "repo": "codecov/codecov-action",
+      "tag": "v7.1.1",
+      "sha": "303a32d7a59b442fa8d48b6a1cc6825c09c847a5"
+    },
+    {
+      "repo": "docker/setup-buildx-action",
+      "tag": "v4.4.1",
+      "sha": "f87e5991a6d7451dcb8d9637bfbc97413f497069"
+    },
+    {
+      "repo": "docker/build-push-action",
+      "tag": "v7.4.0",
+      "sha": "c3c9e263c25d99ce0380d002d59b67737d91b0dc"
+    },
+    {
+      "repo": "actions/github-script",
+      "tag": "v9.0.0",
+      "sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3"
+    },
+    {
+      "repo": "actions/create-github-app-token",
+      "tag": "v3.3.0",
+      "sha": "64ab729a6294000f5aa4a4bc0b73d1f32bc45510"
+    },
+    {
+      "repo": "github/codeql-action",
+      "tag": "v4.39.1",
+      "sha": "9b3254085494b55a0f7c4c2b3d2d52cc712ce370"
+    },
+    {
+      "repo": "docker/login-action",
+      "tag": "v4.7.0",
+      "sha": "81c6f93d4bc991e510b342a00b419b3bb4efc5c6"
+    }
+  ],
+  "images": [
+    {
+      "image": "php:8.5.12-fpm-trixie",
+      "digest": "sha256:c34bcf437ed61bd5e4c1114494eaf1ffd54253bce2b95d263bfa18b350ee8432"
+    },
+    {
+      "image": "mysql:9.7.4",
+      "digest": "sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8"
+    },
+    {
+      "image": "mysql:8.4.13",
+      "digest": "sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902"
+    },
+    {
+      "image": "redis:8.10.3-alpine",
+      "digest": "sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537"
+    },
+    {
+      "image": "nginx:1.31.8-alpine",
+      "digest": "sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606"
+    },
+    {
+      "image": "composer:2.11.1",
+      "digest": "sha256:537fb03057ed901ae06bde7ef25af348903485ae1acc7fc789b80d8bac666f35"
+    },
+    {
+      "image": "traefik:v3.7.17",
+      "digest": "sha256:68ae5fe5b64ca166704b746a9e8afcd385e36b3f569a5691401bf652d57b3748"
+    }
+  ],
+  "python": [
+    {
+      "name": "pycparser",
+      "installedAtInventory": "3.12",
+      "latestStable": "3.12",
+      "installed": "3.12"
+    },
+    {
+      "name": "tzdata",
+      "installedAtInventory": "2026.6",
+      "latestStable": "2026.6",
+      "installed": "2026.6"
+    },
+    {
+      "name": "soupsieve",
+      "installedAtInventory": "3.0.4",
+      "latestStable": "3.0.4",
+      "installed": "3.0.4"
+    },
+    {
+      "name": "certifi",
+      "installedAtInventory": "2026.10.23",
+      "latestStable": "2026.10.23",
+      "installed": "2026.10.23"
+    },
+    {
+      "name": "starlette",
+      "installedAtInventory": "1.10.0",
+      "latestStable": "1.10.0",
+      "installed": "1.10.0"
+    },
+    {
+      "name": "playwright",
+      "installedAtInventory": "1.64.1",
+      "latestStable": "1.64.1",
+      "installed": "1.64.1"
+    },
+    {
+      "name": "httptools",
+      "installedAtInventory": "0.9.0",
+      "latestStable": "0.9.0",
+      "installed": "0.9.0"
+    },
+    {
+      "name": "w3lib",
+      "installedAtInventory": "2.5.0",
+      "latestStable": "2.5.0",
+      "installed": "2.5.0"
+    },
+    {
+      "name": "platformdirs",
+      "installedAtInventory": "4.14.3",
+      "latestStable": "4.14.3",
+      "installed": "4.14.3"
+    },
+    {
+      "name": "filelock",
+      "installedAtInventory": "4.2.7",
+      "latestStable": "4.2.7",
+      "installed": "4.2.7"
+    },
+    {
+      "name": "uvloop",
+      "installedAtInventory": "0.23.0",
+      "latestStable": "0.23.0",
+      "installed": "0.23.0"
+    },
+    {
+      "name": "urlextract",
+      "installedAtInventory": "1.10.0",
+      "latestStable": "1.10.0",
+      "installed": "1.10.0"
+    },
+    {
+      "name": "pytz",
+      "installedAtInventory": "2026.6",
+      "latestStable": "2026.6",
+      "installed": "2026.6"
+    },
+    {
+      "name": "python-dotenv",
+      "installedAtInventory": "1.2.4",
+      "latestStable": "1.2.4",
+      "installed": "1.2.4"
+    },
+    {
+      "name": "PyJWT",
+      "installedAtInventory": "2.15.1",
+      "latestStable": "2.15.1",
+      "installed": "2.15.1"
+    },
+    {
+      "name": "Werkzeug",
+      "installedAtInventory": "3.1.9",
+      "latestStable": "3.1.9",
+      "installed": "3.1.9"
+    },
+    {
+      "name": "tldextract",
+      "installedAtInventory": "5.4.0",
+      "latestStable": "5.4.0",
+      "installed": "5.4.0"
+    },
+    {
+      "name": "MarkupSafe",
+      "installedAtInventory": "3.0.4",
+      "latestStable": "3.0.4",
+      "installed": "3.0.4"
+    },
+    {
+      "name": "charset-normalizer",
+      "installedAtInventory": "3.5.2",
+      "latestStable": "3.5.2",
+      "installed": "3.5.2"
+    },
+    {
+      "name": "idutils",
+      "installedAtInventory": "1.7.1",
+      "latestStable": "1.7.1",
+      "installed": "1.7.1"
+    },
+    {
+      "name": "SPARQLWrapper",
+      "installedAtInventory": "2.0.0",
+      "latestStable": "2.0.0",
+      "installed": "2.0.0"
+    },
+    {
+      "name": "cryptography",
+      "installedAtInventory": "50.0.2",
+      "latestStable": "50.0.2",
+      "installed": "50.0.2"
+    },
+    {
+      "name": "h11",
+      "installedAtInventory": "0.16.0",
+      "latestStable": "0.16.0",
+      "installed": "0.16.0"
+    },
+    {
+      "name": "extruct",
+      "installedAtInventory": "0.18.0",
+      "latestStable": "0.18.0",
+      "installed": "0.18.0"
+    },
+    {
+      "name": "setuptools",
+      "installedAtInventory": "84.2.1",
+      "latestStable": "84.2.1",
+      "installed": "84.2.1"
+    },
+    {
+      "name": "feedparser",
+      "installedAtInventory": "6.0.14",
+      "latestStable": "6.0.14",
+      "installed": "6.0.14"
+    },
+    {
+      "name": "websockets",
+      "installedAtInventory": "17.4",
+      "latestStable": "17.4",
+      "installed": "17.4"
+    },
+    {
+      "name": "a2wsgi",
+      "installedAtInventory": "1.10.10",
+      "latestStable": "1.10.10",
+      "installed": "1.10.10"
+    },
+    {
+      "name": "watchfiles",
+      "installedAtInventory": "1.3.0",
+      "latestStable": "1.3.0",
+      "installed": "1.3.0"
+    },
+    {
+      "name": "html5lib",
+      "installedAtInventory": "1.1",
+      "latestStable": "1.1",
+      "installed": "1.1"
+    },
+    {
+      "name": "pyparsing",
+      "installedAtInventory": "3.3.3",
+      "latestStable": "3.3.3",
+      "installed": "3.3.3"
+    },
+    {
+      "name": "PyYAML",
+      "installedAtInventory": "6.0.3",
+      "latestStable": "6.0.3",
+      "installed": "6.0.3"
+    },
+    {
+      "name": "isbnlib2",
+      "installedAtInventory": "3.11.24",
+      "latestStable": "3.11.24",
+      "installed": "3.11.24"
+    },
+    {
+      "name": "Jinja2",
+      "installedAtInventory": "3.1.6",
+      "latestStable": "3.1.6",
+      "installed": "3.1.6"
+    },
+    {
+      "name": "PyGithub",
+      "installedAtInventory": "2.10.0",
+      "latestStable": "2.10.0",
+      "installed": "2.10.0"
+    },
+    {
+      "name": "asgiref",
+      "installedAtInventory": "3.12.1",
+      "latestStable": "3.13.0",
+      "installed": "3.13.0"
+    },
+    {
+      "name": "numpy",
+      "installedAtInventory": "2.5.4",
+      "latestStable": "2.5.4",
+      "installed": "2.5.4"
+    },
+    {
+      "name": "webencodings",
+      "installedAtInventory": "0.6.1",
+      "latestStable": "0.6.1",
+      "installed": "0.6.1"
+    },
+    {
+      "name": "tika",
+      "installedAtInventory": "3.1.0",
+      "latestStable": "3.3.2",
+      "installed": "3.1.0"
+    },
+    {
+      "name": "uvicorn",
+      "installedAtInventory": "0.52.4",
+      "latestStable": "0.54.0",
+      "installed": "0.52.4"
+    },
+    {
+      "name": "fuji",
+      "installedAtInventory": "4.0.1",
+      "latestStable": "4.0.1",
+      "installed": "4.0.1",
+      "versionSource": "PANGAEA container release; unrelated PyPI package named fuji excluded"
+    },
+    {
+      "name": "click",
+      "installedAtInventory": "8.5.0",
+      "latestStable": "8.5.0",
+      "installed": "8.5.0"
+    },
+    {
+      "name": "is-antibot",
+      "installedAtInventory": "0.1.1",
+      "latestStable": "0.1.1",
+      "installed": "0.1.1"
+    },
+    {
+      "name": "httpx",
+      "installedAtInventory": "0.28.1",
+      "latestStable": "0.28.1",
+      "installed": "0.28.1"
+    },
+    {
+      "name": "jstyleson",
+      "installedAtInventory": "0.0.2",
+      "latestStable": "0.0.2",
+      "installed": "0.0.2"
+    },
+    {
+      "name": "pyrdfa3",
+      "installedAtInventory": "3.6.5",
+      "latestStable": "3.6.5",
+      "installed": "3.6.5"
+    },
+    {
+      "name": "inflection",
+      "installedAtInventory": "0.5.1",
+      "latestStable": "0.5.1",
+      "installed": "0.5.1"
+    },
+    {
+      "name": "rpds-py",
+      "installedAtInventory": "2026.9.1",
+      "latestStable": "2026.9.1",
+      "installed": "2026.9.1"
+    },
+    {
+      "name": "cffi",
+      "installedAtInventory": "2.1.1",
+      "latestStable": "2.1.1",
+      "installed": "2.1.1"
+    },
+    {
+      "name": "jmespath",
+      "installedAtInventory": "1.1.0",
+      "latestStable": "1.1.0",
+      "installed": "1.1.0"
+    },
+    {
+      "name": "beautifulsoup4",
+      "installedAtInventory": "4.15.0",
+      "latestStable": "4.15.0",
+      "installed": "4.15.0"
+    },
+    {
+      "name": "anyio",
+      "installedAtInventory": "4.15.1",
+      "latestStable": "4.16.0",
+      "installed": "4.16.0"
+    },
+    {
+      "name": "mf2py",
+      "installedAtInventory": "2.0.2",
+      "latestStable": "2.0.2",
+      "installed": "2.0.2"
+    },
+    {
+      "name": "Levenshtein",
+      "installedAtInventory": "0.26.1",
+      "latestStable": "0.27.5",
+      "installed": "0.26.1"
+    },
+    {
+      "name": "jsonschema-specifications",
+      "installedAtInventory": "2025.9.1",
+      "latestStable": "2025.9.1",
+      "installed": "2025.9.1"
+    },
+    {
+      "name": "itsdangerous",
+      "installedAtInventory": "2.2.0",
+      "latestStable": "2.2.0",
+      "installed": "2.2.0"
+    },
+    {
+      "name": "PyNaCl",
+      "installedAtInventory": "1.6.2",
+      "latestStable": "1.6.2",
+      "installed": "1.6.2"
+    },
+    {
+      "name": "httpcore",
+      "installedAtInventory": "1.0.9",
+      "latestStable": "1.0.9",
+      "installed": "1.0.9"
+    },
+    {
+      "name": "connexion",
+      "installedAtInventory": "3.3.0",
+      "latestStable": "3.3.0",
+      "installed": "3.3.0"
+    },
+    {
+      "name": "swagger_ui_bundle",
+      "installedAtInventory": "1.1.0",
+      "latestStable": "1.1.0",
+      "installed": "1.1.0"
+    },
+    {
+      "name": "urllib3",
+      "installedAtInventory": "2.8.0",
+      "latestStable": "2.8.0",
+      "installed": "2.8.0"
+    },
+    {
+      "name": "python-multipart",
+      "installedAtInventory": "0.0.32",
+      "latestStable": "0.0.33",
+      "installed": "0.0.33"
+    },
+    {
+      "name": "idna",
+      "installedAtInventory": "3.20",
+      "latestStable": "3.20",
+      "installed": "3.20"
+    },
+    {
+      "name": "pandas",
+      "installedAtInventory": "2.2.3",
+      "latestStable": "3.1.0",
+      "installed": "2.2.3"
+    },
+    {
+      "name": "blinker",
+      "installedAtInventory": "1.9.0",
+      "latestStable": "1.9.0",
+      "installed": "1.9.0"
+    },
+    {
+      "name": "six",
+      "installedAtInventory": "1.17.0",
+      "latestStable": "1.17.0",
+      "installed": "1.17.0"
+    },
+    {
+      "name": "python-dateutil",
+      "installedAtInventory": "2.9.0.post0",
+      "latestStable": "4.0.0",
+      "installed": "2.9.0.post0"
+    },
+    {
+      "name": "jsonschema",
+      "installedAtInventory": "4.26.0",
+      "latestStable": "4.26.0",
+      "installed": "4.26.0"
+    },
+    {
+      "name": "requests",
+      "installedAtInventory": "2.34.2",
+      "latestStable": "2.34.2",
+      "installed": "2.34.2"
+    },
+    {
+      "name": "pyee",
+      "installedAtInventory": "13.0.1",
+      "latestStable": "16.0.1",
+      "installed": "14.0.0"
+    },
+    {
+      "name": "referencing",
+      "installedAtInventory": "0.37.0",
+      "latestStable": "0.37.0",
+      "installed": "0.37.0"
+    },
+    {
+      "name": "rdflib",
+      "installedAtInventory": "7.6.0",
+      "latestStable": "7.6.0",
+      "installed": "7.6.0"
+    },
+    {
+      "name": "lxml_html_clean",
+      "installedAtInventory": "0.4.5",
+      "latestStable": "0.4.6",
+      "installed": "0.4.6"
+    },
+    {
+      "name": "feedparser-sgmllib",
+      "installedAtInventory": "2.1.0",
+      "latestStable": "2.1.0",
+      "installed": "2.1.0"
+    },
+    {
+      "name": "typing_extensions",
+      "installedAtInventory": "4.16.0",
+      "latestStable": "4.16.0",
+      "installed": "4.16.0"
+    },
+    {
+      "name": "Flask",
+      "installedAtInventory": "3.1.3",
+      "latestStable": "3.1.3",
+      "installed": "3.1.3"
+    },
+    {
+      "name": "greenlet",
+      "installedAtInventory": "3.5.6",
+      "latestStable": "3.5.6",
+      "installed": "3.5.6"
+    },
+    {
+      "name": "requests-file",
+      "installedAtInventory": "3.0.1",
+      "latestStable": "3.0.1",
+      "installed": "3.0.1"
+    },
+    {
+      "name": "hashID",
+      "installedAtInventory": "3.1.4",
+      "latestStable": "3.1.4",
+      "installed": "3.1.4"
+    },
+    {
+      "name": "html-text",
+      "installedAtInventory": "0.7.1",
+      "latestStable": "0.7.1",
+      "installed": "0.7.1"
+    },
+    {
+      "name": "uritools",
+      "installedAtInventory": "6.1.3",
+      "latestStable": "6.1.3",
+      "installed": "6.1.3"
+    },
+    {
+      "name": "attrs",
+      "installedAtInventory": "26.1.0",
+      "latestStable": "26.1.0",
+      "installed": "26.1.0"
+    },
+    {
+      "name": "lxml",
+      "installedAtInventory": "6.1.3",
+      "latestStable": "6.1.3",
+      "installed": "6.1.3"
+    },
+    {
+      "name": "RapidFuzz",
+      "installedAtInventory": "3.14.6",
+      "latestStable": "3.14.6",
+      "installed": "3.14.6"
+    }
+  ],
+  "constrainedUpdates": [
+    {
+      "package": "citation-style-language/styles",
+      "latest": "1.0.15",
+      "reason": "seboettg/citeproc-php 2.7.1 requires v0.0.*"
+    },
+    {
+      "package": "seboettg/collection",
+      "latest": "4.0.0",
+      "reason": "seboettg/citeproc-php 2.7.1 requires ^3.1"
+    },
+    {
+      "package": "veewee/xml",
+      "latest": "4.14.0",
+      "reason": "saloonphp/xml-wrangler 1.5.0 requires ^3.1.0"
+    },
+    {
+      "package": "webmozart/assert",
+      "latest": "2.5.0",
+      "reason": "veewee/xml 3.8.0 requires ^1.10"
+    },
+    {
+      "package": "phpunit/phpunit",
+      "latest": "13.4.6",
+      "reason": "pestphp/pest 5.3.5 conflicts with versions >13.4.5"
+    },
+    {
+      "package": "tika",
+      "latest": "3.3.2",
+      "reason": "F-UJI 4.0.1 requires ~=3.1.0"
+    },
+    {
+      "package": "uvicorn",
+      "latest": "0.54.0",
+      "reason": "F-UJI 4.0.1 requires ~=0.52.4"
+    },
+    {
+      "package": "Levenshtein",
+      "latest": "0.27.5",
+      "reason": "F-UJI 4.0.1 requires ~=0.26.1"
+    },
+    {
+      "package": "pandas",
+      "latest": "3.1.0",
+      "reason": "F-UJI 4.0.1 requires ~=2.2.3"
+    },
+    {
+      "package": "python-dateutil",
+      "latest": "4.0.0",
+      "reason": "F-UJI 4.0.1 requires ~=2.9.0"
+    },
+    {
+      "package": "pyee",
+      "latest": "16.0.1",
+      "selected": "14.0.0",
+      "reason": "Playwright 1.64.1 requires >=13,<15"
+    },
+    {
+      "package": "fuji",
+      "reason": "The PyPI package named fuji is unrelated; the reviewed PANGAEA image release is 4.0.1."
+    },
+    {
+      "package": "aria-query",
+      "selected": "5.3.0",
+      "latest": "5.3.2",
+      "reason": "@testing-library/dom 10.4.2 pins exactly 5.3.0."
+    },
+    {
+      "package": "reselect",
+      "selected": "5.2.0",
+      "latest": "5.3.0",
+      "reason": "recharts pins exactly 5.2.0."
+    },
+    {
+      "package": "@napi-rs/wasm-runtime",
+      "selected": "1.2.2",
+      "latest": "1.2.7",
+      "reason": "Bundled inside the current @tailwindcss/oxide-wasm32-wasi 4.3.4 release; not independently resolved by npm."
+    },
+    {
+      "package": "@tybys/wasm-util",
+      "selected": "0.10.3",
+      "latest": "0.10.4",
+      "reason": "Bundled inside @tailwindcss/oxide-wasm32-wasi 4.3.4."
+    },
+    {
+      "package": "tslib (Tailwind WASM bundle)",
+      "selected": "2.8.1",
+      "latest": "2.9.1",
+      "reason": "Bundled inside @tailwindcss/oxide-wasm32-wasi 4.3.4; the regular dependency tree uses its separately resolved version."
+    }
+  ],
+  "knownPeerConstraints": [
+    {
+      "package": "swagger-ui-react",
+      "reason": "Transitive react-debounce-input and react-inspector declare React <=18 peers while the supported application uses React 19.3.1."
+    },
+    {
+      "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
+      "reason": "legacy-peer-deps places the YAML tree-sitter peer next to the JSON adapter version 0.21.1; its own pinned runtime is 0.22.4."
+    }
+  ],
+  "php86": {
+    "version": "8.6.0RC4",
+    "status": "incompatible",
+    "stage": "environment",
+    "reason": "Stable phpredis 6.3.0 references removed Zend/PHP APIs and fails to compile."
+  },
+  "security": {
+    "npmAudit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "composerAudit": {
+      "vulnerabilities": 0
+    },
+    "npmBundledPatch": {
+      "npm": "12.2.1",
+      "package": "undici",
+      "from": "6.29.0",
+      "to": "6.29.1",
+      "scope": "Docker development/build stages and GitHub Actions npm installations",
+      "source": "https://github.com/npm/cli/issues/10163",
+      "removal": "Remove the temporary verified patch after a stable npm release includes Undici >=6.29.1."
+    },
+    "imageScan": {
+      "scanner": "Trivy 0.76.1",
+      "policy": "HIGH,CRITICAL with available fixes, matching existing CI; no new suppressions",
+      "passed": [
+        "development",
+        "app",
+        "nginx",
+        "fuji",
+        "redis",
+        "traefik"
+      ],
+      "pending": [],
+      "upstreamMysqlFindings": [
+        {
+          "target": "Python",
+          "id": "GHSA-6q48-6c7w-9gw2",
+          "package": "certifi",
+          "installed": "2026.2.25",
+          "fixed": "2026.10.18",
+          "severity": "CRITICAL"
+        },
+        {
+          "target": "Python",
+          "id": "CVE-2026-69247",
+          "package": "cryptography",
+          "installed": "46.0.5",
+          "fixed": "50.0.0",
+          "severity": "HIGH"
+        },
+        {
+          "target": "Python",
+          "id": "CVE-2026-69249",
+          "package": "cryptography",
+          "installed": "46.0.5",
+          "fixed": "49.0.0",
+          "severity": "HIGH"
+        },
+        {
+          "target": "Python",
+          "id": "GHSA-537c-gmf6-5ccf",
+          "package": "cryptography",
+          "installed": "46.0.5",
+          "fixed": "48.0.1",
+          "severity": "HIGH"
+        },
+        {
+          "target": "Python",
+          "id": "CVE-2026-27459",
+          "package": "pyOpenSSL",
+          "installed": "25.3.0",
+          "fixed": "26.0.0",
+          "severity": "HIGH"
+        },
+        {
+          "target": "Python",
+          "id": "CVE-2026-44431",
+          "package": "urllib3",
+          "installed": "2.6.3",
+          "fixed": "2.7.0",
+          "severity": "HIGH"
+        },
+        {
+          "target": "Python",
+          "id": "CVE-2026-44432",
+          "package": "urllib3",
+          "installed": "2.6.3",
+          "fixed": "2.7.0",
+          "severity": "HIGH"
+        },
+        {
+          "target": "Python",
+          "id": "CVE-2026-97687",
+          "package": "urllib3",
+          "installed": "2.6.3",
+          "fixed": "2.8.0",
+          "severity": "HIGH"
+        },
+        {
+          "target": "Python",
+          "id": "CVE-2026-97689",
+          "package": "urllib3",
+          "installed": "2.6.3",
+          "fixed": "2.8.0",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2025-68121",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.24.13, 1.25.7, 1.26.0-rc.3",
+          "severity": "CRITICAL"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2025-61726",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.24.12, 1.25.6",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2025-61729",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.24.11, 1.25.5",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-111943",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.26.10, 1.27.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-25679",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.8, 1.26.1",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-27145",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.11, 1.26.4",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-32280",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.9, 1.26.2",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-32281",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.9, 1.26.2",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-32283",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.9, 1.26.2",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-33811",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.10, 1.26.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-33814",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.10, 1.26.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-33818",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.13, 1.26.6, 1.27.0-rc.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-39820",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.10, 1.26.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-39821",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.13, 1.26.6, 1.27.0-rc.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-39822",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.12, 1.26.5, 1.27.0-rc.2",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-39836",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.10, 1.26.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-42499",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.10, 1.26.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-42504",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.11, 1.26.4",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-56853",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.13, 1.26.6, 1.27.0-rc.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-56858",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.13, 1.26.6, 1.27.0-rc.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-56859",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.13, 1.26.6, 1.27.0-rc.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-56860",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.13, 1.26.6, 1.27.0-rc.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-56862",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.25.13, 1.26.6, 1.27.0-rc.3",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-78667",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.26.9, 1.27.2",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-78669",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.26.9, 1.27.2",
+          "severity": "HIGH"
+        },
+        {
+          "target": "usr/local/bin/gosu",
+          "id": "CVE-2026-97031",
+          "package": "stdlib",
+          "installed": "v1.24.6",
+          "fixed": "1.26.9, 1.27.2",
+          "severity": "HIGH"
+        }
+      ],
+      "mysqlDisposition": "Latest official MySQL 9.7.4 image remains pinned. Findings concern bundled mysqlsh Python packages and the Go standard library in gosu; server runtime stays on the mandated 9.7 series. No unreviewed replacement binaries or suppressions were introduced.",
+      "evidence": [
+        {
+          "target": "development",
+          "imageId": "sha256:822921160e6dc2ab9bab0e5c2142895d1ad80074604b86e41962248848c59ef2",
+          "findings": 0
+        },
+        {
+          "target": "app",
+          "imageId": "sha256:a0bd264d7fbcb7b87679651f3bc3efb95d8cddedb4f5b080dd3db594ca752c7c",
+          "findings": 0
+        },
+        {
+          "target": "nginx",
+          "imageId": "sha256:1177787a6861f93b62fc385905b5dccd31c1cb46558dc9532bbc493ea9c1f9d8",
+          "findings": 0
+        },
+        {
+          "target": "fuji",
+          "imageId": "sha256:01be27cf25508ca6cceeb2d498d97acdfc6a47ae5d1ec6e8f8478cdebfb51f5e",
+          "findings": 0
+        },
+        {
+          "target": "redis",
+          "imageId": "sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537",
+          "findings": 0
+        },
+        {
+          "target": "traefik",
+          "imageId": "sha256:a72cb2f4a2109f1ae52261c86d56b7d33a27dc5c4e211ce3c7835b772338b94f",
+          "findings": 0
+        }
+      ],
+      "mysqlAlternatives": {
+        "source": "https://hub.docker.com/_/mysql/?tab=description",
+        "result": "The supported official 9.7.4 tags all use the same Oracle Linux variant; no supported Debian variant is listed. The newer 26.10 innovation series is outside the repository's mandatory MySQL 9.7 server policy."
+      }
+    }
+  },
+  "validation": {
+    "frontend": "check:frontend passed: 522 files, 8930 passed, 1 skipped",
+    "tooling": "110 tests: 105 passed and 5 Linux-only tests skipped; after the final semantic-error classification and advisory-report integration tests, all 18 focused PHP 8.6/JSON-LD runner tests passed",
+    "format": "format:check passed",
+    "workflowSyntax": "actionlint 1.7.12 passed for all workflows",
+    "builds": "Production app/nginx, development app/vite, F-UJI and client/SSR builds passed",
+    "fuji": "Dependency imports and Chromium smoke test passed without pip or ensurepip",
+    "legacyDumpClient": "MySQL 8.4.13 binary starts in the production app image",
+    "composerPlatform": "An isolated lock requiring PHP <8.5 was correctly rejected on real PHP 8.5.12 despite config.platform.php=8.4.0; structured failure classification passed",
+    "php86": "8.6.0RC4 extension compilation failure reproduced; report exits successfully and marks later stages skipped; private stack cleanup passed",
+    "githubRun": "Not executed remotely; green job display and event triggers require the first GitHub Actions run after publishing the workflow.",
+    "phpstan": "Complete analysis of 1098 files passed with 2 GB and a Linux-native workspace; the updated type checker required removing an unreachable string check in the internal Wayfinder command",
+    "backend": "npm run check:backend passed: Pint, serial and architecture tests, full parallel Unit/Feature suite, JSON-LD semantics and PHPStan",
+    "buildContext": "Verified final application and Nginx images exclude local environment files, logs, private application files and sessions. The build creates its own compiled Blade views.",
+    "mysql": "All 27 MySQL-sensitive test groups passed on MySQL 9.7.4; JUnit export succeeded for every group",
+    "browser": "Incomplete: the full run was stopped after shared blank-page startup failures and the development backend was restored. Docker Vite dependencies were restored with npm ci. Vite took over two minutes to start and then optimized dependencies; this is not yet proven to explain the failure. Further diagnosis was not executed because automatic approval review timed out twice.",
+    "jsonldFollowup": "The complete backend run included successful real JSON-LD validation. The later semantic-error classification change passed focused runner regressions; re-running the individual container wrapper remains pending."
+  },
+  "npmTransitiveConstraints": [
+    {
+      "name": "@babel/code-frame",
+      "installed": "7.29.7",
+      "latestStable": "8.0.6",
+      "latestWithinConstraint": "7.29.7",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^7.10.4"
+      ]
+    },
+    {
+      "name": "@babel/helper-string-parser",
+      "installed": "7.29.11",
+      "latestStable": "8.0.8",
+      "latestWithinConstraint": "7.29.11",
+      "declaredRequirements": [
+        "node_modules/@babel/types: ^7.29.11"
+      ]
+    },
+    {
+      "name": "@babel/helper-validator-identifier",
+      "installed": "7.29.7",
+      "latestStable": "8.0.6",
+      "latestWithinConstraint": "7.29.7",
+      "declaredRequirements": [
+        "node_modules/@babel/code-frame: ^7.29.7",
+        "node_modules/@babel/types: ^7.29.7"
+      ]
+    },
+    {
+      "name": "@babel/parser",
+      "installed": "7.29.12",
+      "latestStable": "8.1.0",
+      "latestWithinConstraint": "7.29.12",
+      "declaredRequirements": [
+        "node_modules/magicast: ^7.29.7"
+      ]
+    },
+    {
+      "name": "@babel/runtime",
+      "installed": "7.29.10",
+      "latestStable": "8.1.0",
+      "latestWithinConstraint": "7.29.10",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^7.12.5",
+        "node_modules/@testing-library/react: ^7.12.5",
+        "node_modules/react-syntax-highlighter: ^7.28.4"
+      ]
+    },
+    {
+      "name": "@babel/runtime-corejs3",
+      "installed": "7.29.10",
+      "latestStable": "8.1.0",
+      "latestWithinConstraint": "7.29.10",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ^7.26.10",
+        "node_modules/@swagger-api/apidom-core: ^7.26.10",
+        "node_modules/@swagger-api/apidom-error: ^7.20.7",
+        "node_modules/@swagger-api/apidom-json-pointer: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-reference: ^7.26.10",
+        "node_modules/swagger-client: ^7.22.15",
+        "node_modules/swagger-ui-react: ^7.27.1"
+      ]
+    },
+    {
+      "name": "@babel/types",
+      "installed": "7.29.11",
+      "latestStable": "8.1.0",
+      "latestWithinConstraint": "7.29.11",
+      "declaredRequirements": [
+        "node_modules/@babel/parser: ^7.29.11",
+        "node_modules/magicast: ^7.29.7"
+      ]
+    },
+    {
+      "name": "@emnapi/wasi-threads",
+      "installed": "1.2.3",
+      "latestStable": "2.2.0",
+      "latestWithinConstraint": "1.2.3",
+      "declaredRequirements": [
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^1.2.3",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/core: 1.2.3"
+      ]
+    },
+    {
+      "name": "@hapi/formula",
+      "installed": "3.0.2",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "3.0.2",
+      "declaredRequirements": [
+        "node_modules/joi: ^3.0.2"
+      ]
+    },
+    {
+      "name": "@hapi/pinpoint",
+      "installed": "2.0.1",
+      "latestStable": "3.0.0",
+      "latestWithinConstraint": "2.0.1",
+      "declaredRequirements": [
+        "node_modules/joi: ^2.0.1"
+      ]
+    },
+    {
+      "name": "@hapi/tlds",
+      "installed": "1.1.7",
+      "latestStable": "2.0.2",
+      "latestWithinConstraint": "1.1.7",
+      "declaredRequirements": [
+        "node_modules/joi: ^1.1.1"
+      ]
+    },
+    {
+      "name": "@humanfs/core",
+      "installed": "0.19.2",
+      "latestStable": "0.20.0",
+      "latestWithinConstraint": "0.19.2",
+      "declaredRequirements": [
+        "node_modules/@humanfs/node: ^0.19.2"
+      ]
+    },
+    {
+      "name": "@humanfs/node",
+      "installed": "0.16.8",
+      "latestStable": "0.17.0",
+      "latestWithinConstraint": "0.16.8",
+      "declaredRequirements": [
+        "node_modules/eslint: ^0.16.8"
+      ]
+    },
+    {
+      "name": "@humanfs/types",
+      "installed": "0.15.0",
+      "latestStable": "0.16.0",
+      "latestWithinConstraint": "0.15.0",
+      "declaredRequirements": [
+        "node_modules/@humanfs/core: ^0.15.0",
+        "node_modules/@humanfs/node: ^0.15.0"
+      ]
+    },
+    {
+      "name": "@keyv/bigmap",
+      "installed": "1.3.1",
+      "latestStable": "6.1.0",
+      "latestWithinConstraint": "1.3.1",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^1.3.1"
+      ]
+    },
+    {
+      "name": "@napi-rs/wasm-runtime",
+      "installed": "1.2.2",
+      "latestStable": "1.2.7",
+      "latestWithinConstraint": "1.2.7",
+      "declaredRequirements": [
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^1.2.2"
+      ]
+    },
+    {
+      "name": "@oxc-project/types",
+      "installed": "0.156.0",
+      "latestStable": "0.157.0",
+      "latestWithinConstraint": "0.156.0",
+      "declaredRequirements": [
+        "node_modules/rolldown: =0.156.0"
+      ]
+    },
+    {
+      "name": "@oxfmt/binding-win32-x64-msvc",
+      "installed": "0.75.0",
+      "latestStable": "0.76.0",
+      "latestWithinConstraint": "0.75.0",
+      "declaredRequirements": [
+        "node_modules/oxfmt: 0.75.0"
+      ]
+    },
+    {
+      "name": "@polka/url",
+      "installed": "1.0.0-next.29",
+      "latestStable": "0.5.0",
+      "latestWithinConstraint": "1.0.0-next.29",
+      "declaredRequirements": [
+        "node_modules/sirv: ^1.0.0-next.24"
+      ]
+    },
+    {
+      "name": "@solid-primitives/map",
+      "installed": "0.4.13",
+      "latestStable": "0.7.4",
+      "latestWithinConstraint": "0.4.13",
+      "declaredRequirements": [
+        "node_modules/@kobalte/utils: ^0.4.7"
+      ]
+    },
+    {
+      "name": "@solid-primitives/storage",
+      "installed": "1.3.11",
+      "latestStable": "4.4.0",
+      "latestWithinConstraint": "1.3.11",
+      "declaredRequirements": [
+        "node_modules/@tanstack/query-devtools: ^1.3.11"
+      ]
+    },
+    {
+      "name": "@swaggerexpert/json-pointer",
+      "installed": "2.10.2",
+      "latestStable": "3.0.2",
+      "latestWithinConstraint": "2.10.2",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-json-pointer: ^2.10.1"
+      ]
+    },
+    {
+      "name": "@tanstack/react-virtual",
+      "installed": "3.14.10",
+      "latestStable": "3.14.25",
+      "latestWithinConstraint": "3.14.10",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: =3.14.10"
+      ]
+    },
+    {
+      "name": "@tanstack/virtual-core",
+      "installed": "3.17.8",
+      "latestStable": "3.19.10",
+      "latestWithinConstraint": "3.17.8",
+      "declaredRequirements": [
+        "node_modules/@tanstack/react-virtual: 3.17.8"
+      ]
+    },
+    {
+      "name": "@tybys/wasm-util",
+      "installed": "0.10.3",
+      "latestStable": "0.10.4",
+      "latestWithinConstraint": "0.10.4",
+      "declaredRequirements": [
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^0.10.3",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@napi-rs/wasm-runtime: ^0.10.3"
+      ]
+    },
+    {
+      "name": "@types/ramda",
+      "installed": "0.30.2",
+      "latestStable": "0.32.0",
+      "latestWithinConstraint": "0.30.2",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ~0.30.0",
+        "node_modules/@swagger-api/apidom-core: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-reference: ~0.30.0"
+      ]
+    },
+    {
+      "name": "@types/unist",
+      "installed": "2.0.11",
+      "latestStable": "3.0.3",
+      "latestWithinConstraint": "2.0.11",
+      "declaredRequirements": [
+        "node_modules/@types/hast: *",
+        "node_modules/parse-entities: ^2.0.0"
+      ]
+    },
+    {
+      "name": "@types/use-sync-external-store",
+      "installed": "0.0.6",
+      "latestStable": "1.7.0",
+      "latestWithinConstraint": "0.0.6",
+      "declaredRequirements": [
+        "node_modules/react-redux: ^0.0.6"
+      ]
+    },
+    {
+      "name": "@typescript/old:typescript@^6",
+      "installed": "6.0.3",
+      "latestStable": "7.0.2",
+      "latestWithinConstraint": "6.0.3",
+      "declaredRequirements": []
+    },
+    {
+      "name": "agent-base",
+      "installed": "6.0.2",
+      "latestStable": "9.0.0",
+      "latestWithinConstraint": "6.0.2",
+      "declaredRequirements": [
+        "node_modules/https-proxy-agent: 6"
+      ]
+    },
+    {
+      "name": "ajv",
+      "installed": "6.15.0",
+      "latestStable": "8.20.0",
+      "latestWithinConstraint": "6.15.0",
+      "declaredRequirements": [
+        "node_modules/eslint: ^6.14.0"
+      ]
+    },
+    {
+      "name": "ansi-regex",
+      "installed": "5.0.1",
+      "latestStable": "6.5.0",
+      "latestWithinConstraint": "5.0.1",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^5.0.1",
+        "node_modules/strip-ansi: ^6.2.2"
+      ]
+    },
+    {
+      "name": "ansi-styles",
+      "installed": "5.2.0",
+      "latestStable": "7.0.0",
+      "latestWithinConstraint": "5.2.0",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^5.0.0",
+        "node_modules/wrap-ansi: ^6.2.1"
+      ]
+    },
+    {
+      "name": "ansi-styles",
+      "installed": "6.2.3",
+      "latestStable": "7.0.0",
+      "latestWithinConstraint": "6.2.3",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^5.0.0",
+        "node_modules/wrap-ansi: ^6.2.1"
+      ]
+    },
+    {
+      "name": "argparse",
+      "installed": "2.0.1",
+      "latestStable": "3.0.4",
+      "latestWithinConstraint": "2.0.1",
+      "declaredRequirements": [
+        "node_modules/js-yaml: ^2.0.1",
+        "node_modules/remarkable: ^1.0.10"
+      ]
+    },
+    {
+      "name": "aria-query",
+      "installed": "5.3.0",
+      "latestStable": "5.3.2",
+      "latestWithinConstraint": "5.3.0",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: 5.3.0",
+        "node_modules/@testing-library/jest-dom: ^5.0.0"
+      ]
+    },
+    {
+      "name": "asynckit",
+      "installed": "0.4.0",
+      "latestStable": "0.5.0",
+      "latestWithinConstraint": "0.4.0",
+      "declaredRequirements": [
+        "node_modules/form-data: ^0.4.0"
+      ]
+    },
+    {
+      "name": "autolinker",
+      "installed": "3.16.2",
+      "latestStable": "4.1.5",
+      "latestWithinConstraint": "3.16.2",
+      "declaredRequirements": [
+        "node_modules/remarkable: ^3.11.0"
+      ]
+    },
+    {
+      "name": "balanced-match",
+      "installed": "4.0.4",
+      "latestStable": "5.0.0",
+      "latestWithinConstraint": "4.0.4",
+      "declaredRequirements": [
+        "node_modules/brace-expansion: ^4.0.2"
+      ]
+    },
+    {
+      "name": "canonicalize",
+      "installed": "2.1.0",
+      "latestStable": "5.1.0",
+      "latestWithinConstraint": "2.1.0",
+      "declaredRequirements": [
+        "node_modules/jsonld: ^2.1.0"
+      ]
+    },
+    {
+      "name": "chalk",
+      "installed": "5.6.2",
+      "latestStable": "6.0.1",
+      "latestWithinConstraint": "5.6.2",
+      "declaredRequirements": [
+        "node_modules/concurrently: 5.6.2"
+      ]
+    },
+    {
+      "name": "commander",
+      "installed": "7.2.0",
+      "latestStable": "15.0.0",
+      "latestWithinConstraint": "7.2.0",
+      "declaredRequirements": [
+        "node_modules/d3-dsv: 7"
+      ]
+    },
+    {
+      "name": "confbox",
+      "installed": "0.1.8",
+      "latestStable": "0.3.2",
+      "latestWithinConstraint": "0.1.8",
+      "declaredRequirements": [
+        "node_modules/mlly/node_modules/pkg-types: ^0.1.8",
+        "node_modules/pkg-types: ^0.3.1"
+      ]
+    },
+    {
+      "name": "copy-to-clipboard",
+      "installed": "3.3.3",
+      "latestStable": "4.0.2",
+      "latestWithinConstraint": "3.3.3",
+      "declaredRequirements": [
+        "node_modules/react-copy-to-clipboard: ^3.3.3"
+      ]
+    },
+    {
+      "name": "dom-accessibility-api",
+      "installed": "0.5.16",
+      "latestStable": "0.7.1",
+      "latestWithinConstraint": "0.5.16",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^0.5.9",
+        "node_modules/@testing-library/jest-dom: ^0.6.3"
+      ]
+    },
+    {
+      "name": "dom-accessibility-api",
+      "installed": "0.6.3",
+      "latestStable": "0.7.1",
+      "latestWithinConstraint": "0.6.3",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^0.5.9",
+        "node_modules/@testing-library/jest-dom: ^0.6.3"
+      ]
+    },
+    {
+      "name": "drange",
+      "installed": "1.1.1",
+      "latestStable": "2.0.1",
+      "latestWithinConstraint": "1.1.1",
+      "declaredRequirements": [
+        "node_modules/randexp: ^1.0.2"
+      ]
+    },
+    {
+      "name": "emoji-regex",
+      "installed": "10.6.0",
+      "latestStable": "11.0.0",
+      "latestWithinConstraint": "10.6.0",
+      "declaredRequirements": [
+        "node_modules/string-width: ^10.3.0"
+      ]
+    },
+    {
+      "name": "es-module-lexer",
+      "installed": "2.3.2",
+      "latestStable": "3.0.4",
+      "latestWithinConstraint": "2.3.2",
+      "declaredRequirements": [
+        "node_modules/vitest: ^2.3.2"
+      ]
+    },
+    {
+      "name": "escape-string-regexp",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "latestWithinConstraint": "4.0.0",
+      "declaredRequirements": [
+        "node_modules/eslint: ^4.0.0"
+      ]
+    },
+    {
+      "name": "eslint-visitor-keys",
+      "installed": "3.4.3",
+      "latestStable": "5.0.1",
+      "latestWithinConstraint": "3.4.3",
+      "declaredRequirements": [
+        "node_modules/@eslint-community/eslint-utils: ^3.4.3",
+        "node_modules/eslint: ^5.0.1",
+        "node_modules/espree: ^5.0.1"
+      ]
+    },
+    {
+      "name": "eventsource",
+      "installed": "3.0.7",
+      "latestStable": "5.1.4",
+      "latestWithinConstraint": "3.0.7",
+      "declaredRequirements": [
+        "node_modules/@modelcontextprotocol/client: ^3.0.2"
+      ]
+    },
+    {
+      "name": "eventsource-parser",
+      "installed": "3.1.1",
+      "latestStable": "4.1.3",
+      "latestWithinConstraint": "3.1.1",
+      "declaredRequirements": [
+        "node_modules/@modelcontextprotocol/client: ^3.0.8",
+        "node_modules/eventsource: ^3.0.1"
+      ]
+    },
+    {
+      "name": "execa",
+      "installed": "5.1.1",
+      "latestStable": "10.2.1",
+      "latestWithinConstraint": "5.1.1",
+      "declaredRequirements": [
+        "node_modules/start-server-and-test: 5.1.1"
+      ]
+    },
+    {
+      "name": "fast-levenshtein",
+      "installed": "2.0.6",
+      "latestStable": "3.0.0",
+      "latestWithinConstraint": "2.0.6",
+      "declaredRequirements": [
+        "node_modules/optionator: ^2.0.6"
+      ]
+    },
+    {
+      "name": "fast-uri",
+      "installed": "3.1.9",
+      "latestStable": "4.2.3",
+      "latestWithinConstraint": "3.1.9",
+      "declaredRequirements": [
+        "node_modules/ajv: ^3.0.1"
+      ]
+    },
+    {
+      "name": "fault",
+      "installed": "1.0.4",
+      "latestStable": "2.0.1",
+      "latestWithinConstraint": "1.0.4",
+      "declaredRequirements": [
+        "node_modules/lowlight: ^1.0.0"
+      ]
+    },
+    {
+      "name": "find-up",
+      "installed": "5.0.0",
+      "latestStable": "8.0.0",
+      "latestWithinConstraint": "5.0.0",
+      "declaredRequirements": [
+        "node_modules/eslint: ^5.0.0"
+      ]
+    },
+    {
+      "name": "get-stream",
+      "installed": "6.0.1",
+      "latestStable": "9.0.1",
+      "latestWithinConstraint": "6.0.1",
+      "declaredRequirements": [
+        "node_modules/execa: ^6.0.0"
+      ]
+    },
+    {
+      "name": "hashery",
+      "installed": "1.5.1",
+      "latestStable": "3.0.5",
+      "latestWithinConstraint": "1.5.1",
+      "declaredRequirements": [
+        "node_modules/@cacheable/utils: ^1.5.1",
+        "node_modules/@keyv/bigmap: ^1.4.0"
+      ]
+    },
+    {
+      "name": "highlight.js",
+      "installed": "10.7.3",
+      "latestStable": "11.12.0",
+      "latestWithinConstraint": "10.7.3",
+      "declaredRequirements": [
+        "node_modules/lowlight: ~10.7.0",
+        "node_modules/react-syntax-highlighter: ^10.4.1"
+      ]
+    },
+    {
+      "name": "hookified",
+      "installed": "1.15.1",
+      "latestStable": "3.1.0",
+      "latestWithinConstraint": "1.15.1",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^1.15.1",
+        "node_modules/@keyv/bigmap: ^1.15.0",
+        "node_modules/cacheable: ^1.15.0",
+        "node_modules/flat-cache: ^1.15.0",
+        "node_modules/hashery: ^1.15.0",
+        "node_modules/qified: ^2.1.1"
+      ]
+    },
+    {
+      "name": "hookified",
+      "installed": "2.2.0",
+      "latestStable": "3.1.0",
+      "latestWithinConstraint": "2.2.0",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^1.15.1",
+        "node_modules/@keyv/bigmap: ^1.15.0",
+        "node_modules/cacheable: ^1.15.0",
+        "node_modules/flat-cache: ^1.15.0",
+        "node_modules/hashery: ^1.15.0",
+        "node_modules/qified: ^2.1.1"
+      ]
+    },
+    {
+      "name": "https-proxy-agent",
+      "installed": "5.0.1",
+      "latestStable": "9.1.0",
+      "latestWithinConstraint": "5.0.1",
+      "declaredRequirements": [
+        "node_modules/axios: ^5.0.1"
+      ]
+    },
+    {
+      "name": "human-signals",
+      "installed": "2.1.0",
+      "latestStable": "8.0.1",
+      "latestWithinConstraint": "2.1.0",
+      "declaredRequirements": [
+        "node_modules/execa: ^2.1.0"
+      ]
+    },
+    {
+      "name": "iconv-lite",
+      "installed": "0.6.3",
+      "latestStable": "0.7.3",
+      "latestWithinConstraint": "0.6.3",
+      "declaredRequirements": [
+        "node_modules/d3-dsv: 0.6"
+      ]
+    },
+    {
+      "name": "ignore",
+      "installed": "5.3.2",
+      "latestStable": "7.0.14",
+      "latestWithinConstraint": "5.3.2",
+      "declaredRequirements": [
+        "node_modules/eslint: ^5.2.0"
+      ]
+    },
+    {
+      "name": "indent-string",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "latestWithinConstraint": "4.0.0",
+      "declaredRequirements": [
+        "node_modules/redent: ^4.0.0"
+      ]
+    },
+    {
+      "name": "is-stream",
+      "installed": "2.0.1",
+      "latestStable": "4.0.1",
+      "latestWithinConstraint": "2.0.1",
+      "declaredRequirements": [
+        "node_modules/execa: ^2.0.0"
+      ]
+    },
+    {
+      "name": "isexe",
+      "installed": "2.0.0",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "2.0.0",
+      "declaredRequirements": [
+        "node_modules/which: ^2.0.0"
+      ]
+    },
+    {
+      "name": "js-tokens",
+      "installed": "4.0.0",
+      "latestStable": "10.0.0",
+      "latestWithinConstraint": "4.0.0",
+      "declaredRequirements": [
+        "node_modules/@babel/code-frame: ^4.0.0",
+        "node_modules/ast-v8-to-istanbul: ^10.0.0",
+        "node_modules/loose-envify: ^3.0.0 || ^4.0.0"
+      ]
+    },
+    {
+      "name": "js-yaml",
+      "installed": "4.3.2",
+      "latestStable": "5.5.0",
+      "latestWithinConstraint": "4.3.2",
+      "declaredRequirements": [
+        "node_modules/swagger-client: ^4.3.2",
+        "node_modules/swagger-ui-react: =4.3.2"
+      ]
+    },
+    {
+      "name": "json-schema-traverse",
+      "installed": "0.4.1",
+      "latestStable": "1.0.0",
+      "latestWithinConstraint": "0.4.1",
+      "declaredRequirements": [
+        "node_modules/ajv: ^1.0.0",
+        "node_modules/eslint/node_modules/ajv: ^0.4.1"
+      ]
+    },
+    {
+      "name": "keyv",
+      "installed": "5.6.0",
+      "latestStable": "6.1.0",
+      "latestWithinConstraint": "5.6.0",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^5.6.0",
+        "node_modules/@cacheable/utils: ^5.6.0",
+        "node_modules/cacheable: ^5.6.0"
+      ]
+    },
+    {
+      "name": "ky",
+      "installed": "1.14.3",
+      "latestStable": "2.2.0",
+      "latestWithinConstraint": "1.14.3",
+      "declaredRequirements": [
+        "node_modules/@digitalbazaar/http-client: ^1.14.3"
+      ]
+    },
+    {
+      "name": "local-pkg",
+      "installed": "1.2.1",
+      "latestStable": "2.0.0",
+      "latestWithinConstraint": "1.2.1",
+      "declaredRequirements": [
+        "node_modules/@vitejs/devtools: ^1.2.1",
+        "node_modules/@vitejs/devtools-kit: ^1.2.1"
+      ]
+    },
+    {
+      "name": "locate-path",
+      "installed": "6.0.0",
+      "latestStable": "8.0.0",
+      "latestWithinConstraint": "6.0.0",
+      "declaredRequirements": [
+        "node_modules/find-up: ^6.0.0"
+      ]
+    },
+    {
+      "name": "lowlight",
+      "installed": "1.20.0",
+      "latestStable": "3.3.0",
+      "latestWithinConstraint": "1.20.0",
+      "declaredRequirements": [
+        "node_modules/react-syntax-highlighter: ^1.17.0"
+      ]
+    },
+    {
+      "name": "lru-cache",
+      "installed": "6.0.0",
+      "latestStable": "11.5.3",
+      "latestWithinConstraint": "6.0.0",
+      "declaredRequirements": [
+        "node_modules/@asamuzakjp/css-color: ^11.5.3",
+        "node_modules/@asamuzakjp/dom-selector: ^11.5.3",
+        "node_modules/jsdom: ^11.5.3",
+        "node_modules/jsonld: ^6.0.0"
+      ]
+    },
+    {
+      "name": "mdn-data",
+      "installed": "2.27.1",
+      "latestStable": "2.37.2",
+      "latestWithinConstraint": "2.27.1",
+      "declaredRequirements": [
+        "node_modules/css-tree: 2.27.1"
+      ]
+    },
+    {
+      "name": "mime-db",
+      "installed": "1.52.0",
+      "latestStable": "1.54.0",
+      "latestWithinConstraint": "1.52.0",
+      "declaredRequirements": [
+        "node_modules/mime-types: 1.52.0"
+      ]
+    },
+    {
+      "name": "mime-types",
+      "installed": "2.1.35",
+      "latestStable": "3.0.2",
+      "latestWithinConstraint": "2.1.35",
+      "declaredRequirements": [
+        "node_modules/form-data: ^2.1.35"
+      ]
+    },
+    {
+      "name": "mimic-fn",
+      "installed": "2.1.0",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "2.1.0",
+      "declaredRequirements": [
+        "node_modules/onetime: ^2.1.0"
+      ]
+    },
+    {
+      "name": "mute-stream",
+      "installed": "3.0.0",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "3.0.0",
+      "declaredRequirements": [
+        "node_modules/@inquirer/core: ^3.0.0"
+      ]
+    },
+    {
+      "name": "nanoid",
+      "installed": "3.3.20",
+      "latestStable": "6.0.2",
+      "latestWithinConstraint": "3.3.20",
+      "declaredRequirements": [
+        "node_modules/postcss: ^3.3.20"
+      ]
+    },
+    {
+      "name": "npm-run-path",
+      "installed": "4.0.1",
+      "latestStable": "6.0.0",
+      "latestWithinConstraint": "4.0.1",
+      "declaredRequirements": [
+        "node_modules/execa: ^4.0.1"
+      ]
+    },
+    {
+      "name": "onetime",
+      "installed": "5.1.2",
+      "latestStable": "8.0.0",
+      "latestWithinConstraint": "5.1.2",
+      "declaredRequirements": [
+        "node_modules/execa: ^5.1.2"
+      ]
+    },
+    {
+      "name": "p-limit",
+      "installed": "3.1.0",
+      "latestStable": "7.3.3",
+      "latestWithinConstraint": "3.1.0",
+      "declaredRequirements": [
+        "node_modules/p-locate: ^3.0.2"
+      ]
+    },
+    {
+      "name": "p-locate",
+      "installed": "5.0.0",
+      "latestStable": "7.0.0",
+      "latestWithinConstraint": "5.0.0",
+      "declaredRequirements": [
+        "node_modules/locate-path: ^5.0.0"
+      ]
+    },
+    {
+      "name": "path-exists",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "latestWithinConstraint": "4.0.0",
+      "declaredRequirements": [
+        "node_modules/find-up: ^4.0.0"
+      ]
+    },
+    {
+      "name": "path-key",
+      "installed": "3.1.1",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "3.1.1",
+      "declaredRequirements": [
+        "node_modules/cross-spawn: ^3.1.0",
+        "node_modules/npm-run-path: ^3.0.0"
+      ]
+    },
+    {
+      "name": "picomatch",
+      "installed": "2.3.2",
+      "latestStable": "4.0.7",
+      "latestWithinConstraint": "2.3.2",
+      "declaredRequirements": [
+        "node_modules/tinyglobby: ^4.0.4",
+        "node_modules/vite: ^4.0.7",
+        "node_modules/vite-plugin-full-reload: ^2.3.1",
+        "node_modules/vitest: ^4.0.7"
+      ]
+    },
+    {
+      "name": "pkce-challenge",
+      "installed": "5.0.1",
+      "latestStable": "6.0.0",
+      "latestWithinConstraint": "5.0.1",
+      "declaredRequirements": [
+        "node_modules/@modelcontextprotocol/client: ^5.0.0"
+      ]
+    },
+    {
+      "name": "pkg-types",
+      "installed": "1.3.1",
+      "latestStable": "2.4.0",
+      "latestWithinConstraint": "1.3.1",
+      "declaredRequirements": [
+        "node_modules/local-pkg: ^2.3.0",
+        "node_modules/mlly: ^1.3.1"
+      ]
+    },
+    {
+      "name": "pretty-format",
+      "installed": "27.5.1",
+      "latestStable": "30.5.1",
+      "latestWithinConstraint": "27.5.1",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^27.0.2"
+      ]
+    },
+    {
+      "name": "qified",
+      "installed": "0.10.1",
+      "latestStable": "0.13.2",
+      "latestWithinConstraint": "0.10.1",
+      "declaredRequirements": [
+        "node_modules/cacheable: ^0.10.1"
+      ]
+    },
+    {
+      "name": "quansync",
+      "installed": "0.2.11",
+      "latestStable": "1.0.0",
+      "latestWithinConstraint": "0.2.11",
+      "declaredRequirements": [
+        "node_modules/local-pkg: ^0.2.11"
+      ]
+    },
+    {
+      "name": "ramda",
+      "installed": "0.30.1",
+      "latestStable": "0.32.0",
+      "latestWithinConstraint": "0.30.1",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ~0.30.0",
+        "node_modules/@swagger-api/apidom-core: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-reference: ~0.30.0",
+        "node_modules/swagger-client: ^0.30.1"
+      ]
+    },
+    {
+      "name": "ramda-adjunct",
+      "installed": "5.1.0",
+      "latestStable": "6.1.0",
+      "latestWithinConstraint": "5.1.0",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ^5.0.0",
+        "node_modules/@swagger-api/apidom-core: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-reference: ^5.0.0",
+        "node_modules/swagger-client: ^5.1.0"
+      ]
+    },
+    {
+      "name": "randexp",
+      "installed": "0.5.3",
+      "latestStable": "0.6.1",
+      "latestWithinConstraint": "0.5.3",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: ^0.5.3"
+      ]
+    },
+    {
+      "name": "react-inspector",
+      "installed": "6.0.2",
+      "latestStable": "9.0.0",
+      "latestWithinConstraint": "6.0.2",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: ^6.0.1"
+      ]
+    },
+    {
+      "name": "react-is",
+      "installed": "17.0.2",
+      "latestStable": "19.3.1",
+      "latestWithinConstraint": "17.0.2",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^17.0.1",
+        "node_modules/prop-types: ^16.13.1"
+      ]
+    },
+    {
+      "name": "react-is",
+      "installed": "16.13.1",
+      "latestStable": "19.3.1",
+      "latestWithinConstraint": "16.13.1",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^17.0.1",
+        "node_modules/prop-types: ^16.13.1"
+      ]
+    },
+    {
+      "name": "redent",
+      "installed": "3.0.0",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "3.0.0",
+      "declaredRequirements": [
+        "node_modules/@testing-library/jest-dom: ^3.0.0"
+      ]
+    },
+    {
+      "name": "reselect",
+      "installed": "5.2.0",
+      "latestStable": "5.3.0",
+      "latestWithinConstraint": "5.3.0",
+      "declaredRequirements": [
+        "node_modules/@reduxjs/toolkit: ^5.1.0",
+        "node_modules/recharts: 5.2.0",
+        "node_modules/swagger-ui-react: ^5.1.1"
+      ]
+    },
+    {
+      "name": "ret",
+      "installed": "0.2.2",
+      "latestStable": "0.6.1",
+      "latestWithinConstraint": "0.2.2",
+      "declaredRequirements": [
+        "node_modules/randexp: ^0.2.0"
+      ]
+    },
+    {
+      "name": "serialize-error",
+      "installed": "8.1.0",
+      "latestStable": "13.1.0",
+      "latestWithinConstraint": "8.1.0",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: ^8.1.0"
+      ]
+    },
+    {
+      "name": "shebang-regex",
+      "installed": "3.0.0",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "3.0.0",
+      "declaredRequirements": [
+        "node_modules/shebang-command: ^3.0.0"
+      ]
+    },
+    {
+      "name": "signal-exit",
+      "installed": "3.0.7",
+      "latestStable": "4.1.0",
+      "latestWithinConstraint": "3.0.7",
+      "declaredRequirements": [
+        "node_modules/@inquirer/core: ^4.1.0",
+        "node_modules/execa: ^3.0.3"
+      ]
+    },
+    {
+      "name": "solid-transition-group",
+      "installed": "0.2.3",
+      "latestStable": "0.3.0",
+      "latestWithinConstraint": "0.2.3",
+      "declaredRequirements": [
+        "node_modules/@tanstack/query-devtools: ^0.2.3"
+      ]
+    },
+    {
+      "name": "string-width",
+      "installed": "7.2.0",
+      "latestStable": "8.3.0",
+      "latestWithinConstraint": "7.2.0",
+      "declaredRequirements": [
+        "node_modules/cliui: ^7.2.0",
+        "node_modules/msw/node_modules/yargs: ^8.2.1",
+        "node_modules/wrap-ansi: ^7.0.0",
+        "node_modules/yargs: ^7.2.0"
+      ]
+    },
+    {
+      "name": "strip-final-newline",
+      "installed": "2.0.0",
+      "latestStable": "4.0.0",
+      "latestWithinConstraint": "2.0.0",
+      "declaredRequirements": [
+        "node_modules/execa: ^2.0.0"
+      ]
+    },
+    {
+      "name": "strip-indent",
+      "installed": "3.0.0",
+      "latestStable": "4.1.1",
+      "latestWithinConstraint": "3.0.0",
+      "declaredRequirements": [
+        "node_modules/redent: ^3.0.0"
+      ]
+    },
+    {
+      "name": "supports-color",
+      "installed": "10.2.2",
+      "latestStable": "11.0.0",
+      "latestWithinConstraint": "10.2.2",
+      "declaredRequirements": [
+        "node_modules/concurrently: 10.2.2"
+      ]
+    },
+    {
+      "name": "toggle-selection",
+      "installed": "1.0.6",
+      "latestStable": "2.1.0",
+      "latestWithinConstraint": "1.0.6",
+      "declaredRequirements": [
+        "node_modules/copy-to-clipboard: ^1.0.6"
+      ]
+    },
+    {
+      "name": "tree-sitter",
+      "installed": "0.21.1",
+      "latestStable": "0.25.1",
+      "latestWithinConstraint": "0.21.1",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-parser-adapter-json: =0.21.1",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: =0.22.4"
+      ]
+    },
+    {
+      "name": "tree-sitter",
+      "installed": "0.22.4",
+      "latestStable": "0.25.1",
+      "latestWithinConstraint": "0.22.4",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-parser-adapter-json: =0.21.1",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: =0.22.4"
+      ]
+    },
+    {
+      "name": "tslib",
+      "installed": "2.8.1",
+      "latestStable": "2.9.1",
+      "latestWithinConstraint": "2.9.1",
+      "declaredRequirements": [
+        "node_modules/@dnd-kit/accessibility: ^2.0.0",
+        "node_modules/@dnd-kit/core: ^2.0.0",
+        "node_modules/@dnd-kit/sortable: ^2.0.0",
+        "node_modules/@dnd-kit/utilities: ^2.0.0",
+        "node_modules/@swc/helpers: ^2.8.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^2.8.1",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/core: ^2.4.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/runtime: ^2.4.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/wasi-threads: ^2.4.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@tybys/wasm-util: ^2.4.0",
+        "node_modules/aria-hidden: ^2.0.0",
+        "node_modules/autolinker: ^2.3.0",
+        "node_modules/framer-motion: ^2.4.0",
+        "node_modules/react-remove-scroll: ^2.1.0",
+        "node_modules/react-remove-scroll-bar: ^2.0.0",
+        "node_modules/react-style-singleton: ^2.0.0",
+        "node_modules/rxjs: ^2.1.0",
+        "node_modules/use-callback-ref: ^2.0.0",
+        "node_modules/use-sidecar: ^2.0.0"
+      ]
+    },
+    {
+      "name": "type-fest",
+      "installed": "0.20.2",
+      "latestStable": "5.10.0",
+      "latestWithinConstraint": "0.20.2",
+      "declaredRequirements": [
+        "node_modules/msw: ^5.5.0",
+        "node_modules/serialize-error: ^0.20.2"
+      ]
+    },
+    {
+      "name": "types-ramda",
+      "installed": "0.30.1",
+      "latestStable": "0.32.0",
+      "latestWithinConstraint": "0.30.1",
+      "declaredRequirements": [
+        "node_modules/@types/ramda: ^0.30.1"
+      ]
+    },
+    {
+      "name": "undici",
+      "installed": "6.29.1",
+      "latestStable": "8.12.3",
+      "latestWithinConstraint": "6.29.1",
+      "declaredRequirements": [
+        "node_modules/@digitalbazaar/http-client: ^6.28.0",
+        "node_modules/jsdom: ^8.12.1"
+      ]
+    },
+    {
+      "name": "undici-types",
+      "installed": "8.9.0",
+      "latestStable": "8.12.3",
+      "latestWithinConstraint": "8.9.0",
+      "declaredRequirements": [
+        "node_modules/@types/node: ~8.9.0"
+      ]
+    },
+    {
+      "name": "web-tree-sitter",
+      "installed": "0.24.5",
+      "latestStable": "0.27.1",
+      "latestWithinConstraint": "0.24.5",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-parser-adapter-json: =0.24.5",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: =0.24.5"
+      ]
+    },
+    {
+      "name": "which",
+      "installed": "2.0.2",
+      "latestStable": "7.0.0",
+      "latestWithinConstraint": "2.0.2",
+      "declaredRequirements": [
+        "node_modules/cross-spawn: ^2.0.1"
+      ]
+    },
+    {
+      "name": "why-is-node-running",
+      "installed": "3.2.1",
+      "latestStable": "3.2.3",
+      "latestWithinConstraint": "3.2.1",
+      "declaredRequirements": [
+        "node_modules/vitest: 3.2.1"
+      ]
+    },
+    {
+      "name": "wrap-ansi",
+      "installed": "9.0.2",
+      "latestStable": "10.0.2",
+      "latestWithinConstraint": "9.0.2",
+      "declaredRequirements": [
+        "node_modules/cliui: ^9.0.0"
+      ]
+    },
+    {
+      "name": "yallist",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "latestWithinConstraint": "4.0.0",
+      "declaredRequirements": [
+        "node_modules/jsonld/node_modules/lru-cache: ^4.0.0"
+      ]
+    },
+    {
+      "name": "yargs",
+      "installed": "18.0.0",
+      "latestStable": "18.2.0",
+      "latestWithinConstraint": "18.0.0",
+      "declaredRequirements": [
+        "node_modules/concurrently: 18.0.0",
+        "node_modules/msw: ^18.2.0"
+      ]
+    },
+    {
+      "name": "yocto-queue",
+      "installed": "0.1.0",
+      "latestStable": "1.2.2",
+      "latestWithinConstraint": "0.1.0",
+      "declaredRequirements": [
+        "node_modules/p-limit: ^0.1.0"
+      ]
+    }
+  ]
+}

@@ -25,7 +25,7 @@ invalid packages, restore that volume while Vite is stopped, then restart it:
 
 ```bash
 docker compose --env-file .env.docker -f docker-compose.dev.yml stop vite
-docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app npm exec --yes --package=npm@12.2.0 -- npm ci
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app npm ci
 docker compose --env-file .env.docker -f docker-compose.dev.yml start vite
 ```
 

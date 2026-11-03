@@ -108,6 +108,7 @@ it('splits CI tests into isolated coverage and architecture slices', function ()
 it('keeps local backend validation parallel, Linux-native, and on the two gigabyte memory floor', function (): void {
     $runner = file_get_contents(base_path('scripts/run-pest.mjs'));
     $mysqlRunner = file_get_contents(base_path('scripts/run-mysql-tests.mjs'));
+    $phpstanRunner = file_get_contents(base_path('scripts/run-phpstan.mjs'));
     $workspacePreparation = file_get_contents(base_path('scripts/prepare-pest-workspace.sh'));
     $testBootstrap = file_get_contents(base_path('tests/pest/CreatesApplication.php'));
     $package = json_decode(file_get_contents(base_path('package.json')), true, flags: JSON_THROW_ON_ERROR);
@@ -134,8 +135,9 @@ it('keeps local backend validation parallel, Linux-native, and on the two gigaby
         ->toContain("'CACHE_STORE' => 'array'")
         ->toContain("'SESSION_DRIVER' => 'array'")
         ->and($package['scripts']['phpstan:check'] ?? null)
-        ->toBeString()
-        ->toContain('php -d memory_limit=2G')
+        ->toBe('node scripts/run-phpstan.mjs')
+        ->and($phpstanRunner)
+        ->toContain("'php', '-d', 'memory_limit=2G'")
         ->toContain('--memory-limit=2G')
         ->and($package['scripts']['test:php:mysql-sensitive:exec'] ?? null)
         ->toBeString()

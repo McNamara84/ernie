@@ -120,6 +120,9 @@ export default defineConfig(({ command }) => {
             watch: {
                 // Use polling for file changes in Docker volumes (Windows compatibility)
                 usePolling: process.env.VITE_USE_POLLING === 'true',
+                // Downloaded toolchains and scanner caches are not application sources.
+                // Polling them across the Windows bind mount can stall CSS generation.
+                ignored: [/(?:^|[/\\])(?:\.tmp|\.trivy-cache)(?:[/\\]|$)/],
             },
         },
         test: {

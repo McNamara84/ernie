@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { composeArguments } from './docker-compose.mjs';
 import { verifyContextChecksums, verifyReport } from './jsonld-contract.mjs';
 
-const compose = ['compose', '--env-file', '.env.docker', '-f', 'docker-compose.dev.yml'];
+const compose = composeArguments();
 
 function execute(command, args, environment) {
     const result = spawnSync(command, args, { stdio: 'inherit', env: environment });
@@ -19,7 +20,7 @@ function execute(command, args, environment) {
 }
 
 export async function runJsonLd({
-    ci = process.env.GITHUB_ACTIONS === 'true',
+    ci = process.env.GITHUB_ACTIONS === 'true' && !process.env.ERNIE_PHP86_COMPOSE,
     token = randomBytes(16).toString('hex'),
     run = execute,
     checkSnapshots = verifyContextChecksums,
@@ -45,7 +46,13 @@ export async function runJsonLd({
             run(process.execPath, ['scripts/run-pest.mjs', ...testArgs], environment);
             run('docker', [...compose, 'cp', `app:${containerWorkspace}/storage/framework/testing/${fileName}`, reportPath], environment);
         }
-        result = await validateReport(readReport(reportPath));
+        const exportedReport = readReport(reportPath);
+        try {
+            result = await validateReport(exportedReport);
+        } catch (error) {
+            error.jsonldSemanticFailure = true;
+            throw error;
+        }
         log(
             `[jsonld] ${result.dataCiteDocuments} DataCite and ${result.schemaOrgDocuments} Schema.org documents passed offline semantic validation.`,
         );
@@ -73,6 +80,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     try {
         await runJsonLd();
     } catch (error) {
+        if (error.jsonldSemanticFailure) console.error(JSON.stringify({ type: 'jsonld-semantic-failure', message: error.message }));
         console.error(`[jsonld] ${error.message}`);
         process.exitCode = error.exitCode ?? 1;
     }
