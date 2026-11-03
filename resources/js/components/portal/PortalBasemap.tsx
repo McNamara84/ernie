@@ -106,6 +106,17 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
                 maplibreMap.on('idle', handleIdle);
                 maplibreMap.on('error', handleError);
             } catch (error) {
+                if (layer && !layer.getMaplibreMap()) {
+                    // Leaflet registers the layer before MapLibre creates WebGL. The
+                    // adapter's normal onRemove assumes that creation succeeded.
+                    const failedLayer = layer;
+                    failedLayer.onRemove = () => {
+                        failedLayer.getContainer()?.remove();
+                        return failedLayer;
+                    };
+                    failedLayer.remove();
+                    layer = null;
+                }
                 if (!disposed) {
                     console.error('Portal basemap initialization failed.', error);
                     onStatusChange('error');

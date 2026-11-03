@@ -31,6 +31,7 @@ function save() {
 
 function load() {
     report = readJson(reportPath);
+    if (!report || typeof report !== 'object' || Array.isArray(report)) throw new Error('Invalid compatibility report object.');
     state = existsSync(statePath) ? readJson(statePath) : undefined;
 }
 

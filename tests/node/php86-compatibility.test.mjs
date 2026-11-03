@@ -117,7 +117,8 @@ test('the reporting entrypoint exits successfully and publishes an explicit GitH
     const temporary = mkdtempSync(join(tmpdir(), 'ernie-php86-report-test-'));
     const runner = fileURLToPath(new URL('../../scripts/run-php86.mjs', import.meta.url));
     try {
-        for (const status of ['compatible', 'incompatible', 'unavailable', 'missing', 'corrupt']) {
+        const malformed = { corrupt: '{', null: 'null', array: '[]', scalar: 'true' };
+        for (const status of ['compatible', 'incompatible', 'unavailable', 'missing', ...Object.keys(malformed)]) {
             const directory = join(temporary, status);
             const output = join(temporary, `${status}-output`);
             const summary = join(temporary, `${status}-summary`);
@@ -127,13 +128,14 @@ test('the reporting entrypoint exits successfully and publishes an explicit GitH
                 report.stages.composer = { status, reason: 'Locked package constraint or unavailable transport.' };
                 skipFollowing(report, 'composer');
             }
-            if (status !== 'missing') writeFileSync(join(directory, 'report.json'), status === 'corrupt' ? '{' : JSON.stringify(report));
+            if (status !== 'missing') writeFileSync(join(directory, 'report.json'), malformed[status] ?? JSON.stringify(report));
             const result = spawnSync(process.execPath, [runner, '--report'], {
                 env: { ...process.env, ERNIE_PHP86_REPORT_DIR: directory, GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary }, encoding: 'utf8',
             });
             assert.equal(result.status, 0, result.stderr);
-            const expected = ['missing', 'corrupt'].includes(status) ? 'unavailable' : status;
+            const expected = status === 'missing' || status in malformed ? 'unavailable' : status;
             assert.match(readFileSync(output, 'utf8'), new RegExp(`status=${expected}\\n`));
+            assert.equal(JSON.parse(readFileSync(join(directory, 'report.json'), 'utf8')).result.status, expected);
             assert.match(readFileSync(summary, 'utf8'), /^# PHP 8\.6: /);
             if (expected !== 'compatible') assert.doesNotMatch(readFileSync(output, 'utf8'), /^label=kompatibel$/m);
         }
