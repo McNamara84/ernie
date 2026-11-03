@@ -135,6 +135,25 @@ For day-to-day Laravel commands, use the npm wrappers. They run inside the app c
 npm run artisan -- make:controller TestController
 ```
 
+### Instrument names after metadata imports
+
+XML and JSON imports and existing resources opened in the Data Editor resolve
+instrument names from ERNIE's local PID4INST registry. Imported PIDs and existing
+curated names are preserved. Different identifiers supplied by the same B2INST
+record are shown as a conflict; they are not automatically corrected.
+
+After installing the instrument-name fix, an Admin or Group Leader should use
+**Settings / PID Settings / PID4INST / Update Now** once to refresh the registry
+and record the explicit identifier information used for conflict detection.
+The update is available even when the remote and local instrument counts match:
+equal counts do not prove that names or identifiers are unchanged.
+
+**Resolve names again** in the editor rereads the local registry without
+discarding unsaved form changes or contacting B2INST. If an instrument remains
+unknown, ask an Admin or Group Leader to update the registry in Settings and then
+retry. Opening an existing resource does not write names to the database; save
+the resource normally to retain any newly resolved names.
+
 ### Download URL suggestion default
 
 Until an order has been saved in **Settings / Download URL suggestions**, the

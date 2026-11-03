@@ -96,6 +96,8 @@ it('excludes unsupported types, invalid fields and non-current or invisible reco
     Http::assertNothingSent();
 })->with([
     ['metadata.Identifier.identifierType', 'ARK'], ['metadata.Identifier.identifierValue', 'abc12-def34'],
+    ['metadata.Identifier.identifierValue', ''], ['metadata.Identifier.identifierValue', " \t\n "],
+    ['metadata.Identifier.identifierValue', null], ['metadata.Identifier.identifierValue', 42],
     ['metadata.Name', []], ['metadata.Name', ' '], ['metadata.Owner', 'GFZ'],
     ['metadata.Manufacturer', [42]], ['metadata.InstrumentType', ['invalid']], ['metadata.MeasuredVariable', [7]],
     ['metadata.Model', 'model'], ['metadata.Description', []], ['metadata.LandingPage', []],

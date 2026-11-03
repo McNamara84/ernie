@@ -173,6 +173,22 @@ describe('Docs page', () => {
         expect(screen.queryByText('Managing Users')).not.toBeInTheDocument();
     });
 
+    it.each(['beginner', 'curator', 'group_leader', 'admin'] as const)(
+        'shows instrument recovery help to %s with registry administration restricted by role',
+        async (userRole) => {
+            const { user } = renderDocsPage(userRole);
+            const refreshHeading = screen.queryByRole('heading', { name: 'Refresh the Instrument Registry' });
+            if (userRole === 'group_leader' || userRole === 'admin') {
+                expect(refreshHeading).toBeInTheDocument();
+            } else {
+                expect(refreshHeading).not.toBeInTheDocument();
+            }
+            await openDatasetsTab(user);
+            expect(screen.getByRole('heading', { name: 'Instrument Names and Diagnostics' })).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'Retry and Save Resolved Names' })).toBeInTheDocument();
+        },
+    );
+
     it('shows user management for group_leader', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.getAllByText('User Management').length).toBeGreaterThan(0);

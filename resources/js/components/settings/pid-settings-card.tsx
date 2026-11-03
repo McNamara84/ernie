@@ -1,4 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Calendar, CheckCircle2, Database, RefreshCw, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { queryKeys } from '@/lib/query-keys';
 import { getSelectAllState } from '@/lib/select-all';
 import { type SharedData } from '@/types';
 
@@ -449,12 +451,14 @@ export function PidSettingsCard({
     onElmoMslActiveChange,
     onBulkActiveChange,
 }: PidSettingsCardProps) {
+    const queryClient = useQueryClient();
     // Reload page data after update to get fresh data from backend
     const handleUpdateComplete = useCallback(() => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.pid4inst.instruments() });
         setTimeout(() => {
             router.reload({ only: ['pidSettings'] });
         }, UPDATE_SUCCESS_RELOAD_DELAY_MS);
-    }, []);
+    }, [queryClient]);
 
     return (
         <div className="space-y-4" data-testid="pid-settings-card">

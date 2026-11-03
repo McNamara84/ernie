@@ -13,6 +13,7 @@ use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use App\Services\CgiSimpleLithologyVocabularyService;
 use App\Services\MslLaboratoryVocabularyService;
+use App\Services\Pid4instVocabularyService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -26,6 +27,7 @@ class VocabularyController extends Controller
         private readonly VocabularyCacheService $cacheService,
         private readonly MslLaboratoryVocabularyService $mslLaboratoryVocabularyService,
         private readonly CgiSimpleLithologyVocabularyService $simpleLithologyVocabularyService,
+        private readonly Pid4instVocabularyService $instrumentVocabulary,
     ) {}
 
     /**
@@ -220,11 +222,13 @@ class VocabularyController extends Controller
             return response()->json(['error' => 'PID4INST is disabled'], 404);
         }
 
-        return $this->getCachedVocabulary(
-            CacheKey::PID4INST_INSTRUMENTS,
-            'pid4inst-instruments.json',
-            'php artisan get-pid4inst-instruments'
-        );
+        try {
+            return response()->json($this->instrumentVocabulary->getPublicPayload());
+        } catch (VocabularyNotFoundException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 404);
+        } catch (VocabularyReadException|VocabularyCorruptedException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 500);
+        }
     }
 
     /**

@@ -650,7 +650,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             <li>Trigger background downloads of the full vocabulary data</li>
                         </ul>
 
-                        <h4>Refresh PID4INST Instrument Metadata</h4>
+                        <h4>Refresh the Instrument Registry</h4>
                         <p>
                             In <strong>Editor Settings → Persistent Identifiers → PID4INST</strong>, use <strong>Check for Updates</strong> to compare
                             the source record count with the last successful synchronization. Records excluded from the instrument list are included
@@ -667,6 +667,17 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             If the result says that the list was published but cache refresh remains pending, the new instrument list has already been
                             saved. Ask an administrator to resolve the cache or ELMO configuration problem and retry the cache refresh using the
                             recovery command in System Administration.
+                        </p>
+                        <p>
+                            Wait for the update to finish successfully. If a download fails or is incomplete, ERNIE keeps the previous registry. After
+                            a successful update, users with an open editor can click <strong>Resolve names again</strong> in{' '}
+                            <strong>Used Instruments</strong> without discarding their unsaved work. Save the resource normally to retain newly
+                            resolved names.
+                        </p>
+                        <p>
+                            After installing the instrument-name update, refresh PID4INST once so ERNIE also has the identifier information needed to
+                            detect conflicts. If PID4INST is disabled for ERNIE, enable it and save the activation change before retrying name
+                            resolution.
                         </p>
                     </>
                 ),
@@ -2438,6 +2449,54 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>IsNewVersionOf:</strong> Version relationships
                             </li>
                         </ul>
+                    </>
+                ),
+            },
+            {
+                id: 'used-instruments',
+                title: 'Used Instruments',
+                icon: Link2,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Instrument Names and Diagnostics</h3>
+                        <p>
+                            In <strong>Used Instruments</strong>, select the instruments used to collect your dataset. XML and JSON imports and
+                            existing resources opened in the editor use ERNIE&apos;s local PID4INST registry to fill in missing instrument names.
+                            Existing curated names and the original persistent identifiers (PIDs) are preserved.
+                        </p>
+                        <h4>Understanding Instrument Messages</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Different identifiers:</strong> B2INST lists conflicting identifiers for the same instrument. ERNIE shows the
+                                name when it can identify one registry record, but keeps your original PID. Review the displayed identifiers before
+                                making any manual correction.
+                            </li>
+                            <li>
+                                <strong>Name not found:</strong> The local registry has no matching name. The PID remains visible. Ask a Group Leader
+                                or Admin to refresh PID4INST, then retry name resolution.
+                            </li>
+                            <li>
+                                <strong>Multiple records:</strong> More than one registry record matches the identifier. ERNIE does not choose a name;
+                                verify which instrument the PID should identify.
+                            </li>
+                            <li>
+                                <strong>Registry unavailable or disabled:</strong> Your selected instruments are retained. Ask a Group Leader or Admin
+                                to check PID4INST availability and activation. Adding instruments is disabled while the registry is unavailable.
+                            </li>
+                        </ul>
+                        <h4>Retry and Save Resolved Names</h4>
+                        <p>
+                            Click <strong>Resolve names again</strong> in <strong>Used Instruments</strong> to retry against the current local
+                            registry. This preserves your other unsaved form changes and does not download data from B2INST. If a registry update is
+                            needed, wait for a Group Leader or Admin to complete it before retrying. You can also retry after a temporary resolution
+                            error.
+                        </p>
+                        <p>
+                            Opening an existing resource only adds resolved names to the editor; it does not change the saved record. Use the normal
+                            save action to retain newly resolved names. A new draft created by a Dashboard upload already contains the names available
+                            locally at import time. Retrying resolution never replaces a PID automatically.
+                        </p>
                     </>
                 ),
             },

@@ -37,6 +37,7 @@ import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useEditorLeaveGuard } from '@/hooks/use-editor-leave-guard';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
+import { useInstrumentNameResolution } from '@/hooks/use-instrument-name-resolution';
 import { useResourceTypeLicenses } from '@/hooks/use-resource-type-licenses';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { RorInputDraftContext, useRorInputDrafts } from '@/hooks/use-ror-input-drafts';
@@ -627,6 +628,7 @@ export default function DataCiteForm({
         return [];
     });
     const importInFlightRef = useRef(false);
+    const instrumentResolution = useInstrumentNameResolution(instruments, setInstruments);
     const [isImportingMetadata, setIsImportingMetadata] = useState(false);
     const [hasPendingTagInput, setHasPendingTagInput] = useState(false);
     const updatePendingTagInput = useCallback(() => {
@@ -741,7 +743,11 @@ export default function DataCiteForm({
             setMslLaboratories((current) =>
                 mergeImportedEntries(current, imported.mslLaboratories, (item) => identityPart(item.identifier || item.name)),
             );
-            setInstruments((current) => mergeImportedEntries(current, imported.instruments, (item) => identityPart(item.pid)));
+            setInstruments((current) =>
+                mergeImportedEntries(current, imported.instruments, (item) => item.pidType + ':' + identityPart(item.pid)).map(
+                    ({ pid, pidType, name }) => ({ pid, pidType, name }),
+                ),
+            );
         },
         [languages, licenses],
     );
@@ -1074,7 +1080,7 @@ export default function DataCiteForm({
         };
     }, []);
 
-    const shouldShowUsedInstrumentsSection = pid4instAvailability === 'available';
+    const shouldShowUsedInstrumentsSection = pid4instAvailability === 'available' || instruments.length > 0;
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
     useEffect(() => {
@@ -4383,7 +4389,12 @@ export default function DataCiteForm({
                             />
                         </AccordionTrigger>
                         <AccordionContent data-testid="used-instruments-accordion-content">
-                            <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
+                            <UsedInstrumentsField
+                                selectedInstruments={instruments}
+                                onChange={setInstruments}
+                                selectionEnabled={pid4instAvailability === 'available'}
+                                {...instrumentResolution}
+                            />
                         </AccordionContent>
                     </AccordionItem>
                 )}
