@@ -9,6 +9,7 @@ function normalize(value: unknown, parentKey?: string): unknown {
             .filter(
                 ([key, entry]) =>
                     entry !== undefined &&
+                    !(parentKey === 'instruments' && key === 'resolution') &&
                     !(key === 'id' && (parentKey === 'spatialTemporalCoverages' || (typeof entry === 'string' && CLIENT_UUID.test(entry)))) &&
                     !(parentKey === 'spatialTemporalCoverages' && (key === 'storageId' || key === 'copyFromId')),
             )

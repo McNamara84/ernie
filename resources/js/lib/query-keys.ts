@@ -47,5 +47,6 @@ export const apiEndpoints = {
     rorResolve: '/api/v1/ror-resolve',
     doiValidate: doiValidate.url(),
     pid4instInstruments: '/vocabularies/pid4inst-instruments',
+    resolveInstrumentNames: '/editor/instruments/resolve',
     mslLaboratories: '/vocabularies/msl-laboratories',
 } as const;

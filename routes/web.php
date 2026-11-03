@@ -47,6 +47,7 @@ use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\PublicMetadataExportController;
 use App\Http\Controllers\PublicTrafficController;
 use App\Http\Controllers\RelatedItemController;
+use App\Http\Controllers\ResolveInstrumentNamesController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResourceCurationController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
@@ -671,6 +672,7 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     Route::get('docs', [DocsController::class, 'show'])->name('docs');
 
     Route::get('editor', [EditorController::class, 'show'])->name('editor');
+    Route::post('editor/instruments/resolve', ResolveInstrumentNamesController::class)->name('editor.instruments.resolve');
 
     Route::get('editor/resource-loads/{token}/status', [EditorLoadProgressController::class, 'status'])
         ->whereUuid('token')
