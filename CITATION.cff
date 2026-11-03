@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+title: ERNIE - Earth Research Notary for Information Editing
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Holger
+    family-names: Ehrmann
+    email: ehrmann@gfz.de
+    orcid: 'https://orcid.org/0009-0000-1235-6950'
+    affiliation: GFZ Helmholtz Centre for Geosciences
+  - given-names: Tatjana
+    family-names: Antipanova
+    email: anti@gfz.de
+    affiliation: GFZ Helmholtz Centre for Geosciences
+    orcid: 'https://orcid.org/0009-0003-4793-2913'
+identifiers:
+  - type: doi
+    value: 10.5880/GFZ.LIS.2026.002
+repository-code: 'https://github.com/McNamara84/ernie'
+url: 'https://gfz.de'
+abstract: >-
+  ERNIE is a metadata curation and publishing system for
+  research datasets at GFZ Helmholtz Centre for Geosciences.
+  It supports DataCite Metadata Schema v4.7 for DOI
+  registration, IGSN registration for physical samples,
+  public landing pages for published records, and a search
+  portal for curated datasets.
+keywords:
+  - rdm
+  - research data management
+  - gfz
+  - doi
+  - research data repository
+license: GPL-3.0-or-later
+version: v1.2.0
+date-released: '2026-11-17'
