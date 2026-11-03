@@ -32,23 +32,33 @@ dataset('editor vocabulary files', [
     ['raid', 'raid-projects', 'raid/raid-projects.json', true],
 ]);
 
-it('never exposes internal B2INST provenance to any editor, including cached snapshots', function (): void {
+it('never exposes internal B2INST provenance to any editor, including cached snapshots', function (bool $cached): void {
     $setting = PidSetting::firstOrCreate(['type' => 'pid4inst'], ['display_name' => 'PIDINST']);
     $setting->update(['is_active' => true, 'is_elmo_active' => true, 'is_elmo_msl_active' => true]);
-    $public = ['lastUpdated' => '2026-10-29T10:00:00Z', 'total' => 1, 'data' => [['id' => 'abc', 'pid' => '21.11157/abc']]];
-    $internal = $public + ['_sync' => ['records' => ['internal provenance'], 'refreshPending' => true]];
+    $public = ['lastUpdated' => '2026-10-29T10:00:00Z', 'total' => 1, 'data' => [[
+        'id' => 'abc', 'pid' => '21.11157/abc', 'pidType' => 'Handle', 'name' => 'Instrument',
+    ]]];
+    $internal = $public + ['_sync' => ['records' => ['abc' => [
+        'metadataIdentifier' => ['identifierType' => 'Handle', 'identifierValue' => '21.11157/abc'],
+        'providerPid' => 'https://hdl.handle.net/21.11157/uuid',
+    ]], 'refreshPending' => true]];
+    $internal['data'][0]['lookupIdentifiers'] = [['value' => '21.11157/abc', 'type' => 'Handle', 'source' => 'metadata']];
     Storage::put('pid4inst-instruments.json', json_encode($internal));
-    Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), $internal);
+    if ($cached) {
+        Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), $internal);
+    }
     $this->actingAs(User::factory()->create());
     foreach (['/vocabularies/', '/api/v1/vocabularies/', '/api/v1/elmo-msl/vocabularies/'] as $prefix) {
         $this->getJson($prefix.'pid4inst-instruments', ['X-API-Key' => 'editor-test-key'])->assertExactJson($public);
     }
-});
+})->with([false, true]);
 
 it('checks each editor before reading shared cached vocabulary data', function (string $type, string $slug, string $file, bool $pid): void {
     $model = $pid ? PidSetting::class : ThesaurusSetting::class;
     $setting = $model::firstOrCreate(['type' => $type], ['display_name' => $type]);
-    $payload = ['data' => [['id' => 'test', 'text' => 'Test']]];
+    $payload = ['data' => [$type === 'pid4inst'
+        ? ['id' => 'test', 'pid' => '21.test/a', 'pidType' => 'Handle', 'name' => 'Test']
+        : ['id' => 'test', 'text' => 'Test']]];
     Storage::put($file, json_encode($payload));
 
     for ($flags = 0; $flags < 8; $flags++) {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Reconstructed from issue 1498; not the reporter's original export. -->
+<resource xmlns="http://datacite.org/schema/kernel-4">
+    <creators><creator><creatorName>Example, Author</creatorName></creator></creators>
+    <titles><title>Instrument import regression</title></titles>
+    <publisher>Test Publisher</publisher>
+    <publicationYear>2026</publicationYear>
+    <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+    <relatedIdentifiers>
+        <relatedIdentifier relatedIdentifierType="Handle" relationType="IsCollectedBy">21.11157/3f8xq-m8w44</relatedIdentifier>
+        <relatedIdentifier relatedIdentifierType="Handle" relationType="IsCollectedBy">21.11157/epmy8-2k126</relatedIdentifier>
+        <relatedIdentifier relatedIdentifierType="Handle" relationType="IsCollectedBy">21.11157/a9250866-bbec-4542-86b3-a5f78c0c6922</relatedIdentifier>
+    </relatedIdentifiers>
+</resource>

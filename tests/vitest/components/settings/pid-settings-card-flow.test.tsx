@@ -1,8 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type PidSettingData, PidSettingsCard } from '@/components/settings/pid-settings-card';
+
+import { renderWithQueryClient as render } from '../../helpers/render-with-query-client';
 
 const inertiaMocks = vi.hoisted(() => ({
     reload: vi.fn(),
@@ -53,7 +55,7 @@ describe('PidSettingsCard update flow', () => {
         vi.restoreAllMocks();
     });
 
-    it('allows PIDINST refresh at equal counts and displays the actual published result', async () => {
+    it.each([false, true])('allows PIDINST refresh at equal counts and displays the published result (exists: %s)', async (exists) => {
         const user = userEvent.setup();
         globalThis.fetch = vi
             .fn()
@@ -73,13 +75,14 @@ describe('PidSettingsCard update flow', () => {
                     completedAt: '2026-10-29T09:05:00Z',
                 }),
             });
-        render(
+        const { client } = render(
             <PidSettingsCard
-                pidSettings={[{ ...raidSetting, type: 'pid4inst', displayName: 'PIDINST', exists: true, itemCount: 12 }]}
+                pidSettings={[{ ...raidSetting, type: 'pid4inst', displayName: 'PIDINST', exists, itemCount: 12 }]}
                 onActiveChange={vi.fn()}
                 onElmoActiveChange={vi.fn()}
             />,
         );
+        const invalidate = vi.spyOn(client, 'invalidateQueries');
         expect(screen.getByRole('button', { name: /update now/i })).toBeEnabled();
         await user.click(screen.getByRole('button', { name: /check for updates/i }));
         expect(await screen.findByText(/metadata freshness has not been checked/i)).toBeInTheDocument();
@@ -87,6 +90,7 @@ describe('PidSettingsCard update flow', () => {
         await user.click(screen.getByRole('button', { name: /update now/i }));
         expect(await screen.findByText(/11 instruments/i)).toBeInTheDocument();
         expect(screen.queryByText(/12 instruments/i)).not.toBeInTheDocument();
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ['pid4inst', 'instruments'] });
     });
 
     it('retains the ROR and RAiD update gating when counts match', async () => {

@@ -12,6 +12,8 @@ Duplicate IDs, inconsistent totals, empty intermediate pages, early termination 
 
 ## PID decisions
 
+XML/JSON imports and existing resources opened in the Data Editor resolve names locally using the published PID plus the explicit metadata and ePIC identifiers in the snapshot's `_sync.records` provenance. This also works with snapshots and cached payloads created before the name-resolution update. Older files without provenance still resolve their primary PID; refresh the registry to obtain the additional identifiers. The resolver preserves stored PIDs and curated names, reports differing identifiers, and never performs external lookups. Public vocabulary responses omit both `_sync` and `lookupIdentifiers`. Use **Resolve names again** after a registry refresh and save the resource normally to retain newly resolved names.
+
 Matching metadata and ePIC Handles are normalized to bare Handles. The provider entry is registration evidence, not a guarantee of continuing resolution. OAI IDs are ignored. Missing provider IDs and conflicting Handle candidates require resolution through `https://hdl.handle.net/api/handles/…`. Only explicit Handle `responseCode=100` means not found; connection errors and other failures abort the import. Positive resolution results expire after at most one hour (default 15 minutes), negative results after one minute; unavailable results are not cached.
 
 Handle results use the `vocabularies` cache tag, so `cache:clear-app vocabularies` and `cache:clear-app all` also clear resolution evidence. Cache drivers without tag support use the same lifetimes and the command's existing whole-store fallback.

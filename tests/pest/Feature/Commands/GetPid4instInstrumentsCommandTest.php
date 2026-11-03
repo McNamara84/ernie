@@ -10,7 +10,9 @@ use App\Models\ResourceInstrument;
 use App\Services\B2inst\B2instSnapshotStore;
 use App\Services\B2inst\B2instSyncService;
 use App\Services\DataCiteXmlExporter;
+use App\Services\InstrumentNameResolutionService;
 use App\Services\Pid4instStatusService;
+use App\Services\Pid4instVocabularyService;
 use App\Services\VocabularyCacheService;
 use App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser;
 use Illuminate\Contracts\Cache\Lock;
@@ -51,6 +53,9 @@ it('updates same-count metadata, preserves saved links and keeps the previous sn
     Http::fakeSequence()->push($original)->push($original)->push($renamed)->push($renamed);
     $service = app(B2instSyncService::class);
     $service->sync();
+    $selection = ['pid' => $link->instrument_pid, 'pidType' => 'Handle', 'name' => $link->instrument_pid];
+    $resolver = app(InstrumentNameResolutionService::class);
+    expect($resolver->resolve([$selection])[0]['name'])->toBe('Test instrument abc12-def34');
     $old = Storage::get(B2instSnapshotStore::FILE);
     $this->travel(1)->minutes();
     $result = $service->sync();
@@ -59,7 +64,57 @@ it('updates same-count metadata, preserves saved links and keeps the previous sn
         ->and(app(B2instSnapshotStore::class)->read()['data'][0]['name'])->toBe('Renamed')
         ->and(Storage::get(B2instSnapshotStore::FILE.'.previous'))->toBe($old)
         ->and($link->fresh()->getAttributes())->toBe($before);
+    expect($resolver->resolve([$selection])[0]['name'])->toBe('Renamed');
+    Http::assertSentCount(4);
 });
+
+it('resolves both original identifiers from a v3 snapshot without changing saved selections or fetching remotely', function (bool $cached): void {
+    $record = Fixture::migrated();
+    Http::fake([
+        'https://b2inst.example.test/*' => Http::response(Fixture::page([$record])),
+        'https://hdl.handle.net/api/handles/21.11157/7z780-7kj63' => Http::response(['responseCode' => 100], 404),
+        'https://hdl.handle.net/api/handles/21.11157/d96a9d31-fd99-4a0c-9b98-514a04b18423' => Http::response(Fixture::handle($record['metadata']['LandingPage'])),
+    ]);
+    expect(Artisan::call('get-pid4inst-instruments'))->toBe(0);
+    $snapshot = app(B2instSnapshotStore::class)->read();
+    if ($cached) {
+        Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), $snapshot);
+    }
+    $selection = [
+        ['pid' => $record['metadata']['Identifier']['identifierValue'], 'pidType' => 'Handle', 'name' => ''],
+        ['pid' => $record['pids']['epic']['identifier'], 'pidType' => 'Handle', 'name' => 'Curated name'],
+    ];
+    $resolved = app(InstrumentNameResolutionService::class)->resolve($selection);
+    expect(array_column($resolved, 'pid'))->toBe(array_column($selection, 'pid'))
+        ->and(array_column($resolved, 'name'))->toBe([$record['metadata']['Name'], 'Curated name'])
+        ->and(array_column(array_column($resolved, 'resolution'), 'status'))->toBe(['identifier_conflict', 'identifier_conflict'])
+        ->and($resolved[0]['resolution']['identifiers'])->toBe([
+            ['value' => $selection[0]['pid'], 'type' => 'Handle', 'source' => 'metadata'],
+            ['value' => $selection[1]['pid'], 'type' => 'Handle', 'source' => 'epic'],
+        ]);
+    $vocabulary = app(Pid4instVocabularyService::class);
+    expect($vocabulary->getPublicPayload())->not->toHaveKey('_sync')
+        ->and($vocabulary->getPublicPayload()['data'][0])->not->toHaveKey('lookupIdentifiers')
+        ->and($vocabulary->getLocalPayload()['data'][0]['lookupIdentifiers'])->toHaveCount(2)
+        ->and(app(B2instSnapshotStore::class)->read())->toBe($snapshot);
+    Http::assertSentCount(4);
+})->with([false, true]);
+
+it('preserves the previous snapshot and name cache when an existing instrument PID is blank', function (string $pid): void {
+    $valid = Fixture::page([Fixture::record()]);
+    $invalid = Fixture::page([
+        Fixture::record(overrides: ['metadata' => ['Identifier' => ['identifierValue' => $pid]]]),
+        Fixture::record('second'),
+    ]);
+    Http::fakeSequence()->push($valid)->push($valid)->push($invalid)->push($invalid);
+    expect(Artisan::call('get-pid4inst-instruments'))->toBe(0);
+    $vocabulary = app(Pid4instVocabularyService::class);
+    $before = $vocabulary->getLocalPayload();
+    $snapshot = Storage::get(B2instSnapshotStore::FILE);
+    expect(Artisan::call('get-pid4inst-instruments'))->toBe(1)
+        ->and(Storage::get(B2instSnapshotStore::FILE))->toBe($snapshot)
+        ->and($vocabulary->getLocalPayload())->toBe($before);
+})->with(['', " \t\n "]);
 
 it('does not report reordered records or usage statistics as metadata changes', function (): void {
     $a = Fixture::record('a');
