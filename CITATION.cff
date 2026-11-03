@@ -15,6 +15,11 @@ authors:
     email: anti@gfz.de
     affiliation: GFZ Helmholtz Centre for Geosciences
     orcid: 'https://orcid.org/0009-0003-4793-2913'
+  - given-names: Alexander
+    family-names: Brauser
+    email: abrauser@gfz.de
+    affiliation: GFZ Helmholtz Centre for Geosciences
+    orcid: 'https://orcid.org/0000-0002-4411-3205'
 identifiers:
   - type: doi
     value: 10.5880/GFZ.LIS.2026.002
