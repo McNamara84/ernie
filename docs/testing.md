@@ -25,12 +25,16 @@ invalid packages, restore that volume while Vite is stopped, then restart it:
 
 ```bash
 docker compose --env-file .env.docker -f docker-compose.dev.yml stop vite
-docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app npm exec --yes --package=npm@12.2.0 -- npm ci
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app npm ci
 docker compose --env-file .env.docker -f docker-compose.dev.yml start vite
 ```
 
 Wait for Vite's ready message before browser tests. This preserves the database
 and development volumes; the first request may compile fresh frontend modules.
+Vite excludes downloaded toolchains, scanner caches, vendor files, runtime
+storage and generated test reports from its polling watcher. This reduces
+bind-mount work and avoids reloads triggered by test output. For complete browser
+runs, use the documented `ERNIE_PLAYWRIGHT_ASSETS=build` mode below.
 
 The npm overrides keep indirect dependencies safe while upstream packages still
 request older versions. Solid.js uses Seroval and Seroval Plugins 1.6.8 or newer
@@ -509,6 +513,12 @@ Wayfinder process, and adds its own preparation time to the timing report.
 The wrapper restores the original `public/hot` bytes even on failure; the Vite
 service keeps running. The default remains `vite` for normal local feedback.
 
+The catalogue and landing-page HTML fixtures establish a native connection before
+intercepting HTML on Windows Chromium and WebKit. Otherwise the first real TLS
+exchange can occur on the stylesheet request and fail with
+`ERR_TOO_MANY_RETRIES` or `SSL connect error`, leaving the intercepted page
+unstyled. This setup does not relax the stylesheet or accessibility assertions.
+
 ```powershell
 $env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
 npm run test:e2e:devstack
@@ -520,23 +530,33 @@ Local runs keep failure screenshots and make videos opt-in with
 videos adds runtime cost. CI keeps its existing recording settings. Use
 `--trace=on` when a detailed local failure trace is needed.
 
-If Windows WebKit fails to connect to the local HTTPS subdomain, the optional
-`ERNIE_WEBKIT_WS_ENDPOINT` connects just that browser to a Linux Playwright
-server. The test runner remains on the host with the pinned Node version and
-forwards loopback requests, including `ernie.localhost`, to the helper. Chromium and
-Firefox continue to use their normal host browsers. The server must match the
-installed Playwright version. For the current 1.63.0 dependency:
+For Windows browser-runtime failures, a Linux Playwright server can run the
+browsers while the test runner stays on the host with the pinned Node version.
+Playwright 1.64.1 has a reported Windows Firefox startup race that can fail
+context teardown with `_maybeDontRestoreTabs` even when test assertions pass
+([upstream issue](https://github.com/microsoft/playwright/issues/43413)). The
+server must match the installed Playwright version. This example uses the
+existing package installation read-only and forwards loopback requests,
+including `ernie.localhost`, to the host:
 
 ```powershell
-docker run --rm --init -d --name ernie-webkit-tests --workdir /home/pwuser --user pwuser -p 127.0.0.1:3043:3000 mcr.microsoft.com/playwright:v1.63.0-noble npx --yes playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
-$env:ERNIE_WEBKIT_WS_ENDPOINT = 'ws://127.0.0.1:3043/'
-npm run test:e2e:devstack -- --project=webkit
-Remove-Item Env:ERNIE_WEBKIT_WS_ENDPOINT
-docker stop ernie-webkit-tests
+$playwrightModules = Join-Path $PWD 'node_modules'
+docker run --rm --init -d --name ernie-browser-tests --workdir /home/pwuser --user pwuser --shm-size=1g -p 127.0.0.1:39333:3000 -v "${playwrightModules}:/work/node_modules:ro" mcr.microsoft.com/playwright:v1.64.1-resolute@sha256:f76885029244e5a384243a930ff283cef67d90653978ee27a77dd4cff8882fb4 node /work/node_modules/playwright/cli.js run-server --port 3000 --host 0.0.0.0
+$env:PW_TEST_CONNECT_WS_ENDPOINT = 'ws://127.0.0.1:39333/'
+$env:PW_TEST_CONNECT_EXPOSE_NETWORK = '<loopback>'
+$env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
+try {
+    npm.cmd run test:e2e:devstack
+} finally {
+    Remove-Item Env:PW_TEST_CONNECT_WS_ENDPOINT, Env:PW_TEST_CONNECT_EXPOSE_NETWORK, Env:ERNIE_PLAYWRIGHT_ASSETS
+    docker stop ernie-browser-tests
+}
 ```
 
 Wait for the server's listening message before running tests. See Playwright's
 [remote browser documentation](https://playwright.dev/docs/docker#remote-connection).
+To connect only WebKit, use `ERNIE_WEBKIT_WS_ENDPOINT` instead of the two
+`PW_TEST_CONNECT_*` variables; Chromium and Firefox then remain host browsers.
 
 ### Stage bug reproduction
 

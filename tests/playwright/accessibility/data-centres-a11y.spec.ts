@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Locator, test } from '@playwright/test';
 
 import { openDataCentres, useDataCentreCatalogue } from '../helpers/data-centres';
+import { isLocalWindowsWebKit } from '../helpers/navigation';
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
@@ -132,10 +133,7 @@ test.describe('Data Centres accessibility', () => {
     }
 
     test('supports the skip link, visible keyboard focus and reduced motion', async ({ page, browserName }) => {
-        test.skip(
-            browserName === 'webkit' && process.platform === 'win32',
-            'Windows WebKit omits links from its native Tab cycle; Linux CI covers this.',
-        );
+        test.skip(isLocalWindowsWebKit(browserName), 'Windows WebKit omits links from its native Tab cycle; Linux CI covers this.');
         await openDataCentres(page);
         await page.keyboard.press('Tab');
         await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();

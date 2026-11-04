@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Locator, type Page, test, type TestInfo } from '@playwright/test';
 
 import { openHomepage } from '../helpers/homepage';
+import { isLocalWindowsWebKit } from '../helpers/navigation';
 
 // WCAG 2.1 A/AA is the web baseline of EN 301 549 V3.2.1. WCAG 2.2 AA
 // and axe best practices are additional regression checks, not a legal certificate.
@@ -75,10 +76,7 @@ async function expectReadableTopics(page: Page) {
 function requireLinkTabbing(browserName: string) {
     // Windows MiniBrowser skips native links with both Tab and Alt+Tab, even on
     // a plain HTML control page. Linux CI and remote Linux WebKit support links.
-    test.skip(
-        browserName === 'webkit' && process.platform === 'win32' && !process.env.ERNIE_WEBKIT_WS_ENDPOINT,
-        'Windows WebKit omits links from its native Tab cycle.',
-    );
+    test.skip(isLocalWindowsWebKit(browserName), 'Windows WebKit omits links from its native Tab cycle.');
 }
 
 async function expectContrastingFocus(control: Locator) {
