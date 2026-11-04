@@ -19,8 +19,7 @@ class CounterMarkGap extends Command
         $from = $this->argument('from');
         $through = $this->argument('through');
         if (
-            ! is_string($from) || ! is_string($through)
-            || ! CarbonImmutable::hasFormat($from, 'Y-m-d')
+            ! CarbonImmutable::hasFormat($from, 'Y-m-d')
             || ! CarbonImmutable::hasFormat($through, 'Y-m-d')
         ) {
             $this->error('Expected YYYY-MM-DD dates.');

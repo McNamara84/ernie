@@ -44,6 +44,14 @@ test('PHP update waits for both deployment architectures and a valid digest', ()
     assert.throws(() => preparePhpImageUpdate({ ...fixture(), manifest: { digest: 'latest' } }), /valid image digest/u);
 });
 
+test('PHP update preserves the configurable development base and updates its pinned default', () => {
+    const input = fixture();
+    input.files.set('Dockerfile.dev', `ARG PHP_IMAGE=php:8.5.11-fpm-trixie@${input.manifest.digest}\nFROM \u0024{PHP_IMAGE} AS app\n`);
+    const result = preparePhpImageUpdate(input);
+    assert.ok(result.changes.get('Dockerfile.dev').startsWith(`ARG PHP_IMAGE=${result.image}\n`));
+    assert.ok(result.changes.get('Dockerfile.dev').includes('FROM ${PHP_IMAGE} AS app'));
+});
+
 test('PHP update rejects missing, duplicated or divergent PHP stages before producing changes', () => {
     for (const content of ['', fixture().files.get('Dockerfile.dev').repeat(2), fixture().files.get('Dockerfile.dev').replace('8.5.11', '8.5.10')]) {
         const input = fixture();

@@ -1,0 +1,43 @@
+# Used only with a private snapshot and a unique ernie-php86-* project.
+# Runtime image pins are taken from docker-compose.dev.yml by the wrapper.
+services:
+  app:
+    build:
+      context: ${ERNIE_PHP86_WORKSPACE:?Private workspace required}
+      dockerfile: Dockerfile.dev
+      target: app
+      args:
+        PHP_IMAGE: ${ERNIE_PHP86_IMAGE:?Verified PHP 8.6 image required}
+        INSTALL_XDEBUG: "0"
+        SYSTEM_PACKAGES_REFRESH: ${ERNIE_PHP86_REFRESH:?Refresh date required}
+    entrypoint: ["sleep", "infinity"]
+    working_dir: /var/www/html
+    environment:
+      COMPOSER_MEMORY_LIMIT: 2G
+    volumes:
+      - ${ERNIE_PHP86_WORKSPACE}:/var/www/html
+      - vendor:/var/www/html/vendor
+      - pest-workspace:/var/www/pest-workspace
+      - vendor:/var/www/pest-workspace/vendor
+  db: &mysql
+    image: ${ERNIE_PHP86_MYSQL_IMAGE:?Pinned MySQL 9.7 image required}
+    environment:
+      MYSQL_ROOT_PASSWORD: rootsecret
+      MYSQL_DATABASE: ernie
+      MYSQL_USER: ernie
+      MYSQL_PASSWORD: secret
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootsecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  db-test:
+    <<: *mysql
+    profiles: [test]
+  redis:
+    image: ${ERNIE_PHP86_REDIS_IMAGE:?Pinned Redis image required}
+volumes:
+  vendor:
+  pest-workspace:

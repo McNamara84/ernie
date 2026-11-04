@@ -98,7 +98,8 @@ jobs:
       - name: Install JSON-LD validation dependencies
         if: ${{ matrix.slice == 'serial' }}
         run: |
-          npm install --global npm@12.2.0
+          npm install --global npm@12.2.1
+          node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
           npm ci
 
       - name: Validate actual DataCite and Schema.org JSON-LD exports offline

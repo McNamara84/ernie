@@ -107,7 +107,11 @@ test('semantic and unreadable-report failures still clean the workspace', async 
         },
     ]) {
         const fixture = transport(overrides);
-        await assert.rejects(runJsonLd(fixture.options), /Lost metadata|Report missing/);
+        await assert.rejects(runJsonLd(fixture.options), (error) => {
+            assert.match(error.message, /Lost metadata|Report missing/);
+            assert.equal(error.jsonldSemanticFailure === true, Object.hasOwn(overrides, 'validateReport'));
+            return true;
+        });
         assert.equal(fixture.calls.at(-1).args.at(-1), `/tmp/ernie-jsonld-${token}`);
     }
 });

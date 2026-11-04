@@ -120,6 +120,9 @@ export default defineConfig(({ command }) => {
             watch: {
                 // Use polling for file changes in Docker volumes (Windows compatibility)
                 usePolling: process.env.VITE_USE_POLLING === 'true',
+                // Runtime data, dependencies and generated reports are not HMR sources.
+                // Polling them across the Windows bind mount can stall CSS generation.
+                ignored: [/(?:^|[/\\])(?:\.tmp|\.trivy-cache|vendor|storage|coverage|test-results|playwright-report|blob-report)(?:[/\\]|$)/],
             },
         },
         test: {

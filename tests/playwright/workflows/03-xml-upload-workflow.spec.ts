@@ -121,6 +121,7 @@ test.describe('XML Upload', () => {
                     },
                 });
             });
+            await page.route('**/api/v1/vocabularies/pid-availability', (route) => route.fulfill({ json: { pid4inst: { available: true } } }));
             await page.route('**/vocabularies/pid4inst-instruments', (route) => route.fulfill({ json: snapshot }));
             const file =
                 format === 'xml'
@@ -161,7 +162,18 @@ test.describe('XML Upload', () => {
                 if (cycle === 1) {
                     for (const record of records) await expect(section.getByRole('heading', { name: record.name, exact: true })).toBeVisible();
                 }
-                await section.getByRole('button', { name: 'Resolve names again' }).click();
+                // The availability notice disappears when loading finishes and moves
+                // the resolve button. Wait for the fixture before clicking it.
+                await expect(section.getByRole('combobox', { name: 'Add Instrument' })).toBeEnabled();
+                const resolution = page.waitForResponse(
+                    (response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/editor/instruments/resolve',
+                );
+                // Other editor sections can still shift this button during a pointer
+                // click. Native keyboard activation keeps this data workflow stable.
+                const resolveButton = section.getByRole('button', { name: 'Resolve names again' });
+                await expect(resolveButton).toBeEnabled();
+                await resolveButton.press('Enter');
+                expect((await resolution).status()).toBe(200);
                 for (const record of records) {
                     await expect(section.getByRole('heading', { name: record.name, exact: true })).toBeVisible();
                     await expect(section.getByRole('link', { name: 'Handle: ' + record.pid })).toHaveAttribute(

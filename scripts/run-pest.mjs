@@ -3,9 +3,10 @@ import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
+import { composeArguments } from './docker-compose.mjs';
 import { createTestTimings, resolveTestWorkers } from './test-runtime.mjs';
 
-const composeArgs = ['compose', '--env-file', '.env.docker', '-f', 'docker-compose.dev.yml'];
+const composeArgs = composeArguments();
 const pestArgs = process.argv.slice(2);
 const shardTimingCommand = pestArgs.length === 1 && pestArgs[0] === '--update-shards';
 const updateShardTimings = shardTimingCommand || process.env.ERNIE_PEST_UPDATE_SHARDS === '1';

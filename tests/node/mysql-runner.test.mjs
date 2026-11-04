@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import process from 'node:process';
 import test from 'node:test';
 
 import { resolveMysqlSlices, runMysqlTests } from '../../scripts/run-mysql-tests.mjs';
@@ -70,6 +73,31 @@ test('stops on a failed test without resetting the next slice', () => {
     const recording = recorder('9.7.2', resolveMysqlSlices()[0].paths[0]);
     assert.throws(() => runMysqlTests({ execute: recording.execute }), /test failed/u);
     assert.equal(recording.calls.filter((args) => args.some((arg) => arg.startsWith('DROP DATABASE'))).length, 1);
+});
+
+test('collects failed-test evidence and preserves the original failure when collection also fails', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'ernie-mysql-report-test-'));
+    const previous = process.env.ERNIE_MYSQL_REPORT_DIR;
+    process.env.ERNIE_MYSQL_REPORT_DIR = directory;
+    try {
+        for (const testFails of [false, true]) {
+            const recording = recorder();
+            const original = new Error('original test failure');
+            assert.throws(() => runMysqlTests({ execute(args) {
+                recording.execute(args);
+                if (args.includes('SELECT VERSION()')) return '9.7.4';
+                if (args.includes('./vendor/bin/pest') && testFails) throw original;
+                if (args[0] === 'cp') throw new Error('artifact unavailable');
+            } }), testFails ? (error) => error === original : /artifact unavailable/);
+            assert.equal(recording.calls.filter((args) => args[0] === 'cp').length, 1);
+            assert.equal(recording.calls.filter((args) => args.includes('./vendor/bin/pest')).length, 1);
+            assert.ok(recording.calls.some((args) => args.some((arg) => arg.startsWith('--log-junit='))));
+        }
+    } finally {
+        if (previous === undefined) delete process.env.ERNIE_MYSQL_REPORT_DIR;
+        else process.env.ERNIE_MYSQL_REPORT_DIR = previous;
+        rmSync(directory, { recursive: true, force: true });
+    }
 });
 
 test('prepare preserves data, reset only addresses the test server, and exec does not reset', () => {

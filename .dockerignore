@@ -13,9 +13,31 @@
 # Cache files
 /bootstrap/cache/*.php
 /.tmp
+/.trivy-cache
+/trivy-results
+/ernie-*-security-scan.tar
+
+# Local runtime data must not be baked into application or Nginx images.
+/storage/logs/*
+!/storage/logs/.gitignore
+/storage/inertia-devtools
+/storage/framework/cache/**
+!/storage/framework/cache/**/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/app/**
+!/storage/app/**/.gitignore
+!/storage/app/testing/**
 
 # Environment files (production will be copied explicitly)
 .env
+.env.*
+!.env.production
+!.env.example
+!.env.docker.example
+!.env.testing
 .env.backup
 # Key-generation leftovers can contain credentials after an abrupt container stop.
 .env-key.*

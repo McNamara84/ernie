@@ -82,11 +82,11 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.10.0** from `.node-version` and npm **12.2.0** from
+    Use Node **26.13.0** from `.node-version` and npm **12.2.1** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
-    npm install --global npm@12.2.0
+    npm install --global npm@12.2.1
     npm ci
     ```
 
@@ -104,7 +104,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
 
-    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.10.0** and npm **12.2.0** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.0** and npm **12.2.1** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
@@ -370,6 +370,12 @@ included in `PlaywrightTestSeeder` through `ContactPersonsPlaywrightSeeder`.
 | Canonical backend validation                     | Host shell                     | `npm run check:backend`                             |
 | Canonical frontend validation                    | Host shell                     | `npm run check:frontend`                            |
 | Canonical parity validation                      | Host shell                     | `npm run check:parity`                              |
+
+Pint, the complete Pest suite and PHPStan refresh a Linux-native workspace in
+the application container before validation. This avoids repeated Windows/macOS
+bind-mount reads. PHPStan also inherits the 2 GB PHP configuration when its
+analyzer restarts or launches workers. Run these wrappers sequentially because
+they share that workspace.
 
 ## Environment Files
 
@@ -1205,3 +1211,103 @@ response time, native PHP request time, navigation completion, browser frames, t
 usable, and Playwright control time separately. The rendered row IDs must match
 the response order. Sorting and filtering preserve the mounted overview and
 expanded details without replaying the page transition.
+
+## Advisory PHP 8.6 compatibility check
+
+Run the same sequential compatibility probe locally with the pinned Node/npm
+toolchain and Docker:
+
+```bash
+npm run test:php:8.6
+```
+
+The wrapper selects the newest official PHP 8.6 release, preferring stable
+releases over release candidates, and resolves its immutable Docker digest for
+that run. It never follows PHP 8.7. It copies tracked and non-ignored source
+files from the worktree into a temporary directory, installs the unchanged
+`composer.lock` including development packages, and uses a dedicated Compose
+project without published ports. Existing development containers, environments,
+dependencies and data volumes are preserved. MySQL uses the exact 9.7 image
+from `docker-compose.dev.yml`; PHP processes use 2 GB of memory.
+
+The stages run in this order:
+
+1. PHP runtime and required extensions.
+2. Actual Composer platform requirements, locked installation and Laravel boot.
+3. Complete Pest suite and offline JSON-LD validation.
+4. All MySQL-sensitive slices, serially.
+5. PHPStan with an explicit PHP 8.6 analysis target.
+
+The first failure stops subsequent stages. Parallel Unit/Feature workers within
+the backend stage retain the normal repository defaults. Xdebug and additional
+coverage collection are omitted from this probe.
+
+Results are written to `.tmp/php86-report/summary.md` and `report.json`, with
+per-stage logs and available JUnit reports. `ERNIE_PHP86_REPORT_DIR` can select
+another report directory. Local exit codes are 0 (compatible), 1 (incompatible)
+and 2 (not verifiable). The full local command cleans up its private containers
+and workspace when it finishes. After an interrupted run, cleanup can be retried:
+
+```bash
+npm run test:php:8.6 -- --cleanup
+```
+
+CI invokes `--stage environment`, `composer`, `backend`, `mysql` and `phpstan`
+separately, followed by `--report` and `--cleanup`. The same report directory
+must be used for all stages. A stage is allowed to run only after its predecessors
+passed. Composer's `config.platform` does not replace the actual runtime check;
+the probe never uses `composer update` or ignores platform requirements.
+
+`PHP 8.6 Compatibility` runs on PRs targeting `main`/`dev`, pushes to those
+branches, manual dispatch and daily at 04:23 UTC. Scheduled execution checks
+both branch heads explicitly and records each tested SHA. PR execution records
+the merge commit as well as the PR head. The workflow must exist on the default
+branch for scheduled execution to become active.
+
+PR, push and manual runs check out the triggering `github.sha`; choose the
+branch or tag through GitHub's dispatch ref for a manual run. The reusable
+workflow accepts no arbitrary checkout ref. Only a scheduled run can switch
+between the fixed `refs/heads/main` and `refs/heads/dev` integration branches,
+using a boolean selector. This prevents a caller from selecting untrusted code
+inside the default branch's cache scope. Automatic npm caching is disabled for
+this probe.
+
+The result job is green for an ordinary completed probe and names its outcome:
+**compatible**, **incompatible**, or **unavailable**. Only **compatible** means
+all five stages passed. Download failures, incomplete reports and unavailable
+infrastructure do not count as incompatibility; confirmed PHP extension compiler
+errors, platform constraints and test/analysis failures are reported separately.
+GitHub cancellation or runner loss can still abort the workflow. Diagnostic
+artifacts are retained for 14 days. This advisory workflow is excluded from the
+existing release and branch synchronization requirements.
+
+As of 3 November 2026, stable phpredis 6.3.0 fails to compile against PHP
+8.6.0RC4 because it references removed Zend/PHP APIs. The probe reports this
+required-extension blocker and skips Composer and all later stages. An upstream
+extension update must be included in the repository before the locked project
+can pass this stage; the probe does not substitute unreviewed development code.
+
+### Dependency update evidence
+
+The version inventory, upstream constraints and remaining image findings from
+3 November 2026 are recorded in [dependency-update-audit.json](dependency-update-audit.json).
+Composer and application npm audits report no known vulnerabilities. Some
+transitive packages remain at the newest versions permitted by their upstream
+dependencies; the inventory names these constraints explicitly.
+
+npm 12.2.1 still bundles Undici 6.29.0 through node-gyp. Docker builds and CI run
+`scripts/patch-npm-undici.mjs` to replace that copy with the verified 6.29.1
+security release. The script checks the npm version, package identity and archive
+SHA-512, and refuses unexpected installations. It is temporary until an upstream
+npm release includes the patch ([npm issue 10163](https://github.com/npm/cli/issues/10163)).
+For a host npm installation, the same explicit patch can be applied after setup:
+
+```powershell
+node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
+```
+
+The official MySQL 9.7.4 image still contains scanner findings in its bundled
+`mysqlsh` Python dependencies and the Go library embedded in `gosu`. These are
+listed individually in the audit; updating the image does not establish that it
+has no known vulnerabilities. The server remains pinned to MySQL 9.7, and the
+existing security gates retain their original severity rules and suppressions.
