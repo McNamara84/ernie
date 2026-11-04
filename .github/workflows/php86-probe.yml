@@ -1,0 +1,151 @@
+name: PHP 8.6 staged probe
+
+on:
+  workflow_call:
+    inputs:
+      scheduled_dev:
+        description: Test the trusted dev branch instead of main during scheduled runs only
+        default: false
+        type: boolean
+      target:
+        required: true
+        type: string
+      pr_head:
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: PHP 8.6 stages (${{ inputs.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ERNIE_PHP86_REPORT_DIR: .tmp/php86-report
+      ERNIE_PHP86_TARGET: ${{ inputs.target }}
+      ERNIE_PHP86_PR_HEAD: ${{ inputs.pr_head }}
+    outputs:
+      label: ${{ steps.report.outputs.label }}
+      status: ${{ steps.report.outputs.status }}
+      artifact: ${{ steps.artifact.outputs.artifact-id }}
+      artifact_url: ${{ steps.artifact.outputs.artifact-url }}
+    steps:
+      - name: Checkout tested commit
+        id: checkout
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Keep PR/push/manual execution in its triggering commit's trust context.
+          # The scheduled run may select only our two trusted integration branches;
+          # never accept a caller-supplied ref in the default branch's cache scope.
+          ref: ${{ github.event_name == 'schedule' && (inputs.scheduled_dev && 'refs/heads/dev' || 'refs/heads/main') || github.sha }}
+          persist-credentials: false
+
+      - name: Setup Node
+        id: node
+        if: steps.checkout.outcome == 'success'
+        continue-on-error: true
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Install JSON-LD validation dependencies
+        id: npm
+        if: steps.node.outcome == 'success'
+        continue-on-error: true
+        run: |
+          npm install --global npm@12.2.1
+          node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
+          npm ci
+
+      - name: '0: PHP 8.6 runtime and extensions'
+        id: environment
+        if: steps.npm.outcome == 'success'
+        continue-on-error: true
+        run: npm run test:php:8.6 -- --stage environment
+
+      - name: '1: Locked Composer dependencies and application bootstrap'
+        id: composer
+        if: steps.environment.outcome == 'success'
+        continue-on-error: true
+        run: npm run test:php:8.6 -- --stage composer
+
+      - name: '2: Complete backend tests and JSON-LD validation'
+        id: backend
+        if: steps.composer.outcome == 'success'
+        continue-on-error: true
+        run: npm run test:php:8.6 -- --stage backend
+
+      - name: '3: MySQL 9.7 sensitive tests'
+        id: mysql
+        if: steps.backend.outcome == 'success'
+        continue-on-error: true
+        run: npm run test:php:8.6 -- --stage mysql
+
+      - name: '4: PHPStan targeting PHP 8.6'
+        id: phpstan
+        if: steps.mysql.outcome == 'success'
+        continue-on-error: true
+        run: npm run test:php:8.6 -- --stage phpstan
+
+      - name: Summarize compatibility
+        id: report
+        if: always() && steps.node.outcome == 'success'
+        continue-on-error: true
+        run: node scripts/run-php86.mjs --report
+
+      - name: Upload diagnostic evidence
+        id: artifact
+        if: always() && steps.report.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: php86-${{ inputs.target == 'main' && 'main' || inputs.target == 'dev' && 'dev' || 'current' }}-${{ github.run_attempt }}
+          path: |
+            .tmp/php86-report/report.json
+            .tmp/php86-report/summary.md
+            .tmp/php86-report/*.log
+            .tmp/php86-report/backend/*.xml
+            .tmp/php86-report/mysql/*.xml
+          retention-days: 14
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Remove the private compatibility stack
+        if: always() && steps.node.outcome == 'success'
+        continue-on-error: true
+        run: node scripts/run-php86.mjs --cleanup
+
+  result:
+    name: 'PHP 8.6 (${{ inputs.target }}): ${{ needs.probe.outputs.label || ''unavailable'' }}'
+    needs: probe
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download stage summary
+        id: evidence
+        if: needs.probe.outputs.artifact != ''
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.probe.outputs.artifact }}
+          path: evidence
+          merge-multiple: true
+
+      - name: Publish advisory result
+        env:
+          LABEL: ${{ needs.probe.outputs.label || 'unavailable' }}
+          ARTIFACT_URL: ${{ needs.probe.outputs.artifact_url }}
+        run: |
+          if [ -f evidence/summary.md ]; then
+            cat evidence/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '# PHP 8.6: %s\n\nDetailed evidence was unavailable. See the preceding job logs.\n' "$LABEL" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -n "$ARTIFACT_URL" ]; then
+            printf '\n[Diagnostic artifacts](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          fi

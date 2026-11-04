@@ -33,7 +33,9 @@ jobs:
           node-version-file: '.node-version'
 
       - name: Setup npm
-        run: npm install --global npm@12.2.0
+        run: |
+          npm install --global npm@12.2.1
+          node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
 
       - name: Composer audit
         run: composer audit --locked
@@ -155,21 +157,21 @@ jobs:
 
       - name: Upload application Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.app_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-results/app.sarif
           category: trivy-app-image
 
       - name: Upload Nginx Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.nginx_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-results/nginx.sarif
           category: trivy-nginx-image
 
       - name: Upload F-UJI Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.fuji_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-results/fuji.sarif
           category: trivy-fuji-image

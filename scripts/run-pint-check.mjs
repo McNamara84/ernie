@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+import { composeArguments } from './docker-compose.mjs';
 import { createTestTimings } from './test-runtime.mjs';
 
-const compose = ['compose', '--env-file', '.env.docker', '-f', 'docker-compose.dev.yml'];
+const compose = composeArguments();
 function docker(args) {
     const result = spawnSync('docker', [...compose, ...args], { stdio: 'inherit' });
     if (result.error || result.signal || result.status !== 0) {

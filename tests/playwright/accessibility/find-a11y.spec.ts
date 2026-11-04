@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { openFind } from '../helpers/find';
+import { isLocalWindowsWebKit } from '../helpers/navigation';
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
@@ -62,7 +63,7 @@ test.describe('Find accessibility', () => {
     for (const colorScheme of ['light', 'dark'] as const) {
         test(`supports the skip link and keyboard access to every content link in ${colorScheme}`, async ({ page, browserName }) => {
             // Windows MiniBrowser omits native links from Tab traversal; Linux CI covers WebKit.
-            test.skip(browserName === 'webkit' && process.platform === 'win32', 'Windows WebKit omits links from its native Tab cycle.');
+            test.skip(isLocalWindowsWebKit(browserName), 'Windows WebKit omits links from its native Tab cycle.');
             await page.emulateMedia({ colorScheme });
             await openFind(page);
             await page.keyboard.press('Tab');

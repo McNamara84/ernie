@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 import type { GeoLocation } from '../../../resources/js/lib/landing-page-geolocation';
 import { test } from '../fixtures/client-identity';
-import { navigateWithTlsRetry } from '../helpers/navigation';
+import { navigateWithTlsRetry, prepareHtmlInterception } from '../helpers/navigation';
 
 const point: GeoLocation = {
     id: 1,
@@ -18,6 +18,7 @@ const point: GeoLocation = {
 };
 
 async function openLocationPage(page: Page, locations: readonly GeoLocation[], preview: boolean, igsn = false) {
+    await prepareHtmlInterception(page);
     let injected = false;
     await page.route('**/10.5880/**', async (route) => {
         if (route.request().resourceType() !== 'document') return route.continue();
