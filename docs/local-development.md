@@ -1266,7 +1266,7 @@ inside the default branch's cache scope. Automatic npm caching is disabled for
 this probe.
 
 The result job is green for an ordinary completed probe and names its outcome:
-**kompatibel**, **inkompatibel**, or **nicht prüfbar**. Only **kompatibel** means
+**compatible**, **incompatible**, or **unavailable**. Only **compatible** means
 all five stages passed. Download failures, incomplete reports and unavailable
 infrastructure do not count as incompatibility; confirmed PHP extension compiler
 errors, platform constraints and test/analysis failures are reported separately.

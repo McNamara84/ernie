@@ -120,7 +120,7 @@ jobs:
         run: node scripts/run-php86.mjs --cleanup
 
   result:
-    name: 'PHP 8.6 (${{ inputs.target }}): ${{ needs.probe.outputs.label || ''nicht prüfbar'' }}'
+    name: 'PHP 8.6 (${{ inputs.target }}): ${{ needs.probe.outputs.label || ''unavailable'' }}'
     needs: probe
     if: always()
     runs-on: ubuntu-latest
@@ -138,7 +138,7 @@ jobs:
 
       - name: Publish advisory result
         env:
-          LABEL: ${{ needs.probe.outputs.label || 'nicht prüfbar' }}
+          LABEL: ${{ needs.probe.outputs.label || 'unavailable' }}
           ARTIFACT_URL: ${{ needs.probe.outputs.artifact_url }}
         run: |
           if [ -f evidence/summary.md ]; then

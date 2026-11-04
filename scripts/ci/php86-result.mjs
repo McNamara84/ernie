@@ -1,5 +1,5 @@
 export const stages = ['environment', 'composer', 'backend', 'mysql', 'phpstan'];
-export const labels = { environment: 'Umgebung', composer: 'Composer', backend: 'Backend', mysql: 'MySQL', phpstan: 'PHPStan' };
+export const labels = { environment: 'Environment', composer: 'Composer', backend: 'Backend', mysql: 'MySQL', phpstan: 'PHPStan' };
 
 const excludedDirectories = new Set(['.git', '.tmp', '.release-candidate', '.vitest', 'node_modules', 'vendor', 'coverage', 'playwright-report', 'test-results', '.trivy-cache']);
 const environmentTemplates = new Set(['.env.example', '.env.docker.example', '.env.production', '.env.testing']);
@@ -46,14 +46,14 @@ export function resultOf(report) {
         if (report.schemaVersion !== 1 || !/^8\.6\.\d+(?:RC\d+)?$/.test(metadata?.php ?? '')
             || !/^php:8\.6\.\d+(?:RC\d+)?-fpm-trixie@sha256:[a-f0-9]{64}$/.test(metadata?.image ?? '')
             || !/^[a-f0-9]{64}$/.test(metadata?.lockSha256 ?? '') || !/^9\.7\.\d+/.test(metadata?.mysql ?? '')) {
-            return { status: 'unavailable', label: 'nicht prüfbar – Nachweise', blocker: 'evidence' };
+            return { status: 'unavailable', label: 'unavailable – Evidence', blocker: 'evidence' };
         }
-        return { status: 'compatible', label: 'kompatibel', blocker: '' };
+        return { status: 'compatible', label: 'compatible', blocker: '' };
     }
     if (report?.stages?.[first]?.status === 'incompatible') {
-        return { status: 'incompatible', label: `inkompatibel – ${labels[first]}`, blocker: first };
+        return { status: 'incompatible', label: `incompatible – ${labels[first]}`, blocker: first };
     }
-    return { status: 'unavailable', label: `nicht prüfbar – ${labels[first]}`, blocker: first };
+    return { status: 'unavailable', label: `unavailable – ${labels[first]}`, blocker: first };
 }
 
 export function skipFollowing(report, stage) {
@@ -70,7 +70,7 @@ export function summaryOf(report) {
     return [
         `# PHP 8.6: ${result.label}`,
         '',
-        'This check is advisory. A green check records the result; only **kompatibel** means every required stage passed.',
+        'This check is advisory. A green check records the result; only **compatible** means every required stage passed.',
         '',
         '| Evidence | Value |', '| --- | --- |',
         ...Object.entries(metadata).map(([key, value]) => `| ${escape(key)} | ${escape(value)} |`),

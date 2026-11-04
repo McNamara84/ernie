@@ -39,7 +39,7 @@ test('PHP 8.6 selection moves from published RC to stable without following PHP 
 });
 
 test('compatibility requires every stage and actual runtime evidence', () => {
-    assert.equal(resultOf(complete()).status, 'compatible');
+    assert.deepEqual(resultOf(complete()), { status: 'compatible', label: 'compatible', blocker: '' });
     for (const stage of stages) {
         for (const status of ['pending', 'running', 'skipped', 'unavailable', 'cancelled', undefined]) {
             const report = complete();
@@ -52,7 +52,7 @@ test('compatibility requires every stage and actual runtime evidence', () => {
         assert.equal(resultOf(report).status, 'unavailable');
     }
     const report = complete(); report.metadata.php = '8.5.12';
-    assert.equal(resultOf(report).status, 'unavailable');
+    assert.deepEqual(resultOf(report), { status: 'unavailable', label: 'unavailable – Evidence', blocker: 'evidence' });
 });
 
 test('first failed stage blocks every following stage and stays visible in the summary', () => {
@@ -64,6 +64,11 @@ test('first failed stage blocks every following stage and stays visible in the s
         assert.equal(resultOf(report).blocker, name);
         for (const later of stages.slice(stages.indexOf(name) + 1)) assert.equal(report.stages[later].status, 'skipped');
         assert.match(summaryOf(report), /PHP &lt;8.6/);
+        if (name === 'environment') {
+            assert.equal(resultOf(report).label, 'incompatible – Environment');
+            assert.equal(report.stages.composer.reason, 'Blocked by Environment.');
+            assert.match(summaryOf(report), /\| Environment \| incompatible \|/);
+        }
     }
 });
 
@@ -164,8 +169,14 @@ test('the reporting entrypoint exits successfully and publishes an explicit GitH
             const expected = status === 'missing' || status in malformed ? 'unavailable' : status;
             assert.match(readFileSync(output, 'utf8'), new RegExp(`status=${expected}\\n`));
             assert.equal(JSON.parse(readFileSync(join(directory, 'report.json'), 'utf8')).result.status, expected);
-            assert.match(readFileSync(summary, 'utf8'), /^# PHP 8\.6: /);
-            if (expected !== 'compatible') assert.doesNotMatch(readFileSync(output, 'utf8'), /^label=kompatibel$/m);
+            const expectedLabel = expected === 'compatible' ? 'compatible'
+                : expected === 'incompatible' ? 'incompatible – Composer'
+                    : status === 'unavailable' ? 'unavailable – Composer' : 'unavailable – Environment';
+            assert.ok(readFileSync(output, 'utf8').includes(`label=${expectedLabel}\n`));
+            assert.ok(readFileSync(summary, 'utf8').startsWith(`# PHP 8.6: ${expectedLabel}\n`));
+            assert.ok(result.stdout.includes(`PHP 8.6: ${expectedLabel}`));
+            assert.match(readFileSync(summary, 'utf8'), /only \*\*compatible\*\* means every required stage passed/);
+            if (expected !== 'compatible') assert.doesNotMatch(readFileSync(output, 'utf8'), /^label=compatible$/m);
         }
     } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
