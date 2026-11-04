@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
 import type { DataCentre } from '../../../resources/js/types/data-centres';
+import { prepareHtmlInterception } from './navigation';
 
 export const dataCentres: DataCentre[] = JSON.parse(readFileSync(resolve(process.cwd(), 'resources/data/data-centres.json'), 'utf8'));
 
@@ -11,16 +12,7 @@ export const dataCentres: DataCentre[] = JSON.parse(readFileSync(resolve(process
  * Backend integration tests independently verify live facet selection and the public props.
  */
 export async function useDataCentreCatalogue(page: Page, centres: DataCentre[] = dataCentres) {
-    if (process.platform === 'win32' && page.context().browser()?.browserType().name() === 'webkit') {
-        // Windows WebKit can reject its first TLS handshake despite ignoreHTTPSErrors.
-        // Intercepted HTML would move that handshake to the stylesheet and leave the
-        // page unstyled. Establish the native connection before intercepting pages.
-        const connect = () => page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
-        await connect().catch((error: unknown) => {
-            if (!(error instanceof Error) || !error.message.includes('SSL connect error')) throw error;
-            return connect();
-        });
-    }
+    await prepareHtmlInterception(page);
     await page.route(/\/data-centres(?:\/description)?(?:\?[^#]*)?$/, async (route) => {
         const response = await route.fetch();
         const body = await response.text();

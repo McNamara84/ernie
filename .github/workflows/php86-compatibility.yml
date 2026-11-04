@@ -1,0 +1,36 @@
+name: PHP 8.6 Compatibility
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: php86-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  current:
+    if: github.event_name != 'schedule'
+    uses: ./.github/workflows/php86-probe.yml
+    with:
+      target: ${{ github.head_ref || github.ref_name }}
+      pr_head: ${{ github.event.pull_request.head.sha || '' }}
+  main:
+    if: github.event_name == 'schedule'
+    uses: ./.github/workflows/php86-probe.yml
+    with:
+      target: main
+  dev:
+    if: github.event_name == 'schedule'
+    uses: ./.github/workflows/php86-probe.yml
+    with:
+      scheduled_dev: true
+      target: dev

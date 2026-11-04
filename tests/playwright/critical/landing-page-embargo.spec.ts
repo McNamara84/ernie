@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { navigateWithTlsRetry } from '../helpers/navigation';
+import { navigateWithTlsRetry, prepareHtmlInterception } from '../helpers/navigation';
 
 const states = [
     { name: 'running', date: '2027-01-01', due: false, notice: 'Under embargo until 2027-01-01' },
@@ -18,6 +18,7 @@ for (const template of ['default_gfz', 'default_gfz_igsn']) {
     for (const colorScheme of ['light', 'dark'] as const) {
         for (const state of states) {
             test(`${template}: centers the ${state.name} embargo notice in ${colorScheme} mode at mobile and desktop widths`, async ({ page }) => {
+                await prepareHtmlInterception(page);
                 await page.emulateMedia({ colorScheme });
                 // Use the application's font fallback without depending on the font CDN.
                 await page.route('https://fonts.bunny.net/**', (route) => route.fulfill({ contentType: 'text/css', body: '' }));

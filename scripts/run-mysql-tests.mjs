@@ -1,10 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { composeArguments } from './docker-compose.mjs';
 import { createTestTimings } from './test-runtime.mjs';
 
-const compose = ['compose', '--env-file', '.env.docker', '-f', 'docker-compose.dev.yml', '--profile', 'test'];
+const compose = [...composeArguments(), '--profile', 'test'];
 const manifest = JSON.parse(readFileSync(new URL('../tests/mysql-sensitive-slices.json', import.meta.url), 'utf8'));
 const resetSql = "DROP DATABASE IF EXISTS ernie_test; CREATE DATABASE ernie_test; GRANT ALL PRIVILEGES ON ernie_test.* TO 'ernie'@'%'; FLUSH PRIVILEGES;";
 const prepareSql = "CREATE DATABASE IF NOT EXISTS ernie_test; GRANT ALL PRIVILEGES ON ernie_test.* TO 'ernie'@'%'; FLUSH PRIVILEGES;";
@@ -76,11 +78,30 @@ export function runMysqlTests({ selection, action = 'tests', pestArgs = [], exec
     }
     for (const { name, paths } of action === 'exec' ? [{ name: 'focused', paths: [] }] : slices) {
         if (action !== 'exec') reset(name);
-        timings.measure(`Tests: ${name}`, () => execute([
-            'exec', '-T', ...(workspace ? ['-w', '/var/www/pest-workspace'] : []),
-            ...databaseEnvironment.flatMap((value) => ['-e', value]),
-            'app', 'php', '-d', 'memory_limit=2G', './vendor/bin/pest', '--no-coverage', ...paths, ...pestArgs,
-        ]));
+        const reportDirectory = process.env.ERNIE_MYSQL_REPORT_DIR?.trim();
+        const reportPath = `/tmp/ernie-mysql-${name}.xml`;
+        let failure;
+        try {
+            timings.measure(`Tests: ${name}`, () => execute([
+                'exec', '-T', ...(workspace ? ['-w', '/var/www/pest-workspace'] : []),
+                ...databaseEnvironment.flatMap((value) => ['-e', value]),
+                'app', 'php', '-d', 'memory_limit=2G', './vendor/bin/pest', '--no-coverage', ...paths, ...pestArgs,
+                ...(reportDirectory ? [`--log-junit=${reportPath}`] : []),
+            ]));
+        } catch (error) {
+            failure = error;
+        } finally {
+            if (reportDirectory) {
+                try {
+                    mkdirSync(reportDirectory, { recursive: true });
+                    execute(['cp', `app:${reportPath}`, resolve(reportDirectory, `${name}.xml`)]);
+                } catch (error) {
+                    console.error(`[mysql] Could not collect ${name} JUnit evidence: ${error.message}`);
+                    failure ??= error;
+                }
+            }
+        }
+        if (failure) throw failure;
     }
 }
 

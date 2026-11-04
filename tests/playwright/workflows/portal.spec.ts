@@ -308,6 +308,8 @@ test.describe('Portal Page', () => {
             const nextButton = results.getByRole('button', { name: 'Next', exact: true });
 
             await expect(results).toBeVisible();
+            // The asynchronous count adds page-number buttons and moves Next.
+            await expect(results.getByRole('button', { name: '2', exact: true })).toBeVisible();
             await expect(nextButton).toBeVisible();
             expect(await resultsViewport.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
 
