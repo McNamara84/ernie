@@ -77,6 +77,10 @@
         ],
         "fixes": [
             {
+                "title": "PID4INST Updates with Empty Measured Variables",
+                "description": "Registry updates retain instruments whose optional measured-variable list contains empty entries. Meaningful values are preserved, while invalid types and identity conflicts remain protected. Hard validation errors in existing records now stop processing immediately, avoiding unnecessary checks of later instruments."
+            },
+            {
                 "title": "PID4INST Updates with Unregistered Handles",
                 "description": "The B2INST v3 registry update now excludes instruments whose metadata Handle is explicitly unregistered and has no provider PID, including entries from the previous selection, while updating the remaining instruments. Settings shows persistent exclusion details and the actual published count. Existing dataset instrument links and curated names are preserved. Network failures, identity conflicts and incomplete downloads continue to retain the previous registry."
             },
