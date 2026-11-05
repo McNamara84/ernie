@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Models\PidSetting;
 use App\Services\B2inst\B2instSnapshotStore;
 use App\Services\ElmoCacheRefreshDispatcherService;
+use App\Services\Pid4instUpdateDiagnosticsService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -117,7 +118,7 @@ class UpdatePidJob implements ShouldQueue
                     $result = [
                         'itemCount' => $snapshot['total'] ?? 0,
                         'lastUpdated' => $snapshot['lastUpdated'] ?? null,
-                        'refreshPending' => data_get($snapshot, '_sync.refreshPending', false),
+                        ...Pid4instUpdateDiagnosticsService::fromSnapshot($snapshot ?? []),
                     ];
                 } else {
                     app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting->refresh());

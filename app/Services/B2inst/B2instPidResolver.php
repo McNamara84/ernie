@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\B2inst;
 
 use App\Enums\CacheKey;
+use App\Exceptions\UnregisteredInstrumentHandle;
 use App\Support\Traits\ChecksCacheTagging;
 use InvalidArgumentException;
 use RuntimeException;
@@ -39,7 +40,7 @@ class B2instPidResolver
         $metadataTarget = $this->target($metadata);
         if ($provider === null) {
             if ($metadataTarget === null) {
-                throw new InvalidArgumentException('Metadata Handle is not registered and has no ePIC provider PID.');
+                throw new UnregisteredInstrumentHandle;
             }
             if (! $this->belongsTo($metadataTarget, $record)) {
                 throw new RuntimeException('Metadata Handle target does not establish the instrument identity.');

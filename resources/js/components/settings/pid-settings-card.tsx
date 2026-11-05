@@ -22,7 +22,13 @@ function getCsrfToken(): string {
 /** Delay before reloading page after successful PID update (in ms) */
 const UPDATE_SUCCESS_RELOAD_DELAY_MS = 1500;
 
-export interface PidSettingData {
+interface PidUpdateDiagnostics {
+    excludedCount?: number;
+    exclusions?: { id: string; reasonCode: string }[];
+    refreshPending?: boolean;
+}
+
+export interface PidSettingData extends PidUpdateDiagnostics {
     type: string;
     displayName: string;
     isActive: boolean;
@@ -59,7 +65,7 @@ export function getCompletedPidLocalStatus(
     };
 }
 
-interface JobStatus {
+interface JobStatus extends PidUpdateDiagnostics {
     status: 'running' | 'completed' | 'failed';
     pidType: string;
     progress: string;
@@ -69,7 +75,6 @@ interface JobStatus {
     error?: string;
     itemCount?: number;
     lastUpdated?: string | null;
-    refreshPending?: boolean;
 }
 
 interface PidSettingRowProps {
@@ -99,6 +104,8 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
     const [updateJobId, setUpdateJobId] = useState<string | null>(null);
     const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
     const [localStatusOverride, setLocalStatusOverride] = useState<PidLocalStatusOverride | null>(null);
+    const [completedDiagnostics, setCompletedDiagnostics] = useState<PidUpdateDiagnostics | null>(null);
+    const diagnostics = completedDiagnostics ?? pidSetting;
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const { auth } = usePage<SharedData>().props;
@@ -107,6 +114,10 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
     useEffect(() => {
         setLocalStatusOverride(null);
     }, [pidSetting.exists, pidSetting.itemCount, pidSetting.lastUpdated, pidSetting.type]);
+
+    useEffect(() => {
+        setCompletedDiagnostics(null);
+    }, [pidSetting]);
 
     // Cleanup polling on unmount
     useEffect(() => {
@@ -187,6 +198,11 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                                   }
                                 : getCompletedPidLocalStatus(pidSetting, updateInfo, status.completedAt),
                         );
+                        setCompletedDiagnostics({
+                            excludedCount: status.excludedCount ?? 0,
+                            exclusions: status.exclusions ?? [],
+                            refreshPending: status.refreshPending ?? false,
+                        });
                         setCheckStatus('idle');
                         setUpdateInfo(null);
                         onUpdateComplete?.();
@@ -383,8 +399,8 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                                 <>
                                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span>
-                                        Count unchanged ({updateInfo.localCount.toLocaleString()} instruments); metadata freshness has not been
-                                        checked. Use Update Now to refresh all metadata.
+                                        Remote record count unchanged ({updateInfo.remoteCount.toLocaleString()} records); metadata freshness has not
+                                        been checked. Use Update Now to refresh all metadata.
                                     </span>
                                 </>
                             ) : (
@@ -396,6 +412,42 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                                 </>
                             )}
                         </div>
+                    )}
+
+                    {pidSetting.type === 'pid4inst' && (diagnostics.excludedCount ?? 0) > 0 && (
+                        <div
+                            role="status"
+                            className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                        >
+                            <p>
+                                The last registry update excluded {diagnostics.excludedCount} instrument{diagnostics.excludedCount === 1 ? '' : 's'}.{' '}
+                                Existing dataset links were preserved.
+                            </p>
+                            {(diagnostics.exclusions?.length ?? 0) > 0 && (
+                                <details className="mt-2">
+                                    <summary className="cursor-pointer">Excluded instruments</summary>
+                                    <ul className="mt-2 list-inside list-disc">
+                                        {diagnostics.exclusions?.map((entry) => (
+                                            <li key={entry.id}>
+                                                {entry.id}:{' '}
+                                                {entry.reasonCode === 'unregistered_handle'
+                                                    ? 'Handle is not registered and no provider PID is available.'
+                                                    : 'Instrument metadata could not be validated.'}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    {(diagnostics.excludedCount ?? 0) > (diagnostics.exclusions?.length ?? 0) && (
+                                        <p>Showing the first {diagnostics.exclusions?.length} excluded instruments.</p>
+                                    )}
+                                </details>
+                            )}
+                        </div>
+                    )}
+                    {pidSetting.type === 'pid4inst' && diagnostics.refreshPending && (
+                        <p role="status" className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+                            The registry was updated, but refreshing the connected editors is still pending. Contact an administrator to retry the
+                            refresh.
+                        </p>
                     )}
 
                     {/* Update progress */}

@@ -141,6 +141,9 @@ class EditorSettingsController extends Controller
                 'exists' => $localStatus['exists'],
                 'itemCount' => $localStatus['itemCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],
+                'excludedCount' => $localStatus['excludedCount'] ?? 0,
+                'exclusions' => $localStatus['exclusions'] ?? [],
+                'refreshPending' => $localStatus['refreshPending'] ?? false,
             ];
         });
 
@@ -531,7 +534,7 @@ class EditorSettingsController extends Controller
     /**
      * Get local status for a PID setting using the appropriate status service.
      *
-     * @return array{exists: bool, itemCount: int, lastUpdated: string|null}
+     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, excludedCount?: int, exclusions?: list<array{id: string, reasonCode: string}>, refreshPending?: bool}
      */
     private function getPidLocalStatus(PidSetting $pidSetting): array
     {
