@@ -7,6 +7,7 @@ use App\Enums\CacheKey;
 use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
 use App\Models\ResourceInstrument;
+use App\Services\B2inst\B2instInstrumentNormalizer;
 use App\Services\B2inst\B2instSnapshotStore;
 use App\Services\B2inst\B2instSyncService;
 use App\Services\DataCiteXmlExporter;
@@ -16,6 +17,7 @@ use App\Services\Pid4instVocabularyService;
 use App\Services\VocabularyCacheService;
 use App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser;
 use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -44,6 +46,57 @@ it('publishes compatible data with internal provenance and invalidates the cache
         ->and($payload['_sync']['refreshPending'])->toBeFalse()
         ->and(app(VocabularyCacheService::class)->cacheVocabulary(CacheKey::PID4INST_INSTRUMENTS, fn () => ['new']))->toBe(['new']);
 });
+
+it('updates an existing instrument with blank measured variables through the background job without losing saved links', function (): void {
+    $record = Fixture::record('4mfvj-1q724');
+    $previous = app(B2instInstrumentNormalizer::class)->normalize($record);
+    $old = json_encode(['lastUpdated' => '2026-05-22T08:01:00Z', 'total' => 1, 'data' => [$previous]], JSON_THROW_ON_ERROR);
+    Storage::put(B2instSnapshotStore::FILE, $old);
+    $vocabulary = app(Pid4instVocabularyService::class);
+    expect($vocabulary->getPublicPayload()['data'][0]['measuredVariables'])->toBe(['Temperature']);
+    $link = ResourceInstrument::factory()->create([
+        'instrument_pid' => $previous['pid'], 'instrument_pid_type' => 'Handle', 'instrument_name' => 'Curated telescope name',
+    ]);
+    $attributes = $link->refresh()->getAttributes();
+    PidSetting::updateOrCreate(['type' => 'pid4inst'], ['display_name' => 'PID4INST', 'is_active' => true, 'is_elmo_active' => false, 'is_elmo_msl_active' => false]);
+    $record['metadata']['MeasuredVariable'] = [''];
+    Http::fake(['https://b2inst.example.test/*' => Http::response(Fixture::page([$record, Fixture::record('second')]))]);
+
+    $jobId = Str::uuid()->toString();
+    (new UpdatePidJob('pid4inst', $jobId))->handle();
+
+    expect(Cache::get(UpdatePidJob::getCacheKey($jobId)))->toMatchArray([
+        'status' => 'completed', 'itemCount' => 2, 'excludedCount' => 0, 'exclusions' => [], 'refreshPending' => false,
+    ])->and($link->refresh()->getAttributes())->toBe($attributes)
+        ->and(Storage::get(B2instSnapshotStore::FILE.'.previous'))->toBe($old);
+    $payload = $vocabulary->getPublicPayload();
+    expect($payload['total'])->toBe(2)->and($payload['data'][0])->toMatchArray([
+        'id' => $record['id'], 'pid' => $previous['pid'], 'name' => $previous['name'], 'measuredVariables' => [],
+    ])->and($payload)->not->toHaveKey('_sync');
+    Http::assertSentCount(2);
+});
+
+it('stops at an invalid existing record before resolving later instruments', function (string $field, mixed $value): void {
+    $record = Fixture::record();
+    $old = json_encode(['total' => 1, 'data' => [app(B2instInstrumentNormalizer::class)->normalize($record)]], JSON_THROW_ON_ERROR);
+    Storage::put(B2instSnapshotStore::FILE, $old);
+    $vocabulary = app(Pid4instVocabularyService::class);
+    $cached = $vocabulary->getPublicPayload();
+    data_set($record, $field, $value);
+    $later = Fixture::record('later');
+    unset($later['pids']['epic']);
+    Http::fake([
+        'https://b2inst.example.test/*' => Http::response(Fixture::page([$record, $later])),
+        'https://hdl.handle.net/*' => Http::response(Fixture::handle($later['metadata']['LandingPage'])),
+    ]);
+
+    expect(fn () => app(B2instSyncService::class)->sync())->toThrow(RuntimeException::class, 'Invalid B2INST record would remove an existing selection: '.$record['id']);
+    expect(Storage::get(B2instSnapshotStore::FILE))->toBe($old)->and($vocabulary->getPublicPayload())->toBe($cached);
+    Http::assertNotSent(fn (Request $request): bool => str_starts_with($request->url(), 'https://hdl.handle.net/'));
+    Http::assertSentCount(2);
+})->with([
+    ['metadata.MeasuredVariable', ['Temperature', 7]], ['metadata.Name', ' '], ['metadata.Identifier.identifierValue', ''],
+]);
 
 it('updates same-count metadata, preserves saved links and keeps the previous snapshot', function (): void {
     $link = ResourceInstrument::factory()->create(['instrument_pid' => 'https://hdl.handle.net/21.T11975/abc12-def34']);

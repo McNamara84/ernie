@@ -100,6 +100,12 @@ it('excludes unsupported types, invalid fields and non-current or invisible reco
     ['metadata.Identifier.identifierValue', null], ['metadata.Identifier.identifierValue', 42],
     ['metadata.Name', []], ['metadata.Name', ' '], ['metadata.Owner', 'GFZ'],
     ['metadata.Manufacturer', [42]], ['metadata.InstrumentType', ['invalid']], ['metadata.MeasuredVariable', [7]],
+    ['metadata.MeasuredVariable', 'Temperature'], ['metadata.MeasuredVariable', ['name' => 'Temperature']],
+    ['metadata.MeasuredVariable', [1 => 'Temperature']], ['metadata.MeasuredVariable', [null]],
+    ['metadata.MeasuredVariable', [[]]], ['metadata.MeasuredVariable', [false]], ['metadata.MeasuredVariable', [0]],
+    ['metadata.MeasuredVariable', ['Temperature', null]], ['metadata.MeasuredVariable', [' ', ['name' => 'Temperature']]],
+    ['metadata.Owner', [['ownerName' => ' ']]], ['metadata.Manufacturer', [['manufacturerName' => '']]],
+    ['metadata.InstrumentType', [['instrumentTypeName' => ' ']]], ['metadata.Model', ['modelName' => ' ']],
     ['metadata.Model', 'model'], ['metadata.Description', []], ['metadata.LandingPage', []],
     ['metadata.SchemaVersion', '2.0'], ['metadata.SchemaVersion', null],
     ['access.record', 'restricted'], ['is_published', false], ['versions.is_latest', false], ['deletion_status.is_deleted', true],
@@ -111,8 +117,28 @@ it('handles optional metadata without inventing landing pages', function (): voi
         unset($record['metadata'][$key]);
     }
     $result = app(B2instInstrumentNormalizer::class)->normalize($record);
-    expect($result['model'])->toBeNull()->and($result['landingPage'])->toBe('')->and($result['owners'])->toBe([]);
+    expect($result['model'])->toBeNull()->and($result['landingPage'])->toBe('')->and($result['owners'])->toBe([])
+        ->and($result['measuredVariables'])->toBe([]);
 });
+
+it('retains instruments with empty optional measured variables and preserves meaningful values', function (mixed $values, array $expected): void {
+    $record = Fixture::record('4mfvj-1q724');
+    $record['metadata']['MeasuredVariable'] = $values;
+    $result = app(B2instInstrumentNormalizer::class)->normalize($record);
+    expect($result['measuredVariables'])->toBe($expected)
+        ->and(array_is_list($result['measuredVariables']))->toBeTrue()
+        ->and($result['id'])->toBe($record['id'])
+        ->and($result['pid'])->toBe($record['metadata']['Identifier']['identifierValue'])
+        ->and($result['name'])->toBe($record['metadata']['Name']);
+    Http::assertNothingSent();
+})->with([
+    'null' => [null, []],
+    'empty list' => [[], []],
+    'observed empty string' => [[''], []],
+    'whitespace' => [[" \t\r\n "], []],
+    'mixed values' => [['', ' Temperature ', ' ', 'Pressure', '', '0', ' 0 '], ['Temperature', 'Pressure', '0', '0']],
+    'zero string' => [['0'], ['0']],
+]);
 
 it('normalizes supported Handle representations without synthesizing a PID', function (string $value): void {
     expect(B2instPidResolver::handle($value))->toBe('21.T11975/abc12-def34');

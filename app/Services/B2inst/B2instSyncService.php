@@ -40,6 +40,9 @@ class B2instSyncService
             $started = microtime(true);
             $this->client->startBudget();
             $old = $this->store->read();
+            /** @var list<array<string, mixed>> $oldData */
+            $oldData = $old['data'] ?? [];
+            $oldById = array_column($oldData, null, 'id');
             $snapshot = $this->client->records();
             $data = $provenance = $excluded = $pids = [];
             foreach ($snapshot['records'] as $record) {
@@ -48,6 +51,9 @@ class B2instSyncService
                 try {
                     $instrument = $this->normalizer->normalize($record);
                 } catch (InvalidArgumentException $exception) {
+                    if (isset($oldById[$id]) && ! $exception instanceof UnregisteredInstrumentHandle) {
+                        throw new RuntimeException('Invalid B2INST record would remove an existing selection: '.$id.' ('.$exception->getMessage().')', previous: $exception);
+                    }
                     $excluded[] = [
                         'id' => $id, 'reason' => $exception->getMessage(),
                         'reasonCode' => $exception instanceof UnregisteredInstrumentHandle ? UnregisteredInstrumentHandle::REASON : 'invalid_record',
@@ -63,16 +69,8 @@ class B2instSyncService
                 $data[$id] = $instrument;
                 $provenance[$id] = $this->normalizer->provenance($record);
             }
-            /** @var list<array<string, mixed>> $oldData */
-            $oldData = $old['data'] ?? [];
             if ($data === [] && $oldData !== []) {
                 throw new RuntimeException('An empty B2INST candidate cannot replace an existing instrument list.');
-            }
-            $oldById = array_column($oldData, null, 'id');
-            foreach ($excluded as $exclusion) {
-                if (isset($oldById[$exclusion['id']]) && $exclusion['reasonCode'] !== UnregisteredInstrumentHandle::REASON) {
-                    throw new RuntimeException('Invalid B2INST record would remove an existing selection: '.$exclusion['id'].' ('.$exclusion['reason'].')');
-                }
             }
             ksort($data);
             ksort($provenance);
