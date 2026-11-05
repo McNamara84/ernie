@@ -16,7 +16,7 @@ class Pid4instStatusService
     /**
      * Get the local status of a PID setting (from stored JSON file).
      *
-     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, serverCount: int|null}
+     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, serverCount: int|null, excludedCount?: int, exclusions?: list<array{id: string, reasonCode: string}>, refreshPending?: bool}
      */
     public function getLocalStatus(PidSetting $setting): array
     {
@@ -61,6 +61,7 @@ class Pid4instStatusService
             'itemCount' => $data['total'] ?? count($data['data'] ?? []),
             'lastUpdated' => $data['lastUpdated'] ?? null,
             'serverCount' => is_int($serverCount) && $serverCount >= 0 ? $serverCount : null,
+            ...Pid4instUpdateDiagnosticsService::fromSnapshot($data),
         ];
     }
 

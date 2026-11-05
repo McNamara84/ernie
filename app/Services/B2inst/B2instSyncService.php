@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\B2inst;
 
 use App\Enums\CacheKey;
+use App\Exceptions\UnregisteredInstrumentHandle;
 use App\Models\PidSetting;
 use App\Models\ResourceInstrument;
 use App\Services\ElmoCacheRefreshDispatcherService;
@@ -47,7 +48,10 @@ class B2instSyncService
                 try {
                     $instrument = $this->normalizer->normalize($record);
                 } catch (InvalidArgumentException $exception) {
-                    $excluded[] = ['id' => $id, 'reason' => $exception->getMessage()];
+                    $excluded[] = [
+                        'id' => $id, 'reason' => $exception->getMessage(),
+                        'reasonCode' => $exception instanceof UnregisteredInstrumentHandle ? UnregisteredInstrumentHandle::REASON : 'invalid_record',
+                    ];
 
                     continue;
                 }
@@ -66,7 +70,7 @@ class B2instSyncService
             }
             $oldById = array_column($oldData, null, 'id');
             foreach ($excluded as $exclusion) {
-                if (isset($oldById[$exclusion['id']])) {
+                if (isset($oldById[$exclusion['id']]) && $exclusion['reasonCode'] !== UnregisteredInstrumentHandle::REASON) {
                     throw new RuntimeException('Invalid B2INST record would remove an existing selection: '.$exclusion['id'].' ('.$exclusion['reason'].')');
                 }
             }

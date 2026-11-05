@@ -148,6 +148,14 @@ and record the explicit identifier information used for conflict detection.
 The update is available even when the remote and local instrument counts match:
 equal counts do not prove that names or identifiers are unchanged.
 
+If B2INST has no provider PID for an instrument and its Handle is explicitly
+reported as unregistered, the refresh excludes that instrument and updates the
+remaining selection. Settings shows the exclusion count and record details,
+including after reloading the page. Existing dataset links and curated names are
+preserved. Network errors, uncertain identity checks and incomplete downloads
+retain the previous registry. A later successful refresh can restore an instrument
+once its Handle has been registered.
+
 **Resolve names again** in the editor rereads the local registry without
 discarding unsaved form changes or contacting B2INST. If an instrument remains
 unknown, ask an Admin or Group Leader to update the registry in Settings and then

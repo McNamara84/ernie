@@ -77,6 +77,10 @@
         ],
         "fixes": [
             {
+                "title": "PID4INST Updates with Unregistered Handles",
+                "description": "The B2INST v3 registry update now excludes instruments whose metadata Handle is explicitly unregistered and has no provider PID, including entries from the previous selection, while updating the remaining instruments. Settings shows persistent exclusion details and the actual published count. Existing dataset instrument links and curated names are preserved. Network failures, identity conflicts and incomplete downloads continue to retain the previous registry."
+            },
+            {
                 "title": "Instrument Names from B2INST v3 Snapshots",
                 "description": "Instrument name resolution also uses the original metadata and ePIC identifiers retained by B2INST v3 synchronization. Imported and saved PIDs remain unchanged, differing identifiers stay visible, and registry refreshes make updated names available immediately. Public vocabulary responses omit internal provenance and lookup identifiers.",
                 "references": [
