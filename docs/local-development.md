@@ -156,6 +156,12 @@ preserved. Network errors, uncertain identity checks and incomplete downloads
 retain the previous registry. A later successful refresh can restore an instrument
 once its Handle has been registered.
 
+Empty entries in the optional `MeasuredVariable` list are treated as missing
+measurements and do not exclude the instrument. Invalid field types still protect
+the previous registry. Full refreshes can take several minutes when many records
+require external Handle identity checks; a hard error in an existing record now
+stops further instrument processing as soon as it is detected.
+
 **Resolve names again** in the editor rereads the local registry without
 discarding unsaved form changes or contacting B2INST. If an instrument remains
 unknown, ask an Admin or Group Leader to update the registry in Settings and then

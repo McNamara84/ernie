@@ -98,6 +98,10 @@ class B2instInstrumentNormalizer
             throw new InvalidArgumentException('Invalid list: '.($field ?? 'MeasuredVariable'));
         }
 
-        return array_map(fn (mixed $value): string => $this->string($field === null ? $value : data_get($value, $field), $field ?? 'MeasuredVariable', true), $values);
+        // MeasuredVariable is optional free text; migrated records can contain
+        // blank placeholders. Named objects still require their name property.
+        $names = array_map(fn (mixed $value): string => $this->string($field === null ? $value : data_get($value, $field), $field ?? 'MeasuredVariable', $field !== null), $values);
+
+        return array_values(array_filter($names, static fn (string $name): bool => $name !== ''));
     }
 }
