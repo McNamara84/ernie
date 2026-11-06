@@ -5,7 +5,7 @@
 # Usage: docker-compose -f docker-compose.dev.yml up --build
 # =============================================================================
 
-ARG PHP_IMAGE=php:8.5.12-fpm-trixie@sha256:c34bcf437ed61bd5e4c1114494eaf1ffd54253bce2b95d263bfa18b350ee8432
+ARG PHP_IMAGE=php:8.5.12-fpm-trixie@sha256:390bf03586f01031d2acce8711d9132023106da8bf07eaedf7edb64513755143
 FROM mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 AS legacy-mysql-dump-client
 
 # -----------------------------------------------------------------------------
@@ -17,11 +17,11 @@ WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
 ARG PHP_REDIS_SHA256=cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad
-ARG SYSTEM_PACKAGES_REFRESH=2026-11-03
+ARG SYSTEM_PACKAGES_REFRESH=2026-11-05
 ARG XDEBUG_VERSION=3.5.3
 ARG INSTALL_XDEBUG=1
 ARG XDEBUG_SHA256=f073de91bea046106abf4d6071c963ea71e58571df6ce58948ceca89d121cb2d
-ARG NPM_VERSION=12.2.1
+ARG NPM_VERSION=12.2.2
 ARG NODE_CHECKSUM_ARM64=406fe3fbde1c054adff8b297c16fdb5af6659db327c1ac8acd46b56ef1af9a92
 ARG NODE_CHECKSUM_X64=d28a96af6c38596f6d9d97c0ee531c13d238d757742387d1928de822d959e997
 
@@ -209,7 +209,7 @@ RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.in
     && echo "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # Install Composer
-COPY --from=composer:2.11.1@sha256:537fb03057ed901ae06bde7ef25af348903485ae1acc7fc789b80d8bac666f35 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.11.1@sha256:5190d9b445add2fa26090108273cb1ef1e1af98175201c737b85b3c4f90fbf7c /usr/bin/composer /usr/bin/composer
 
 # Create symlink for php in /bin so it's available in all shells
 RUN ln -s /usr/local/bin/php /bin/php
@@ -230,9 +230,6 @@ RUN update-ca-certificates
 # Set permissions for development
 RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
 
-COPY scripts/patch-npm-undici.mjs /usr/local/lib/ernie/patch-npm-undici.mjs
-RUN node /usr/local/lib/ernie/patch-npm-undici.mjs /usr/local/lib/node_modules/npm
-
 EXPOSE 9000
 
 ENTRYPOINT ["dev-entrypoint.sh"]
@@ -243,7 +240,7 @@ CMD ["php-fpm"]
 # -----------------------------------------------------------------------------
 FROM nginx:1.31.8-alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606 AS nginx
 
-ARG SYSTEM_PACKAGES_REFRESH=2026-11-03
+ARG SYSTEM_PACKAGES_REFRESH=2026-11-05
 
 RUN echo "System package refresh: ${SYSTEM_PACKAGES_REFRESH}" \
     && apk upgrade --no-cache
