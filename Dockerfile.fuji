@@ -1,6 +1,6 @@
 FROM ghcr.io/pangaea-data-publisher/fuji:4.0.1@sha256:2108f2e2f52fed4cc0f58f22d47644c5d015c5c66f3886e2440e216c533e6a9a
 
-ARG SYSTEM_PACKAGES_REFRESH=2026-11-03
+ARG SYSTEM_PACKAGES_REFRESH=2026-11-05
 
 RUN echo "System package refresh: ${SYSTEM_PACKAGES_REFRESH}" \
     && apt-get update \

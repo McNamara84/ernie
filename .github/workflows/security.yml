@@ -34,8 +34,7 @@ jobs:
 
       - name: Setup npm
         run: |
-          npm install --global npm@12.2.1
-          node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
+          npm install --global npm@12.2.2
 
       - name: Composer audit
         run: composer audit --locked
@@ -131,7 +130,7 @@ jobs:
               -e TRIVY_DISABLE_VEX_NOTICE \
               -v "${{ github.workspace }}:/work" \
               -w /work \
-              aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
+              aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb image \
               --input "/work/ernie-${target}-security-scan.tar" \
               --cache-dir /work/.trivy-cache \
               --scanners vuln \
@@ -157,21 +156,21 @@ jobs:
 
       - name: Upload application Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.app_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: trivy-results/app.sarif
           category: trivy-app-image
 
       - name: Upload Nginx Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.nginx_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: trivy-results/nginx.sarif
           category: trivy-nginx-image
 
       - name: Upload F-UJI Trivy scan results
         if: ${{ always() && steps.trivy-sarif.outputs.fuji_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: trivy-results/fuji.sarif
           category: trivy-fuji-image
@@ -197,7 +196,7 @@ jobs:
               -e TRIVY_DISABLE_VEX_NOTICE \
               -v "${{ github.workspace }}:/work" \
               -w /work \
-              aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
+              aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb image \
               --input "/work/ernie-${target}-security-scan.tar" \
               --cache-dir /work/.trivy-cache \
               --scanners vuln \

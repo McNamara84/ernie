@@ -1,6 +1,6 @@
 FROM mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 AS legacy-mysql-dump-client
 
-FROM php:8.5.12-fpm-trixie@sha256:c34bcf437ed61bd5e4c1114494eaf1ffd54253bce2b95d263bfa18b350ee8432 AS app-base
+FROM php:8.5.12-fpm-trixie@sha256:390bf03586f01031d2acce8711d9132023106da8bf07eaedf7edb64513755143 AS app-base
 
 WORKDIR /var/www/html
 
@@ -55,7 +55,7 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.11.1@sha256:537fb03057ed901ae06bde7ef25af348903485ae1acc7fc789b80d8bac666f35 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.11.1@sha256:5190d9b445add2fa26090108273cb1ef1e1af98175201c737b85b3c4f90fbf7c /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh docker/laravel-runtime.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
@@ -74,7 +74,7 @@ RUN update-ca-certificates
 
 FROM app-base AS app-build
 
-ARG NPM_VERSION=12.2.1
+ARG NPM_VERSION=12.2.2
 ARG NODE_CHECKSUM_ARM64=406fe3fbde1c054adff8b297c16fdb5af6659db327c1ac8acd46b56ef1af9a92
 ARG NODE_CHECKSUM_X64=d28a96af6c38596f6d9d97c0ee531c13d238d757742387d1928de822d959e997
 
@@ -108,9 +108,6 @@ RUN set -eux; \
     npm --version; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
-
-COPY scripts/patch-npm-undici.mjs /usr/local/lib/ernie/patch-npm-undici.mjs
-RUN node /usr/local/lib/ernie/patch-npm-undici.mjs /usr/local/lib/node_modules/npm
 
 # Copy dependency files FIRST (this layer is cached unless dependencies change)
 COPY composer.json composer.lock ./
