@@ -6,13 +6,13 @@ asgiref==3.13.0
 certifi==2026.10.23
 charset-normalizer==3.5.2
 cryptography==50.0.2
-filelock==4.2.7
+filelock==4.2.9
 httptools==0.9.0
 idutils==1.7.1
 lxml_html_clean==0.4.6
 MarkupSafe==3.0.4
 numpy==2.5.4
-platformdirs==4.14.3
+platformdirs==4.14.5
 playwright==1.64.1
 pycparser==3.12
 pyee==14.0.0
@@ -27,7 +27,8 @@ starlette==1.10.0
 tldextract==5.4.0
 tzdata==2026.6
 urlextract==1.10.0
+uritools==6.1.4
 uvloop==0.23.0
-w3lib==2.5.0
+w3lib==2.6.0
 websockets==17.4
 Werkzeug==3.1.9

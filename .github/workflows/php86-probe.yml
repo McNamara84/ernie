@@ -57,8 +57,7 @@ jobs:
         if: steps.node.outcome == 'success'
         continue-on-error: true
         run: |
-          npm install --global npm@12.2.1
-          node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
+          npm install --global npm@12.2.2
           npm ci
 
       - name: '0: PHP 8.6 runtime and extensions'

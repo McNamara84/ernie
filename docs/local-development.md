@@ -75,11 +75,11 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.13.0** from `.node-version` and npm **12.2.1** from
+    Use Node **26.13.0** from `.node-version` and npm **12.2.2** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
-    npm install --global npm@12.2.1
+    npm install --global npm@12.2.2
     npm ci
     ```
 
@@ -97,7 +97,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
 
-    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.0** and npm **12.2.1** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.0** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
@@ -1283,21 +1283,27 @@ can pass this stage; the probe does not substitute unreviewed development code.
 ### Dependency update evidence
 
 The version inventory, upstream constraints and remaining image findings from
-3 November 2026 are recorded in [dependency-update-audit.json](dependency-update-audit.json).
-Composer and application npm audits report no known vulnerabilities. Some
+5 November 2026 are recorded in [dependency-update-audit.json](dependency-update-audit.json).
+Composer and application npm audits were checked again on 6 November 2026 and
+report no known vulnerabilities. Some
 transitive packages remain at the newest versions permitted by their upstream
 dependencies; the inventory names these constraints explicitly.
 
-npm 12.2.1 still bundles Undici 6.29.0 through node-gyp. Docker builds and CI run
-`scripts/patch-npm-undici.mjs` to replace that copy with the verified 6.29.1
-security release. The script checks the npm version, package identity and archive
-SHA-512, and refuses unexpected installations. It is temporary until an upstream
-npm release includes the patch ([npm issue 10163](https://github.com/npm/cli/issues/10163)).
-For a host npm installation, the same explicit patch can be applied after setup:
+npm 12.2.2 includes Undici 6.29.1, so the temporary npm patch has been removed
+from Docker builds and CI ([npm release notes](https://github.com/npm/cli/releases/tag/v12.2.2)).
+Install the pinned npm version on the host as shown above; no manual dependency
+replacement is needed.
 
-```powershell
-node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
-```
+Playwright stays pinned to 1.64.1: at the time of this audit, the announced
+1.65.0 release lacked both `playwright-core@1.65.0` in npm and its matching
+container image. Update the test runner and browser image together once the
+complete release is available. Major upgrades and incompatible upstream changes
+are tracked separately for `dev` in the audit.
+
+Local Trivy scans of the application, Nginx and F-UJI images pass the existing
+gate for fixable HIGH/CRITICAL findings. The application and F-UJI images still
+have distribution findings without available fixes; the audit records these
+separately. A passing gate does not mean that an image has no known vulnerabilities.
 
 The official MySQL 9.7.4 image still contains scanner findings in its bundled
 `mysqlsh` Python dependencies and the Go library embedded in `gosu`. These are
