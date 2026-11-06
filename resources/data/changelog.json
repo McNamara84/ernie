@@ -25,6 +25,11 @@
                 "title": "Container and API Documentation Security",
                 "description": "Improved container startup and file permissions, rejected unsafe symbolic links during setup, and fixed a data-merging vulnerability in the API documentation.",
                 "references": [{ "type": "pull_request", "number": 1508, "url": "https://github.com/McNamara84/ernie/pull/1508" }]
+            },
+            {
+                "title": "Calendar Keyboard Focus",
+                "description": "Month and year dropdowns in the editor calendar now retain keyboard focus after a selection.",
+                "references": [{ "type": "pull_request", "number": 1530, "url": "https://github.com/McNamara84/ernie/pull/1530" }]
             }
         ]
     },

@@ -4320,7 +4320,7 @@
       {
         "command": "Changelog comparison against HEAD",
         "result": "passed",
-        "note": "Version/date and five existing descriptions updated; all older entries and references unchanged; no new entries."
+        "note": "Initial implementation check before the review follow-up: version/date and five existing descriptions updated; all older entries and references unchanged; no new entries at that stage."
       },
       {
         "command": "docker compose --env-file .env.docker -f docker-compose.dev.yml --profile parity build --pull app vite webserver fuji",
@@ -4535,7 +4535,8 @@
         "actionReferences": 73,
         "unchangedOlderChangelogVersions": 26,
         "existingFixEntries": 5,
-        "newChangelogEntries": 0
+        "newChangelogEntries": 0,
+        "note": "Initial implementation check before the calendar changelog entry requested in the subsequent review."
       },
       {
         "command": "Chromium homepage and health smoke check in the restored Vite development stack",
@@ -4624,7 +4625,31 @@
       "powerRequest": "Process-scoped idle-sleep prevention cleared when the successful browser command finished; no persistent power settings changed.",
       "git": "This implementation session executed no commit, push, merge, tag, release or deployment. Concurrent commit 4e57bd992524e9bc262531bfbafb9d6daf75bfb4 was observed during final cleanup; its changes match the validated implementation. Unrelated pre-existing changes were preserved."
     },
-    "observedImplementationCommit": "4e57bd992524e9bc262531bfbafb9d6daf75bfb4"
+    "observedImplementationCommit": "4e57bd992524e9bc262531bfbafb9d6daf75bfb4",
+    "reviewFollowUps": [
+      {
+        "checkedOn": "2026-11-06",
+        "pullRequest": "https://github.com/McNamara84/ernie/pull/1530",
+        "result": "addressed_locally",
+        "change": "Added one concise Calendar Keyboard Focus fix entry to v1.1.2 for the user-visible CalendarRoot correction, as requested in review; dependency maintenance received no additional entries.",
+        "changelogValidation": {
+          "result": "passed",
+          "version": "1.1.2",
+          "date": "2026-11-06",
+          "unchangedExistingFixEntries": 5,
+          "addedFixEntries": 1,
+          "unchangedOlderReleases": 26,
+          "formatCheck": "passed"
+        },
+        "tests": {
+          "command": "npm run test:run -- tests/vitest/pages/__tests__/changelog.test.tsx tests/vitest/pages/__tests__/changelog.integration.test.tsx tests/vitest/lib/__tests__/version.test.ts",
+          "result": "passed",
+          "node": "26.13.0",
+          "files": 3,
+          "passed": 45
+        }
+      }
+    ]
   },
   "npmTransitiveConstraints": [
     {
