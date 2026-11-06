@@ -112,31 +112,36 @@
         ]
     },
     {
-        "version": "1.1.2dev",
-        "date": "2026-10-27",
+        "version": "1.1.2",
+        "date": "2026-11-06",
         "fixes": [
             {
-                "title": "Consistent Instrument Names in XML and JSON Imports",
-                "description": "The Data Editor resolves instrument names from the local PID4INST registry during XML and JSON imports and when opening existing resources. Imported PIDs and curated names are preserved. Conflicting registry identifiers, missing names and unavailable registry data are explained beside the affected instrument. Resolve names again refreshes names without losing other form changes. Admins and Group Leaders can update PID4INST even when instrument counts match. Incomplete downloads retain the previous registry. Existing resources retain newly resolved names when saved normally.",
+                "title": "Instrument Names in Metadata Imports",
+                "description": "XML and JSON imports resolve instrument names from PID4INST while preserving imported identifiers and curated names.",
                 "references": [{ "type": "issue", "number": 1498, "url": "https://github.com/McNamara84/ernie/issues/1498" }]
             },
             {
                 "title": "JavaScript Dependency Security",
-                "description": "Updated indirect HTTP and validation dependencies to address credential handling during redirects and denial-of-service vulnerabilities in email and file-pattern processing. Swagger UI retains its current functionality, with regression tests covering its file allowlist and the affected dependency behavior."
+                "description": "Updated JavaScript dependencies to fix credential handling and denial-of-service vulnerabilities."
             },
             {
                 "title": "Email Header Security",
-                "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."
+                "description": "Fixed invalid email header parameter handling to address CVE-2026-45070."
             },
             {
-                "title": "Correct Contact Person Roles in XML and JSON Imports",
-                "description": "Contact Person contributors remain contributors when importing XML or JSON metadata instead of becoming additional authors. Contacts who are also authors retain their contact checkbox, while other contributor roles and affiliations are preserved. ELMO XML email addresses and websites are assigned to the corresponding contacts. Conflicting ORCIDs and ambiguous contact details no longer cause automatic person merges or incorrect contact assignments. Authors and standalone contacts with incomplete names remain separate after saving and reopening the editor. Different institutional contributors sharing an affiliation ROR retain their own names. The correction applies to new file imports; previously imported records can be corrected manually using their original metadata.",
+                "title": "Contact Person Roles in Metadata Imports",
+                "description": "XML and JSON imports preserve contact roles and details; previously imported records still require manual correction.",
                 "references": [{ "type": "issue", "number": 1496, "url": "https://github.com/McNamara84/ernie/issues/1496" }]
             },
             {
-                "title": "Application Reliability and Security",
-                "description": "Improved container startup and log handling so web requests, background jobs and administrative Artisan commands use consistent permissions. Container restarts no longer scan all uploaded files, and setup rejects redirected runtime and public directories. Development environment initialization and key generation refuse symbolic links at .env, and temporary key-generation files are excluded from Git and Docker builds. Fixed a security issue in the API documentation's data-merging dependency while preserving valid schema property names.",
+                "title": "Container and API Documentation Security",
+                "description": "Improved container startup and file permissions, rejected unsafe symbolic links during setup, and fixed a data-merging vulnerability in the API documentation.",
                 "references": [{ "type": "pull_request", "number": 1508, "url": "https://github.com/McNamara84/ernie/pull/1508" }]
+            },
+            {
+                "title": "Calendar Keyboard Focus",
+                "description": "Month and year dropdowns in the editor calendar now retain keyboard focus after a selection.",
+                "references": [{ "type": "pull_request", "number": 1530, "url": "https://github.com/McNamara84/ernie/pull/1530" }]
             }
         ]
     },
