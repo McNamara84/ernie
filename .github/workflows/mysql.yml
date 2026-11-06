@@ -32,8 +32,7 @@ jobs:
 
       - name: Setup npm
         run: |
-          npm install --global npm@12.2.1
-          node scripts/patch-npm-undici.mjs "$(npm root -g)/npm"
+          npm install --global npm@12.2.2
 
       - name: Prepare isolated Docker environment
         run: |

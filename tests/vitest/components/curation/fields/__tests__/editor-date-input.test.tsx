@@ -138,6 +138,25 @@ describe('EditorDateInput', () => {
         expect(yearSelect).toHaveValue('1900');
     });
 
+    it('preserves dropdown focus across month and year changes and restores the trigger on dismissal', async () => {
+        const user = userEvent.setup();
+        render(<DateInputHarness initial="2020-09-24" />);
+        const trigger = screen.getByRole('button', { name: 'Choose date' });
+
+        await user.click(trigger);
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Choose the Month' }), '9');
+        expect(screen.getByRole('combobox', { name: 'Choose the Month' })).toHaveFocus();
+        await user.tab();
+        expect(screen.getByRole('combobox', { name: 'Choose the Year' })).toHaveFocus();
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Choose the Year' }), '2019');
+        expect(screen.getByRole('combobox', { name: 'Choose the Year' })).toHaveFocus();
+        expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue('2020-09-24');
+
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+        expect(trigger).toHaveFocus();
+    });
+
     it.each([
         { initial: '', locale: 'iso', expected: '1900-02-02' },
         { initial: '2020-09-24', locale: 'iso', expected: '1900-02-02' },
