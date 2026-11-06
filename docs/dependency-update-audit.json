@@ -4230,7 +4230,7 @@
   },
   "validation": {
     "status": "completed_local_validation",
-    "scope": "Local working tree based on fd4f17d32524355d0fc68bdc729f76ca4eb18c76; final GitHub CI and release-candidate validation require the eventual main commit.",
+    "scope": "The application, dependency, image and workflow changes were validated in the working tree based on fd4f17d32524355d0fc68bdc729f76ca4eb18c76. A concurrent commit, 4e57bd992524e9bc262531bfbafb9d6daf75bfb4, recorded those changes during final cleanup; the application files match that commit. Final documentation updates remain in the working tree. GitHub CI and release-candidate validation still require the eventual main commit.",
     "toolchain": {
       "node": "26.13.0",
       "npm": "12.2.2",
@@ -4536,12 +4536,24 @@
         "unchangedOlderChangelogVersions": 26,
         "existingFixEntries": 5,
         "newChangelogEntries": 0
+      },
+      {
+        "command": "Chromium homepage and health smoke check in the restored Vite development stack",
+        "result": "passed",
+        "checkedOn": "2026-11-06",
+        "report": "storage/logs/release112-final-smoke.json",
+        "healthStatus": 200,
+        "homepageStatus": 200,
+        "visibleTopicLinks": 25,
+        "uncaughtPageErrors": 0,
+        "note": "The normal compose configuration, public/hot and Vite client were verified; temporary test routing was absent. Initial attempts timed out waiting for development CSS and once a prebundled module. After restarting Vite and letting asset processing finish, direct CSS requests both inside the container and through the host proxy returned HTTP 200 in under 0.1 seconds, and the unchanged browser smoke check passed in about five seconds. No application code or timeout changes were made for this local development delay.",
+        "diagnostic": "storage/logs/release112-final-smoke-diagnostic.json"
       }
     ],
     "notRun": [
       {
         "check": "Required GitHub push workflows and Publish Validated Images for the final main SHA",
-        "reason": "Changes are local; no PR has been merged."
+        "reason": "The final main release SHA is not available; its required workflow results were not verified in this session."
       },
       {
         "check": "Isolated main release candidate verification and production promotion",
@@ -4603,7 +4615,16 @@
       }
     },
     "completedOn": "2026-11-06",
-    "browserConsoleNotes": "Some scenarios log external-font CORS errors because the existing devstack harness sends its test header to external font hosts. These are not assertion failures; no browser assertions were relaxed."
+    "browserConsoleNotes": "Some scenarios log external-font CORS errors because the existing devstack harness sends its test header to external font hosts. These are not assertion failures; no browser assertions were relaxed.",
+    "cleanup": {
+      "developmentStack": "Restored; application, MySQL 9.7.4 and F-UJI health checks pass; Vite and normal routing work.",
+      "temporaryBrowserContainer": "Stopped and automatically removed; absence verified.",
+      "temporaryImageExportArchives": "Removed only .tmp/release112-images after verifying its resolved workspace path; raw scan reports retained.",
+      "isolatedNodeToolchain": "Moved from storage/logs/release112-tools to .tmp/release112-tools; helper environment updated and Node 26.13.0/npm 12.2.2 verified. Global host toolchain unchanged.",
+      "powerRequest": "Process-scoped idle-sleep prevention cleared when the successful browser command finished; no persistent power settings changed.",
+      "git": "This implementation session executed no commit, push, merge, tag, release or deployment. Concurrent commit 4e57bd992524e9bc262531bfbafb9d6daf75bfb4 was observed during final cleanup; its changes match the validated implementation. Unrelated pre-existing changes were preserved."
+    },
+    "observedImplementationCommit": "4e57bd992524e9bc262531bfbafb9d6daf75bfb4"
   },
   "npmTransitiveConstraints": [
     {
