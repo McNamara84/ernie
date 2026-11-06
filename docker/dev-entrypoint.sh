@@ -7,24 +7,22 @@
 
 set -e
 
+source "$(dirname "${BASH_SOURCE[0]}")/laravel-runtime.sh"
+
 APP_PATH=${APP_PATH:-/var/www/html}
 STORAGE_PATH="$APP_PATH/storage"
-FRAMEWORK_PATH="$STORAGE_PATH/framework"
+
+# An exported empty value would prevent Laravel's immutable dotenv loader from
+# reading the shared .env, including after first-time key generation.
+if [ -z "${APP_KEY:-}" ]; then
+    unset APP_KEY
+fi
 
 echo "==================================="
 echo "ERNIE Development Container Startup"
 echo "==================================="
 
-# Create required directories
-mkdir -p "$FRAMEWORK_PATH/cache"
-mkdir -p "$FRAMEWORK_PATH/sessions"
-mkdir -p "$FRAMEWORK_PATH/views"
-mkdir -p "$STORAGE_PATH/app/public"
-mkdir -p "$APP_PATH/bootstrap/cache"
-
-# Set permissions
-chown -R www-data:www-data "$STORAGE_PATH" "$APP_PATH/bootstrap/cache" 2>/dev/null || true
-chmod -R 775 "$STORAGE_PATH" "$APP_PATH/bootstrap/cache" 2>/dev/null || true
+prepare_laravel_permissions
 
 # Configure PHP-FPM to listen on all interfaces for Docker networking
 echo "Configuring PHP-FPM..."
@@ -35,7 +33,12 @@ cd "$APP_PATH"
 # Install composer dependencies if vendor is empty
 if [ ! -f "$APP_PATH/vendor/autoload.php" ]; then
     echo "Installing Composer dependencies..."
-    composer install --no-interaction --optimize-autoloader
+    # Composer scripts and plugins can boot Laravel, so installation must also
+    # run as the web user. Limit the additional write access to dependencies.
+    mkdir -p "$APP_PATH/vendor"
+    chown -R www-data:www-data "$APP_PATH/vendor"
+    run_as_www_data env COMPOSER_HOME="$STORAGE_PATH/framework/.config/composer" \
+        composer install --no-interaction --optimize-autoloader
 fi
 
 # Install npm dependencies if node_modules is empty or doesn't exist
@@ -44,16 +47,7 @@ if [ ! -d "$APP_PATH/node_modules" ] || [ -z "$(ls -A "$APP_PATH/node_modules" 2
     npm install
 fi
 
-# Create .env if not exists
-if [ ! -f "$APP_PATH/.env" ]; then
-    if [ -f "$APP_PATH/.env.docker" ]; then
-        echo "Copying .env.docker to .env..."
-        cp "$APP_PATH/.env.docker" "$APP_PATH/.env"
-    elif [ -f "$APP_PATH/.env.example" ]; then
-        echo "Copying .env.example to .env..."
-        cp "$APP_PATH/.env.example" "$APP_PATH/.env"
-    fi
-fi
+prepare_storage_link
 
 # Wait for database
 if [ "${DB_HOST:-}" != "" ]; then
@@ -71,11 +65,14 @@ if [ "${DB_HOST:-}" != "" ]; then
     done
 fi
 
+# Copy the shared environment and generate its key once under a file lock.
+initialize_development_environment
+
 # Clear caches for fresh start
 echo "Clearing caches..."
-php artisan config:clear 2>/dev/null || true
-php artisan route:clear 2>/dev/null || true
-php artisan view:clear 2>/dev/null || true
+run_as_www_data php artisan config:clear 2>/dev/null || true
+run_as_www_data php artisan route:clear 2>/dev/null || true
+run_as_www_data php artisan view:clear 2>/dev/null || true
 
 # Remove production build assets in dev mode
 # In dev mode, assets should be served by Vite dev server, not from build/
@@ -85,31 +82,25 @@ if [ -d "$APP_PATH/public/build" ]; then
     rm -rf "$APP_PATH/public/build"
 fi
 
-# Generate app key if not set
-if ! grep -q "^APP_KEY=base64:" "$APP_PATH/.env" 2>/dev/null; then
-    echo "Generating application key..."
-    php artisan key:generate --force
-fi
-
 # Run migrations
 echo "Running database migrations..."
 MIGRATION_OK=false
-if php artisan migrate --force 2>/dev/null; then
+if run_as_www_data php artisan migrate --force 2>/dev/null; then
     MIGRATION_OK=true
 else
     echo "⚠ Migration failed - database might not be ready yet"
-    echo "  Run 'docker exec ernie-app-dev php artisan migrate' manually"
+    echo "  Run 'docker exec --user www-data ernie-app-dev php artisan migrate' manually"
 fi
 
 # Seed lookup tables and test data if the database is empty
 if [ "$MIGRATION_OK" = true ]; then
-    RESOURCE_COUNT=$(php artisan tinker --execute="echo \App\Models\Resource::count();" 2>/dev/null || echo "error")
+    RESOURCE_COUNT=$(run_as_www_data php artisan tinker --execute="echo \App\Models\Resource::count();" 2>/dev/null || echo "error")
     if [ "$RESOURCE_COUNT" = "0" ]; then
         echo "Database is empty – seeding lookup tables and test data..."
-        php artisan db:seed --force 2>/dev/null || {
+        run_as_www_data php artisan db:seed --force 2>/dev/null || {
             echo "⚠ DatabaseSeeder failed"
         }
-        php artisan db:seed --class=ResourceTestDataSeeder --force 2>/dev/null || {
+        run_as_www_data php artisan db:seed --class=ResourceTestDataSeeder --force 2>/dev/null || {
             echo "⚠ ResourceTestDataSeeder failed"
         }
     elif [ "$RESOURCE_COUNT" = "error" ]; then
@@ -117,11 +108,8 @@ if [ "$MIGRATION_OK" = true ]; then
     fi
 fi
 
-# Create storage link
-php artisan storage:link --force 2>/dev/null || true
-
 echo "==================================="
 echo "✓ Development container ready!"
 echo "==================================="
 
-exec "$@"
+exec_laravel_runtime "$@"

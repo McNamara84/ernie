@@ -75,11 +75,11 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.10.0** from `.node-version` and npm **12.2.0** from
+    Use Node **26.13.0** from `.node-version` and npm **12.2.2** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
-    npm install --global npm@12.2.0
+    npm install --global npm@12.2.2
     npm ci
     ```
 
@@ -97,7 +97,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
 
-    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.10.0** and npm **12.2.0** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.0** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
@@ -127,6 +127,25 @@ For day-to-day Laravel commands, use the npm wrappers. They run inside the app c
 ```bash
 npm run artisan -- make:controller TestController
 ```
+
+### Instrument names after metadata imports
+
+XML and JSON imports and existing resources opened in the Data Editor resolve
+instrument names from ERNIE's local PID4INST registry. Imported PIDs and existing
+curated names are preserved. Different identifiers supplied by the same B2INST
+record are shown as a conflict; they are not automatically corrected.
+
+After installing the instrument-name fix, an Admin or Group Leader should use
+**Settings / PID Settings / PID4INST / Update Now** once to refresh the registry
+and record the explicit identifier information used for conflict detection.
+The update is available even when the remote and local instrument counts match:
+equal counts do not prove that names or identifiers are unchanged.
+
+**Resolve names again** in the editor rereads the local registry without
+discarding unsaved form changes or contacting B2INST. If an instrument remains
+unknown, ask an Admin or Group Leader to update the registry in Settings and then
+retry. Opening an existing resource does not write names to the database; save
+the resource normally to retain any newly resolved names.
 
 ### Download URL suggestion default
 
@@ -273,6 +292,12 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 | Canonical frontend validation                    | Host shell                     | `npm run check:frontend`                            |
 | Canonical parity validation                      | Host shell                     | `npm run check:parity`                              |
 
+Pint, the complete Pest suite and PHPStan refresh a Linux-native workspace in
+the application container before validation. This avoids repeated Windows/macOS
+bind-mount reads. PHPStan also inherits the 2 GB PHP configuration when its
+analyzer restarts or launches workers. Run these wrappers sequentially because
+they share that workspace.
+
 ## Environment Files
 
 JSON-LD exports use `APP_URL` as their canonical public origin. The versioned context
@@ -327,6 +352,61 @@ needed to export the external MySQL 5.6 IGSN database. It never runs as ERNIE's
 database server.
 
 ### Log retention and downloads
+
+Docker entrypoints run their Artisan commands, queue workers and scheduler as
+`www-data`. Root is retained only for container setup and the PHP-FPM master;
+FPM pool workers also use `www-data`. The shared runtime helper uses Debian's
+`setpriv`, whose availability is checked when both PHP images are built.
+
+When dependencies are missing, Composer also runs as `www-data`, including its
+plugins and the `post-autoload-dump` package discovery. Setup makes only the
+`vendor` dependency directory writable for installation; Composer keeps its
+configuration and cache under `storage/framework/.config/composer`.
+
+All development PHP services read their application key from the shared `.env`.
+The entrypoint unsets an exported empty `APP_KEY` before Laravel boots, so it
+cannot hide the file's value. First-time environment copying and key generation
+run under a file lock; simultaneous app/worker starts generate one key, and
+restarts reuse it. Artisan generates the key with `--show`, and root stores it
+without changing existing ownership or permissions. The web user receives no
+additional write access, and the key is not printed in container logs.
+Initialization and key generation reject a symbolic link at `.env`. Writes use
+no-follow file opens, including initial creation and template copying, so a
+link inserted after validation cannot redirect the write to another file.
+Git and Docker exclude `.env-key.*` temporary files, including any leftovers
+after an abrupt container stop, so they cannot enter normal commits or builds.
+Stage and Production instead require a shared key supplied by the deployment.
+
+The entrypoints recursively repair only `storage/framework`, `storage/logs`
+and `bootstrap/cache`. They initialize `storage`, `storage/app` and the private
+and public disk roots without traversing uploaded files. Existing upload
+ownership and permissions are preserved across restarts; repairing imported
+data is a separate, one-time administrative task.
+Startup rejects symbolic links at the managed runtime directories and their
+parents before changing files. Recursive permission repair does not follow
+links nested inside the runtime directories.
+Storage-link setup also rejects a symbolic link at `public/` before creating or
+replacing anything in that directory.
+
+The setgid bit on `storage/logs` makes new logs inherit group `www-data`, and the
+`single` and `daily` channels create files with mode `0664`. This also lets web
+workers append to a daily file first created by an accidental root CLI invocation.
+It does not replace running administrative Artisan commands as the application user.
+`npm run artisan -- <command>` selects `www-data`, sets a writable PsySH
+configuration path under `storage/framework/.config`, and uses a 2 GB PHP
+memory limit. The Docker command for the same behavior is:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T --user www-data -e XDG_CONFIG_HOME=/var/www/html/storage/framework/.config app php -d memory_limit=2G artisan list
+```
+
+In a Portainer app-container console, select user `www-data`, or switch from a
+root console with `su -s /bin/sh www-data` before running Artisan. For Tinker,
+set `export XDG_CONFIG_HOME=/var/www/html/storage/framework/.config` in that shell.
+Rebuild and
+recreate the PHP containers to apply entrypoint changes. Restarting an old image
+does not install this fix. The PHP images still start as root for setup; do not
+override the whole service with `user: www-data`.
 
 The **Application Logs** card at `/logs` also records successful user actions on
 resources, IGSNs and their landing pages at `INFO` level. English entries identify
@@ -390,7 +470,7 @@ Useful Stage or Production checks are:
 ```bash
 docker compose -f docker-compose.stage.yml exec scheduler test -r /host/proc/stat
 docker compose -f docker-compose.stage.yml exec scheduler test -r /host/proc/meminfo
-docker compose -f docker-compose.stage.yml exec scheduler php artisan system-metrics:collect
+docker compose -f docker-compose.stage.yml exec --user www-data scheduler php artisan system-metrics:collect
 ```
 
 No Docker socket, privileged container, host PID namespace, or writable host
@@ -425,8 +505,8 @@ For a controlled local check, enable the feature and point the probe at a
 trusted reachable health URL before running:
 
 ```bash
-docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan public-traffic:observe-availability
-docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan public-traffic:prune
+npm run artisan -- public-traffic:observe-availability
+npm run artisan -- public-traffic:prune
 ```
 
 The UI groups UTC buckets in `Europe/Berlin`, including daylight-saving time,
@@ -940,6 +1020,32 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile test s
 Stopping it discards test data; the next wrapper call starts and initializes it
 again. For broader testing and optional timing reports, see [testing.md](testing.md).
 
+### Contact persons in XML and JSON file imports
+
+The dashboard upload and editor file-import preview preserve authorship from the
+source creators. A standalone `ContactPerson` remains in Contributors. When a
+contact unambiguously matches an author, the editor uses that author's contact
+checkbox and retains any additional contributor roles. Saving expands the
+checkbox back into the ContactPerson contributor representation used by DataCite.
+An incomplete name without an ORCID cannot establish that association: an author
+and a standalone contact both named only `Doe` remain separate after saving and
+reopening the editor. Explicitly checking the author's contact checkbox still
+preserves the separate contact and its contact details. Organizational
+contributors are aggregated by their normalized institution name; a shared
+affiliation ROR identifies the affiliated organization and does not merge them.
+
+XML imports read email addresses and websites from ELMO's embedded ISO
+`pointOfContact` entries for both author contacts and standalone contributors.
+Conflicting ORCIDs prevent name-based merges, and ambiguous ISO contact details
+remain empty for curation. JSON without contact details imports as a draft without
+inventing email addresses. The normal complete-save validation still applies.
+
+This corrects new uploads (issue #1496); it does not rewrite existing records.
+Compare an affected record with its original file and correct its authors and
+contributors in the editor. Dashboard re-upload is not an update mechanism and
+rejects duplicate DOIs. Use the existing metadata synchronization workflow for
+corrections to registered resources.
+
 ### Digital resource access metadata
 
 Resource landing pages and the DataCite JSON/XML exports resolve access from the curated `access_level` first. When it is empty, an internal digital-resource landing page with an active usable primary Download URL or imported file URL implies Open access. An internal page without automatic downloads exposes Metadata only access, including pages whose saved download links are still hidden. External landing pages and resources without a landing page remain unresolved unless a curator provides a reliable access level. This inference does not apply to Physical Objects or resources with IGSN metadata.
@@ -1098,3 +1204,109 @@ npm run test:php -- tests/pest/Unit/Deployment/ElmoCacheRefreshDeploymentTest.ph
 npm run test:php:mysql-sensitive:editor-settings
 npm run check:backend
 ```
+
+## Advisory PHP 8.6 compatibility check
+
+Run the same sequential compatibility probe locally with the pinned Node/npm
+toolchain and Docker:
+
+```bash
+npm run test:php:8.6
+```
+
+The wrapper selects the newest official PHP 8.6 release, preferring stable
+releases over release candidates, and resolves its immutable Docker digest for
+that run. It never follows PHP 8.7. It copies tracked and non-ignored source
+files from the worktree into a temporary directory, installs the unchanged
+`composer.lock` including development packages, and uses a dedicated Compose
+project without published ports. Existing development containers, environments,
+dependencies and data volumes are preserved. MySQL uses the exact 9.7 image
+from `docker-compose.dev.yml`; PHP processes use 2 GB of memory.
+
+The stages run in this order:
+
+1. PHP runtime and required extensions.
+2. Actual Composer platform requirements, locked installation and Laravel boot.
+3. Complete Pest suite and offline JSON-LD validation.
+4. All MySQL-sensitive slices, serially.
+5. PHPStan with an explicit PHP 8.6 analysis target.
+
+The first failure stops subsequent stages. Parallel Unit/Feature workers within
+the backend stage retain the normal repository defaults. Xdebug and additional
+coverage collection are omitted from this probe.
+
+Results are written to `.tmp/php86-report/summary.md` and `report.json`, with
+per-stage logs and available JUnit reports. `ERNIE_PHP86_REPORT_DIR` can select
+another report directory. Local exit codes are 0 (compatible), 1 (incompatible)
+and 2 (not verifiable). The full local command cleans up its private containers
+and workspace when it finishes. After an interrupted run, cleanup can be retried:
+
+```bash
+npm run test:php:8.6 -- --cleanup
+```
+
+CI invokes `--stage environment`, `composer`, `backend`, `mysql` and `phpstan`
+separately, followed by `--report` and `--cleanup`. The same report directory
+must be used for all stages. A stage is allowed to run only after its predecessors
+passed. Composer's `config.platform` does not replace the actual runtime check;
+the probe never uses `composer update` or ignores platform requirements.
+
+`PHP 8.6 Compatibility` runs on PRs targeting `main`/`dev`, pushes to those
+branches, manual dispatch and daily at 04:23 UTC. Scheduled execution checks
+both branch heads explicitly and records each tested SHA. PR execution records
+the merge commit as well as the PR head. The workflow must exist on the default
+branch for scheduled execution to become active.
+
+PR, push and manual runs check out the triggering `github.sha`; choose the
+branch or tag through GitHub's dispatch ref for a manual run. The reusable
+workflow accepts no arbitrary checkout ref. Only a scheduled run can switch
+between the fixed `refs/heads/main` and `refs/heads/dev` integration branches,
+using a boolean selector. This prevents a caller from selecting untrusted code
+inside the default branch's cache scope. Automatic npm caching is disabled for
+this probe.
+
+The result job is green for an ordinary completed probe and names its outcome:
+**compatible**, **incompatible**, or **unavailable**. Only **compatible** means
+all five stages passed. Download failures, incomplete reports and unavailable
+infrastructure do not count as incompatibility; confirmed PHP extension compiler
+errors, platform constraints and test/analysis failures are reported separately.
+GitHub cancellation or runner loss can still abort the workflow. Diagnostic
+artifacts are retained for 14 days. This advisory workflow is excluded from the
+existing release and branch synchronization requirements.
+
+As of 3 November 2026, stable phpredis 6.3.0 fails to compile against PHP
+8.6.0RC4 because it references removed Zend/PHP APIs. The probe reports this
+required-extension blocker and skips Composer and all later stages. An upstream
+extension update must be included in the repository before the locked project
+can pass this stage; the probe does not substitute unreviewed development code.
+
+### Dependency update evidence
+
+The version inventory, upstream constraints and remaining image findings from
+5 November 2026 are recorded in [dependency-update-audit.json](dependency-update-audit.json).
+Composer and application npm audits were checked again on 6 November 2026 and
+report no known vulnerabilities. Some
+transitive packages remain at the newest versions permitted by their upstream
+dependencies; the inventory names these constraints explicitly.
+
+npm 12.2.2 includes Undici 6.29.1, so the temporary npm patch has been removed
+from Docker builds and CI ([npm release notes](https://github.com/npm/cli/releases/tag/v12.2.2)).
+Install the pinned npm version on the host as shown above; no manual dependency
+replacement is needed.
+
+Playwright stays pinned to 1.64.1: at the time of this audit, the announced
+1.65.0 release lacked both `playwright-core@1.65.0` in npm and its matching
+container image. Update the test runner and browser image together once the
+complete release is available. Major upgrades and incompatible upstream changes
+are tracked separately for `dev` in the audit.
+
+Local Trivy scans of the application, Nginx and F-UJI images pass the existing
+gate for fixable HIGH/CRITICAL findings. The application and F-UJI images still
+have distribution findings without available fixes; the audit records these
+separately. A passing gate does not mean that an image has no known vulnerabilities.
+
+The official MySQL 9.7.4 image still contains scanner findings in its bundled
+`mysqlsh` Python dependencies and the Go library embedded in `gosu`. These are
+listed individually in the audit; updating the image does not establish that it
+has no known vulnerabilities. The server remains pinned to MySQL 9.7, and the
+existing security gates retain their original severity rules and suppressions.

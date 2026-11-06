@@ -26,7 +26,8 @@ jobs:
           cache: 'npm'
 
       - name: Setup npm
-        run: npm install --global npm@12.2.0
+        run: |
+          npm install --global npm@12.2.2
 
       - name: Install dependencies
         run: npm ci
@@ -90,4 +91,4 @@ jobs:
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       - name: Run PHPStan
-        run: ./vendor/bin/phpstan analyse --memory-limit=512M
+        run: php -d memory_limit=2G ./vendor/bin/phpstan analyse --memory-limit=2G

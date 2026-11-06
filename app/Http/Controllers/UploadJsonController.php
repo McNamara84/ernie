@@ -13,9 +13,11 @@ use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteJsonImportNormalizerService;
 use App\Services\DataCiteJsonLdContextService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
+use App\Services\Imports\ContactPersonImportService;
 use App\Services\Imports\Subjects\ImportedSubjectData;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\Imports\Subjects\SubjectImportResult;
+use App\Services\InstrumentNameResolutionService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
@@ -78,6 +80,8 @@ class UploadJsonController extends Controller
     ];
 
     public function __construct(
+        private readonly InstrumentNameResolutionService $instrumentResolver,
+        private readonly ContactPersonImportService $contactPersonResolver,
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
         private readonly DataCiteJsonImportNormalizerService $jsonImportNormalizer,
@@ -205,10 +209,8 @@ class UploadJsonController extends Controller
             $contributorsResult = $this->extractContributorsAndMslLaboratories($attributes['contributors'] ?? []);
             $contributors = $contributorsResult['contributors'];
             $mslLaboratories = $contributorsResult['mslLaboratories'];
-            $contactPersons = $contributorsResult['contactPersons'];
-
-            // Merge contact persons into authors with isContact flag
-            $authors = $this->mergeContactPersonsIntoAuthors($authors, $contactPersons);
+            ['authors' => $authors, 'contributors' => $contributors] =
+                $this->contactPersonResolver->resolve($authors, $contributors);
 
             $descriptions = $this->extractDescriptions($attributes['descriptions'] ?? []);
             $dates = $this->extractDates($attributes['dates'] ?? []);
@@ -587,13 +589,12 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $contributors
-     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string|null>>, contactPersons: array<int, array<string, mixed>>}
+     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string|null>>}
      */
     private function extractContributorsAndMslLaboratories(array $contributors): array
     {
         $result = [];
         $mslLaboratories = [];
-        $contactPersons = [];
 
         foreach ($contributors as $contributor) {
             $contributorType = $contributor['contributorType'] ?? null;
@@ -601,16 +602,6 @@ class UploadJsonController extends Controller
 
             // Extract role from contributorType
             $roles = $this->extractContributorRoles($contributorType);
-
-            // ContactPerson → extract separately
-            if (is_string($contributorType) && strcasecmp($contributorType, 'ContactPerson') === 0) {
-                $cp = $this->extractContactPersonFromJson($contributor);
-                if ($cp !== null) {
-                    $contactPersons[] = $cp;
-                }
-
-                continue;
-            }
 
             // MSL Laboratory: HostingInstitution with a nameIdentifier containing labid
             $labId = $this->extractLabIdFromJson($contributor);
@@ -661,7 +652,6 @@ class UploadJsonController extends Controller
         return [
             'contributors' => $result,
             'mslLaboratories' => $mslLaboratories,
-            'contactPersons' => $contactPersons,
         ];
     }
 
@@ -873,7 +863,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $relatedIdentifiers
-     * @return array{relatedWorks: array<int, array<string, mixed>>, instruments: array<int, array<string, string>>}
+     * @return array{relatedWorks: array<int, array<string, mixed>>, instruments: array<int, array<string, mixed>>}
      */
     private function extractRelatedWorksAndInstruments(array $relatedIdentifiers, string $filename): array
     {
@@ -929,7 +919,7 @@ class UploadJsonController extends Controller
 
         return [
             'relatedWorks' => $relatedWorks,
-            'instruments' => $instruments,
+            'instruments' => $this->instrumentResolver->resolve($instruments),
         ];
     }
 
@@ -1037,43 +1027,6 @@ class UploadJsonController extends Controller
         }
 
         return $result;
-    }
-
-    /**
-     * Extract contact person data from JSON contributor.
-     *
-     * @param  array<string, mixed>  $contributor
-     * @return array<string, mixed>|null
-     */
-    private function extractContactPersonFromJson(array $contributor): ?array
-    {
-        $nameType = $contributor['nameType'] ?? null;
-
-        // Skip organizational contact persons
-        if (is_string($nameType) && Str::lower($nameType) === 'organizational') {
-            return null;
-        }
-
-        $givenName = $contributor['givenName'] ?? null;
-        $familyName = $contributor['familyName'] ?? null;
-
-        if (! is_string($familyName) || trim($familyName) === '') {
-            $split = $this->splitCreatorName($contributor['name'] ?? null);
-            $familyName = $split['familyName'] ?? null;
-            $givenName = $split['givenName'] ?? $givenName;
-        }
-
-        if (! is_string($familyName) || trim($familyName) === '') {
-            return null;
-        }
-
-        return [
-            'type' => 'person',
-            'orcid' => $this->extractOrcidFromNameIdentifiers($contributor['nameIdentifiers'] ?? []),
-            'firstName' => is_string($givenName) ? $givenName : '',
-            'lastName' => $familyName,
-            'affiliations' => $this->extractAffiliationsFromJson($contributor['affiliation'] ?? []),
-        ];
     }
 
     /**
@@ -1189,86 +1142,6 @@ class UploadJsonController extends Controller
         $label = self::CONTRIBUTOR_ROLE_LABELS[$key] ?? $contributorType;
 
         return [$label];
-    }
-
-    /**
-     * Merge contact persons into authors with isContact flag.
-     *
-     * @param  array<int, array<string, mixed>>  $authors
-     * @param  array<int, array<string, mixed>>  $contactPersons
-     * @return array<int, array<string, mixed>>
-     */
-    private function mergeContactPersonsIntoAuthors(array $authors, array $contactPersons): array
-    {
-        foreach ($contactPersons as $cp) {
-            if (($cp['type'] ?? '') === 'institution') {
-                continue;
-            }
-
-            $matched = false;
-
-            // 1. Try ORCID match first
-            $cpOrcid = $cp['orcid'] ?? '';
-            if ($cpOrcid !== '') {
-                foreach ($authors as &$author) {
-                    if (($author['type'] ?? '') === 'person' && ($author['orcid'] ?? '') === $cpOrcid) {
-                        $author['isContact'] = true;
-                        $author['email'] = $author['email'] ?? '';
-                        $author['website'] = $author['website'] ?? '';
-                        $matched = true;
-                        break;
-                    }
-                }
-                unset($author);
-            }
-
-            // 2. Fallback to name match
-            if (! $matched) {
-                $cpLastName = trim($cp['lastName'] ?? '');
-                $cpFirstName = trim($cp['firstName'] ?? '');
-
-                if ($cpLastName === '') {
-                    continue;
-                }
-
-                $cpNameKey = $this->buildNameKey($cpLastName, $cpFirstName);
-
-                foreach ($authors as &$author) {
-                    if (($author['type'] ?? '') === 'person') {
-                        $authorNameKey = $this->buildNameKey($author['lastName'] ?? '', $author['firstName'] ?? '');
-                        if ($cpNameKey === $authorNameKey) {
-                            $author['isContact'] = true;
-                            $author['email'] = $author['email'] ?? '';
-                            $author['website'] = $author['website'] ?? '';
-                            $matched = true;
-                            break;
-                        }
-                    }
-                }
-                unset($author);
-            }
-
-            // 3. No match → add as new author
-            if (! $matched) {
-                $authors[] = [
-                    'type' => 'person',
-                    'orcid' => $cp['orcid'] ?? '',
-                    'firstName' => $cp['firstName'] ?? '',
-                    'lastName' => $cp['lastName'] ?? '',
-                    'affiliations' => $cp['affiliations'] ?? [],
-                    'isContact' => true,
-                    'email' => '',
-                    'website' => '',
-                ];
-            }
-        }
-
-        return $authors;
-    }
-
-    private function buildNameKey(string $lastName, string $firstName): string
-    {
-        return mb_strtolower(trim($lastName).'|'.trim($firstName));
     }
 
     private function normalizeDateString(string $dateValue): string

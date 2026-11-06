@@ -1,0 +1,6100 @@
+{
+  "checkedOn": "2026-11-05",
+  "release": {
+    "version": "1.1.2",
+    "date": "2026-11-06",
+    "base": "fd4f17d32524355d0fc68bdc729f76ca4eb18c76",
+    "developmentRelease": "1.2.0dev remains unreleased"
+  },
+  "policy": "Newest compatible stable versions for the 1.1.x release line; larger migrations are deferred to dev. Registry availability and upstream constraints take precedence over latest tags.",
+  "sources": {
+    "npm": "https://registry.npmjs.org",
+    "composer": "https://repo.packagist.org",
+    "python": "https://pypi.org",
+    "images": "https://hub.docker.com",
+    "actions": "https://api.github.com/repos"
+  },
+  "previousAudit": {
+    "checkedOn": "2026-11-03",
+    "sourceCommit": "fd4f17d32524355d0fc68bdc729f76ca4eb18c76",
+    "note": "Earlier validation and scan results remain in Git history; they are not evidence for this update."
+  },
+  "toolchain": {
+    "node": "26.13.0",
+    "npm": "12.2.2",
+    "php": "8.5.12",
+    "composer": "2.11.1",
+    "shadcn": "4.23.0",
+    "phpredis": "6.3.0",
+    "xdebug": "3.5.3",
+    "trivy": "0.76.2"
+  },
+  "npm": [
+    {
+      "name": "@americana/diplomat",
+      "previousConstraint": "^0.6.0",
+      "constraint": "^0.6.0",
+      "previous": "0.6.0",
+      "installed": "0.6.0",
+      "latestStable": "0.6.0"
+    },
+    {
+      "name": "@axe-core/playwright",
+      "previousConstraint": "^4.14.0",
+      "constraint": "^4.14.0",
+      "previous": "4.14.0",
+      "installed": "4.14.0",
+      "latestStable": "4.14.0"
+    },
+    {
+      "name": "@dnd-kit/core",
+      "previousConstraint": "^6.3.1",
+      "constraint": "^6.3.1",
+      "previous": "6.3.1",
+      "installed": "6.3.1",
+      "latestStable": "6.3.1"
+    },
+    {
+      "name": "@dnd-kit/sortable",
+      "previousConstraint": "^10.0.0",
+      "constraint": "^10.0.0",
+      "previous": "10.0.0",
+      "installed": "10.0.0",
+      "latestStable": "10.0.0"
+    },
+    {
+      "name": "@dnd-kit/utilities",
+      "previousConstraint": "^3.2.2",
+      "constraint": "^3.2.2",
+      "previous": "3.2.2",
+      "installed": "3.2.2",
+      "latestStable": "3.2.2"
+    },
+    {
+      "name": "@hookform/resolvers",
+      "previousConstraint": "^7.0.1",
+      "constraint": "^7.0.3",
+      "previous": "7.0.1",
+      "installed": "7.0.3",
+      "latestStable": "7.0.3"
+    },
+    {
+      "name": "@inertiajs/react",
+      "previousConstraint": "^3.11.0",
+      "constraint": "^3.11.0",
+      "previous": "3.11.0",
+      "installed": "3.11.0",
+      "latestStable": "3.11.0"
+    },
+    {
+      "name": "@laravel/vite-plugin-wayfinder",
+      "previousConstraint": "^0.1.11",
+      "constraint": "^0.1.11",
+      "previous": "0.1.11",
+      "installed": "0.1.11",
+      "latestStable": "0.1.11"
+    },
+    {
+      "name": "@maplibre/maplibre-gl-leaflet",
+      "previousConstraint": "^0.1.4",
+      "constraint": "^0.1.4",
+      "previous": "0.1.4",
+      "installed": "0.1.4",
+      "latestStable": "0.1.4"
+    },
+    {
+      "name": "@playwright/test",
+      "previousConstraint": "^1.64.1",
+      "constraint": "1.64.1",
+      "previous": "1.64.1",
+      "installed": "1.64.1",
+      "latestStable": "1.65.0"
+    },
+    {
+      "name": "@redocly/cli",
+      "previousConstraint": "^2.72.1",
+      "constraint": "^2.76.0",
+      "previous": "2.72.1",
+      "installed": "2.76.0",
+      "latestStable": "2.76.0"
+    },
+    {
+      "name": "@tailwindcss/oxide-linux-x64-gnu",
+      "previousConstraint": "^4.3.4",
+      "constraint": "^4.3.4",
+      "previous": "4.3.4",
+      "installed": "4.3.4",
+      "latestStable": "4.3.4"
+    },
+    {
+      "name": "@tailwindcss/vite",
+      "previousConstraint": "^4.3.4",
+      "constraint": "^4.3.4",
+      "previous": "4.3.4",
+      "installed": "4.3.4",
+      "latestStable": "4.3.4"
+    },
+    {
+      "name": "@tanstack/react-query",
+      "previousConstraint": "^5.105.3",
+      "constraint": "^5.106.1",
+      "previous": "5.105.3",
+      "installed": "5.106.1",
+      "latestStable": "5.106.1"
+    },
+    {
+      "name": "@tanstack/react-query-devtools",
+      "previousConstraint": "^5.105.3",
+      "constraint": "^5.106.1",
+      "previous": "5.105.3",
+      "installed": "5.106.1",
+      "latestStable": "5.106.1"
+    },
+    {
+      "name": "@tanstack/react-table",
+      "previousConstraint": "^9.3.1",
+      "constraint": "^9.3.1",
+      "previous": "9.3.1",
+      "installed": "9.3.1",
+      "latestStable": "9.3.1"
+    },
+    {
+      "name": "@testing-library/dom",
+      "previousConstraint": "^10.4.2",
+      "constraint": "^10.4.2",
+      "previous": "10.4.2",
+      "installed": "10.4.2",
+      "latestStable": "10.4.2"
+    },
+    {
+      "name": "@testing-library/jest-dom",
+      "previousConstraint": "^7.0.1",
+      "constraint": "^7.0.1",
+      "previous": "7.0.1",
+      "installed": "7.0.1",
+      "latestStable": "7.0.1"
+    },
+    {
+      "name": "@testing-library/react",
+      "previousConstraint": "^16.3.3",
+      "constraint": "^16.3.3",
+      "previous": "16.3.3",
+      "installed": "16.3.3",
+      "latestStable": "16.3.3"
+    },
+    {
+      "name": "@testing-library/user-event",
+      "previousConstraint": "^14.6.8",
+      "constraint": "^14.6.8",
+      "previous": "14.6.8",
+      "installed": "14.6.8",
+      "latestStable": "14.6.8"
+    },
+    {
+      "name": "@types/d3",
+      "previousConstraint": "^7.4.3",
+      "constraint": "^7.4.3",
+      "previous": "7.4.3",
+      "installed": "7.4.3",
+      "latestStable": "7.4.3"
+    },
+    {
+      "name": "@types/leaflet",
+      "previousConstraint": "^1.9.22",
+      "constraint": "^1.9.22",
+      "previous": "1.9.22",
+      "installed": "1.9.22",
+      "latestStable": "1.9.22"
+    },
+    {
+      "name": "@types/leaflet.markercluster",
+      "previousConstraint": "^1.5.6",
+      "constraint": "^1.5.6",
+      "previous": "1.5.6",
+      "installed": "1.5.6",
+      "latestStable": "1.5.6"
+    },
+    {
+      "name": "@types/node",
+      "previousConstraint": "^26.6.6",
+      "constraint": "^26.6.6",
+      "previous": "26.6.6",
+      "installed": "26.6.6",
+      "latestStable": "26.6.6"
+    },
+    {
+      "name": "@types/nprogress",
+      "previousConstraint": "^0.2.3",
+      "constraint": "^0.2.3",
+      "previous": "0.2.3",
+      "installed": "0.2.3",
+      "latestStable": "0.2.3"
+    },
+    {
+      "name": "@types/papaparse",
+      "previousConstraint": "^5.5.2",
+      "constraint": "^5.5.2",
+      "previous": "5.5.2",
+      "installed": "5.5.2",
+      "latestStable": "5.5.2"
+    },
+    {
+      "name": "@types/react",
+      "previousConstraint": "^19.3.0",
+      "constraint": "^19.3.0",
+      "previous": "19.3.0",
+      "installed": "19.3.0",
+      "latestStable": "19.3.0"
+    },
+    {
+      "name": "@types/react-dom",
+      "previousConstraint": "^19.3.0",
+      "constraint": "^19.3.0",
+      "previous": "19.3.0",
+      "installed": "19.3.0",
+      "latestStable": "19.3.0"
+    },
+    {
+      "name": "@types/yaireo__tagify",
+      "previousConstraint": "^4.27.0",
+      "constraint": "^4.27.0",
+      "previous": "4.27.0",
+      "installed": "4.27.0",
+      "latestStable": "4.27.0"
+    },
+    {
+      "name": "@typescript/native",
+      "registryPackage": "typescript",
+      "previousConstraint": "npm:typescript@^7.0.2",
+      "constraint": "npm:typescript@^7.0.2",
+      "previous": "7.0.2",
+      "installed": "7.0.2",
+      "latestStable": "7.0.2"
+    },
+    {
+      "name": "@vis.gl/react-google-maps",
+      "previousConstraint": "^1.10.2",
+      "constraint": "^1.10.2",
+      "previous": "1.10.2",
+      "installed": "1.10.2",
+      "latestStable": "1.10.2"
+    },
+    {
+      "name": "@vitejs/devtools",
+      "previousConstraint": "^0.8.0",
+      "constraint": "^0.8.2",
+      "previous": "0.8.0",
+      "installed": "0.8.2",
+      "latestStable": "0.8.2"
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "previousConstraint": "^6.2.1",
+      "constraint": "^6.2.1",
+      "previous": "6.2.1",
+      "installed": "6.2.1",
+      "latestStable": "6.2.1"
+    },
+    {
+      "name": "@vitest/browser",
+      "previousConstraint": "^5.1.0",
+      "constraint": "^5.1.0",
+      "previous": "5.1.0",
+      "installed": "5.1.0",
+      "latestStable": "5.1.0"
+    },
+    {
+      "name": "@vitest/browser-playwright",
+      "previousConstraint": "^5.1.0",
+      "constraint": "^5.1.0",
+      "previous": "5.1.0",
+      "installed": "5.1.0",
+      "latestStable": "5.1.0"
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "previousConstraint": "^5.1.0",
+      "constraint": "^5.1.0",
+      "previous": "5.1.0",
+      "installed": "5.1.0",
+      "latestStable": "5.1.0"
+    },
+    {
+      "name": "@yaireo/tagify",
+      "previousConstraint": "^4.39.0",
+      "constraint": "^4.39.0",
+      "previous": "4.39.0",
+      "installed": "4.39.0",
+      "latestStable": "4.39.0"
+    },
+    {
+      "name": "ajv",
+      "previousConstraint": "^8.20.0",
+      "constraint": "^8.20.0",
+      "previous": "8.20.0",
+      "installed": "8.20.0",
+      "latestStable": "8.20.0"
+    },
+    {
+      "name": "axios",
+      "previousConstraint": "^1.21.0",
+      "constraint": "^1.21.0",
+      "previous": "1.21.0",
+      "installed": "1.21.0",
+      "latestStable": "1.21.0"
+    },
+    {
+      "name": "class-variance-authority",
+      "previousConstraint": "^0.7.1",
+      "constraint": "^0.7.1",
+      "previous": "0.7.1",
+      "installed": "0.7.1",
+      "latestStable": "0.7.1"
+    },
+    {
+      "name": "clsx",
+      "previousConstraint": "^2.1.1",
+      "constraint": "^2.1.1",
+      "previous": "2.1.1",
+      "installed": "2.1.1",
+      "latestStable": "2.1.1"
+    },
+    {
+      "name": "cmdk",
+      "previousConstraint": "^1.1.1",
+      "constraint": "^1.1.1",
+      "previous": "1.1.1",
+      "installed": "1.1.1",
+      "latestStable": "1.1.1"
+    },
+    {
+      "name": "concurrently",
+      "previousConstraint": "^10.0.6",
+      "constraint": "^10.0.6",
+      "previous": "10.0.6",
+      "installed": "10.0.6",
+      "latestStable": "10.0.6"
+    },
+    {
+      "name": "d3",
+      "previousConstraint": "^7.9.1",
+      "constraint": "^7.9.2",
+      "previous": "7.9.1",
+      "installed": "7.9.2",
+      "latestStable": "7.9.2"
+    },
+    {
+      "name": "date-fns",
+      "previousConstraint": "^4.4.0",
+      "constraint": "^4.4.0",
+      "previous": "4.4.0",
+      "installed": "4.4.0",
+      "latestStable": "4.4.0"
+    },
+    {
+      "name": "dotenv",
+      "previousConstraint": "^18.0.9",
+      "constraint": "^18.0.9",
+      "previous": "18.0.9",
+      "installed": "18.0.9",
+      "latestStable": "18.0.9"
+    },
+    {
+      "name": "driver.js",
+      "previousConstraint": "^1.10.2",
+      "constraint": "^1.10.2",
+      "previous": "1.10.2",
+      "installed": "1.10.2",
+      "latestStable": "1.10.2"
+    },
+    {
+      "name": "eslint",
+      "previousConstraint": "^10.14.0",
+      "constraint": "^10.14.0",
+      "previous": "10.14.0",
+      "installed": "10.14.0",
+      "latestStable": "10.14.0"
+    },
+    {
+      "name": "eslint-plugin-simple-import-sort",
+      "previousConstraint": "^14.0.0",
+      "constraint": "^14.0.0",
+      "previous": "14.0.0",
+      "installed": "14.0.0",
+      "latestStable": "14.0.0"
+    },
+    {
+      "name": "framer-motion",
+      "previousConstraint": "^14.9.0",
+      "constraint": "^14.9.1",
+      "previous": "14.9.0",
+      "installed": "14.9.1",
+      "latestStable": "14.9.1"
+    },
+    {
+      "name": "jsdom",
+      "previousConstraint": "^30.1.3",
+      "constraint": "^30.1.3",
+      "previous": "30.1.3",
+      "installed": "30.1.3",
+      "latestStable": "31.0.0"
+    },
+    {
+      "name": "jsonld",
+      "previousConstraint": "9.0.0",
+      "constraint": "9.0.0",
+      "previous": "9.0.0",
+      "installed": "9.0.0",
+      "latestStable": "9.0.0"
+    },
+    {
+      "name": "laravel-vite-plugin",
+      "previousConstraint": "^3.2.0",
+      "constraint": "^3.2.1",
+      "previous": "3.2.0",
+      "installed": "3.2.1",
+      "latestStable": "3.2.1"
+    },
+    {
+      "name": "leaflet",
+      "previousConstraint": "^1.9.4",
+      "constraint": "^1.9.4",
+      "previous": "1.9.4",
+      "installed": "1.9.4",
+      "latestStable": "1.9.4"
+    },
+    {
+      "name": "leaflet.markercluster",
+      "previousConstraint": "^1.5.3",
+      "constraint": "^1.5.3",
+      "previous": "1.5.3",
+      "installed": "1.5.3",
+      "latestStable": "1.5.3"
+    },
+    {
+      "name": "lightningcss-linux-x64-gnu",
+      "previousConstraint": "^1.33.0",
+      "constraint": "^1.33.0",
+      "previous": "1.33.0",
+      "installed": "1.33.0",
+      "latestStable": "1.33.0"
+    },
+    {
+      "name": "lucide-react",
+      "previousConstraint": "^1.67.0",
+      "constraint": "^1.69.0",
+      "previous": "1.67.0",
+      "installed": "1.69.0",
+      "latestStable": "1.69.0"
+    },
+    {
+      "name": "maplibre-gl",
+      "previousConstraint": "^6.16.0",
+      "constraint": "^6.16.0",
+      "previous": "6.16.0",
+      "installed": "6.16.0",
+      "latestStable": "6.16.0"
+    },
+    {
+      "name": "msw",
+      "previousConstraint": "^3.0.3",
+      "constraint": "^3.0.3",
+      "previous": "3.0.3",
+      "installed": "3.0.3",
+      "latestStable": "3.0.3"
+    },
+    {
+      "name": "nprogress",
+      "previousConstraint": "^0.2.0",
+      "constraint": "^0.2.0",
+      "previous": "0.2.0",
+      "installed": "0.2.0",
+      "latestStable": "0.2.0"
+    },
+    {
+      "name": "oxfmt",
+      "previousConstraint": "^0.75.0",
+      "constraint": "^0.75.0",
+      "previous": "0.75.0",
+      "installed": "0.75.0",
+      "latestStable": "0.76.0"
+    },
+    {
+      "name": "oxlint",
+      "previousConstraint": "^1.90.0",
+      "constraint": "^1.91.0",
+      "previous": "1.90.0",
+      "installed": "1.91.0",
+      "latestStable": "1.91.0"
+    },
+    {
+      "name": "papaparse",
+      "previousConstraint": "^5.7.0",
+      "constraint": "^5.7.0",
+      "previous": "5.7.0",
+      "installed": "5.7.0",
+      "latestStable": "5.7.0"
+    },
+    {
+      "name": "playwright",
+      "previousConstraint": "^1.64.1",
+      "constraint": "1.64.1",
+      "previous": "1.64.1",
+      "installed": "1.64.1",
+      "latestStable": "1.65.0"
+    },
+    {
+      "name": "qrcode.react",
+      "previousConstraint": "^4.2.0",
+      "constraint": "^4.2.0",
+      "previous": "4.2.0",
+      "installed": "4.2.0",
+      "latestStable": "4.2.0"
+    },
+    {
+      "name": "radix-ui",
+      "previousConstraint": "^1.8.1",
+      "constraint": "^1.8.1",
+      "previous": "1.8.1",
+      "installed": "1.8.1",
+      "latestStable": "1.8.1"
+    },
+    {
+      "name": "react",
+      "previousConstraint": "^19.3.1",
+      "constraint": "^19.3.1",
+      "previous": "19.3.1",
+      "installed": "19.3.1",
+      "latestStable": "19.3.1"
+    },
+    {
+      "name": "react-day-picker",
+      "previousConstraint": "^10.0.2",
+      "constraint": "^10.0.2",
+      "previous": "10.0.2",
+      "installed": "10.0.2",
+      "latestStable": "10.0.2"
+    },
+    {
+      "name": "react-dom",
+      "previousConstraint": "^19.3.1",
+      "constraint": "^19.3.1",
+      "previous": "19.3.1",
+      "installed": "19.3.1",
+      "latestStable": "19.3.1"
+    },
+    {
+      "name": "react-hook-form",
+      "previousConstraint": "^7.91.0",
+      "constraint": "^7.91.0",
+      "previous": "7.91.0",
+      "installed": "7.91.0",
+      "latestStable": "7.91.0"
+    },
+    {
+      "name": "react-leaflet",
+      "previousConstraint": "^5.0.0",
+      "constraint": "^5.0.0",
+      "previous": "5.0.0",
+      "installed": "5.0.0",
+      "latestStable": "5.0.0"
+    },
+    {
+      "name": "react-resizable-panels",
+      "previousConstraint": "^4.17.0",
+      "constraint": "^4.18.1",
+      "previous": "4.17.0",
+      "installed": "4.18.1",
+      "latestStable": "4.18.1"
+    },
+    {
+      "name": "recharts",
+      "previousConstraint": "^3.10.1",
+      "constraint": "^3.10.1",
+      "previous": "3.10.1",
+      "installed": "3.10.1",
+      "latestStable": "3.10.1"
+    },
+    {
+      "name": "shadcn",
+      "previousConstraint": "4.23.0",
+      "constraint": "4.23.0",
+      "previous": "4.23.0",
+      "latestStable": "4.23.0",
+      "selected": "4.23.0",
+      "kind": "pinned-cli",
+      "note": "Invoked through a pinned npx reference, not installed in the application lockfile."
+    },
+    {
+      "name": "sonner",
+      "previousConstraint": "^2.0.8",
+      "constraint": "^2.0.8",
+      "previous": "2.0.8",
+      "installed": "2.0.8",
+      "latestStable": "2.0.8"
+    },
+    {
+      "name": "start-server-and-test",
+      "previousConstraint": "^3.0.13",
+      "constraint": "^3.0.13",
+      "previous": "3.0.13",
+      "installed": "3.0.13",
+      "latestStable": "3.0.13"
+    },
+    {
+      "name": "swagger-ui-react",
+      "previousConstraint": "^5.34.1",
+      "constraint": "^5.34.1",
+      "previous": "5.34.1",
+      "installed": "5.34.1",
+      "latestStable": "5.34.1"
+    },
+    {
+      "name": "tailwind-merge",
+      "previousConstraint": "^3.7.0",
+      "constraint": "^3.7.0",
+      "previous": "3.7.0",
+      "installed": "3.7.0",
+      "latestStable": "3.7.0"
+    },
+    {
+      "name": "tailwindcss",
+      "previousConstraint": "^4.3.4",
+      "constraint": "^4.3.4",
+      "previous": "4.3.4",
+      "installed": "4.3.4",
+      "latestStable": "4.3.4"
+    },
+    {
+      "name": "tailwindcss-animate",
+      "previousConstraint": "^1.0.7",
+      "constraint": "^1.0.7",
+      "previous": "1.0.7",
+      "installed": "1.0.7",
+      "latestStable": "1.0.7"
+    },
+    {
+      "name": "typescript",
+      "registryPackage": "@typescript/typescript6",
+      "previousConstraint": "npm:@typescript/typescript6@^6.0.2",
+      "constraint": "npm:@typescript/typescript6@^6.0.2",
+      "previous": "6.0.2",
+      "installed": "6.0.2",
+      "latestStable": "6.0.2"
+    },
+    {
+      "name": "vaul",
+      "previousConstraint": "^1.1.2",
+      "constraint": "^1.1.2",
+      "previous": "1.1.2",
+      "installed": "1.1.2",
+      "latestStable": "1.1.2"
+    },
+    {
+      "name": "vite",
+      "previousConstraint": "^8.3.5",
+      "constraint": "^8.3.6",
+      "previous": "8.3.5",
+      "installed": "8.3.6",
+      "latestStable": "8.3.6"
+    },
+    {
+      "name": "vitest",
+      "previousConstraint": "^5.1.0",
+      "constraint": "^5.1.0",
+      "previous": "5.1.0",
+      "installed": "5.1.0",
+      "latestStable": "5.1.0"
+    },
+    {
+      "name": "zod",
+      "previousConstraint": "^4.6.7",
+      "constraint": "^4.6.7",
+      "previous": "4.6.7",
+      "installed": "4.6.7",
+      "latestStable": "4.6.7"
+    }
+  ],
+  "localPackages": [
+    {
+      "name": "deepmerge",
+      "path": "packages/deepmerge",
+      "version": "4.3.1-ernie.1",
+      "reason": "Existing security fix retained; upstream replacement requires the existing Swagger and merge regression tests."
+    }
+  ],
+  "composer": [
+    {
+      "name": "amphp/amp",
+      "previous": "v3.1.3",
+      "installed": "v3.1.3",
+      "latestAvailableForPlatform": "v3.1.3"
+    },
+    {
+      "name": "amphp/byte-stream",
+      "previous": "v2.1.3",
+      "installed": "v2.1.3",
+      "latestAvailableForPlatform": "v2.1.3"
+    },
+    {
+      "name": "amphp/cache",
+      "previous": "v2.0.1",
+      "installed": "v2.0.1",
+      "latestAvailableForPlatform": "v2.0.1"
+    },
+    {
+      "name": "amphp/dns",
+      "previous": "v2.4.2",
+      "installed": "v2.4.2",
+      "latestAvailableForPlatform": "v2.4.2"
+    },
+    {
+      "name": "amphp/hpack",
+      "previous": "v3.2.2",
+      "installed": "v3.2.2",
+      "latestAvailableForPlatform": "v3.2.2"
+    },
+    {
+      "name": "amphp/http",
+      "previous": "v2.1.2",
+      "installed": "v2.1.2",
+      "latestAvailableForPlatform": "v2.1.2"
+    },
+    {
+      "name": "amphp/http-client",
+      "previous": "v5.3.7",
+      "installed": "v5.3.7",
+      "latestAvailableForPlatform": "v5.3.7"
+    },
+    {
+      "name": "amphp/http-server",
+      "previous": "v3.4.8",
+      "installed": "v3.4.8",
+      "latestAvailableForPlatform": "v3.4.8"
+    },
+    {
+      "name": "amphp/parser",
+      "previous": "v1.1.1",
+      "installed": "v1.1.1",
+      "latestAvailableForPlatform": "v1.1.1"
+    },
+    {
+      "name": "amphp/pipeline",
+      "previous": "v1.2.7",
+      "installed": "v1.2.7",
+      "latestAvailableForPlatform": "v1.2.7"
+    },
+    {
+      "name": "amphp/process",
+      "previous": "v2.1.1",
+      "installed": "v2.1.1",
+      "latestAvailableForPlatform": "v2.1.1"
+    },
+    {
+      "name": "amphp/serialization",
+      "previous": "v1.1.0",
+      "installed": "v1.1.0",
+      "latestAvailableForPlatform": "v1.1.0"
+    },
+    {
+      "name": "amphp/socket",
+      "previous": "v2.4.1",
+      "installed": "v2.4.1",
+      "latestAvailableForPlatform": "v2.4.1"
+    },
+    {
+      "name": "amphp/sync",
+      "previous": "v2.3.1",
+      "installed": "v2.3.1",
+      "latestAvailableForPlatform": "v2.3.1"
+    },
+    {
+      "name": "amphp/websocket",
+      "previous": "v2.0.5",
+      "installed": "v2.0.5",
+      "latestAvailableForPlatform": "v2.0.5"
+    },
+    {
+      "name": "amphp/websocket-client",
+      "previous": "v2.0.2",
+      "installed": "v2.0.2",
+      "latestAvailableForPlatform": "v2.0.2"
+    },
+    {
+      "name": "brianium/paratest",
+      "previous": "v7.27.5",
+      "installed": "v7.27.5",
+      "latestAvailableForPlatform": "v7.27.5"
+    },
+    {
+      "name": "brick/math",
+      "previous": "1.0.0",
+      "installed": "1.0.0",
+      "latestAvailableForPlatform": "1.0.0"
+    },
+    {
+      "name": "carbonphp/carbon-doctrine-types",
+      "previous": "3.2.1",
+      "installed": "3.2.1",
+      "latestAvailableForPlatform": "3.2.1"
+    },
+    {
+      "name": "citation-style-language/locales",
+      "previous": "v0.0.106",
+      "installed": "v0.0.106",
+      "latestAvailableForPlatform": "v0.0.106"
+    },
+    {
+      "name": "citation-style-language/styles",
+      "previous": "v0.0.772",
+      "installed": "v0.0.772",
+      "latestAvailableForPlatform": "v1.0.15"
+    },
+    {
+      "name": "daverandom/libdns",
+      "previous": "v2.1.0",
+      "installed": "v2.1.0",
+      "latestAvailableForPlatform": "v2.1.0"
+    },
+    {
+      "name": "dflydev/dot-access-data",
+      "previous": "v3.0.3",
+      "installed": "v3.0.3",
+      "latestAvailableForPlatform": "v3.0.3"
+    },
+    {
+      "name": "doctrine/deprecations",
+      "previous": "1.1.6",
+      "installed": "1.1.6",
+      "latestAvailableForPlatform": "1.1.6"
+    },
+    {
+      "name": "doctrine/inflector",
+      "previous": "2.1.1",
+      "installed": "2.1.1",
+      "latestAvailableForPlatform": "2.1.1"
+    },
+    {
+      "name": "doctrine/lexer",
+      "previous": "3.0.3",
+      "installed": "3.0.3",
+      "latestAvailableForPlatform": "3.0.3"
+    },
+    {
+      "name": "dragonmantank/cron-expression",
+      "previous": "v3.6.1",
+      "installed": "v3.6.1",
+      "latestAvailableForPlatform": "v3.6.1"
+    },
+    {
+      "name": "egulias/email-validator",
+      "previous": "4.0.4",
+      "installed": "4.0.4",
+      "latestAvailableForPlatform": "4.0.4"
+    },
+    {
+      "name": "entropy/entropy",
+      "previous": "0.4.36",
+      "installed": "0.4.36",
+      "latestAvailableForPlatform": "0.4.36"
+    },
+    {
+      "name": "fakerphp/faker",
+      "previous": "v1.24.1",
+      "installed": "v1.24.1",
+      "latestAvailableForPlatform": "v1.24.1"
+    },
+    {
+      "name": "fidry/cpu-core-counter",
+      "previous": "1.4.1",
+      "installed": "1.4.1",
+      "latestAvailableForPlatform": "1.4.1"
+    },
+    {
+      "name": "filp/whoops",
+      "previous": "2.19.1",
+      "installed": "2.19.2",
+      "latestAvailableForPlatform": "2.19.2"
+    },
+    {
+      "name": "fruitcake/php-cors",
+      "previous": "v1.4.0",
+      "installed": "v1.4.0",
+      "latestAvailableForPlatform": "v1.4.0"
+    },
+    {
+      "name": "graham-campbell/result-type",
+      "previous": "v1.2.0",
+      "installed": "v1.2.0",
+      "latestAvailableForPlatform": "v1.2.0"
+    },
+    {
+      "name": "guzzlehttp/guzzle",
+      "previous": "8.3.1",
+      "installed": "8.3.1",
+      "latestAvailableForPlatform": "8.3.1"
+    },
+    {
+      "name": "guzzlehttp/promises",
+      "previous": "3.1.0",
+      "installed": "3.1.0",
+      "latestAvailableForPlatform": "3.1.0"
+    },
+    {
+      "name": "guzzlehttp/psr7",
+      "previous": "3.2.0",
+      "installed": "3.2.0",
+      "latestAvailableForPlatform": "3.2.0"
+    },
+    {
+      "name": "guzzlehttp/uri-template",
+      "previous": "v2.0.1",
+      "installed": "v2.0.1",
+      "latestAvailableForPlatform": "v2.0.1"
+    },
+    {
+      "name": "hamcrest/hamcrest-php",
+      "previous": "v3.0.0",
+      "installed": "v3.0.0",
+      "latestAvailableForPlatform": "v3.0.0"
+    },
+    {
+      "name": "iamcal/sql-parser",
+      "previous": "v0.7",
+      "installed": "v0.7",
+      "latestAvailableForPlatform": "v0.7"
+    },
+    {
+      "name": "inertiajs/inertia-laravel",
+      "previous": "v3.7.0",
+      "installed": "v3.7.0",
+      "latestAvailableForPlatform": "v3.7.0"
+    },
+    {
+      "name": "jean85/pretty-package-versions",
+      "previous": "2.1.1",
+      "installed": "2.1.1",
+      "latestAvailableForPlatform": "2.1.1"
+    },
+    {
+      "name": "kelunik/certificate",
+      "previous": "v1.1.3",
+      "installed": "v1.1.3",
+      "latestAvailableForPlatform": "v1.1.3"
+    },
+    {
+      "name": "larastan/larastan",
+      "previous": "v3.13.2",
+      "installed": "v3.14.0",
+      "latestAvailableForPlatform": "v3.14.0"
+    },
+    {
+      "name": "laravel/framework",
+      "previous": "v13.39.0",
+      "installed": "v13.40.0",
+      "latestAvailableForPlatform": "v13.40.0"
+    },
+    {
+      "name": "laravel/pail",
+      "previous": "v1.2.7",
+      "installed": "v1.2.7",
+      "latestAvailableForPlatform": "v1.2.7"
+    },
+    {
+      "name": "laravel/pint",
+      "previous": "v1.32.1",
+      "installed": "v1.32.1",
+      "latestAvailableForPlatform": "v1.32.1"
+    },
+    {
+      "name": "laravel/prompts",
+      "previous": "v0.3.26",
+      "installed": "v0.3.26",
+      "latestAvailableForPlatform": "v0.3.26"
+    },
+    {
+      "name": "laravel/sail",
+      "previous": "v1.69.0",
+      "installed": "v1.69.0",
+      "latestAvailableForPlatform": "v1.69.0"
+    },
+    {
+      "name": "laravel/serializable-closure",
+      "previous": "v2.1.0",
+      "installed": "v2.1.0",
+      "latestAvailableForPlatform": "v2.1.0"
+    },
+    {
+      "name": "laravel/tinker",
+      "previous": "v3.0.2",
+      "installed": "v3.0.2",
+      "latestAvailableForPlatform": "v3.0.2"
+    },
+    {
+      "name": "laravel/wayfinder",
+      "previous": "v0.1.23",
+      "installed": "v0.1.23",
+      "latestAvailableForPlatform": "v0.1.23"
+    },
+    {
+      "name": "league/commonmark",
+      "previous": "2.10.7",
+      "installed": "2.10.7",
+      "latestAvailableForPlatform": "2.10.7"
+    },
+    {
+      "name": "league/config",
+      "previous": "v1.2.0",
+      "installed": "v1.2.0",
+      "latestAvailableForPlatform": "v1.2.0"
+    },
+    {
+      "name": "league/flysystem",
+      "previous": "3.36.0",
+      "installed": "3.36.0",
+      "latestAvailableForPlatform": "3.36.0"
+    },
+    {
+      "name": "league/flysystem-local",
+      "previous": "3.35.3",
+      "installed": "3.35.3",
+      "latestAvailableForPlatform": "3.35.3"
+    },
+    {
+      "name": "league/mime-type-detection",
+      "previous": "1.17.0",
+      "installed": "1.17.0",
+      "latestAvailableForPlatform": "1.17.0"
+    },
+    {
+      "name": "league/uri",
+      "previous": "7.9.1",
+      "installed": "7.10.0",
+      "latestAvailableForPlatform": "7.10.0"
+    },
+    {
+      "name": "league/uri-components",
+      "previous": "7.9.1",
+      "installed": "7.10.0",
+      "latestAvailableForPlatform": "7.10.0"
+    },
+    {
+      "name": "league/uri-interfaces",
+      "previous": "7.9.1",
+      "installed": "7.10.0",
+      "latestAvailableForPlatform": "7.10.0"
+    },
+    {
+      "name": "mockery/mockery",
+      "previous": "1.6.15",
+      "installed": "1.6.15",
+      "latestAvailableForPlatform": "1.6.15"
+    },
+    {
+      "name": "monolog/monolog",
+      "previous": "3.12.1",
+      "installed": "3.12.1",
+      "latestAvailableForPlatform": "3.12.1"
+    },
+    {
+      "name": "myclabs/deep-copy",
+      "previous": "1.14.0",
+      "installed": "1.14.0",
+      "latestAvailableForPlatform": "1.14.0"
+    },
+    {
+      "name": "myclabs/php-enum",
+      "previous": "1.8.5",
+      "installed": "1.8.5",
+      "latestAvailableForPlatform": "1.8.5"
+    },
+    {
+      "name": "nesbot/carbon",
+      "previous": "3.15.1",
+      "installed": "3.15.1",
+      "latestAvailableForPlatform": "3.15.1"
+    },
+    {
+      "name": "nette/schema",
+      "previous": "v1.4.0",
+      "installed": "v1.4.0",
+      "latestAvailableForPlatform": "v1.4.0"
+    },
+    {
+      "name": "nette/utils",
+      "previous": "v4.1.6",
+      "installed": "v4.1.6",
+      "latestAvailableForPlatform": "v4.1.6"
+    },
+    {
+      "name": "nikic/php-parser",
+      "previous": "v5.9.0",
+      "installed": "v5.9.0",
+      "latestAvailableForPlatform": "v5.9.0"
+    },
+    {
+      "name": "nitotm/efficient-language-detector",
+      "previous": "v3.2.0",
+      "installed": "v3.2.0",
+      "latestAvailableForPlatform": "v3.2.0"
+    },
+    {
+      "name": "nunomaduro/collision",
+      "previous": "v8.9.5",
+      "installed": "v8.9.5",
+      "latestAvailableForPlatform": "v8.9.5"
+    },
+    {
+      "name": "nunomaduro/pokio",
+      "previous": "v1.0.1",
+      "installed": "v1.0.1",
+      "latestAvailableForPlatform": "v1.0.1"
+    },
+    {
+      "name": "nunomaduro/termwind",
+      "previous": "v2.4.0",
+      "installed": "v2.4.0",
+      "latestAvailableForPlatform": "v2.4.0"
+    },
+    {
+      "name": "opis/json-schema",
+      "previous": "2.6.0",
+      "installed": "2.6.0",
+      "latestAvailableForPlatform": "2.6.0"
+    },
+    {
+      "name": "opis/string",
+      "previous": "2.1.0",
+      "installed": "2.1.0",
+      "latestAvailableForPlatform": "2.1.0"
+    },
+    {
+      "name": "opis/uri",
+      "previous": "1.1.0",
+      "installed": "1.1.0",
+      "latestAvailableForPlatform": "1.1.0"
+    },
+    {
+      "name": "pestphp/pest",
+      "previous": "v5.3.5",
+      "installed": "v5.3.5",
+      "latestAvailableForPlatform": "v5.3.5"
+    },
+    {
+      "name": "pestphp/pest-plugin",
+      "previous": "v5.0.0",
+      "installed": "v5.0.0",
+      "latestAvailableForPlatform": "v5.0.0"
+    },
+    {
+      "name": "pestphp/pest-plugin-agent",
+      "previous": "v5.0.0",
+      "installed": "v5.0.0",
+      "latestAvailableForPlatform": "v5.0.0"
+    },
+    {
+      "name": "pestphp/pest-plugin-arch",
+      "previous": "v5.0.0",
+      "installed": "v5.0.0",
+      "latestAvailableForPlatform": "v5.0.0"
+    },
+    {
+      "name": "pestphp/pest-plugin-browser",
+      "previous": "v5.2.0",
+      "installed": "v5.2.0",
+      "latestAvailableForPlatform": "v5.2.0"
+    },
+    {
+      "name": "pestphp/pest-plugin-laravel",
+      "previous": "v5.0.1",
+      "installed": "v5.0.1",
+      "latestAvailableForPlatform": "v5.0.1"
+    },
+    {
+      "name": "pestphp/pest-plugin-mutate",
+      "previous": "v5.0.2",
+      "installed": "v5.0.2",
+      "latestAvailableForPlatform": "v5.0.2"
+    },
+    {
+      "name": "pestphp/pest-plugin-phpstan",
+      "previous": "v5.3.1",
+      "installed": "v5.3.1",
+      "latestAvailableForPlatform": "v5.3.1"
+    },
+    {
+      "name": "pestphp/pest-plugin-profanity",
+      "previous": "v5.0.1",
+      "installed": "v5.0.1",
+      "latestAvailableForPlatform": "v5.0.1"
+    },
+    {
+      "name": "pestphp/pest-plugin-type-coverage",
+      "previous": "v5.1.0",
+      "installed": "v5.1.0",
+      "latestAvailableForPlatform": "v5.1.0"
+    },
+    {
+      "name": "phar-io/manifest",
+      "previous": "2.0.4",
+      "installed": "2.0.4",
+      "latestAvailableForPlatform": "2.0.4"
+    },
+    {
+      "name": "phar-io/version",
+      "previous": "3.2.1",
+      "installed": "3.2.1",
+      "latestAvailableForPlatform": "3.2.1"
+    },
+    {
+      "name": "php-standard-library/php-standard-library",
+      "previous": "6.4.2",
+      "installed": "6.4.2",
+      "latestAvailableForPlatform": "6.4.2"
+    },
+    {
+      "name": "phpdocumentor/reflection-common",
+      "previous": "2.2.1",
+      "installed": "2.2.1",
+      "latestAvailableForPlatform": "2.2.1"
+    },
+    {
+      "name": "phpdocumentor/reflection-docblock",
+      "previous": "6.0.3",
+      "installed": "6.0.3",
+      "latestAvailableForPlatform": "6.0.3"
+    },
+    {
+      "name": "phpdocumentor/type-resolver",
+      "previous": "2.1.0",
+      "installed": "2.1.0",
+      "latestAvailableForPlatform": "2.1.0"
+    },
+    {
+      "name": "phpoption/phpoption",
+      "previous": "1.10.0",
+      "installed": "1.10.0",
+      "latestAvailableForPlatform": "1.10.0"
+    },
+    {
+      "name": "phpstan/phpdoc-parser",
+      "previous": "2.4.1",
+      "installed": "2.4.1",
+      "latestAvailableForPlatform": "2.4.1"
+    },
+    {
+      "name": "phpstan/phpstan",
+      "previous": "2.3.4",
+      "installed": "2.3.5",
+      "latestAvailableForPlatform": "2.3.5"
+    },
+    {
+      "name": "phpunit/php-code-coverage",
+      "previous": "14.5.1",
+      "installed": "14.5.1",
+      "latestAvailableForPlatform": "14.5.1"
+    },
+    {
+      "name": "phpunit/php-file-iterator",
+      "previous": "7.0.2",
+      "installed": "7.0.2",
+      "latestAvailableForPlatform": "7.0.2"
+    },
+    {
+      "name": "phpunit/php-invoker",
+      "previous": "7.0.0",
+      "installed": "7.0.0",
+      "latestAvailableForPlatform": "7.0.0"
+    },
+    {
+      "name": "phpunit/php-text-template",
+      "previous": "6.0.1",
+      "installed": "6.0.1",
+      "latestAvailableForPlatform": "6.0.1"
+    },
+    {
+      "name": "phpunit/php-timer",
+      "previous": "9.0.0",
+      "installed": "9.0.0",
+      "latestAvailableForPlatform": "9.0.0"
+    },
+    {
+      "name": "phpunit/phpunit",
+      "previous": "13.4.5",
+      "installed": "13.4.5",
+      "latestAvailableForPlatform": "13.4.6"
+    },
+    {
+      "name": "psr/clock",
+      "previous": "1.0.0",
+      "installed": "1.0.0",
+      "latestAvailableForPlatform": "1.0.0"
+    },
+    {
+      "name": "psr/container",
+      "previous": "2.0.2",
+      "installed": "2.0.2",
+      "latestAvailableForPlatform": "2.0.2"
+    },
+    {
+      "name": "psr/event-dispatcher",
+      "previous": "1.0.0",
+      "installed": "1.0.0",
+      "latestAvailableForPlatform": "1.0.0"
+    },
+    {
+      "name": "psr/http-client",
+      "previous": "1.0.3",
+      "installed": "1.0.3",
+      "latestAvailableForPlatform": "1.0.3"
+    },
+    {
+      "name": "psr/http-factory",
+      "previous": "1.1.0",
+      "installed": "1.1.0",
+      "latestAvailableForPlatform": "1.1.0"
+    },
+    {
+      "name": "psr/http-message",
+      "previous": "2.0",
+      "installed": "2.0",
+      "latestAvailableForPlatform": "2.0"
+    },
+    {
+      "name": "psr/log",
+      "previous": "3.0.2",
+      "installed": "3.0.2",
+      "latestAvailableForPlatform": "3.0.2"
+    },
+    {
+      "name": "psr/simple-cache",
+      "previous": "3.0.0",
+      "installed": "3.0.0",
+      "latestAvailableForPlatform": "3.0.0"
+    },
+    {
+      "name": "psy/psysh",
+      "previous": "v0.12.24",
+      "installed": "v0.12.24",
+      "latestAvailableForPlatform": "v0.12.24"
+    },
+    {
+      "name": "ramsey/collection",
+      "previous": "2.1.1",
+      "installed": "2.1.1",
+      "latestAvailableForPlatform": "2.1.1"
+    },
+    {
+      "name": "ramsey/uuid",
+      "previous": "4.9.4",
+      "installed": "4.9.4",
+      "latestAvailableForPlatform": "4.9.4"
+    },
+    {
+      "name": "revolt/event-loop",
+      "previous": "v1.0.9",
+      "installed": "v1.0.9",
+      "latestAvailableForPlatform": "v1.0.9"
+    },
+    {
+      "name": "saloonphp/xml-wrangler",
+      "previous": "v1.5.0",
+      "installed": "v1.5.0",
+      "latestAvailableForPlatform": "v1.5.0"
+    },
+    {
+      "name": "sebastian/cli-parser",
+      "previous": "5.0.1",
+      "installed": "5.0.1",
+      "latestAvailableForPlatform": "5.0.1"
+    },
+    {
+      "name": "sebastian/comparator",
+      "previous": "8.4.0",
+      "installed": "8.4.0",
+      "latestAvailableForPlatform": "8.4.0"
+    },
+    {
+      "name": "sebastian/complexity",
+      "previous": "6.0.0",
+      "installed": "6.0.0",
+      "latestAvailableForPlatform": "6.0.0"
+    },
+    {
+      "name": "sebastian/diff",
+      "previous": "9.0.1",
+      "installed": "9.0.1",
+      "latestAvailableForPlatform": "9.0.1"
+    },
+    {
+      "name": "sebastian/environment",
+      "previous": "9.3.3",
+      "installed": "9.3.3",
+      "latestAvailableForPlatform": "9.3.3"
+    },
+    {
+      "name": "sebastian/exporter",
+      "previous": "8.2.1",
+      "installed": "8.2.1",
+      "latestAvailableForPlatform": "8.2.1"
+    },
+    {
+      "name": "sebastian/file-filter",
+      "previous": "1.0.0",
+      "installed": "1.0.0",
+      "latestAvailableForPlatform": "1.0.0"
+    },
+    {
+      "name": "sebastian/git-state",
+      "previous": "1.1.0",
+      "installed": "1.1.0",
+      "latestAvailableForPlatform": "1.1.0"
+    },
+    {
+      "name": "sebastian/global-state",
+      "previous": "9.0.1",
+      "installed": "9.0.1",
+      "latestAvailableForPlatform": "9.0.1"
+    },
+    {
+      "name": "sebastian/lines-of-code",
+      "previous": "5.0.2",
+      "installed": "5.0.2",
+      "latestAvailableForPlatform": "5.0.2"
+    },
+    {
+      "name": "sebastian/object-enumerator",
+      "previous": "8.1.0",
+      "installed": "8.1.0",
+      "latestAvailableForPlatform": "8.1.0"
+    },
+    {
+      "name": "sebastian/object-reflector",
+      "previous": "6.1.0",
+      "installed": "6.1.0",
+      "latestAvailableForPlatform": "6.1.0"
+    },
+    {
+      "name": "sebastian/recursion-context",
+      "previous": "8.0.1",
+      "installed": "8.0.1",
+      "latestAvailableForPlatform": "8.0.1"
+    },
+    {
+      "name": "sebastian/type",
+      "previous": "7.0.2",
+      "installed": "7.0.2",
+      "latestAvailableForPlatform": "7.0.2"
+    },
+    {
+      "name": "sebastian/version",
+      "previous": "7.0.1",
+      "installed": "7.0.1",
+      "latestAvailableForPlatform": "7.0.1"
+    },
+    {
+      "name": "seboettg/citeproc-php",
+      "previous": "v2.7.1",
+      "installed": "v2.7.1",
+      "latestAvailableForPlatform": "v2.7.1"
+    },
+    {
+      "name": "seboettg/collection",
+      "previous": "v3.1.0",
+      "installed": "v3.1.0",
+      "latestAvailableForPlatform": "v4.0.0"
+    },
+    {
+      "name": "spatie/array-to-xml",
+      "previous": "3.4.4",
+      "installed": "3.4.4",
+      "latestAvailableForPlatform": "3.4.4"
+    },
+    {
+      "name": "staabm/side-effects-detector",
+      "previous": "1.0.5",
+      "installed": "1.0.5",
+      "latestAvailableForPlatform": "1.0.5"
+    },
+    {
+      "name": "symfony/clock",
+      "previous": "v8.1.9",
+      "installed": "v8.1.9",
+      "latestAvailableForPlatform": "v8.1.9"
+    },
+    {
+      "name": "symfony/console",
+      "previous": "v8.1.10",
+      "installed": "v8.1.11",
+      "latestAvailableForPlatform": "v8.1.11"
+    },
+    {
+      "name": "symfony/css-selector",
+      "previous": "v8.1.10",
+      "installed": "v8.1.10",
+      "latestAvailableForPlatform": "v8.1.10"
+    },
+    {
+      "name": "symfony/deprecation-contracts",
+      "previous": "v3.7.1",
+      "installed": "v3.8.1",
+      "latestAvailableForPlatform": "v3.8.1"
+    },
+    {
+      "name": "symfony/error-handler",
+      "previous": "v8.1.10",
+      "installed": "v8.1.10",
+      "latestAvailableForPlatform": "v8.1.10"
+    },
+    {
+      "name": "symfony/event-dispatcher",
+      "previous": "v8.1.5",
+      "installed": "v8.1.5",
+      "latestAvailableForPlatform": "v8.1.5"
+    },
+    {
+      "name": "symfony/event-dispatcher-contracts",
+      "previous": "v3.7.1",
+      "installed": "v3.8.1",
+      "latestAvailableForPlatform": "v3.8.1"
+    },
+    {
+      "name": "symfony/finder",
+      "previous": "v8.1.10",
+      "installed": "v8.1.11",
+      "latestAvailableForPlatform": "v8.1.11"
+    },
+    {
+      "name": "symfony/http-foundation",
+      "previous": "v8.1.10",
+      "installed": "v8.1.11",
+      "latestAvailableForPlatform": "v8.1.11"
+    },
+    {
+      "name": "symfony/http-kernel",
+      "previous": "v8.1.10",
+      "installed": "v8.1.11",
+      "latestAvailableForPlatform": "v8.1.11"
+    },
+    {
+      "name": "symfony/mailer",
+      "previous": "v8.1.10",
+      "installed": "v8.1.10",
+      "latestAvailableForPlatform": "v8.1.10"
+    },
+    {
+      "name": "symfony/mime",
+      "previous": "v8.1.10",
+      "installed": "v8.1.10",
+      "latestAvailableForPlatform": "v8.1.10"
+    },
+    {
+      "name": "symfony/polyfill-ctype",
+      "previous": "v1.37.0",
+      "installed": "v1.37.0",
+      "latestAvailableForPlatform": "v1.37.0"
+    },
+    {
+      "name": "symfony/polyfill-intl-grapheme",
+      "previous": "v1.43.3",
+      "installed": "v1.43.3",
+      "latestAvailableForPlatform": "v1.43.3"
+    },
+    {
+      "name": "symfony/polyfill-intl-idn",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/polyfill-intl-normalizer",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/polyfill-mbstring",
+      "previous": "v1.43.3",
+      "installed": "v1.43.3",
+      "latestAvailableForPlatform": "v1.43.3"
+    },
+    {
+      "name": "symfony/polyfill-php80",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/polyfill-php82",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/polyfill-php84",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/polyfill-php85",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/polyfill-php86",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/polyfill-time",
+      "previous": "v1.42.0",
+      "installed": "v1.42.0",
+      "latestAvailableForPlatform": "v1.42.0"
+    },
+    {
+      "name": "symfony/polyfill-uuid",
+      "previous": "v1.43.0",
+      "installed": "v1.43.0",
+      "latestAvailableForPlatform": "v1.43.0"
+    },
+    {
+      "name": "symfony/process",
+      "previous": "v8.1.10",
+      "installed": "v8.1.10",
+      "latestAvailableForPlatform": "v8.1.10"
+    },
+    {
+      "name": "symfony/routing",
+      "previous": "v8.1.10",
+      "installed": "v8.1.11",
+      "latestAvailableForPlatform": "v8.1.11"
+    },
+    {
+      "name": "symfony/service-contracts",
+      "previous": "v3.7.3",
+      "installed": "v3.8.1",
+      "latestAvailableForPlatform": "v3.8.1"
+    },
+    {
+      "name": "symfony/string",
+      "previous": "v8.1.10",
+      "installed": "v8.1.10",
+      "latestAvailableForPlatform": "v8.1.10"
+    },
+    {
+      "name": "symfony/translation",
+      "previous": "v8.1.10",
+      "installed": "v8.1.11",
+      "latestAvailableForPlatform": "v8.1.11"
+    },
+    {
+      "name": "symfony/translation-contracts",
+      "previous": "v3.7.1",
+      "installed": "v3.8.1",
+      "latestAvailableForPlatform": "v3.8.1"
+    },
+    {
+      "name": "symfony/uid",
+      "previous": "v8.1.9",
+      "installed": "v8.1.9",
+      "latestAvailableForPlatform": "v8.1.9"
+    },
+    {
+      "name": "symfony/var-dumper",
+      "previous": "v8.1.10",
+      "installed": "v8.1.10",
+      "latestAvailableForPlatform": "v8.1.10"
+    },
+    {
+      "name": "symfony/yaml",
+      "previous": "v8.1.10",
+      "installed": "v8.1.11",
+      "latestAvailableForPlatform": "v8.1.11"
+    },
+    {
+      "name": "ta-tikoma/phpunit-architecture-test",
+      "previous": "0.8.7",
+      "installed": "0.8.7",
+      "latestAvailableForPlatform": "0.8.7"
+    },
+    {
+      "name": "tijsverkoyen/css-to-inline-styles",
+      "previous": "v2.4.0",
+      "installed": "v2.4.0",
+      "latestAvailableForPlatform": "v2.4.0"
+    },
+    {
+      "name": "tomasvotruba/type-coverage",
+      "previous": "2.5.1",
+      "installed": "2.5.1",
+      "latestAvailableForPlatform": "2.5.1"
+    },
+    {
+      "name": "veewee/xml",
+      "previous": "3.8.0",
+      "installed": "3.8.0",
+      "latestAvailableForPlatform": "4.14.0"
+    },
+    {
+      "name": "vlucas/phpdotenv",
+      "previous": "v5.8.0",
+      "installed": "v5.8.0",
+      "latestAvailableForPlatform": "v5.8.0"
+    },
+    {
+      "name": "voku/portable-ascii",
+      "previous": "2.1.1",
+      "installed": "2.1.1",
+      "latestAvailableForPlatform": "2.1.1"
+    },
+    {
+      "name": "webmozart/assert",
+      "previous": "1.12.1",
+      "installed": "1.12.1",
+      "latestAvailableForPlatform": "2.5.0"
+    }
+  ],
+  "actions": [
+    {
+      "repo": "actions/checkout",
+      "tag": "v7.0.1",
+      "published": "2026-07-20T15:10:05Z",
+      "url": "https://github.com/actions/checkout/releases/tag/v7.0.1",
+      "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1"
+    },
+    {
+      "repo": "actions/setup-node",
+      "tag": "v7.1.0",
+      "published": "2026-10-08T02:52:34Z",
+      "url": "https://github.com/actions/setup-node/releases/tag/v7.1.0",
+      "sha": "949feb2413d6458794dcd2491c4babbbce0c15c1"
+    },
+    {
+      "repo": "actions/cache",
+      "tag": "v6.1.0",
+      "published": "2026-06-26T19:17:06Z",
+      "url": "https://github.com/actions/cache/releases/tag/v6.1.0",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+    },
+    {
+      "repo": "actions/upload-artifact",
+      "tag": "v7.0.2",
+      "published": "2026-10-07T10:08:14Z",
+      "url": "https://github.com/actions/upload-artifact/releases/tag/v7.0.2",
+      "sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+    },
+    {
+      "repo": "actions/download-artifact",
+      "tag": "v8.0.2",
+      "published": "2026-10-07T10:09:51Z",
+      "url": "https://github.com/actions/download-artifact/releases/tag/v8.0.2",
+      "sha": "9000827ccba6bdab643e8b6fd33ac0654aef8333"
+    },
+    {
+      "repo": "actions/github-script",
+      "tag": "v9.0.0",
+      "published": "2026-04-09T22:57:15Z",
+      "url": "https://github.com/actions/github-script/releases/tag/v9.0.0",
+      "sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3"
+    },
+    {
+      "repo": "actions/create-github-app-token",
+      "tag": "v3.3.0",
+      "published": "2026-10-12T23:42:23Z",
+      "url": "https://github.com/actions/create-github-app-token/releases/tag/v3.3.0",
+      "sha": "64ab729a6294000f5aa4a4bc0b73d1f32bc45510"
+    },
+    {
+      "repo": "shivammathur/setup-php",
+      "tag": "2.40.0",
+      "published": "2026-10-08T07:50:00Z",
+      "url": "https://github.com/shivammathur/setup-php/releases/tag/2.40.0",
+      "sha": "eb7c497e18156a6bbabfef1d3a82760b9eda3962"
+    },
+    {
+      "repo": "docker/setup-buildx-action",
+      "tag": "v4.4.1",
+      "published": "2026-09-16T07:50:21Z",
+      "url": "https://github.com/docker/setup-buildx-action/releases/tag/v4.4.1",
+      "sha": "f87e5991a6d7451dcb8d9637bfbc97413f497069"
+    },
+    {
+      "repo": "docker/build-push-action",
+      "tag": "v7.4.0",
+      "published": "2026-09-15T08:22:01Z",
+      "url": "https://github.com/docker/build-push-action/releases/tag/v7.4.0",
+      "sha": "c3c9e263c25d99ce0380d002d59b67737d91b0dc"
+    },
+    {
+      "repo": "docker/login-action",
+      "tag": "v4.8.0",
+      "published": "2026-11-05T12:56:58Z",
+      "url": "https://github.com/docker/login-action/releases/tag/v4.8.0",
+      "sha": "8aa5831fb8d48d8f76594c7ddde61ae58019f550"
+    },
+    {
+      "repo": "codecov/codecov-action",
+      "tag": "v7.1.1",
+      "published": "2026-09-17T00:48:02Z",
+      "url": "https://github.com/codecov/codecov-action/releases/tag/v7.1.1",
+      "sha": "303a32d7a59b442fa8d48b6a1cc6825c09c847a5"
+    },
+    {
+      "repo": "github/codeql-action",
+      "tag": "v4.39.3",
+      "published": "2026-11-04T16:49:20Z",
+      "url": "https://github.com/github/codeql-action/releases/tag/v4.39.3",
+      "sha": "33d7b85da1a04171e211befe2c739303b9a4c066"
+    }
+  ],
+  "images": [
+    {
+      "image": "php:8.5.12-fpm-trixie",
+      "digest": "sha256:390bf03586f01031d2acce8711d9132023106da8bf07eaedf7edb64513755143"
+    },
+    {
+      "image": "redis:8.10.3-alpine",
+      "digest": "sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537"
+    },
+    {
+      "image": "mysql:9.7.4",
+      "digest": "sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8"
+    },
+    {
+      "image": "nginx:1.31.8-alpine",
+      "digest": "sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606"
+    },
+    {
+      "image": "mysql:8.4.13",
+      "digest": "sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902"
+    },
+    {
+      "image": "aquasec/trivy:0.76.2",
+      "digest": "sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb"
+    },
+    {
+      "image": "ghcr.io/pangaea-data-publisher/fuji:4.0.1",
+      "digest": "sha256:2108f2e2f52fed4cc0f58f22d47644c5d015c5c66f3886e2440e216c533e6a9a"
+    },
+    {
+      "image": "traefik:v3.7.17",
+      "digest": "sha256:68ae5fe5b64ca166704b746a9e8afcd385e36b3f569a5691401bf652d57b3748"
+    },
+    {
+      "image": "composer:2.11.1",
+      "digest": "sha256:5190d9b445add2fa26090108273cb1ef1e1af98175201c737b85b3c4f90fbf7c"
+    },
+    {
+      "image": "mcr.microsoft.com/playwright:v1.64.1-resolute",
+      "digest": "sha256:f76885029244e5a384243a930ff283cef67d90653978ee27a77dd4cff8882fb4"
+    }
+  ],
+  "python": [
+    {
+      "name": "a2wsgi",
+      "previous": "1.10.10",
+      "installed": "1.10.10",
+      "latestStable": "1.10.10"
+    },
+    {
+      "name": "anyio",
+      "previous": "4.16.0",
+      "installed": "4.16.0",
+      "latestStable": "4.16.0"
+    },
+    {
+      "name": "asgiref",
+      "previous": "3.13.0",
+      "installed": "3.13.0",
+      "latestStable": "3.13.0"
+    },
+    {
+      "name": "attrs",
+      "previous": "26.1.0",
+      "installed": "26.1.0",
+      "latestStable": "26.1.0"
+    },
+    {
+      "name": "beautifulsoup4",
+      "previous": "4.15.0",
+      "installed": "4.15.0",
+      "latestStable": "4.15.0"
+    },
+    {
+      "name": "blinker",
+      "previous": "1.9.0",
+      "installed": "1.9.0",
+      "latestStable": "1.9.0"
+    },
+    {
+      "name": "certifi",
+      "previous": "2026.10.23",
+      "installed": "2026.10.23",
+      "latestStable": "2026.10.23"
+    },
+    {
+      "name": "cffi",
+      "previous": "2.1.1",
+      "installed": "2.1.1",
+      "latestStable": "2.1.1"
+    },
+    {
+      "name": "charset-normalizer",
+      "previous": "3.5.2",
+      "installed": "3.5.2",
+      "latestStable": "3.5.2"
+    },
+    {
+      "name": "click",
+      "previous": "8.5.0",
+      "installed": "8.5.0",
+      "latestStable": "8.5.0"
+    },
+    {
+      "name": "connexion",
+      "previous": "3.3.0",
+      "installed": "3.3.0",
+      "latestStable": "3.3.0"
+    },
+    {
+      "name": "cryptography",
+      "previous": "50.0.2",
+      "installed": "50.0.2",
+      "latestStable": "50.0.2"
+    },
+    {
+      "name": "extruct",
+      "previous": "0.18.0",
+      "installed": "0.18.0",
+      "latestStable": "0.18.0"
+    },
+    {
+      "name": "feedparser",
+      "previous": "6.0.14",
+      "installed": "6.0.14",
+      "latestStable": "6.0.14"
+    },
+    {
+      "name": "feedparser-sgmllib",
+      "previous": "2.1.0",
+      "installed": "2.1.0",
+      "latestStable": "2.1.0"
+    },
+    {
+      "name": "filelock",
+      "previous": "4.2.7",
+      "installed": "4.2.9",
+      "latestStable": "4.2.9"
+    },
+    {
+      "name": "Flask",
+      "previous": "3.1.3",
+      "installed": "3.1.3",
+      "latestStable": "3.1.3"
+    },
+    {
+      "name": "fuji",
+      "previous": "4.0.1",
+      "installed": "4.0.1",
+      "latestStable": "4.0.1",
+      "source": "https://github.com/pangaea-data-publisher/fuji/releases/tag/v4.0.1",
+      "note": "The PyPI package named fuji is unrelated and is not used."
+    },
+    {
+      "name": "greenlet",
+      "previous": "3.5.6",
+      "installed": "3.5.6",
+      "latestStable": "3.5.6"
+    },
+    {
+      "name": "h11",
+      "previous": "0.16.0",
+      "installed": "0.16.0",
+      "latestStable": "0.16.0"
+    },
+    {
+      "name": "hashID",
+      "previous": "3.1.4",
+      "installed": "3.1.4",
+      "latestStable": "3.1.4"
+    },
+    {
+      "name": "html-text",
+      "previous": "0.7.1",
+      "installed": "0.7.1",
+      "latestStable": "0.7.1"
+    },
+    {
+      "name": "html5lib",
+      "previous": "1.1",
+      "installed": "1.1",
+      "latestStable": "1.1"
+    },
+    {
+      "name": "httpcore",
+      "previous": "1.0.9",
+      "installed": "1.0.9",
+      "latestStable": "1.0.9"
+    },
+    {
+      "name": "httptools",
+      "previous": "0.9.0",
+      "installed": "0.9.0",
+      "latestStable": "0.9.0"
+    },
+    {
+      "name": "httpx",
+      "previous": "0.28.1",
+      "installed": "0.28.1",
+      "latestStable": "0.28.1"
+    },
+    {
+      "name": "idna",
+      "previous": "3.20",
+      "installed": "3.20",
+      "latestStable": "3.20"
+    },
+    {
+      "name": "idutils",
+      "previous": "1.7.1",
+      "installed": "1.7.1",
+      "latestStable": "1.7.1"
+    },
+    {
+      "name": "inflection",
+      "previous": "0.5.1",
+      "installed": "0.5.1",
+      "latestStable": "0.5.1"
+    },
+    {
+      "name": "is-antibot",
+      "previous": "0.1.1",
+      "installed": "0.1.1",
+      "latestStable": "0.1.1"
+    },
+    {
+      "name": "isbnlib2",
+      "previous": "3.11.24",
+      "installed": "3.11.24",
+      "latestStable": "3.11.24"
+    },
+    {
+      "name": "itsdangerous",
+      "previous": "2.2.0",
+      "installed": "2.2.0",
+      "latestStable": "2.2.0"
+    },
+    {
+      "name": "Jinja2",
+      "previous": "3.1.6",
+      "installed": "3.1.6",
+      "latestStable": "3.1.6"
+    },
+    {
+      "name": "jmespath",
+      "previous": "1.1.0",
+      "installed": "1.1.0",
+      "latestStable": "1.1.0"
+    },
+    {
+      "name": "jsonschema",
+      "previous": "4.26.0",
+      "installed": "4.26.0",
+      "latestStable": "4.26.0"
+    },
+    {
+      "name": "jsonschema-specifications",
+      "previous": "2025.9.1",
+      "installed": "2025.9.1",
+      "latestStable": "2025.9.1"
+    },
+    {
+      "name": "jstyleson",
+      "previous": "0.0.2",
+      "installed": "0.0.2",
+      "latestStable": "0.0.2"
+    },
+    {
+      "name": "Levenshtein",
+      "previous": "0.26.1",
+      "installed": "0.26.1",
+      "latestStable": "0.27.5"
+    },
+    {
+      "name": "lxml",
+      "previous": "6.1.3",
+      "installed": "6.1.3",
+      "latestStable": "6.1.3"
+    },
+    {
+      "name": "lxml_html_clean",
+      "previous": "0.4.6",
+      "installed": "0.4.6",
+      "latestStable": "0.4.6"
+    },
+    {
+      "name": "MarkupSafe",
+      "previous": "3.0.4",
+      "installed": "3.0.4",
+      "latestStable": "3.0.4"
+    },
+    {
+      "name": "mf2py",
+      "previous": "2.0.2",
+      "installed": "2.0.2",
+      "latestStable": "2.0.2"
+    },
+    {
+      "name": "numpy",
+      "previous": "2.5.4",
+      "installed": "2.5.4",
+      "latestStable": "2.5.4"
+    },
+    {
+      "name": "pandas",
+      "previous": "2.2.3",
+      "installed": "2.2.3",
+      "latestStable": "3.1.1"
+    },
+    {
+      "name": "platformdirs",
+      "previous": "4.14.3",
+      "installed": "4.14.5",
+      "latestStable": "4.14.5"
+    },
+    {
+      "name": "playwright",
+      "previous": "1.64.1",
+      "installed": "1.64.1",
+      "latestStable": "1.64.1"
+    },
+    {
+      "name": "pycparser",
+      "previous": "3.12",
+      "installed": "3.12",
+      "latestStable": "3.12"
+    },
+    {
+      "name": "pyee",
+      "previous": "14.0.0",
+      "installed": "14.0.0",
+      "latestStable": "16.0.1"
+    },
+    {
+      "name": "PyGithub",
+      "previous": "2.10.0",
+      "installed": "2.10.0",
+      "latestStable": "2.10.0"
+    },
+    {
+      "name": "PyJWT",
+      "previous": "2.15.1",
+      "installed": "2.15.1",
+      "latestStable": "2.15.1"
+    },
+    {
+      "name": "PyNaCl",
+      "previous": "1.6.2",
+      "installed": "1.6.2",
+      "latestStable": "1.6.2"
+    },
+    {
+      "name": "pyparsing",
+      "previous": "3.3.3",
+      "installed": "3.3.3",
+      "latestStable": "3.3.3"
+    },
+    {
+      "name": "pyrdfa3",
+      "previous": "3.6.5",
+      "installed": "3.6.5",
+      "latestStable": "3.6.5"
+    },
+    {
+      "name": "python-dateutil",
+      "previous": "2.9.0.post0",
+      "installed": "2.9.0.post0",
+      "latestStable": "4.0.0"
+    },
+    {
+      "name": "python-dotenv",
+      "previous": "1.2.4",
+      "installed": "1.2.4",
+      "latestStable": "1.2.4"
+    },
+    {
+      "name": "python-multipart",
+      "previous": "0.0.33",
+      "installed": "0.0.33",
+      "latestStable": "0.0.33"
+    },
+    {
+      "name": "pytz",
+      "previous": "2026.6",
+      "installed": "2026.6",
+      "latestStable": "2026.6"
+    },
+    {
+      "name": "PyYAML",
+      "previous": "6.0.3",
+      "installed": "6.0.3",
+      "latestStable": "6.0.3"
+    },
+    {
+      "name": "RapidFuzz",
+      "previous": "3.14.6",
+      "installed": "3.14.6",
+      "latestStable": "3.14.6"
+    },
+    {
+      "name": "rdflib",
+      "previous": "7.6.0",
+      "installed": "7.6.0",
+      "latestStable": "7.6.0"
+    },
+    {
+      "name": "referencing",
+      "previous": "0.37.0",
+      "installed": "0.37.0",
+      "latestStable": "0.37.0"
+    },
+    {
+      "name": "requests",
+      "previous": "2.34.2",
+      "installed": "2.34.2",
+      "latestStable": "2.34.2"
+    },
+    {
+      "name": "requests-file",
+      "previous": "3.0.1",
+      "installed": "3.0.1",
+      "latestStable": "3.0.1"
+    },
+    {
+      "name": "rpds-py",
+      "previous": "2026.9.1",
+      "installed": "2026.9.1",
+      "latestStable": "2026.9.1"
+    },
+    {
+      "name": "setuptools",
+      "previous": "84.2.1",
+      "installed": "84.2.1",
+      "latestStable": "84.2.1"
+    },
+    {
+      "name": "six",
+      "previous": "1.17.0",
+      "installed": "1.17.0",
+      "latestStable": "1.17.0"
+    },
+    {
+      "name": "soupsieve",
+      "previous": "3.0.4",
+      "installed": "3.0.4",
+      "latestStable": "4.0.1"
+    },
+    {
+      "name": "SPARQLWrapper",
+      "previous": "2.0.0",
+      "installed": "2.0.0",
+      "latestStable": "2.0.0"
+    },
+    {
+      "name": "starlette",
+      "previous": "1.10.0",
+      "installed": "1.10.0",
+      "latestStable": "1.10.0"
+    },
+    {
+      "name": "swagger_ui_bundle",
+      "previous": "1.1.0",
+      "installed": "1.1.0",
+      "latestStable": "1.1.0"
+    },
+    {
+      "name": "tika",
+      "previous": "3.1.0",
+      "installed": "3.1.0",
+      "latestStable": "3.3.2"
+    },
+    {
+      "name": "tldextract",
+      "previous": "5.4.0",
+      "installed": "5.4.0",
+      "latestStable": "5.4.0"
+    },
+    {
+      "name": "typing_extensions",
+      "previous": "4.16.0",
+      "installed": "4.16.0",
+      "latestStable": "4.16.0"
+    },
+    {
+      "name": "tzdata",
+      "previous": "2026.6",
+      "installed": "2026.6",
+      "latestStable": "2026.6"
+    },
+    {
+      "name": "uritools",
+      "previous": "6.1.3",
+      "installed": "6.1.4",
+      "latestStable": "6.1.4"
+    },
+    {
+      "name": "urlextract",
+      "previous": "1.10.0",
+      "installed": "1.10.0",
+      "latestStable": "1.10.0"
+    },
+    {
+      "name": "urllib3",
+      "previous": "2.8.0",
+      "installed": "2.8.0",
+      "latestStable": "2.8.0"
+    },
+    {
+      "name": "uvicorn",
+      "previous": "0.52.4",
+      "installed": "0.52.4",
+      "latestStable": "0.54.0"
+    },
+    {
+      "name": "uvloop",
+      "previous": "0.23.0",
+      "installed": "0.23.0",
+      "latestStable": "0.23.0"
+    },
+    {
+      "name": "w3lib",
+      "previous": "2.5.0",
+      "installed": "2.6.0",
+      "latestStable": "2.6.0"
+    },
+    {
+      "name": "watchfiles",
+      "previous": "1.3.0",
+      "installed": "1.3.0",
+      "latestStable": "1.3.0"
+    },
+    {
+      "name": "webencodings",
+      "previous": "0.6.1",
+      "installed": "0.6.1",
+      "latestStable": "0.6.1"
+    },
+    {
+      "name": "websockets",
+      "previous": "17.4",
+      "installed": "17.4",
+      "latestStable": "17.4"
+    },
+    {
+      "name": "Werkzeug",
+      "previous": "3.1.9",
+      "installed": "3.1.9",
+      "latestStable": "3.1.9"
+    }
+  ],
+  "constrainedUpdates": [
+    {
+      "package": "citation-style-language/styles",
+      "latest": "1.0.15",
+      "reason": "seboettg/citeproc-php 2.7.1 requires v0.0.*"
+    },
+    {
+      "package": "seboettg/collection",
+      "latest": "4.0.0",
+      "reason": "seboettg/citeproc-php 2.7.1 requires ^3.1"
+    },
+    {
+      "package": "veewee/xml",
+      "latest": "4.14.0",
+      "reason": "saloonphp/xml-wrangler 1.5.0 requires ^3.1.0"
+    },
+    {
+      "package": "webmozart/assert",
+      "latest": "2.5.0",
+      "reason": "veewee/xml 3.8.0 requires ^1.10"
+    },
+    {
+      "package": "phpunit/phpunit",
+      "latest": "13.4.6",
+      "reason": "pestphp/pest 5.3.5 conflicts with versions >13.4.5"
+    },
+    {
+      "package": "tika",
+      "latest": "3.3.2",
+      "reason": "F-UJI 4.0.1 requires ~=3.1.0"
+    },
+    {
+      "package": "uvicorn",
+      "latest": "0.54.0",
+      "reason": "F-UJI 4.0.1 requires ~=0.52.4"
+    },
+    {
+      "package": "Levenshtein",
+      "latest": "0.27.5",
+      "reason": "F-UJI 4.0.1 requires ~=0.26.1"
+    },
+    {
+      "package": "pandas",
+      "latest": "3.1.1",
+      "reason": "F-UJI 4.0.1 requires ~=2.2.3"
+    },
+    {
+      "package": "python-dateutil",
+      "latest": "4.0.0",
+      "reason": "F-UJI 4.0.1 requires ~=2.9.0"
+    },
+    {
+      "package": "pyee",
+      "latest": "16.0.1",
+      "selected": "14.0.0",
+      "reason": "Playwright 1.64.1 requires >=13,<15"
+    },
+    {
+      "package": "fuji",
+      "reason": "The PyPI package named fuji is unrelated; the reviewed PANGAEA image release is 4.0.1."
+    },
+    {
+      "package": "aria-query",
+      "selected": "5.3.0",
+      "latest": "5.3.2",
+      "reason": "@testing-library/dom 10.4.2 pins exactly 5.3.0."
+    },
+    {
+      "package": "reselect",
+      "selected": "5.2.0",
+      "latest": "5.3.0",
+      "reason": "recharts pins exactly 5.2.0."
+    },
+    {
+      "package": "@napi-rs/wasm-runtime",
+      "selected": "1.2.2",
+      "latest": "1.2.7",
+      "reason": "Bundled inside the current @tailwindcss/oxide-wasm32-wasi 4.3.4 release; not independently resolved by npm."
+    },
+    {
+      "package": "@tybys/wasm-util",
+      "selected": "0.10.3",
+      "latest": "0.10.4",
+      "reason": "Bundled inside @tailwindcss/oxide-wasm32-wasi 4.3.4."
+    },
+    {
+      "package": "tslib (Tailwind WASM bundle)",
+      "selected": "2.8.1",
+      "latest": "2.9.1",
+      "reason": "Bundled inside @tailwindcss/oxide-wasm32-wasi 4.3.4; the regular dependency tree uses its separately resolved version."
+    }
+  ],
+  "knownPeerConstraints": [
+    {
+      "package": "swagger-ui-react",
+      "reason": "Transitive react-debounce-input and react-inspector declare React <=18 peers while the supported application uses React 19.3.1."
+    },
+    {
+      "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
+      "reason": "legacy-peer-deps places the YAML tree-sitter peer next to the JSON adapter version 0.21.1; its own pinned runtime is 0.22.4."
+    }
+  ],
+  "deferredMigrations": [
+    {
+      "package": "jsdom",
+      "current": "30.1.3",
+      "target": "31.0.0",
+      "branch": "dev",
+      "reason": "Major upgrade outside the agreed patch-release scope.",
+      "work": "Review migration notes and DOM behavior; run the full frontend suite."
+    },
+    {
+      "package": "oxfmt",
+      "current": "0.75.0",
+      "target": "0.76.0",
+      "branch": "dev",
+      "reason": "Upstream declares breaking HTML formatter changes.",
+      "source": "https://github.com/oxc-project/oxc/releases/tag/oxfmt_v0.76.0",
+      "work": "Review HTML formatting changes and validate repository formatting without unrelated churn."
+    },
+    {
+      "package": "soupsieve",
+      "current": "3.0.4",
+      "target": "4.0.1",
+      "branch": "dev",
+      "reason": "Major selector-engine upgrade outside the patch-release scope.",
+      "work": "Review selector compatibility and test F-UJI HTML extraction and assessments."
+    },
+    {
+      "package": "F-UJI constrained packages",
+      "branch": "dev",
+      "packages": [
+        "tika",
+        "uvicorn",
+        "Levenshtein",
+        "pandas",
+        "python-dateutil",
+        "pyee"
+      ],
+      "reason": "Current F-UJI and Playwright requirements exclude newer versions.",
+      "work": "Upgrade supported upstream combinations together; verify pip check, imports, browser startup and FAIR assessments."
+    },
+    {
+      "package": "Composer constrained packages",
+      "branch": "dev",
+      "packages": [
+        "citation-style-language/styles",
+        "seboettg/collection",
+        "veewee/xml",
+        "webmozart/assert"
+      ],
+      "reason": "The installed parent packages exclude current major versions.",
+      "work": "Evaluate upstream parent upgrades or replacements; run citation, XML import/export and backend regression tests."
+    }
+  ],
+  "availabilityConstraints": [
+    {
+      "packages": [
+        "@playwright/test",
+        "playwright"
+      ],
+      "selected": "1.64.1",
+      "announced": "1.65.0",
+      "reason": "npm resolution returned ETARGET for playwright-core@1.65.0 and the matching mcr.microsoft.com/playwright:v1.65.0-resolute image could not be resolved.",
+      "work": "Keep exact 1.64.1 pins until core and browser artifacts are available; update the runner and remote browser image together."
+    }
+  ],
+  "php86": {
+    "version": "8.6.0RC4",
+    "status": "incompatible",
+    "stage": "environment",
+    "reason": "Stable phpredis 6.3.0 references removed Zend/PHP APIs and fails to compile.",
+    "checkedOn": "2026-11-03",
+    "note": "Historical advisory probe; production stays on PHP 8.5. Prerelease extension versions were not substituted for the stable PHP 8.5 runtime."
+  },
+  "security": {
+    "npmAuditCheckedOn": "2026-11-06",
+    "composerAuditCheckedOn": "2026-11-06",
+    "npmAudit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "composerAudit": {
+      "advisories": [],
+      "abandoned": [],
+      "filter": [],
+      "cooldown": []
+    },
+    "npmBundledPatch": {
+      "status": "removed",
+      "npm": "12.2.2",
+      "bundledUndici": "6.29.1",
+      "source": "https://github.com/npm/cli/releases/tag/v12.2.2",
+      "evidence": "Verified the official npm tarball SHA-512 and bundled Undici package before removing the patch."
+    },
+    "imageScan": {
+      "status": "completed_with_upstream_findings",
+      "checkedOn": "2026-11-05",
+      "scanner": {
+        "version": "0.76.2",
+        "image": "aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb"
+      },
+      "scope": "Local linux/amd64 images, OS and language packages; HIGH and CRITICAL findings including those without a fix.",
+      "releaseGate": {
+        "result": "passed_for_app_nginx_fuji",
+        "policy": "The unchanged CI gate rejects HIGH/CRITICAL findings with an available fix. Local JSON scans used the same scanner and package scope without ignoring unfixed findings; zero fixable findings were found in all three release images.",
+        "limitations": "This is local scan evidence, not a completed GitHub Actions run or a production release approval.",
+        "note": "App and Nginx were rebuilt after the calendar focus correction and scanned again; F-UJI was rescanned at the current local image ID."
+      },
+      "images": [
+        {
+          "name": "app",
+          "image": "ernie-app-release112:validation",
+          "imageId": "sha256:59c8e51d425b20025f58e8b8882bf7103f17e88407180b34efb703b553e52b8e",
+          "highCritical": 160,
+          "fixable": 0,
+          "withoutAvailableFix": 160,
+          "report": "storage/logs/release112-trivy-app.json"
+        },
+        {
+          "name": "nginx",
+          "image": "ernie-nginx-release112:validation",
+          "imageId": "sha256:34bfa2027723b3cdec4e3668af7ace0a68c8aeddddab2c7666dc861792c16b05",
+          "highCritical": 0,
+          "fixable": 0,
+          "withoutAvailableFix": 0,
+          "report": "storage/logs/release112-trivy-nginx.json"
+        },
+        {
+          "name": "fuji",
+          "image": "ernie-fuji-dev:4.0.1",
+          "imageId": "sha256:e8d7a57801a0d8ad5740d6b6dff4fc175fa8c7b18335b43d87d26bb3e55808a7",
+          "highCritical": 76,
+          "fixable": 0,
+          "withoutAvailableFix": 76,
+          "report": "storage/logs/release112-trivy-fuji.json"
+        },
+        {
+          "name": "development",
+          "image": "ernie-app:latest",
+          "imageId": "sha256:f0dd6fa08c59d912ff395fc7c647a2d9897e2ac5e345babe38fd0e2c441041c6",
+          "highCritical": 226,
+          "fixable": 0,
+          "withoutAvailableFix": 226,
+          "report": "storage/logs/release112-trivy-development.json"
+        },
+        {
+          "name": "redis",
+          "image": "redis:8.10.3-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537",
+          "imageId": "sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537",
+          "highCritical": 0,
+          "fixable": 0,
+          "withoutAvailableFix": 0,
+          "report": "storage/logs/release112-trivy-redis.json"
+        },
+        {
+          "name": "traefik",
+          "image": "traefik:v3.7.17@sha256:68ae5fe5b64ca166704b746a9e8afcd385e36b3f569a5691401bf652d57b3748",
+          "imageId": "sha256:68ae5fe5b64ca166704b746a9e8afcd385e36b3f569a5691401bf652d57b3748",
+          "highCritical": 0,
+          "fixable": 0,
+          "withoutAvailableFix": 0,
+          "report": "storage/logs/release112-trivy-traefik.json"
+        }
+      ],
+      "unfixedFindings": [
+        {
+          "id": "CVE-2026-76642",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "bsdutils@1:2.41.5-0+deb13u1",
+            "libblkid1@2.41.5-0+deb13u1",
+            "liblastlog2-2@2.41.5-0+deb13u1",
+            "libmount1@2.41.5-0+deb13u1",
+            "libsmartcols1@2.41.5-0+deb13u1",
+            "libuuid1@2.41.5-0+deb13u1",
+            "login@1:4.16.0-2+really2.41.5-0+deb13u1",
+            "mount@2.41.5-0+deb13u1",
+            "util-linux@2.41.5-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-76642"
+        },
+        {
+          "id": "CVE-2026-78408",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "bsdutils@1:2.41.5-0+deb13u1",
+            "libblkid1@2.41.5-0+deb13u1",
+            "liblastlog2-2@2.41.5-0+deb13u1",
+            "libmount1@2.41.5-0+deb13u1",
+            "libsmartcols1@2.41.5-0+deb13u1",
+            "libuuid1@2.41.5-0+deb13u1",
+            "login@1:4.16.0-2+really2.41.5-0+deb13u1",
+            "mount@2.41.5-0+deb13u1",
+            "util-linux@2.41.5-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-78408"
+        },
+        {
+          "id": "CVE-2026-78409",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "bsdutils@1:2.41.5-0+deb13u1",
+            "libblkid1@2.41.5-0+deb13u1",
+            "liblastlog2-2@2.41.5-0+deb13u1",
+            "libmount1@2.41.5-0+deb13u1",
+            "libsmartcols1@2.41.5-0+deb13u1",
+            "libuuid1@2.41.5-0+deb13u1",
+            "login@1:4.16.0-2+really2.41.5-0+deb13u1",
+            "mount@2.41.5-0+deb13u1",
+            "util-linux@2.41.5-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-78409"
+        },
+        {
+          "id": "CVE-2026-78410",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "bsdutils@1:2.41.5-0+deb13u1",
+            "libblkid1@2.41.5-0+deb13u1",
+            "liblastlog2-2@2.41.5-0+deb13u1",
+            "libmount1@2.41.5-0+deb13u1",
+            "libsmartcols1@2.41.5-0+deb13u1",
+            "libuuid1@2.41.5-0+deb13u1",
+            "login@1:4.16.0-2+really2.41.5-0+deb13u1",
+            "mount@2.41.5-0+deb13u1",
+            "util-linux@2.41.5-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-78410"
+        },
+        {
+          "id": "CVE-2026-12064",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "curl@8.14.1-2+deb13u7",
+            "libcurl3t64-gnutls@8.14.1-2+deb13u7",
+            "libcurl4t64@8.14.1-2+deb13u7"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-12064"
+        },
+        {
+          "id": "CVE-2026-8458",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "curl@8.14.1-2+deb13u7",
+            "libcurl3t64-gnutls@8.14.1-2+deb13u7",
+            "libcurl4t64@8.14.1-2+deb13u7"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-8458"
+        },
+        {
+          "id": "CVE-2026-24882",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "dirmngr@2.4.7-21+deb13u1+b5",
+            "gnupg@2.4.7-21+deb13u1",
+            "gnupg-l10n@2.4.7-21+deb13u1",
+            "gnupg-utils@2.4.7-21+deb13u1+b5",
+            "gpg@2.4.7-21+deb13u1+b5",
+            "gpg-agent@2.4.7-21+deb13u1+b5",
+            "gpg-wks-client@2.4.7-21+deb13u1+b5",
+            "gpgconf@2.4.7-21+deb13u1+b5",
+            "gpgsm@2.4.7-21+deb13u1+b5",
+            "gpgv@2.4.7-21+deb13u1+b5"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-24882"
+        },
+        {
+          "id": "CVE-2026-54369",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libacl1@2.3.2-2+b1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-54369"
+        },
+        {
+          "id": "CVE-2026-78030",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libdbi-perl@1.652-2~deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-78030"
+        },
+        {
+          "id": "CVE-2026-88815",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libdbi-perl@1.652-2~deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-88815"
+        },
+        {
+          "id": "CVE-2026-113351",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libexpat1@2.9.0-1~deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-113351"
+        },
+        {
+          "id": "CVE-2026-117610",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libexpat1@2.9.0-1~deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-117610"
+        },
+        {
+          "id": "CVE-2026-118370",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libexpat1@2.9.0-1~deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-118370"
+        },
+        {
+          "id": "CVE-2026-44172",
+          "severity": "CRITICAL",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-44172"
+        },
+        {
+          "id": "CVE-2026-49261",
+          "severity": "CRITICAL",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-49261"
+        },
+        {
+          "id": "CVE-2026-107815",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-107815"
+        },
+        {
+          "id": "CVE-2026-107818",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-107818"
+        },
+        {
+          "id": "CVE-2026-107823",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-107823"
+        },
+        {
+          "id": "CVE-2026-44168",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-44168"
+        },
+        {
+          "id": "CVE-2026-44171",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-44171"
+        },
+        {
+          "id": "CVE-2026-48163",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-48163"
+        },
+        {
+          "id": "CVE-2026-48165",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-48165"
+        },
+        {
+          "id": "CVE-2026-85746",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-85746"
+        },
+        {
+          "id": "CVE-2026-86047",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-86047"
+        },
+        {
+          "id": "CVE-2026-92262",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-92262"
+        },
+        {
+          "id": "CVE-2026-97380",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "libmariadb3@1:11.8.6-0+deb13u1",
+            "mariadb-client@1:11.8.6-0+deb13u1",
+            "mariadb-client-compat@1:11.8.6-0+deb13u1",
+            "mariadb-client-core@1:11.8.6-0+deb13u1",
+            "mariadb-common@1:11.8.6-0+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-97380"
+        },
+        {
+          "id": "CVE-2025-69720",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libncurses6@6.5+20250216-2",
+            "libncursesw6@6.5+20250216-2",
+            "libtinfo6@6.5+20250216-2",
+            "ncurses-base@6.5+20250216-2",
+            "ncurses-bin@6.5+20250216-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2025-69720"
+        },
+        {
+          "id": "CVE-2026-9538",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libperl5.40@5.40.1-6+deb13u1",
+            "perl@5.40.1-6+deb13u1",
+            "perl-base@5.40.1-6+deb13u1",
+            "perl-modules-5.40@5.40.1-6+deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-9538"
+        },
+        {
+          "id": "CVE-2026-119373",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libsqlite3-0@3.46.1-7+deb13u2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-119373"
+        },
+        {
+          "id": "CVE-2026-16742",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libsystemd0@257.13-1~deb13u1",
+            "libudev1@257.13-1~deb13u1",
+            "libnss-systemd@257.13-1~deb13u1",
+            "libpam-systemd@257.13-1~deb13u1",
+            "libsystemd-shared@257.13-1~deb13u1",
+            "systemd@257.13-1~deb13u1",
+            "systemd-cryptsetup@257.13-1~deb13u1",
+            "systemd-sysv@257.13-1~deb13u1",
+            "systemd-timesyncd@257.13-1~deb13u1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-16742"
+        },
+        {
+          "id": "CVE-2026-88806",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libx11-6@2:1.8.12-1",
+            "libx11-data@2:1.8.12-1",
+            "libx11-xcb1@2:1.8.12-1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-88806"
+        },
+        {
+          "id": "CVE-2026-6653",
+          "severity": "CRITICAL",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-6653"
+        },
+        {
+          "id": "CVE-2026-74860",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-74860"
+        },
+        {
+          "id": "CVE-2026-86138",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-86138"
+        },
+        {
+          "id": "CVE-2026-86139",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-86139"
+        },
+        {
+          "id": "CVE-2026-86140",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-86140"
+        },
+        {
+          "id": "CVE-2026-86142",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-86142"
+        },
+        {
+          "id": "CVE-2026-86143",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-86143"
+        },
+        {
+          "id": "CVE-2026-86144",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxml2@2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+            "libxml2-dev@2.12.7+dfsg+really2.9.14-2.1+deb13u3"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-86144"
+        },
+        {
+          "id": "CVE-2026-60002",
+          "severity": "CRITICAL",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "openssh-client@1:10.0p1-7+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-60002"
+        },
+        {
+          "id": "CVE-2026-106553",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "openssh-client@1:10.0p1-7+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-106553"
+        },
+        {
+          "id": "CVE-2026-106555",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "openssh-client@1:10.0p1-7+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-106555"
+        },
+        {
+          "id": "CVE-2026-106583",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "openssh-client@1:10.0p1-7+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-106583"
+        },
+        {
+          "id": "CVE-2026-59999",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "openssh-client@1:10.0p1-7+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-59999"
+        },
+        {
+          "id": "CVE-2026-60000",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "development"
+          ],
+          "components": [
+            "openssh-client@1:10.0p1-7+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-60000"
+        },
+        {
+          "id": "CVE-2026-76844",
+          "severity": "HIGH",
+          "affectedImages": [
+            "app",
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "zlib1g@1:1.3.dfsg+really1.3.1-1+b1",
+            "zlib1g-dev@1:1.3.dfsg+really1.3.1-1+b1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-76844"
+        },
+        {
+          "id": "CVE-2026-34980",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libcups2t64@2.4.10-3+deb13u2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-34980"
+        },
+        {
+          "id": "CVE-2026-55453",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libcups2t64@2.4.10-3+deb13u2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-55453"
+        },
+        {
+          "id": "CVE-2026-109089",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxi6@2:1.8.2-1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-109089"
+        },
+        {
+          "id": "CVE-2026-109090",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxi6@2:1.8.2-1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-109090"
+        },
+        {
+          "id": "CVE-2026-88807",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "libxrender1@1:0.9.12-1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-88807"
+        },
+        {
+          "id": "CVE-2026-114820",
+          "severity": "CRITICAL",
+          "affectedImages": [
+            "fuji"
+          ],
+          "components": [
+            "openjdk-21-jre-headless@21.0.13+9-1~deb13u2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-114820"
+        },
+        {
+          "id": "CVE-2023-5574",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "xserver-common@2:21.1.16-1.3+deb13u4",
+            "xvfb@2:21.1.16-1.3+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2023-5574"
+        },
+        {
+          "id": "CVE-2026-88812",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "xserver-common@2:21.1.16-1.3+deb13u4",
+            "xvfb@2:21.1.16-1.3+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-88812"
+        },
+        {
+          "id": "CVE-2026-93516",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "xserver-common@2:21.1.16-1.3+deb13u4",
+            "xvfb@2:21.1.16-1.3+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-93516"
+        },
+        {
+          "id": "CVE-2026-93521",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "xserver-common@2:21.1.16-1.3+deb13u4",
+            "xvfb@2:21.1.16-1.3+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-93521"
+        },
+        {
+          "id": "CVE-2026-93523",
+          "severity": "HIGH",
+          "affectedImages": [
+            "fuji",
+            "development"
+          ],
+          "components": [
+            "xserver-common@2:21.1.16-1.3+deb13u4",
+            "xvfb@2:21.1.16-1.3+deb13u4"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-93523"
+        },
+        {
+          "id": "CVE-2026-15308",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "libpython3.13-minimal@3.13.5-2+deb13u5",
+            "libpython3.13-stdlib@3.13.5-2+deb13u5",
+            "python3.13@3.13.5-2+deb13u5",
+            "python3.13-minimal@3.13.5-2+deb13u5"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-15308"
+        },
+        {
+          "id": "CVE-2026-19445",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "libpython3.13-minimal@3.13.5-2+deb13u5",
+            "libpython3.13-stdlib@3.13.5-2+deb13u5",
+            "python3.13@3.13.5-2+deb13u5",
+            "python3.13-minimal@3.13.5-2+deb13u5"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-19445"
+        },
+        {
+          "id": "CVE-2026-19553",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "libpython3.13-minimal@3.13.5-2+deb13u5",
+            "libpython3.13-stdlib@3.13.5-2+deb13u5",
+            "python3.13@3.13.5-2+deb13u5",
+            "python3.13-minimal@3.13.5-2+deb13u5"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-19553"
+        },
+        {
+          "id": "CVE-2026-7210",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "libpython3.13-minimal@3.13.5-2+deb13u5",
+            "libpython3.13-stdlib@3.13.5-2+deb13u5",
+            "python3.13@3.13.5-2+deb13u5",
+            "python3.13-minimal@3.13.5-2+deb13u5"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-7210"
+        },
+        {
+          "id": "CVE-2026-82049",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "libpython3.13-minimal@3.13.5-2+deb13u5",
+            "libpython3.13-stdlib@3.13.5-2+deb13u5",
+            "python3.13@3.13.5-2+deb13u5",
+            "python3.13-minimal@3.13.5-2+deb13u5"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-82049"
+        },
+        {
+          "id": "CVE-2026-94286",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "libxtst6@2:1.2.5-1"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-94286"
+        },
+        {
+          "id": "CVE-2013-7445",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2013-7445"
+        },
+        {
+          "id": "CVE-2019-19449",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2019-19449"
+        },
+        {
+          "id": "CVE-2019-19814",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2019-19814"
+        },
+        {
+          "id": "CVE-2021-3847",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2021-3847"
+        },
+        {
+          "id": "CVE-2021-3864",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2021-3864"
+        },
+        {
+          "id": "CVE-2024-21803",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2024-21803"
+        },
+        {
+          "id": "CVE-2024-58015",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2024-58015"
+        },
+        {
+          "id": "CVE-2025-40025",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2025-40025"
+        },
+        {
+          "id": "CVE-2026-23102",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-23102"
+        },
+        {
+          "id": "CVE-2026-31568",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-31568"
+        },
+        {
+          "id": "CVE-2026-46279",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-46279"
+        },
+        {
+          "id": "CVE-2026-72042",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-72042"
+        },
+        {
+          "id": "CVE-2026-89675",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-89675"
+        },
+        {
+          "id": "CVE-2026-90315",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-90315"
+        },
+        {
+          "id": "CVE-2026-98118",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-98118"
+        },
+        {
+          "id": "CVE-2026-98364",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-98364"
+        },
+        {
+          "id": "CVE-2026-98466",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-98466"
+        },
+        {
+          "id": "CVE-2026-98715",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-98715"
+        },
+        {
+          "id": "CVE-2026-98853",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-98853"
+        },
+        {
+          "id": "CVE-2026-98999",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-98999"
+        },
+        {
+          "id": "CVE-2026-99109",
+          "severity": "HIGH",
+          "affectedImages": [
+            "development"
+          ],
+          "components": [
+            "linux-libc-dev@6.12.115-2"
+          ],
+          "fixedVersion": null,
+          "source": "https://avd.aquasec.com/nvd/cve-2026-99109"
+        }
+      ],
+      "mysql": {
+        "image": "mysql:9.7.4@sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8",
+        "highCritical": 35,
+        "fixablePackages": 35,
+        "assessment": "The newest checked official MySQL 9.7 image still bundles affected mysqlsh Python packages and a gosu binary built with an older Go standard library. Package-level fixes exist, but this official image has not incorporated them. Scanner findings do not prove exploitability in the ERNIE deployment; no claim of non-exploitability is made.",
+        "action": "Keep the required MySQL 9.7 server and its data volume. Review these open findings before release, monitor the official image rebuild, and rescan its new digest. Rebuilding or removing bundled upstream components requires separate image ownership and runtime validation.",
+        "releaseImpact": "The existing application-image gate excludes MySQL. These unresolved findings remain a separate release decision; a green application gate does not clear the database image.",
+        "findings": [
+          {
+            "target": "Python",
+            "id": "GHSA-6q48-6c7w-9gw2",
+            "package": "certifi",
+            "installed": "2026.2.25",
+            "fixedVersion": "2026.10.18",
+            "severity": "CRITICAL",
+            "source": "https://github.com/advisories/GHSA-6q48-6c7w-9gw2"
+          },
+          {
+            "target": "Python",
+            "id": "CVE-2026-69247",
+            "package": "cryptography",
+            "installed": "46.0.5",
+            "fixedVersion": "50.0.0",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-69247"
+          },
+          {
+            "target": "Python",
+            "id": "CVE-2026-69249",
+            "package": "cryptography",
+            "installed": "46.0.5",
+            "fixedVersion": "49.0.0",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-69249"
+          },
+          {
+            "target": "Python",
+            "id": "GHSA-537c-gmf6-5ccf",
+            "package": "cryptography",
+            "installed": "46.0.5",
+            "fixedVersion": "48.0.1",
+            "severity": "HIGH",
+            "source": "https://github.com/advisories/GHSA-537c-gmf6-5ccf"
+          },
+          {
+            "target": "Python",
+            "id": "CVE-2026-27459",
+            "package": "pyOpenSSL",
+            "installed": "25.3.0",
+            "fixedVersion": "26.0.0",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-27459"
+          },
+          {
+            "target": "Python",
+            "id": "CVE-2026-44431",
+            "package": "urllib3",
+            "installed": "2.6.3",
+            "fixedVersion": "2.7.0",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-44431"
+          },
+          {
+            "target": "Python",
+            "id": "CVE-2026-44432",
+            "package": "urllib3",
+            "installed": "2.6.3",
+            "fixedVersion": "2.7.0",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-44432"
+          },
+          {
+            "target": "Python",
+            "id": "CVE-2026-97687",
+            "package": "urllib3",
+            "installed": "2.6.3",
+            "fixedVersion": "2.8.0",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-97687"
+          },
+          {
+            "target": "Python",
+            "id": "CVE-2026-97689",
+            "package": "urllib3",
+            "installed": "2.6.3",
+            "fixedVersion": "2.8.0",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-97689"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2025-68121",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.24.13, 1.25.7, 1.26.0-rc.3",
+            "severity": "CRITICAL",
+            "source": "https://avd.aquasec.com/nvd/cve-2025-68121"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2025-61726",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.24.12, 1.25.6",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2025-61726"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2025-61729",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.24.11, 1.25.5",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2025-61729"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-111943",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.26.10, 1.27.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-111943"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-25679",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.8, 1.26.1",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-25679"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-27145",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.11, 1.26.4",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-27145"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-32280",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.9, 1.26.2",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-32280"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-32281",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.9, 1.26.2",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-32281"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-32283",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.9, 1.26.2",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-32283"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-33811",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.10, 1.26.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-33811"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-33814",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.10, 1.26.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-33814"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-33818",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-33818"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-39820",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.10, 1.26.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-39820"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-39821",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-39821"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-39822",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.12, 1.26.5, 1.27.0-rc.2",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-39822"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-39836",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.10, 1.26.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-39836"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-42499",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.10, 1.26.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-42499"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-42504",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.11, 1.26.4",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-42504"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-56853",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-56853"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-56858",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-56858"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-56859",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-56859"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-56860",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-56860"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-56862",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-56862"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-78667",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.26.9, 1.27.2",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-78667"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-78669",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.26.9, 1.27.2",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-78669"
+          },
+          {
+            "target": "usr/local/bin/gosu",
+            "id": "CVE-2026-97031",
+            "package": "stdlib",
+            "installed": "v1.24.6",
+            "fixedVersion": "1.26.9, 1.27.2",
+            "severity": "HIGH",
+            "source": "https://avd.aquasec.com/nvd/cve-2026-97031"
+          }
+        ]
+      },
+      "artifacts": "Full local reports are under storage/logs/release112-trivy-*.json; generated image archives and scanner cache are local validation artifacts."
+    }
+  },
+  "validation": {
+    "status": "completed_local_validation",
+    "scope": "The application, dependency, image and workflow changes were validated in the working tree based on fd4f17d32524355d0fc68bdc729f76ca4eb18c76. A concurrent commit, 4e57bd992524e9bc262531bfbafb9d6daf75bfb4, recorded those changes during final cleanup; the application files match that commit. Final documentation updates remain in the working tree. GitHub CI and release-candidate validation still require the eventual main commit.",
+    "toolchain": {
+      "node": "26.13.0",
+      "npm": "12.2.2",
+      "php": "8.5.12",
+      "mysql": "9.7.4",
+      "phpMemoryLimit": "2G",
+      "pestWorkers": 8,
+      "vitestWorkers": 8,
+      "playwrightWorkers": 2
+    },
+    "checks": [
+      {
+        "command": "npm ci",
+        "result": "passed",
+        "note": "Final lockfile installation succeeded. npm ls afterwards reports only the two documented existing peer constraints; no extraneous packages."
+      },
+      {
+        "command": "npm audit --package-lock-only --audit-level=low --json",
+        "result": "passed",
+        "vulnerabilities": 0,
+        "checkedOn": "2026-11-06",
+        "report": "storage/logs/release112-npm-audit-current.json"
+      },
+      {
+        "command": "npm run composer:app -- audit --locked --format=json",
+        "result": "passed",
+        "advisories": 0,
+        "checkedOn": "2026-11-06",
+        "report": "storage/logs/release112-composer-audit-current.json"
+      },
+      {
+        "command": "npm run composer:app -- validate",
+        "result": "passed_with_existing_warnings",
+        "note": "Existing package-version field and exact citeproc constraint warnings; lockfile valid."
+      },
+      {
+        "command": "npm run composer:app -- check-platform-reqs",
+        "result": "passed"
+      },
+      {
+        "command": "npm run check:backend",
+        "result": "passed",
+        "serialTests": 44,
+        "architectureTests": 23,
+        "parallelAssertions": 62830,
+        "parallelSkipped": 30,
+        "phpstanFiles": 1098,
+        "jsonld": {
+          "dataCiteDocuments": 43,
+          "schemaOrgDocuments": 34
+        },
+        "log": "storage/logs/release112-check-backend-final.log",
+        "note": "The first full run failed on a deployment test expecting Trivy 0.76.1. Reproduced that path, updated the expectation to 0.76.2, verified all 8 focused tests, then reran the full check successfully."
+      },
+      {
+        "command": "npm run check:frontend",
+        "result": "passed",
+        "vitest": {
+          "files": 523,
+          "passed": 8932,
+          "skipped": 1
+        },
+        "tooling": {
+          "passed": 109,
+          "skipped": 5,
+          "note": "Linux shell checks skipped on Windows."
+        },
+        "log": "storage/logs/release112-check-frontend-final.log",
+        "note": "Complete check repeated successfully after the calendar regression fix."
+      },
+      {
+        "command": "npm run build:ssr",
+        "result": "passed",
+        "note": "Client and SSR builds repeated successfully after the calendar focus correction.",
+        "log": "storage/logs/release112-build-ssr-final.log"
+      },
+      {
+        "command": "npm run format:check",
+        "result": "passed"
+      },
+      {
+        "command": "actionlint -shellcheck= -pyflakes=",
+        "result": "passed",
+        "version": "1.7.12",
+        "note": "All GitHub workflow YAML; external shellcheck/pyflakes integrations disabled."
+      },
+      {
+        "command": "Changelog comparison against HEAD",
+        "result": "passed",
+        "note": "Initial implementation check before the review follow-up: version/date and five existing descriptions updated; all older entries and references unchanged; no new entries at that stage."
+      },
+      {
+        "command": "docker compose --env-file .env.docker -f docker-compose.dev.yml --profile parity build --pull app vite webserver fuji",
+        "result": "passed",
+        "log": "storage/logs/release112-dev-build.log"
+      },
+      {
+        "command": "docker build --pull --target app/nginx --build-arg SYSTEM_PACKAGES_REFRESH=2026-11-05",
+        "result": "passed",
+        "note": "Both targets rebuilt with the calendar correction; final image IDs and scan results are in security.imageScan.",
+        "log": "storage/logs/release112-production-build-final.log"
+      },
+      {
+        "command": "scripts/check-fuji-runtime.py in the built F-UJI image",
+        "result": "passed",
+        "note": "Build pip check, runtime imports, certificates and Chromium startup passed; pip and ensurepip absent from the final image."
+      },
+      {
+        "command": "mysql-legacy-mysqldump --version in the app image",
+        "result": "passed",
+        "version": "8.4.13"
+      },
+      {
+        "command": "npm run check:parity",
+        "result": "completed_in_separately_validated_stages",
+        "log": "storage/logs/release112-check-parity.log",
+        "originalInvocation": "interrupted_after_confirmed_calendar_failure",
+        "note": "The original invocation passed stack preparation and all 27 MySQL groups before the calendar failure. After fixing the regression, the complete browser stage passed through the documented devstack wrapper. The original invocation itself is not recorded as an exit-zero run."
+      },
+      {
+        "command": "npm run test:php:mysql-sensitive (within check:parity)",
+        "result": "passed",
+        "mysql": "9.7.4",
+        "groups": 27,
+        "tests": 430,
+        "log": "storage/logs/release112-check-parity.log"
+      },
+      {
+        "command": "Remote Chromium, Firefox and WebKit health-route smoke checks",
+        "result": "passed",
+        "note": "Official Playwright 1.64.1 Linux browsers connected through host loopback forwarding; all three received HTTP 200."
+      },
+      {
+        "command": "npm run test:e2e:devstack -- --reporter=line,html,json",
+        "result": "passed",
+        "checkedOn": "2026-11-06",
+        "wrapperExitCode": 0,
+        "total": 1185,
+        "passed": 1169,
+        "skipped": 16,
+        "unexpected": 0,
+        "flaky": 0,
+        "durationMilliseconds": 4473664.002,
+        "projects": {
+          "chromium": {
+            "passed": 392,
+            "skipped": 3,
+            "unexpected": 0,
+            "flaky": 0
+          },
+          "firefox": {
+            "passed": 389,
+            "skipped": 6,
+            "unexpected": 0,
+            "flaky": 0
+          },
+          "webkit": {
+            "passed": 388,
+            "skipped": 7,
+            "unexpected": 0,
+            "flaky": 0
+          }
+        },
+        "skippedCases": [
+          {
+            "project": "firefox",
+            "file": "tests/playwright/accessibility/homepage-a11y.spec.ts",
+            "title": "retains topic labels and focus in Windows high contrast",
+            "reasons": [
+              "Windows forced-colors regression is exercised in Chromium."
+            ]
+          },
+          {
+            "project": "webkit",
+            "file": "tests/playwright/accessibility/homepage-a11y.spec.ts",
+            "title": "retains topic labels and focus in Windows high contrast",
+            "reasons": [
+              "Windows forced-colors regression is exercised in Chromium."
+            ]
+          },
+          {
+            "project": "chromium",
+            "file": "tests/playwright/critical/delete-all-test-datasets.spec.ts",
+            "title": "admin can delete all resources from the logs page without a gateway timeout",
+            "reasons": [
+              "Destructive local regression: set RUN_DELETE_ALL_RESOURCES_E2E=1 to delete all resources through /logs."
+            ]
+          },
+          {
+            "project": "firefox",
+            "file": "tests/playwright/critical/delete-all-test-datasets.spec.ts",
+            "title": "admin can delete all resources from the logs page without a gateway timeout",
+            "reasons": [
+              "Destructive local regression: set RUN_DELETE_ALL_RESOURCES_E2E=1 to delete all resources through /logs."
+            ]
+          },
+          {
+            "project": "webkit",
+            "file": "tests/playwright/critical/delete-all-test-datasets.spec.ts",
+            "title": "admin can delete all resources from the logs page without a gateway timeout",
+            "reasons": [
+              "Destructive local regression: set RUN_DELETE_ALL_RESOURCES_E2E=1 to delete all resources through /logs."
+            ]
+          },
+          {
+            "project": "chromium",
+            "file": "tests/playwright/critical/landing-pages.spec.ts",
+            "title": "displays many contributors with different types",
+            "reasons": [
+              "Existing runtime fixture condition; see the test source."
+            ]
+          },
+          {
+            "project": "chromium",
+            "file": "tests/playwright/critical/landing-pages.spec.ts",
+            "title": "displays contributors with ROR affiliations",
+            "reasons": [
+              "Existing runtime fixture condition; see the test source."
+            ]
+          },
+          {
+            "project": "firefox",
+            "file": "tests/playwright/critical/landing-pages.spec.ts",
+            "title": "displays many contributors with different types",
+            "reasons": [
+              "Existing runtime fixture condition; see the test source."
+            ]
+          },
+          {
+            "project": "firefox",
+            "file": "tests/playwright/critical/landing-pages.spec.ts",
+            "title": "displays contributors with ROR affiliations",
+            "reasons": [
+              "Existing runtime fixture condition; see the test source."
+            ]
+          },
+          {
+            "project": "webkit",
+            "file": "tests/playwright/critical/landing-pages.spec.ts",
+            "title": "displays many contributors with different types",
+            "reasons": [
+              "Existing runtime fixture condition; see the test source."
+            ]
+          },
+          {
+            "project": "webkit",
+            "file": "tests/playwright/critical/landing-pages.spec.ts",
+            "title": "displays contributors with ROR affiliations",
+            "reasons": [
+              "Existing runtime fixture condition; see the test source."
+            ]
+          },
+          {
+            "project": "webkit",
+            "file": "tests/playwright/workflows/08-spatial-temporal-coverage.spec.ts",
+            "title": "should not widen the editor when a long description is collapsed",
+            "reasons": [
+              "Skipped on WebKit; Issue #1095 was reported in Firefox and Chromium provides the cross-browser control."
+            ]
+          },
+          {
+            "project": "firefox",
+            "file": "tests/playwright/workflows/editor-settings-accordion.spec.ts",
+            "title": "preserves unsaved values through bulk actions and open cards after a real save",
+            "reasons": [
+              "The shared settings save is covered in Chromium."
+            ]
+          },
+          {
+            "project": "webkit",
+            "file": "tests/playwright/workflows/editor-settings-accordion.spec.ts",
+            "title": "preserves unsaved values through bulk actions and open cards after a real save",
+            "reasons": [
+              "The shared settings save is covered in Chromium."
+            ]
+          },
+          {
+            "project": "firefox",
+            "file": "tests/playwright/workflows/thesaurus-review-reminder.spec.ts",
+            "title": "persists an explicit shared completion while preserving unsaved editor settings",
+            "reasons": [
+              "Change the shared review state once, in Chromium."
+            ]
+          },
+          {
+            "project": "webkit",
+            "file": "tests/playwright/workflows/thesaurus-review-reminder.spec.ts",
+            "title": "persists an explicit shared completion while preserving unsaved editor settings",
+            "reasons": [
+              "Change the shared review state once, in Chromium."
+            ]
+          }
+        ],
+        "log": "storage/logs/release112-browser-awake.log",
+        "report": "storage/logs/release112-browser-awake.json",
+        "htmlReport": "playwright-report/index.html",
+        "note": "Official Playwright 1.64.1 Linux browsers used through a loopback-only remote server. Existing assertions, timeouts, retries and skip conditions unchanged. The wrapper restored the development backend and routing before exiting successfully."
+      },
+      {
+        "command": "Final manifest, lockfile, audit, action-pin and changelog consistency checks; git diff --check",
+        "result": "passed",
+        "actionReferences": 73,
+        "unchangedOlderChangelogVersions": 26,
+        "existingFixEntries": 5,
+        "newChangelogEntries": 0,
+        "note": "Initial implementation check before the calendar changelog entry requested in the subsequent review."
+      },
+      {
+        "command": "Chromium homepage and health smoke check in the restored Vite development stack",
+        "result": "passed",
+        "checkedOn": "2026-11-06",
+        "report": "storage/logs/release112-final-smoke.json",
+        "healthStatus": 200,
+        "homepageStatus": 200,
+        "visibleTopicLinks": 25,
+        "uncaughtPageErrors": 0,
+        "note": "The normal compose configuration, public/hot and Vite client were verified; temporary test routing was absent. Initial attempts timed out waiting for development CSS and once a prebundled module. After restarting Vite and letting asset processing finish, direct CSS requests both inside the container and through the host proxy returned HTTP 200 in under 0.1 seconds, and the unchanged browser smoke check passed in about five seconds. No application code or timeout changes were made for this local development delay.",
+        "diagnostic": "storage/logs/release112-final-smoke-diagnostic.json"
+      }
+    ],
+    "notRun": [
+      {
+        "check": "Required GitHub push workflows and Publish Validated Images for the final main SHA",
+        "reason": "The final main release SHA is not available; its required workflow results were not verified in this session."
+      },
+      {
+        "check": "Isolated main release candidate verification and production promotion",
+        "reason": "Require CI-published immutable images and the final release commit; no tag, release or deployment was created."
+      },
+      {
+        "check": "PHP 8.6 advisory probe",
+        "reason": "Outside the PHP 8.5 release runtime; previous probe is recorded as historical evidence only."
+      }
+    ],
+    "calendarRegression": {
+      "status": "resolved_and_fully_validated",
+      "cause": "An inline custom DayPicker root component was replaced on controlled month changes, unmounting the focused dropdown.",
+      "evidence": "The Chromium keyboard test failed; a separate unchanged browser diagnostic reproduced focus on BODY in 1 of 5 attempts and a newly added Vitest test failed deterministically before the fix.",
+      "change": "Hoist CalendarRoot to preserve component identity and native dropdown focus. Existing browser assertions, retries and timeouts remain unchanged.",
+      "initialBrowserRun": "Stopped after the confirmed Chromium failure while Firefox was running; interrupted and unexecuted cases are not counted as passes.",
+      "unitResult": {
+        "before": "1 failed, 11 passed",
+        "after": "12 passed"
+      },
+      "browserFocused": {
+        "command": "npm run test:e2e:devstack -- tests/playwright/workflows/issue-1461-calendar-dropdowns.spec.ts --repeat-each=3 --reporter=line,json",
+        "passed": 54,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0,
+        "report": "storage/logs/release112-calendar-browser.json"
+      },
+      "fullBrowserReport": "storage/logs/release112-browser-awake.json"
+    },
+    "standbyInterruption": {
+      "sleepUtc": "2026-11-05T20:52:41Z",
+      "resumeUtc": "2026-11-06T03:59:22Z",
+      "evidence": "Windows System events: Kernel-Power 42 and Power-Troubleshooter 1.",
+      "affectedRun": "storage/logs/release112-browser-final.log",
+      "observations": [
+        "The corrected Chromium calendar test passed before the interruption.",
+        "The Chromium review fixture cleanup then timed out in Docker, and a Firefox accessibility check lost its browser context."
+      ],
+      "action": "Stopped the affected runner, let the wrapper restore the stack, restarted the dedicated browser container, and started focused validation before another full run. A process-scoped SetThreadExecutionState request prevents automatic idle sleep only while tests run; no persistent power settings changed.",
+      "focusedRecovery": {
+        "result": "passed",
+        "passed": 29,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0,
+        "report": "storage/logs/release112-resume-focused.json",
+        "note": "Both affected test files were rerun in Chromium and Firefox; the existing Firefox skip prevents changing the shared quarter state twice."
+      },
+      "fullRerun": {
+        "status": "passed",
+        "passed": 1169,
+        "skipped": 16,
+        "unexpected": 0,
+        "flaky": 0,
+        "wrapperExitCode": 0,
+        "log": "storage/logs/release112-browser-awake.log",
+        "report": "storage/logs/release112-browser-awake.json"
+      }
+    },
+    "completedOn": "2026-11-06",
+    "browserConsoleNotes": "Some scenarios log external-font CORS errors because the existing devstack harness sends its test header to external font hosts. These are not assertion failures; no browser assertions were relaxed.",
+    "cleanup": {
+      "developmentStack": "Restored; application, MySQL 9.7.4 and F-UJI health checks pass; Vite and normal routing work.",
+      "temporaryBrowserContainer": "Stopped and automatically removed; absence verified.",
+      "temporaryImageExportArchives": "Removed only .tmp/release112-images after verifying its resolved workspace path; raw scan reports retained.",
+      "isolatedNodeToolchain": "Moved from storage/logs/release112-tools to .tmp/release112-tools; helper environment updated and Node 26.13.0/npm 12.2.2 verified. Global host toolchain unchanged.",
+      "powerRequest": "Process-scoped idle-sleep prevention cleared when the successful browser command finished; no persistent power settings changed.",
+      "git": "This implementation session executed no commit, push, merge, tag, release or deployment. Concurrent commit 4e57bd992524e9bc262531bfbafb9d6daf75bfb4 was observed during final cleanup; its changes match the validated implementation. Unrelated pre-existing changes were preserved."
+    },
+    "observedImplementationCommit": "4e57bd992524e9bc262531bfbafb9d6daf75bfb4",
+    "reviewFollowUps": [
+      {
+        "checkedOn": "2026-11-06",
+        "pullRequest": "https://github.com/McNamara84/ernie/pull/1530",
+        "result": "addressed_locally",
+        "change": "Added one concise Calendar Keyboard Focus fix entry to v1.1.2 for the user-visible CalendarRoot correction, as requested in review; dependency maintenance received no additional entries.",
+        "changelogValidation": {
+          "result": "passed",
+          "version": "1.1.2",
+          "date": "2026-11-06",
+          "unchangedExistingFixEntries": 5,
+          "addedFixEntries": 1,
+          "unchangedOlderReleases": 26,
+          "formatCheck": "passed"
+        },
+        "tests": {
+          "command": "npm run test:run -- tests/vitest/pages/__tests__/changelog.test.tsx tests/vitest/pages/__tests__/changelog.integration.test.tsx tests/vitest/lib/__tests__/version.test.ts",
+          "result": "passed",
+          "node": "26.13.0",
+          "files": 3,
+          "passed": 45
+        }
+      }
+    ]
+  },
+  "npmTransitiveConstraints": [
+    {
+      "name": "@babel/code-frame",
+      "installed": "7.29.7",
+      "latestStable": "8.0.6",
+      "location": "node_modules/@babel/code-frame",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^7.10.4"
+      ]
+    },
+    {
+      "name": "@babel/helper-string-parser",
+      "installed": "7.29.13",
+      "latestStable": "8.0.8",
+      "location": "node_modules/@babel/helper-string-parser",
+      "declaredRequirements": [
+        "node_modules/@babel/types: ^7.29.11"
+      ]
+    },
+    {
+      "name": "@babel/helper-validator-identifier",
+      "installed": "7.29.7",
+      "latestStable": "8.0.6",
+      "location": "node_modules/@babel/helper-validator-identifier",
+      "declaredRequirements": [
+        "node_modules/@babel/code-frame: ^7.29.7",
+        "node_modules/@babel/types: ^7.29.7"
+      ]
+    },
+    {
+      "name": "@babel/parser",
+      "installed": "7.29.13",
+      "latestStable": "8.1.0",
+      "location": "node_modules/@babel/parser",
+      "declaredRequirements": [
+        "node_modules/magicast: ^7.29.7"
+      ]
+    },
+    {
+      "name": "@babel/runtime",
+      "installed": "7.29.13",
+      "latestStable": "8.1.0",
+      "location": "node_modules/@babel/runtime",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^7.12.5",
+        "node_modules/@testing-library/react: ^7.12.5",
+        "node_modules/react-syntax-highlighter: ^7.28.4"
+      ]
+    },
+    {
+      "name": "@babel/runtime-corejs3",
+      "installed": "7.29.13",
+      "latestStable": "8.1.0",
+      "location": "node_modules/@babel/runtime-corejs3",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ^7.26.10",
+        "node_modules/@swagger-api/apidom-core: ^7.26.10",
+        "node_modules/@swagger-api/apidom-error: ^7.20.7",
+        "node_modules/@swagger-api/apidom-json-pointer: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-json-2020-12: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ^7.26.10",
+        "node_modules/@swagger-api/apidom-reference: ^7.26.10",
+        "node_modules/swagger-client: ^7.22.15",
+        "node_modules/swagger-ui-react: ^7.27.1"
+      ]
+    },
+    {
+      "name": "@babel/types",
+      "installed": "7.29.11",
+      "latestStable": "8.1.0",
+      "location": "node_modules/@babel/types",
+      "declaredRequirements": [
+        "node_modules/@babel/parser: ^7.29.11",
+        "node_modules/magicast: ^7.29.7"
+      ]
+    },
+    {
+      "name": "@blazediff/core",
+      "installed": "1.10.0",
+      "latestStable": "2.0.0",
+      "location": "node_modules/@blazediff/core",
+      "declaredRequirements": [
+        "node_modules/@vitest/browser: 1.10.0"
+      ]
+    },
+    {
+      "name": "@emnapi/wasi-threads",
+      "installed": "1.2.3",
+      "latestStable": "2.2.0",
+      "location": "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/wasi-threads",
+      "declaredRequirements": [
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^1.2.3",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/core: 1.2.3"
+      ],
+      "reason": "Bundled in the published upstream package; not independently replaceable by npm update."
+    },
+    {
+      "name": "@hapi/formula",
+      "installed": "3.0.2",
+      "latestStable": "4.0.0",
+      "location": "node_modules/@hapi/formula",
+      "declaredRequirements": [
+        "node_modules/joi: ^3.0.2"
+      ]
+    },
+    {
+      "name": "@hapi/pinpoint",
+      "installed": "2.0.1",
+      "latestStable": "3.0.0",
+      "location": "node_modules/@hapi/pinpoint",
+      "declaredRequirements": [
+        "node_modules/joi: ^2.0.1"
+      ]
+    },
+    {
+      "name": "@hapi/tlds",
+      "installed": "1.1.7",
+      "latestStable": "2.0.3",
+      "location": "node_modules/@hapi/tlds",
+      "declaredRequirements": [
+        "node_modules/joi: ^1.1.1"
+      ]
+    },
+    {
+      "name": "@humanfs/core",
+      "installed": "0.19.2",
+      "latestStable": "0.20.0",
+      "location": "node_modules/@humanfs/core",
+      "declaredRequirements": [
+        "node_modules/@humanfs/node: ^0.19.2"
+      ]
+    },
+    {
+      "name": "@humanfs/node",
+      "installed": "0.16.8",
+      "latestStable": "0.17.0",
+      "location": "node_modules/@humanfs/node",
+      "declaredRequirements": [
+        "node_modules/eslint: ^0.16.8"
+      ]
+    },
+    {
+      "name": "@humanfs/types",
+      "installed": "0.15.0",
+      "latestStable": "0.16.0",
+      "location": "node_modules/@humanfs/types",
+      "declaredRequirements": [
+        "node_modules/@humanfs/core: ^0.15.0",
+        "node_modules/@humanfs/node: ^0.15.0"
+      ]
+    },
+    {
+      "name": "@json-render/core",
+      "installed": "0.21.4",
+      "latestStable": "0.22.0",
+      "location": "node_modules/@json-render/core",
+      "declaredRequirements": [
+        "node_modules/@devframes/json-render: ^0.21.3"
+      ]
+    },
+    {
+      "name": "@keyv/bigmap",
+      "installed": "1.3.1",
+      "latestStable": "6.1.0",
+      "location": "node_modules/@keyv/bigmap",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^1.3.1"
+      ]
+    },
+    {
+      "name": "@napi-rs/wasm-runtime",
+      "installed": "1.2.2",
+      "latestStable": "1.2.7",
+      "location": "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@napi-rs/wasm-runtime",
+      "declaredRequirements": [
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^1.2.2"
+      ],
+      "reason": "Bundled in the published upstream package; not independently replaceable by npm update."
+    },
+    {
+      "name": "@oxc-project/types",
+      "installed": "0.156.0",
+      "latestStable": "0.157.0",
+      "location": "node_modules/@oxc-project/types",
+      "declaredRequirements": [
+        "node_modules/rolldown: =0.156.0"
+      ]
+    },
+    {
+      "name": "@oxfmt/binding-win32-x64-msvc",
+      "installed": "0.75.0",
+      "latestStable": "0.76.0",
+      "location": "node_modules/@oxfmt/binding-win32-x64-msvc",
+      "declaredRequirements": [
+        "node_modules/oxfmt: 0.75.0"
+      ]
+    },
+    {
+      "name": "@polka/url",
+      "installed": "1.0.0-next.29",
+      "latestStable": "0.5.0",
+      "location": "node_modules/@polka/url",
+      "declaredRequirements": [
+        "node_modules/sirv: ^1.0.0-next.24"
+      ]
+    },
+    {
+      "name": "@rolldown/binding-win32-x64-msvc",
+      "installed": "1.2.16",
+      "latestStable": "1.3.0",
+      "location": "node_modules/@rolldown/binding-win32-x64-msvc",
+      "declaredRequirements": [
+        "node_modules/rolldown: 1.2.16"
+      ]
+    },
+    {
+      "name": "@solid-primitives/map",
+      "installed": "0.4.13",
+      "latestStable": "0.7.4",
+      "location": "node_modules/@solid-primitives/map",
+      "declaredRequirements": [
+        "node_modules/@kobalte/utils: ^0.4.7"
+      ]
+    },
+    {
+      "name": "@solid-primitives/storage",
+      "installed": "1.3.11",
+      "latestStable": "4.4.0",
+      "location": "node_modules/@solid-primitives/storage",
+      "declaredRequirements": [
+        "node_modules/@tanstack/query-devtools: ^1.3.11"
+      ]
+    },
+    {
+      "name": "@swaggerexpert/json-pointer",
+      "installed": "2.10.2",
+      "latestStable": "3.0.2",
+      "location": "node_modules/@swaggerexpert/json-pointer",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-json-pointer: ^2.10.1"
+      ]
+    },
+    {
+      "name": "@tanstack/react-virtual",
+      "installed": "3.14.10",
+      "latestStable": "3.14.26",
+      "location": "node_modules/@tanstack/react-virtual",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: =3.14.10"
+      ]
+    },
+    {
+      "name": "@tanstack/virtual-core",
+      "installed": "3.17.8",
+      "latestStable": "3.19.11",
+      "location": "node_modules/@tanstack/react-virtual/node_modules/@tanstack/virtual-core",
+      "declaredRequirements": [
+        "node_modules/@tanstack/react-virtual: 3.17.8",
+        "node_modules/@tanstack/solid-virtual: 3.19.11"
+      ]
+    },
+    {
+      "name": "@tybys/wasm-util",
+      "installed": "0.10.3",
+      "latestStable": "0.10.4",
+      "location": "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@tybys/wasm-util",
+      "declaredRequirements": [
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^0.10.3",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@napi-rs/wasm-runtime: ^0.10.3"
+      ],
+      "reason": "Bundled in the published upstream package; not independently replaceable by npm update."
+    },
+    {
+      "name": "@types/ramda",
+      "installed": "0.30.2",
+      "latestStable": "0.32.0",
+      "location": "node_modules/@types/ramda",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ~0.30.0",
+        "node_modules/@swagger-api/apidom-core: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-json-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-reference: ~0.30.0"
+      ]
+    },
+    {
+      "name": "@types/unist",
+      "installed": "2.0.11",
+      "latestStable": "3.0.3",
+      "location": "node_modules/parse-entities/node_modules/@types/unist",
+      "declaredRequirements": [
+        "node_modules/@types/hast: *",
+        "node_modules/parse-entities: ^2.0.0"
+      ]
+    },
+    {
+      "name": "@types/use-sync-external-store",
+      "installed": "0.0.6",
+      "latestStable": "1.7.0",
+      "location": "node_modules/@types/use-sync-external-store",
+      "declaredRequirements": [
+        "node_modules/react-redux: ^0.0.6"
+      ]
+    },
+    {
+      "name": "@typescript/old:typescript@^6",
+      "installed": "6.0.3",
+      "latestStable": "7.0.2",
+      "location": "node_modules/@typescript/old",
+      "declaredRequirements": []
+    },
+    {
+      "name": "agent-base",
+      "installed": "6.0.2",
+      "latestStable": "9.0.0",
+      "location": "node_modules/agent-base",
+      "declaredRequirements": [
+        "node_modules/https-proxy-agent: 6"
+      ]
+    },
+    {
+      "name": "ajv",
+      "installed": "6.15.0",
+      "latestStable": "8.20.0",
+      "location": "node_modules/eslint/node_modules/ajv",
+      "declaredRequirements": [
+        "node_modules/eslint: ^6.14.0"
+      ]
+    },
+    {
+      "name": "ansi-regex",
+      "installed": "5.0.1",
+      "latestStable": "6.5.0",
+      "location": "node_modules/ansi-regex",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^5.0.1",
+        "node_modules/strip-ansi: ^6.2.2"
+      ]
+    },
+    {
+      "name": "ansi-styles",
+      "installed": "5.2.0",
+      "latestStable": "7.0.0",
+      "location": "node_modules/ansi-styles",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^5.0.0",
+        "node_modules/wrap-ansi: ^6.2.1"
+      ]
+    },
+    {
+      "name": "ansi-styles",
+      "installed": "6.2.3",
+      "latestStable": "7.0.0",
+      "location": "node_modules/wrap-ansi/node_modules/ansi-styles",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^5.0.0",
+        "node_modules/wrap-ansi: ^6.2.1"
+      ]
+    },
+    {
+      "name": "argparse",
+      "installed": "2.0.1",
+      "latestStable": "3.0.4",
+      "location": "node_modules/argparse",
+      "declaredRequirements": [
+        "node_modules/js-yaml: ^2.0.1",
+        "node_modules/remarkable: ^1.0.10"
+      ]
+    },
+    {
+      "name": "aria-query",
+      "installed": "5.3.0",
+      "latestStable": "5.3.2",
+      "location": "node_modules/aria-query",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: 5.3.0",
+        "node_modules/@testing-library/jest-dom: ^5.0.0"
+      ]
+    },
+    {
+      "name": "asynckit",
+      "installed": "0.4.0",
+      "latestStable": "0.5.0",
+      "location": "node_modules/asynckit",
+      "declaredRequirements": [
+        "node_modules/form-data: ^0.4.0"
+      ]
+    },
+    {
+      "name": "autolinker",
+      "installed": "3.16.2",
+      "latestStable": "4.1.5",
+      "location": "node_modules/autolinker",
+      "declaredRequirements": [
+        "node_modules/remarkable: ^3.11.0"
+      ]
+    },
+    {
+      "name": "balanced-match",
+      "installed": "4.0.4",
+      "latestStable": "5.0.0",
+      "location": "node_modules/balanced-match",
+      "declaredRequirements": [
+        "node_modules/brace-expansion: ^4.0.2"
+      ]
+    },
+    {
+      "name": "canonicalize",
+      "installed": "2.1.0",
+      "latestStable": "5.1.0",
+      "location": "node_modules/canonicalize",
+      "declaredRequirements": [
+        "node_modules/jsonld: ^2.1.0"
+      ]
+    },
+    {
+      "name": "chalk",
+      "installed": "5.6.2",
+      "latestStable": "6.0.1",
+      "location": "node_modules/chalk",
+      "declaredRequirements": [
+        "node_modules/concurrently: 5.6.2"
+      ]
+    },
+    {
+      "name": "commander",
+      "installed": "7.2.0",
+      "latestStable": "15.0.0",
+      "location": "node_modules/commander",
+      "declaredRequirements": [
+        "node_modules/d3-dsv: 7"
+      ]
+    },
+    {
+      "name": "confbox",
+      "installed": "0.1.8",
+      "latestStable": "0.3.2",
+      "location": "node_modules/mlly/node_modules/confbox",
+      "declaredRequirements": [
+        "node_modules/mlly/node_modules/pkg-types: ^0.1.8",
+        "node_modules/pkg-types: ^0.3.1"
+      ]
+    },
+    {
+      "name": "copy-to-clipboard",
+      "installed": "3.3.3",
+      "latestStable": "4.0.2",
+      "location": "node_modules/copy-to-clipboard",
+      "declaredRequirements": [
+        "node_modules/react-copy-to-clipboard: ^3.3.3"
+      ]
+    },
+    {
+      "name": "dom-accessibility-api",
+      "installed": "0.5.16",
+      "latestStable": "0.7.1",
+      "location": "node_modules/dom-accessibility-api",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^0.5.9",
+        "node_modules/@testing-library/jest-dom: ^0.6.3"
+      ]
+    },
+    {
+      "name": "dom-accessibility-api",
+      "installed": "0.6.3",
+      "latestStable": "0.7.1",
+      "location": "node_modules/@testing-library/jest-dom/node_modules/dom-accessibility-api",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^0.5.9",
+        "node_modules/@testing-library/jest-dom: ^0.6.3"
+      ]
+    },
+    {
+      "name": "drange",
+      "installed": "1.1.1",
+      "latestStable": "2.0.1",
+      "location": "node_modules/drange",
+      "declaredRequirements": [
+        "node_modules/randexp: ^1.0.2"
+      ]
+    },
+    {
+      "name": "emoji-regex",
+      "installed": "10.6.0",
+      "latestStable": "11.0.0",
+      "location": "node_modules/emoji-regex",
+      "declaredRequirements": [
+        "node_modules/string-width: ^10.3.0"
+      ]
+    },
+    {
+      "name": "es-module-lexer",
+      "installed": "2.3.2",
+      "latestStable": "3.0.4",
+      "location": "node_modules/es-module-lexer",
+      "declaredRequirements": [
+        "node_modules/vitest: ^2.3.2"
+      ]
+    },
+    {
+      "name": "escape-string-regexp",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "location": "node_modules/escape-string-regexp",
+      "declaredRequirements": [
+        "node_modules/eslint: ^4.0.0"
+      ]
+    },
+    {
+      "name": "eslint-visitor-keys",
+      "installed": "3.4.3",
+      "latestStable": "5.0.1",
+      "location": "node_modules/@eslint-community/eslint-utils/node_modules/eslint-visitor-keys",
+      "declaredRequirements": [
+        "node_modules/@eslint-community/eslint-utils: ^3.4.3",
+        "node_modules/eslint: ^5.0.1",
+        "node_modules/espree: ^5.0.1"
+      ]
+    },
+    {
+      "name": "eventsource",
+      "installed": "3.0.7",
+      "latestStable": "5.1.4",
+      "location": "node_modules/eventsource",
+      "declaredRequirements": [
+        "node_modules/@modelcontextprotocol/client: ^3.0.2"
+      ]
+    },
+    {
+      "name": "eventsource-parser",
+      "installed": "3.1.1",
+      "latestStable": "4.1.3",
+      "location": "node_modules/eventsource-parser",
+      "declaredRequirements": [
+        "node_modules/@modelcontextprotocol/client: ^3.0.8",
+        "node_modules/eventsource: ^3.0.1"
+      ]
+    },
+    {
+      "name": "execa",
+      "installed": "5.1.1",
+      "latestStable": "10.2.1",
+      "location": "node_modules/execa",
+      "declaredRequirements": [
+        "node_modules/start-server-and-test: 5.1.1"
+      ]
+    },
+    {
+      "name": "fast-levenshtein",
+      "installed": "2.0.6",
+      "latestStable": "3.0.0",
+      "location": "node_modules/fast-levenshtein",
+      "declaredRequirements": [
+        "node_modules/optionator: ^2.0.6"
+      ]
+    },
+    {
+      "name": "fast-uri",
+      "installed": "3.1.9",
+      "latestStable": "4.2.3",
+      "location": "node_modules/fast-uri",
+      "declaredRequirements": [
+        "node_modules/ajv: ^3.0.1"
+      ]
+    },
+    {
+      "name": "fault",
+      "installed": "1.0.4",
+      "latestStable": "2.0.1",
+      "location": "node_modules/fault",
+      "declaredRequirements": [
+        "node_modules/lowlight: ^1.0.0"
+      ]
+    },
+    {
+      "name": "find-up",
+      "installed": "5.0.0",
+      "latestStable": "8.0.0",
+      "location": "node_modules/find-up",
+      "declaredRequirements": [
+        "node_modules/eslint: ^5.0.0"
+      ]
+    },
+    {
+      "name": "get-stream",
+      "installed": "6.0.1",
+      "latestStable": "9.0.1",
+      "location": "node_modules/get-stream",
+      "declaredRequirements": [
+        "node_modules/execa: ^6.0.0"
+      ]
+    },
+    {
+      "name": "hashery",
+      "installed": "1.5.1",
+      "latestStable": "3.0.5",
+      "location": "node_modules/hashery",
+      "declaredRequirements": [
+        "node_modules/@cacheable/utils: ^1.5.1",
+        "node_modules/@keyv/bigmap: ^1.4.0"
+      ]
+    },
+    {
+      "name": "highlight.js",
+      "installed": "10.7.3",
+      "latestStable": "11.12.0",
+      "location": "node_modules/highlight.js",
+      "declaredRequirements": [
+        "node_modules/lowlight: ~10.7.0",
+        "node_modules/react-syntax-highlighter: ^10.4.1"
+      ]
+    },
+    {
+      "name": "hookified",
+      "installed": "1.15.1",
+      "latestStable": "3.1.0",
+      "location": "node_modules/hookified",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^1.15.1",
+        "node_modules/@keyv/bigmap: ^1.15.0",
+        "node_modules/cacheable: ^1.15.0",
+        "node_modules/flat-cache: ^1.15.0",
+        "node_modules/hashery: ^1.15.0",
+        "node_modules/qified: ^2.1.1"
+      ]
+    },
+    {
+      "name": "hookified",
+      "installed": "2.2.0",
+      "latestStable": "3.1.0",
+      "location": "node_modules/qified/node_modules/hookified",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^1.15.1",
+        "node_modules/@keyv/bigmap: ^1.15.0",
+        "node_modules/cacheable: ^1.15.0",
+        "node_modules/flat-cache: ^1.15.0",
+        "node_modules/hashery: ^1.15.0",
+        "node_modules/qified: ^2.1.1"
+      ]
+    },
+    {
+      "name": "https-proxy-agent",
+      "installed": "5.0.1",
+      "latestStable": "9.1.0",
+      "location": "node_modules/https-proxy-agent",
+      "declaredRequirements": [
+        "node_modules/axios: ^5.0.1"
+      ]
+    },
+    {
+      "name": "human-signals",
+      "installed": "2.1.0",
+      "latestStable": "8.0.1",
+      "location": "node_modules/human-signals",
+      "declaredRequirements": [
+        "node_modules/execa: ^2.1.0"
+      ]
+    },
+    {
+      "name": "iconv-lite",
+      "installed": "0.6.3",
+      "latestStable": "0.7.3",
+      "location": "node_modules/iconv-lite",
+      "declaredRequirements": [
+        "node_modules/d3-dsv: 0.6"
+      ]
+    },
+    {
+      "name": "ignore",
+      "installed": "5.3.2",
+      "latestStable": "7.0.14",
+      "location": "node_modules/ignore",
+      "declaredRequirements": [
+        "node_modules/eslint: ^5.2.0"
+      ]
+    },
+    {
+      "name": "indent-string",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "location": "node_modules/indent-string",
+      "declaredRequirements": [
+        "node_modules/redent: ^4.0.0"
+      ]
+    },
+    {
+      "name": "is-stream",
+      "installed": "2.0.1",
+      "latestStable": "4.0.1",
+      "location": "node_modules/is-stream",
+      "declaredRequirements": [
+        "node_modules/execa: ^2.0.0"
+      ]
+    },
+    {
+      "name": "isexe",
+      "installed": "2.0.0",
+      "latestStable": "4.0.0",
+      "location": "node_modules/isexe",
+      "declaredRequirements": [
+        "node_modules/which: ^2.0.0"
+      ]
+    },
+    {
+      "name": "js-tokens",
+      "installed": "4.0.0",
+      "latestStable": "10.0.0",
+      "location": "node_modules/js-tokens",
+      "declaredRequirements": [
+        "node_modules/@babel/code-frame: ^4.0.0",
+        "node_modules/ast-v8-to-istanbul: ^10.0.0",
+        "node_modules/loose-envify: ^3.0.0 || ^4.0.0"
+      ]
+    },
+    {
+      "name": "js-yaml",
+      "installed": "4.3.2",
+      "latestStable": "5.5.0",
+      "location": "node_modules/js-yaml",
+      "declaredRequirements": [
+        "node_modules/swagger-client: ^4.3.2",
+        "node_modules/swagger-ui-react: =4.3.2"
+      ]
+    },
+    {
+      "name": "json-schema-traverse",
+      "installed": "0.4.1",
+      "latestStable": "1.0.0",
+      "location": "node_modules/eslint/node_modules/json-schema-traverse",
+      "declaredRequirements": [
+        "node_modules/ajv: ^1.0.0",
+        "node_modules/eslint/node_modules/ajv: ^0.4.1"
+      ]
+    },
+    {
+      "name": "keyv",
+      "installed": "5.6.0",
+      "latestStable": "6.1.0",
+      "location": "node_modules/keyv",
+      "declaredRequirements": [
+        "node_modules/@cacheable/memory: ^5.6.0",
+        "node_modules/@cacheable/utils: ^5.6.0",
+        "node_modules/cacheable: ^5.6.0"
+      ]
+    },
+    {
+      "name": "ky",
+      "installed": "1.14.3",
+      "latestStable": "2.2.0",
+      "location": "node_modules/ky",
+      "declaredRequirements": [
+        "node_modules/@digitalbazaar/http-client: ^1.14.3"
+      ]
+    },
+    {
+      "name": "locate-path",
+      "installed": "6.0.0",
+      "latestStable": "8.0.0",
+      "location": "node_modules/locate-path",
+      "declaredRequirements": [
+        "node_modules/find-up: ^6.0.0"
+      ]
+    },
+    {
+      "name": "lowlight",
+      "installed": "1.20.0",
+      "latestStable": "3.3.0",
+      "location": "node_modules/lowlight",
+      "declaredRequirements": [
+        "node_modules/react-syntax-highlighter: ^1.17.0"
+      ]
+    },
+    {
+      "name": "lru-cache",
+      "installed": "6.0.0",
+      "latestStable": "11.5.3",
+      "location": "node_modules/jsonld/node_modules/lru-cache",
+      "declaredRequirements": [
+        "node_modules/@asamuzakjp/css-color: ^11.5.3",
+        "node_modules/@asamuzakjp/dom-selector: ^11.5.3",
+        "node_modules/jsdom: ^11.5.3",
+        "node_modules/jsonld: ^6.0.0"
+      ]
+    },
+    {
+      "name": "mdn-data",
+      "installed": "2.27.1",
+      "latestStable": "2.37.2",
+      "location": "node_modules/mdn-data",
+      "declaredRequirements": [
+        "node_modules/css-tree: 2.27.1"
+      ]
+    },
+    {
+      "name": "mime-db",
+      "installed": "1.52.0",
+      "latestStable": "1.54.0",
+      "location": "node_modules/mime-db",
+      "declaredRequirements": [
+        "node_modules/mime-types: 1.52.0"
+      ]
+    },
+    {
+      "name": "mime-types",
+      "installed": "2.1.35",
+      "latestStable": "3.0.2",
+      "location": "node_modules/mime-types",
+      "declaredRequirements": [
+        "node_modules/form-data: ^2.1.35"
+      ]
+    },
+    {
+      "name": "mimic-fn",
+      "installed": "2.1.0",
+      "latestStable": "4.0.0",
+      "location": "node_modules/mimic-fn",
+      "declaredRequirements": [
+        "node_modules/onetime: ^2.1.0"
+      ]
+    },
+    {
+      "name": "mute-stream",
+      "installed": "3.0.0",
+      "latestStable": "4.0.0",
+      "location": "node_modules/mute-stream",
+      "declaredRequirements": [
+        "node_modules/@inquirer/core: ^3.0.0"
+      ]
+    },
+    {
+      "name": "nanoid",
+      "installed": "3.3.20",
+      "latestStable": "6.0.2",
+      "location": "node_modules/nanoid",
+      "declaredRequirements": [
+        "node_modules/postcss: ^3.3.20"
+      ]
+    },
+    {
+      "name": "npm-run-path",
+      "installed": "4.0.1",
+      "latestStable": "6.0.0",
+      "location": "node_modules/npm-run-path",
+      "declaredRequirements": [
+        "node_modules/execa: ^4.0.1"
+      ]
+    },
+    {
+      "name": "onetime",
+      "installed": "5.1.2",
+      "latestStable": "8.0.0",
+      "location": "node_modules/onetime",
+      "declaredRequirements": [
+        "node_modules/execa: ^5.1.2"
+      ]
+    },
+    {
+      "name": "p-limit",
+      "installed": "3.1.0",
+      "latestStable": "7.3.3",
+      "location": "node_modules/p-limit",
+      "declaredRequirements": [
+        "node_modules/p-locate: ^3.0.2"
+      ]
+    },
+    {
+      "name": "p-locate",
+      "installed": "5.0.0",
+      "latestStable": "7.0.0",
+      "location": "node_modules/p-locate",
+      "declaredRequirements": [
+        "node_modules/locate-path: ^5.0.0"
+      ]
+    },
+    {
+      "name": "path-exists",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "location": "node_modules/path-exists",
+      "declaredRequirements": [
+        "node_modules/find-up: ^4.0.0"
+      ]
+    },
+    {
+      "name": "path-key",
+      "installed": "3.1.1",
+      "latestStable": "4.0.0",
+      "location": "node_modules/path-key",
+      "declaredRequirements": [
+        "node_modules/cross-spawn: ^3.1.0",
+        "node_modules/npm-run-path: ^3.0.0"
+      ]
+    },
+    {
+      "name": "picomatch",
+      "installed": "2.3.2",
+      "latestStable": "4.0.7",
+      "location": "node_modules/vite-plugin-full-reload/node_modules/picomatch",
+      "declaredRequirements": [
+        "node_modules/tinyglobby: ^4.0.4",
+        "node_modules/vite: ^4.0.7",
+        "node_modules/vite-plugin-full-reload: ^2.3.1",
+        "node_modules/vitest: ^4.0.7"
+      ]
+    },
+    {
+      "name": "pkce-challenge",
+      "installed": "5.0.1",
+      "latestStable": "6.0.0",
+      "location": "node_modules/pkce-challenge",
+      "declaredRequirements": [
+        "node_modules/@modelcontextprotocol/client: ^5.0.0"
+      ]
+    },
+    {
+      "name": "pkg-types",
+      "installed": "1.3.1",
+      "latestStable": "2.4.0",
+      "location": "node_modules/mlly/node_modules/pkg-types",
+      "declaredRequirements": [
+        "node_modules/local-pkg: ^2.3.1",
+        "node_modules/mlly: ^1.3.1"
+      ]
+    },
+    {
+      "name": "playwright",
+      "installed": "1.64.1",
+      "latestStable": "1.65.0",
+      "location": "node_modules/playwright",
+      "declaredRequirements": [
+        "node_modules/@playwright/test: 1.64.1"
+      ]
+    },
+    {
+      "name": "pretty-format",
+      "installed": "27.5.1",
+      "latestStable": "30.5.1",
+      "location": "node_modules/pretty-format",
+      "declaredRequirements": [
+        "node_modules/@testing-library/dom: ^27.0.2"
+      ]
+    },
+    {
+      "name": "qified",
+      "installed": "0.10.1",
+      "latestStable": "0.13.2",
+      "location": "node_modules/qified",
+      "declaredRequirements": [
+        "node_modules/cacheable: ^0.10.1"
+      ]
+    },
+    {
+      "name": "ramda",
+      "installed": "0.30.1",
+      "latestStable": "0.32.0",
+      "location": "node_modules/ramda",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ~0.30.0",
+        "node_modules/@swagger-api/apidom-core: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-json-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ~0.30.0",
+        "node_modules/@swagger-api/apidom-reference: ~0.30.0",
+        "node_modules/swagger-client: ^0.30.1"
+      ]
+    },
+    {
+      "name": "ramda-adjunct",
+      "installed": "5.1.0",
+      "latestStable": "6.1.0",
+      "location": "node_modules/ramda-adjunct",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-ast: ^5.0.0",
+        "node_modules/@swagger-api/apidom-core: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-a2a-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-api-design-systems: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-arazzo-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-asyncapi-3: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2019-09: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-2020-12: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-4: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-6: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-json-schema-draft-7: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-0: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-ns-openapi-3-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-json-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-a2a-yaml-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-json: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-api-design-systems-yaml: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-json-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-arazzo-yaml-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-json-3: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-asyncapi-yaml-3: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-json-2020-12: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-0: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-json-3-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-0: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-1: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-openapi-yaml-3-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: ^5.0.0",
+        "node_modules/@swagger-api/apidom-reference: ^5.0.0",
+        "node_modules/swagger-client: ^5.1.0"
+      ]
+    },
+    {
+      "name": "randexp",
+      "installed": "0.5.3",
+      "latestStable": "0.6.1",
+      "location": "node_modules/randexp",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: ^0.5.3"
+      ]
+    },
+    {
+      "name": "react-inspector",
+      "installed": "6.0.2",
+      "latestStable": "9.0.0",
+      "location": "node_modules/react-inspector",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: ^6.0.1"
+      ]
+    },
+    {
+      "name": "react-is",
+      "installed": "17.0.2",
+      "latestStable": "19.3.1",
+      "location": "node_modules/react-is",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^17.0.1",
+        "node_modules/prop-types: ^16.13.1"
+      ]
+    },
+    {
+      "name": "react-is",
+      "installed": "16.13.1",
+      "latestStable": "19.3.1",
+      "location": "node_modules/prop-types/node_modules/react-is",
+      "declaredRequirements": [
+        "node_modules/pretty-format: ^17.0.1",
+        "node_modules/prop-types: ^16.13.1"
+      ]
+    },
+    {
+      "name": "redent",
+      "installed": "3.0.0",
+      "latestStable": "4.0.0",
+      "location": "node_modules/redent",
+      "declaredRequirements": [
+        "node_modules/@testing-library/jest-dom: ^3.0.0"
+      ]
+    },
+    {
+      "name": "reselect",
+      "installed": "5.2.0",
+      "latestStable": "5.3.0",
+      "location": "node_modules/reselect",
+      "declaredRequirements": [
+        "node_modules/@reduxjs/toolkit: ^5.1.0",
+        "node_modules/recharts: 5.2.0",
+        "node_modules/swagger-ui-react: ^5.1.1"
+      ],
+      "reason": "Shared resolution also satisfies a stricter upstream pin; no dependency override was introduced."
+    },
+    {
+      "name": "ret",
+      "installed": "0.2.2",
+      "latestStable": "0.6.1",
+      "location": "node_modules/ret",
+      "declaredRequirements": [
+        "node_modules/randexp: ^0.2.0"
+      ]
+    },
+    {
+      "name": "rolldown",
+      "installed": "1.2.16",
+      "latestStable": "1.3.0",
+      "location": "node_modules/rolldown",
+      "declaredRequirements": [
+        "node_modules/vite: ~1.2.16"
+      ]
+    },
+    {
+      "name": "serialize-error",
+      "installed": "8.1.0",
+      "latestStable": "13.1.0",
+      "location": "node_modules/serialize-error",
+      "declaredRequirements": [
+        "node_modules/swagger-ui-react: ^8.1.0"
+      ]
+    },
+    {
+      "name": "shebang-regex",
+      "installed": "3.0.0",
+      "latestStable": "4.0.0",
+      "location": "node_modules/shebang-regex",
+      "declaredRequirements": [
+        "node_modules/shebang-command: ^3.0.0"
+      ]
+    },
+    {
+      "name": "signal-exit",
+      "installed": "3.0.7",
+      "latestStable": "4.1.0",
+      "location": "node_modules/execa/node_modules/signal-exit",
+      "declaredRequirements": [
+        "node_modules/@inquirer/core: ^4.1.0",
+        "node_modules/execa: ^3.0.3"
+      ]
+    },
+    {
+      "name": "solid-transition-group",
+      "installed": "0.2.3",
+      "latestStable": "0.3.0",
+      "location": "node_modules/solid-transition-group",
+      "declaredRequirements": [
+        "node_modules/@tanstack/query-devtools: ^0.2.3"
+      ]
+    },
+    {
+      "name": "string-width",
+      "installed": "7.2.0",
+      "latestStable": "8.3.0",
+      "location": "node_modules/string-width",
+      "declaredRequirements": [
+        "node_modules/cliui: ^7.2.0",
+        "node_modules/msw/node_modules/yargs: ^8.2.1",
+        "node_modules/wrap-ansi: ^7.0.0",
+        "node_modules/yargs: ^7.2.0"
+      ]
+    },
+    {
+      "name": "strip-final-newline",
+      "installed": "2.0.0",
+      "latestStable": "4.0.0",
+      "location": "node_modules/strip-final-newline",
+      "declaredRequirements": [
+        "node_modules/execa: ^2.0.0"
+      ]
+    },
+    {
+      "name": "strip-indent",
+      "installed": "3.0.0",
+      "latestStable": "4.1.1",
+      "location": "node_modules/strip-indent",
+      "declaredRequirements": [
+        "node_modules/redent: ^3.0.0"
+      ]
+    },
+    {
+      "name": "supports-color",
+      "installed": "10.2.2",
+      "latestStable": "11.0.0",
+      "location": "node_modules/supports-color",
+      "declaredRequirements": [
+        "node_modules/concurrently: 10.2.2"
+      ]
+    },
+    {
+      "name": "toggle-selection",
+      "installed": "1.0.6",
+      "latestStable": "2.1.0",
+      "location": "node_modules/toggle-selection",
+      "declaredRequirements": [
+        "node_modules/copy-to-clipboard: ^1.0.6"
+      ]
+    },
+    {
+      "name": "tree-sitter",
+      "installed": "0.21.1",
+      "latestStable": "0.25.1",
+      "location": "node_modules/tree-sitter",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-parser-adapter-json: =0.21.1",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: =0.22.4"
+      ]
+    },
+    {
+      "name": "tree-sitter",
+      "installed": "0.22.4",
+      "latestStable": "0.25.1",
+      "location": "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2/node_modules/tree-sitter",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-parser-adapter-json: =0.21.1",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: =0.22.4"
+      ]
+    },
+    {
+      "name": "tslib",
+      "installed": "2.8.1",
+      "latestStable": "2.9.1",
+      "location": "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/tslib",
+      "declaredRequirements": [
+        "node_modules/@dnd-kit/accessibility: ^2.0.0",
+        "node_modules/@dnd-kit/core: ^2.0.0",
+        "node_modules/@dnd-kit/sortable: ^2.0.0",
+        "node_modules/@dnd-kit/utilities: ^2.0.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi: ^2.8.1",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/core: ^2.4.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/runtime: ^2.4.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/wasi-threads: ^2.4.0",
+        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@tybys/wasm-util: ^2.4.0",
+        "node_modules/aria-hidden: ^2.0.0",
+        "node_modules/autolinker: ^2.3.0",
+        "node_modules/framer-motion: ^2.4.0",
+        "node_modules/react-remove-scroll: ^2.1.0",
+        "node_modules/react-remove-scroll-bar: ^2.0.0",
+        "node_modules/react-style-singleton: ^2.0.0",
+        "node_modules/rxjs: ^2.1.0",
+        "node_modules/use-callback-ref: ^2.0.0",
+        "node_modules/use-sidecar: ^2.0.0"
+      ],
+      "reason": "Bundled in the published upstream package; not independently replaceable by npm update."
+    },
+    {
+      "name": "type-fest",
+      "installed": "0.20.2",
+      "latestStable": "5.10.0",
+      "location": "node_modules/serialize-error/node_modules/type-fest",
+      "declaredRequirements": [
+        "node_modules/msw: ^5.5.0",
+        "node_modules/serialize-error: ^0.20.2"
+      ]
+    },
+    {
+      "name": "types-ramda",
+      "installed": "0.30.1",
+      "latestStable": "0.32.0",
+      "location": "node_modules/types-ramda",
+      "declaredRequirements": [
+        "node_modules/@types/ramda: ^0.30.1"
+      ]
+    },
+    {
+      "name": "undici",
+      "installed": "6.29.1",
+      "latestStable": "8.12.4",
+      "location": "node_modules/@digitalbazaar/http-client/node_modules/undici",
+      "declaredRequirements": [
+        "node_modules/@digitalbazaar/http-client: ^6.28.0",
+        "node_modules/jsdom: ^8.12.1"
+      ]
+    },
+    {
+      "name": "undici-types",
+      "installed": "8.9.0",
+      "latestStable": "8.12.4",
+      "location": "node_modules/undici-types",
+      "declaredRequirements": [
+        "node_modules/@types/node: ~8.9.0"
+      ]
+    },
+    {
+      "name": "victory-vendor",
+      "installed": "37.4.1",
+      "latestStable": "38.0.0",
+      "location": "node_modules/victory-vendor",
+      "declaredRequirements": [
+        "node_modules/recharts: ^37.0.2"
+      ]
+    },
+    {
+      "name": "web-tree-sitter",
+      "installed": "0.24.5",
+      "latestStable": "0.27.1",
+      "location": "node_modules/web-tree-sitter",
+      "declaredRequirements": [
+        "node_modules/@swagger-api/apidom-parser-adapter-json: =0.24.5",
+        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2: =0.24.5"
+      ]
+    },
+    {
+      "name": "which",
+      "installed": "2.0.2",
+      "latestStable": "7.0.0",
+      "location": "node_modules/which",
+      "declaredRequirements": [
+        "node_modules/cross-spawn: ^2.0.1"
+      ]
+    },
+    {
+      "name": "why-is-node-running",
+      "installed": "3.2.1",
+      "latestStable": "3.2.3",
+      "location": "node_modules/why-is-node-running",
+      "declaredRequirements": [
+        "node_modules/vitest: 3.2.1"
+      ]
+    },
+    {
+      "name": "wrap-ansi",
+      "installed": "9.0.2",
+      "latestStable": "10.0.2",
+      "location": "node_modules/wrap-ansi",
+      "declaredRequirements": [
+        "node_modules/cliui: ^9.0.0"
+      ]
+    },
+    {
+      "name": "yallist",
+      "installed": "4.0.0",
+      "latestStable": "5.0.0",
+      "location": "node_modules/yallist",
+      "declaredRequirements": [
+        "node_modules/jsonld/node_modules/lru-cache: ^4.0.0"
+      ]
+    },
+    {
+      "name": "yargs",
+      "installed": "18.0.0",
+      "latestStable": "18.2.0",
+      "location": "node_modules/yargs",
+      "declaredRequirements": [
+        "node_modules/concurrently: 18.0.0",
+        "node_modules/msw: ^18.2.0"
+      ]
+    },
+    {
+      "name": "yocto-queue",
+      "installed": "0.1.0",
+      "latestStable": "1.2.2",
+      "location": "node_modules/yocto-queue",
+      "declaredRequirements": [
+        "node_modules/p-limit: ^0.1.0"
+      ]
+    }
+  ],
+  "pythonRuntime": "3.13.15",
+  "pythonAdditionalPackages": [
+    {
+      "name": "frostwork",
+      "installed": "0.2.2",
+      "latestStable": "0.2.2",
+      "source": "https://pypi.org/pypi/frostwork/json"
+    }
+  ]
+}

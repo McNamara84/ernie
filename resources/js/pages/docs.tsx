@@ -604,6 +604,25 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             <li>Check for updates by comparing local item count with the remote registry</li>
                             <li>Trigger background downloads of the full vocabulary data</li>
                         </ul>
+
+                        <h4>Refresh the Instrument Registry</h4>
+                        <p>
+                            Group Leaders and Admins can open <strong>Editor Settings</strong>, expand <strong>Persistent Identifiers</strong>, and
+                            click <strong>Update Now</strong> for <strong>PID4INST (b2inst)</strong>. This downloads the current registry in the
+                            background. The action is available even before the first download or when the local and remote instrument counts match;
+                            equal counts do not mean that names and identifiers are unchanged.
+                        </p>
+                        <p>
+                            Wait for the update to finish successfully. If a download fails or is incomplete, ERNIE keeps the previous registry. After
+                            a successful update, users with an open editor can click <strong>Resolve names again</strong> in{' '}
+                            <strong>Used Instruments</strong> without discarding their unsaved work. Save the resource normally to retain newly
+                            resolved names.
+                        </p>
+                        <p>
+                            After installing the instrument-name update, refresh PID4INST once so ERNIE also has the identifier information needed to
+                            detect conflicts. If PID4INST is disabled for ERNIE, enable it and save the activation change before retrying name
+                            resolution.
+                        </p>
                     </>
                 ),
             },
@@ -1553,6 +1572,23 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+
+                        <h4>Contact Roles after Import</h4>
+                        <p>XML and JSON uploads preserve the authors and contact roles from the source metadata:</p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Standalone contact persons remain in <strong>Contributors</strong> with the <strong>Contact Person</strong> role.
+                            </li>
+                            <li>
+                                When a contact unambiguously matches an author, that author has the <strong>CP</strong> checkbox selected. Any
+                                additional contributor roles remain in <strong>Contributors</strong>.
+                            </li>
+                            <li>
+                                Ambiguous identities stay separate, including conflicting ORCIDs or incomplete names without an ORCID. For example, an
+                                author and a contact both named only "Doe" remain separate after saving and reopening the editor. Review these entries
+                                against the source metadata before publishing.
+                            </li>
+                        </ul>
                     </>
                 ),
             },
@@ -2309,6 +2345,54 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>IsNewVersionOf:</strong> Version relationships
                             </li>
                         </ul>
+                    </>
+                ),
+            },
+            {
+                id: 'used-instruments',
+                title: 'Used Instruments',
+                icon: Link2,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Instrument Names and Diagnostics</h3>
+                        <p>
+                            In <strong>Used Instruments</strong>, select the instruments used to collect your dataset. XML and JSON imports and
+                            existing resources opened in the editor use ERNIE&apos;s local PID4INST registry to fill in missing instrument names.
+                            Existing curated names and the original persistent identifiers (PIDs) are preserved.
+                        </p>
+                        <h4>Understanding Instrument Messages</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Different identifiers:</strong> B2INST lists conflicting identifiers for the same instrument. ERNIE shows the
+                                name when it can identify one registry record, but keeps your original PID. Review the displayed identifiers before
+                                making any manual correction.
+                            </li>
+                            <li>
+                                <strong>Name not found:</strong> The local registry has no matching name. The PID remains visible. Ask a Group Leader
+                                or Admin to refresh PID4INST, then retry name resolution.
+                            </li>
+                            <li>
+                                <strong>Multiple records:</strong> More than one registry record matches the identifier. ERNIE does not choose a name;
+                                verify which instrument the PID should identify.
+                            </li>
+                            <li>
+                                <strong>Registry unavailable or disabled:</strong> Your selected instruments are retained. Ask a Group Leader or Admin
+                                to check PID4INST availability and activation. Adding instruments is disabled while the registry is unavailable.
+                            </li>
+                        </ul>
+                        <h4>Retry and Save Resolved Names</h4>
+                        <p>
+                            Click <strong>Resolve names again</strong> in <strong>Used Instruments</strong> to retry against the current local
+                            registry. This preserves your other unsaved form changes and does not download data from B2INST. If a registry update is
+                            needed, wait for a Group Leader or Admin to complete it before retrying. You can also retry after a temporary resolution
+                            error.
+                        </p>
+                        <p>
+                            Opening an existing resource only adds resolved names to the editor; it does not change the saved record. Use the normal
+                            save action to retain newly resolved names. A new draft created by a Dashboard upload already contains the names available
+                            locally at import time. Retrying resolution never replaces a PID automatically.
+                        </p>
                     </>
                 ),
             },

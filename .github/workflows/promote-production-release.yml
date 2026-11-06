@@ -266,7 +266,7 @@ jobs:
           fetch-depth: 0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -324,7 +324,7 @@ jobs:
               -e TRIVY_DISABLE_VEX_NOTICE \
               -e TRIVY_PASSWORD \
               -e TRIVY_USERNAME \
-              aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
+              aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb image \
               --scanners vuln \
               --format table \
               --exit-code 1 \
@@ -466,7 +466,8 @@ jobs:
             exit 1
           fi
 
-          docker compose -f "$PROD_COMPOSE" config --quiet
+          # Validate the template without a deployment secret; do not persist this value.
+          APP_KEY=validation-only docker compose -f "$PROD_COMPOSE" config --quiet
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

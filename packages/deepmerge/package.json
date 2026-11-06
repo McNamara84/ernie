@@ -1,0 +1,10 @@
+{
+  "name": "@ernie/deepmerge",
+  "version": "4.3.1-ernie.1",
+  "private": true,
+  "description": "deepmerge 4.3.1 with the local CVE-2026-93753 fix",
+  "main": "index.cjs",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "files": ["index.cjs", "index.d.ts", "LICENSE", "README.md"]
+}

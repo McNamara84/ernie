@@ -23,7 +23,7 @@ process.once('exit', (exitCode) => {
 
 const hostWayfinderProbeTimeoutMs = 20_000;
 const dockerWayfinderCommand =
-    'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php -d memory_limit=2G artisan ernie:wayfinder-generate';
+    'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T --user www-data app php -d memory_limit=2G artisan ernie:wayfinder-generate';
 
 function resolveHostPhpCommand() {
     if (process.platform !== 'win32') {

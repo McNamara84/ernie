@@ -1,10 +1,11 @@
-FROM mysql:8.4.11@sha256:0f51e63e537a1f176423fa03ef559aabe6fa4372a53160a44bc7e75da7d15364 AS legacy-mysql-dump-client
+FROM mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 AS legacy-mysql-dump-client
 
-FROM php:8.5.12-fpm-trixie@sha256:8b4b4a764f7985137b13e4cb49dd59e967d9daa7946a731f9d06e31e748e39bb AS app-base
+FROM php:8.5.12-fpm-trixie@sha256:390bf03586f01031d2acce8711d9132023106da8bf07eaedf7edb64513755143 AS app-base
 
 WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
+ARG PHP_REDIS_SHA256=cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad
 ARG SYSTEM_PACKAGES_REFRESH=manual
 
 # Install system dependencies needed for the PHP runtime and extension builds.
@@ -48,15 +49,17 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xs
 # Install Redis extension from the official phpredis source tag.
 RUN set -eux; \
     curl -fsSL "https://github.com/phpredis/phpredis/archive/refs/tags/${PHP_REDIS_VERSION}.tar.gz" -o /tmp/phpredis.tar.gz; \
+    echo "${PHP_REDIS_SHA256}  /tmp/phpredis.tar.gz" | sha256sum -c -; \
     mkdir -p /usr/src/php/ext/redis; \
     tar -xzf /tmp/phpredis.tar.gz -C /usr/src/php/ext/redis --strip-components=1; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.11.1@sha256:5190d9b445add2fa26090108273cb1ef1e1af98175201c737b85b3c4f90fbf7c /usr/bin/composer /usr/bin/composer
 
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint.sh docker/laravel-runtime.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && command -v setpriv
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 COPY docker/php/opcache-production.ini /usr/local/etc/php/conf.d/opcache-production.ini
@@ -71,9 +74,9 @@ RUN update-ca-certificates
 
 FROM app-base AS app-build
 
-ARG NPM_VERSION=12.2.0
-ARG NODE_CHECKSUM_ARM64=42aa04922591ee5d4dbc7740d452621acf28508239daa512f5ee8c47ee224fdb
-ARG NODE_CHECKSUM_X64=6170b2d474e1c626f43cff3adc118df9fe3b573258a4fc3d850c8dbc6b079bbd
+ARG NPM_VERSION=12.2.2
+ARG NODE_CHECKSUM_ARM64=406fe3fbde1c054adff8b297c16fdb5af6659db327c1ac8acd46b56ef1af9a92
+ARG NODE_CHECKSUM_X64=d28a96af6c38596f6d9d97c0ee531c13d238d757742387d1928de822d959e997
 
 # Install Node.js only in the build stage so the runtime image contains no Node package manifests.
 # Download the exact stable release from nodejs.org and verify it for supported architectures.
@@ -113,6 +116,7 @@ RUN composer install --no-interaction --no-plugins --no-scripts \
 
 # Copy package files and install node dependencies (cached unless package.json changes)
 COPY package.json package-lock.json .npmrc ./
+COPY packages/deepmerge ./packages/deepmerge
 RUN npm ci
 
 # NOW copy the rest of the application (this changes frequently)
@@ -141,7 +145,7 @@ RUN APP_ENV=production \
     NODE_ENV=production \
     npm run build \
     && rm -f public/hot \
-    && rm -rf node_modules /root/.npm /root/.cache \
+    && rm -rf node_modules packages/deepmerge /root/.npm /root/.cache \
     && rm -f package.json package-lock.json .npmrc
 
 FROM app-base AS app
@@ -159,7 +163,7 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
-FROM nginx:1.31.7-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d AS nginx
+FROM nginx:1.31.8-alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606 AS nginx
 
 ARG SYSTEM_PACKAGES_REFRESH=manual
 

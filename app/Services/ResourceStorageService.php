@@ -36,6 +36,7 @@ use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
+use App\Support\PersonIdentityMatcher;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -100,6 +101,21 @@ class ResourceStorageService
     {
 
         return DB::transaction(function () use ($data, $userId, $doiChangeActor): array {
+            $partyIdentities = new PersonIdentityMatcher([
+                ...array_filter(is_array($data['authors'] ?? null) ? $data['authors'] : [], is_array(...)),
+                ...array_filter(is_array($data['contributors'] ?? null) ? $data['contributors'] : [], is_array(...)),
+            ]);
+            foreach (['authors', 'contributors'] as $group) {
+                if (! is_array($data[$group] ?? null)) {
+                    continue;
+                }
+                foreach ($data[$group] as &$party) {
+                    if (is_array($party)) {
+                        $party['_requireMissingIdentifier'] = $partyIdentities->hasConflictingOrcids($party);
+                    }
+                }
+                unset($party);
+            }
             $languageId = null;
 
             if (! empty($data['language'])) {
@@ -174,8 +190,8 @@ class ResourceStorageService
 
             $this->storeTitles($resource, $data, $isUpdate);
             $this->syncLicenses($resource, $data);
-            $this->storeCreators($resource, $data, $isUpdate);
-            $this->storeContributors($resource, $data, $isUpdate);
+            $creators = $this->storeCreators($resource, $data, $isUpdate);
+            $this->storeContributors($resource, $data, $isUpdate, $creators);
             $this->storeMslLaboratories($resource, $data, $isUpdate);
             $this->storeDescriptions($resource, $data, $isUpdate);
             $this->storeDates($resource, $data, $isUpdate);
@@ -269,7 +285,16 @@ class ResourceStorageService
             $contributors = [];
         }
 
-        foreach ($authors as $author) {
+        // Only this preparation step may establish an explicit author/contact
+        // association. Never trust a marker supplied in an incoming payload.
+        foreach ($contributors as &$contributor) {
+            if (is_array($contributor)) {
+                unset($contributor['_contactAuthorIndex']);
+            }
+        }
+        unset($contributor);
+
+        foreach ($authors as $authorIndex => $author) {
             if (! is_array($author) || ($author['type'] ?? 'person') !== 'person' || ! (bool) ($author['isContact'] ?? false)) {
                 continue;
             }
@@ -282,12 +307,14 @@ class ResourceStorageService
                 $contributor['roles'] = $this->rolesWithContactPerson($contributor['roles'] ?? []);
                 $contributor['email'] = $author['email'] ?? null;
                 $contributor['website'] = $author['website'] ?? null;
+                $contributor['_contactAuthorIndex'] = $authorIndex;
                 $contributors[$matchingContributorIndex] = $contributor;
 
                 continue;
             }
 
-            $contributors[] = $this->authorContactContributorData($author, count($contributors));
+            $contributors[] = $this->authorContactContributorData($author, count($contributors))
+                + ['_contactAuthorIndex' => $authorIndex];
         }
 
         $data['contributors'] = array_values($contributors);
@@ -606,8 +633,9 @@ class ResourceStorageService
 
     /**
      * @param  array<string, mixed>  $data
+     * @return array<int, ResourceCreator>
      */
-    private function storeCreators(Resource $resource, array $data, bool $isUpdate): void
+    private function storeCreators(Resource $resource, array $data, bool $isUpdate): array
     {
         $existingCreators = $resource->creators()
             ->with('creatorable')
@@ -625,8 +653,9 @@ class ResourceStorageService
         });
 
         $authors = $data['authors'] ?? [];
+        $creators = [];
 
-        foreach ($authors as $author) {
+        foreach ($authors as $index => $author) {
             $position = isset($author['position']) && is_int($author['position'])
                 ? $author['position']
                 : 0;
@@ -638,7 +667,10 @@ class ResourceStorageService
             }
 
             $this->affiliationService->syncForCreator($resourceCreator, $author);
+            $creators[$index] = $resourceCreator;
         }
+
+        return $creators;
     }
 
     /**
@@ -672,7 +704,7 @@ class ResourceStorageService
             $person = match (true) {
                 $usesUnstructuredPersonIdentity => $this->personService->findOrCreateWithoutStructuredName($orcid),
                 $identityChanged && $orcid === null => $this->personService->createWithoutOrcid($givenName, $familyName),
-                default => $this->personService->findOrCreate($data),
+                default => $this->findPersonForStorage($data),
             };
         }
         $storedScheme = $this->normalizeNullableString($person->name_identifier_scheme);
@@ -752,8 +784,9 @@ class ResourceStorageService
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  array<int, ResourceCreator>  $creators
      */
-    private function storeContributors(Resource $resource, array $data, bool $isUpdate): void
+    private function storeContributors(Resource $resource, array $data, bool $isUpdate, array $creators): void
     {
         // Delete old MSL labs if updating (before adding new ones)
         if ($isUpdate) {
@@ -776,6 +809,8 @@ class ResourceStorageService
         }
 
         $contributors = $data['contributors'] ?? [];
+        /** @var list<int> $creatorPersonIds */
+        $creatorPersonIds = collect($creators)->where('creatorable_type', Person::class)->pluck('creatorable_id')->values()->all();
 
         // Delete old contributors if updating
         if ($isUpdate) {
@@ -797,7 +832,12 @@ class ResourceStorageService
             if (($contributor['type'] ?? 'person') === 'institution') {
                 $resourceContributor = $this->storeInstitutionContributor($resource, $contributor, $position);
             } else {
-                $resourceContributor = $this->storePersonContributor($resource, $contributor, $position);
+                $authorIndex = $contributor['_contactAuthorIndex'] ?? null;
+                $authorPerson = is_int($authorIndex) ? ($creators[$authorIndex] ?? null)?->creatorable : null;
+                $resourceContributor = $this->storePersonContributor(
+                    $resource, $contributor, $position, $creatorPersonIds,
+                    $authorPerson instanceof Person ? $authorPerson : null,
+                );
             }
 
             $this->syncContributorTypes($resourceContributor, $contributor);
@@ -807,10 +847,16 @@ class ResourceStorageService
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  list<int>  $creatorPersonIds
      */
-    private function storePersonContributor(Resource $resource, array $data, int $position): ResourceContributor
-    {
-        $person = $this->personService->findOrCreate($data);
+    private function storePersonContributor(
+        Resource $resource,
+        array $data,
+        int $position,
+        array $creatorPersonIds,
+        ?Person $authorContact = null,
+    ): ResourceContributor {
+        $person = $authorContact ?? $this->findPersonForStorage($data, $creatorPersonIds);
 
         $hasContactPersonRole = $this->hasContactPersonRole($data);
         $contactInfo = $this->validatedContactInfo($data);
@@ -823,6 +869,27 @@ class ResourceStorageService
             'email' => $hasContactPersonRole ? $contactInfo['email'] : null,
             'website' => $hasContactPersonRole ? $contactInfo['website'] : null,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<int>  $excludedPersonIds
+     */
+    private function findPersonForStorage(array $data, array $excludedPersonIds = []): Person
+    {
+        if (empty($data['orcid']) && PersonIdentityMatcher::nameKey($data) === null) {
+            // A surname alone must not attach a standalone contributor to an
+            // author. Reuse an identifierless person outside this author list,
+            // including the previously stored contributor on repeated saves.
+            $data['firstName'] = $this->normalizeNullableString($data['firstName'] ?? null);
+            $data['lastName'] = $this->normalizeNullableString($data['lastName'] ?? null);
+
+            return $this->personService->findOrCreate($data, requireMissingIdentifier: true, excludedPersonIds: $excludedPersonIds);
+        }
+
+        return ! empty($data['_requireMissingIdentifier'])
+            ? $this->personService->findOrCreate($data, requireMissingIdentifier: true)
+            : $this->personService->findOrCreate($data);
     }
 
     /**

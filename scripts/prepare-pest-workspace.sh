@@ -31,6 +31,9 @@ find "$TEST_WORKSPACE" -mindepth 1 -maxdepth 1 ! -name vendor -exec rm -rf -- {}
 tar \
     --exclude='./.git' \
     --exclude='./.tmp' \
+    --exclude='./.trivy-cache' \
+    --exclude='./trivy-results' \
+    --exclude='./ernie-*-security-scan.tar' \
     --exclude='./.release-candidate' \
     --exclude='./.vitest' \
     --exclude='./coverage' \
@@ -41,6 +44,7 @@ tar \
     --exclude='./test-results' \
     --exclude='./vendor' \
     --exclude='./storage/framework/cache/*' \
+    --exclude='./storage/framework/.config' \
     --exclude='./storage/framework/sessions/*' \
     --exclude='./storage/framework/views/*' \
     --exclude='./storage/inertia-devtools' \

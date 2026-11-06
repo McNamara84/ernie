@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const stableVersion = /^8\.5\.(0|[1-9]\d*)$/u;
-const phpFrom = /^FROM (php:(8\.5\.\d+)-fpm-trixie@sha256:[a-f0-9]{64})(?= AS )/gmu;
+const phpFrom = /^(FROM |ARG PHP_IMAGE=)(php:(8\.5\.\d+)-fpm-trixie@sha256:[a-f0-9]{64})(?= AS |\r?$)/gmu;
 
 export function preparePhpImageUpdate({ version, release, manifest, files }) {
     if (!stableVersion.test(version)) {
@@ -32,12 +32,12 @@ export function preparePhpImageUpdate({ version, release, manifest, files }) {
         if (matches.length !== 1) {
             throw new Error(`Expected exactly one pinned PHP 8.5 FROM in ${filename}. No files changed.`);
         }
-        const [, currentImage, currentVersion] = matches[0];
+        const [, prefix, currentImage, currentVersion] = matches[0];
         currentImages.add(currentImage);
         if (Number(version.split('.')[2]) < Number(currentVersion.split('.')[2])) {
             throw new Error(`Refusing to downgrade ${filename} from PHP ${currentVersion}. No files changed.`);
         }
-        changes.set(filename, content.replace(phpFrom, `FROM ${image}`));
+        changes.set(filename, content.replace(phpFrom, `${prefix}${image}`));
     }
     if (currentImages.size !== 1 || files.size !== 2) {
         throw new Error('Both Dockerfiles must start from the same pinned PHP image. No files changed.');

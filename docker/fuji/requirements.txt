@@ -1,28 +1,34 @@
 # Compatible runtime updates on top of the digest-pinned F-UJI 4.0.1 image.
 # Recheck upstream pyproject.toml and `pip check` when changing these pins.
 # Remove the compromised emSign CA from the inherited certificate bundle (GHSA-6q48-6c7w-9gw2).
-certifi==2026.10.19
+anyio==4.16.0
+asgiref==3.13.0
+certifi==2026.10.23
 charset-normalizer==3.5.2
 cryptography==50.0.2
-filelock==4.2.4
+filelock==4.2.9
 httptools==0.9.0
 idutils==1.7.1
+lxml_html_clean==0.4.6
 MarkupSafe==3.0.4
 numpy==2.5.4
-platformdirs==4.13.5
-playwright==1.64.0
-pycparser==3.11
+platformdirs==4.14.5
+playwright==1.64.1
+pycparser==3.12
+pyee==14.0.0
 PyJWT==2.15.1
 python-dotenv==1.2.4
-pytz==2026.5
+python-multipart==0.0.33
+pytz==2026.6
 rpds-py==2026.9.1
 setuptools==84.2.1
-soupsieve==3.0.3
-starlette==1.9.0
+soupsieve==3.0.4
+starlette==1.10.0
 tldextract==5.4.0
-tzdata==2026.5
+tzdata==2026.6
 urlextract==1.10.0
+uritools==6.1.4
 uvloop==0.23.0
-w3lib==2.5.0
-websockets==17.3
+w3lib==2.6.0
+websockets==17.4
 Werkzeug==3.1.9

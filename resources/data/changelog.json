@@ -1,5 +1,39 @@
 [
     {
+        "version": "1.1.2",
+        "date": "2026-11-06",
+        "fixes": [
+            {
+                "title": "Instrument Names in Metadata Imports",
+                "description": "XML and JSON imports resolve instrument names from PID4INST while preserving imported identifiers and curated names.",
+                "references": [{ "type": "issue", "number": 1498, "url": "https://github.com/McNamara84/ernie/issues/1498" }]
+            },
+            {
+                "title": "JavaScript Dependency Security",
+                "description": "Updated JavaScript dependencies to fix credential handling and denial-of-service vulnerabilities."
+            },
+            {
+                "title": "Email Header Security",
+                "description": "Fixed invalid email header parameter handling to address CVE-2026-45070."
+            },
+            {
+                "title": "Contact Person Roles in Metadata Imports",
+                "description": "XML and JSON imports preserve contact roles and details; previously imported records still require manual correction.",
+                "references": [{ "type": "issue", "number": 1496, "url": "https://github.com/McNamara84/ernie/issues/1496" }]
+            },
+            {
+                "title": "Container and API Documentation Security",
+                "description": "Improved container startup and file permissions, rejected unsafe symbolic links during setup, and fixed a data-merging vulnerability in the API documentation.",
+                "references": [{ "type": "pull_request", "number": 1508, "url": "https://github.com/McNamara84/ernie/pull/1508" }]
+            },
+            {
+                "title": "Calendar Keyboard Focus",
+                "description": "Month and year dropdowns in the editor calendar now retain keyboard focus after a selection.",
+                "references": [{ "type": "pull_request", "number": 1530, "url": "https://github.com/McNamara84/ernie/pull/1530" }]
+            }
+        ]
+    },
+    {
         "version": "1.1.1",
         "date": "2026-10-21",
         "improvements": [

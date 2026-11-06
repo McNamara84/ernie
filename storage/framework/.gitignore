@@ -1,4 +1,5 @@
 compiled.php
+.config/
 config.php
 down
 events.scanned.php

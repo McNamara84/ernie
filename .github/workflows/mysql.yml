@@ -31,7 +31,8 @@ jobs:
           node-version-file: '.node-version'
 
       - name: Setup npm
-        run: npm install --global npm@12.2.0
+        run: |
+          npm install --global npm@12.2.2
 
       - name: Prepare isolated Docker environment
         run: |

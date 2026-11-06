@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -20,7 +20,7 @@ services:
       retries: 30
       start_period: 10s
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       # OAI-PMH identifiers are persistent and must not change with APP_URL.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
@@ -175,7 +175,7 @@ services:
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:bef91ad5b4ef336e2297d680873d34b6c65b5e926002b9937e693ce1b8256043}"
+    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:def8eddd5f914e7adfab18ce19bc458787b95f5f808578d1c6e70167edd2c0f0}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -251,7 +251,7 @@ services:
       - "traefik.docker.network=traefik"
 
   db:
-    image: mysql:9.7.2@sha256:e2fa358a74ac81148e7e27d9433e4c0ab62133de8ea4428b4f39a51a4ba7d07f
+    image: mysql:9.7.4@sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8
     container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
@@ -274,7 +274,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    image: redis:8.10.3-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     container_name: dockerized-laravel-redis
     restart: unless-stopped
     networks:
@@ -287,7 +287,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:9d7899df99051c72c84b0add8f8e15e5e349bd92de33b72129267de1f501116d}"
+    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:58f070e989ba9cd6ef214fcbeff1633705086043079f9e9173c8cea8d382cc2c}"
     container_name: ernie-fuji-prod
     restart: unless-stopped
     entrypoint:
@@ -318,7 +318,7 @@ services:
       start_period: 60s
 
   queue: &ernie-queue
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -335,7 +335,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       # Keep this identical to the app service for observer/job consistency.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
@@ -449,7 +449,7 @@ services:
     command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -469,7 +469,7 @@ services:
       fuji:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
@@ -522,7 +522,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:83be7c9db0f04ed985b2edcc034ed708bdb042640163e509b0d31c4b473d346a}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped
@@ -557,7 +557,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - APP_KEY=${APP_KEY}
+      - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
