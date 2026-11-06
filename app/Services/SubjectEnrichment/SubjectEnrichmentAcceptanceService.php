@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\SubjectEnrichment;
 
 use App\Models\AssistantSuggestion;
+use App\Models\Resource;
 use App\Models\Subject;
 use Illuminate\Support\Facades\DB;
 
@@ -44,6 +45,17 @@ final readonly class SubjectEnrichmentAcceptanceService
         }
 
         return DB::transaction(function () use ($suggestion, $validation): array {
+            $resource = Resource::query()->whereKey($suggestion->resource_id)->lockForUpdate()->first();
+            if ($resource === null || $resource->embargo_registration_started_at !== null) {
+                return $this->failure('The resource is unavailable for subject enrichment.');
+            }
+            // Serialize with editor saves, hierarchy actions and reviewed duplicate cleanup.
+            Subject::query()->where('resource_id', $resource->id)->orderBy('id')->lockForUpdate()->get();
+            $lockedSuggestion = AssistantSuggestion::query()->whereKey($suggestion->id)->lockForUpdate()->first();
+            if ($lockedSuggestion === null || $lockedSuggestion->target_id !== $suggestion->target_id
+                || $lockedSuggestion->resource_id !== $resource->id || $lockedSuggestion->metadata != $suggestion->metadata) {
+                return $this->failure('Subject metadata suggestion is stale because it was removed or changed.');
+            }
             /** @var Subject|null $subject */
             $subject = Subject::query()
                 ->whereKey($suggestion->target_id)

@@ -6,6 +6,21 @@ namespace App\Support;
 
 final class SubjectBreadcrumbPath
 {
+    /** A category containing "instruments" or "platforms" is not a vocabulary heading. */
+    public static function isSchemeHeading(string $segment, string $scheme): bool
+    {
+        $aliases = match ($scheme) {
+            'Science Keywords' => ['science keywords', 'gcmd science keywords', 'nasa/gcmd science keywords', 'nasa/gcmd earth science keywords'],
+            'Platforms' => ['platforms', 'gcmd platforms', 'nasa/gcmd platforms'],
+            'Instruments' => ['instruments', 'gcmd instruments', 'nasa/gcmd instruments'],
+            default => null,
+        };
+
+        return $aliases === null
+            ? PortalSubjectNormalizer::normalizeScheme($segment) === $scheme
+            : in_array(mb_strtolower(trim($segment)), $aliases, true);
+    }
+
     public static function normalize(?string $path): ?string
     {
         return PortalSubjectNormalizer::normalizeControlledSubjectValue($path);

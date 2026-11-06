@@ -721,6 +721,63 @@ npm run artisan -- subjects:deduplicate --apply \
 
 The repeatable `--doi` option narrows an audit further. Use `--include-free` only when exact free-keyword duplicates should also be considered. Apply runs are transactional per resource and idempotent; they remove stale Subject assistance rows and invalidate affected keyword and landing-page caches. A nonzero exit code indicates processing errors.
 
+### Equivalent keyword variants (issue #1531)
+
+Imports, editor saves and landing pages also recognize variants confirmed by the
+same local vocabulary concept. This includes historical paths and missing URIs
+when the local vocabulary uniquely identifies the term. Language differences,
+conflicting metadata, ambiguous matches and free versus controlled keywords remain
+separate. GCMD category labels such as **In Situ/Laboratory Instruments** are
+preserved as terms, rather than stripped as vocabulary headings. Unresolved GCMD
+imports retain the editor's legacy marker for review.
+
+The default `subjects:deduplicate` mode remains exact. Use `--mode=equivalent` for
+a reviewed repair of existing variants. It performs no remote vocabulary requests
+and requires a new JSON report filename. Prepare the local vocabulary caches
+first. Start with the two affected DOI and inspect the report's `subjects`,
+`analysis.groups`, proposed `row`, `diagnostics` and vocabulary evidence:
+
+```powershell
+npm run artisan -- subjects:deduplicate --mode=equivalent --doi=10.5880/gfz.4.8.2023.004 --doi=10.5880/gfz.4.6.2020.005 --report=storage/app/issue-1531-review.json
+```
+
+After the normal database backup and report review, apply that exact selection:
+
+```powershell
+npm run artisan -- subjects:deduplicate --mode=equivalent --apply --from-report=storage/app/issue-1531-review.json --report=storage/app/issue-1531-apply.jsonl
+```
+
+Apply accepts no new DOI/scheme/resume/limit filters. It locks each resource,
+rechecks subjects and vocabulary fingerprints, and rejects changed proposals.
+Do not edit a resource snapshot in the report; altered content is rejected.
+Create a fresh filtered audit when a different repair selection is needed.
+The JSONL journal records original subjects and affected assistance records before
+mutation, then the result after the transaction. Existing files are never
+overwritten. A journal `before` entry alone does not prove commit: check the
+database before recovery. Retain the backup, reviewed report and journal; restore
+only after comparing any newer edits. Pending embargo registrations are excluded
+from apply until reconciled.
+
+Cache errors are reported separately after a committed repair. Retry invalidation
+without changing subjects using a new journal file:
+
+```powershell
+npm run artisan -- subjects:deduplicate --mode=equivalent --refresh-caches --from-report=storage/app/issue-1531-review.json --report=storage/app/issue-1531-cache-retry.jsonl
+```
+
+Repeat the dry run with a new report filename after repair. For larger audits use
+bounded `--limit`, `--chunk` and `--after-resource-id` batches; the last scanned ID
+is reported for continuation. `--scheme` in equivalent mode includes known scheme
+aliases. Free keywords still require `--include-free` and only exact duplicates
+are removed. Unresolved groups remain in the report and need curator review.
+
+Landing pages combine only confirmed groups during rendering and do not write
+metadata. Local XML/JSON exports reflect the stored records, so verify them after
+the actual repair. The command does not update external DataCite records: publish
+the reviewed corrections through the existing explicit metadata synchronization
+workflow and verify that separately. Use the deployment's normal Artisan entry
+point on Stage/Production; the npm examples above address the local Docker stack.
+
 ### Testing Data Editor registration safely
 
 Keep `DATACITE_TEST_MODE=true` and use test Repository credentials when exercising the Data Editor's `Register` or `Update Metadata` actions locally. `Validate`, `Save Draft`, autosave, `Preview LP`, and `Show LP` are local-only actions and must not produce a DataCite request. The two DataCite write actions run complete client validation, show an explicit confirmation before their action-specific save, and automatically continue through landing-page setup when a page is missing.
