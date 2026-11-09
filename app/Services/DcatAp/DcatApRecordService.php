@@ -11,26 +11,72 @@ use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Support\IdentifierUrl;
+use Illuminate\Database\DatabaseTransactionRecord;
+use Illuminate\Database\DatabaseTransactionsManager;
 use Illuminate\Support\Facades\DB;
+use WeakMap;
 
 /** Maintains the public history of a format whose availability depends on metadata quality. */
 final class DcatApRecordService
 {
+    /** @var WeakMap<DatabaseTransactionRecord, WeakMap<DatabaseTransactionRecord, array<int, bool>>> */
+    private readonly WeakMap $pending;
+
     public function __construct(
         private readonly DcatApResourceProfileService $profile,
         private readonly DcatApReadinessService $readiness,
         private readonly DcatApRdfXmlExporter $exporter,
         private readonly OaiPmhSetService $sets,
-    ) {}
+    ) {
+        $this->pending = new WeakMap;
+    }
 
     public function schedule(int $resourceId, bool $touch = true): void
     {
         if (! $this->profile->isEnabled()) {
             return;
         }
-        // Child collections are often replaced inside a transaction. Evaluate its
-        // final aggregate only; a temporary empty collection is not a withdrawal.
-        DB::afterCommit(fn () => $this->reconcile($resourceId, $touch));
+        /** @var DatabaseTransactionsManager $manager */
+        $manager = app('db.transactions');
+        $connection = DB::connection()->getName();
+        $transactions = $manager->callbackApplicableTransactions()
+            ->filter(fn (DatabaseTransactionRecord $transaction): bool => $transaction->connection === $connection);
+        $root = $transactions->first();
+        $current = $transactions->last();
+        if ($root === null || $current === null) {
+            $this->reconcile($resourceId, $touch);
+
+            return;
+        }
+
+        // One callback per outer transaction; retain each savepoint's requests
+        // separately so rolling it back also discards its touch flags.
+        if (! isset($this->pending[$root])) {
+            /** @var WeakMap<DatabaseTransactionRecord, array<int, bool>> $batch */
+            $batch = new WeakMap;
+            $this->pending[$root] = $batch;
+            $root->addCallback(function () use ($batch): void {
+                $resources = [];
+                foreach ($batch as $requests) {
+                    foreach ($requests as $id => $requestedTouch) {
+                        $resources[$id] = ($resources[$id] ?? false) || $requestedTouch;
+                    }
+                }
+                foreach ($resources as $id => $requestedTouch) {
+                    $this->reconcile($id, $requestedTouch);
+                }
+            });
+        }
+        $batch = $this->pending[$root];
+        if (! isset($batch[$current])) {
+            $batch[$current] = [];
+            $current->addCallbackForRollback(static function () use ($batch, $current): void {
+                unset($batch[$current]);
+            });
+        }
+        $requests = $batch[$current];
+        $requests[$resourceId] = ($requests[$resourceId] ?? false) || $touch;
+        $batch[$current] = $requests;
     }
 
     public function reconcile(int $resourceId, bool $touch = false): void

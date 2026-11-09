@@ -274,8 +274,8 @@ final class DcatApRdfXmlExporter
 
         return match (true) {
             str_contains($date, 'T') => 'xsd:dateTime',
-            strlen($date) === 4 => 'xsd:gYear',
-            strlen($date) === 7 => 'xsd:gYearMonth',
+            preg_match('/^-?\d{4}$/D', $date) === 1 => 'xsd:gYear',
+            preg_match('/^-?\d{4}-\d{2}$/D', $date) === 1 => 'xsd:gYearMonth',
             default => 'xsd:date',
         };
     }
@@ -283,6 +283,11 @@ final class DcatApRdfXmlExporter
     private function dateLiteral(RdfDocument $rdf, DOMElement $node, string $property, ?string $date): void
     {
         if (($type = $this->dateType($date)) !== null) {
+            // W3CDTF permits minute precision; the XSD dateTime lexical form
+            // requires seconds. Preserve the original offset and any fraction.
+            if ($type === 'xsd:dateTime' && $date !== null) {
+                $date = preg_replace('/(T\d{2}:\d{2})(Z|[+-]\d{2}:\d{2})$/D', '${1}:00$2', $date);
+            }
             $rdf->literal($node, $property, $date, datatype: $type);
         }
     }

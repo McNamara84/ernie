@@ -25,6 +25,7 @@ use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\DcatAp\RdfDocument;
 use App\Services\LandingPageMetadataLinkService;
 use Illuminate\Support\Facades\Artisan;
+use Inertia\Testing\AssertableInertia;
 
 function dcatResource(array $attributes = []): Resource
 {
@@ -281,3 +282,22 @@ it('uses external landing URLs only while the resource is not withdrawn', functi
     $xpath = dcatXPath(app(DcatApRdfXmlExporter::class)->export($resource->refresh()));
     expect($xpath->evaluate('string(//dcat:accessURL/@rdf:resource)'))->toBe(url($resource->landingPage->getPublicPath()));
 });
+
+it('keeps edited download URLs fresh when switching back to either cached flag state', function (bool $enabledDuringEdit): void {
+    config(['bot_protection.enabled' => true, 'bot_protection.landing_cache_ttl' => 600]);
+    $resource = dcatResource();
+    $landing = $resource->landingPage;
+    $landing->update(['ftp_url' => 'https://example.org/old.csv']);
+    $path = $landing->getPublicPath();
+    foreach ([false, true] as $enabled) {
+        config(['dcatap.enabled' => $enabled]);
+        $this->get($path)->assertOk()->assertInertia(fn (AssertableInertia $view) => $view->where('landingPage.ftp_url', 'https://example.org/old.csv'));
+    }
+
+    config(['dcatap.enabled' => $enabledDuringEdit]);
+    $landing->update(['ftp_url' => 'https://example.org/new.csv']);
+    foreach ([false, true] as $enabled) {
+        config(['dcatap.enabled' => $enabled]);
+        $this->get($path)->assertOk()->assertInertia(fn (AssertableInertia $view) => $view->where('landingPage.ftp_url', 'https://example.org/new.csv'));
+    }
+})->with([false, true]);

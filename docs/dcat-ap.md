@@ -19,6 +19,8 @@ The public attachment is `/{doiPrefix}/{slug}/metadata/dcat-ap.rdf`, with `appli
 
 Catalog URI, title, description and publisher are configurable with `DCATAP_CATALOG_URI`, `DCATAP_CATALOG_TITLE`, `DCATAP_CATALOG_DESCRIPTION` and `DCATAP_CATALOG_PUBLISHER`; defaults identify GFZ Data Services. Invalid catalog configuration is an operational error, never a reason to retire all records. The fallback contact uses `ISO19115_METADATA_CONTACT_*`.
 
+For Docker, set the flag and optional catalog overrides in the Compose environment file (locally `.env.docker`; examples are in `.env.docker.example`). All dev, stage and production PHP services receive the same values, including the queues and scheduler. Recreate those containers after changing these settings; restarting an existing container does not update its environment. In stage/production, the image's application files are immutable, so editing an application `.env` is not the configuration path. Keep public traffic closed until configuration is refreshed and `dcat-ap:sync` has completed.
+
 To roll back exposure, set `DCATAP_ENABLED=false` and refresh configuration. Preserve `oai_pmh_format_records`. Run `dcat-ap:sync` before re-enabling public access. Also run synchronization after deliberate query-builder/SQL maintenance that bypasses model events, after changing catalog configuration or after incrementing `dcatap.revision` for a mapping/vocabulary change. Application writers must use Eloquent aggregate transactions or call `DcatApRecordService::schedule()` before their transaction commits.
 
 ## Mapping decisions
@@ -43,6 +45,8 @@ These choices implement [#1374](https://github.com/McNamara84/ernie/issues/1374)
 `oai_pmh_format_records` stores availability, identity, first availability, datestamp, last eligible sets, type, mapping revision and a content fingerprint. It intentionally survives resource deletion. Loss of a required Abstract, an unsupported type change, DOI replacement, unpublishing and deletion create persistent format-specific deleted headers. A public tombstone with required metadata stays active. Restoring eligibility revives the same identity with a new datestamp. The history of existing formats remains separate.
 
 Observers reconcile the final committed aggregate, including child metadata, download assignments and shared publisher/party/vocabulary changes. Rollbacks and intermediate replacement of child collections do not create withdrawals. Ordinary page-view counters do not advance metadata datestamps.
+
+Within a transaction, repeated child changes are combined into one reconciliation per resource after the outer commit. Touch requests are combined only from surviving transactions; rolling back a savepoint also discards its requests and those of its committed descendants. Writes outside a transaction reconcile immediately.
 
 Harvest inventories freeze identities with the existing database snapshot mechanism. Eligibility, identity and set transitions invalidate affected inventories. Retrying an otherwise unchanged token preserves page membership. A record moving outside a bounded date interval requires a fresh request. Clients must handle `badResumptionToken`, retry from their checkpoint, use overlapping incremental windows and deduplicate identifiers. Historical sets remain discoverable.
 

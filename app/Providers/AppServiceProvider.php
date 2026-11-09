@@ -80,6 +80,7 @@ use App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider;
 use App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
+use App\Services\DcatAp\DcatApRecordService;
 use App\Services\DcatAp\DcatApVocabularyMapper;
 use App\Services\InteractiveApiRequestContextService;
 use App\Services\PortalCacheInvalidationService;
@@ -125,6 +126,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(InteractiveApiRequestContextService::class);
         $this->app->singleton(ResourceListingProjectorService::class);
         $this->app->singleton(DcatApVocabularyMapper::class);
+        $this->app->singleton(DcatApRecordService::class);
         $this->app->singleton(ResourceListingProjectionRefreshService::class);
         $this->app->singleton(DatabaseDumpProcessRunner::class, SymfonyDatabaseDumpProcessRunner::class);
         $this->app->singleton(DatabaseServerInfoProvider::class, LaravelDatabaseServerInfoProvider::class);
