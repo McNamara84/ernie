@@ -15,6 +15,7 @@ use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\ResourceStorageService;
+use App\Services\Subjects\SubjectEquivalenceService;
 use App\Services\UserActivityService;
 use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\PortalSubjectNormalizer;
@@ -285,7 +286,7 @@ final class UploadedResourceDraftService
             }
         }
 
-        return $keywords;
+        return app(SubjectEquivalenceService::class)->keywords($keywords);
     }
 
     /**

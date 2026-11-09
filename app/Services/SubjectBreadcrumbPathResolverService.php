@@ -342,9 +342,7 @@ final class SubjectBreadcrumbPathResolverService
 
     private function shouldDropLeadingSegment(string $segment, string $scheme): bool
     {
-        $normalizedSegment = PortalSubjectNormalizer::normalizeScheme($segment);
-
-        return $normalizedSegment !== null && $normalizedSegment === $scheme;
+        return SubjectBreadcrumbPath::isSchemeHeading($segment, $scheme);
     }
 
     private function normalizeLeafLookup(?string $subjectValue): ?string

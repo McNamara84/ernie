@@ -6,6 +6,18 @@ use App\Support\SubjectBreadcrumbPath;
 
 covers(SubjectBreadcrumbPath::class);
 
+it('recognizes historical platform scheme headings', function (string $heading): void {
+    expect(SubjectBreadcrumbPath::isSchemeHeading($heading, 'Platforms'))->toBeTrue();
+})->with(['NASA/GCMD Earth Platforms Keywords', 'NASA/GCMD Platforms Keywords', '  nasa/gcmd earth platforms keywords  ']);
+
+it('preserves category names containing platform or instrument words', function (string $category, string $scheme): void {
+    expect(SubjectBreadcrumbPath::isSchemeHeading($category, $scheme))->toBeFalse();
+})->with([
+    ['Space-based Platforms', 'Platforms'],
+    ['In Situ Land-based Platforms', 'Platforms'],
+    ['In Situ/Laboratory Instruments', 'Instruments'],
+]);
+
 it('normalizes breadcrumb paths into clean segments and hierarchy checks', function (): void {
     $path = "  EARTH SCIENCE>  SOLID EARTH\n>SEISMOLOGY  ";
 

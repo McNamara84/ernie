@@ -133,6 +133,32 @@ describe('VocabularyCacheService', function () {
         });
     });
 
+    it('rotates a persistent subject revision that supports enum-based invalidation', function (bool $all): void {
+        $key = CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION;
+        $invalidate = function () use ($all): void {
+            if ($all) {
+                $this->service->invalidateAllVocabularyCaches();
+            } else {
+                $this->service->invalidateVocabularyCache(CacheKey::GCMD_INSTRUMENTS);
+            }
+        };
+
+        $invalidate();
+        $first = Cache::get($key->key());
+        expect($first)->toBeString()->not->toBeEmpty();
+
+        $invalidate();
+        $second = Cache::get($key->key());
+        expect($second)->toBeString()->not->toBeEmpty()->not->toBe($first);
+
+        Cache::tags(['vocabularies', 'resources', 'landing_pages'])->flush();
+        $this->travel(2)->days();
+        expect(Cache::get($key->key()))->toBe($second);
+
+        $key->forget();
+        expect(Cache::has($key->key()))->toBeFalse();
+    })->with(['single vocabulary' => false, 'all vocabularies' => true]);
+
     describe('touchVocabularyCache', function () {
         it('returns false when key does not exist in cache', function () {
             $result = $this->service->touchVocabularyCache(CacheKey::GCMD_SCIENCE_KEYWORDS);

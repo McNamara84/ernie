@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Console\Commands\GetGcmdInstruments;
 use App\Console\Commands\GetGcmdPlatforms;
 use App\Console\Commands\GetGcmdScienceKeywords;
+use App\Enums\CacheKey;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -49,6 +51,8 @@ describe('command configuration', function (): void {
 describe('handle', function (): void {
     it('fetches, parses, and stores vocabulary data on success', function (): void {
         Storage::fake('local');
+        $revisionKey = CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key();
+        Cache::forever($revisionKey, 'before-refresh');
 
         $rdfPage = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -75,16 +79,20 @@ XML;
         $json = json_decode(Storage::get('gcmd-science-keywords.json'), true);
         expect($json)->toHaveKeys(['lastUpdated', 'data'])
             ->and($json['data'])->toHaveCount(1)
-            ->and($json['data'][0]['text'])->toBe('Earth Science');
+            ->and($json['data'][0]['text'])->toBe('Earth Science')
+            ->and(Cache::get($revisionKey))->toBeString()->not->toBeEmpty()->not->toBe('before-refresh');
     });
 
     it('returns failure exit code on API error', function (): void {
+        $revisionKey = CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key();
+        Cache::forever($revisionKey, 'before-refresh');
         Http::fake([
             'cmr.earthdata.nasa.gov/*' => Http::response('Server Error', 500),
         ]);
 
         $this->artisan('get-gcmd-science-keywords')
             ->assertExitCode(1);
+        expect(Cache::get($revisionKey))->toBe('before-refresh');
     });
 
     it('returns failure exit code on exception', function (): void {

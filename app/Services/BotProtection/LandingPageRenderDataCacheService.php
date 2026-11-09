@@ -14,6 +14,7 @@ use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class LandingPageRenderDataCacheService
 {
@@ -54,6 +55,10 @@ class LandingPageRenderDataCacheService
     {
         $state = app(CounterTrackingStateService::class)->read();
         $base = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPageId);
+        $subjectRevision = Cache::get(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key());
+        if (is_string($subjectRevision)) {
+            $base .= ':subjects:'.$subjectRevision;
+        }
 
         return $state->started_at === null ? $base : $base.':usage:'.$state->metrics_revision.':'.CarbonImmutable::now('UTC')->format('Y-m');
     }

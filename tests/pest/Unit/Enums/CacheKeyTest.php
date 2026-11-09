@@ -44,8 +44,17 @@ it('generates correct cache keys with integer suffix', function () {
 });
 
 it('versions landing page render data cache keys', function () {
-    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v18')
-        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v18:123');
+    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v19')
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v19:123');
+});
+
+it('preserves the shared subject vocabulary revision key independently of vocabulary payloads', function () {
+    $key = CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION;
+
+    expect($key->key())->toBe('landing_pages:subject_vocabulary_revision')
+        ->and($key->ttl())->toBe(86400)
+        ->and($key->tags())->toBe([])
+        ->and(CacheKey::vocabularyKeys())->not->toContain($key);
 });
 
 it('returns correct TTL for resources', function () {

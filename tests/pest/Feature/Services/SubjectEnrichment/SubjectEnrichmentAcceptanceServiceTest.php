@@ -246,6 +246,46 @@ function subjectAcceptanceKeepOnlySchemeUriUpdate(AssistantSuggestion $suggestio
     return $suggestion->refresh();
 }
 
+it('rejects an enrichment proposal removed or changed while waiting for the resource lock', function (bool $removed): void {
+    subjectAcceptancePutVocabulary('gcmd-science-keywords.json', subjectAcceptanceGcmdData());
+    $resource = Resource::factory()->create();
+    $subject = subjectAcceptanceCreateSubject($resource, ['subject_scheme' => 'NASA/GCMD Earth Science Keywords']);
+    $suggestion = subjectAcceptanceSuggestionFor($subject);
+    $before = $subject->fresh()->getAttributes();
+    if ($removed) {
+        AssistantSuggestion::whereKey($suggestion->id)->delete();
+    } else {
+        $changed = $suggestion->fresh();
+        $changed->update(['metadata' => [...$changed->metadata, 'changed' => true]]);
+    }
+    $result = subjectAcceptanceService()->accept($suggestion);
+    expect($result['success'])->toBeFalse()->and($result['message'])->toContain('removed or changed')
+        ->and($subject->fresh()->getAttributes())->toBe($before);
+})->with([true, false]);
+
+it('rejects an enrichment proposal whose identity changed after it was loaded', function (string $field, string $value): void {
+    subjectAcceptancePutVocabulary('gcmd-science-keywords.json', subjectAcceptanceGcmdData());
+    $resource = Resource::factory()->create();
+    $subject = subjectAcceptanceCreateSubject($resource, ['subject_scheme' => 'NASA/GCMD Earth Science Keywords']);
+    $suggestion = subjectAcceptanceSuggestionFor($subject);
+    $before = $subject->fresh()->getAttributes();
+
+    // Keep the caller's original model to reproduce an update before the row lock is acquired.
+    AssistantSuggestion::whereKey($suggestion->id)->update([$field => $value]);
+    $changed = $suggestion->fresh()->getAttributes();
+
+    $result = subjectAcceptanceService()->accept($suggestion);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('removed or changed')
+        ->and($subject->fresh()->getAttributes())->toBe($before)
+        ->and($suggestion->fresh()->getAttributes())->toBe($changed);
+})->with([
+    'assistant changed' => ['assistant_id', 'another-assistant'],
+    'target type changed' => ['target_type', 'resource'],
+    'suggested value changed' => ['suggested_value', 'https://example.org/changed-concept'],
+]);
+
 it('accepts controlled GCMD suggestions and preserves the imported subject text', function (): void {
     subjectAcceptancePutVocabulary('gcmd-science-keywords.json', subjectAcceptanceGcmdData());
 

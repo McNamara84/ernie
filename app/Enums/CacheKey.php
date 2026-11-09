@@ -109,7 +109,8 @@ enum CacheKey: string
     case FUJI_ASSESSMENT_LIMITER_LOCK = 'fuji:assessment:request-limiter-lock';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v18';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v19';
+    case LANDING_PAGE_SUBJECT_VOCABULARY_REVISION = 'landing_pages:subject_vocabulary_revision';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions:v2';
@@ -246,8 +247,9 @@ enum CacheKey: string
             // Published landing page render data - short-lived and configurable
             self::LANDING_PAGE_RENDER_DATA => max(0, (int) config('bot_protection.landing_cache_ttl', 600)),
 
-            // Download URL suggestions use rememberForever and explicit invalidation.
+            // Subject vocabulary revisions and download URL suggestions use forever storage and explicit invalidation.
             // This TTL acts only as a safe default if the enum is reused elsewhere.
+            self::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION,
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => 86400,
 
         };
@@ -346,6 +348,7 @@ enum CacheKey: string
 
             self::LANDING_PAGE_RENDER_DATA => ['resources', 'landing_pages'],
 
+            self::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION,
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => [],
 
         };
