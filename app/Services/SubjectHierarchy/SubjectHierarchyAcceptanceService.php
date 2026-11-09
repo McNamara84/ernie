@@ -24,6 +24,7 @@ final readonly class SubjectHierarchyAcceptanceService
         $this->vocabulary->reset();
         $result = DB::transaction(function () use ($suggestion, $input): array {
             $resource = Resource::query()->whereKey($suggestion->resource_id)->lockForUpdate()->first();
+            $subjects = Subject::where('resource_id', $suggestion->resource_id)->orderBy('id')->lockForUpdate()->get();
             $locked = AssistantSuggestion::query()->whereKey($suggestion->id)->lockForUpdate()->first();
             if ($resource === null || $locked === null || $locked->assistant_id !== SubjectHierarchyDiscoveryService::ASSISTANT_ID
                 || $locked->target_type !== 'subject_hierarchy' || $locked->target_id !== $resource->id) {
@@ -46,7 +47,6 @@ final readonly class SubjectHierarchyAcceptanceService
             if (count($selected) !== count(array_unique($selected))) {
                 return $this->failure('A narrower term cannot be selected twice.');
             }
-            $subjects = Subject::where('resource_id', $resource->id)->orderBy('id')->lockForUpdate()->get();
             try {
                 $graph = $this->vocabulary->graph($scheme);
                 $current = $this->vocabulary->correction($subjects, $graph, $broaderId);

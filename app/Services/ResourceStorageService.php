@@ -37,6 +37,7 @@ use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
+use App\Services\Subjects\SubjectEquivalenceService;
 use App\Support\OrcidNormalizer;
 use App\Support\PersonIdentityMatcher;
 use App\Support\SubjectBreadcrumbPath;
@@ -1450,23 +1451,19 @@ class ResourceStorageService
     private function storeSubjects(Resource $resource, array $data, bool $isUpdate): void
     {
         // Save subjects (free keywords and controlled keywords combined)
-        $deletedSubjects = 0;
-        if ($isUpdate) {
-            $deletedSubjects = $resource->subjects()->delete();
-        }
-
         $freeKeywords = $data['freeKeywords'] ?? [];
+        $freeKeywordsData = [];
 
         foreach ($freeKeywords as $keyword) {
             // Only save non-empty keywords
             if (! empty(trim($keyword))) {
-                $resource->subjects()->create([
+                $freeKeywordsData[trim($keyword)] = [
                     'value' => trim($keyword),
                     'subject_scheme' => null,
                     'scheme_uri' => null,
                     'value_uri' => null,
                     'classification_code' => null,
-                ]);
+                ];
             }
         }
 
@@ -1530,9 +1527,12 @@ class ResourceStorageService
             ];
         }
 
-        // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
-        if (! empty($controlledKeywordsData)) {
-            $resource->subjects()->createMany($controlledKeywordsData);
+        // Compare the final persisted values, including identities resolved while preparing them.
+        $controlledKeywordsData = app(SubjectEquivalenceService::class)->analyze($controlledKeywordsData)['rows'];
+        $deletedSubjects = $isUpdate ? $resource->subjects()->delete() : 0;
+        $subjectsData = [...array_values($freeKeywordsData), ...$controlledKeywordsData];
+        if ($subjectsData !== []) {
+            $resource->subjects()->createMany($subjectsData);
         }
 
         // Query deletes bypass Subject events, including removal of the last keyword.

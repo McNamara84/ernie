@@ -29,6 +29,42 @@ const gcmdKeyword = (id: number, subject: string, overrides: Partial<LandingPage
 });
 
 describe('KeywordsSection', () => {
+    it('renders the normalized issue 1531 subjects once with their concept filters', () => {
+        const aquifer = 'https://gcmd.earthdata.nasa.gov/kms/concept/a957363b-2f2c-4169-a656-c2f24933eb72';
+        const instrument = 'https://gcmd.earthdata.nasa.gov/kms/concept/ff564c87-78f2-47eb-a857-a4bdc0a71ae5';
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'AQUIFERS', {
+                        value_uri: aquifer,
+                        breadcrumb_path: 'EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > GROUND WATER > GROUND WATER FEATURES > AQUIFERS',
+                    }),
+                    gcmdKeyword(2, 'In Situ/Laboratory Instruments', {
+                        subject_scheme: 'Instruments',
+                        value_uri: instrument,
+                        breadcrumb_path: 'In Situ/Laboratory Instruments',
+                    }),
+                ]}
+            />,
+        );
+        const badges = screen.getByTestId('subjects-section').querySelectorAll('[data-slot="keyword-badge"]');
+        expect(badges).toHaveLength(2);
+        expect(screen.getByRole('link', { name: 'In Situ/Laboratory Instruments' })).toHaveAttribute(
+            'href',
+            expect.stringContaining(encodeURIComponent(instrument)),
+        );
+        expect(screen.getByRole('link', { name: 'EARTH SCIENCE > ... > GROUND WATER FEATURES > AQUIFERS' })).toHaveAttribute(
+            'href',
+            expect.stringContaining(encodeURIComponent(aquifer)),
+        );
+    });
+
+    it('preserves distinct server subjects even when their visible labels and URIs coincide', () => {
+        const subjects = [gcmdKeyword(1, 'AQUIFERS'), gcmdKeyword(2, 'AQUIFERS')];
+        render(<KeywordsSection subjects={subjects} />);
+        expect(screen.getAllByRole('link', { name: 'AQUIFERS' })).toHaveLength(2);
+    });
+
     it('returns null when no subjects', () => {
         const { container } = render(<KeywordsSection subjects={[]} />);
         expect(container.innerHTML).toBe('');

@@ -77,6 +77,11 @@
         ],
         "fixes": [
             {
+                "title": "Duplicate Controlled Keywords",
+                "description": "Imports, editor saves and landing pages now combine equivalent keyword variants confirmed by local vocabularies, including historical hierarchy paths and incomplete GCMD instrument entries. Different languages and conflicting metadata remain separate. Administrators can audit existing duplicates and apply a reviewed, snapshot-checked report with recovery logging. GCMD category names containing Instruments or Platforms are preserved during path resolution.",
+                "references": [{ "type": "issue", "number": 1531, "url": "https://github.com/McNamara84/ernie/issues/1531" }]
+            },
+            {
                 "title": "PID4INST Updates with Empty Measured Variables",
                 "description": "Registry updates retain instruments whose optional measured-variable list contains empty entries. Meaningful values are preserved, while invalid types and identity conflicts remain protected. Hard validation errors in existing records now stop processing immediately, avoiding unnecessary checks of later instruments."
             },
