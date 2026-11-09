@@ -56,7 +56,7 @@ it('imports the reported variants once and preserves them through an editor roun
 })->with(['json', 'xml'])->with(['aquifers', 'instruments']);
 
 it('retains unresolved GCMD subjects with an explicit legacy marker when the vocabulary is missing', function (): void {
-    Storage::delete('gcmd-instruments.json');
+    Storage::disk('local')->delete('gcmd-instruments.json');
     $json = dataCiteJson(minimalAttributes(['subjects' => [
         ['subject' => 'In Situ/Laboratory Instruments', 'subjectScheme' => 'GCMD Instruments'],
         ['subject' => 'In Situ/Laboratory Instruments', 'subjectScheme' => 'Instruments', 'valueUri' => F::INSTRUMENT],
@@ -93,7 +93,7 @@ it('recomputes cached landing page identities after vocabulary invalidation', fu
     $cache = app(LandingPageRenderDataCacheService::class);
     $render = static fn (): array => ['template' => 'default_gfz', 'props' => app(LandingPageResourceTransformer::class)->transform($resource->fresh())];
     expect($cache->remember($page, $render)['props']['subjects'])->toHaveCount(1);
-    Storage::delete('gcmd-instruments.json');
+    Storage::disk('local')->delete('gcmd-instruments.json');
     app(VocabularyCacheService::class)->invalidateVocabularyCache(CacheKey::GCMD_INSTRUMENTS);
     expect($cache->remember($page, $render)['props']['subjects'])->toHaveCount(2);
 });

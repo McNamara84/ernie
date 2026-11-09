@@ -29,7 +29,7 @@ final class SubjectDuplicateFixtures
                     'scheme' => $scheme, 'schemeURI' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/'.$suffix,
                     'language' => 'en', 'children' => $children]];
             }
-            Storage::put('gcmd-'.$file.'.json', json_encode(['lastUpdated' => '2026-11-06', 'data' => $children], JSON_THROW_ON_ERROR));
+            Storage::disk('local')->put('gcmd-'.$file.'.json', json_encode(['lastUpdated' => '2026-11-06', 'data' => $children], JSON_THROW_ON_ERROR));
         }
     }
 

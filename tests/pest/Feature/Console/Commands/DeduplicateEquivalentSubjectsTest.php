@@ -37,8 +37,8 @@ it('audits then applies each reported case with complete journal and idempotent 
     $cache->remember($page, fn () => ['template' => 'default_gfz', 'props' => ['old' => true]]);
     $datestamp = $resource->fresh()->updated_at;
     $this->travel(2)->seconds();
-    $reportPath = Storage::path('review.json');
-    $journalPath = Storage::path('apply.jsonl');
+    $reportPath = Storage::disk('local')->path('review.json');
+    $journalPath = Storage::disk('local')->path('apply.jsonl');
     $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--report' => $reportPath])->assertSuccessful();
     $report = json_decode(file_get_contents($reportPath), true, flags: JSON_THROW_ON_ERROR);
     expect($resource->subjects()->count())->toBe(2)
@@ -51,7 +51,7 @@ it('audits then applies each reported case with complete journal and idempotent 
         ->and(file_get_contents($journalPath))->toContain('"status":"before"', '"status":"applied"', '"suggestions"')
         ->and($cache->remember($page, fn () => ['template' => 'default_gfz', 'props' => ['new' => true]])['props'])->toBe(['new' => true])
         ->and(app(DataCiteJsonExporter::class)->export($resource->fresh())['data']['attributes']['subjects'])->toHaveCount(1);
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--apply' => true, '--from-report' => $reportPath, '--report' => Storage::path('retry.jsonl')])->assertSuccessful();
+    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--apply' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('retry.jsonl')])->assertSuccessful();
     expect($resource->subjects()->count())->toBe(1);
     Http::assertNothingSent();
 })->with(['aquifers', 'instruments']);
@@ -65,9 +65,9 @@ it('rejects a reviewed snapshot after subject or vocabulary changes', function (
         // Keep another duplicate group so apply must perform full snapshot revalidation.
         $resource->subjects()->create(F::rows()[0]);
     } else {
-        $data = json_decode(Storage::get('gcmd-science-keywords.json'), true);
+        $data = json_decode(Storage::disk('local')->get('gcmd-science-keywords.json'), true);
         $data['lastUpdated'] = '2026-11-07';
-        Storage::put('gcmd-science-keywords.json', json_encode($data));
+        Storage::disk('local')->put('gcmd-science-keywords.json', json_encode($data));
     }
     $before = $resource->subjects()->get()->toArray();
     $result = $service->apply($report, static function (array $entry): void {});
@@ -104,7 +104,7 @@ it('reports unresolved variants and respects alias DOI resume and free keyword f
     $service = app(SubjectEquivalentCleanupService::class);
     $report = $service->audit(dois: ['https://doi.org/10.5880/ISSUE.1531.TEST'], schemes: ['GCMD Instruments'], after: $first->id, limit: 1, chunk: 1);
     expect($report['resources'])->toHaveCount(1)->and($report['resources'][0]['subjects'])->toHaveCount(2);
-    Storage::delete('gcmd-instruments.json');
+    Storage::disk('local')->delete('gcmd-instruments.json');
     $report = $service->audit(dois: [$second->doi]);
     expect($report['resources'][0]['analysis']['groups'])->toBeEmpty()
         ->and($report['resources'][0]['analysis']['diagnostics'])->toHaveCount(1);
@@ -118,10 +118,10 @@ it('rejects missing reports invalid modes and overwriting an existing file', fun
     F::resource();
     $this->artisan('subjects:deduplicate', ['--mode' => 'wrong'])->assertFailed();
     $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--apply' => true])->assertFailed();
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--report' => Storage::path('new.json'), '--apply' => true])->assertFailed();
-    Storage::put('existing.json', 'preserve me');
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--report' => Storage::path('existing.json')])->assertFailed();
-    expect(Storage::get('existing.json'))->toBe('preserve me')->and(Subject::count())->toBe(2);
+    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--report' => Storage::disk('local')->path('new.json'), '--apply' => true])->assertFailed();
+    Storage::disk('local')->put('existing.json', 'preserve me');
+    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--report' => Storage::disk('local')->path('existing.json')])->assertFailed();
+    expect(Storage::disk('local')->get('existing.json'))->toBe('preserve me')->and(Subject::count())->toBe(2);
 });
 
 it('rejects malformed reviewed reports before making changes', function (): void {

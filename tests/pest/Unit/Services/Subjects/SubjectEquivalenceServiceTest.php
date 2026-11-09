@@ -11,6 +11,20 @@ covers(SubjectEquivalenceService::class);
 
 beforeEach(fn () => F::fake());
 
+it('keeps duplicate fixtures on the local fake when another disk is the default', function (): void {
+    Storage::fake('subject-fixture-default');
+    config(['filesystems.default' => 'subject-fixture-default']);
+
+    F::fake();
+
+    expect(config('filesystems.default'))->toBe('subject-fixture-default')
+        ->and(Storage::disk('subject-fixture-default')->allFiles())->toBeEmpty();
+    Storage::disk('local')->assertExists(['gcmd-science-keywords.json', 'gcmd-instruments.json']);
+    $service = new SubjectEquivalenceService;
+    expect($service->analyze(F::rows())['rows'])->toHaveCount(1)
+        ->and($service->analyze(F::rows('instruments'))['rows'])->toHaveCount(1);
+});
+
 it('merges both reported cases using local evidence and remains idempotent', function (string $case): void {
     $service = new SubjectEquivalenceService;
     $rows = F::rows($case);
@@ -37,15 +51,15 @@ it('preserves each incompatible field rather than merging by URI or badge text',
 
 it('keeps unresolved pairs when the vocabulary is absent malformed or ambiguous', function (string $state): void {
     if ($state === 'absent') {
-        Storage::delete('gcmd-instruments.json');
+        Storage::disk('local')->delete('gcmd-instruments.json');
     } elseif ($state === 'malformed') {
-        Storage::put('gcmd-instruments.json', '{invalid');
+        Storage::disk('local')->put('gcmd-instruments.json', '{invalid');
     } else {
-        $data = json_decode(Storage::get('gcmd-instruments.json'), true);
+        $data = json_decode(Storage::disk('local')->get('gcmd-instruments.json'), true);
         $other = $data['data'][0];
         $other['id'] = F::AQUIFER;
         $data['data'][] = $other;
-        Storage::put('gcmd-instruments.json', json_encode($data));
+        Storage::disk('local')->put('gcmd-instruments.json', json_encode($data));
     }
     $result = (new SubjectEquivalenceService)->analyze(F::rows('instruments'));
     expect($result['rows'])->toHaveCount(2)->and($result['diagnostics'])->toHaveCount(1);
@@ -61,7 +75,7 @@ it('does not bridge conflicting partial identities and preserves multilingual an
 });
 
 it('preserves exact metadata and the oldest id even without a vocabulary', function (): void {
-    Storage::delete('gcmd-science-keywords.json');
+    Storage::disk('local')->delete('gcmd-science-keywords.json');
     $row = F::rows()[0];
     $rows = [['id' => 8, ...$row], ['id' => 3, ...$row]];
     $result = (new SubjectEquivalenceService)->analyze($rows);
@@ -93,6 +107,6 @@ it('canonicalizes supported historical GCMD URIs but never arbitrary UUID suffix
 it('does not reuse stale vocabulary indexes between calls', function (): void {
     $service = new SubjectEquivalenceService;
     expect($service->analyze(F::rows())['rows'])->toHaveCount(1);
-    Storage::delete('gcmd-science-keywords.json');
+    Storage::disk('local')->delete('gcmd-science-keywords.json');
     expect($service->analyze(F::rows())['rows'])->toHaveCount(2);
 });
