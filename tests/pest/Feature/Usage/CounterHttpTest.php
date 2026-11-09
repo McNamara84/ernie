@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RecordCounterUsage;
+use App\Models\Description;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
@@ -87,6 +88,21 @@ it('counts successful Core exports as investigations and excludes incomplete IGS
     $event = DB::table('usage_events')->first();
     expect($event->event_type)->toBe('investigation')
         ->and($event->target_hash)->toBe(app(CounterSessionHasherService::class)->target('igsn-core-2.0'));
+});
+
+it('counts successful DCAT downloads and excludes missing or disabled representations', function () {
+    config(['dcatap.enabled' => true]);
+    $url = $this->page->public_url.'/metadata/dcat-ap.rdf';
+    $this->get($url)->assertNotFound();
+    expect(DB::table('usage_events')->count())->toBe(0);
+    Description::factory()->abstract()->create(['resource_id' => $this->page->resource_id]);
+    $this->get($url)->assertOk();
+    $event = DB::table('usage_events')->sole();
+    expect($event->event_type)->toBe('investigation')
+        ->and($event->target_hash)->toBe(app(CounterSessionHasherService::class)->target('dcat-ap'));
+    config(['dcatap.enabled' => false]);
+    $this->get($url)->assertNotFound();
+    expect(DB::table('usage_events')->count())->toBe(1);
 });
 
 it('refreshes the displayed calendar window at the UTC month boundary before the next aggregation', function () {

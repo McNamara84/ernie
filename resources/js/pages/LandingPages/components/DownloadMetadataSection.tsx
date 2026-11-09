@@ -1,5 +1,5 @@
 import { BadgeCheck, Braces, FileCode, FileJson, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { type MouseEvent, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,6 +14,7 @@ interface DownloadMetadataSectionProps {
     supportsIso19115?: boolean;
     supportsIso19115Json?: boolean;
     supportsIgsnCore?: boolean;
+    supportsDcatAp?: boolean;
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
 }
@@ -25,7 +26,7 @@ interface MetadataDownloadActionProps {
     title: string;
     ariaLabel?: string;
     isPreview: boolean;
-    onPreviewClick: () => void;
+    onPreviewClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 const DOWNLOAD_ACTION_CLASSES =
@@ -69,18 +70,24 @@ export function DownloadMetadataSection({
     supportsIso19115 = false,
     supportsIso19115Json = false,
     supportsIgsnCore = false,
+    supportsDcatAp = false,
     jsonLdExportUrl,
     metadataLinks = [],
 }: DownloadMetadataSectionProps) {
     const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+    const previewTrigger = useRef<HTMLButtonElement | null>(null);
     const urlFor = (format: LandingPageMetadataLink['format'], fallback: string): string =>
         metadataLinks.find((link) => link.format === format)?.url ?? fallback;
     const isoMetadataLink = metadataLinks.find((link) => link.format === 'iso19115-3');
     const showIsoMetadata = isoMetadataLink !== undefined || (isPreview && supportsIso19115);
     const isoJsonLink = metadataLinks.find((link) => link.format === 'iso19115-4');
     const showIsoJson = isoJsonLink !== undefined || (isPreview && supportsIso19115Json);
-    const openPreviewDialog = () => setIsPreviewDialogOpen(true);
+    const openPreviewDialog = (event: MouseEvent<HTMLButtonElement>) => {
+        previewTrigger.current = event.currentTarget;
+        setIsPreviewDialogOpen(true);
+    };
     const igsnCoreLink = metadataLinks.find((link) => link.format === 'igsn-core-2.0');
+    const dcatLink = metadataLinks.find((link) => link.format === 'dcat-ap');
 
     return (
         <section className="mt-6" aria-labelledby="heading-download-metadata">
@@ -172,9 +179,29 @@ export function DownloadMetadataSection({
                 </div>
             )}
 
+            {(dcatLink !== undefined || (isPreview && supportsDcatAp)) && (
+                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <span className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm font-semibold dark:border-gray-600">DCAT-AP 3.0.1</span>
+                    <MetadataDownloadAction
+                        href={dcatLink?.url}
+                        icon={FileCode}
+                        label="RDF/XML"
+                        title="Download as DCAT-AP 3.0.1 RDF/XML"
+                        ariaLabel="Download DCAT-AP 3.0.1 metadata as RDF/XML"
+                        isPreview={isPreview}
+                        onPreviewClick={openPreviewDialog}
+                    />
+                </div>
+            )}
+
             {isPreview && (
                 <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
-                    <DialogContent>
+                    <DialogContent
+                        onCloseAutoFocus={(event) => {
+                            event.preventDefault();
+                            previewTrigger.current?.focus();
+                        }}
+                    >
                         <DialogHeader>
                             <DialogTitle>Metadata download unavailable</DialogTitle>
                             <DialogDescription className="space-y-3 text-left">

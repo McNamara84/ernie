@@ -12,12 +12,14 @@ use App\Jobs\UpdateThesaurusJob;
 use App\Listeners\MarkContactMessageAsSent;
 use App\Models\Affiliation;
 use App\Models\AlternateIdentifier;
+use App\Models\ContributorType;
 use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\GeoLocation;
+use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
@@ -29,8 +31,11 @@ use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\LandingPageTemplate;
+use App\Models\Language;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceContributor;
@@ -49,6 +54,8 @@ use App\Models\User;
 use App\Observers\AssistanceDatacenterOptionsObserver;
 use App\Observers\DashboardMetricsObserver;
 use App\Observers\DatacenterLandingPageTemplateAssignmentObserver;
+use App\Observers\DcatApMetadataObserver;
+use App\Observers\DcatApSharedMetadataObserver;
 use App\Observers\FormatObserver;
 use App\Observers\IgsnMetadataObserver;
 use App\Observers\LandingPageFileObserver;
@@ -73,6 +80,7 @@ use App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider;
 use App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
+use App\Services\DcatAp\DcatApVocabularyMapper;
 use App\Services\InteractiveApiRequestContextService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalCacheVersionService;
@@ -116,6 +124,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ResourceFilterOptionsCacheInvalidationService::class);
         $this->app->scoped(InteractiveApiRequestContextService::class);
         $this->app->singleton(ResourceListingProjectorService::class);
+        $this->app->singleton(DcatApVocabularyMapper::class);
         $this->app->singleton(ResourceListingProjectionRefreshService::class);
         $this->app->singleton(DatabaseDumpProcessRunner::class, SymfonyDatabaseDumpProcessRunner::class);
         $this->app->singleton(DatabaseServerInfoProvider::class, LaravelDatabaseServerInfoProvider::class);
@@ -127,6 +136,20 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureIso19115XmlCatalog();
+
+        foreach ([Publisher::class, ResourceType::class, Language::class, Right::class,
+            TitleType::class, DescriptionType::class, DateType::class, ContributorType::class,
+            RelationType::class, IdentifierType::class, LandingPageDomain::class,
+            Person::class, Institution::class] as $model) {
+            $model::observe(DcatApSharedMetadataObserver::class);
+        }
+
+        foreach ([Resource::class, LandingPage::class, Title::class, Description::class, ResourceCreator::class,
+            ResourceContributor::class, ResourceContributorTypePivot::class, ResourceDate::class, ResourceRight::class,
+            ResourceRightPivot::class, IgsnMetadata::class, Format::class, Size::class, LandingPageFile::class,
+            LandingPageLink::class, Subject::class, GeoLocation::class, AlternateIdentifier::class, RelatedIdentifier::class] as $model) {
+            $model::observe(DcatApMetadataObserver::class);
+        }
 
         // Register model observers
         Resource::observe(ResourceObserver::class);

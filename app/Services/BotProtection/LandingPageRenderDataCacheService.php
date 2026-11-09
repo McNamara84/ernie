@@ -55,6 +55,9 @@ class LandingPageRenderDataCacheService
     {
         $state = app(CounterTrackingStateService::class)->read();
         $base = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPageId);
+        if (config('dcatap.enabled', false)) {
+            $base .= ':dcat-ap:'.config('dcatap.version').':'.config('dcatap.revision');
+        }
         $subjectRevision = Cache::get(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key());
         if (is_string($subjectRevision)) {
             $base .= ':subjects:'.$subjectRevision;

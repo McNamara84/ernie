@@ -9,6 +9,8 @@ use App\Models\Resource;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
+use App\Services\DcatAp\DcatApRdfXmlExporter;
+use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\Igsn\Export\IgsnCoreMetadataException;
 use App\Services\Igsn\Export\IgsnCoreXmlExporter;
 use App\Services\Igsn\Export\IgsnCoreXmlValidator;
@@ -26,6 +28,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PublicMetadataExportController extends Controller
 {
+    public function dcatAp(string $doiPrefix, string $slug, DcatApReadinessService $readiness, DcatApRdfXmlExporter $exporter): Response
+    {
+        [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
+        abort_unless($readiness->available($resource), Response::HTTP_NOT_FOUND, 'Metadata representation not found');
+
+        return $this->xmlDownload($exporter->export($resource), "{$slug}-dcat-ap.rdf", 'application/rdf+xml');
+    }
+
     public function igsnCore(string $doiPrefix, string $slug, IgsnCoreXmlExporter $exporter, IgsnCoreXmlValidator $validator): Response
     {
         [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);

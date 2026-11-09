@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Services\OaiPmh;
 
 use App\Models\OaiPmhDeletedRecord;
+use App\Models\OaiPmhFormatRecord;
 use App\Models\OaiPmhHarvest;
 use App\Models\Resource;
 use App\Services\DataCiteXmlExporter;
+use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\Iso19115\Iso19115XmlExporter;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,6 +69,7 @@ class OaiPmhService
         private readonly DataCiteXmlExporter $dataCiteExporter,
         private readonly Iso19115ResourceProfileService $isoProfile,
         private readonly Iso19115XmlExporter $isoExporter,
+        private readonly OaiPmhDcatApService $dcat,
     ) {}
 
     /**
@@ -122,6 +125,12 @@ class OaiPmhService
             ->value('earliest');
 
         $earliestDeleted = OaiPmhDeletedRecord::query()->min('datestamp');
+        if (config('dcatap.enabled', false)) {
+            $formatEarliest = OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->min('datestamp');
+            if ($formatEarliest !== null && ($earliestDeleted === null || $formatEarliest < $earliestDeleted)) {
+                $earliestDeleted = $formatEarliest;
+            }
+        }
 
         $earliest = match (true) {
             $earliestPublished !== null && $earliestDeleted !== null => min($earliestPublished, $earliestDeleted),
@@ -176,8 +185,19 @@ class OaiPmhService
                 ? OaiPmhDeletedRecord::query()->where('doi', $doi)->first()
                 : null;
 
-            if ($resource === null && $deletedRecord === null) {
+            $dcatRecord = config('dcatap.enabled', false)
+                ? OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('oai_identifier', $identifier)->first()
+                : null;
+            if ($resource === null && $deletedRecord === null && $dcatRecord === null) {
                 return $this->unknownIdentifierResponse('ListMetadataFormats', $identifier);
+            }
+
+            if (isset($formats['dcat_ap']) && $dcatRecord === null
+                && ($resource === null || ! app(DcatApReadinessService::class)->available($resource))) {
+                unset($formats['dcat_ap']);
+            }
+            if ($resource === null && $deletedRecord === null && $dcatRecord !== null) {
+                $formats = array_intersect_key($formats, ['dcat_ap' => true]);
             }
 
             if (
@@ -274,6 +294,10 @@ class OaiPmhService
                 'GetRecord',
                 $requestAttrs,
             );
+        }
+
+        if ($metadataPrefix === 'dcat_ap') {
+            return $this->dcat->getRecord($doi, $identifier, $requestAttrs);
         }
 
         // Check for deleted record first
@@ -431,6 +455,12 @@ class OaiPmhService
                 }
                 $requestAttrs['set'] = $setSpec;
             }
+        }
+
+        if ($metadataPrefix === 'dcat_ap') {
+            return $this->dcat->listItems($verb, $headersOnly, $setSpec, $from, $until, $cursor, $pageSize, $requestAttrs,
+                is_string($resumptionToken) ? $token->harvest : null, is_string($resumptionToken),
+                is_string($resumptionToken) ? (int) $token->harvest_position : 0);
         }
 
         // Build query for published resources (join replaces whereHas to avoid redundant EXISTS)
@@ -922,14 +952,7 @@ class OaiPmhService
      */
     private function metadataFormats(): array
     {
-        /** @var array<string, array{schema: string, namespace: string}> $formats */
-        $formats = config('oaipmh.metadata_formats', []);
-
-        if (! $this->isoProfile->isEnabled()) {
-            unset($formats['iso19115_3']);
-        }
-
-        return $formats;
+        return app(OaiPmhMetadataFormatRegistry::class)->formats();
     }
 
     private function unknownIdentifierResponse(string $verb, string $identifier): string

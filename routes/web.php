@@ -219,6 +219,8 @@ Route::prefix('{doiPrefix}/{slug}/metadata')
             ->name('landing-page.metadata.igsn-core');
         Route::get('datacite.xml', [PublicMetadataExportController::class, 'dataCiteXml'])
             ->name('landing-page.metadata.datacite-xml');
+        Route::get('dcat-ap.rdf', [PublicMetadataExportController::class, 'dcatAp'])
+            ->name('landing-page.metadata.dcat-ap');
         Route::get('datacite.json', [PublicMetadataExportController::class, 'dataCiteJson'])
             ->name('landing-page.metadata.datacite-json');
         Route::get('datacite.jsonld', [PublicMetadataExportController::class, 'dataCiteJsonLd'])

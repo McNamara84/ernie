@@ -63,6 +63,15 @@ describe('DefaultGfzTemplate', () => {
         document.title = '';
     });
 
+    it('passes DCAT support through the metadata card to the preview download dialog', () => {
+        mockUsePage.mockReturnValue({
+            props: { resource: mockResource, landingPage: mockLandingPage, isPreview: true, supportsDcatAp: true },
+        } as unknown as ReturnType<typeof usePage>);
+        render(<DefaultGfzTemplate />);
+        fireEvent.click(screen.getByRole('button', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' }));
+        expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toBeInTheDocument();
+    });
+
     it('renders a tombstone with metadata and no data access even when URLs are retained', () => {
         mockUsePage.mockReturnValue({
             props: {
