@@ -159,9 +159,11 @@ test.describe('Data Centres', () => {
             await page.getByRole('button', { name: 'Clear all filters', exact: true }).click();
             await expect(page).toHaveURL(/\/doi-search$/);
             const datacenterPanel = page.getByRole('button', { name: 'Datacenter', exact: true });
-            await expect(datacenterPanel).toHaveAttribute('aria-expanded', 'false');
-            await datacenterPanel.click();
+            // Filter updates preserve the workspace, including the open accordion.
+            await expect(datacenterPanel).toHaveAttribute('aria-expanded', 'true');
             await expect(checkbox).not.toBeChecked();
+            await expect(search).toHaveValue('');
+            await expect(page.getByRole('button', { name: 'Clear all filters', exact: true })).toBeHidden();
         });
     }
 

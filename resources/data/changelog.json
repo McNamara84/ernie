@@ -77,10 +77,6 @@
         ],
         "fixes": [
             {
-                "title": "Portal Search Controls After Filtering",
-                "description": "Search, filter and pagination updates keep the DOI and IGSN portal workspaces mounted. Clearing the search field immediately after a search no longer loses the interaction during a page transition, and local control state and focus are preserved."
-            },
-            {
                 "title": "Duplicate Controlled Keywords",
                 "description": "Imports, editor saves and landing pages now combine equivalent keyword variants confirmed by local vocabularies, including historical hierarchy paths and incomplete GCMD instrument entries. Different languages and conflicting metadata remain separate. Administrators can audit existing duplicates and apply a reviewed, snapshot-checked report with recovery logging. GCMD category names containing Instruments or Platforms are preserved during path resolution.",
                 "references": [{ "type": "issue", "number": 1531, "url": "https://github.com/McNamara84/ernie/issues/1531" }]
