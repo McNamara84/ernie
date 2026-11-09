@@ -204,10 +204,15 @@ class VocabularyCacheService
         ], true);
     }
 
-    private function invalidatePortalVocabularyDependencies(): void
+    public function invalidateSubjectEquivalenceCache(): void
     {
         // Cached landing pages include vocabulary-confirmed subject equivalence decisions.
         Cache::forever(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key(), (string) Str::uuid());
+    }
+
+    private function invalidatePortalVocabularyDependencies(): void
+    {
+        $this->invalidateSubjectEquivalenceCache();
         app(PortalCacheInvalidationService::class)->schedule(
             PortalScope::cases(),
             [PortalCacheArea::KEYWORDS, PortalCacheArea::PAGE],

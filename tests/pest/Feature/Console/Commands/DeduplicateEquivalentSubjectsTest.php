@@ -24,7 +24,7 @@ beforeEach(function (): void {
     Http::preventStrayRequests();
 });
 
-it('audits then applies each reported case with complete journal and idempotent retries', function (string $case): void {
+it('audits then applies each reported case and rejects reuse of the original snapshot', function (string $case): void {
     $resource = F::resource($case);
     $page = LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
     $oldIds = $resource->subjects()->pluck('id')->all();
@@ -51,7 +51,8 @@ it('audits then applies each reported case with complete journal and idempotent 
         ->and(file_get_contents($journalPath))->toContain('"status":"before"', '"status":"applied"', '"suggestions"')
         ->and($cache->remember($page, fn () => ['template' => 'default_gfz', 'props' => ['new' => true]])['props'])->toBe(['new' => true])
         ->and(app(DataCiteJsonExporter::class)->export($resource->fresh())['data']['attributes']['subjects'])->toHaveCount(1);
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--apply' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('retry.jsonl')])->assertSuccessful();
+    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--apply' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('retry.jsonl')])->assertFailed();
+    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--refresh-caches' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('cache-retry.jsonl')])->assertSuccessful();
     expect($resource->subjects()->count())->toBe(1);
     Http::assertNothingSent();
 })->with(['aquifers', 'instruments']);
@@ -74,6 +75,45 @@ it('rejects a reviewed snapshot after subject or vocabulary changes', function (
     expect($result[0]['status'])->toBe('error')->and($result[0]['message'])->toContain('changed')
         ->and($resource->subjects()->get()->toArray())->toBe($before);
 })->with(['subject', 'vocabulary']);
+
+it('rejects stale snapshots without refreshing caches when the last group disappears', function (string $change): void {
+    $resource = F::resource();
+    $service = app(SubjectEquivalentCleanupService::class);
+    $report = $service->audit();
+    expect($report['resources'][0]['analysis']['groups'])->toHaveCount(1);
+
+    if ($change === 'edit') {
+        $resource->subjects()->orderBy('id')->firstOrFail()->update(['classification_code' => 'changed']);
+    } elseif ($change === 'delete') {
+        $resource->subjects()->orderBy('id')->firstOrFail()->delete();
+    } else {
+        Storage::disk('local')->delete('gcmd-science-keywords.json');
+    }
+
+    $this->mock(ResourceCacheService::class)->shouldNotReceive('invalidateResourceCache');
+    $before = $resource->subjects()->get()->toArray();
+    $journal = [];
+    $result = $service->apply($report, static function (array $entry) use (&$journal): void {
+        $journal[] = $entry;
+    });
+
+    expect($result[0]['status'])->toBe('error')
+        ->and($result[0]['message'])->toContain('changed')
+        ->and($resource->subjects()->get()->toArray())->toBe($before)
+        ->and(array_column($journal, 'status'))->toBe(['error']);
+})->with(['edit', 'delete', 'vocabulary']);
+
+it('accepts an unchanged diagnostic-only snapshot with no safe groups', function (): void {
+    $resource = F::resource('instruments');
+    Storage::disk('local')->delete('gcmd-instruments.json');
+    $service = app(SubjectEquivalentCleanupService::class);
+    $report = $service->audit();
+    expect($report['resources'][0]['analysis']['groups'])->toBeEmpty();
+
+    $result = $service->apply($report, static function (array $entry): void {});
+
+    expect($result[0]['status'])->toBe('unchanged')->and($resource->subjects()->count())->toBe(2);
+});
 
 it('requires a durable before journal and rolls back mutations on failure', function (string $failure): void {
     $resource = F::resource();
@@ -157,9 +197,10 @@ it('recovers a cache failure after commit without deleting more subjects', funct
         ->and($resource->subjects()->count())->toBe(1);
     $ids = $resource->subjects()->pluck('id')->all();
     app()->forgetInstance(ResourceCacheService::class);
-    expect($service->apply($report, $write)[0]['status'])->toBe('unchanged')
+    expect($service->apply($report, $write)[0]['status'])->toBe('error');
+    expect($service->apply($report, $write, refreshOnly: true)[0]['status'])->toBe('caches_refreshed')
         ->and($resource->subjects()->pluck('id')->all())->toBe($ids)
-        ->and(array_column($journal, 'status'))->toBe(['before', 'cache_error', 'unchanged']);
+        ->and(array_column($journal, 'status'))->toBe(['before', 'cache_error', 'error', 'caches_refreshed']);
 });
 
 it('invalidates affected assistance while preserving unrelated hierarchy decisions', function (): void {

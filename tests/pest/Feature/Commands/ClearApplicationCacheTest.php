@@ -5,11 +5,44 @@ declare(strict_types=1);
 use App\Console\Commands\ClearApplicationCache;
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
+use App\Models\LandingPage;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\PortalCacheVersionService;
 use App\Support\PortalCacheNamespace;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 covers(ClearApplicationCache::class);
+
+it('renews the untagged subject revision and cached landing pages after vocabulary clearing', function (string $category, string $driver): void {
+    if ($driver === 'file') {
+        Storage::fake('vocabulary-cache-test');
+        config(['cache.default' => 'vocabulary_test', 'cache.stores.vocabulary_test' => [
+            'driver' => 'file', 'path' => Storage::disk('vocabulary-cache-test')->path('cache'),
+        ]]);
+    }
+    config(['bot_protection.enabled' => true, 'bot_protection.landing_cache_ttl' => 600]);
+    $key = CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key();
+    Cache::forever($key, 'before-refresh');
+    $page = LandingPage::factory()->published()->create();
+    $cache = app(LandingPageRenderDataCacheService::class);
+    $calls = 0;
+    $resolve = function () use (&$calls): array {
+        return ['template' => 'default_gfz', 'props' => ['calls' => ++$calls]];
+    };
+    expect($cache->remember($page, $resolve)['props']['calls'])->toBe(1)
+        ->and($cache->remember($page, $resolve)['props']['calls'])->toBe(1);
+
+    $this->artisan('cache:clear-app', ['category' => $category])->assertSuccessful();
+    $first = Cache::get($key);
+    expect($first)->toBeString()->not->toBeEmpty()->not->toBe('before-refresh')
+        ->and($cache->remember($page, $resolve)['props']['calls'])->toBe(2)
+        ->and($cache->remember($page, $resolve)['props']['calls'])->toBe(2);
+
+    $this->artisan('cache:clear-app', ['category' => $category])->assertSuccessful();
+    expect(Cache::get($key))->toBeString()->not->toBeEmpty()->not->toBe($first)
+        ->and($cache->remember($page, $resolve)['props']['calls'])->toBe(3);
+})->with(['vocabularies', 'all'])->with(['array', 'file']);
 
 it('clears all caches when no category specified', function () {
     // Create cache entries with different tags

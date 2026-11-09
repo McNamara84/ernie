@@ -749,6 +749,9 @@ npm run artisan -- subjects:deduplicate --mode=equivalent --apply --from-report=
 
 Apply accepts no new DOI/scheme/resume/limit filters. It locks each resource,
 rechecks subjects and vocabulary fingerprints, and rejects changed proposals.
+This also applies when the last duplicate group has disappeared or the report
+has already been applied successfully. Use a new audit for another apply run;
+use `--refresh-caches` below when only cache recovery is needed.
 Do not edit a resource snapshot in the report; altered content is rejected.
 Create a fresh filtered audit when a different repair selection is needed.
 The JSONL journal records original subjects and affected assistance records before

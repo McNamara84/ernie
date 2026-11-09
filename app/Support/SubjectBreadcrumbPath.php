@@ -11,7 +11,7 @@ final class SubjectBreadcrumbPath
     {
         $aliases = match ($scheme) {
             'Science Keywords' => ['science keywords', 'gcmd science keywords', 'nasa/gcmd science keywords', 'nasa/gcmd earth science keywords'],
-            'Platforms' => ['platforms', 'gcmd platforms', 'nasa/gcmd platforms'],
+            'Platforms' => ['platforms', 'gcmd platforms', 'nasa/gcmd platforms', 'nasa/gcmd platforms keywords', 'nasa/gcmd earth platforms keywords'],
             'Instruments' => ['instruments', 'gcmd instruments', 'nasa/gcmd instruments'],
             default => null,
         };

@@ -102,12 +102,12 @@ final readonly class SubjectEquivalentCleanupService
                             throw new RuntimeException('An embargo registration is pending reconciliation.');
                         }
                         $current = $this->inspect($resource, $record['schemes'], $record['include_free'], true);
+                        if (! hash_equals($current['fingerprint'], $record['fingerprint'])) {
+                            throw new RuntimeException('Subjects or vocabulary evidence changed; create and review a new dry run.');
+                        }
                         $groups = $current['analysis']['groups'];
                         if ($groups === []) {
                             return 'unchanged';
-                        }
-                        if (! hash_equals($current['fingerprint'], $record['fingerprint'])) {
-                            throw new RuntimeException('Subjects or vocabulary evidence changed; create and review a new dry run.');
                         }
                         $subjects = $current['subjects'];
                         $affected = $removed = $affectedSchemes = [];
@@ -145,7 +145,7 @@ final readonly class SubjectEquivalentCleanupService
                         return 'applied';
                     });
                 }
-                // Also repair caches on an idempotent retry after an earlier post-commit failure.
+                // Cache recovery after a committed repair uses the explicit refresh-only path.
                 try {
                     $this->refreshCaches($resourceId);
                     $result = ['resource_id' => $resourceId, 'status' => $status, 'message' => ''];

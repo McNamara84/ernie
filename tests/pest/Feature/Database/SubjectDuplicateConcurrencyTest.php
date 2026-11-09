@@ -9,7 +9,7 @@ use Tests\Support\SubjectDuplicateFixtures as F;
 
 uses()->group('mysql-sensitive');
 
-it('serializes reviewed repairs and protects concurrent subject edits', function (bool $edit): void {
+it('serializes reviewed repairs and protects concurrent subject edits', function (bool $edit, bool $removeGroup): void {
     F::fake();
     $resource = F::resource();
     $resourceId = $resource->id;
@@ -46,7 +46,7 @@ it('serializes reviewed repairs and protects concurrent subject edits', function
             fwrite($child['socket'], "go\n");
         }
         if ($edit) {
-            $locked->subjects()->orderBy('id')->firstOrFail()->update(['value' => 'AQUIFERS']);
+            $locked->subjects()->orderBy('id')->firstOrFail()->update(['value' => $removeGroup ? 'Unrelated concept' : 'AQUIFERS']);
         }
         usleep(250000);
         DB::commit();
@@ -60,10 +60,10 @@ it('serializes reviewed repairs and protects concurrent subject edits', function
             fclose($child['socket']);
         }
         sort($statuses);
-        expect($statuses)->toBe($edit ? ['error', 'error'] : ['applied', 'unchanged'])
+        expect($statuses)->toBe($edit ? ['error', 'error'] : ['applied', 'error'])
             ->and($resource->subjects()->count())->toBe($edit ? 2 : 1);
         if ($edit) {
-            expect($resource->subjects()->orderBy('id')->firstOrFail()->value)->toBe('AQUIFERS');
+            expect($resource->subjects()->orderBy('id')->firstOrFail()->value)->toBe($removeGroup ? 'Unrelated concept' : 'AQUIFERS');
         }
     } finally {
         while (DB::transactionLevel() > 0) {
@@ -72,5 +72,9 @@ it('serializes reviewed repairs and protects concurrent subject edits', function
         Resource::whereKey($resourceId)->delete();
         DB::beginTransaction();
     }
-})->with(['simultaneous repairs' => false, 'concurrent editor change' => true])
+})->with([
+    'simultaneous repairs' => [false, false],
+    'concurrent editor change' => [true, false],
+    'concurrent edit removing the duplicate group' => [true, true],
+])
     ->skip(fn () => DB::connection()->getDriverName() !== 'mysql', 'Requires the pinned MySQL 9.7 test server.');

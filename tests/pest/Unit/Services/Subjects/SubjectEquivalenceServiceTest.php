@@ -11,6 +11,31 @@ covers(SubjectEquivalenceService::class);
 
 beforeEach(fn () => F::fake());
 
+it('resolves historical platform schemes only with compatible local evidence', function (string $alias, string $evidence): void {
+    $uri = 'https://gcmd.earthdata.nasa.gov/kms/concept/33b66db8-65c4-4aa1-9b07-4c25c17c7390';
+    $schemeUri = 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms';
+    if ($evidence !== 'missing') {
+        Storage::disk('local')->put('gcmd-platforms.json', json_encode(['data' => [[
+            'id' => $uri, 'text' => 'Space-based Platforms', 'scheme' => 'Platforms',
+            'schemeURI' => $schemeUri, 'language' => 'en', 'children' => [],
+        ]]], JSON_THROW_ON_ERROR));
+    }
+    $row = ['value' => 'Space-based Platforms', 'subject_scheme' => $alias, 'scheme_uri' => $schemeUri,
+        'language' => 'en', 'value_uri' => null, 'breadcrumb_path' => 'Space-based Platforms'];
+    $rows = [$row, array_replace($row, ['subject_scheme' => 'Platforms', 'value_uri' => $evidence === 'conflicting' ? F::INSTRUMENT : $uri])];
+
+    $result = (new SubjectEquivalenceService)->analyze($rows);
+
+    if ($evidence === 'valid') {
+        expect($result['rows'])->toHaveCount(1)
+            ->and($result['groups'][0]['reason'])->toBe('local_vocabulary')
+            ->and($result['rows'][0]['value_uri'])->toBe($uri)
+            ->and($result['rows'][0]['breadcrumb_path'])->toBe('Space-based Platforms');
+    } else {
+        expect($result['rows'])->toBe($rows)->and($result['groups'])->toBeEmpty();
+    }
+})->with(['NASA/GCMD Earth Platforms Keywords', 'NASA/GCMD Platforms Keywords'])->with(['valid', 'missing', 'conflicting']);
+
 it('keeps duplicate fixtures on the local fake when another disk is the default', function (): void {
     Storage::fake('subject-fixture-default');
     config(['filesystems.default' => 'subject-fixture-default']);
