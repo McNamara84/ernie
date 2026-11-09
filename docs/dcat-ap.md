@@ -44,6 +44,8 @@ These choices implement [#1374](https://github.com/McNamara84/ernie/issues/1374)
 
 `oai_pmh_format_records` stores availability, identity, first availability, datestamp, last eligible sets, type, mapping revision and a content fingerprint. It intentionally survives resource deletion. Loss of a required Abstract, an unsupported type change, DOI replacement, unpublishing and deletion create persistent format-specific deleted headers. A public tombstone with required metadata stays active. Restoring eligibility revives the same identity with a new datestamp. The history of existing formats remains separate.
 
+Synchronization and harvest requests retire active history whose resource link is missing, including a `NULL` resource ID. They preserve its identifier, DOI and historical sets, advance the deletion datestamp once, and invalidate affected inventories. `GetRecord` then returns a deleted header; interrupted lists require a fresh harvest. Synchronization and `GetRecord` restore a detached link when an eligible published resource still owns the DOI, even if its metadata fingerprint is unchanged.
+
 Observers reconcile the final committed aggregate, including child metadata, download assignments and shared publisher/party/vocabulary changes. Rollbacks and intermediate replacement of child collections do not create withdrawals. Ordinary page-view counters do not advance metadata datestamps.
 
 Within a transaction, repeated child changes are combined into one reconciliation per resource after the outer commit. Touch requests are combined only from surviving transactions; rolling back a savepoint also discards its requests and those of its committed descendants. Writes outside a transaction reconcile immediately.

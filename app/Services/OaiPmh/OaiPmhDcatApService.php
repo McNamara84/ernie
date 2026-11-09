@@ -37,7 +37,10 @@ final class OaiPmhDcatApService
             $this->records->reconcile($resource->id);
         }
         $record = OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('oai_identifier', $identifier)->first();
-        if ($resource === null && $record?->resource_id !== null && $record->status === 'active') {
+        if ($record?->status === 'active' && $record->resource === null) {
+            $this->records->retireOrphan($record->id);
+            $record->refresh();
+        } elseif ($resource === null && $record?->resource_id !== null && $record->status === 'active') {
             $this->records->reconcile($record->resource_id);
             $record->refresh();
         }
@@ -87,8 +90,10 @@ final class OaiPmhDcatApService
                 return $this->error($resuming ? 'badResumptionToken' : 'noRecordsMatch', 'A record moved outside the requested date interval; restart harvesting', $verb, $attributes);
             }
             if ($record->status === 'active' && ($record->resource === null || ! $this->readiness->available($record->resource))) {
-                if ($record->resource_id !== null) {
-                    $this->records->reconcile($record->resource_id);
+                if ($record->resource === null) {
+                    $this->records->retireOrphan($record->id);
+                } else {
+                    $this->records->reconcile($record->resource->id);
                 }
                 // Reconciliation reads a fresh aggregate and may find it restored,
                 // leaving the inventory active while this page still holds stale

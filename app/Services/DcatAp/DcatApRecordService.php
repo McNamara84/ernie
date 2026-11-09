@@ -95,8 +95,7 @@ final class DcatApRecordService
                 ->where('resource_id', $resourceId)->lockForUpdate()->get();
             foreach ($records as $record) {
                 if ((! $available || $record->oai_identifier !== $identifier) && $record->status !== 'deleted') {
-                    $record->update(['status' => 'deleted', 'datestamp' => now()->startOfSecond()]);
-                    $this->invalidate($record->id);
+                    $this->retire($record);
                 }
             }
             if ($resource === null || ! $available || $doi === null || $identifier === null) {
@@ -109,11 +108,11 @@ final class DcatApRecordService
             $sets = $this->sets->getSetsForResource($resource);
             $fingerprint = hash('sha256', $this->exporter->export($resource).json_encode($sets, JSON_THROW_ON_ERROR));
             $record = OaiPmhFormatRecord::query()->where('metadata_prefix', 'dcat_ap')->where('oai_identifier', $identifier)->lockForUpdate()->first();
-            if ($record !== null && $record->status === 'active' && $record->fingerprint === $fingerprint
+            if ($record !== null && $record->resource_id === $resourceId && $record->status === 'active' && $record->fingerprint === $fingerprint
                 && $record->export_revision === (int) config('dcatap.revision')) {
                 return;
             }
-            if ($record !== null && ($record->status !== 'active' || $record->sets !== $sets)) {
+            if ($record !== null && ($record->resource_id !== $resourceId || $record->status !== 'active' || $record->sets !== $sets)) {
                 $this->invalidate($record->id);
             }
             $datestamp = now()->startOfSecond();
@@ -133,6 +132,28 @@ final class DcatApRecordService
         if ($landing !== null) {
             app(LandingPageRenderDataCacheService::class)->forget($landing);
         }
+    }
+
+    public function retireOrphan(int $recordId): void
+    {
+        if (! $this->profile->isEnabled()) {
+            return;
+        }
+        DB::transaction(function () use ($recordId): void {
+            // Recheck under the history lock: another reconciliation may have
+            // restored the link since the caller discovered this orphan.
+            $record = OaiPmhFormatRecord::query()->where('metadata_prefix', 'dcat_ap')->where('status', 'active')
+                ->whereDoesntHave('resource')->lockForUpdate()->find($recordId);
+            if ($record !== null) {
+                $this->retire($record);
+            }
+        });
+    }
+
+    private function retire(OaiPmhFormatRecord $record): void
+    {
+        $record->update(['status' => 'deleted', 'datestamp' => now()->startOfSecond()]);
+        $this->invalidate($record->id);
     }
 
     private function invalidate(int $recordId): void

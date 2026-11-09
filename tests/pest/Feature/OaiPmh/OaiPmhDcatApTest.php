@@ -316,6 +316,10 @@ it('rejects a DCAT snapshot containing an unlinked active record', function (?in
     $response->assertSee('code="badResumptionToken"', false)->assertDontSee('<'.$verb.'>', false);
     expect(OaiPmhHarvest::where('expires_at', '>', now())->exists())->toBeFalse();
     $this->get(oaiDcatQuery($verb, ['resumptionToken' => $token]))->assertOk()->assertSee('code="badResumptionToken"', false);
+    config(['oaipmh.page_size' => 10]);
+    $fresh = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    expect($fresh->evaluate('count(//oai:header)'))->toBe(3.0)
+        ->and($fresh->evaluate('count(//oai:header[@status="deleted"])'))->toBe(1.0);
 })->with([null, 999999])->with(['ListRecords', 'ListIdentifiers']);
 
 it('rejects an initial DCAT page containing an active record without a resource link', function (string $verb): void {
@@ -325,6 +329,10 @@ it('rejects an initial DCAT page containing an active record without a resource 
     $this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()
         ->assertSee('code="noRecordsMatch"', false)->assertDontSee('<'.$verb.'>', false);
     expect(OaiPmhHarvest::where('expires_at', '>', now())->exists())->toBeFalse();
+    $fresh = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    expect($fresh->evaluate('count(//oai:header)'))->toBe(1.0)
+        ->and($fresh->evaluate('count(//oai:header[@status="deleted"])'))->toBe(1.0)
+        ->and($fresh->evaluate('count(//oai:metadata)'))->toBe(0.0);
 })->with(['ListRecords', 'ListIdentifiers']);
 
 it('restarts a DCAT snapshot if eligibility recovers during reconciliation', function (string $verb): void {
@@ -383,6 +391,170 @@ it('uses a new availability datestamp on backfill and preserves history while di
     config(['dcatap.enabled' => true]);
     app(DcatApRecordService::class)->reconcile($resource->id);
     expect($record->fresh()->status)->toBe('deleted');
+});
+
+it('retires orphaned history with stable deleted headers and invalidates only affected inventories', function (bool $nullLink, string $action): void {
+    $this->freezeSecond();
+    config(['oaipmh.page_size' => 1]);
+    oaiDcatResource(['publication_year' => 2025]);
+    oaiDcatResource(['publication_year' => 2025]);
+    $resource = oaiDcatResource(['publication_year' => 2000]);
+    $record = OaiPmhFormatRecord::where('resource_id', $resource->id)->firstOrFail();
+    $tokens = [];
+    foreach (['ListRecords', 'ListIdentifiers'] as $verb) {
+        $first = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+        $tokens[$verb] = $first->evaluate('string(//oai:resumptionToken)');
+        expect($tokens[$verb])->not->toBe('');
+    }
+    $unrelated = oaiDcatXPath($this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => 'dcat_ap', 'set' => 'year:2025']))->assertOk()->getContent());
+    $unrelatedToken = $unrelated->evaluate('string(//oai:resumptionToken)');
+    expect($unrelatedToken)->not->toBe('');
+    // Simulate a deletion missed by observers; format history deliberately has no FK.
+    DB::table('resources')->where('id', $resource->id)->delete();
+    if ($nullLink) {
+        $record->update(['resource_id' => null]);
+    }
+    $retained = array_diff_key($record->refresh()->getAttributes(), array_flip(['status', 'datestamp']));
+    $this->travel(1)->hours();
+    $act = function () use ($action, $record): void {
+        if ($action === 'sync') {
+            $this->artisan('dcat-ap:sync')->assertSuccessful();
+        } else {
+            $xpath = oaiDcatXPath($this->get(oaiDcatQuery('GetRecord', ['metadataPrefix' => 'dcat_ap', 'identifier' => $record->oai_identifier]))->assertOk()->getContent());
+            expect($xpath->evaluate('string(//oai:header/@status)'))->toBe('deleted')
+                ->and($xpath->evaluate('string(//oai:header/oai:identifier)'))->toBe($record->oai_identifier)
+                ->and($xpath->evaluate('count(//oai:metadata)'))->toBe(0.0);
+        }
+    };
+    $act();
+    expect($record->refresh()->status)->toBe('deleted')
+        ->and($record->datestamp->equalTo(now()))->toBeTrue()
+        ->and(array_diff_key($record->getAttributes(), array_flip(['status', 'datestamp'])))->toBe($retained);
+    foreach ($tokens as $verb => $token) {
+        $this->get(oaiDcatQuery($verb, ['resumptionToken' => $token]))->assertOk()->assertSee('code="badResumptionToken"', false);
+    }
+    $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $unrelatedToken]))->assertOk()->assertDontSee('<error', false);
+
+    $deletedAt = $record->datestamp->toISOString();
+    $fresh = oaiDcatXPath($this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    $freshToken = $fresh->evaluate('string(//oai:resumptionToken)');
+    $this->travel(10)->minutes();
+    $act();
+    expect($record->refresh()->datestamp->toISOString())->toBe($deletedAt);
+    $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $freshToken]))->assertOk()->assertDontSee('<error', false);
+    config(['oaipmh.page_size' => 10]);
+    foreach (['ListRecords', 'ListIdentifiers'] as $verb) {
+        $page = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+        expect($page->evaluate('count(//oai:header)'))->toBe(3.0)
+            ->and($page->evaluate('count(//oai:header[@status="deleted"])'))->toBe(1.0)
+            ->and($page->evaluate('string(//oai:header[@status="deleted"]/oai:setSpec[last()])'))->toBe('year:2000');
+    }
+})->with([false, true])->with(['sync', 'GetRecord']);
+
+it('cleans orphaned history across chunk boundaries without retiring other formats', function (): void {
+    $resource = oaiDcatResource();
+    $source = OaiPmhFormatRecord::where('resource_id', $resource->id)->firstOrFail();
+    $rows = [];
+    for ($index = 0; $index < 205; $index++) {
+        $rows[] = array_replace($source->getAttributes(), [
+            'id' => null, 'resource_id' => null, 'doi' => '10.5880/orphan.'.$index,
+            'oai_identifier' => config('oaipmh.identifier_prefix').':10.5880/orphan.'.$index,
+        ]);
+    }
+    DB::table('oai_pmh_format_records')->insert($rows);
+    $other = $source->replicate();
+    $other->fill(['metadata_prefix' => 'other_format', 'resource_id' => null])->save();
+    $otherBefore = $other->refresh()->getAttributes();
+
+    $this->artisan('dcat-ap:sync')->assertSuccessful();
+    expect(OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('status', 'deleted')->count())->toBe(205)
+        ->and($source->refresh()->status)->toBe('active')
+        ->and($other->refresh()->getAttributes())->toBe($otherBefore);
+});
+
+it('repairs detached history when a current eligible resource still owns the DOI', function (string $action): void {
+    $this->freezeSecond();
+    config(['oaipmh.page_size' => 1]);
+    $resource = oaiDcatResource();
+    oaiDcatResource();
+    $record = OaiPmhFormatRecord::where('resource_id', $resource->id)->firstOrFail();
+    $original = $record->getAttributes();
+    $first = oaiDcatXPath($this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    $token = $first->evaluate('string(//oai:resumptionToken)');
+    $record->update(['resource_id' => null]);
+    $this->travel(1)->hours();
+    if ($action === 'sync') {
+        $this->artisan('dcat-ap:sync')->assertSuccessful();
+    } else {
+        $this->get(oaiDcatQuery('GetRecord', ['metadataPrefix' => 'dcat_ap', 'identifier' => $record->oai_identifier]))
+            ->assertOk()->assertSee('<metadata>', false)->assertDontSee('status="deleted"', false);
+    }
+    expect($record->refresh()->status)->toBe('active')
+        ->and($record->resource_id)->toBe($resource->id)
+        ->and($record->fingerprint)->toBe($original['fingerprint'])
+        ->and($record->first_available_at->toDateTimeString())->toBe($original['first_available_at'])
+        ->and($record->datestamp->equalTo(now()))->toBeTrue();
+    $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $token]))->assertOk()->assertSee('code="badResumptionToken"', false);
+})->with(['sync', 'GetRecord']);
+
+it('rechecks orphan retirement against current history and feature availability', function (string $state): void {
+    $this->freezeSecond();
+    $resource = oaiDcatResource();
+    $record = OaiPmhFormatRecord::where('resource_id', $resource->id)->firstOrFail();
+    $record->update(['resource_id' => null]);
+    match ($state) {
+        'relinked' => $record->update(['resource_id' => $resource->id]),
+        'deleted' => $record->update(['status' => 'deleted']),
+        'other format' => $record->update(['metadata_prefix' => 'other_format']),
+        'disabled' => config(['dcatap.enabled' => false]),
+        'missing' => $record->delete(),
+    };
+    $before = $record->fresh()?->getAttributes();
+    $harvest = OaiPmhHarvest::create(['item_count' => 1, 'expires_at' => now()->addDay()]);
+    DB::table('oai_pmh_harvest_items')->insert([
+        'harvest_id' => $harvest->id, 'position' => 0, 'kind' => 'format', 'identity_id' => $record->id,
+    ]);
+    $expiresAt = $harvest->expires_at->toISOString();
+    $this->travel(1)->hours();
+
+    app(DcatApRecordService::class)->retireOrphan($record->id);
+
+    expect($record->fresh()?->getAttributes())->toBe($before)
+        ->and($harvest->refresh()->expires_at->toISOString())->toBe($expiresAt);
+})->with(['relinked', 'deleted', 'other format', 'disabled', 'missing']);
+
+it('rolls back orphan retirement and inventory invalidation together', function (): void {
+    $this->freezeSecond();
+    $resource = oaiDcatResource();
+    $record = OaiPmhFormatRecord::where('resource_id', $resource->id)->firstOrFail();
+    $record->update(['resource_id' => null]);
+    $before = $record->refresh()->getAttributes();
+    $inventories = [];
+    foreach (['format', 'resource'] as $kind) {
+        $harvest = OaiPmhHarvest::create(['item_count' => 1, 'expires_at' => now()->addDay()]);
+        DB::table('oai_pmh_harvest_items')->insert([
+            'harvest_id' => $harvest->id, 'position' => 0, 'kind' => $kind, 'identity_id' => $record->id,
+        ]);
+        $inventories[$kind] = $harvest;
+    }
+    $expiresAt = $inventories['format']->expires_at->toISOString();
+    $this->travel(1)->hours();
+    $service = app(DcatApRecordService::class);
+
+    expect(fn () => DB::transaction(function () use ($service, $record, $inventories): void {
+        $service->retireOrphan($record->id);
+        expect($record->fresh()->status)->toBe('deleted')
+            ->and($inventories['format']->fresh()->expires_at->equalTo(now()))->toBeTrue();
+        throw new RuntimeException('Roll back orphan retirement');
+    }))->toThrow(RuntimeException::class, 'Roll back orphan retirement');
+
+    expect($record->refresh()->getAttributes())->toBe($before)
+        ->and($inventories['format']->refresh()->expires_at->toISOString())->toBe($expiresAt)
+        ->and($inventories['resource']->refresh()->expires_at->toISOString())->toBe($expiresAt);
+    $service->retireOrphan($record->id);
+    expect($record->refresh()->status)->toBe('deleted')
+        ->and($inventories['format']->refresh()->expires_at->equalTo(now()))->toBeTrue()
+        ->and($inventories['resource']->refresh()->expires_at->toISOString())->toBe($expiresAt);
 });
 
 it('updates incremental timestamps for download metadata and shared publisher changes', function () {

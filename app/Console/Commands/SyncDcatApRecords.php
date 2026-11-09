@@ -32,9 +32,7 @@ final class SyncDcatApRecords extends Command
         OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('status', 'active')->whereDoesntHave('resource')
             ->chunkById(200, function ($history) use ($records): void {
                 foreach ($history as $record) {
-                    if ($record->resource_id !== null) {
-                        $records->reconcile($record->resource_id);
-                    }
+                    $records->retireOrphan($record->id);
                 }
             });
         $this->info('DCAT-AP harvest history synchronized.');

@@ -86,6 +86,10 @@
         ],
         "fixes": [
             {
+                "title": "DCAT-AP Harvest Recovery for Missing Resources",
+                "description": "Synchronization and OAI-PMH requests recover from missing resource links in DCAT-AP history. Orphaned records return persistent deleted headers without crashing GetRecord or repeatedly blocking fresh harvests. Affected pagination tokens require a restart, while unrelated harvests remain valid. Eligible resources regain detached history links even when their metadata is unchanged."
+            },
+            {
                 "title": "Duplicate Controlled Keywords",
                 "description": "Imports, editor saves and landing pages now combine equivalent keyword variants confirmed by local vocabularies, including historical hierarchy paths and incomplete GCMD instrument entries. Different languages and conflicting metadata remain separate. Administrators can audit existing duplicates and apply a reviewed, snapshot-checked report with recovery logging. GCMD category names containing Instruments or Platforms are preserved during path resolution.",
                 "references": [{ "type": "issue", "number": 1531, "url": "https://github.com/McNamara84/ernie/issues/1531" }]
