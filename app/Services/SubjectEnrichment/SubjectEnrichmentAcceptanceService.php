@@ -53,6 +53,9 @@ final readonly class SubjectEnrichmentAcceptanceService
             Subject::query()->where('resource_id', $resource->id)->orderBy('id')->lockForUpdate()->get();
             $lockedSuggestion = AssistantSuggestion::query()->whereKey($suggestion->id)->lockForUpdate()->first();
             if ($lockedSuggestion === null || $lockedSuggestion->target_id !== $suggestion->target_id
+                || $lockedSuggestion->assistant_id !== $suggestion->assistant_id
+                || $lockedSuggestion->target_type !== $suggestion->target_type
+                || $lockedSuggestion->suggested_value !== $suggestion->suggested_value
                 || $lockedSuggestion->resource_id !== $resource->id || $lockedSuggestion->metadata != $suggestion->metadata) {
                 return $this->failure('Subject metadata suggestion is stale because it was removed or changed.');
             }

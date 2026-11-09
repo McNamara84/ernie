@@ -207,7 +207,7 @@ class VocabularyCacheService
     private function invalidatePortalVocabularyDependencies(): void
     {
         // Cached landing pages include vocabulary-confirmed subject equivalence decisions.
-        Cache::forever('landing_pages:subject_vocabulary_revision', (string) Str::uuid());
+        Cache::forever(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key(), (string) Str::uuid());
         app(PortalCacheInvalidationService::class)->schedule(
             PortalScope::cases(),
             [PortalCacheArea::KEYWORDS, PortalCacheArea::PAGE],

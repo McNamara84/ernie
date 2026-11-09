@@ -55,7 +55,7 @@ class LandingPageRenderDataCacheService
     {
         $state = app(CounterTrackingStateService::class)->read();
         $base = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPageId);
-        $subjectRevision = Cache::get('landing_pages:subject_vocabulary_revision');
+        $subjectRevision = Cache::get(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key());
         if (is_string($subjectRevision)) {
             $base .= ':subjects:'.$subjectRevision;
         }
