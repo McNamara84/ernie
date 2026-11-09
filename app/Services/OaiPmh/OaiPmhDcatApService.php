@@ -90,6 +90,12 @@ final class OaiPmhDcatApService
                 if ($record->resource_id !== null) {
                     $this->records->reconcile($record->resource_id);
                 }
+                // Reconciliation reads a fresh aggregate and may find it restored,
+                // leaving the inventory active while this page still holds stale
+                // metadata. Never append that copy, even if no history changed.
+                $harvest->update(['expires_at' => now()]);
+
+                return $this->error($resuming ? 'badResumptionToken' : 'noRecordsMatch', 'A record changed; restart harvesting', $verb, $attributes);
             }
         }
         if (! OaiPmhHarvest::whereKey($harvest->id)->where('expires_at', '>', now())->exists() || count($page) !== $records->count()) {

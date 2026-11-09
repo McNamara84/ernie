@@ -148,6 +148,23 @@ it('does not infer license equivalence from URL spelling differences', function 
         ->and($xpath->evaluate('string(//dcat:distribution//dct:rights//rdfs:label)'))->toContain('License A', 'License B', 'https://example.org/a', $otherUri);
 })->with(['http://example.org/a', 'https://example.org/a/']);
 
+it('exports unresolved rights without a catalog relation through both transports', function (?string $identifier): void {
+    $resource = dcatResource();
+    $resource->resourceRights()->create([
+        'rights_id' => null, 'rights_text' => null, 'rights_uri' => null, 'rights_identifier' => $identifier,
+    ]);
+    $urls = [
+        $resource->landingPage->getPublicPath().'/metadata/dcat-ap.rdf',
+        '/oai-pmh?'.http_build_query(['verb' => 'GetRecord', 'metadataPrefix' => 'dcat_ap', 'identifier' => config('oaipmh.identifier_prefix').':'.$resource->doi]),
+    ];
+    foreach ($urls as $url) {
+        $xpath = dcatXPath($this->get($url)->assertOk()->getContent());
+        expect($xpath->evaluate('count(//dcat:distribution//dct:license)'))->toBe($identifier === null ? 0.0 : 1.0)
+            ->and($xpath->evaluate('string(//dcat:distribution//dct:license//rdfs:label)'))->toBe($identifier ?? '')
+            ->and($xpath->evaluate('count(//dcat:distribution//dct:rights)'))->toBe(0.0);
+    }
+})->with([null, 'LicenseRef-Unresolved']);
+
 it('exports selected contact emails and creator snapshots without unrelated contributor contacts', function () {
     $resource = dcatResource();
     $person = Person::factory()->create(['given_name' => 'New', 'family_name' => 'Name', 'name_identifier' => '0000-0002-1825-0097', 'name_identifier_scheme' => 'ORCID']);

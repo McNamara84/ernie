@@ -7,6 +7,7 @@ use App\Models\Description;
 use App\Models\Format;
 use App\Models\LandingPage;
 use App\Models\OaiPmhFormatRecord;
+use App\Models\OaiPmhHarvest;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Title;
@@ -302,6 +303,71 @@ it('retains old DOI and last eligible sets after identity changes, unpublishing 
     $resource->delete();
     expect(OaiPmhFormatRecord::where('status', 'deleted')->count())->toBe(2);
 });
+
+it('rejects a DCAT snapshot containing an unlinked active record', function (?int $resourceId, string $verb): void {
+    $resources = [oaiDcatResource(), oaiDcatResource(), oaiDcatResource()];
+    $first = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    $token = $first->evaluate('string(//oai:resumptionToken)');
+    expect($token)->not->toBe('');
+    // Simulate a broken historical link without observer-driven invalidation.
+    DB::table('oai_pmh_format_records')->where('resource_id', $resources[2]->id)->update(['resource_id' => $resourceId]);
+
+    $response = $this->get(oaiDcatQuery($verb, ['resumptionToken' => $token]))->assertOk();
+    $response->assertSee('code="badResumptionToken"', false)->assertDontSee('<'.$verb.'>', false);
+    expect(OaiPmhHarvest::where('expires_at', '>', now())->exists())->toBeFalse();
+    $this->get(oaiDcatQuery($verb, ['resumptionToken' => $token]))->assertOk()->assertSee('code="badResumptionToken"', false);
+})->with([null, 999999])->with(['ListRecords', 'ListIdentifiers']);
+
+it('rejects an initial DCAT page containing an active record without a resource link', function (string $verb): void {
+    $resource = oaiDcatResource();
+    DB::table('oai_pmh_format_records')->where('resource_id', $resource->id)->update(['resource_id' => null]);
+
+    $this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()
+        ->assertSee('code="noRecordsMatch"', false)->assertDontSee('<'.$verb.'>', false);
+    expect(OaiPmhHarvest::where('expires_at', '>', now())->exists())->toBeFalse();
+})->with(['ListRecords', 'ListIdentifiers']);
+
+it('restarts a DCAT snapshot if eligibility recovers during reconciliation', function (string $verb): void {
+    $resources = [oaiDcatResource(), oaiDcatResource(), oaiDcatResource()];
+    $target = $resources[2];
+    $first = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    $token = $first->evaluate('string(//oai:resumptionToken)');
+    expect($token)->not->toBe('');
+    $abstract = $target->descriptions->first()->getAttributes();
+    DB::table('descriptions')->where('id', $abstract['id'])->delete();
+    $reads = 0;
+    Resource::retrieved(function (Resource $resource) use ($target, $abstract, &$reads): void {
+        if ($resource->id === $target->id && ++$reads === 2) {
+            // The page loaded an ineligible aggregate. Another writer restores it
+            // before reconciliation reloads it, leaving the page's copy stale.
+            DB::table('descriptions')->insert($abstract);
+        }
+    });
+
+    $response = $this->get(oaiDcatQuery($verb, ['resumptionToken' => $token]))->assertOk();
+    expect($reads)->toBe(2);
+    $response->assertSee('code="badResumptionToken"', false)->assertDontSee('<'.$verb.'>', false);
+    expect(OaiPmhFormatRecord::where('resource_id', $target->id)->value('status'))->toBe('active')
+        ->and(OaiPmhHarvest::where('expires_at', '>', now())->exists())->toBeFalse();
+    $this->get(oaiDcatQuery($verb, ['resumptionToken' => $token]))->assertOk()->assertSee('code="badResumptionToken"', false);
+    config(['oaipmh.page_size' => 10]);
+    $fresh = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    expect($fresh->evaluate('count(//oai:header)'))->toBe(3.0);
+})->with(['ListRecords', 'ListIdentifiers']);
+
+it('retires unavailable records detected while rechecking a DCAT snapshot', function (string $verb): void {
+    $resources = [oaiDcatResource(), oaiDcatResource(), oaiDcatResource()];
+    $first = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    $token = $first->evaluate('string(//oai:resumptionToken)');
+    DB::table('descriptions')->where('resource_id', $resources[2]->id)->delete();
+
+    $this->get(oaiDcatQuery($verb, ['resumptionToken' => $token]))->assertOk()->assertSee('code="badResumptionToken"', false);
+    expect(OaiPmhFormatRecord::where('resource_id', $resources[2]->id)->value('status'))->toBe('deleted');
+    config(['oaipmh.page_size' => 10]);
+    $fresh = oaiDcatXPath($this->get(oaiDcatQuery($verb, ['metadataPrefix' => 'dcat_ap']))->assertOk()->getContent());
+    expect($fresh->evaluate('count(//oai:header)'))->toBe(3.0)
+        ->and($fresh->evaluate('count(//oai:header[@status="deleted"])'))->toBe(1.0);
+})->with(['ListRecords', 'ListIdentifiers']);
 
 it('uses a new availability datestamp on backfill and preserves history while disabled', function () {
     config(['dcatap.enabled' => false]);

@@ -1558,6 +1558,25 @@ erDiagram
         timestamp updated_at
     }
 
+    oai_pmh_format_records {
+        bigint id PK
+        varchar metadata_prefix "32 chars; composite unique with oai_identifier"
+        varchar oai_identifier "700 chars; composite unique with metadata_prefix"
+        varchar doi "600 chars"
+        bigint_unsigned resource_id "nullable; indexed; deliberately no FK"
+        varchar status "8 chars; active or deleted"
+        timestamp first_available_at
+        timestamp datestamp "indexed"
+        json sets "last eligible OAI set memberships"
+        varchar resource_type "nullable; last eligible resource type"
+        boolean is_igsn "default false"
+        int_unsigned export_revision
+        char fingerprint "64 chars; nullable"
+    }
+    %% Unique oai_format_identity_unique (metadata_prefix, oai_identifier).
+    %% Index oai_format_harvest_index (metadata_prefix, status, datestamp).
+    %% No created_at/updated_at columns. Format history survives Resource deletion.
+
     oai_pmh_harvests {
         bigint id PK
         bigint_unsigned item_count
@@ -1569,7 +1588,7 @@ erDiagram
     oai_pmh_harvest_items {
         bigint harvest_id PK, FK "cascade on delete"
         bigint_unsigned position PK "zero-based ordered position"
-        varchar kind "resource or deleted"
+        varchar kind "resource, deleted, or format"
         bigint_unsigned identity_id "no FK; retained after resource deletion"
     }
     %% oai_pmh_harvest_items composite primary key (harvest_id, position) supports indexed page ranges.
@@ -1816,6 +1835,8 @@ erDiagram
     igsn_metadata_values }o--|| resources : "for sample"
 
     %% OAI-PMH snapshot relationships
+    resources |o..o{ oai_pmh_format_records : "logical resource_id link; no FK; history survives deletion"
+    %% For kind=format, harvest_items.identity_id refers to format_records.id without an FK.
     oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
     oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 
