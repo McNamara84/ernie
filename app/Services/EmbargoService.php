@@ -85,7 +85,6 @@ final class EmbargoService
 
     public function normalizeResource(Resource $resource): void
     {
-        $resource->unsetRelation('dates');
         if (! $resource->landingPage?->is_tombstone && $this->hasFutureAvailableDate($resource) && $resource->access_level !== AccessLevel::EMBARGOED) {
             $resource->access_level = AccessLevel::EMBARGOED;
             $resource->save();
@@ -190,6 +189,7 @@ final class EmbargoService
         if ($claimed) {
             $resource->embargo_registration_started_at = $startedAt;
             $resource->embargo_registration_prefix = $prefix;
+            $resource->embargo_registration_access_level = AccessLevel::EMBARGOED->value;
         }
 
         return $claimed;
@@ -208,6 +208,7 @@ final class EmbargoService
             ]);
         $resource->embargo_registration_started_at = null;
         $resource->embargo_registration_prefix = null;
+        $resource->embargo_registration_access_level = null;
     }
 
     /** Finish metadata publication after a confirmed create; keep the data embargo. */
@@ -220,6 +221,7 @@ final class EmbargoService
         DB::transaction(function () use ($resource): void {
             $resource->embargo_registration_started_at = null;
             $resource->embargo_registration_prefix = null;
+            $resource->embargo_registration_access_level = null;
             $resource->save();
             // The DataCite service may have claimed the attempt through a
             // separate fresh model, so clear the database marker explicitly.

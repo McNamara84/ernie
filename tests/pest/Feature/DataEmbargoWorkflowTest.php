@@ -3,17 +3,23 @@
 declare(strict_types=1);
 
 use App\Enums\AccessLevel;
+use App\Enums\EditorDraftSaveIntent;
+use App\Exceptions\DataCiteWriteSupersededException;
 use App\Jobs\SendDataEmbargoNotificationJob;
+use App\Jobs\SyncDataEmbargoAccessJob;
 use App\Mail\DataEmbargoExpired;
 use App\Models\DateType;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\DataCiteDoiWriteLockService;
 use App\Services\DataCiteMemberApiClient;
+use App\Services\DataCiteRequestLimiter;
 use App\Services\DataEmbargoNotificationService;
 use App\Services\DataEmbargoReleaseService;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\Editor\EditorResourceSaveService;
 use App\Services\EmbargoService;
 use App\Services\LandingPageContentLinkService;
 use App\Services\ResourceStorageService;
@@ -162,3 +168,175 @@ test('public embargo resources retain publication-level deletion and DOI protect
         ->and($curator->can('delete', $resource))->toBeFalse()
         ->and($curator->can('editDoi', $resource))->toBeFalse();
 });
+
+test('a public embargo cannot be explicitly saved as a draft', function (): void {
+    $resource = dataEmbargoFixture('2026-12-31');
+    $this->actingAs(User::factory()->curator()->create())
+        ->postJson('/editor/resources/draft', [
+            'resourceId' => $resource->id, 'intent' => 'save-draft',
+            'titles' => [['title' => 'Do not turn this into a draft', 'titleType' => 'main-title']],
+        ])->assertUnprocessable()->assertJsonValidationErrors('intent');
+    expect($resource->fresh()->workflow_status_override)->toBeNull()
+        ->and($resource->fresh()->publicStatus())->toBe('embargo');
+});
+
+test('final saves validate the effective embargo under the row lock while autosaves stay relaxed', function (): void {
+    $resource = dataEmbargoFixture('2026-12-29', false);
+    $data = ['resourceId' => $resource->id, 'accessLevel' => 'open', 'dates' => [], 'titles' => [['title' => 'Still embargoed', 'titleType' => 'main-title']]];
+    $service = app(EditorResourceSaveService::class);
+    expect(fn () => $service->saveValidated($data, null))->toThrow(ValidationException::class);
+    expect(app(EmbargoService::class)->availableDate($resource->fresh()))->toBe('2026-12-29');
+    $service->saveRelaxed($data, null, EditorDraftSaveIntent::AUTOSAVE);
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and(app(EmbargoService::class)->availableDate($resource->fresh()))->toBeNull();
+});
+
+test('normalization preserves freshly eager-loaded dates without per-resource queries', function (): void {
+    $ids = collect(range(1, 3))->map(fn () => dataEmbargoFixture('2026-12-31')->id);
+    $resources = Resource::whereKey($ids)->with(['dates.dateType', 'landingPage'])->get();
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+    try {
+        foreach ($resources as $resource) {
+            app(EmbargoService::class)->normalizeResource($resource);
+        }
+        expect(DB::getQueryLog())->toBe([]);
+    } finally {
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+    }
+});
+
+test('registration claim markers stay consistent on the claimed model instance', function (): void {
+    $resource = dataEmbargoFixture('2026-12-31');
+    $policy = app(EmbargoService::class);
+    expect($policy->claimRegistration($resource, '10.83279'))->toBeTrue()
+        ->and($resource->embargo_registration_access_level)->toBe('embargoed')
+        ->and($resource->embargo_registration_prefix)->toBe('10.83279')
+        ->and($resource->embargo_registration_started_at)->not->toBeNull();
+    $policy->clearRejectedRegistration($resource);
+    expect($resource->embargo_registration_access_level)->toBeNull();
+});
+
+function embargoReleaseLimiter(): DataCiteRequestLimiter
+{
+    return new class extends DataCiteRequestLimiter
+    {
+        public int $milliseconds = 1_000_000;
+
+        /** @var list<int> */
+        public array $pauses = [];
+
+        public ?Closure $duringPause = null;
+
+        protected function nowMs(): int
+        {
+            return $this->milliseconds;
+        }
+
+        protected function pause(int $milliseconds): void
+        {
+            expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse();
+            $this->pauses[] = $milliseconds;
+            $this->milliseconds += $milliseconds;
+            $callback = $this->duringPause;
+            $this->duringPause = null;
+            $callback?->__invoke();
+        }
+    };
+}
+
+test('access synchronization succeeds with the default nonzero request interval', function (): void {
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $resource = dataEmbargoFixture('2026-12-29');
+    $limiter = embargoReleaseLimiter();
+    $limiter->clear();
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+    $service = app(DataEmbargoReleaseService::class);
+    $service->synchronize($service->release($resource), new DataCiteMemberApiClient($limiter, true));
+    expect($limiter->pauses)->toBe([1000])
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+    Http::assertSentCount(2);
+});
+
+test('a Beginner editor supersedes production release metadata in the configured environment', function (): void {
+    config(['datacite.test_mode' => false]);
+    Queue::fake();
+    $resource = dataEmbargoFixture('2026-12-29');
+    app(DataEmbargoReleaseService::class)->release($resource);
+    $revision = DataCiteDoiWriteLockService::run($resource->doi, false,
+        fn () => DataCiteDoiWriteLockService::observeWrite($resource->doi, false));
+    app(EditorResourceSaveService::class)->saveRelaxed([
+        'resourceId' => $resource->id, 'accessLevel' => 'open',
+        'titles' => [['title' => 'Renewed production embargo', 'titleType' => 'main-title']],
+        'dates' => [['dateType' => 'available', 'startDate' => '2027-01-15']],
+    ], User::factory()->beginner()->create(), EditorDraftSaveIntent::AUTOSAVE);
+    expect(fn () => DataCiteDoiWriteLockService::assertCurrentWrite($resource->doi, false, $revision))
+        ->toThrow(DataCiteWriteSupersededException::class);
+    Queue::assertPushed(SyncDataEmbargoAccessJob::class, fn ($job) => $job->resourceId === $resource->id && ! $job->testMode);
+    Queue::assertNotPushed(SyncDataEmbargoAccessJob::class, fn ($job) => $job->testMode);
+});
+
+test('access synchronization rechecks publication after admission waits even without a cache revision change', function (string $change): void {
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    $resource = dataEmbargoFixture('2026-12-29');
+    $limiter = embargoReleaseLimiter();
+    $limiter->clear();
+    $limiter->duringPause = function () use ($resource, $change): void {
+        $resource->landingPage->forceFill([$change => $change === 'is_tombstone'])->save();
+    };
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+    $service = app(DataEmbargoReleaseService::class);
+    $released = $service->release($resource);
+    expect(fn () => $service->synchronize($released, new DataCiteMemberApiClient($limiter, true)))
+        ->toThrow(DataCiteWriteSupersededException::class);
+    Http::assertNotSent(fn ($request) => $request->method() === 'PUT');
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeTrue();
+})->with(['is_published', 'is_tombstone']);
+
+test('an editor superseding release access queues a revision-checked corrective update', function (string $timing): void {
+    config(['datacite.landing_page_url_update.minimum_interval_ms' => 1000]);
+    Queue::fake();
+    $resource = dataEmbargoFixture('2026-12-29');
+    $limiter = embargoReleaseLimiter();
+    $limiter->clear();
+    $edit = function () use ($resource): void {
+        app(EditorResourceSaveService::class)->saveRelaxed([
+            'resourceId' => $resource->id, 'accessLevel' => 'open',
+            'titles' => [['title' => 'New embargo metadata', 'titleType' => 'main-title']],
+            'dates' => [['dateType' => 'available', 'startDate' => '2027-01-15']],
+        ], null, EditorDraftSaveIntent::AUTOSAVE);
+    };
+    if ($timing === 'wait') {
+        $limiter->duringPause = $edit;
+    }
+    $edited = false;
+    Http::fake(function ($request) use ($resource, $timing, $edit, &$edited) {
+        if ($request->method() === 'PUT' && $timing === 'write' && ! $edited) {
+            $edited = true;
+            $edit();
+        }
+
+        return Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]);
+    });
+    $service = app(DataEmbargoReleaseService::class);
+    $released = $service->release($resource);
+    $superseded = false;
+    try {
+        $service->synchronize($released, new DataCiteMemberApiClient($limiter, true));
+    } catch (DataCiteWriteSupersededException) {
+        $superseded = true;
+    }
+    expect($superseded)->toBeTrue();
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBeTrue();
+    Queue::assertPushed(SyncDataEmbargoAccessJob::class, fn ($job) => $job->resourceId === $resource->id && $job->testMode);
+    if ($timing === 'wait') {
+        Http::assertNotSent(fn ($request) => $request->method() === 'PUT');
+    }
+    (new SyncDataEmbargoAccessJob($resource->id, true))->handle($service, $limiter);
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && collect($request->data()['data']['attributes']['rightsList'])->contains('rightsIdentifier', AccessLevel::EMBARGOED->coarIdentifier())
+        && ! isset($request->data()['data']['attributes']['event']));
+})->with(['wait', 'write']);

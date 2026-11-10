@@ -16,7 +16,19 @@ import {
 import { Button } from '@/components/ui/button';
 import type { SharedData } from '@/types';
 
-export function ReleaseDataEmbargoButton({ resourceId, onReleased }: { resourceId: number; onReleased?: (synchronized: boolean) => void }) {
+export function ReleaseDataEmbargoButton({
+    resourceId,
+    onReleased,
+    beforeRelease,
+    onSettled,
+    disabled = false,
+}: {
+    resourceId: number;
+    onReleased?: (synchronized: boolean) => void;
+    beforeRelease?: () => Promise<void>;
+    onSettled?: () => void;
+    disabled?: boolean;
+}) {
     const {
         props: { canReleaseData },
     } = usePage<SharedData>();
@@ -25,6 +37,7 @@ export function ReleaseDataEmbargoButton({ resourceId, onReleased }: { resourceI
     const release = async () => {
         setBusy(true);
         try {
+            await beforeRelease?.();
             const { data } = await axios.post<{ message: string; synchronized: boolean }>(`/resources/${resourceId}/release-data-embargo`);
             if (data.synchronized) toast.success(data.message);
             else toast.warning(data.message);
@@ -36,12 +49,13 @@ export function ReleaseDataEmbargoButton({ resourceId, onReleased }: { resourceI
             );
         } finally {
             setBusy(false);
+            onSettled?.();
         }
     };
     if (canReleaseData === false) return null;
     return (
         <>
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setOpen(true)}>
+            <Button type="button" variant="outline" size="sm" disabled={disabled || busy} onClick={() => setOpen(true)}>
                 {busy ? 'Releasing data…' : 'Release data'}
             </Button>
             <AlertDialog open={open} onOpenChange={setOpen}>

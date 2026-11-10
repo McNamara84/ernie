@@ -201,6 +201,7 @@ class ResourceStorageService
             $this->storeMslLaboratories($resource, $data, $isUpdate);
             $this->storeDescriptions($resource, $data, $isUpdate);
             $this->storeDates($resource, $data, $isUpdate);
+            $resource->unsetRelation('dates');
             app(EmbargoService::class)->normalizeResource($resource);
             if (app(EmbargoService::class)->isEmbargoed($resource) && $resource->landingPage?->isExternal()) {
                 throw ValidationException::withMessages(['dates' => 'Data embargoes require an internal landing page. Change the landing page template before setting a future Available date.']);

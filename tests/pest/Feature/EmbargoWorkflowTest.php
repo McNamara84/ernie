@@ -15,6 +15,7 @@ use App\Services\EmbargoService;
 use App\Services\FakeDataCiteRegistrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -472,6 +473,40 @@ test('a registered IGSN with a draft embargo page cannot be updated manually', f
         ->assertStatus(422);
     Http::assertNothingSent();
 });
+
+test('an ambiguous create can reconcile using the same claimed Resource instance', function (string $kind): void {
+    config([
+        'datacite.test_mode' => true, 'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password', 'datacite.test.prefixes' => ['10.83279'],
+    ]);
+    $resource = workflowEmbargo('2099-01-01');
+    $identifier = '10.83279/INSTANCE-RETRY';
+    if ($kind === 'igsn') {
+        $resource->update(['doi' => $identifier]);
+        IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
+    }
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    $posts = 0;
+    Http::fake(function (Request $request) use ($resource, $identifier, $kind, &$posts) {
+        if ($request->method() === 'POST') {
+            $posts++;
+
+            return Http::response(['errors' => [['title' => 'Uncertain create']]], 500);
+        }
+        $record = ['id' => $identifier, 'attributes' => [
+            'state' => 'findable', 'url' => url('/datasets/'.$resource->id),
+            'rightsList' => [['rightsIdentifier' => AccessLevel::EMBARGOED->coarIdentifier()]],
+        ]];
+
+        return Http::response(['data' => $kind === 'igsn' ? $record : [$record]]);
+    });
+    $service = app(DataCiteRegistrationService::class);
+    $register = fn () => $kind === 'igsn' ? $service->registerIgsn($resource) : $service->registerDoi($resource, '10.83279');
+    expect($register)->toThrow(RequestException::class);
+    expect($resource->fresh()->embargo_registration_access_level)->toBe(AccessLevel::EMBARGOED->value);
+    expect($register()['data']['id'])->toBe($identifier)
+        ->and($posts)->toBe(1);
+})->with(['doi', 'igsn']);
 
 test('the fake DataCite update also rejects an embargo draft', function (): void {
     $resource = workflowEmbargo('2099-01-01');

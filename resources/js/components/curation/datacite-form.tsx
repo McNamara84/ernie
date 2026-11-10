@@ -1543,6 +1543,9 @@ export default function DataCiteForm({
     const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
     const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
     const draftAutosaveInFlightRef = useRef(false);
+    const draftAutosaveCompletionRef = useRef<Promise<void> | null>(null);
+    const dataReleaseInFlightRef = useRef(false);
+    const [isReleasingData, setIsReleasingData] = useState(false);
     const manualDraftSaveInFlightRef = useRef(false);
     const [isDraftAutosaveInFlight, setIsDraftAutosaveInFlight] = useState(false);
     const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
@@ -2274,11 +2277,12 @@ export default function DataCiteForm({
     });
     const [currentPublicStatus, setCurrentPublicStatus] = useState<ResourcePublicStatus>(initialPublicStatus);
     const [currentCanEditDoi, setCurrentCanEditDoi] = useState(canEditDoi ?? isAdmin);
+    const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
+    const isPublishedResource = landingPageForPreview?.is_published ?? (currentPublicStatus === 'published' || currentPublicStatus === 'dead');
     const isDoiReadonly = Boolean(
-        resolvedResourceId !== null && (currentPublicStatus === 'dead' || !currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)),
+        resolvedResourceId !== null && (currentPublicStatus === 'dead' || !currentCanEditDoi || (isPublishedResource && !isAdmin)),
     );
 
-    const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
     const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);
     const [pendingLandingPageSetupResource, setPendingLandingPageSetupResource] = useState<LandingPagePreviewSetupResource | null>(null);
     const [isLandingPageSetupOpen, setIsLandingPageSetupOpen] = useState(false);
@@ -2802,6 +2806,7 @@ export default function DataCiteForm({
             importInFlightRef.current ||
             registrationSuccess !== null ||
             manualDraftSaveInFlightRef.current ||
+            dataReleaseInFlightRef.current ||
             draftAutosaveInFlightRef.current
         ) {
             return;
@@ -2824,6 +2829,10 @@ export default function DataCiteForm({
         }
 
         draftAutosaveInFlightRef.current = true;
+        let completeAutosave: () => void = () => {};
+        draftAutosaveCompletionRef.current = new Promise<void>((resolve) => {
+            completeAutosave = resolve;
+        });
         setIsDraftAutosaveInFlight(true);
         setDraftAutosaveStatus('saving');
 
@@ -2872,6 +2881,8 @@ export default function DataCiteForm({
         } finally {
             draftAutosaveInFlightRef.current = false;
             setIsDraftAutosaveInFlight(false);
+            completeAutosave();
+            draftAutosaveCompletionRef.current = null;
         }
     }, [
         activeDateInputId,
@@ -3015,7 +3026,7 @@ export default function DataCiteForm({
     }, [revealValidationErrors, rorDraftsRef]);
 
     const prepareValidatedPayload = async (): Promise<ReturnType<typeof buildPayload> | null> => {
-        if (importInFlightRef.current) return null;
+        if (importInFlightRef.current || dataReleaseInFlightRef.current) return null;
         if (!checkRorInputs()) return null;
         setHasAttemptedSubmit(true);
         setErrorMessage(null);
@@ -3053,7 +3064,7 @@ export default function DataCiteForm({
         payload: ReturnType<typeof buildPayload>,
         submittedSnapshot: string,
     ): Promise<ValidatedSaveResponse | null> => {
-        if (importInFlightRef.current) return null;
+        if (importInFlightRef.current || dataReleaseInFlightRef.current) return null;
         try {
             const response = await axios.post(saveUrl, payload, {
                 headers: {
@@ -3135,7 +3146,7 @@ export default function DataCiteForm({
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (importInFlightRef.current) return;
+        if (importInFlightRef.current || dataReleaseInFlightRef.current) return;
         const submittedSnapshot = editorSnapshot;
         setIsSaving(true);
 
@@ -3300,6 +3311,7 @@ export default function DataCiteForm({
             importInFlightRef.current ||
             isDraftAutosaveInFlight ||
             draftAutosaveInFlightRef.current ||
+            dataReleaseInFlightRef.current ||
             manualDraftSaveInFlightRef.current
         )
             return;
@@ -3401,7 +3413,7 @@ export default function DataCiteForm({
 
     const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
         if (!checkRorInputs()) return null;
-        if (!isDraftSaveable || importInFlightRef.current) return null;
+        if (!isDraftSaveable || importInFlightRef.current || dataReleaseInFlightRef.current) return null;
         const submittedSnapshot = editorSnapshot;
 
         setIsPreparingLandingPagePreview(true);
@@ -3545,7 +3557,7 @@ export default function DataCiteForm({
     }, [buildLandingPageSetupResource, landingPageForPreview, openLandingPagePreview, saveDraftForLandingPagePreview]);
 
     const handleLandingPageAction = useCallback(() => {
-        if (currentPublicStatus === 'published' || currentPublicStatus === 'dead') {
+        if (isPublishedResource) {
             if (!landingPageForPreview) {
                 toast.error('Unable to open landing page. No published landing page is configured.');
                 return;
@@ -3556,7 +3568,7 @@ export default function DataCiteForm({
         }
 
         void handleShowLandingPagePreview();
-    }, [currentPublicStatus, handleShowLandingPagePreview, landingPageForPreview, openLandingPagePreview]);
+    }, [isPublishedResource, handleShowLandingPagePreview, landingPageForPreview, openLandingPagePreview]);
 
     const handleCloseLandingPageSetup = () => {
         if (landingPageSetupPurpose === 'datacite-registration') {
@@ -3667,8 +3679,13 @@ export default function DataCiteForm({
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
     const isEditorActionInFlight =
-        isSaving || isSavingDraft || isDraftAutosaveInFlight || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata;
-    const isPublishedResource = currentPublicStatus === 'published' || currentPublicStatus === 'dead';
+        isSaving ||
+        isSavingDraft ||
+        isDraftAutosaveInFlight ||
+        isPreparingLandingPagePreview ||
+        isSubmittingDataCite ||
+        isImportingMetadata ||
+        isReleasingData;
     const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
     const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
@@ -3951,6 +3968,20 @@ export default function DataCiteForm({
                                     ))) && (
                                 <ReleaseDataEmbargoButton
                                     resourceId={Number(initialResourceId)}
+                                    disabled={
+                                        isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite || isImportingMetadata
+                                    }
+                                    beforeRelease={async () => {
+                                        // Pause synchronously before draining the old payload. Do
+                                        // not cancel HTTP: cancellation cannot undo a server commit.
+                                        dataReleaseInFlightRef.current = true;
+                                        setIsReleasingData(true);
+                                        await draftAutosaveCompletionRef.current;
+                                    }}
+                                    onSettled={() => {
+                                        dataReleaseInFlightRef.current = false;
+                                        setIsReleasingData(false);
+                                    }}
                                     onReleased={(synchronized) => {
                                         setForm((current) => ({ ...current, accessLevel: 'open' }));
                                         setEmbargoSyncPending(!synchronized);

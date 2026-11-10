@@ -6,12 +6,19 @@ namespace App\Services\Editor;
 
 use App\Enums\EditorDraftSaveIntent;
 use App\Enums\ResourceWorkflowStatus;
+use App\Jobs\SyncDataEmbargoAccessJob;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\DataCiteDoiWriteLockService;
+use App\Services\DataCiteModeResolverService;
+use App\Services\EmbargoService;
 use App\Services\ResourceStorageService;
 use App\Services\UserActivityService;
+use Closure;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * Coordinates editor persistence with explicit workflow-state transitions.
@@ -32,13 +39,22 @@ final readonly class EditorResourceSaveService
         // transaction takes the resource lock used by concurrent background work.
         $data = $this->storageService->prepareForStorage($data);
 
-        return DB::transaction(function () use ($data, $user): array {
+        return $this->persist($data, function () use ($data, $user): array {
             $before = $user === null ? [] : $this->activitySnapshot($data);
             [$resource, $isUpdate, $changes] = $this->storageService->storePrepared(
                 $data,
                 $user?->id,
                 doiChangeActor: $user,
             );
+
+            // Recheck the effective state under the resource lock: request
+            // validation can predate a concurrent embargo change.
+            $embargo = app(EmbargoService::class);
+            if ($embargo->isEmbargoed($resource) && $embargo->availableDate($resource) === null) {
+                throw ValidationException::withMessages([
+                    'accessLevel' => ['Embargoed access requires exactly one valid day-precision Available date.'],
+                ]);
+            }
 
             if ($resource->workflow_status_override === ResourceWorkflowStatus::DRAFT) {
                 $resource->workflow_status_override = null;
@@ -59,7 +75,7 @@ final readonly class EditorResourceSaveService
     {
         $data = $this->storageService->prepareForStorage($data);
 
-        return DB::transaction(function () use ($data, $user, $intent): array {
+        return $this->persist($data, function () use ($data, $user, $intent): array {
             if ($intent === EditorDraftSaveIntent::SAVE_DRAFT) {
                 $this->assertResourceIsNotPublished($data);
             }
@@ -95,13 +111,55 @@ final readonly class EditorResourceSaveService
 
         $resource = Resource::query()
             ->with('landingPage')
+            ->lockForUpdate()
             ->find((int) $resourceId);
 
-        if ($resource?->publicStatus() === 'published') {
+        if ($resource?->landingPage?->is_published) {
             throw ValidationException::withMessages([
                 'intent' => ['Published resources cannot be changed to draft.'],
             ]);
         }
+    }
+
+    /**
+     * Take the DOI lock before any row locks, consistently with remote writers.
+     * Admission waits happen in the transport after this lock has been released.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  Closure(): array{0: Resource, 1: bool, 2: array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}}  $save
+     * @return array{0: Resource, 1: bool, 2: array{removedCount: int, idMap: array<int|string, string>, removedIds: list<string>}}
+     */
+    private function persist(array $data, Closure $save): array
+    {
+        $doi = isset($data['resourceId']) ? Resource::query()->whereKey($data['resourceId'])->value('doi') : null;
+        if (! is_string($doi) || $doi === '') {
+            return DB::transaction($save);
+        }
+        // Production releases exclude Beginners. Their editor changes must
+        // still supersede the production release, never a sandbox-only lock.
+        $testMode = app(DataCiteModeResolverService::class)->shouldUseTestMode();
+
+        $result = DataCiteDoiWriteLockService::run($doi, $testMode, function () use ($save, $doi, $testMode): array {
+            $result = DB::transaction($save);
+            if ($result[0]->data_embargo_sync_pending) {
+                // Even an edit in the same second supersedes an older release
+                // payload. A corrective job sends the current access rights.
+                DataCiteDoiWriteLockService::beginWrite($doi, $testMode);
+            }
+
+            return $result;
+        });
+        if ($result[0]->data_embargo_sync_pending) {
+            try {
+                SyncDataEmbargoAccessJob::dispatch($result[0]->id, $testMode)->afterCommit();
+            } catch (Throwable $exception) {
+                // A synchronous queue or unavailable broker must not turn an
+                // already committed editor save into a reported save failure.
+                Log::warning('Data embargo access correction remains pending.', ['resource_id' => $result[0]->id, 'error' => $exception->getMessage()]);
+            }
+        }
+
+        return $result;
     }
 
     /** @param array<string, mixed> $data

@@ -5,10 +5,12 @@ declare(strict_types=1);
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\ContributorType;
 use App\Models\Datacenter;
+use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\IdentifierType;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -85,6 +87,28 @@ beforeEach(function () {
 // =========================================================================
 
 describe('required fields', function () {
+    it('validates a preserved Available date when a final update omits dates', function () {
+        $resource = Resource::factory()->create(['doi' => null, 'access_level' => 'embargoed']);
+        $type = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+        $resource->dates()->create(['date_type_id' => $type->id, 'date_value' => '2020-01-01']);
+        $data = [...validResourcePayload($this->resourceType->id, $this->right->identifier), 'resourceId' => $resource->id];
+        $this->actingAs($this->user)->postJson('/editor/resources', $data)->assertOk();
+        expect($resource->fresh()->access_level->value)->toBe('embargoed')
+            ->and($resource->dates()->where('date_type_id', $type->id)->value('date_value'))->toBe('2020-01-01');
+    });
+
+    it('rejects removing Available while an existing embargo overrides submitted Open access', function () {
+        $resource = Resource::factory()->create(['doi' => null, 'access_level' => 'embargoed']);
+        $type = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+        $resource->dates()->create(['date_type_id' => $type->id, 'date_value' => '2020-01-01']);
+        $data = [...validResourcePayload($this->resourceType->id, $this->right->identifier),
+            'resourceId' => $resource->id, 'accessLevel' => 'open', 'dates' => [],
+        ];
+        $this->actingAs($this->user)->postJson('/editor/resources', $data)
+            ->assertUnprocessable()->assertJsonValidationErrors('accessLevel');
+        expect($resource->dates()->value('date_value'))->toBe('2020-01-01');
+    });
+
     it('rejects empty payload', function () {
         $response = $this->actingAs($this->user)
             ->postJson('/editor/resources', []);
