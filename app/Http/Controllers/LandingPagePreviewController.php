@@ -10,6 +10,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\DcatAp\DcatApResourceProfileService;
 use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
@@ -283,6 +284,7 @@ class LandingPagePreviewController extends Controller
             'hasDataPublicationTeamRecipient' => $dataPublicationTeamRecipientService->isAvailable(),
             'supportsIso19115' => $isoProfile->supports($resource),
             'supportsIso19115Json' => $isoProfile->supportsJson($resource),
+            'supportsDcatAp' => app(DcatApResourceProfileService::class)->supports($resource),
             'isPreview' => true,
             'embargoPending' => $embargoPending,
             'embargoDate' => $embargoPending ? app(EmbargoService::class)->availableDate($resource) : null,

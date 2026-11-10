@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\OaiPmh;
 
 use App\Models\OaiPmhDeletedRecord;
+use App\Models\OaiPmhFormatRecord;
 use App\Models\Resource;
 use App\Models\Subject;
 use Illuminate\Database\Eloquent\Builder;
@@ -86,6 +87,21 @@ class OaiPmhSetService
                 'spec' => 'year:'.$year,
                 'name' => 'Publication Year '.$year,
             ];
+        }
+
+        if (config('dcatap.enabled', false)) {
+            $known = array_fill_keys(array_column($sets, 'spec'), true);
+            OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('status', 'deleted')
+                ->select(['id', 'sets'])->chunkById(200, function ($records) use (&$sets, &$known): void {
+                    foreach ($records as $record) {
+                        foreach ($record->sets as $spec) {
+                            if (! isset($known[$spec]) && $this->isValidSetSpec($spec)) {
+                                $sets[] = ['spec' => $spec, 'name' => $spec];
+                                $known[$spec] = true;
+                            }
+                        }
+                    }
+                });
         }
 
         return $sets;

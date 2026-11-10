@@ -105,6 +105,10 @@ jobs:
         if: ${{ matrix.slice == 'serial' }}
         run: npm run test:jsonld
 
+      - name: Validate DCAT-AP RDF with Jena and SHACL offline
+        if: ${{ matrix.slice == 'serial' }}
+        run: npm run test:dcat-ap
+
       - name: Verify migrations and seeders
         if: ${{ matrix.slice == 'serial' }}
         run: |

@@ -58,6 +58,7 @@ interface DefaultGfzTemplatePageProps {
     embargoDue?: boolean;
     supportsIso19115?: boolean;
     supportsIso19115Json?: boolean;
+    supportsDcatAp?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
@@ -115,6 +116,7 @@ export default function DefaultGfzTemplate() {
         embargoDue = false,
         supportsIso19115 = false,
         supportsIso19115Json = false,
+        supportsDcatAp = false,
         metadataLinks,
         sectionOrder,
         customLogoUrl,
@@ -164,6 +166,7 @@ export default function DefaultGfzTemplate() {
                     isPreview={isPreview}
                     supportsIso19115={supportsIso19115}
                     supportsIso19115Json={supportsIso19115Json}
+                    supportsDcatAp={supportsDcatAp}
                     jsonLdExportUrl={jsonLdExportUrl}
                     metadataLinks={metadataLinks}
                     sectionOrder={metadataOrder}
@@ -181,6 +184,7 @@ export default function DefaultGfzTemplate() {
         isPreview,
         supportsIso19115,
         supportsIso19115Json,
+        supportsDcatAp,
         leftMetadataOrder,
         rightMetadataOrder,
         peopleDisplayLimits,

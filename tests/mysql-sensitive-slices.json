@@ -87,8 +87,9 @@
             "tests/pest/Feature/Database/PreserveTemporalCoverageSemanticsMigrationTest.php",
             "tests/pest/Feature/Database/GeoLocationConcurrencyTest.php"
         ],
-        "oai-schema": ["tests/pest/Feature/Database/OaiPmhHarvestSchemaTest.php"],
+        "oai-schema": ["tests/pest/Feature/Database/OaiPmhHarvestSchemaTest.php", "tests/pest/Feature/Database/DcatApFormatHistorySchemaTest.php"],
         "oai-services": [
+            "tests/pest/Feature/OaiPmh/OaiPmhDcatApTest.php",
             "tests/pest/Unit/OaiPmh/OaiPmhSetServiceTest.php",
             "tests/pest/Unit/OaiPmh/OaiPmhHarvestServiceTest.php",
             "tests/pest/Feature/OaiPmh/OaiPmhEposMslSetTest.php",

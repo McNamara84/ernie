@@ -239,7 +239,9 @@ export default function OaiPmhDocs({
                                                 ? 'Dublin Core (mandatory)'
                                                 : prefix === 'oai_datacite'
                                                   ? 'DataCite Kernel 4.7'
-                                                  : 'ISO 19115-3:2023 (selective)'}
+                                                  : prefix === 'dcat_ap'
+                                                    ? 'DCAT-AP 3.0.1 RDF/XML (selective)'
+                                                    : 'ISO 19115-3:2023 (selective)'}
                                         </TableCell>
                                         <TableCell>
                                             <a
@@ -255,6 +257,22 @@ export default function OaiPmhDocs({
                                 ))}
                             </TableBody>
                         </Table>
+                        {metadataFormats.dcat_ap && (
+                            <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
+                                <p>
+                                    <code>dcat_ap</code> provides DCAT-AP 3.0.1 RDF/XML for published datasets, collections, models, images and
+                                    sounds. IGSNs are excluded. A main title and abstract are required. Use <code>ListMetadataFormats</code> with an
+                                    identifier to check availability. The same RDF is available from each eligible landing page.
+                                </p>
+                                <p>
+                                    Withdrawn resources retain metadata and a withdrawal notice, without direct downloads. Records that lose required
+                                    metadata or become ineligible have a persistent deleted header for this format. Restart harvesting after a
+                                    <code> badResumptionToken</code> response. The advertised XSD validates the RDF envelope; DCAT-AP semantics
+                                    require SHACL.
+                                </p>
+                                <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=dcat_ap`} />
+                            </div>
+                        )}
                         {isoEligibleResourceTypeSlugs.length > 0 && (
                             <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
                                 <p>

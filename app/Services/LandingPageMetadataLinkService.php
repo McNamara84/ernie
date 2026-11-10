@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\Igsn\Export\IgsnCoreSchemaResolver;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 
@@ -17,6 +18,7 @@ class LandingPageMetadataLinkService
     public function __construct(
         private readonly Iso19115ResourceProfileService $isoProfile,
         private readonly SchemaOrgResourceTypeMappingService $typeMapping,
+        private readonly DcatApReadinessService $dcatReadiness,
     ) {}
 
     /**
@@ -73,6 +75,10 @@ class LandingPageMetadataLinkService
                 'application/json',
                 (string) config('iso19115.json.schema'),
             );
+        }
+
+        if ($this->dcatReadiness->available($resource)) {
+            $links[] = $this->link('dcat-ap', 'DCAT-AP', 'DCAT-AP '.config('dcatap.version').' RDF/XML', "{$baseUrl}/dcat-ap.rdf", 'application/rdf+xml', (string) config('dcatap.profile'));
         }
 
         return $links;

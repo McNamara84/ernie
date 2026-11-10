@@ -16,6 +16,7 @@
         "resources/views/mail/*",
         "resources/data/counter/counter-robots.json",
         "resources/data/scheme/iso-19115-4/**/json/**",
+        "resources/data/scheme/dcat-ap/**",
         "resources/data/scheme/igsn-core/**/upstream/**",
         "resources/data/scheme/igsn-core/2.0/preview-*/**"
     ],

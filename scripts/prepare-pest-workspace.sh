@@ -7,10 +7,11 @@ TEST_WORKSPACE=${1:-/var/www/pest-workspace}
 
 case "$TEST_WORKSPACE" in
     /var/www/pest-workspace) ;;
-    /tmp/ernie-jsonld-*)
+    /tmp/ernie-jsonld-*|/tmp/ernie-dcat-*)
         REPORT_TOKEN=${TEST_WORKSPACE#/tmp/ernie-jsonld-}
+        REPORT_TOKEN=${REPORT_TOKEN#/tmp/ernie-dcat-}
         case "$REPORT_TOKEN" in
-            *[!a-f0-9]*|'') echo 'Invalid JSON-LD workspace token' >&2; exit 1 ;;
+            *[!a-f0-9]*|'') echo 'Invalid semantic-test workspace token' >&2; exit 1 ;;
         esac
         [ "${#REPORT_TOKEN}" -eq 32 ] || exit 1
         # Each semantic run owns a separate Linux-native workspace. Refuse reuse.

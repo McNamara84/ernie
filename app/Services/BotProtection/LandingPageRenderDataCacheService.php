@@ -48,13 +48,22 @@ class LandingPageRenderDataCacheService
 
     public function forgetById(int $landingPageId): bool
     {
-        return $this->getCacheInstance(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->forget($this->renderKey($landingPageId));
+        $cache = $this->getCacheInstance(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+        // A flag toggle can reuse either variant before its TTL expires.
+        // Always evict both, including the currently inactive representation.
+        $disabled = $cache->forget($this->renderKey($landingPageId, false));
+        $enabled = $cache->forget($this->renderKey($landingPageId, true));
+
+        return $disabled || $enabled;
     }
 
-    private function renderKey(int $landingPageId): string
+    private function renderKey(int $landingPageId, ?bool $dcatEnabled = null): string
     {
         $state = app(CounterTrackingStateService::class)->read();
         $base = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPageId);
+        if ($dcatEnabled ?? config('dcatap.enabled', false)) {
+            $base .= ':dcat-ap:'.config('dcatap.version').':'.config('dcatap.revision');
+        }
         $subjectRevision = Cache::get(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key());
         if (is_string($subjectRevision)) {
             $base .= ':subjects:'.$subjectRevision;

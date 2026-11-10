@@ -32,6 +32,7 @@ interface AbstractSectionProps {
     supportsIso19115?: boolean;
     supportsIso19115Json?: boolean;
     supportsIgsnCore?: boolean;
+    supportsDcatAp?: boolean;
     /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
@@ -59,6 +60,7 @@ export function AbstractSection({
     supportsIso19115 = false,
     supportsIso19115Json = false,
     supportsIgsnCore = false,
+    supportsDcatAp = false,
     jsonLdExportUrl,
     metadataLinks,
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
@@ -115,6 +117,7 @@ export function AbstractSection({
                             supportsIso19115={supportsIso19115}
                             supportsIso19115Json={supportsIso19115Json}
                             supportsIgsnCore={supportsIgsnCore}
+                            supportsDcatAp={supportsDcatAp}
                             jsonLdExportUrl={jsonLdExportUrl}
                             metadataLinks={metadataLinks}
                         />

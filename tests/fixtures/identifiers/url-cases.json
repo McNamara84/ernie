@@ -1,0 +1,28 @@
+[
+    { "value": "10.5880/Test", "type": "DOI", "url": "https://doi.org/10.5880/Test" },
+    { "value": "http://dx.doi.org/10.5880/test", "type": "DOI", "url": "https://doi.org/10.5880/test" },
+    { "value": "doi: 10.5880/test", "type": "DOI", "url": "https://doi.org/10.5880/test" },
+    { "value": "10.1234.5/test", "type": "DOI", "url": "https://doi.org/10.1234.5/test" },
+    { "value": "not-a-doi", "type": "DOI", "url": null },
+    { "value": "https://example.org/data?a=1&b=2", "type": "URL", "url": "https://example.org/data?a=1&b=2" },
+    { "value": "javascript:alert(1)", "type": "URL", "url": null },
+    { "value": "https://hdl.handle.net/1234/test", "type": "Handle", "url": "https://hdl.handle.net/1234/test" },
+    { "value": "https://hdl.handle.net/", "type": "Handle", "url": null },
+    { "value": "2301.00001", "type": "arXiv", "url": "https://arxiv.org/abs/2301.00001" },
+    { "value": "10273/ABC123", "type": "IGSN", "url": "https://hdl.handle.net/10273/ABC123" },
+    { "value": "https://igsn.org/10273/ABC123", "type": "IGSN", "url": "https://hdl.handle.net/10273/ABC123" },
+    { "value": "ABC123", "type": "IGSN", "url": "https://igsn.org/ABC123" },
+    { "value": "10.58052/ABC123", "type": "IGSN", "url": "https://doi.org/10.58052/ABC123" },
+    { "value": "A/invalid", "type": "IGSN", "url": null },
+    { "value": "9781234567890", "type": "ISBN", "url": "https://search.worldcat.org/isbn/9781234567890" },
+    { "value": "1234-5678", "type": "ISSN", "url": "https://portal.issn.org/resource/ISSN/1234-5678" },
+    { "value": "urn:nbn:de:test", "type": "URN", "url": "https://nbn-resolving.org/urn:nbn:de:test" },
+    { "value": "1234/test", "type": "RAiD", "url": "https://raid.org/1234/test" },
+    {
+        "value": "swh:1:rev:0123456789abcdef0123456789abcdef01234567",
+        "type": "SWHID",
+        "url": "https://archive.softwareheritage.org/swh:1:rev:0123456789abcdef0123456789abcdef01234567"
+    },
+    { "value": "", "type": "DOI", "url": null },
+    { "value": "unknown", "type": "Unknown", "url": null }
+]

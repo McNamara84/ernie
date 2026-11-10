@@ -2935,12 +2935,39 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             file before download. Missing required metadata or validation failures show an error instead of downloading an invalid
                             file.
                         </p>
+                        <h4>DCAT-AP Resource Metadata</h4>
+                        <p>
+                            When enabled for this installation, <strong>DCAT-AP 3.0.1</strong> offers an <strong>RDF/XML</strong> download using the
+                            EU base profile for published Dataset, Collection, Model, Image, and Sound records. IGSNs and Physical Objects are
+                            excluded. A valid DOI, a main title, and an Abstract are required. Missing required metadata hides DCAT-AP until
+                            corrected; other metadata formats remain available. Template settings may hide the Download Metadata section.
+                        </p>
+                        <p>
+                            The landing-page download and OAI-PMH use the same metadata with <code>metadataPrefix=dcat_ap</code>. If a previously
+                            available record becomes ineligible or is unpublished, harvesters receive a deleted header for this format. Restoring
+                            eligibility makes the record available again with a new harvest timestamp. Eligible tombstones retain metadata and the
+                            withdrawal notice, without direct data downloads. See the{' '}
+                            <a href="/oai-pmh/docs" className="underline">
+                                OAI-PMH harvesting guide
+                            </a>{' '}
+                            for incremental harvesting and restarting after an invalid resumption token.
+                        </p>
+                        {userRole === 'admin' && (
+                            <p>
+                                DCAT-AP is disabled by default. Before rollout, the operator runs <code>dcat-ap:audit</code> and reviews its findings,
+                                then enables <code>DCATAP_ENABLED</code> and refreshes the application configuration. Run <code>dcat-ap:sync</code>{' '}
+                                before reopening public traffic so existing records receive a current harvest timestamp. Repeat synchronization before
+                                re-enabling the format. The environment examples document the optional catalog settings; Docker deployments require
+                                recreating the PHP containers after environment changes.
+                            </p>
+                        )}
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
                             The <strong>Download Metadata</strong> section remains visible while you review a Resource or IGSN landing page. Selecting
-                            a DataCite format, IGSN Core for physical objects, or an eligible ISO format (ISO XML and ISO JSON for Resources, ISO XML
-                            for IGSNs) shows a notice that metadata downloads become available after registration with DataCite. On the published
-                            landing page, the same actions download the available metadata representations directly.
+                            a DataCite format, IGSN Core for physical objects, an eligible ISO format (ISO XML and ISO JSON for Resources, ISO XML for
+                            IGSNs), or DCAT-AP for supported Resources shows a notice that metadata downloads become available after registration with
+                            DataCite. DCAT-AP downloads are unavailable in previews. On the published landing page, the same actions download the
+                            available metadata representations directly.
                         </p>
                         <h4>Newer-Version and Superseded Notices</h4>
                         <p>
