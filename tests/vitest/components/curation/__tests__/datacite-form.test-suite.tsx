@@ -6150,7 +6150,7 @@ describe('DataCiteForm', () => {
             expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(`${futureYear}-10-13`);
         });
 
-        it('rejects a future Available date for Open access with seeded slugs', { timeout: 60000 }, async () => {
+        it('automatically selects Embargoed access for a future Available date', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const futureYear = new Date().getFullYear() + 2;
             renderDataCiteForm({
@@ -6168,8 +6168,9 @@ describe('DataCiteForm', () => {
             await fillRequiredAbstract(user);
             await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
-            expect(axios.post).not.toHaveBeenCalled();
-            expect(screen.getAllByText('A future Available date requires Embargoed access.').length).toBeGreaterThan(0);
+            expect(axios.post).toHaveBeenCalledWith('/editor/resources', expect.objectContaining({ accessLevel: 'embargoed' }), expect.anything());
+            expect(screen.queryByText('A future Available date requires Embargoed access.')).not.toBeInTheDocument();
+            expect(screen.getByRole('combobox', { name: /Access Level/i })).toHaveTextContent('Embargoed access');
         });
 
         it('rejects a future Created date with seeded slugs', async () => {

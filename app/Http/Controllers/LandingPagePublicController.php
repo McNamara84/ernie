@@ -305,8 +305,8 @@ class LandingPagePublicController extends Controller
         }
         $isPreview = ! $isPublished;
 
-        if ($isPreview && app(EmbargoService::class)->isEmbargoed($landingPage->resource)) {
-            abort_if($landingPage->isExternal(), HttpResponse::HTTP_NOT_FOUND, 'Embargo preview requires an internal landing page');
+        if (app(EmbargoService::class)->isEmbargoed($landingPage->resource)) {
+            abort_if($landingPage->isExternal(), HttpResponse::HTTP_NOT_FOUND, 'Data embargo requires an internal landing page');
         }
 
         // External landing pages: 301 redirect to the configured external URL
@@ -397,7 +397,7 @@ class LandingPagePublicController extends Controller
                 LandingPageController::serializeLandingPagePayload($resource, $landingPage)
             );
 
-            $embargoPending = $isPreview && app(EmbargoService::class)->isEmbargoed($resource);
+            $embargoPending = app(EmbargoService::class)->isEmbargoed($resource);
             $embargoDate = $embargoPending
                 ? app(EmbargoService::class)->availableDate($resource)
                 : null;
@@ -445,12 +445,16 @@ class LandingPagePublicController extends Controller
             ];
         };
 
-        $renderData = $isPreview
+        $renderData = $isPreview || app(EmbargoService::class)->isEmbargoed($landingPage->resource)
             ? $buildRenderData()
             : $renderDataCache->remember($landingPage, $buildRenderData);
 
         // Recipient availability is deployment configuration, not landing-page
         // content, so resolve it on every request instead of caching it.
+        // The due state changes at local midnight even when the metadata is cached.
+        $date = $renderData['props']['embargoDate'] ?? null;
+        $renderData['props']['embargoDue'] = is_string($date) && $date <= app(EmbargoService::class)->today();
+
         $renderData['props']['hasDataPublicationTeamRecipient'] = $dataPublicationTeamRecipientService->isAvailable();
 
         $inertiaResponse = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);

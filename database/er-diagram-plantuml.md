@@ -291,9 +291,27 @@ entity "resources" as resources {
     workflow_status_override : VARCHAR(20) <<nullable>> //indexed//
     embargo_registration_started_at : TIMESTAMP <<nullable>>
     embargo_registration_prefix : VARCHAR(64) <<nullable>>
+    embargo_registration_access_level : VARCHAR(32) <<nullable>>
+    * data_embargo_sync_pending : BOOLEAN = false
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+
+entity "data_embargo_notifications" as data_embargo_notifications {
+    * **id** : BIGINT <<PK>>
+    * resource_id : BIGINT <<FK>>
+    * available_date : DATE
+    * status : VARCHAR(24)
+    claimed_at : TIMESTAMP <<nullable>>
+    sent_at : TIMESTAMP <<nullable>>
+    last_error : TEXT <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+    --
+    UNIQUE(resource_id, available_date)
+    INDEX(status, created_at)
+}
+resources ||--o{ data_embargo_notifications
 
 entity "resource_listing_projections" as resource_listing_projections {
     * **resource_id** : BIGINT <<PK, FK>>

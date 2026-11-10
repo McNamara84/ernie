@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ArrowRight, ClipboardCheck, FilePlus2, FlaskConical, FolderClock, type LucideIcon, Settings, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { ReleaseDataEmbargoButton } from '@/components/curation/release-data-embargo-button';
 import { GuidedTourAutostart } from '@/components/tours/guided-tour-autostart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -437,7 +438,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                     <Card className="border-amber-400" data-testid="due-embargos">
                         <CardHeader>
                             <CardTitle>Embargos ready for manual release ({dueEmbargoCount})</CardTitle>
-                            <CardDescription>The Available date has passed. Review each resource before registering it at DataCite.</CardDescription>
+                            <CardDescription>The Available date has been reached. Review each resource before releasing its data.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {dueEmbargos.map((resource) => (
@@ -445,7 +446,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                     <Link href={editorRoute({ query: { resourceId: resource.id } }).url} className="underline">
                                         {resource.title}
                                     </Link>{' '}
-                                    — Available {resource.availableDate}
+                                    — Available {resource.availableDate} <ReleaseDataEmbargoButton resourceId={resource.id} />
                                 </p>
                             ))}
                         </CardContent>

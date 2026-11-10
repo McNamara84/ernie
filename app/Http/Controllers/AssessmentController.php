@@ -281,6 +281,7 @@ class AssessmentController extends Controller
                 'resourceAssessmentRefresh',
                 'landingPage.externalDomain',
                 'landingPage.files',
+                'dates.dateType',
                 'landingPage.links',
                 'igsnMetadata',
             ])

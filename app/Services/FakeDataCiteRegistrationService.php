@@ -65,6 +65,8 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
             'landing_page_id' => $resource->landingPage->id,
         ]);
 
+        app(EmbargoService::class)->assertCanRegister($resource);
+
         // Generate a predictable fake DOI suffix for easier debugging in tests
         // Format: test-{resource_id}-{timestamp}
         $timestamp = now()->format('YmdHis');
@@ -76,7 +78,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
         ]);
 
         // Use the landing page's computed public_url accessor
-        $publicUrl = $resource->landingPage->public_url;
+        $publicUrl = $resource->landingPage->public_url ?? url("/datasets/{$resource->id}");
         Log::info('FakeDataCiteRegistrationService: Got public URL', [
             'url' => $publicUrl,
         ]);
@@ -162,6 +164,8 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
             'resource_id' => $resource->id,
             'igsn' => $resource->doi,
         ]);
+
+        app(EmbargoService::class)->assertCanRegister($resource);
 
         // Validate resource has an IGSN
         if (! $resource->doi) {

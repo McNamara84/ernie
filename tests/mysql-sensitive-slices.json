@@ -17,6 +17,7 @@
         "igsn-facets",
         "assessment",
         "editor-background",
+        "data-embargo",
         "tombstone-schema",
         "igsn-layout",
         "assistance",
@@ -32,6 +33,7 @@
         "oai-pmh": ["oai-schema", "oai-services"]
     },
     "slices": {
+        "data-embargo": ["tests/pest/Feature/Database/DataEmbargoConcurrencyTest.php"],
         "identifier-patterns": [
             "tests/pest/Feature/Database/CorrectElmoIdentifierTypePatternsMigrationTest.php",
             "tests/pest/Feature/Database/CorrectHtmlIdentifierTypePatternsMigrationTest.php",

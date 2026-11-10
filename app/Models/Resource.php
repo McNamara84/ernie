@@ -40,6 +40,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $legacy_description_breaks_normalized_at
  * @property Carbon|null $embargo_registration_started_at
  * @property string|null $embargo_registration_prefix
+ * @property string|null $embargo_registration_access_level
+ * @property bool $data_embargo_sync_pending
  * @property bool $force_review_status
  * @property ResourceWorkflowStatus|null $workflow_status_override
  * @property AccessLevel|null $access_level
@@ -90,6 +92,7 @@ class Resource extends Model
         'legacy_source_id' => 'integer',
         'legacy_description_breaks_normalized_at' => 'datetime',
         'embargo_registration_started_at' => 'datetime',
+        'data_embargo_sync_pending' => 'boolean',
         'force_review_status' => 'boolean',
         'workflow_status_override' => ResourceWorkflowStatus::class,
         'access_level' => AccessLevel::class,
@@ -98,7 +101,7 @@ class Resource extends Model
     /**
      * Limit a query to resources that are canonically public in ERNIE.
      *
-     * This mirrors the first, highest-priority branch of publicStatus().
+     * Public metadata includes resources whose primary data is still embargoed.
      * Published records always have a DOI and a published landing page,
      * regardless of metadata completeness or workflow overrides.
      *
@@ -617,7 +620,7 @@ class Resource extends Model
      *
      * Status precedence:
      * 1. An active tombstone is dead, regardless of completeness or workflow overrides.
-     *    Other DOIs with a published landing page are published.
+     *    Other DOIs with a published landing page are published or under data embargo.
      * 2. Explicit legacy workflow overrides select review or draft
      *    (force_review_status remains a compatibility alias for review).
      * 3. A resource missing any mandatory field is draft.
@@ -631,13 +634,7 @@ class Resource extends Model
         }
 
         if ($this->doi && $this->landingPage?->is_published) {
-            return 'published';
-        }
-
-        if ($this->landingPage !== null && ! $this->landingPage->is_published
-            && app(EmbargoService::class)->isEmbargoed($this)
-            && app(EmbargoService::class)->availableDate($this) !== null) {
-            return 'embargo';
+            return app(EmbargoService::class)->isEmbargoed($this) ? 'embargo' : 'published';
         }
 
         if ($this->workflow_status_override === ResourceWorkflowStatus::REVIEW || $this->force_review_status) {

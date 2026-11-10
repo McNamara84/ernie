@@ -18,6 +18,7 @@ use App\Rules\SafeUrl;
 use App\Rules\TemporalCoverageDate;
 use App\Rules\TemporalCoverageTimezone;
 use App\Services\DoiSuggestionService;
+use App\Services\EmbargoService;
 use App\Support\BooleanNormalizer;
 use App\Support\LanguageTag;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -222,6 +223,7 @@ class StoreResourceRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $this->replace(app(EmbargoService::class)->normalizeInput($this->all()));
         $hasDoiInput = $this->has('doi');
         $legacyDatacenters = $this->input('datacenters');
 

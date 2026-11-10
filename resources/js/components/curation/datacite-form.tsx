@@ -19,6 +19,7 @@ import {
     RELATED_ITEMS_SECTION_HELP,
     RELATED_ITEMS_SECTION_LABEL,
 } from '@/components/curation/related-items-section-copy';
+import { ReleaseDataEmbargoButton } from '@/components/curation/release-data-embargo-button';
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curation/utils/editor-content-snapshot';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
@@ -305,6 +306,7 @@ export default function DataCiteForm({
     initialLanguage = '',
     initialResourceType = '',
     initialAccessLevel = 'open',
+    initialDataEmbargoSyncPending = false,
     initialTitles = [],
     initialLicenses = [],
     initialRawRights = [],
@@ -334,7 +336,7 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const {
         url: currentPageUrl,
-        props: { auth, curationAccordionOpenItems, curationAccordionRevision },
+        props: { auth, curationAccordionOpenItems, curationAccordionRevision, serverToday },
     } = usePage<SharedData>();
     // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
@@ -370,6 +372,8 @@ export default function DataCiteForm({
         language: resolveInitialLanguageCode(languages, initialLanguage ?? ''),
         accessLevel: initialAccessLevel,
     });
+
+    const [embargoSyncPending, setEmbargoSyncPending] = useState(initialDataEmbargoSyncPending);
 
     const [titles, setTitles] = useState<TitleEntry[]>(() => {
         if (!initialTitles.length) {
@@ -537,6 +541,17 @@ export default function DataCiteForm({
         // Start with an empty Dates section when no editable imported dates exist.
         return [];
     });
+    useEffect(() => {
+        const today = serverToday ?? todayLocalIso();
+        if (
+            dates.some(
+                (date) => isAvailableDateType(date.dateType) && /^\d{4}-\d{2}-\d{2}$/.test(date.startDate ?? '') && (date.startDate ?? '') > today,
+            )
+        ) {
+            setForm((current) => (current.accessLevel === 'embargoed' ? current : { ...current, accessLevel: 'embargoed' }));
+        }
+    }, [dates, serverToday, form.accessLevel]);
+
     const [persistedSubmittedDateIds, setPersistedSubmittedDateIds] = useState(
         () => new Set(initialResourceId ? dates.filter((date) => date.dateType === 'submitted').map((date) => date.id) : []),
     );
@@ -1660,9 +1675,6 @@ export default function DataCiteForm({
                 Boolean(availableDates[0].endDate))
         ) {
             appendValidationMessage(errors, 'accessLevel', 'Embargoed access requires exactly one day-precision Available date.');
-        }
-        if (form.accessLevel !== 'embargoed' && availableDates.some((date) => (date.startDate ?? '') > todayLocalIso())) {
-            appendValidationMessage(errors, 'accessLevel', 'A future Available date requires Embargoed access.');
         }
 
         if (!licenseEntries.some(hasLicenseEntryEvidence)) {
@@ -3928,6 +3940,23 @@ export default function DataCiteForm({
                             validationMessages={getFieldState('accessLevel').messages}
                             touched={getFieldState('accessLevel').touched}
                         />
+                        {initialResourceId &&
+                            (embargoSyncPending ||
+                                (form.accessLevel === 'embargoed' &&
+                                    dates.some(
+                                        (date) =>
+                                            isAvailableDateType(date.dateType) &&
+                                            (date.startDate ?? '') !== '' &&
+                                            (date.startDate ?? '') <= (serverToday ?? todayLocalIso()),
+                                    ))) && (
+                                <ReleaseDataEmbargoButton
+                                    resourceId={Number(initialResourceId)}
+                                    onReleased={(synchronized) => {
+                                        setForm((current) => ({ ...current, accessLevel: 'open' }));
+                                        setEmbargoSyncPending(!synchronized);
+                                    }}
+                                />
+                            )}
                         <DatacenterField
                             id="datacenter"
                             label="Datacenter"

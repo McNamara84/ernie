@@ -129,6 +129,7 @@ class DataCiteToResourceTransformer
             $this->transformRights($attributes['rightsList'] ?? [], $resource);
             $this->transformSizes($attributes['sizes'] ?? [], $resource);
             $this->transformFormats($attributes['formats'] ?? [], $resource);
+            app(EmbargoService::class)->normalizeResource($resource);
 
             return $resource;
         });

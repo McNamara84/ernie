@@ -622,21 +622,22 @@ test('a queued update cannot publish a registered IGSN with an embargo draft', f
     Http::assertNothingSent();
 });
 
-test('a queued IGSN rechecks Available immediately before its DataCite POST', function (): void {
+test('a queued IGSN can register metadata before Available while keeping data embargoed', function (): void {
     $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
     $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
     $resource->dates()->create(['date_type_id' => $available->id, 'date_value' => '2099-01-01']);
     $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
-    Http::fake();
+    Http::fake(fn (Request $request) => Http::response(['data' => ['id' => $resource->doi]], 201));
 
     runQueuedIgsnRegistrationStep($run->id);
 
-    expect($run->fresh()->failed)->toBe(1)
+    expect($run->fresh()->registered)->toBe(1)
         ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED);
-    Http::assertNotSent(fn (Request $request): bool => $request->method() === 'POST');
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+        && collect($request->data()['data']['attributes']['rightsList'])->contains('rightsIdentifier', AccessLevel::EMBARGOED->coarIdentifier()));
 });
 
-test('a due queued IGSN releases its embargo after a confirmed DataCite create', function (): void {
+test('a due queued IGSN publishes metadata without releasing its data', function (): void {
     config(['app.timezone' => 'Europe/Berlin']);
     $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
@@ -651,7 +652,7 @@ test('a due queued IGSN releases its embargo after a confirmed DataCite create',
     runQueuedIgsnRegistrationStep($run->id);
 
     expect($run->fresh()->registered)->toBe(1)
-        ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
         ->and($resource->fresh()->embargo_registration_started_at)->toBeNull()
         ->and($resource->landingPage->fresh()->is_published)->toBeTrue();
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'

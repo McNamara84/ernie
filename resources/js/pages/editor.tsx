@@ -43,6 +43,8 @@ interface EditorProps {
     version?: string;
     language?: string;
     resourceType?: string;
+    initialAccessLevel?: import('@/components/curation/types/datacite-form-types').AccessLevel;
+    initialDataEmbargoSyncPending?: boolean;
     titles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
@@ -94,6 +96,8 @@ export default function Editor({
     version = '',
     language = '',
     resourceType = '',
+    initialAccessLevel = 'open',
+    initialDataEmbargoSyncPending = false,
     titles = [],
     initialLicenses = [],
     initialRawRights = [],
@@ -334,6 +338,8 @@ export default function Editor({
                         initialVersion={version}
                         initialLanguage={language}
                         initialResourceType={resourceType}
+                        initialAccessLevel={initialAccessLevel}
+                        initialDataEmbargoSyncPending={initialDataEmbargoSyncPending}
                         initialTitles={titles}
                         initialLicenses={initialLicenses}
                         initialRawRights={initialRawRights}

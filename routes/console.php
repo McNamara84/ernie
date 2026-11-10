@@ -42,6 +42,8 @@ Artisan::command('add-user {name} {email} {password}', function (string $name, s
 Schedule::call(fn () => app(ResourceTombstoneSyncService::class)->recover())
     ->everyMinute()->name('recover-resource-tombstones')->withoutOverlapping(2);
 
+Schedule::command('embargo:notify-due')->everyMinute()->withoutOverlapping();
+
 // Extend vocabulary cache TTLs every 12 hours without re-fetching data
 Schedule::call(function () {
     app(VocabularyCacheService::class)->touchAllVocabularyCaches();

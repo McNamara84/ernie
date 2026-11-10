@@ -15,6 +15,10 @@ final class ResourceAccessLevelResolverService
 
     public function resolve(Resource $resource, ?LandingPage $landingPage = null): ?AccessLevel
     {
+        if (app(EmbargoService::class)->isEmbargoed($resource)) {
+            return AccessLevel::EMBARGOED;
+        }
+
         if ($resource->access_level !== null) {
             return $resource->access_level;
         }

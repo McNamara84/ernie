@@ -23,7 +23,7 @@ class LandingPageDownloadRedirectController extends Controller
     public function primary(Request $request, LandingPage $landingPage): RedirectResponse
     {
         abort_if($landingPage->is_tombstone, HttpResponse::HTTP_GONE, 'This resource is no longer available.');
-        abort_if(! $landingPage->isPublished() || app(LandingPageDownloadAvailabilityService::class)->requiresActivation($landingPage), HttpResponse::HTTP_NOT_FOUND, 'Download not found');
+        abort_if(! $landingPage->isPublished() || app(LandingPageDownloadAvailabilityService::class)->isEmbargoed($landingPage) || app(LandingPageDownloadAvailabilityService::class)->requiresActivation($landingPage), HttpResponse::HTTP_NOT_FOUND, 'Download not found');
 
         $targetUrl = $landingPage->ftp_url;
 
@@ -37,7 +37,7 @@ class LandingPageDownloadRedirectController extends Controller
     public function file(Request $request, LandingPage $landingPage, LandingPageFile $landingPageFile): RedirectResponse
     {
         abort_if($landingPage->is_tombstone, HttpResponse::HTTP_GONE, 'This resource is no longer available.');
-        abort_if(! $landingPage->isPublished() || app(LandingPageDownloadAvailabilityService::class)->requiresActivation($landingPage), HttpResponse::HTTP_NOT_FOUND, 'Download not found');
+        abort_if(! $landingPage->isPublished() || app(LandingPageDownloadAvailabilityService::class)->isEmbargoed($landingPage) || app(LandingPageDownloadAvailabilityService::class)->requiresActivation($landingPage), HttpResponse::HTTP_NOT_FOUND, 'Download not found');
         abort_if($landingPageFile->landing_page_id !== $landingPage->id, HttpResponse::HTTP_NOT_FOUND, 'Download not found');
 
         $targetUrl = $landingPageFile->url;
