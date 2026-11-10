@@ -46,6 +46,24 @@ const defaultProps = {
 };
 
 describe('OaiPmhDocs', () => {
+    it('documents DCAT-AP only when the server advertises it', () => {
+        render(
+            <OaiPmhDocs
+                {...defaultProps}
+                metadataFormats={{
+                    ...defaultProps.metadataFormats,
+                    dcat_ap: {
+                        namespace: 'http://data.europa.eu/r5r/',
+                        schema: 'https://example.org/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd',
+                    },
+                }}
+            />,
+        );
+        expect(screen.getByText('DCAT-AP 3.0.1 RDF/XML (selective)')).toBeInTheDocument();
+        expect(screen.getByText(/IGSNs are excluded/)).toBeInTheDocument();
+        expect(screen.getByText('https://ernie.gfz.de/oai-pmh?verb=ListRecords&metadataPrefix=dcat_ap')).toBeInTheDocument();
+    });
+
     it('renders the page heading', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         expect(screen.getByRole('heading', { name: /oai-pmh harvesting endpoint/i })).toBeInTheDocument();

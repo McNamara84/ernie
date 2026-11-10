@@ -1681,6 +1681,30 @@ entity oai_pmh_deleted_records {
     updated_at : TIMESTAMP
 }
 
+entity oai_pmh_format_records {
+    * id : BIGINT <<PK>>
+    --
+    * metadata_prefix : VARCHAR(32)
+    * oai_identifier : VARCHAR(700)
+    * doi : VARCHAR(600)
+    resource_id : BIGINT UNSIGNED <<INDEX>>
+    * status : VARCHAR(8)
+    * first_available_at : TIMESTAMP
+    * datestamp : TIMESTAMP <<INDEX>>
+    * sets : JSON
+    resource_type : VARCHAR
+    * is_igsn : BOOLEAN = false
+    * export_revision : INT UNSIGNED
+    fingerprint : CHAR(64)
+}
+note right of oai_pmh_format_records
+    UNIQUE oai_format_identity_unique (metadata_prefix, oai_identifier)
+    INDEX oai_format_harvest_index (metadata_prefix, status, datestamp)
+    status: active or deleted; sets/resource_type retain last eligible values.
+    resource_id is nullable and deliberately has no FK or cascade.
+    History survives Resource deletion; no created_at/updated_at columns.
+end note
+
 entity oai_pmh_harvests {
     * id : BIGINT <<PK>>
     --
@@ -1699,6 +1723,7 @@ entity oai_pmh_harvest_items {
 }
 ' Composite primary key (harvest_id, position) supports indexed page ranges.
 ' Positions are zero-based; identity_id has no FK so resource deletion preserves the inventory.
+' kind: resource, deleted, or format; format identifies oai_pmh_format_records.id.
 
 entity oai_pmh_resumption_tokens {
     * id : BIGINT <<PK>>
@@ -1939,6 +1964,7 @@ igsn_measurements }o--|| resources
 igsn_metadata_values }o--|| resources
 
 ' OAI-PMH snapshot relationships
+resources |o..o{ oai_pmh_format_records : "logical resource_id link; no FK; history survives deletion"
 oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
 oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 

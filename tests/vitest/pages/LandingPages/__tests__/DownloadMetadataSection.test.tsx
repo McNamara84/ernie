@@ -45,6 +45,38 @@ const canonicalMetadataLinks = [
 
 const previewMessage = 'The feature you requested is only available after your dataset has been registered with DataCite.';
 
+describe('DCAT-AP downloads', () => {
+    const dcatLink: LandingPageMetadataLink = {
+        format: 'dcat-ap',
+        standard: 'DCAT-AP',
+        label: 'DCAT-AP 3.0.1 RDF/XML',
+        url: 'https://example.org/10.5880/test/metadata/dcat-ap.rdf',
+        mediaType: 'application/rdf+xml',
+        profile: 'https://semiceu.github.io/DCAT-AP/releases/3.0.1/',
+    };
+
+    it('renders an accessible standalone RDF download with its version', () => {
+        render(<DownloadMetadataSection resourceId={1} metadataLinks={[dcatLink]} />);
+        expect(screen.getByText('DCAT-AP 3.0.1')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' })).toHaveAttribute('href', dcatLink.url);
+    });
+
+    it('uses the existing preview dialog without publishing a download URL', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={1} isPreview supportsDcatAp />);
+        await user.click(screen.getByRole('button', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' }));
+        expect(screen.getByRole('dialog')).toHaveTextContent(previewMessage);
+        expect(screen.queryByRole('link', { name: /DCAT-AP/ })).not.toBeInTheDocument();
+        await user.keyboard('{Escape}');
+        expect(screen.getByRole('button', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' })).toHaveFocus();
+    });
+
+    it('hides unavailable public exports even when the resource type supports DCAT', () => {
+        render(<DownloadMetadataSection resourceId={1} supportsDcatAp />);
+        expect(screen.queryByText('DCAT-AP 3.0.1')).not.toBeInTheDocument();
+    });
+});
+
 const isoJsonLink: LandingPageMetadataLink = {
     format: 'iso19115-4',
     standard: 'ISO/TR 19115-4',

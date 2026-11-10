@@ -143,6 +143,26 @@ it('forgets cached render data through the tagged cache repository', function ()
         ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
 });
 
+it('invalidates both DCAT flag variants when a landing page changes', function (bool $enabledDuringEdit): void {
+    $service = app(LandingPageRenderDataCacheService::class);
+    $landingPage = botProtectionRenderCacheLandingPage();
+    $old = ['template' => 'default_gfz', 'props' => ['download' => 'https://example.org/old.csv']];
+    $new = ['template' => 'default_gfz', 'props' => ['download' => 'https://example.org/new.csv']];
+
+    foreach ([false, true] as $enabled) {
+        config(['dcatap.enabled' => $enabled]);
+        expect($service->remember($landingPage, fn () => $old))->toBe($old);
+    }
+
+    config(['dcatap.enabled' => $enabledDuringEdit]);
+    expect($service->forgetById($landingPage->id))->toBeTrue();
+
+    foreach ([false, true] as $enabled) {
+        config(['dcatap.enabled' => $enabled]);
+        expect($service->remember($landingPage, fn () => $new))->toBe($new);
+    }
+})->with([false, true]);
+
 it('forgets versioned render data by id without deleting a legacy entry', function (): void {
     $service = new LandingPageRenderDataCacheService;
     $landingPage = botProtectionRenderCacheLandingPage();

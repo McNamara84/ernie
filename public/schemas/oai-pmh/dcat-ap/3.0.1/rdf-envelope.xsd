@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- OAI envelope validation only. RDF semantics are validated separately with pinned SHACL. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+           elementFormDefault="qualified">
+  <xs:element name="RDF">
+    <xs:complexType>
+      <xs:sequence><xs:any minOccurs="1" maxOccurs="unbounded" processContents="lax"/></xs:sequence>
+      <xs:anyAttribute processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

@@ -1,8 +1,17 @@
 [
     {
         "version": "1.2.0dev",
-        "date": "2026-10-30",
+        "date": "2026-11-09",
         "features": [
+            {
+                "title": "DCAT-AP 3.0.1 Resource Metadata",
+                "description": "Eligible published resources offer the same DCAT-AP 3.0.1 RDF/XML on their landing pages and through the dcat_ap OAI-PMH format. Discovery links, distribution formats and sizes, controlled EU themes, contact details, geographic coverage and rights are included. IGSNs are excluded. A read-only audit reports missing required metadata and ambiguous licenses; persistent format-specific deletion history keeps incremental harvesting reliable. Withdrawn resources retain metadata without direct downloads. Offline RDF parser and SHACL checks cover real and synthetic datasets. The format has an independent feature flag and a documented audit and synchronization rollout.",
+                "references": [
+                    { "type": "issue", "number": 1374, "url": "https://github.com/McNamara84/ernie/issues/1374" },
+                    { "type": "issue", "number": 1375, "url": "https://github.com/McNamara84/ernie/issues/1375" },
+                    { "type": "issue", "number": 1376, "url": "https://github.com/McNamara84/ernie/issues/1376" }
+                ]
+            },
             {
                 "title": "ICGEM Model Harvesting",
                 "description": "The new icgem OAI-PMH set provides published Model resources whose own DOI contains 10.5880/icgem, ignoring letter case. ICGEM clients can harvest current DataCite metadata and reconcile active models through identifier lists. Historical withdrawals are included when the saved resource type identifies a model. Metadata-only editor changes are included in incremental harvests. The public harvesting documentation explains selection, pagination, incremental updates and safe handling of resource-type changes.",
@@ -76,6 +85,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "DCAT-AP Harvest Recovery for Missing Resources",
+                "description": "Synchronization and OAI-PMH requests recover from missing resource links in DCAT-AP history. Orphaned records return persistent deleted headers without crashing GetRecord or repeatedly blocking fresh harvests. Affected pagination tokens require a restart, while unrelated harvests remain valid. Eligible resources regain detached history links even when their metadata is unchanged."
+            },
             {
                 "title": "Duplicate Controlled Keywords",
                 "description": "Imports, editor saves and landing pages now combine equivalent keyword variants confirmed by local vocabularies, including historical hierarchy paths and incomplete GCMD instrument entries. Different languages and conflicting metadata remain separate. Administrators can audit existing duplicates and apply a reviewed, snapshot-checked report with recovery logging. GCMD category names containing Instruments or Platforms are preserved during path resolution.",

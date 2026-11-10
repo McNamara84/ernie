@@ -13,6 +13,7 @@ use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\DcatAp\DcatApResourceProfileService;
 use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
@@ -425,6 +426,7 @@ class LandingPagePublicController extends Controller
                     'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
                     'supportsIso19115' => $isoProfile->supports($resource),
                     'supportsIso19115Json' => $isoProfile->supportsJson($resource),
+                    'supportsDcatAp' => app(DcatApResourceProfileService::class)->supports($resource),
                     'isPreview' => $isPreview,
                     'embargoDate' => $embargoDate,
                     'embargoPending' => $embargoPending,
