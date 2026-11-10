@@ -65,7 +65,7 @@ final class DataEmbargoReleaseService
         }
 
         $current->access_level = AccessLevel::OPEN;
-        $current->data_embargo_sync_pending = $current->doi !== null && $current->doi !== '' && $page?->is_published === true;
+        $current->data_embargo_sync_pending = $current->doi !== null && $current->doi !== '';
         $current->save();
 
         return $current;
@@ -83,7 +83,7 @@ final class DataEmbargoReleaseService
             if ($current === null || ! $current->data_embargo_sync_pending) {
                 return null;
             }
-            if ($current->doi !== $doi || $current->landingPage?->is_tombstone || ! $current->landingPage?->is_published) {
+            if ($current->doi !== $doi || $current->landingPage?->is_tombstone) {
                 throw new \RuntimeException('The resource publication changed. Review it before synchronizing access metadata.');
             }
 
@@ -134,7 +134,8 @@ final class DataEmbargoReleaseService
         $latest = $snapshot->fresh(['dates.dateType', 'landingPage']);
         $policy = app(EmbargoService::class);
         if ($latest === null || ! $latest->data_embargo_sync_pending || $latest->doi !== $snapshot->doi
-            || $latest->landingPage?->is_tombstone || ! $latest->landingPage?->is_published
+            || $latest->landingPage?->is_tombstone
+            || $latest->landingPage?->is_published !== $snapshot->landingPage?->is_published
             || $latest->access_level !== $snapshot->access_level
             || $policy->availableDate($latest) !== $policy->availableDate($snapshot)) {
             throw new DataCiteWriteSupersededException;

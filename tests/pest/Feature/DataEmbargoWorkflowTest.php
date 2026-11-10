@@ -23,6 +23,7 @@ use App\Services\Editor\EditorResourceSaveService;
 use App\Services\EmbargoService;
 use App\Services\LandingPageContentLinkService;
 use App\Services\ResourceStorageService;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -96,14 +97,66 @@ test('release is explicit, due, idempotent and preserves independent download su
     $this->get(route('landing-page.download.primary', $resource->landingPage))->assertNotFound();
 });
 
-test('release of a draft keeps it unpublished and requires authentication', function (): void {
+test('release without a DOI keeps draft or missing landing pages unpublished and requires authentication', function (string $page): void {
     $resource = dataEmbargoFixture('2026-12-29', false);
+    $resource->update(['doi' => null]);
+    if ($page === 'missing') {
+        $resource->landingPage->delete();
+    }
+    Http::fake();
     $url = route('resources.release-data-embargo', $resource);
     $this->postJson($url)->assertUnauthorized();
-    $this->actingAs(User::factory()->curator()->create())->postJson($url)->assertOk()->assertJsonPath('released', true);
+    $this->actingAs(User::factory()->curator()->create())->postJson($url)->assertOk()
+        ->assertJsonPath('released', true)->assertJsonPath('synchronized', true);
     expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
-        ->and($resource->landingPage->fresh()->is_published)->toBeFalse();
-});
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBeFalse()
+        ->and($resource->fresh()->landingPage?->is_published)->toBe($page === 'missing' ? null : false);
+    Http::assertNothingSent();
+})->with(['draft', 'missing']);
+
+test('registered draft or missing pages synchronize released access without changing publication', function (string $page, string $state): void {
+    $resource = dataEmbargoFixture('2026-12-29', false);
+    if ($page === 'missing') {
+        $resource->landingPage->delete();
+    }
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => $state]]]));
+    $this->actingAs(User::factory()->curator()->create())
+        ->postJson(route('resources.release-data-embargo', $resource))->assertOk()
+        ->assertJsonPath('released', true)->assertJsonPath('synchronized', true);
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBeFalse()
+        ->and($resource->fresh()->landingPage?->is_published)->toBe($page === 'missing' ? null : false);
+    Http::assertSentCount(2);
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && array_keys($request->data()['data']['attributes']) === ['rightsList']
+        && collect($request->data()['data']['attributes']['rightsList'])->contains('rightsIdentifier', AccessLevel::OPEN->coarIdentifier()));
+    Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+})->with(['draft', 'missing'])->with(['registered', 'findable']);
+
+test('failed access verification for a draft or missing page remains pending and can be retried', function (string $page): void {
+    $resource = dataEmbargoFixture('2026-12-29', false);
+    if ($page === 'missing') {
+        $resource->landingPage->delete();
+    }
+    $registered = false;
+    Http::fake(function ($request) use ($resource, &$registered) {
+        return $registered
+            ? Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'registered']]])
+            : Http::response(['errors' => [['title' => 'Not registered']]], 404);
+    });
+    $this->actingAs(User::factory()->curator()->create())
+        ->postJson(route('resources.release-data-embargo', $resource))->assertOk()
+        ->assertJsonPath('released', true)->assertJsonPath('synchronized', false);
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBeTrue();
+    Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    $registered = true;
+    $this->postJson(route('resources.release-data-embargo', $resource))->assertOk()->assertJsonPath('synchronized', true);
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse()
+        ->and($resource->fresh()->landingPage?->is_published)->toBe($page === 'missing' ? null : false);
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && array_keys($request->data()['data']['attributes']) === ['rightsList']);
+})->with(['draft', 'missing']);
 
 test('release uses the current registered DOI instead of a stale route binding', function (?string $boundDoi): void {
     Queue::fake();
@@ -265,9 +318,13 @@ test('one individual email per resource and Available day survives repeated scan
     Queue::fake();
     Mail::fake();
     $notifier = app(DataEmbargoNotificationService::class);
-    $notifier->dispatchDue();
-    $notifier->dispatchDue();
-    expect(DB::table('data_embargo_notifications')->count())->toBe(1);
+    expect($notifier->dispatchDue())->toBe(1);
+    $this->travel(2)->days();
+    expect($notifier->dispatchDue())->toBe(0)
+        ->and($notifier->dispatchDue())->toBe(0)
+        ->and(DB::table('data_embargo_notifications')->count())->toBe(1)
+        ->and(DB::table('data_embargo_notifications')->value('status'))->toBe('queued');
+    Queue::assertPushed(SendDataEmbargoNotificationJob::class, 1);
     $job = new SendDataEmbargoNotificationJob((int) DB::table('data_embargo_notifications')->value('id'));
     $job->handle(app(DataPublicationTeamRecipientService::class), app(EmbargoService::class));
     $job->handle(app(DataPublicationTeamRecipientService::class), app(EmbargoService::class));
@@ -279,6 +336,86 @@ test('one individual email per resource and Available day survives repeated scan
     $notifier->dispatchDue();
     expect(DB::table('data_embargo_notifications')->count())->toBe(2);
 });
+
+test('invalid recipients keep one pending notice without queue churn and resume after correction', function (): void {
+    $resource = dataEmbargoFixture('2026-12-29');
+    Queue::fake();
+    Mail::fake();
+    config(['mail.landing_page_contact_cc' => 'invalid']);
+    $notifier = app(DataEmbargoNotificationService::class);
+    expect($notifier->dispatchDue())->toBe(0)
+        ->and($notifier->dispatchDue())->toBe(0)
+        ->and(DB::table('data_embargo_notifications')->count())->toBe(1)
+        ->and(DB::table('data_embargo_notifications')->value('status'))->toBe('pending');
+    Queue::assertNotPushed(SendDataEmbargoNotificationJob::class);
+    config(['mail.landing_page_contact_cc' => 'curation@example.org']);
+    expect($notifier->dispatchDue())->toBe(1)->and($notifier->dispatchDue())->toBe(0);
+    Queue::assertPushed(SendDataEmbargoNotificationJob::class, 1);
+    // Configuration may become invalid after the scheduler already queued a job.
+    config(['mail.landing_page_contact_cc' => 'invalid']);
+    (new SendDataEmbargoNotificationJob((int) DB::table('data_embargo_notifications')->value('id')))
+        ->handle(app(DataPublicationTeamRecipientService::class), app(EmbargoService::class));
+    expect(DB::table('data_embargo_notifications')->value('status'))->toBe('pending')
+        ->and($notifier->dispatchDue())->toBe(0);
+    Mail::assertNothingSent();
+    config(['mail.landing_page_contact_cc' => 'curation@example.org']);
+    expect($notifier->dispatchDue())->toBe(1)->and($notifier->dispatchDue())->toBe(0);
+    Queue::assertPushed(SendDataEmbargoNotificationJob::class, 2);
+});
+
+test('notification queue reservations roll back without dispatching jobs', function (): void {
+    dataEmbargoFixture('2026-12-29');
+    Queue::fake();
+    $notifier = app(DataEmbargoNotificationService::class);
+    DB::beginTransaction();
+    expect($notifier->dispatchDue())->toBe(1)
+        ->and(DB::table('data_embargo_notifications')->value('status'))->toBe('queued');
+    Queue::assertNotPushed(SendDataEmbargoNotificationJob::class);
+    DB::rollBack();
+    expect(DB::table('data_embargo_notifications')->count())->toBe(0);
+    Queue::assertNotPushed(SendDataEmbargoNotificationJob::class);
+    expect($notifier->dispatchDue())->toBe(1);
+    Queue::assertPushed(SendDataEmbargoNotificationJob::class, 1);
+});
+
+test('a broker failure after commit releases the notification reservation for retry', function (): void {
+    dataEmbargoFixture('2026-12-29');
+    $notifier = app(DataEmbargoNotificationService::class);
+    $dispatcher = Bus::getFacadeRoot();
+    Bus::shouldReceive('dispatch')->once()->andThrow(new RuntimeException('Queue broker unavailable'));
+    try {
+        DB::beginTransaction();
+        expect($notifier->dispatchDue())->toBe(1);
+        expect(fn () => DB::commit())->toThrow(RuntimeException::class, 'Queue broker unavailable');
+        expect(DB::table('data_embargo_notifications')->value('status'))->toBe('pending');
+    } finally {
+        Bus::swap($dispatcher);
+    }
+    Queue::fake();
+    expect($notifier->dispatchDue())->toBe(1)->and($notifier->dispatchDue())->toBe(0);
+    Queue::assertPushed(SendDataEmbargoNotificationJob::class, 1);
+});
+
+test('obsolete queued notifications release their reservation without sending mail', function (string $change): void {
+    $resource = dataEmbargoFixture('2026-12-29');
+    Queue::fake();
+    Mail::fake();
+    $notifier = app(DataEmbargoNotificationService::class);
+    $notifier->dispatchDue();
+    if ($change === 'postponed') {
+        $resource->dates()->first()->update(['date_value' => '2027-01-15']);
+    } elseif ($change === 'released') {
+        $resource->update(['access_level' => AccessLevel::OPEN]);
+    } else {
+        $resource->landingPage->forceFill(['is_tombstone' => true])->save();
+    }
+    (new SendDataEmbargoNotificationJob((int) DB::table('data_embargo_notifications')->value('id')))
+        ->handle(app(DataPublicationTeamRecipientService::class), app(EmbargoService::class));
+    expect(DB::table('data_embargo_notifications')->value('status'))->toBe('pending')
+        ->and($notifier->dispatchDue())->toBe(0);
+    Mail::assertNothingSent();
+    Queue::assertPushed(SendDataEmbargoNotificationJob::class, 1);
+})->with(['postponed', 'released', 'tombstone']);
 
 test('postponed, released, tombstoned and misconfigured notices do not send obsolete mail', function (): void {
     $resource = dataEmbargoFixture('2026-12-29');

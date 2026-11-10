@@ -25,19 +25,24 @@ final class SendDataEmbargoNotificationJob implements ShouldQueue
 
     public function handle(DataPublicationTeamRecipientService $recipients, EmbargoService $policy): void
     {
+        $notice = DB::table('data_embargo_notifications')->where('id', $this->notificationId)->first();
+        // Accept pending jobs already queued by the previous release as well.
+        if ($notice === null || ! in_array($notice->status, ['pending', 'queued'], true)) {
+            return;
+        }
         $recipient = $recipients->email(true);
         if ($recipient === null) {
-            return; // Keep pending so corrected configuration is picked up by the next scan.
-        }
-        $notice = DB::table('data_embargo_notifications')->where('id', $this->notificationId)->first();
-        if ($notice === null || $notice->status !== 'pending') {
-            return;
+            $this->releaseQueuedNotice();
+
+            return; // The scheduler resumes only after recipient configuration is valid.
         }
         $resource = Resource::query()->with(['dates.dateType', 'landingPage', 'titles.titleType'])->find((int) $notice->resource_id);
         if ($resource === null || ! $policy->isDue($resource) || $policy->availableDate($resource) !== $notice->available_date) {
+            $this->releaseQueuedNotice();
+
             return; // A postponed or released embargo must not send an obsolete notice.
         }
-        if (DB::table('data_embargo_notifications')->where('id', $this->notificationId)->where('status', 'pending')
+        if (DB::table('data_embargo_notifications')->where('id', $this->notificationId)->whereIn('status', ['pending', 'queued'])
             ->update(['status' => 'sending', 'claimed_at' => now(), 'updated_at' => now()]) !== 1) {
             return;
         }
@@ -51,5 +56,11 @@ final class SendDataEmbargoNotificationJob implements ShouldQueue
                 ->update(['status' => 'uncertain', 'last_error' => $exception->getMessage(), 'updated_at' => now()]);
             Log::error('Data embargo email delivery is uncertain; inspect before retrying.', ['notification_id' => $this->notificationId, 'error' => $exception->getMessage()]);
         }
+    }
+
+    private function releaseQueuedNotice(): void
+    {
+        DB::table('data_embargo_notifications')->where('id', $this->notificationId)->where('status', 'queued')
+            ->update(['status' => 'pending', 'updated_at' => now()]);
     }
 }

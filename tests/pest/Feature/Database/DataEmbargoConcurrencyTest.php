@@ -14,6 +14,7 @@ use App\Models\Title;
 use App\Services\DataCiteDoiWriteLockService;
 use App\Services\DataCiteMemberApiClient;
 use App\Services\DataCiteRequestLimiter;
+use App\Services\DataEmbargoNotificationService;
 use App\Services\DataEmbargoReleaseService;
 use App\Services\DataPublicationTeamRecipientService;
 use App\Services\Editor\EditorResourceSaveService;
@@ -26,6 +27,83 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 uses()->group('mysql-sensitive');
+
+it('queues one notification when two MySQL schedulers scan concurrently', function (): void {
+    expect(DB::selectOne('SELECT VERSION() AS version')->version)->toStartWith('9.7.');
+    $queueName = 'embargo-notice-'.Str::uuid();
+    config([
+        'mail.landing_page_contact_cc' => 'team@example.org',
+        'queue.default' => 'embargo-scheduler-test',
+        'queue.connections.embargo-scheduler-test' => [
+            'driver' => 'database', 'connection' => DB::getDefaultConnection(),
+            'table' => 'jobs', 'queue' => $queueName, 'retry_after' => 90, 'after_commit' => false,
+        ],
+    ]);
+    $resource = Resource::factory()->create(['access_level' => AccessLevel::EMBARGOED]);
+    $type = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+    $resource->dates()->create(['date_type_id' => $type->id, 'date_value' => '2020-01-01']);
+    DB::commit();
+    DB::disconnect();
+    $children = [];
+    try {
+        for ($worker = 0; $worker < 2; $worker++) {
+            $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+            if ($sockets === false || ($pid = pcntl_fork()) === -1) {
+                throw new RuntimeException('Unable to start notification scheduler worker.');
+            }
+            if ($pid === 0) {
+                fclose($sockets[0]);
+                stream_set_timeout($sockets[1], 20);
+                try {
+                    DB::purge();
+                    fwrite($sockets[1], "ready\n");
+                    if (fgets($sockets[1]) !== "go\n") {
+                        throw new RuntimeException('Scheduler barrier timed out.');
+                    }
+                    fwrite($sockets[1], app(DataEmbargoNotificationService::class)->dispatchDue()."\n");
+                    exit(0);
+                } catch (Throwable $exception) {
+                    fwrite($sockets[1], 'error: '.$exception->getMessage()."\n");
+                    exit(1);
+                }
+            }
+            fclose($sockets[1]);
+            stream_set_timeout($sockets[0], 25);
+            $children[] = ['pid' => $pid, 'socket' => $sockets[0]];
+        }
+        foreach ($children as $child) {
+            expect(fgets($child['socket']))->toBe("ready\n");
+        }
+        foreach ($children as $child) {
+            fwrite($child['socket'], "go\n");
+        }
+        $queued = 0;
+        foreach ($children as $child) {
+            $count = fgets($child['socket']);
+            expect($count)->toBeIn(["0\n", "1\n"]);
+            $queued += (int) $count;
+            pcntl_waitpid($child['pid'], $status);
+            expect(pcntl_wexitstatus($status))->toBe(0);
+        }
+        expect($queued)->toBe(1)
+            ->and(DB::table('data_embargo_notifications')->where('resource_id', $resource->id)->value('status'))->toBe('queued')
+            ->and(DB::table('jobs')->where('queue', $queueName)->count())->toBe(1)
+            ->and(app(DataEmbargoNotificationService::class)->dispatchDue())->toBe(0)
+            ->and(DB::table('jobs')->where('queue', $queueName)->count())->toBe(1);
+    } finally {
+        foreach ($children as $child) {
+            fclose($child['socket']);
+            if (pcntl_waitpid($child['pid'], $status, WNOHANG) === 0) {
+                posix_kill($child['pid'], SIGTERM);
+                pcntl_waitpid($child['pid'], $status);
+            }
+        }
+        DB::table('jobs')->where('queue', $queueName)->delete();
+        Resource::whereKey($resource->id)->delete();
+        DB::purge();
+        DB::beginTransaction();
+    }
+})->skip(fn () => DB::connection()->getDriverName() !== 'mysql', 'Requires the pinned MySQL 9.7 test server.');
 
 it('serializes editor embargo changes after an in-flight remote PUT across independent workers', function (): void {
     expect(DB::selectOne('SELECT VERSION() AS version')->version)->toStartWith('9.7.');
