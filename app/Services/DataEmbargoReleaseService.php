@@ -14,44 +14,61 @@ final class DataEmbargoReleaseService
 {
     public function release(Resource $resource): Resource
     {
-        $release = fn (): Resource => DB::transaction(function () use ($resource): Resource {
-            $current = Resource::query()->lockForUpdate()->findOrFail($resource->id);
-            $page = $current->landingPage()->lockForUpdate()->first();
-            $current->setRelation('landingPage', $page);
-            $policy = app(EmbargoService::class);
+        $testMode = app(DataCiteMemberApiClient::class)->isTestMode();
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $doi = Resource::query()->findOrFail($resource->id)->doi;
+            $release = fn (): ?Resource => DB::transaction(function () use ($resource, $doi): ?Resource {
+                $current = Resource::query()->lockForUpdate()->findOrFail($resource->id);
+                if ($current->doi !== $doi) {
+                    return null; // Retry before mutating, after releasing the row lock.
+                }
 
-            if ($page?->is_tombstone || $current->embargo_registration_started_at !== null) {
-                throw ValidationException::withMessages(['embargo' => 'Resolve the tombstone or pending DataCite registration before releasing data.']);
-            }
-            if (! $policy->isEmbargoed($current)) {
+                return $this->releaseLocked($current);
+            });
+            // Always acquire DOI before row locks, including when registration
+            // has assigned an identifier since route binding or this lookup.
+            $current = $doi === null || $doi === '' ? $release()
+                : DataCiteDoiWriteLockService::run($doi, $testMode, function () use ($doi, $release, $testMode): ?Resource {
+                    $current = $release();
+                    if ($current !== null && $current->wasChanged('access_level') && $current->data_embargo_sync_pending) {
+                        DataCiteDoiWriteLockService::beginWrite($doi, $testMode);
+                    }
+
+                    return $current;
+                });
+            if ($current !== null) {
                 return $current;
             }
-            if (! $policy->isDue($current)) {
-                throw ValidationException::withMessages(['embargo' => 'Data can only be released on or after one valid Available day.']);
-            }
-            if ($page?->isExternal()) {
-                throw ValidationException::withMessages(['embargo' => 'Data embargoes require an internal landing page.']);
-            }
-
-            $current->access_level = AccessLevel::OPEN;
-            $current->data_embargo_sync_pending = $current->doi !== null && $page?->is_published === true;
-            $current->save();
-
-            return $current;
-        });
-        if (! $resource->doi) {
-            return $release();
         }
-        $testMode = app(DataCiteMemberApiClient::class)->isTestMode();
 
-        return DataCiteDoiWriteLockService::run($resource->doi, $testMode, function () use ($resource, $release, $testMode): Resource {
-            $current = $release();
-            if ($current->wasChanged('access_level') && $current->data_embargo_sync_pending) {
-                DataCiteDoiWriteLockService::beginWrite((string) $resource->doi, $testMode);
-            }
+        throw ValidationException::withMessages(['embargo' => 'The resource DOI changed while releasing data. Reload and try again.']);
+    }
 
+    /** The caller holds the resource row and the matching DOI lock, if any. */
+    private function releaseLocked(Resource $current): Resource
+    {
+        $page = $current->landingPage()->lockForUpdate()->first();
+        $current->setRelation('landingPage', $page);
+        $policy = app(EmbargoService::class);
+
+        if ($page?->is_tombstone || $current->embargo_registration_started_at !== null) {
+            throw ValidationException::withMessages(['embargo' => 'Resolve the tombstone or pending DataCite registration before releasing data.']);
+        }
+        if (! $policy->isEmbargoed($current)) {
             return $current;
-        });
+        }
+        if (! $policy->isDue($current)) {
+            throw ValidationException::withMessages(['embargo' => 'Data can only be released on or after one valid Available day.']);
+        }
+        if ($page?->isExternal()) {
+            throw ValidationException::withMessages(['embargo' => 'Data embargoes require an internal landing page.']);
+        }
+
+        $current->access_level = AccessLevel::OPEN;
+        $current->data_embargo_sync_pending = $current->doi !== null && $current->doi !== '' && $page?->is_published === true;
+        $current->save();
+
+        return $current;
     }
 
     /** Update only access metadata of a verified existing remote record. */

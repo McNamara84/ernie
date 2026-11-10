@@ -105,6 +105,140 @@ test('release of a draft keeps it unpublished and requires authentication', func
         ->and($resource->landingPage->fresh()->is_published)->toBeFalse();
 });
 
+test('release uses the current registered DOI instead of a stale route binding', function (?string $boundDoi): void {
+    Queue::fake();
+    $resource = dataEmbargoFixture('2026-12-29', false);
+    $resource->update(['doi' => $boundDoi]);
+    $bound = $resource->fresh(['landingPage']);
+    $doi = '10.83279/registered-after-binding';
+    $revision = DataCiteDoiWriteLockService::run($doi, true, fn () => DataCiteDoiWriteLockService::observeWrite($doi, true));
+    DB::transaction(function () use ($resource, $doi): void {
+        $resource->update(['doi' => $doi]);
+        $resource->landingPage->update(['is_published' => true, 'published_at' => now()]);
+    });
+    $locked = false;
+    Resource::updating(function (Resource $current) use ($resource, &$locked): void {
+        if ($current->id === $resource->id && $current->isDirty('access_level')) {
+            $locked = DataCiteDoiWriteLockService::hasHeldLock();
+        }
+    });
+    $service = app(DataEmbargoReleaseService::class);
+    $released = $service->release($bound);
+    expect($released->doi)->toBe($doi)
+        ->and($released->data_embargo_sync_pending)->toBeTrue()
+        ->and($locked)->toBeTrue();
+    expect(fn () => DataCiteDoiWriteLockService::assertCurrentWrite($doi, true, $revision))
+        ->toThrow(DataCiteWriteSupersededException::class);
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $doi, 'attributes' => ['state' => 'findable']]]));
+    $service->synchronize($released, app(DataCiteMemberApiClient::class));
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && $request->data()['data']['id'] === $doi
+        && collect($request->data()['data']['attributes']['rightsList'])->contains('rightsIdentifier', AccessLevel::OPEN->coarIdentifier()));
+})->with([null, '10.83279/old-binding']);
+
+test('a DOI assigned between lock selection and the row lock is retried before mutation', function (string $action): void {
+    Queue::fake();
+    $resource = dataEmbargoFixture('2026-12-29', false);
+    $resource->update(['doi' => null, 'access_level' => $action === 'release' ? AccessLevel::EMBARGOED : AccessLevel::OPEN]);
+    $bound = $resource->fresh();
+    $doi = '10.83279/registered-during-selection';
+    $revision = DataCiteDoiWriteLockService::run($doi, true, fn () => DataCiteDoiWriteLockService::observeWrite($doi, true));
+    $registered = false;
+    Resource::retrieved(function (Resource $snapshot) use ($resource, $doi, &$registered): void {
+        if (! $registered && $snapshot->id === $resource->id) {
+            $registered = true;
+            // The identifier lookup has returned its old snapshot. Registration
+            // commits before the release/editor obtains the resource row lock.
+            DB::table('resources')->where('id', $resource->id)->update(['doi' => $doi]);
+            DB::table('landing_pages')->where('resource_id', $resource->id)->update(['is_published' => true, 'published_at' => now()]);
+        }
+    });
+    $current = $action === 'release' ? app(DataEmbargoReleaseService::class)->release($bound)
+        : app(EditorResourceSaveService::class)->saveRelaxed([
+            'resourceId' => $resource->id, 'accessLevel' => 'open',
+            'titles' => [['title' => 'Registered during save', 'titleType' => 'main-title']],
+            'dates' => [['dateType' => 'available', 'startDate' => '2027-01-15']],
+        ], null, EditorDraftSaveIntent::AUTOSAVE)[0];
+    expect($registered)->toBeTrue()
+        ->and($current->doi)->toBe($doi)
+        ->and($current->data_embargo_sync_pending)->toBeTrue()
+        ->and($current->access_level)->toBe($action === 'release' ? AccessLevel::OPEN : AccessLevel::EMBARGOED);
+    expect(fn () => DataCiteDoiWriteLockService::assertCurrentWrite($doi, true, $revision))
+        ->toThrow(DataCiteWriteSupersededException::class);
+})->with(['release', 'editor']);
+
+test('a renewed embargo after a completed release marks and synchronizes access again', function (string $intent): void {
+    Queue::fake();
+    $resource = dataEmbargoFixture('2026-12-29');
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+    $release = app(DataEmbargoReleaseService::class);
+    $release->synchronize($release->release($resource), app(DataCiteMemberApiClient::class));
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+    $data = [
+        'resourceId' => $resource->id, 'accessLevel' => 'open',
+        'titles' => [['title' => 'Renewed embargo', 'titleType' => 'main-title']],
+        'dates' => [['dateType' => 'available', 'startDate' => '2027-01-15']],
+    ];
+    $editor = app(EditorResourceSaveService::class);
+    $current = ($intent === 'validated' ? $editor->saveValidated($data, null)
+        : $editor->saveRelaxed($data, null, EditorDraftSaveIntent::AUTOSAVE))[0];
+    expect($current->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and($current->data_embargo_sync_pending)->toBeTrue();
+    Queue::assertPushed(SyncDataEmbargoAccessJob::class, 1);
+    (new SyncDataEmbargoAccessJob($resource->id, true))->handle($release, app(DataCiteRequestLimiter::class));
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && collect($request->data()['data']['attributes']['rightsList'])->contains('rightsIdentifier', AccessLevel::EMBARGOED->coarIdentifier())
+        && ! isset($request->data()['data']['attributes']['event']));
+    Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+    Queue::fake();
+    $editor->saveRelaxed($data, null, EditorDraftSaveIntent::AUTOSAVE);
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+    Queue::assertNotPushed(SyncDataEmbargoAccessJob::class);
+})->with(['validated', 'autosave']);
+
+test('other effective access changes on published identifiers are marked for access synchronization', function (AccessLevel $level): void {
+    Queue::fake();
+    $resource = dataEmbargoFixture('2026-12-29');
+    $resource->update(['access_level' => AccessLevel::OPEN, 'data_embargo_sync_pending' => false]);
+    app(EditorResourceSaveService::class)->saveRelaxed([
+        'resourceId' => $resource->id, 'accessLevel' => $level->value,
+        'titles' => [['title' => 'Changed access', 'titleType' => 'main-title']],
+    ], null, EditorDraftSaveIntent::AUTOSAVE);
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeTrue();
+    Queue::assertPushed(SyncDataEmbargoAccessJob::class, 1);
+})->with([AccessLevel::RESTRICTED, AccessLevel::METADATA_ONLY]);
+
+test('normalizing a stored Open level under an existing future Available date also marks access pending', function (): void {
+    Queue::fake();
+    $resource = dataEmbargoFixture('2027-01-15');
+    $resource->update(['access_level' => AccessLevel::OPEN]);
+    app(EditorResourceSaveService::class)->saveRelaxed([
+        'resourceId' => $resource->id, 'accessLevel' => 'open',
+        'titles' => [['title' => 'Normalize existing embargo', 'titleType' => 'main-title']],
+    ], null, EditorDraftSaveIntent::AUTOSAVE);
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBeTrue();
+    Queue::assertPushed(SyncDataEmbargoAccessJob::class, 1);
+});
+
+test('unchanged access, drafts, missing identifiers and tombstones do not trigger a new access sync', function (string $case): void {
+    Queue::fake();
+    $resource = dataEmbargoFixture('2026-12-29', $case !== 'draft');
+    $resource->update(['access_level' => AccessLevel::OPEN, 'doi' => $case === 'no-doi' ? null : $resource->doi]);
+    if ($case === 'tombstone') {
+        $resource->landingPage->forceFill(['is_tombstone' => true])->save();
+    }
+    app(EditorResourceSaveService::class)->saveRelaxed([
+        'resourceId' => $resource->id, 'accessLevel' => 'open',
+        'titles' => [['title' => 'Unchanged remote access', 'titleType' => 'main-title']],
+        'dates' => [['dateType' => 'available', 'startDate' => $case === 'unchanged' ? '2020-01-01' : '2027-01-15']],
+    ], null, EditorDraftSaveIntent::AUTOSAVE);
+    expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+    Queue::assertNotPushed(SyncDataEmbargoAccessJob::class);
+})->with(['unchanged', 'draft', 'no-doi', 'tombstone']);
+
 test('released access metadata is updated only after authenticated remote registration evidence', function (string $state, bool $allowed): void {
     $resource = dataEmbargoFixture('2026-12-29');
     config(['datacite.test.username' => 'test', 'datacite.test.password' => 'secret', 'datacite.test.prefixes' => ['10.83279'], 'datacite.test.endpoint' => 'https://api.test.datacite.org']);

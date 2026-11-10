@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\DataCiteDoiWriteLockService;
 use App\Services\DataCiteModeResolverService;
 use App\Services\EmbargoService;
+use App\Services\ResourceAccessLevelResolverService;
 use App\Services\ResourceStorageService;
 use App\Services\UserActivityService;
 use Closure;
@@ -131,35 +132,63 @@ final readonly class EditorResourceSaveService
      */
     private function persist(array $data, Closure $save): array
     {
-        $doi = isset($data['resourceId']) ? Resource::query()->whereKey($data['resourceId'])->value('doi') : null;
-        if (! is_string($doi) || $doi === '') {
+        if (empty($data['resourceId'])) {
             return DB::transaction($save);
         }
+        $resourceId = (int) $data['resourceId'];
         // Production releases exclude Beginners. Their editor changes must
         // still supersede the production release, never a sandbox-only lock.
         $testMode = app(DataCiteModeResolverService::class)->shouldUseTestMode();
 
-        $result = DataCiteDoiWriteLockService::run($doi, $testMode, function () use ($save, $doi, $testMode): array {
-            $result = DB::transaction($save);
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $doi = Resource::query()->findOrFail($resourceId)->doi;
+            $persist = fn (): ?array => DB::transaction(function () use ($resourceId, $doi, $save): ?array {
+                $previous = Resource::query()->lockForUpdate()->findOrFail($resourceId);
+                if ($previous->doi !== $doi) {
+                    return null; // Registration/DOI editing won the race; choose its lock again.
+                }
+                $access = app(ResourceAccessLevelResolverService::class);
+                $previousAccess = $previous->landingPage?->is_published ? $access->resolve($previous) : null;
+                $result = $save();
+                $current = $result[0];
+                if (! $current->data_embargo_sync_pending && $current->doi !== null && $current->doi !== ''
+                    && $current->landingPage?->is_published && ! $current->landingPage->is_tombstone
+                    && ($access->resolve($current) !== $previousAccess || $current->access_level !== $previous->access_level)) {
+                    // A renewed embargo needs an access update even after the
+                    // previous release was already confirmed by DataCite.
+                    $current->data_embargo_sync_pending = true;
+                    $current->save();
+                }
+
+                return $result;
+            });
+            $result = $doi === null || $doi === '' ? $persist()
+                : DataCiteDoiWriteLockService::run($doi, $testMode, function () use ($persist, $doi, $testMode): ?array {
+                    $result = $persist();
+                    if ($result !== null && $result[0]->data_embargo_sync_pending) {
+                        // Even an edit in the same second supersedes an older release.
+                        DataCiteDoiWriteLockService::beginWrite($doi, $testMode);
+                    }
+
+                    return $result;
+                });
+            if ($result === null) {
+                continue;
+            }
             if ($result[0]->data_embargo_sync_pending) {
-                // Even an edit in the same second supersedes an older release
-                // payload. A corrective job sends the current access rights.
-                DataCiteDoiWriteLockService::beginWrite($doi, $testMode);
+                try {
+                    SyncDataEmbargoAccessJob::dispatch($result[0]->id, $testMode)->afterCommit();
+                } catch (Throwable $exception) {
+                    // A synchronous queue or unavailable broker must not turn an
+                    // already committed editor save into a reported save failure.
+                    Log::warning('Data embargo access correction remains pending.', ['resource_id' => $result[0]->id, 'error' => $exception->getMessage()]);
+                }
             }
 
             return $result;
-        });
-        if ($result[0]->data_embargo_sync_pending) {
-            try {
-                SyncDataEmbargoAccessJob::dispatch($result[0]->id, $testMode)->afterCommit();
-            } catch (Throwable $exception) {
-                // A synchronous queue or unavailable broker must not turn an
-                // already committed editor save into a reported save failure.
-                Log::warning('Data embargo access correction remains pending.', ['resource_id' => $result[0]->id, 'error' => $exception->getMessage()]);
-            }
         }
 
-        return $result;
+        throw ValidationException::withMessages(['resourceId' => 'The resource DOI changed while saving. Reload and try again.']);
     }
 
     /** @param array<string, mixed> $data
