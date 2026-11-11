@@ -154,7 +154,11 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
             $verifier = app(DataCiteRegistrationVerifierService::class);
             $verifier->requireRegistered($verifier->fromResponse($client, $item->identifier, $response));
         } catch (DataCiteVerificationException $exception) {
-            $this->finishItem($run, $item, DataCiteUrlUpdateItemStatus::FAILED, $exception->getMessage());
+            if ($exception->retryable) {
+                $this->handleTransient($run, $item, $response->status(), $exception->getMessage(), true);
+            } else {
+                $this->finishItem($run, $item, DataCiteUrlUpdateItemStatus::FAILED, $exception->getMessage());
+            }
 
             return;
         }

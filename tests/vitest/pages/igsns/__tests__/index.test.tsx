@@ -28,7 +28,7 @@ vi.mock('axios', () => ({
 }));
 
 // Mock sonner
-const { mockToast } = vi.hoisted(() => ({ mockToast: { success: vi.fn(), error: vi.fn() } }));
+const { mockToast } = vi.hoisted(() => ({ mockToast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 vi.mock('sonner', () => ({
     toast: Object.assign(vi.fn(), mockToast),
 }));
@@ -974,6 +974,40 @@ describe('IgsnsPage', () => {
             await vi.waitFor(() => {
                 expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('Metadata updated'));
             });
+        });
+
+        it.each([
+            { status: 202, success: false },
+            { status: 200, success: false },
+            { status: 202, success: true },
+        ])('shows reconciliation guidance instead of success for $status / $success', async ({ status, success }) => {
+            const message = 'The landing page is public; DOI publication needs reconciliation. Resume registration to check the saved attempt.';
+            mockAxiosPost.mockResolvedValueOnce({ status, data: { success, message } });
+            render(
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, has_landing_page: true })]} pagination={createPagination({ total: 1 })} />,
+            );
+
+            await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
+
+            await waitFor(() => expect(mockToast.warning).toHaveBeenCalledWith(message));
+            expect(mockToast.success).not.toHaveBeenCalled();
+            expect(mockToast.error).not.toHaveBeenCalled();
+            expect(mockRouterReload).toHaveBeenCalledOnce();
+            expect(screen.getByRole('button', { name: /register at datacite/i })).toBeEnabled();
+        });
+
+        it('provides fallback reconciliation guidance when an incomplete response has no message', async () => {
+            mockAxiosPost.mockResolvedValueOnce({ status: 202, data: { success: false } });
+            render(
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, has_landing_page: true })]} pagination={createPagination({ total: 1 })} />,
+            );
+            await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
+            await waitFor(() =>
+                expect(mockToast.warning).toHaveBeenCalledWith(
+                    'DOI publication needs reconciliation. Resume registration to check the saved attempt.',
+                ),
+            );
+            expect(mockToast.success).not.toHaveBeenCalled();
         });
 
         it('shows error toast on registration failure', async () => {

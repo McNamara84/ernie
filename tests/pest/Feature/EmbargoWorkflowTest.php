@@ -22,6 +22,8 @@ uses(RefreshDatabase::class);
 require_once __DIR__.'/../Support/DataCitePublicationFixtures.php';
 
 beforeEach(function (): void {
+    config(['app.url' => 'https://ernie.example']);
+    URL::forceRootUrl('https://ernie.example');
     URL::forceScheme('https');
     config(['datacite.test.client_id' => 'test.repo', 'datacite.landing_page_url_update.minimum_interval_ms' => 0]);
 });

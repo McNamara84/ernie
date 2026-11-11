@@ -18,6 +18,7 @@ use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -515,4 +516,70 @@ test('URL maintenance pauses when repository ownership configuration changes', f
     handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
     expect($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::PAUSED);
     Http::assertNothingSent();
+});
+
+test('incomplete verification evidence is retried before a URL update can proceed', function (string $missing): void {
+    $this->freezeTime();
+    config(['datacite.landing_page_url_update.max_transient_attempts' => 3]);
+    $resource = createJobUrlMigrationResource('10.5880/retry-verification');
+    [$run, $item] = createPendingUrlMigrationJob($resource);
+    $record = dataCiteRecord($item->identifier, attributes: ['url' => 'https://previous.example/page']);
+    Arr::forget($record, $missing);
+    $gets = 0;
+    Http::fake(function (Request $request) use (&$gets, $record, $item) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response(++$gets === 1 ? $record
+            : dataCiteRecord($item->identifier, attributes: ['url' => 'https://previous.example/page']));
+    });
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::PENDING_PREFLIGHT)
+        ->and($item->fresh()->preflight_attempts)->toBe(1)
+        ->and($item->fresh()->last_http_status)->toBe(200)
+        ->and($run->fresh()->processed)->toBe(0)
+        ->and($run->fresh()->failed)->toBe(0);
+    Queue::assertPushed(ProcessDataCiteUrlUpdateRunJob::class,
+        fn (ProcessDataCiteUrlUpdateRunJob $job): bool => $job->delay >= now()->addSeconds(5) && $job->delay <= now()->addSeconds(8));
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::PENDING_UPDATE)
+        ->and($item->fresh()->preflight_attempts)->toBe(2)
+        ->and($item->fresh()->error_message)->toBeNull();
+    Http::assertNotSent(fn (Request $request): bool => in_array($request->method(), ['PUT', 'POST']));
+})->with(['data.id', 'data.attributes.state', 'data.relationships.client.data.id']);
+
+test('verification retries stop at the configured limit without writing to DataCite', function (): void {
+    config(['datacite.landing_page_url_update.max_transient_attempts' => 2]);
+    [$run, $item] = createPendingUrlMigrationJob(createJobUrlMigrationResource('10.5880/retry-exhausted'));
+    Http::fake(fn (Request $request) => $request->method() === 'HEAD'
+        ? Http::response('', 200) : Http::response(['data' => []]));
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::FAILED)
+        ->and($item->fresh()->preflight_attempts)->toBe(2)
+        ->and($run->fresh()->failed)->toBe(1)
+        ->and($run->fresh()->processed)->toBe(1)
+        ->and($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::COMPLETED);
+    Http::assertNotSent(fn (Request $request): bool => in_array($request->method(), ['PUT', 'POST']));
+});
+
+test('a verified foreign repository remains a permanent preflight failure', function (): void {
+    [$run, $item] = createPendingUrlMigrationJob(createJobUrlMigrationResource('10.5880/wrong-owner'));
+    Http::fake(fn (Request $request) => $request->method() === 'HEAD'
+        ? Http::response('', 200) : Http::response(dataCiteRecord($item->identifier, repository: 'foreign.repo')));
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::FAILED)
+        ->and($item->fresh()->preflight_attempts)->toBe(1)
+        ->and($run->fresh()->failed)->toBe(1)
+        ->and($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::COMPLETED);
+    Http::assertNotSent(fn (Request $request): bool => in_array($request->method(), ['PUT', 'POST']));
 });

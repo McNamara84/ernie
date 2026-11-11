@@ -16,6 +16,7 @@ require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 beforeEach(function () {
     withoutVite();
+    config(['app.url' => 'https://ernie.example']);
     URL::forceRootUrl('https://ernie.example');
     URL::forceScheme('https');
 

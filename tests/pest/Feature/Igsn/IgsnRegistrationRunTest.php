@@ -33,6 +33,7 @@ require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    config(['app.url' => 'https://ernie.example']);
     URL::forceRootUrl('https://ernie.example');
     URL::forceScheme('https');
     config([

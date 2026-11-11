@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\Editor\EditorLoadProgressService;
 use App\Services\ResourceDoiPublicationService;
+use App\Services\SizeFormat\SizeFormatDownloadTargetResolverService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
@@ -231,6 +232,8 @@ it('exposes pending publication after reload without performing a remote request
 });
 
 it('publishes an approved external URL and keeps an existing Issued date', function (): void {
+    app()->instance(SizeFormatDownloadTargetResolverService::class,
+        new SizeFormatDownloadTargetResolverService(fn (): array => ['93.184.216.34']));
     $domain = LandingPageDomain::factory()->create(['domain' => 'https://external.example/']);
     $this->page->update(['template' => 'external', 'external_domain_id' => $domain->id, 'external_path' => 'approved']);
     $issued = DateType::firstOrCreate(['slug' => 'Issued'], ['name' => 'Issued', 'is_active' => true]);

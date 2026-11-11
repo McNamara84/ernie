@@ -43,6 +43,8 @@ function embargoResource(string $date, bool $withPage = true): Resource
 }
 
 beforeEach(function (): void {
+    config(['app.url' => 'https://ernie.example']);
+    URL::forceRootUrl('https://ernie.example');
     URL::forceScheme('https');
     app(DataCiteRequestLimiter::class)->clear();
     config([

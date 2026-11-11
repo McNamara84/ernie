@@ -125,6 +125,7 @@ it('rejects a stale retry across independent workers sharing Redis', function ()
 
 it('serializes simultaneous first publication and reconciles instead of posting twice', function (): void {
     config([
+        'app.url' => 'https://ernie.example',
         'datacite.test_mode' => true, 'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.username' => 'TEST', 'datacite.test.password' => 'test-only',
         'datacite.test.client_id' => 'test.repo', 'datacite.test.prefixes' => ['10.83279'],

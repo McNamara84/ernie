@@ -32,6 +32,7 @@ beforeEach(function () {
         'datacite.landing_page_url_update.minimum_interval_ms' => 0,
     ]);
     app(DataCiteRequestLimiter::class)->clear();
+    config(['app.url' => 'https://ernie.example']);
     URL::forceRootUrl('https://ernie.example');
     URL::forceScheme('https');
     Http::preventStrayRequests();

@@ -4,6 +4,11 @@
         "date": "Unreleased",
         "fixes": [
             {
+                "title": "DOI Publication Verification and Recovery",
+                "description": "External landing-page checks reject private network targets and pin verified public HTTPS destinations. IGSN registration displays reconciliation guidance for unconfirmed publication. URL maintenance retries temporary verification failures, and stage and production containers receive the matching DataCite test repository configuration.",
+                "references": [{ "type": "pull_request", "number": 1551, "url": "https://github.com/McNamara84/ernie/pull/1551" }]
+            },
+            {
                 "title": "Explicit DOI and Landing Page Publication",
                 "description": "Metadata updates now require a published landing page and authenticated confirmation of a registered DOI in the configured DataCite repository. Updates preserve DOI visibility. A separate confirmed action publishes the landing page and DOI while preserving preassigned identifiers; uncertain outcomes remain visible and are reconciled without duplicate registration. Resource batches only update existing registrations.",
                 "references": [{ "type": "issue", "number": 1537, "url": "https://github.com/McNamara84/ernie/issues/1537" }]

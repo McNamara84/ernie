@@ -715,6 +715,7 @@ test('completed restoration of a registered DOI allows later intentional publica
     $transition->update(['status' => $status]);
 
     completeDataCiteFixture($this->resource);
+    config(['app.url' => 'https://ernie.example']);
     URL::forceRootUrl('https://ernie.example');
     URL::forceScheme('https');
     $target = url('/datasets/'.$this->resource->id);

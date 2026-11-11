@@ -12,6 +12,7 @@ require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 test('registerIgsn sends descriptions with datacite breaks', function () {
     config([
+        'app.url' => 'https://ernie.example',
         'datacite.test_mode' => true,
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.client_id' => 'test.repo',
