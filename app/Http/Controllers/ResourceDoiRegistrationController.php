@@ -5,21 +5,20 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\DataCiteRequestDeferredException;
+use App\Exceptions\DataCiteVerificationException;
 use App\Exceptions\DataCiteWriteSupersededException;
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
+use App\Models\ResourceDoiPublication;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationService;
-use App\Services\EmbargoService;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceCacheService;
-use App\Services\ResourceStorageService;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ResourceDoiRegistrationController extends Controller
@@ -74,8 +73,8 @@ class ResourceDoiRegistrationController extends Controller
                 ], 409);
             }
 
-            // If the resource already has a DOI, update metadata instead of registering.
-            if ($resource->doi) {
+            $publishing = $request->routeIs('resources.publish-doi');
+            if (! $publishing) {
                 Log::info('Updating existing DOI metadata', [
                     'resource_id' => $resource->id,
                     'doi' => $resource->doi,
@@ -93,78 +92,27 @@ class ResourceDoiRegistrationController extends Controller
                 ]);
             }
 
-            app(EmbargoService::class)->assertCanRegister($resource);
-
-            // Register a new DOI.
-            $validated = $request->validated();
-            $prefix = $validated['prefix'];
-
-            Log::info('Registering new DOI', [
-                'resource_id' => $resource->id,
-                'prefix' => $prefix,
-                'test_mode' => $service->isTestMode(),
-            ]);
-
-            $response = $service->registerDoi($resource, $prefix);
-            $doi = $response['data']['id'] ?? null;
-
-            if (! $doi) {
-                Log::error('DataCite response missing DOI', [
-                    'resource_id' => $resource->id,
-                    'response' => $response,
-                ]);
-
-                return response()->json([
-                    'error' => 'Registration incomplete',
-                    'message' => 'DOI was registered but the response did not contain the DOI identifier.',
-                ], 500);
-            }
-
-            $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
-            DB::transaction(function () use ($resource, $doi, $wasEmbargoed): void {
-                $resource->doi = $doi;
-                $resource->save();
-                app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
-                if ($wasEmbargoed) {
-                    app(EmbargoService::class)->completeRegistration($resource);
-                }
-            });
-            if ($wasEmbargoed) {
-                try {
-                    $service->updateLandingPageUrl($doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
-                } catch (\Throwable $exception) {
-                    Log::warning('Embargo DOI URL update failed; stable dataset alias remains available.', [
-                        'resource_id' => $resource->id,
-                        'doi' => $doi,
-                        'error' => $exception->getMessage(),
-                    ]);
-                }
-            }
-
-            Log::info('DOI saved to resource', [
-                'resource_id' => $resource->id,
-                'doi' => $doi,
-            ]);
-
-            $registrationResponse = [
-                'success' => true,
-                'message' => 'DOI registered successfully',
-                'doi' => $doi,
+            $response = $service->registerDoi($resource, (string) $request->validated('prefix', ''));
+            $complete = ($response['complete'] ?? true) === true;
+            $result = [
+                'success' => $complete,
+                'message' => $complete ? 'DOI and landing page published successfully' : 'The landing page is published; DOI publication needs reconciliation. No second DOI was created.',
+                'doi' => $response['data']['id'] ?? $resource->doi,
                 'mode' => $service->isTestMode() ? 'test' : 'production',
                 'updated' => false,
+                'publication' => $response['publication'] ?? null,
             ];
-
-            try {
-                $registrationResponse['publishedRecordCounts'] = app(ResourceCacheService::class)->getPublishedResourceCounts();
-            } catch (\Throwable $e) {
-                Log::warning('Unable to retrieve published record counts after DOI registration', [
-                    'resource_id' => $resource->id,
-                    'doi' => $doi,
-                    'error' => $e->getMessage(),
-                ]);
+            if ($complete) {
+                try {
+                    $result['publishedRecordCounts'] = app(ResourceCacheService::class)->getPublishedResourceCounts();
+                } catch (\Throwable $exception) {
+                    Log::warning('Unable to retrieve published counts', ['error' => $exception->getMessage()]);
+                }
             }
 
-            return response()->json($registrationResponse);
+            return response()->json($result, $complete ? 200 : 202);
+        } catch (DataCiteVerificationException $e) {
+            return response()->json(['error' => $e->reason, 'message' => $e->getMessage()], $e->retryable ? 503 : 422);
         } catch (DataCiteWriteSupersededException $e) {
             return response()->json(['error' => 'doi_update_superseded', 'message' => $e->getMessage()], 409);
         } catch (LockTimeoutException $e) {
@@ -242,6 +190,25 @@ class ResourceDoiRegistrationController extends Controller
                     ? $e->getMessage()
                     : 'An unexpected error occurred during DOI registration. Please contact support.',
             ], 500);
+        }
+    }
+
+    /** Read only, requested explicitly when the curator opens a DataCite action. */
+    public function status(Resource $resource): JsonResponse
+    {
+        $service = app(DataCiteRegistrationService::class);
+        $publication = ResourceDoiPublication::where('resource_id', $resource->id)->latest('id')->first();
+        $local = [
+            'landing_page_published' => $resource->landingPage?->is_published === true,
+            'publication' => $publication?->summary(),
+            'mode' => $service->isTestMode() ? 'test' : 'production',
+        ];
+        try {
+            $state = $resource->doi ? $service->getRegistrationState($resource->doi) : 'unassigned';
+
+            return response()->json([...$local, 'state' => $state, 'can_update' => $local['landing_page_published'] && in_array($state, ['registered', 'findable'], true), 'can_publish' => $resource->landingPage?->is_tombstone === false]);
+        } catch (\Throwable $exception) {
+            return response()->json([...$local, 'state' => 'unavailable', 'can_update' => false, 'can_publish' => false, 'message' => $exception->getMessage()], 503);
         }
     }
 

@@ -49,6 +49,7 @@ describe('syncIfRegistered', function (): void {
         LandingPage::create([
             'resource_id' => $resource->id,
             'template' => 'default_gfz',
+            'is_published' => true,
         ]);
 
         $mockRegistration = Mockery::mock(DataCiteServiceInterface::class);
@@ -69,6 +70,7 @@ describe('syncIfRegistered', function (): void {
         LandingPage::create([
             'resource_id' => $resource->id,
             'template' => 'default_gfz',
+            'is_published' => true,
         ]);
 
         $mockRegistration = Mockery::mock(DataCiteServiceInterface::class);

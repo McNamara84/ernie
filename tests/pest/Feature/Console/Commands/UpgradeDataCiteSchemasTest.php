@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Console\Commands\UpgradeDataCiteSchemas;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Services\DataCiteMemberApiClient;
@@ -28,6 +29,7 @@ beforeEach(function (): void {
         'datacite.test.password' => 'test-secret',
         'datacite.test.client_id' => 'test.repo',
         'datacite.test.prefixes' => ['10.83279'],
+        'datacite.test.igsn_prefix' => '10.60510',
         'datacite.production.endpoint' => 'https://api.datacite.org',
         'datacite.production.username' => 'TIB.GFZ',
         'datacite.production.password' => 'production-secret',
@@ -220,6 +222,7 @@ it('audits every page and classifies local legacy candidates without writing', f
 
 it('applies only schemaVersion and existing types and stores a private snapshot', function (): void {
     $resource = Resource::factory()->create(['doi' => '10.83279/minimal-update']);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
     $remote = schemaUpgradeRemoteRecord('10.83279/minimal-update');
 
     Http::fake(function (Request $request) use ($remote) {
@@ -227,13 +230,10 @@ it('applies only schemaVersion and existing types and stores a private snapshot'
             return Http::response(['data' => [$remote], 'meta' => ['totalPages' => 1]]);
         }
         if ($request->method() === 'PUT') {
-            return Http::response(['data' => [
-                'id' => '10.83279/minimal-update',
-                'attributes' => ['schemaVersion' => DataCiteSchemaVersion::KERNEL_4],
-            ]]);
+            return Http::response(['data' => schemaUpgradeRemoteRecord('10.83279/minimal-update', DataCiteSchemaVersion::KERNEL_4)]);
         }
 
-        return Http::response([], 500);
+        return Http::response(['data' => $remote]);
     });
 
     $result = app(DataCiteSchemaUpgradeService::class)->run(apply: true);
@@ -277,7 +277,9 @@ it('applies only schemaVersion and existing types and stores a private snapshot'
 
 it('isolates update errors and verifies an ambiguous success with one DOI GET', function (): void {
     $failed = Resource::factory()->create(['doi' => '10.83279/fails']);
+    LandingPage::factory()->published()->create(['resource_id' => $failed->id]);
     $verified = Resource::factory()->create(['doi' => '10.83279/verifies']);
+    LandingPage::factory()->published()->create(['resource_id' => $verified->id]);
     $remoteRecords = [
         schemaUpgradeRemoteRecord('10.83279/fails'),
         schemaUpgradeRemoteRecord('10.83279/verifies', 'http://datacite.org/schema/kernel-2.2'),
@@ -291,16 +293,13 @@ it('isolates update errors and verifies an ambiguous success with one DOI GET', 
             return Http::response(['errors' => [['detail' => 'Legacy metadata is invalid']]], 422);
         }
         if ($request->method() === 'PUT' && str_contains($request->url(), 'verifies')) {
-            return Http::response(['data' => ['attributes' => ['state' => 'findable']]]);
+            return Http::response(['data' => schemaUpgradeRemoteRecord('10.83279/verifies', null)]);
         }
         if ($request->method() === 'GET' && str_contains($request->url(), 'verifies')) {
-            return Http::response(['data' => ['attributes' => [
-                'schemaVersion' => DataCiteSchemaVersion::KERNEL_4,
-                'state' => 'findable',
-            ]]]);
+            return Http::response(['data' => schemaUpgradeRemoteRecord('10.83279/verifies', DataCiteSchemaVersion::KERNEL_4)]);
         }
 
-        return Http::response([], 500);
+        return Http::response(['data' => $remoteRecords[0]]);
     });
 
     $result = app(DataCiteSchemaUpgradeService::class)->run(apply: true);
@@ -316,11 +315,12 @@ it('isolates update errors and verifies an ambiguous success with one DOI GET', 
         ->and($records[$verified->doi]['status'])->toBe('updated')
         ->and($records[$verified->doi]['attempts'])->toBe(2);
 
-    Http::assertSentCount(4);
+    Http::assertSentCount(6);
 });
 
 it('reports failed verification when DataCite still returns the legacy schema', function (): void {
-    Resource::factory()->create(['doi' => '10.83279/not-verified']);
+    $resource = Resource::factory()->create(['doi' => '10.83279/not-verified']);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
     $remote = schemaUpgradeRemoteRecord('10.83279/not-verified');
 
     Http::fake(function (Request $request) use ($remote) {
@@ -328,12 +328,10 @@ it('reports failed verification when DataCite still returns the legacy schema', 
             return Http::response(['data' => [$remote], 'meta' => ['totalPages' => 1]]);
         }
         if ($request->method() === 'PUT') {
-            return Http::response(['data' => ['attributes' => ['state' => 'findable']]]);
+            return Http::response(['data' => schemaUpgradeRemoteRecord('10.83279/not-verified', null)]);
         }
         if ($request->method() === 'GET') {
-            return Http::response(['data' => ['attributes' => [
-                'schemaVersion' => 'http://datacite.org/schema/kernel-3',
-            ]]]);
+            return Http::response(['data' => $remote]);
         }
 
         return Http::response([], 500);
@@ -349,15 +347,21 @@ it('reports failed verification when DataCite still returns the legacy schema', 
 
 it('aborts subsequent writes after repository authentication fails', function (): void {
     $first = Resource::factory()->create(['doi' => '10.83279/auth-first']);
+    LandingPage::factory()->published()->create(['resource_id' => $first->id]);
     $second = Resource::factory()->create(['doi' => '10.83279/auth-second']);
+    LandingPage::factory()->published()->create(['resource_id' => $second->id]);
     $remoteRecords = [
         schemaUpgradeRemoteRecord($first->doi),
         schemaUpgradeRemoteRecord($second->doi),
     ];
 
     Http::fake(function (Request $request) use ($remoteRecords) {
-        if ($request->method() === 'GET') {
+        if ($request->method() === 'GET' && str_contains($request->url(), '?')) {
             return Http::response(['data' => $remoteRecords, 'meta' => ['totalPages' => 1]]);
+        }
+
+        if ($request->method() === 'GET') {
+            return Http::response(['data' => $remoteRecords[0]]);
         }
 
         return Http::response(['errors' => [['detail' => 'Repository access denied']]], 403);
@@ -369,7 +373,7 @@ it('aborts subsequent writes after repository authentication fails', function ()
     expect($result)->toMatchArray(['updated' => 0, 'errors' => 1, 'skipped' => 1])
         ->and($records[$first->doi]['status'])->toBe('authentication_failed')
         ->and($records[$second->doi]['status'])->toBe('not_processed');
-    Http::assertSentCount(2);
+    Http::assertSentCount(3);
 });
 
 it('supports DOI filters, resume IDs, and candidate limits', function (): void {

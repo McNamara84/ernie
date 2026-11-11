@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 uses()->group('mysql-sensitive');
+require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 it('queues one notification when two MySQL schedulers scan concurrently', function (): void {
     expect(DB::selectOne('SELECT VERSION() AS version')->version)->toStartWith('9.7.');
@@ -109,6 +110,9 @@ it('serializes editor embargo changes after an in-flight remote PUT across indep
     expect(DB::selectOne('SELECT VERSION() AS version')->version)->toStartWith('9.7.');
     config([
         'datacite.test_mode' => true,
+        'datacite.test.endpoint' => 'https://api.test.datacite.org',
+        'datacite.test.username' => 'TEST.USER', 'datacite.test.password' => 'test-only',
+        'datacite.test.client_id' => 'test.repo',
         'datacite.landing_page_url_update.minimum_interval_ms' => 0,
         'cache.stores.embargo-concurrency' => ['driver' => 'redis', 'connection' => 'cache', 'lock_connection' => 'cache', 'prefix' => 'embargo-review:'.Str::uuid().':'],
     ]);
@@ -155,16 +159,21 @@ it('serializes editor embargo changes after an in-flight remote PUT across indep
     try {
         Http::fake(function ($request) use ($resource, $sockets) {
             if ($request->method() === 'PUT') {
-                expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeTrue();
+                expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeTrue()
+                    ->and($request['data']['attributes'])->not->toHaveKey('event');
                 fwrite($sockets[0], "start\n");
                 expect(fgets($sockets[0]))->toBe("editing\n");
                 $read = [$sockets[0]];
                 $write = $except = [];
                 expect(stream_select($read, $write, $except, 0, 250000))->toBe(0)
                     ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN);
+            } else {
+                expect($request->method())->toBe('GET')
+                    ->and(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse()
+                    ->and(DB::transactionLevel())->toBe(0);
             }
 
-            return Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]);
+            return Http::response(dataCiteRecord((string) $resource->doi));
         });
         try {
             app(DataEmbargoReleaseService::class)->synchronize($resource, new DataCiteMemberApiClient(new DataCiteRequestLimiter, true));

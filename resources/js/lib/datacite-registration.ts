@@ -3,9 +3,10 @@ import type { PublishedRecordCounts } from '@/components/curation/types/datacite
 export interface DoiRegistrationResponse {
     success: boolean;
     message: string;
-    doi: string;
+    doi: string | null;
     mode: 'test' | 'production';
     updated: boolean;
+    publication?: DoiPublicationSummary | null;
     publishedRecordCounts?: PublishedRecordCounts;
     error?: string;
     details?: unknown;
@@ -71,4 +72,25 @@ export function isOrcidPreflightPayload(data: unknown): data is OrcidPreflightPa
     }
 
     return (invalid === undefined || Array.isArray(invalid)) && (warnings === undefined || Array.isArray(warnings));
+}
+
+export interface DoiPublicationSummary {
+    uuid: string;
+    doi: string | null;
+    test_mode: boolean;
+    status: string;
+    last_error: string | null;
+    completed_at: string | null;
+}
+
+export interface DataCiteActionStatus {
+    state: 'unassigned' | 'missing' | 'draft' | 'registered' | 'findable' | 'unavailable';
+    mode: 'test' | 'production';
+    can_update: boolean;
+    can_publish: boolean;
+    publication: DoiPublicationSummary | null;
+}
+
+export function publicationNeedsAttention(publication?: DoiPublicationSummary | null): boolean {
+    return Boolean(publication && !['succeeded', 'superseded'].includes(publication.status));
 }

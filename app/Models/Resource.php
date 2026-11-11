@@ -52,6 +52,7 @@ use Illuminate\Support\Carbon;
  * @property-read Publisher|null $publisher
  * @property-read User|null $createdBy
  * @property-read User|null $updatedBy
+ * @property-read ResourceDoiPublication|null $latestDoiPublication
  * @property-read LandingPage|null $landingPage
  * @property-read ResourceAssessment|null $resourceAssessment
  * @property-read IgsnMetadata|null $igsnMetadata
@@ -461,6 +462,12 @@ class Resource extends Model
         $relation = $this->belongsTo(User::class, 'updated_by_user_id');
 
         return $relation;
+    }
+
+    /** @return HasOne<ResourceDoiPublication, $this> */
+    public function latestDoiPublication(): HasOne
+    {
+        return $this->hasOne(ResourceDoiPublication::class)->latestOfMany();
     }
 
     /** @return HasOne<LandingPage, static> */

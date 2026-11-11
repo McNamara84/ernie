@@ -42,31 +42,31 @@ export const DOCS_ACTIONS: DocsAction[] = [
     },
     {
         id: 'editor-register',
-        label: 'Register',
+        label: 'Publish DOI and landing page',
         area: 'editor',
         capability: 'registerDoi',
         requirements:
-            'The record has no DOI, required metadata is valid, and a configured prefix is available. A landing page is required before submission. An embargoed record can be registered only from its Available date.',
-        onClick: 'Validates the form and opens a confirmation dialog. This click does not save for this action or contact DataCite.',
+            'Required metadata is valid and a landing page is configured before submission. An existing DOI is preserved; a new DOI needs an allowed prefix. Data embargoes restrict downloads while metadata can be published.',
+        onClick:
+            'Validates the form and opens a confirmation dialog. Opening the dialog checks the saved DOI state but sends no write and does not save for this action.',
         afterConfirmation:
-            'Saves the validated resource in ERNIE, prompts for landing-page setup if needed, then sends metadata to DataCite to create and publish a DOI in the effective test or production environment.',
+            'Saves the validated resource in ERNIE, prompts for landing-page setup if needed, publishes and checks the landing page, then creates or explicitly publishes the DOI in the effective test or production environment.',
         localEffect: 'The record may already be saved if landing-page setup or the later DataCite step fails.',
         externalEffect:
-            'After confirmation and preparation, DataCite receives a DOI creation request with event=publish. ORCID preflight can block or warn before the request.',
+            'After confirmation, missing DOIs are created and draft or registered DOIs are published. Already findable DOIs keep their state. ORCID preflight can block or warn before the request.',
         publicEffect: 'A successful production registration publishes a resolvable DOI. Test registrations remain in DataCite test mode.',
         failure:
-            'A successful local save remains stored if DataCite is temporarily busy or another DOI update is in progress (503). The external update is unconfirmed; wait briefly and retry. If a newer update supersedes yours (409), reload the resource, review its latest metadata, then confirm again. Check the DOI status before retrying registration.',
+            'A successful local save remains stored if DataCite is temporarily busy or another DOI update is in progress (503). The external update is unconfirmed; wait briefly and retry. If a newer update supersedes yours (409), reload the resource, review its latest metadata, then confirm again. The released landing page stays public. Pending publication is saved and shown after reload; repeat this action to reconcile it without a duplicate create.',
     },
     {
         id: 'editor-update-metadata',
-        label: 'Update Metadata',
+        label: 'Update DataCite metadata',
         area: 'editor',
         capability: 'registerDoi',
         requirements:
-            'A DOI is already stored and the matching record must exist in the selected DataCite environment; metadata and landing-page requirements still apply.',
+            'The landing page is published and the authenticated DataCite API confirms the same DOI in the configured repository as registered or findable.',
         onClick: 'Validates the form and opens a confirmation dialog without submitting the update.',
-        afterConfirmation:
-            'Saves validated editor changes in ERNIE, prepares a landing page if necessary, and sends an update for the existing DOI to DataCite.',
+        afterConfirmation: 'Saves validated editor changes in ERNIE and updates the verified registration without changing DOI visibility.',
         localEffect: 'The local record can be saved even if the subsequent DataCite update fails.',
         externalEffect: 'Updates the existing DataCite record; it does not mint a new DOI. ORCID preflight runs before the remote write.',
         publicEffect: 'Metadata for the existing DOI changes at DataCite after a successful request.',
@@ -158,27 +158,32 @@ export const DOCS_ACTIONS: DocsAction[] = [
     })),
     {
         id: 'resources-register-doi',
-        label: 'Register DOI',
+        label: 'Publish DOI and landing page',
         area: 'resources',
         capability: 'registerDoi',
-        requirements: 'Select exactly one resource that has no DOI and already has a landing page.',
-        onClick: 'Opens the prefix and registration dialog; opening it does not contact DataCite.',
-        afterConfirmation: 'Uses saved ERNIE metadata to request a new DOI from DataCite in the effective environment.',
+        requirements: 'Select exactly one non-tombstone resource with a landing page. A preassigned DOI is preserved.',
+        onClick: 'Opens the publication dialog and reads the authenticated DOI state without writing to DataCite.',
+        afterConfirmation:
+            'Validates saved metadata, releases the landing page, checks its public URL, then publishes the existing DOI or creates a new DOI in the effective environment.',
         localEffect: 'Stores the resulting DOI and status in ERNIE after successful registration.',
-        externalEffect: 'Sends metadata to DataCite and publishes the newly created DOI after required checks.',
+        externalEffect:
+            'Sends the approved metadata after all publication checks. A retry reconciles an uncertain earlier request before any further write.',
         publicEffect: 'A successful production DOI becomes publicly resolvable. Beginner accounts use the test environment.',
-        failure: 'Correct any validation, ORCID, embargo, or remote error and inspect the current DOI state before retrying.',
+        failure:
+            'The released landing page remains public after DataCite failure. Pending publication and its error remain visible after reload; reopen this action to reconcile.',
     },
     {
         id: 'resources-update-metadata',
         label: 'Update metadata',
         area: 'resources',
         capability: 'registerDoi',
-        requirements: 'Select one or more resources, each with an existing DOI and a landing page. Up to 25 resources can be updated per batch.',
+        requirements:
+            'Select one or more resources, each with an existing DOI and a published landing page. Registration in the selected repository is verified before every write. Up to 25 resources can be updated per batch.',
         onClick: 'Opens a confirmation dialog; no update is sent yet.',
         afterConfirmation: 'Processes the selected saved records one by one and sends updates for their existing DOIs to DataCite.',
         localEffect: 'Does not save unsaved editor values or create new local resources.',
-        externalEffect: 'Updates existing DataCite metadata. It does not mint new DOIs.',
+        externalEffect:
+            'Updates only registered or findable DOIs without lifecycle events. Missing or draft remote records are blocked; the batch never creates DOIs.',
         publicEffect: 'Successfully updated DOI metadata changes at DataCite; other selected records may remain unchanged.',
         failure: 'The batch may report partial success. Review each failed record, correct it, then retry only the affected records.',
     },

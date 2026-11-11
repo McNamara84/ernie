@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\DataCiteVerificationException;
 use App\Jobs\ProcessIgsnRegistrationRunJob;
 use App\Models\IgsnMetadata;
 use App\Models\IgsnRegistrationRun;
@@ -16,21 +17,30 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\URL;
+
+require_once __DIR__.'/../Support/DataCitePublicationFixtures.php';
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    config(['app.url' => 'https://ernie.example']);
+    URL::forceRootUrl('https://ernie.example');
+    URL::forceScheme('https');
     config([
         'datacite.test_mode' => true,
+        'datacite.test.client_id' => 'test.repo',
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.password' => 'test-password',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+        'datacite.production.client_id' => 'prod.repo',
         'datacite.production.username' => 'PROD.USER',
         'datacite.production.password' => 'prod-password',
         'datacite.production.endpoint' => 'https://api.datacite.org',
         'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
         'datacite.production.igsn_prefix' => '10.60510',
+        'datacite.production.igsn_client_id' => 'igsn.repo',
         'datacite.production.igsn_username' => 'GFZ.IGSN',
         'datacite.production.igsn_password' => 'igsn-password',
         'queue.default' => 'database',
@@ -54,6 +64,11 @@ function createIgsnWithMetadata(array $resourceOverrides = [], array $metadataOv
         'publication_year' => 2024,
     ], $resourceOverrides));
 
+    completeDataCiteFixture($resource);
+    if (isset($resourceOverrides['access_level'])) {
+        $resource->update(['access_level' => $resourceOverrides['access_level']]);
+    }
+
     IgsnMetadata::create(array_merge([
         'resource_id' => $resource->id,
         'upload_status' => IgsnMetadata::STATUS_UPLOADED,
@@ -71,20 +86,9 @@ function createIgsnWithMetadata(array $resourceOverrides = [], array $metadataOv
 describe('DataCiteRegistrationService::registerIgsn', function () {
     test('registers an IGSN keeping the existing DOI in the payload', function () {
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/IGSN-TEST-001',
-                    'type' => 'dois',
-                    'attributes' => [
-                        'doi' => '10.83279/IGSN-TEST-001',
-                        'state' => 'findable',
-                    ],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $service = app(DataCiteRegistrationService::class);
         $response = $service->registerIgsn($resource);
@@ -107,17 +111,9 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
 
     test('extracts prefix from IGSN automatically', function () {
         $resource = createIgsnWithMetadata(['doi' => '10.83186/SAMPLE-XYZ']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83186/SAMPLE-XYZ',
-                    'type' => 'dois',
-                    'attributes' => ['doi' => '10.83186/SAMPLE-XYZ', 'state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $service = app(DataCiteRegistrationService::class);
         $response = $service->registerIgsn($resource);
@@ -128,50 +124,42 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         Http::assertSent(function ($request) {
             $body = json_decode($request->body(), true);
 
-            return $body['data']['attributes']['prefix'] === '10.83186';
+            return $request->method() === 'POST' && str_starts_with($body['data']['attributes']['doi'], '10.83186/');
         });
     });
 
     test('uses the dedicated repository credentials when registering a production IGSN', function () {
         config(['datacite.test_mode' => false]);
         $resource = createIgsnWithMetadata(['doi' => '10.60510/GFTEST001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            'api.datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.60510/GFTEST001',
-                    'type' => 'dois',
-                    'attributes' => ['doi' => '10.60510/GFTEST001', 'state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $response = app(DataCiteRegistrationService::class)->registerIgsn($resource);
 
         expect($response['data']['id'])->toBe('10.60510/GFTEST001');
-        Http::assertSent(fn (Request $request): bool => $request->header('Authorization')[0]
+        Http::assertSent(fn (Request $request): bool => ($request->header('Authorization')[0] ?? null)
             === 'Basic '.base64_encode('GFZ.IGSN:igsn-password'));
     });
 
     test('rejects IGSN with invalid DOI format (missing suffix)', function () {
         $resource = createIgsnWithMetadata(['doi' => '10.83279']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(InvalidArgumentException::class, 'invalid format');
+            ->toThrow(DataCiteVerificationException::class, 'not permitted');
     });
 
     test('rejects IGSN with invalid prefix', function () {
         $resource = createIgsnWithMetadata(['doi' => '10.99999/INVALID-PREFIX']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(InvalidArgumentException::class, "IGSN prefix '10.99999' is not allowed");
+            ->toThrow(DataCiteVerificationException::class, 'not permitted');
     });
 
     test('requires a landing page before registering', function () {
@@ -181,17 +169,17 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(RuntimeException::class, 'must have a landing page');
+            ->toThrow(RuntimeException::class, 'landing page is required');
     });
 
     test('requires an IGSN (doi) to register', function () {
         $resource = createIgsnWithMetadata(['doi' => null]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(RuntimeException::class, 'must have an IGSN');
+            ->toThrow(RuntimeException::class, 'IGSN must be assigned');
     });
 });
 
@@ -202,17 +190,9 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
 describe('IgsnController@registerAtDataCite', function () {
     test('registers an IGSN at DataCite successfully', function () {
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/IGSN-TEST-001',
-                    'type' => 'dois',
-                    'attributes' => ['doi' => '10.83279/IGSN-TEST-001', 'state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $response = $this->actingAs($this->user)
             ->postJson("/igsns/{$resource->id}/register");
@@ -231,17 +211,9 @@ describe('IgsnController@registerAtDataCite', function () {
 
     test('sets publicationYear to current year on registration', function () {
         $resource = createIgsnWithMetadata(['publication_year' => 2020]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/IGSN-TEST-001',
-                    'type' => 'dois',
-                    'attributes' => ['doi' => '10.83279/IGSN-TEST-001', 'state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $this->actingAs($this->user)
             ->postJson("/igsns/{$resource->id}/register")
@@ -266,7 +238,7 @@ describe('IgsnController@registerAtDataCite', function () {
 
     test('rejects single registration while the IGSN is queued in an active batch run', function () {
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
         Http::fake();
 
         $this->actingAs($this->user)
@@ -284,7 +256,7 @@ describe('IgsnController@registerAtDataCite', function () {
 
     test('rejects single registration while the shared resource lock is held', function () {
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
         Http::fake();
         $lock = app(IgsnRegistrationExclusionService::class)->resourceLock($resource->id);
         expect($lock->get())->toBeTrue();
@@ -307,17 +279,9 @@ describe('IgsnController@registerAtDataCite', function () {
             ['publication_year' => 2020],
             ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
         );
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/IGSN-TEST-001',
-                    'type' => 'dois',
-                    'attributes' => ['doi' => '10.83279/IGSN-TEST-001', 'state' => 'findable'],
-                ],
-            ], 200),
-        ]);
+        fakeIgsnMemberApi([$resource->doi => 'findable']);
 
         $response = $this->actingAs($this->user)
             ->postJson("/igsns/{$resource->id}/register");
@@ -340,11 +304,13 @@ describe('IgsnController@registerAtDataCite', function () {
 
     test('marks IGSN as error on API failure', function () {
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response(['errors' => [['title' => 'Bad Request']]], 400),
-        ]);
+        Http::fake(fn (Request $request) => match ($request->method()) {
+            'GET' => Http::response([], 404),
+            'HEAD' => Http::response('', 200),
+            default => Http::response(['errors' => [['title' => 'Bad Request']]], 400),
+        });
 
         $response = $this->actingAs($this->user)
             ->postJson("/igsns/{$resource->id}/register");
@@ -361,13 +327,94 @@ describe('IgsnController@registerAtDataCite', function () {
         expect($resource->igsnMetadata->upload_error_message)->not->toBeNull();
     });
 
+    test('keeps the previous IGSN state when verification is retryable', function (string $missingEvidence, string $status): void {
+        $previousError = $status === IgsnMetadata::STATUS_ERROR ? 'An earlier registration failed.' : null;
+        $resource = createIgsnWithMetadata(['publication_year' => 2020], [
+            'upload_status' => $status,
+            'upload_error_message' => $previousError,
+        ]);
+        $registered = $status === IgsnMetadata::STATUS_REGISTERED;
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $registered]);
+        $record = dataCiteRecord($resource->doi);
+        data_forget($record, $missingEvidence);
+        $verificationUnavailable = true;
+        Http::fake(function () use ($record, &$verificationUnavailable) {
+            return $verificationUnavailable ? Http::response($record) : null;
+        });
+
+        $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")
+            ->assertStatus(503)
+            ->assertJsonPath('error', 'doi_verification_unavailable')
+            ->assertJsonPath('message', 'DataCite did not confirm the DOI identity, repository and state. No publication can be inferred.');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe($status)
+            ->and($resource->igsnMetadata->upload_error_message)->toBe($previousError)
+            ->and($resource->publication_year)->toBe(2020);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET');
+
+        $verificationUnavailable = false;
+        fakeIgsnMemberApi($registered ? [$resource->doi => 'findable'] : []);
+        $this->postJson("/igsns/{$resource->id}/register")
+            ->assertOk()->assertJsonPath('updated', $registered);
+        expect($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+    })->with(['data.id', 'data.attributes.state', 'data.relationships.client.data.id'])
+        ->with([IgsnMetadata::STATUS_UPLOADED, IgsnMetadata::STATUS_REGISTERED, IgsnMetadata::STATUS_ERROR]);
+
+    test('returns a definitive verification failure for a foreign IGSN repository', function (string $status): void {
+        $resource = createIgsnWithMetadata([], ['upload_status' => $status]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $status === IgsnMetadata::STATUS_REGISTERED]);
+        Http::fake(fn () => Http::response(dataCiteRecord($resource->doi, repository: 'foreign.repo')));
+
+        $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")
+            ->assertUnprocessable()
+            ->assertJsonPath('error', 'doi_repository_mismatch')
+            ->assertJsonPath('message', 'This DOI belongs to another DataCite repository.');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_ERROR)
+            ->and($resource->igsnMetadata->upload_error_message)->toBe('This DOI belongs to another DataCite repository.');
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET');
+    })->with([IgsnMetadata::STATUS_UPLOADED, IgsnMetadata::STATUS_REGISTERED]);
+
+    test('allows retrying IGSN publication after a temporarily unreachable landing page', function (): void {
+        $resource = createIgsnWithMetadata(['publication_year' => 2020]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => false]);
+        $targetUnavailable = true;
+        Http::fake(function (Request $request) use (&$targetUnavailable) {
+            return $targetUnavailable ? Http::response([], $request->method() === 'HEAD' ? 503 : 404) : null;
+        });
+
+        $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")
+            ->assertStatus(503)
+            ->assertJsonPath('error', 'doi_target_unreachable')
+            ->assertJsonPath('message', 'The approved landing page is not publicly reachable. DOI publication has not been sent.');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED)
+            ->and($resource->igsnMetadata->upload_error_message)->toBeNull()
+            ->and($resource->publication_year)->toBe(2020)
+            ->and($resource->landingPage->is_published)->toBeTrue();
+        Http::assertSent(fn (Request $request) => $request->method() === 'HEAD');
+        Http::assertNotSent(fn (Request $request) => in_array($request->method(), ['POST', 'PUT'], true));
+
+        $targetUnavailable = false;
+        fakeIgsnMemberApi();
+        $this->postJson("/igsns/{$resource->id}/register")->assertOk()->assertJsonPath('updated', false);
+        expect($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+    });
+
     test('does not persist publicationYear on API failure', function () {
         $resource = createIgsnWithMetadata(['publication_year' => 2020]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response(['errors' => [['title' => 'Bad Request']]], 400),
-        ]);
+        Http::fake(fn (Request $request) => match ($request->method()) {
+            'GET' => Http::response([], 404),
+            'HEAD' => Http::response('', 200),
+            default => Http::response(['errors' => [['title' => 'Bad Request']]], 400),
+        });
 
         $this->actingAs($this->user)
             ->postJson("/igsns/{$resource->id}/register");
@@ -390,19 +437,11 @@ describe('IgsnController@registerAtDataCite', function () {
     test('allows beginners to register IGSNs in test mode', function () {
         $beginner = User::factory()->beginner()->create();
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         config(['datacite.test_mode' => false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/IGSN-TEST-001',
-                    'type' => 'dois',
-                    'attributes' => ['doi' => '10.83279/IGSN-TEST-001', 'state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $response = $this->actingAs($beginner)
             ->postJson("/igsns/{$resource->id}/register");
@@ -434,20 +473,7 @@ describe('BatchIgsnRegistrationController@register', function () {
         LandingPage::factory()->create(['resource_id' => $resource1->id]);
         LandingPage::factory()->create(['resource_id' => $resource2->id]);
 
-        Http::fake([
-            '*datacite.org/*' => function (Request $request) {
-                $payload = $request->data();
-                $doi = $payload['data']['attributes']['doi'] ?? 'unknown';
-
-                return Http::response([
-                    'data' => [
-                        'id' => $doi,
-                        'type' => 'dois',
-                        'attributes' => ['state' => 'findable'],
-                    ],
-                ], 201);
-            },
-        ]);
+        fakeIgsnMemberApi();
 
         $response = $this->actingAs($this->user)
             ->postJson('/igsns/batch-register', [
@@ -468,15 +494,7 @@ describe('BatchIgsnRegistrationController@register', function () {
         LandingPage::factory()->create(['resource_id' => $resource1->id]);
         // resource2 has no landing page
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/LP-YES',
-                    'type' => 'dois',
-                    'attributes' => ['state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $response = $this->actingAs($this->user)
             ->postJson('/igsns/batch-register', [
@@ -492,17 +510,9 @@ describe('BatchIgsnRegistrationController@register', function () {
 
     test('sets publicationYear for newly registered IGSNs', function () {
         $resource = createIgsnWithMetadata(['doi' => '10.83279/YEAR-001', 'publication_year' => 2020]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/YEAR-001',
-                    'type' => 'dois',
-                    'attributes' => ['state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $this->actingAs($this->user)
             ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
@@ -518,17 +528,9 @@ describe('BatchIgsnRegistrationController@register', function () {
             ['doi' => '10.83279/YEAR-002', 'publication_year' => 2020],
             ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
         );
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/YEAR-002',
-                    'type' => 'dois',
-                    'attributes' => ['state' => 'findable'],
-                ],
-            ], 200),
-        ]);
+        fakeIgsnMemberApi();
 
         $this->actingAs($this->user)
             ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
@@ -552,15 +554,7 @@ describe('BatchIgsnRegistrationController@register', function () {
         LandingPage::factory()->create(['resource_id' => $resource1->id]);
         LandingPage::factory()->create(['resource_id' => $resource2->id]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/OK-001',
-                    'type' => 'dois',
-                    'attributes' => ['state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $response = $this->actingAs($this->user)
             ->postJson('/igsns/batch-register', [
@@ -578,19 +572,11 @@ describe('BatchIgsnRegistrationController@register', function () {
     test('allows beginners to batch register IGSNs in test mode', function () {
         $beginner = User::factory()->beginner()->create();
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         config(['datacite.test_mode' => false]);
 
-        Http::fake([
-            '*datacite.org/*' => Http::response([
-                'data' => [
-                    'id' => '10.83279/IGSN-TEST-001',
-                    'type' => 'dois',
-                    'attributes' => ['doi' => '10.83279/IGSN-TEST-001', 'state' => 'findable'],
-                ],
-            ], 201),
-        ]);
+        fakeIgsnMemberApi();
 
         $response = $this->actingAs($beginner)
             ->postJson('/igsns/batch-register', ['ids' => [$resource->id]]);
@@ -613,6 +599,7 @@ describe('BatchIgsnRegistrationController@register', function () {
 describe('IgsnController@index includes has_landing_page', function () {
     test('uses the resource-specific creator snapshot for the collector', function () {
         $resource = createIgsnWithMetadata();
+        $resource->creators()->delete();
         $person = Person::factory()->create([
             'given_name' => 'Philipp',
             'family_name' => 'Sommer',
@@ -635,7 +622,7 @@ describe('IgsnController@index includes has_landing_page', function () {
 
     test('returns has_landing_page true when landing page exists', function () {
         $resource = createIgsnWithMetadata();
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         $response = $this->actingAs($this->user)
             ->get('/igsns');

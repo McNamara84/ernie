@@ -74,6 +74,9 @@ describe('RegisterDoiRequest', function () {
         // We can't easily test the full registration endpoint without mocking DataCite,
         // but we can verify the request validates prefix
         $request = new RegisterDoiRequest;
+        $route = (new Route('POST', '/resources/{resource}/publish-doi', []))->name('resources.publish-doi');
+        $route->bind(Request::create('/resources/1/publish-doi', 'POST'));
+        $request->setRouteResolver(fn () => $route);
         $rules = $request->rules();
 
         expect($rules)->toHaveKey('prefix');
@@ -123,7 +126,7 @@ describe('RegisterDoiRequest', function () {
 
         $resource = App\Models\Resource::factory()->create(['doi' => null]);
 
-        $route = new Route('POST', '/resources/{resource}/register-doi', []);
+        $route = (new Route('POST', '/resources/{resource}/publish-doi', []))->name('resources.publish-doi');
         $route->bind(Request::create('/resources/'.$resource->id.'/register-doi', 'POST'));
         $route->setParameter('resource', $resource);
 

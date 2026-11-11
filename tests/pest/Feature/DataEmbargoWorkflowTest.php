@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
+use App\Exceptions\DataCiteVerificationException;
 use App\Exceptions\DataCiteWriteSupersededException;
 use App\Jobs\SendDataEmbargoNotificationJob;
 use App\Jobs\SyncDataEmbargoAccessJob;
@@ -46,7 +47,7 @@ function dataEmbargoFixture(string $day, bool $published = true): Resource
 }
 
 beforeEach(function (): void {
-    config(['app.timezone' => 'Europe/Berlin', 'mail.landing_page_contact_cc' => 'curation@example.org', 'datacite.test_mode' => true]);
+    config(['datacite.test.client_id' => 'test.repo', 'datacite.landing_page_url_update.minimum_interval_ms' => 0, 'app.timezone' => 'Europe/Berlin', 'mail.landing_page_contact_cc' => 'curation@example.org', 'datacite.test_mode' => true]);
     $this->travelTo(now('Europe/Berlin')->setDate(2026, 12, 30)->startOfDay());
 });
 
@@ -117,7 +118,7 @@ test('release without a DOI keeps draft or missing landing pages unpublished and
 test('release rejects other access levels and preserves their pending access updates', function (AccessLevel $level, bool $pending): void {
     $resource = dataEmbargoFixture('2026-12-29');
     $resource->forceFill(['access_level' => $level, 'data_embargo_sync_pending' => $pending])->save();
-    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => 'findable']]]));
 
     $this->actingAs(User::factory()->curator()->create())
         ->postJson(route('resources.release-data-embargo', $resource))
@@ -137,23 +138,19 @@ test('release rejects other access levels and preserves their pending access upd
     }
 })->with([AccessLevel::RESTRICTED, AccessLevel::METADATA_ONLY])->with([true, false]);
 
-test('registered draft or missing pages synchronize released access without changing publication', function (string $page, string $state): void {
+test('registered draft or missing pages keep released access local until explicit publication', function (string $page, string $state): void {
     $resource = dataEmbargoFixture('2026-12-29', false);
     if ($page === 'missing') {
         $resource->landingPage->delete();
     }
-    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => $state]]]));
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => $state]]]));
     $this->actingAs(User::factory()->curator()->create())
         ->postJson(route('resources.release-data-embargo', $resource))->assertOk()
-        ->assertJsonPath('released', true)->assertJsonPath('synchronized', true);
+        ->assertJsonPath('released', true)->assertJsonPath('synchronized', false);
     expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
-        ->and($resource->fresh()->data_embargo_sync_pending)->toBeFalse()
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBeTrue()
         ->and($resource->fresh()->landingPage?->is_published)->toBe($page === 'missing' ? null : false);
-    Http::assertSentCount(2);
-    Http::assertSent(fn ($request) => $request->method() === 'PUT'
-        && array_keys($request->data()['data']['attributes']) === ['rightsList']
-        && collect($request->data()['data']['attributes']['rightsList'])->contains('rightsIdentifier', AccessLevel::OPEN->coarIdentifier()));
-    Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+    Http::assertNothingSent();
 })->with(['draft', 'missing'])->with(['registered', 'findable']);
 
 test('failed access verification for a draft or missing page remains pending and can be retried', function (string $page): void {
@@ -164,7 +161,7 @@ test('failed access verification for a draft or missing page remains pending and
     $registered = false;
     Http::fake(function ($request) use ($resource, &$registered) {
         return $registered
-            ? Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'registered']]])
+            ? Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => 'registered']]])
             : Http::response(['errors' => [['title' => 'Not registered']]], 404);
     });
     $this->actingAs(User::factory()->curator()->create())
@@ -174,9 +171,14 @@ test('failed access verification for a draft or missing page remains pending and
         ->and($resource->fresh()->data_embargo_sync_pending)->toBeTrue();
     Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
     $registered = true;
+    if ($page === 'missing') {
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+    } else {
+        $resource->landingPage->publish();
+    }
     $this->postJson(route('resources.release-data-embargo', $resource))->assertOk()->assertJsonPath('synchronized', true);
     expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse()
-        ->and($resource->fresh()->landingPage?->is_published)->toBe($page === 'missing' ? null : false);
+        ->and($resource->fresh()->landingPage?->is_published)->toBeTrue();
     Http::assertSent(fn ($request) => $request->method() === 'PUT'
         && array_keys($request->data()['data']['attributes']) === ['rightsList']);
 })->with(['draft', 'missing']);
@@ -205,7 +207,7 @@ test('release uses the current registered DOI instead of a stale route binding',
         ->and($locked)->toBeTrue();
     expect(fn () => DataCiteDoiWriteLockService::assertCurrentWrite($doi, true, $revision))
         ->toThrow(DataCiteWriteSupersededException::class);
-    Http::fake(fn ($request) => Http::response(['data' => ['id' => $doi, 'attributes' => ['state' => 'findable']]]));
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => 'findable']]]));
     $service->synchronize($released, app(DataCiteMemberApiClient::class));
     expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
     Http::assertSent(fn ($request) => $request->method() === 'PUT'
@@ -247,7 +249,7 @@ test('a DOI assigned between lock selection and the row lock is retried before m
 test('a renewed embargo after a completed release marks and synchronizes access again', function (string $intent): void {
     Queue::fake();
     $resource = dataEmbargoFixture('2026-12-29');
-    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => 'findable']]]));
     $release = app(DataEmbargoReleaseService::class);
     $release->synchronize($release->release($resource), app(DataCiteMemberApiClient::class));
     expect($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
@@ -319,8 +321,8 @@ test('released access metadata is updated only after authenticated remote regist
     $resource = dataEmbargoFixture('2026-12-29');
     config(['datacite.test.username' => 'test', 'datacite.test.password' => 'secret', 'datacite.test.prefixes' => ['10.83279'], 'datacite.test.endpoint' => 'https://api.test.datacite.org']);
     Http::fake(fn ($request) => $request->method() === 'GET'
-        ? Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => $state]]])
-        : Http::response(['data' => ['id' => $resource->doi]]));
+        ? Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => $state]]])
+        : Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => $state]]]));
     $service = app(DataEmbargoReleaseService::class);
     $released = $service->release($resource);
     if ($allowed) {
@@ -545,7 +547,7 @@ test('access synchronization succeeds with the default nonzero request interval'
     $resource = dataEmbargoFixture('2026-12-29');
     $limiter = embargoReleaseLimiter();
     $limiter->clear();
-    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => 'findable']]]));
     $service = app(DataEmbargoReleaseService::class);
     $service->synchronize($service->release($resource), new DataCiteMemberApiClient($limiter, true));
     expect($limiter->pauses)->toBe([1000])
@@ -579,11 +581,11 @@ test('access synchronization rechecks publication after admission waits even wit
     $limiter->duringPause = function () use ($resource, $change): void {
         $resource->landingPage->forceFill([$change => $change === 'is_tombstone'])->save();
     };
-    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => 'findable']]]));
     $service = app(DataEmbargoReleaseService::class);
     $released = $service->release($resource);
     expect(fn () => $service->synchronize($released, new DataCiteMemberApiClient($limiter, true)))
-        ->toThrow(DataCiteWriteSupersededException::class);
+        ->toThrow($change === 'is_published' ? DataCiteVerificationException::class : DataCiteWriteSupersededException::class);
     Http::assertNotSent(fn ($request) => $request->method() === 'PUT');
     expect($resource->fresh()->data_embargo_sync_pending)->toBeTrue();
 })->with(['is_published', 'is_tombstone']);
@@ -611,7 +613,7 @@ test('an editor superseding release access queues a revision-checked corrective 
             $edit();
         }
 
-        return Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]);
+        return Http::response(['data' => ['id' => $resource->doi, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['state' => 'findable']]]);
     });
     $service = app(DataEmbargoReleaseService::class);
     $released = $service->release($resource);
