@@ -66,10 +66,7 @@ final class DashboardController extends Controller
                     $dateQuery->where('date_value', '<=', $today)
                         ->orWhere('start_date', '<=', $today);
                 }))
-            ->where(function ($query): void {
-                $query->whereDoesntHave('landingPage')
-                    ->orWhereHas('landingPage', fn ($page) => $page->where('is_published', false));
-            })
+
             ->get()
             ->filter(fn (Resource $resource): bool => $embargoService->isDue($resource))
             ->sortBy(fn (Resource $resource): string => (string) $embargoService->availableDate($resource))

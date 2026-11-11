@@ -955,7 +955,7 @@ test('activation eligibility verifies registration with the authenticated effect
 })->with([true, false])->with([UserRole::CURATOR, UserRole::GROUP_LEADER, UserRole::ADMIN])->with(['registered', 'findable']);
 
 test('registration eligibility is independent of the local workflow status', function (string $status) {
-    $this->page->update(['is_published' => $status === 'published']);
+    $this->page->update(['is_published' => in_array($status, ['published', 'embargo'], true)]);
     $this->resource->update(['access_level' => $status === 'embargo' ? AccessLevel::EMBARGOED : AccessLevel::OPEN]);
     $this->resource->rights()->attach(Right::factory()->create()->id);
     Description::factory()->create(['resource_id' => $this->resource->id]);

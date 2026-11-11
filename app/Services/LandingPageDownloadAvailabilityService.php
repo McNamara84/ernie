@@ -19,7 +19,7 @@ final class LandingPageDownloadAvailabilityService
     /** Effective source availability; publication, template and embargo policies remain with callers. */
     public function isAvailable(LandingPage $landingPage): bool
     {
-        if ($landingPage->is_tombstone) {
+        if ($landingPage->is_tombstone || $this->isEmbargoed($landingPage)) {
             return false;
         }
 
@@ -27,6 +27,11 @@ final class LandingPageDownloadAvailabilityService
 
         return ! $this->requiresActivation($landingPage)
             && $this->hasSources($landingPage->ftp_url, $landingPage->files);
+    }
+
+    public function isEmbargoed(LandingPage $landingPage): bool
+    {
+        return app(EmbargoService::class)->isEmbargoed($landingPage->resource);
     }
 
     /** @return Collection<int, LandingPageFile> */

@@ -105,6 +105,7 @@ class EditorDataTransformer
             'language' => $resource->language->code ?? '',
             'resourceType' => (string) $resource->resource_type_id,
             'initialAccessLevel' => $accessLevel instanceof AccessLevel ? $accessLevel->value : '',
+            'initialDataEmbargoSyncPending' => $resource->data_embargo_sync_pending,
             'resourceId' => (string) $resource->id,
             'publicStatus' => $resource->publicStatus(),
             'titles' => $titles,

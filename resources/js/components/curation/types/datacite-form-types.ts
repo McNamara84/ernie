@@ -235,6 +235,7 @@ export interface DataCiteFormProps {
     initialLanguage?: string;
     initialResourceType?: string;
     initialAccessLevel?: AccessLevel;
+    initialDataEmbargoSyncPending?: boolean;
     initialTitles?: { title: string; titleType: string; language?: string | null }[];
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];

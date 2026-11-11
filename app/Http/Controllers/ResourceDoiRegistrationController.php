@@ -126,7 +126,7 @@ class ResourceDoiRegistrationController extends Controller
                 $resource->save();
                 app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
                 if ($wasEmbargoed) {
-                    app(EmbargoService::class)->completeRelease($resource);
+                    app(EmbargoService::class)->completeRegistration($resource);
                 }
             });
             if ($wasEmbargoed) {

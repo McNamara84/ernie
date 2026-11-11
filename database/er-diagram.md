@@ -261,9 +261,25 @@ erDiagram
         varchar workflow_status_override "20, nullable, indexed"
         timestamp embargo_registration_started_at "nullable"
         varchar embargo_registration_prefix "64, nullable"
+        varchar embargo_registration_access_level "32, nullable"
+        boolean data_embargo_sync_pending "default false"
         timestamp created_at
         timestamp updated_at
     }
+
+    data_embargo_notifications {
+        bigint id PK
+        bigint resource_id FK "unique with available_date"
+        date available_date
+        varchar status "24, indexed with created_at"
+        timestamp claimed_at "nullable"
+        timestamp sent_at "nullable"
+        text last_error "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    resources ||--o{ data_embargo_notifications : "data embargo reminders"
 
     resource_listing_projections {
         bigint resource_id PK,FK

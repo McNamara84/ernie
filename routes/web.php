@@ -17,6 +17,7 @@ use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\DataCiteImportController;
 use App\Http\Controllers\DataCiteUrlUpdateController;
+use App\Http\Controllers\DataEmbargoReleaseController;
 use App\Http\Controllers\DebugController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DoiValidationController;
@@ -443,6 +444,10 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
         ->middleware('can:register-doi')
         ->name('resources.register-doi');
+
+    Route::post('resources/{resource}/release-data-embargo', DataEmbargoReleaseController::class)
+        ->middleware('can:manage-landing-pages')
+        ->name('resources.release-data-embargo');
 
     // Related Items (DataCite 4.7) — Related Item Manager
     Route::get('related-items/vocabularies', [RelatedItemController::class, 'vocabularies'])

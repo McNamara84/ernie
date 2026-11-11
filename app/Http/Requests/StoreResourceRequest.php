@@ -11,6 +11,7 @@ use App\Http\Requests\Concerns\ValidatesRelatedItems;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\ContributorType;
 use App\Models\RelatedIdentifier;
+use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\TitleType;
 use App\Rules\EditorDate;
@@ -18,6 +19,7 @@ use App\Rules\SafeUrl;
 use App\Rules\TemporalCoverageDate;
 use App\Rules\TemporalCoverageTimezone;
 use App\Services\DoiSuggestionService;
+use App\Services\EmbargoService;
 use App\Support\BooleanNormalizer;
 use App\Support\LanguageTag;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -44,6 +46,8 @@ class StoreResourceRequest extends FormRequest
      * @var array<string, true>
      */
     private array $titleTypeDbSlugSet = [];
+
+    private ?Resource $embargoResource = null;
 
     public function authorize(): bool
     {
@@ -222,6 +226,13 @@ class StoreResourceRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $hasDatesInput = array_key_exists('dates', $this->all());
+        $resourceId = $this->input('resourceId');
+        $existing = (is_int($resourceId) || (is_string($resourceId) && ctype_digit($resourceId)))
+            ? Resource::query()->with(['dates.dateType', 'landingPage'])->find($resourceId)
+            : null;
+        $this->embargoResource = $existing;
+        $this->replace(app(EmbargoService::class)->normalizeInput($this->all(), $existing));
         $hasDoiInput = $this->has('doi');
         $legacyDatacenters = $this->input('datacenters');
 
@@ -845,7 +856,7 @@ class StoreResourceRequest extends FormRequest
             'contributors' => $contributors,
             'mslLaboratories' => $mslLaboratories,
             'descriptions' => $descriptions,
-            'dates' => $dates,
+            ...($hasDatesInput ? ['dates' => $dates] : []),
             'keywords' => $keywords,
             'controlledKeywords' => $controlledKeywords,
             ...($hasCoveragesInput ? ['spatialTemporalCoverages' => is_array($rawCoverages) || $rawCoverages === null ? $coverages : $rawCoverages] : []),
@@ -1191,6 +1202,11 @@ class StoreResourceRequest extends FormRequest
             function (Validator $validator): void {
                 if ($this->input('accessLevel') !== AccessLevel::EMBARGOED->value) {
                     return;
+                }
+
+                if (! array_key_exists('dates', $this->all()) && $this->embargoResource !== null
+                    && app(EmbargoService::class)->availableDate($this->embargoResource) !== null) {
+                    return; // Omitted dates preserve the existing Available day.
                 }
 
                 $dates = $this->input('dates', []);
