@@ -114,6 +114,29 @@ test('release without a DOI keeps draft or missing landing pages unpublished and
     Http::assertNothingSent();
 })->with(['draft', 'missing']);
 
+test('release rejects other access levels and preserves their pending access updates', function (AccessLevel $level, bool $pending): void {
+    $resource = dataEmbargoFixture('2026-12-29');
+    $resource->forceFill(['access_level' => $level, 'data_embargo_sync_pending' => $pending])->save();
+    Http::fake(fn ($request) => Http::response(['data' => ['id' => $resource->doi, 'attributes' => ['state' => 'findable']]]));
+
+    $this->actingAs(User::factory()->curator()->create())
+        ->postJson(route('resources.release-data-embargo', $resource))
+        ->assertUnprocessable()->assertJsonValidationErrors('embargo');
+
+    expect($resource->fresh()->access_level)->toBe($level)
+        ->and($resource->fresh()->data_embargo_sync_pending)->toBe($pending)
+        ->and($resource->fresh()->landingPage->is_published)->toBeTrue();
+    Http::assertNothingSent();
+
+    if ($pending) {
+        (new SyncDataEmbargoAccessJob($resource->id, true))->handle(app(DataEmbargoReleaseService::class), app(DataCiteRequestLimiter::class));
+        expect($resource->fresh()->access_level)->toBe($level)
+            ->and($resource->fresh()->data_embargo_sync_pending)->toBeFalse();
+        Http::assertSent(fn ($request) => $request->method() === 'PUT'
+            && collect($request->data()['data']['attributes']['rightsList'])->contains('rightsIdentifier', $level->coarIdentifier()));
+    }
+})->with([AccessLevel::RESTRICTED, AccessLevel::METADATA_ONLY])->with([true, false]);
+
 test('registered draft or missing pages synchronize released access without changing publication', function (string $page, string $state): void {
     $resource = dataEmbargoFixture('2026-12-29', false);
     if ($page === 'missing') {

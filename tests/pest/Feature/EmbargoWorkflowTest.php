@@ -227,6 +227,53 @@ test('manual IGSN registration preserves data embargo', function (): void {
             ->contains('rightsIdentifier', AccessLevel::EMBARGOED->coarIdentifier()));
 });
 
+test('fake registration persists a future data embargo before publishing metadata', function (string $kind): void {
+    config([
+        'app.timezone' => 'Europe/Berlin',
+        'datacite.test_mode' => true,
+        'datacite.test.username' => null,
+        'datacite.test.password' => null,
+        'datacite.test.prefixes' => ['10.83279'],
+    ]);
+    $this->travelTo(Carbon::parse('2026-12-30 00:00:00', 'Europe/Berlin'));
+    expect(app(DataCiteRegistrationService::class))->toBeInstanceOf(FakeDataCiteRegistrationService::class);
+    $resource = workflowEmbargo('2026-12-31');
+    $resource->update(['access_level' => AccessLevel::OPEN]);
+    if ($kind === 'igsn') {
+        $resource->update(['doi' => '10.83279/FAKE-FUTURE-IGSN']);
+        IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
+    }
+    $landingPage = LandingPage::factory()->draft()->create([
+        'resource_id' => $resource->id, 'doi_prefix' => null, 'template' => 'default_gfz',
+        'downloads_unavailable' => false, 'ftp_url' => 'https://example.org/private.zip',
+    ]);
+    $file = $landingPage->files()->create(['url' => 'https://example.org/private.csv', 'position' => 0]);
+    Http::fake();
+    $this->actingAs(User::factory()->curator()->create());
+
+    $response = match ($kind) {
+        'doi' => $this->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279']),
+        'batch-doi' => $this->postJson('/resources/batch-register', ['ids' => [$resource->id], 'prefix' => '10.83279']),
+        'igsn' => $this->postJson("/igsns/{$resource->id}/register"),
+    };
+    $response->assertOk()->assertJsonPath($kind === 'batch-doi' ? 'success.0.updated' : 'updated', false);
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and($resource->fresh()->doi)->toStartWith('10.83279/')
+        ->and($landingPage->fresh()->is_published)->toBeTrue();
+
+    // The Available day alone must not release data after fake registration.
+    $this->travelTo(Carbon::parse('2026-12-31 00:00:00', 'Europe/Berlin'));
+    $this->get($landingPage->fresh()->getPublicPath())->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('embargoPending', true)->where('embargoDue', true)
+            ->where('landingPage.ftp_url', null)->where('landingPage.files', []));
+    $this->get(route('landing-page.download.primary', $landingPage))->assertNotFound();
+    $this->get(route('landing-page.download.file', ['landingPage' => $landingPage, 'landingPageFile' => $file]))->assertNotFound();
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and($landingPage->fresh()->ftp_url)->toBe('https://example.org/private.zip');
+    Http::assertNothingSent();
+})->with(['doi', 'batch-doi', 'igsn']);
+
 test('a timed-out embargo DOI create is reconciled without a second POST', function (): void {
     config([
         'app.timezone' => 'Europe/Berlin',

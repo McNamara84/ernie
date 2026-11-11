@@ -55,6 +55,10 @@ final class DataEmbargoReleaseService
             throw ValidationException::withMessages(['embargo' => 'Resolve the tombstone or pending DataCite registration before releasing data.']);
         }
         if (! $policy->isEmbargoed($current)) {
+            if ($current->access_level !== AccessLevel::OPEN) {
+                throw ValidationException::withMessages(['embargo' => 'This resource is not under a data embargo.']);
+            }
+
             return $current;
         }
         if (! $policy->isDue($current)) {
