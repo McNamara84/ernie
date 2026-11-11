@@ -19,6 +19,7 @@
         "igsn-facets",
         "assessment",
         "editor-background",
+        "data-embargo",
         "tombstone-schema",
         "igsn-layout",
         "assistance",
@@ -44,6 +45,7 @@
             "tests/pest/Feature/Usage/CounterReadAndLayoutTest.php",
             "tests/pest/Feature/Usage/CounterConcurrencyTest.php"
         ],
+        "data-embargo": ["tests/pest/Feature/Database/DataEmbargoConcurrencyTest.php"],
         "identifier-patterns": [
             "tests/pest/Feature/Database/CorrectElmoIdentifierTypePatternsMigrationTest.php",
             "tests/pest/Feature/Database/CorrectHtmlIdentifierTypePatternsMigrationTest.php",

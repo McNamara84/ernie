@@ -531,7 +531,7 @@ class IgsnController extends Controller
             DB::transaction(function () use ($resource, $metadata, $wasEmbargoed): void {
                 $resource->save();
                 if ($wasEmbargoed) {
-                    app(EmbargoService::class)->completeRelease($resource);
+                    app(EmbargoService::class)->completeRegistration($resource);
                 }
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
             });

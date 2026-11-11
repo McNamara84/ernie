@@ -620,6 +620,61 @@ describe('DataCiteForm', () => {
             return event.defaultPrevented;
         };
 
+        it('drains an in-flight embargo autosave and pauses new writes until release finishes', async () => {
+            vi.useFakeTimers();
+            const autosave = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const release = createDeferred<{ data: { synchronized: boolean; message: string } }>();
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post
+                .mockReturnValueOnce(autosave.promise)
+                .mockReturnValueOnce(release.promise)
+                .mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            const view = renderDataCiteForm({
+                initialResourceId: '42',
+                initialAccessLevel: 'embargoed',
+                initialTitles: [{ title: 'Embargo data', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2020-01-01', endDate: '' }],
+            });
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'New metadata' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                fireEvent.click(screen.getByRole('button', { name: 'Release data' }));
+                fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Release data' }));
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                await act(async () => {
+                    autosave.resolve({ data: { resource: { id: 42 } }, status: 200 });
+                });
+                expect(mockedAxios.post).toHaveBeenNthCalledWith(2, '/resources/42/release-data-embargo');
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Changed during release' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(screen.getByTestId('save-draft-button')).toBeDisabled();
+                await act(async () => {
+                    release.resolve({ data: { synchronized: true, message: 'Released' } });
+                });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenNthCalledWith(
+                    3,
+                    '/editor/resources/draft',
+                    expect.objectContaining({ accessLevel: 'open', intent: 'autosave' }),
+                    expect.any(Object),
+                );
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
         it('warns only while a metadata edit differs from the last saved state', async () => {
             renderDataCiteForm();
             expect(unloadIsBlocked()).toBe(false);
@@ -6150,7 +6205,7 @@ describe('DataCiteForm', () => {
             expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(`${futureYear}-10-13`);
         });
 
-        it('rejects a future Available date for Open access with seeded slugs', { timeout: 60000 }, async () => {
+        it('automatically selects Embargoed access for a future Available date', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const futureYear = new Date().getFullYear() + 2;
             renderDataCiteForm({
@@ -6168,8 +6223,9 @@ describe('DataCiteForm', () => {
             await fillRequiredAbstract(user);
             await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
-            expect(axios.post).not.toHaveBeenCalled();
-            expect(screen.getAllByText('A future Available date requires Embargoed access.').length).toBeGreaterThan(0);
+            expect(axios.post).toHaveBeenCalledWith('/editor/resources', expect.objectContaining({ accessLevel: 'embargoed' }), expect.anything());
+            expect(screen.queryByText('A future Available date requires Embargoed access.')).not.toBeInTheDocument();
+            expect(screen.getByRole('combobox', { name: /Access Level/i })).toHaveTextContent('Embargoed access');
         });
 
         it('rejects a future Created date with seeded slugs', async () => {
@@ -7091,7 +7147,7 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('opens an existing published landing page public URL after saving the draft', { timeout: 30000 }, async () => {
+        it('opens a public embargo landing page without entering the draft workflow', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const { previewWindow } = createPreopenedPreviewWindow();
             const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
@@ -7106,6 +7162,9 @@ describe('DataCiteForm', () => {
 
             renderDataCiteForm({
                 initialResourceId: '43',
+                initialPublicStatus: 'embargo',
+                initialAccessLevel: 'embargoed',
+                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2099-01-01', endDate: '' }],
                 initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 8,
@@ -7119,10 +7178,9 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
-            await waitFor(() => {
-                expect(previewWindow.location.href).toBe('https://example.test/published-resource');
-            });
+            expect(openSpy).toHaveBeenCalledWith('https://example.test/published-resource', '_blank', 'noopener,noreferrer');
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.queryByTestId('save-draft-button')).not.toBeInTheDocument();
             expect(openSpy).toHaveBeenCalledTimes(1);
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
@@ -7155,7 +7213,7 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(openSpy).toHaveBeenCalledWith('https://example.test/published-resource', '_blank', 'noopener,noreferrer');
             expect(mockedAxios.post).not.toHaveBeenCalled();
             expect(toast.error).toHaveBeenCalledWith('Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.');
         });
@@ -7357,10 +7415,10 @@ describe('DataCiteForm', () => {
                 ],
                 initialLandingPage: {
                     id: 16,
-                    is_published: true,
-                    status: 'published',
-                    public_url: 'https://example.test/preparing-published',
-                    preview_url: null,
+                    is_published: false,
+                    status: 'draft',
+                    public_url: 'https://example.test/preparing-draft',
+                    preview_url: 'https://example.test/preparing-draft?preview=token',
                     external_url: null,
                 },
             });
@@ -7392,12 +7450,12 @@ describe('DataCiteForm', () => {
             });
 
             await waitFor(() => {
-                expect(previewWindow.location.href).toBe('https://example.test/preparing-published');
+                expect(previewWindow.location.href).toBe('https://example.test/preparing-draft?preview=token');
             });
             expect(openSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('falls back to the existing resource ID and external URL for published external landing pages', { timeout: 30000 }, async () => {
+        it('opens a published external landing page directly without a draft save', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const { previewWindow } = createPreopenedPreviewWindow();
             const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
@@ -7425,18 +7483,8 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
-            expect(previewWindow.opener).toBeNull();
-            await waitFor(() => {
-                expect(mockedAxios.post).toHaveBeenCalledWith(
-                    '/editor/resources/draft',
-                    expect.objectContaining({ resourceId: 44, intent: 'landing-page-preview' }),
-                    expect.any(Object),
-                );
-            });
-            await waitFor(() => {
-                expect(previewWindow.location.href).toBe('https://external.example.org/dataset');
-            });
+            expect(openSpy).toHaveBeenCalledWith('https://external.example.org/dataset', '_blank', 'noopener,noreferrer');
+            expect(mockedAxios.post).not.toHaveBeenCalled();
         });
 
         it('shows an error instead of opening a draft landing page without a preview URL', { timeout: 30000 }, async () => {
@@ -7505,11 +7553,12 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(openSpy).not.toHaveBeenCalled();
             await waitFor(() => {
                 expect(toast.error).toHaveBeenCalledWith('Unable to open landing page. The public or external URL is missing.');
             });
-            expect(close).toHaveBeenCalledTimes(1);
+            expect(close).not.toHaveBeenCalled();
+            expect(mockedAxios.post).not.toHaveBeenCalled();
             expect(previewWindow.location.href).toBe('about:blank');
         });
 
@@ -7528,10 +7577,10 @@ describe('DataCiteForm', () => {
                 initialTitles: [{ title: 'Existing Preview Save Failure', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 12,
-                    is_published: true,
-                    status: 'published',
+                    is_published: false,
+                    status: 'draft',
                     public_url: 'https://example.test/save-failure',
-                    preview_url: null,
+                    preview_url: 'https://example.test/save-failure?preview=token',
                     external_url: null,
                 },
             });

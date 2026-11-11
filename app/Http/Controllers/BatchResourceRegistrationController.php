@@ -150,7 +150,7 @@ class BatchResourceRegistrationController extends Controller
                         $resource->save();
                         $resourceStorageService->ensureSystemDate($resource, 'Issued');
                         if ($wasEmbargoed) {
-                            app(EmbargoService::class)->completeRelease($resource);
+                            app(EmbargoService::class)->completeRegistration($resource);
                         }
                     });
                     if ($wasEmbargoed) {

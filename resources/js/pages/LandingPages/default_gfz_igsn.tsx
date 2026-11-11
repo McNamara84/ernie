@@ -258,10 +258,10 @@ export default function DefaultGfzIgsnTemplate() {
                             className="mx-4 rounded-lg border-2 border-purple-500 bg-purple-50 p-4 text-center font-semibold text-purple-900 sm:mx-0 dark:bg-purple-950 dark:text-purple-100"
                         >
                             {!embargoDate
-                                ? 'Embargo date is missing or invalid; publication is blocked.'
+                                ? 'The data remains under embargo; the Available date needs correction.'
                                 : embargoDue
-                                  ? `Embargo expired on ${embargoDate}; publication is pending manual release.`
-                                  : `Under embargo until ${embargoDate}`}
+                                  ? `The data embargo expired on ${embargoDate.split('-').reverse().join('.')}; data is awaiting manual release.`
+                                  : `The data is under embargo until ${embargoDate.split('-').reverse().join('.')}.`}
                         </div>
                     ) : undefined
                 }

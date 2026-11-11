@@ -77,8 +77,8 @@ describe('DefaultGfzIgsnTemplate', () => {
 
     describe('Layout Structure', () => {
         it.each([
-            { embargoDue: false, notice: 'Under embargo until 2027-01-01' },
-            { embargoDue: true, notice: 'Embargo expired on 2027-01-01; publication is pending manual release.' },
+            { embargoDue: false, notice: 'The data is under embargo until 01.01.2027.' },
+            { embargoDue: true, notice: 'The data embargo expired on 01.01.2027; data is awaiting manual release.' },
         ])('shows a hidden embargo status until manual release when embargoDue=$embargoDue', ({ embargoDue, notice }) => {
             mockUsePage.mockReturnValue({
                 props: {
@@ -116,8 +116,8 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            expect(screen.getByText('Embargo date is missing or invalid; publication is blocked.')).toHaveAttribute('role', 'status');
-            expect(screen.queryByText(/^Under embargo until|^Embargo expired on/)).not.toBeInTheDocument();
+            expect(screen.getByText('The data remains under embargo; the Available date needs correction.')).toHaveAttribute('role', 'status');
+            expect(screen.queryByText(/^The data is under embargo until|^The data embargo expired on/)).not.toBeInTheDocument();
         });
 
         it.each([false, undefined])('omits embargo notices when embargoPending=%s even if an embargo date is supplied', (embargoPending) => {
@@ -134,7 +134,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            expect(screen.queryByText(/^Under embargo until|^Embargo expired on|^Embargo date is missing/)).not.toBeInTheDocument();
+            expect(screen.queryByText(/^The data is under embargo until|^The data embargo expired on|^The data remains under embargo/)).not.toBeInTheDocument();
             expect(within(screen.getByTestId('landing-page-resource-hero')).getByText('Published')).toBeInTheDocument();
         });
 
