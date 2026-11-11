@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\AccessLevel;
 use App\Models\Description;
 use App\Models\Person;
