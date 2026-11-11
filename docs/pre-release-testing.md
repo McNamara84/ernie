@@ -440,8 +440,8 @@ Run as curator using a new test resource.
       to the Resources List and using Back reloads the saved metadata before
       the editor becomes usable again.
 
-- [ ] An unpublished record shows exactly `Save Draft`, `Validate`, `Register`,
-      and `Preview LP`; a published record shows exactly `Update Metadata` and
+- [ ] An unpublished record shows exactly `Save Draft`, `Validate`, `Publish DOI and landing page`,
+      and `Preview LP`; a published record shows exactly `Update DataCite metadata` and
       `Show LP`.
 
 - [ ] `Validate` saves complete required data locally, keeps the editor open, and
@@ -616,6 +616,19 @@ verify them after reopening:
 
 - [ ] Errors from the external service are displayed clearly and do not produce a
       false success status.
+
+- [ ] A preassigned DOI with an unpublished page cannot be updated by editor,
+      assistant, URL maintenance or resource batch actions, even when remotely
+      registered or findable. Local changes survive the blocked synchronization.
+- [ ] Explicit publication preserves the DOI, releases the page before DataCite,
+      and resolves `/datasets/{id}` publicly before and after assignment.
+- [ ] Missing/draft remote records block ordinary updates; registered records
+      remain registered. `force` only overrides transient ORCID warnings.
+- [ ] A lost creation response leaves a durable pending warning after reload.
+      Retry verifies the earlier attempt and never sends another create. The page
+      remains public, while embargoed downloads remain blocked.
+- [ ] A changed queued repository or approved IGSN metadata prevents publication.
+      Pending outcomes are absent from successful-registration counters.
 
 ### 3.10 Portal and Public Discovery
 

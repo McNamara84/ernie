@@ -104,6 +104,7 @@ final class ResourceListItemResource extends JsonResource
             'updated_at' => $updatedDate ?? $resource->updated_at?->toIso8601String(),
             'curator' => $curator,
             'publicstatus' => $publicStatus,
+            'doiPublication' => $resource->latestDoiPublication?->summary(),
             'resourcetypegeneral' => $resourceTypeName,
             'resource_type' => $resourceTypeName !== null ? [
                 'name' => $resourceTypeName,
@@ -182,6 +183,7 @@ final class ResourceListItemResource extends JsonResource
             'rights',
             'language',
             'landingPage',
+            'latestDoiPublication',
         ];
 
         if (! array_key_exists('listing_workflow_status', $resource->getAttributes())) {

@@ -1404,3 +1404,53 @@ The official MySQL 9.7.4 image still contains scanner findings in its bundled
 listed individually in the audit; updating the image does not establish that it
 has no known vulnerabilities. The server remains pinned to MySQL 9.7, and the
 existing security gates retain their original severity rules and suppressions.
+
+
+### DOI publication and metadata update safety
+
+Configure `DATACITE_TEST_CLIENT_ID`, `DATACITE_CLIENT_ID`, and
+`DATACITE_IGSN_CLIENT_ID` alongside the matching credentials. Authenticated DOI
+responses must confirm identity, repository ownership and registered/findable
+state before ordinary metadata, URL or schema updates. Unpublished landing pages
+block those writes. Local saves remain intact. No registration is inferred from a
+stored DOI or from a public API lookup.
+
+The authenticated web endpoints (session and CSRF protection; existing
+`register-doi` gate) are:
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /resources/{id}/datacite-status` | Read-only state, effective mode, permitted actions and latest publication summary. Requested when opening a DOI action, never by editor autoload. |
+| `POST /resources/{id}/publish-doi` | Requires `confirm_publication=true`, plus `prefix` when no DOI exists. Validates saved metadata, publishes the landing page, checks its public target, then publishes the preserved DOI or creates a new one. |
+| `POST /resources/{id}/update-datacite-metadata` | Updates only a verified registration with a published local landing page; preserves remote state. |
+| `POST /resources/{id}/register-doi` | Compatibility adapter for the safe update path only; never first-publishes, even with a prefix or `force=true`. |
+| `POST /resources/batch-register` | Metadata updates only, with per-resource failures and HTTP 207 on partial failure. The separate explicit IGSN batch registration workflow remains available. |
+
+`force` overrides transient ORCID warnings only. It cannot bypass publication,
+registration, ownership or environment checks. HTTP 200 confirms completion;
+HTTP 202 reports an uncertain publication with `success=false` and a persisted
+publication summary. Business prerequisites return 422; verification or transport
+failures remain errors, not proof of registration.
+
+Apply the additive migration and restart queue workers with the new code. Existing
+records are not backfilled or published. Queue runs created before the context
+snapshot was introduced pause and must be cancelled and recreated after review.
+Queued IGSN first publications also compare their approved metadata and target;
+changed records require a newly confirmed run. Restore the original context to
+reconcile existing uncertain publications instead of starting in another repository.
+
+`resource_doi_publications` stores the approved payload, target, environment,
+actor, status and errors without credentials. A unique active-resource key prevents
+overlapping publication attempts. Internal publications use `/datasets/{id}`;
+its temporary redirect before DOI assignment avoids caching a draft path.
+After a lost response, repeat the publication action to verify the saved attempt.
+A zero-result or ambiguous lookup remains pending and never triggers a second
+DOI-generating POST. Keep the ledger for manual reconciliation; do not delete its
+pending entry to force another create. The released page stays public.
+
+For offline browser fixtures, seed remote state explicitly with
+`FakeDataCiteRegistrationService::setRegistrationState`; its default is missing,
+independent of local DOI values. The fake is restricted to test mode without API
+credentials. Real HTTP boundary and reconciliation tests use authenticated-response
+fixtures. Run `npm run test:php:mysql-sensitive -- --slice doi-publication` for
+MySQL migration, active-attempt uniqueness and independent-worker checks.

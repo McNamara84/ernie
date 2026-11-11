@@ -82,14 +82,14 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     },
     {
         key: 'register-doi',
-        label: 'Register DOI',
-        consequence: 'After confirmation, creates and publishes one new DOI at DataCite.',
+        label: 'Publish DOI and landing page',
+        consequence: 'After confirmation, publishes the landing page and its new or preassigned DOI.',
         icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
     },
     {
         key: 'update-metadata',
         label: 'Update metadata',
-        consequence: 'After confirmation, updates existing DOI metadata at DataCite. No new DOI.',
+        consequence: 'Updates verified registered DOIs with published landing pages; visibility stays unchanged.',
         icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
     },
     {

@@ -74,7 +74,7 @@ it('returns zero counts and legacy list curators for incomplete schemas and resu
         // The state may exist before assignments or projection columns do.
         $listResource = $resource->fresh([
             'creators.creatorable', 'titles.titleType', 'rights', 'language', 'landingPage.externalDomain',
-            'dates.dateType', 'descriptions.descriptionType', 'resourceType', 'createdBy', 'updatedBy',
+            'dates.dateType', 'descriptions.descriptionType', 'resourceType', 'createdBy', 'updatedBy', 'latestDoiPublication',
         ]);
         $row = (new ResourceListItemResource($listResource))->resolve();
         expect($row['curator'])->toBe($ready ? $actor->name : $colleague->name);

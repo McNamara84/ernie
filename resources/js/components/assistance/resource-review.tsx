@@ -47,38 +47,42 @@ function dataCiteSyncFailureDetails(failures: DataCiteSyncFailure[]): string {
 }
 
 function dataCiteSyncRetryAction(failures: DataCiteSyncFailure[]) {
+    const retryable = failures.filter((failure) => failure.retry_url && failure.retryable !== false);
+    if (retryable.length === 0) return undefined;
     return {
-        label: failures.length === 1 ? 'Retry sync' : 'Retry all syncs',
+        label: retryable.length === 1 ? 'Retry sync' : 'Retry all syncs',
         onClick: () => {
-            void retryDataCiteSyncFailures(failures);
+            void retryDataCiteSyncFailures(retryable);
         },
     };
 }
 
 async function retryDataCiteSyncFailures(failures: DataCiteSyncFailure[]): Promise<void> {
     const outcomes = await Promise.all(
-        failures.map(async (failure) => {
-            try {
-                const { data } = await axios.post<{ success: boolean; message: string }>(failure.retry_url);
+        failures
+            .filter((failure) => failure.retry_url && failure.retryable !== false)
+            .map(async (failure) => {
+                try {
+                    const { data } = await axios.post<{ success: boolean; message: string }>(failure.retry_url!);
 
-                return {
-                    failure,
-                    success: data.success,
-                    message: data.message,
-                    rejected: false,
-                };
-            } catch (error: unknown) {
-                return {
-                    failure,
-                    success: false,
-                    message:
-                        axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
-                            ? error.response.data.message
-                            : 'DataCite synchronization retry failed.',
-                    rejected: true,
-                };
-            }
-        }),
+                    return {
+                        failure,
+                        success: data.success,
+                        message: data.message,
+                        rejected: false,
+                    };
+                } catch (error: unknown) {
+                    return {
+                        failure,
+                        success: false,
+                        message:
+                            axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
+                                ? error.response.data.message
+                                : 'DataCite synchronization retry failed.',
+                        rejected: true,
+                    };
+                }
+            }),
     );
 
     if (outcomes.length === 1) {

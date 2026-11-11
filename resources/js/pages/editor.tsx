@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEditorLoadTimeline } from '@/hooks/use-editor-load-timeline';
 import { useEditorSlowLoadReporter } from '@/hooks/use-editor-slow-load-reporter';
 import AppLayout from '@/layouts/app-layout';
+import type { DoiPublicationSummary } from '@/lib/datacite-registration';
 import { clearEditorLoadTimeline, EDITOR_CLIENT_READY_PROGRESS, EDITOR_RESOURCE_TYPES_PROGRESS } from '@/lib/editor-load';
 import { type WarmupResponse, warmupSession } from '@/lib/session-warmup';
 import { editor } from '@/routes';
@@ -50,6 +51,7 @@ interface EditorProps {
     initialRawRights?: RawRightsInput[];
     resourceId?: string;
     publicStatus?: ResourcePublicStatus;
+    doiPublication?: DoiPublicationSummary | null;
     canEditDoi?: boolean;
     landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];
@@ -103,6 +105,7 @@ export default function Editor({
     initialRawRights = [],
     resourceId,
     publicStatus,
+    doiPublication,
     canEditDoi,
     landingPage = null,
     authors = [],
@@ -346,6 +349,7 @@ export default function Editor({
                         initialResourceId={resourceId}
                         hasUnpersistedPrefill={hasUnpersistedPrefill}
                         initialPublicStatus={publicStatus}
+                        initialDoiPublication={doiPublication}
                         canEditDoi={canEditDoi}
                         initialLandingPage={landingPage}
                         initialAuthors={authors}
