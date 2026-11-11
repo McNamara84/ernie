@@ -507,10 +507,10 @@ describe('DataCiteForm', () => {
             headers: {},
             config: {},
         });
-        mockedAxios.get = vi.fn().mockResolvedValue({
-            data: { test: ['10.83279'], production: ['10.5880'], test_mode: true },
+        mockedAxios.get = vi.fn().mockImplementation((url: string) => Promise.resolve({
+            data: url.endsWith('/datacite-status') ? { state: 'registered', mode: 'test', can_update: true, can_publish: true, publication: null } : { test: ['10.83279'], production: ['10.5880'], test_mode: true },
             status: 200,
-        });
+        }));
         mockedAxios.put = vi.fn().mockResolvedValue({
             data: undefined,
             status: 204,
@@ -1325,7 +1325,7 @@ describe('DataCiteForm', () => {
             }
 
             unmount();
-            renderDataCiteForm({ initialDoi: '10.5880/existing.001', initialPublicStatus: 'published' });
+            renderDataCiteForm({ initialDoi: '10.5880/existing.001', initialPublicStatus: 'published', initialLandingPage: { id: 7, is_published: true, status: 'published', public_url: 'https://example.test/page', preview_url: null, external_url: null } });
             const updateHelp = within(screen.getByTestId('editor-floating-actions')).getByRole('link', {
                 name: 'What happens? (opens in a new tab)',
             });
@@ -9010,7 +9010,7 @@ describe('DataCiteForm', () => {
                     });
                 }
 
-                if (url === '/resources/42/register-doi') {
+                if (url === '/resources/42/publish-doi') {
                     return Promise.resolve({
                         data: {
                             success: true,
@@ -9085,7 +9085,7 @@ describe('DataCiteForm', () => {
             });
 
             await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(3));
-            expect(mockedAxios.post.mock.calls[2]).toEqual(['/resources/42/register-doi', { prefix: '10.83279', force: false }]);
+            expect(mockedAxios.post.mock.calls[2]).toEqual(['/resources/42/publish-doi', { prefix: '10.83279', force: false, confirm_publication: true }]);
             expect(await screen.findByTestId('doi-registration-success-dialog')).toBeInTheDocument();
             expect(screen.getByTestId('published-record-total')).toHaveTextContent('125');
             expect(mockRouterVisit).not.toHaveBeenCalled();
@@ -9106,26 +9106,26 @@ describe('DataCiteForm', () => {
                 },
             });
 
-            expect(screen.getByRole('button', { name: 'Update Metadata' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Update DataCite metadata' })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Show LP' })).toBeInTheDocument();
             expect(screen.queryByTestId('save-draft-button')).not.toBeInTheDocument();
             expect(screen.queryByTestId('save-resource-button')).not.toBeInTheDocument();
         });
 
-        it.each(['draft', 'curation', 'review'] as const)('shows Update Metadata for an existing DOI in %s status', (publicStatus) => {
+        it.each(['draft', 'curation', 'review'] as const)('offers explicit publication for a preassigned DOI in %s status', (publicStatus) => {
             renderDataCiteForm({
                 initialDoi: ' 10.5880/legacy-resource ',
                 initialPublicStatus: publicStatus,
                 initialTitles: [{ title: 'Imported legacy dataset', titleType: 'main-title' }],
             });
 
-            expect(screen.getByRole('button', { name: 'Update Metadata' })).toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: 'Register' })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Publish DOI and landing page' })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Update DataCite metadata' })).not.toBeInTheDocument();
             expect(screen.getByTestId('save-draft-button')).toBeInTheDocument();
             expect(screen.getByTestId('save-resource-button')).toBeInTheDocument();
         });
 
-        it('opens the update confirmation without requiring a prefix for an imported review resource', { timeout: 60000 }, async () => {
+        it('opens publication confirmation without requiring a prefix for an imported review resource', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             renderDataCiteForm({
@@ -9151,12 +9151,12 @@ describe('DataCiteForm', () => {
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
-            await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
+            await user.click(screen.getByRole('button', { name: 'Publish DOI and landing page' }));
 
-            expect(await screen.findByRole('heading', { name: 'Confirm DataCite update' })).toBeInTheDocument();
+            expect(await screen.findByRole('heading', { name: 'Confirm DOI and landing page publication' })).toBeInTheDocument();
             expect(screen.getByText('Existing DOI')).toBeInTheDocument();
             expect(screen.queryByLabelText(/DOI prefix/)).not.toBeInTheDocument();
-            await waitFor(() => expect(screen.getByRole('button', { name: 'Update metadata' })).toBeEnabled());
+            await waitFor(() => expect(screen.getByRole('button', { name: 'Publish DOI and landing page' })).toBeEnabled());
         });
 
         it.each(['published', 'dead'] as const)('opens a %s landing page without saving invalid editor changes', async (publicStatus) => {
@@ -9208,7 +9208,7 @@ describe('DataCiteForm', () => {
                         });
                     }
 
-                    if (url === '/resources/42/register-doi') {
+                    if (url === '/resources/42/update-datacite-metadata') {
                         if (outcome !== 'success' && updateAttempts++ === 0) {
                             return Promise.reject({
                                 isAxiosError: true,
@@ -9259,7 +9259,7 @@ describe('DataCiteForm', () => {
                 await fillRequiredAuthor(user);
                 await fillRequiredContributor(user);
                 await fillRequiredAbstract(user);
-                await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
+                await user.click(screen.getByRole('button', { name: 'Update DataCite metadata' }));
                 expect(mockedAxios.post).not.toHaveBeenCalled();
 
                 const confirmButton = await screen.findByTestId('confirm-editor-datacite-action');
@@ -9268,7 +9268,7 @@ describe('DataCiteForm', () => {
 
                 await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
                 expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
-                expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/register-doi', { prefix: '', force: false }]);
+                expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/update-datacite-metadata', { prefix: '', force: false }]);
                 if (outcome !== 'success') {
                     expect(await screen.findByText(busyMessage)).toBeInTheDocument();
                     expect(mockRouterVisit).not.toHaveBeenCalled();

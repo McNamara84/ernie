@@ -1,5 +1,6 @@
 {
     "complete": [
+        "doi-publication",
         "editor-settings",
         "dump-downloads",
         "statistics",
@@ -33,6 +34,11 @@
         "oai-pmh": ["oai-schema", "oai-services"]
     },
     "slices": {
+        "doi-publication": [
+            "tests/pest/Feature/Database/ResourceDoiPublicationSchemaTest.php",
+            "tests/pest/Feature/Database/DataCiteConcurrentWriteTest.php",
+            "tests/pest/Feature/Services/ResourceDoiPublicationTest.php"
+        ],
         "data-embargo": ["tests/pest/Feature/Database/DataEmbargoConcurrencyTest.php"],
         "identifier-patterns": [
             "tests/pest/Feature/Database/CorrectElmoIdentifierTypePatternsMigrationTest.php",

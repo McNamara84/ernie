@@ -1213,7 +1213,7 @@ describe('Docs page', () => {
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText('Register one DOI or update selected metadata')).toBeInTheDocument();
+        expect(screen.getByText('Publish one DOI or update selected metadata')).toBeInTheDocument();
         expect(screen.getByText(/Beginners use the DataCite test environment for both actions/i)).toBeInTheDocument();
     });
 
@@ -1405,7 +1405,7 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('when you press Register DOI or Update metadata.');
+                return text.includes('when you confirm Publish DOI and landing page or Update metadata.');
             }),
         ).toBeInTheDocument();
     });
@@ -1696,18 +1696,18 @@ describe('Docs page', () => {
         const { user } = renderDocsPage('beginner');
         await openDatasetsTab(user);
 
-        const register = screen.getByRole('heading', { name: 'Register', level: 3 }).closest('article');
-        expect(register?.textContent).toMatch(/This click does not save for this action or contact DataCite/);
-        expect(register?.textContent).toMatch(/sends metadata to DataCite to create and publish a DOI/);
-        for (const label of ['Register', 'Update Metadata']) {
-            const action = screen.getByRole('heading', { name: label, level: 3 }).closest('article');
+        const register = document.getElementById('editor-register')?.closest('article');
+        expect(register?.textContent).toMatch(/checks the saved DOI state but sends no write/);
+        expect(register?.textContent).toMatch(/publishes and checks the landing page/);
+        for (const id of ['editor-register', 'editor-update-metadata']) {
+            const action = document.getElementById(id)?.closest('article');
             expect(action?.textContent).toMatch(/successful local save remains stored/i);
             expect(action?.textContent).toMatch(/\(503\).*external update is unconfirmed; wait briefly and retry/);
             expect(action?.textContent).toMatch(/\(409\), reload the resource, review its latest metadata, then confirm again/);
         }
 
         const update = screen.getByRole('heading', { name: 'Update metadata', level: 3 }).closest('article');
-        expect(update?.textContent).toMatch(/It does not mint new DOIs/);
+        expect(update?.textContent).toMatch(/batch never creates DOIs/);
         expect(update?.textContent).toMatch(/batch may report partial success/);
     });
 
@@ -1727,7 +1727,7 @@ describe('Docs page', () => {
         render(<Docs userRole="beginner" capabilities={capabilities} editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         await openDatasetsTab(user);
 
-        expect(screen.queryByRole('heading', { name: 'Register', level: 3 })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Publish DOI and landing page', level: 3 })).not.toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'Update metadata', level: 3 })).not.toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'Send review link', level: 3 })).not.toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'Import old resources', level: 3 })).not.toBeInTheDocument();

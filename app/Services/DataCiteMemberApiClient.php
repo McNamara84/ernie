@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\DataCiteRequestDeferredException;
+use App\Exceptions\DataCiteVerificationException;
 use App\Exceptions\DataCiteWriteSupersededException;
 use App\Models\LandingPage;
+use App\Models\Resource;
+use App\Models\ResourceDoiPublication;
 use App\Models\ResourceTombstoneTransition;
 use App\Models\User;
 use Closure;
@@ -50,9 +53,19 @@ class DataCiteMemberApiClient
         return $this->endpoint;
     }
 
-    public function repositoryClientId(): string
+    public function contextFingerprint(): string
     {
-        $clientId = trim((string) ($this->environmentConfig['client_id'] ?? ''));
+        return hash('sha256', json_encode([
+            $this->testMode, $this->endpoint,
+            strtolower(trim((string) ($this->environmentConfig['client_id'] ?? ''))),
+            strtolower(trim((string) ($this->environmentConfig['igsn_client_id'] ?? ''))),
+            $this->igsnPrefix(),
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    public function repositoryClientId(?string $identifier = null): string
+    {
+        $clientId = trim((string) ($this->environmentConfig[! $this->testMode && $this->isProductionIgsn($identifier) ? 'igsn_client_id' : 'client_id'] ?? ''));
 
         if ($clientId === '') {
             throw new \RuntimeException(
@@ -81,7 +94,7 @@ class DataCiteMemberApiClient
 
     public function igsnPrefix(): string
     {
-        return strtolower(trim((string) config('datacite.production.igsn_prefix', '')));
+        return strtolower(trim((string) ($this->environmentConfig['igsn_prefix'] ?? '')));
     }
 
     public function getDoi(string $identifier, bool $deferWhenLimited = false): Response
@@ -137,7 +150,7 @@ class DataCiteMemberApiClient
     }
 
     /** @param array<string, mixed> $payload */
-    public function createDoi(array $payload, bool $allowRetry = true): Response
+    public function createDoi(array $payload, bool $allowRetry = false, ?Closure $beforeWrite = null): Response
     {
         // An embargo create uses a durable reconciliation marker. A timed-out
         // create may already have minted a DOI, so that path gets one POST.
@@ -147,6 +160,7 @@ class DataCiteMemberApiClient
             $payload,
             $allowRetry ? $this->transientAttempts() : 1,
             credentialIdentifier: $this->payloadIdentifier($payload),
+            beforeWrite: $beforeWrite,
         );
     }
 
@@ -155,7 +169,7 @@ class DataCiteMemberApiClient
      * @param  string|null  $writtenRevision  Receives this call's last PUT revision; verify under the DOI lock before acknowledging it later.
      * @param  (Closure(): void)|null  $beforeWrite  Recheck local state under the DOI lock on every attempt, after admission waits.
      */
-    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null, ?string &$writtenRevision = null, ?Closure $beforeWrite = null): Response
+    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null, ?string &$writtenRevision = null, ?Closure $beforeWrite = null, ?int $publicationId = null): Response
     {
         return $this->send(
             'PUT',
@@ -167,6 +181,7 @@ class DataCiteMemberApiClient
             expectedWriteRevision: $expectedWriteRevision,
             writtenRevision: $writtenRevision,
             beforeWrite: $beforeWrite,
+            publicationId: $publicationId,
         );
     }
 
@@ -233,6 +248,7 @@ class DataCiteMemberApiClient
         ?string $expectedWriteRevision = null,
         ?string &$writtenRevision = null,
         ?Closure $beforeWrite = null,
+        ?int $publicationId = null,
     ): Response {
         $maxAttempts = max(1, $maxAttempts);
         $writeRevision = $method === 'PUT' && $credentialIdentifier !== null && $payload !== null
@@ -251,12 +267,14 @@ class DataCiteMemberApiClient
             }
             try {
                 $response = $writeRevision !== null && $credentialIdentifier !== null && $payload !== null
-                    ? $this->sendWrite($credentialIdentifier, $url, $payload, $writeRevision, $deferWhenLimited, $tombstoneTransitionId, $beforeWrite)
-                    : $this->limiter->runWhenReady(function () use ($method, $url, $payload, $credentialIdentifier): Response|int {
+                    ? $this->sendWrite($credentialIdentifier, $url, $payload, $writeRevision, $deferWhenLimited, $tombstoneTransitionId, $beforeWrite, $publicationId)
+                    : $this->limiter->runWhenReady(function () use ($method, $url, $payload, $credentialIdentifier, $beforeWrite): Response|int {
                         $delay = $this->limiter->reserveSlot(DataCiteDoiWriteLockService::hasHeldLock());
                         if ($delay > 0) {
                             return $delay;
                         }
+
+                        $beforeWrite?->__invoke();
 
                         return $this->request($credentialIdentifier)->send($method, $url, $payload === null ? [] : ['json' => $payload]);
                     }, $deferWhenLimited);
@@ -289,39 +307,104 @@ class DataCiteMemberApiClient
      * @param  array<string, mixed>  $payload
      * @param  (Closure(): void)|null  $beforeWrite
      */
-    private function sendWrite(string $identifier, string $url, array $payload, string &$revision, bool $deferWhenLimited, ?int $tombstoneTransitionId, ?Closure $beforeWrite): Response
+    private function sendWrite(string $identifier, string $url, array $payload, string &$revision, bool $deferWhenLimited, ?int $tombstoneTransitionId, ?Closure $beforeWrite, ?int $publicationId): Response
     {
-        $lifecycleRead = null;
+        $verifier = app(DataCiteRegistrationVerifierService::class);
+        $this->assertWritePurpose($identifier, $payload, $tombstoneTransitionId, $publicationId);
+        $evidence = $verifier->verify($this, $identifier, $deferWhenLimited);
+        if ($publicationId === null) {
+            $verifier->requireRegistered($evidence);
+        } elseif ($evidence->state === 'missing') {
+            throw new DataCiteVerificationException('doi_registration_required', 'The DOI no longer exists. Reconcile the publication before retrying.');
+        }
+        $verifiedAt = microtime(true);
+
+        // GETs and admission waits never hold the DOI lock. A retry enters here
+        // again and verifies registration anew. Evidence expires during long waits.
         do {
-            $response = $this->limiter->runWhenReady(function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead, $beforeWrite): Response|int|null {
-                return DataCiteDoiWriteLockService::run($identifier, $this->testMode, function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead, $beforeWrite): Response|int|null {
+            $response = $this->limiter->runWhenReady(function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, $beforeWrite, $publicationId, $evidence, $verifiedAt): Response|int|null {
+                if (microtime(true) - $verifiedAt > 5) {
+                    return null;
+                }
+
+                return DataCiteDoiWriteLockService::run($identifier, $this->testMode, function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, $beforeWrite, $publicationId, $evidence): Response|int {
                     DataCiteDoiWriteLockService::assertCurrentWrite($identifier, $this->testMode, $revision);
                     $this->assertTombstoneTransition($identifier, $tombstoneTransitionId);
-                    $prepared = $this->protectTombstonePayload($identifier, $payload, $lifecycleRead);
+                    $this->assertWritePurpose($identifier, $payload, $tombstoneTransitionId, $publicationId);
+                    $transitionId = (int) ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->value('id');
+                    $prepared = $this->protectTombstonePayload($identifier, $payload, ['transition_id' => $transitionId, 'state' => $evidence->state]);
                     if ($prepared === null) {
-                        return null;
+                        throw new DataCiteWriteSupersededException;
                     }
-                    $beforeWrite?->__invoke();
-                    // Nonblocking admission immediately before sending: a permit
-                    // cannot age while waiting for this DOI or a lifecycle GET.
                     $delay = $this->limiter->reserveSlot(nonBlocking: true);
                     if ($delay > 0) {
                         return $delay;
                     }
-
+                    $beforeWrite?->__invoke();
                     $revision = DataCiteDoiWriteLockService::beginWrite($identifier, $this->testMode);
+                    $response = $this->request($identifier)->put($url, $prepared);
+                    if ($response->successful()) {
+                        $confirmed = app(DataCiteRegistrationVerifierService::class)->fromResponse($this, $identifier, $response);
+                        $expectedState = match ($prepared['data']['attributes']['event'] ?? null) {
+                            'publish' => 'findable',
+                            'hide' => 'registered',
+                            default => $evidence->state,
+                        };
+                        if ($confirmed->state !== $expectedState) {
+                            throw new DataCiteVerificationException('doi_state_conflict', 'DataCite did not confirm the expected DOI state. Review the remote record before retrying.', true);
+                        }
+                    }
 
-                    return $this->request($identifier)->put($url, $prepared);
+                    return $response;
                 });
             }, $deferWhenLimited);
             if ($response instanceof Response) {
                 return $response;
             }
-            $transitionId = (int) ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->value('id');
-            $state = $this->getDoi($identifier, $deferWhenLimited);
-            $state->throw();
-            $lifecycleRead = ['transition_id' => $transitionId, 'state' => $state->json('data.attributes.state')];
+            $evidence = $verifier->verify($this, $identifier, $deferWhenLimited);
+            if ($publicationId === null) {
+                $verifier->requireRegistered($evidence);
+            } elseif ($evidence->state === 'missing') {
+                throw new DataCiteWriteSupersededException;
+            }
+            $verifiedAt = microtime(true);
         } while (true);
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function assertWritePurpose(string $doi, array $payload, ?int $transitionId, ?int $publicationId): void
+    {
+        $attributes = $payload['data']['attributes'] ?? [];
+        if (! is_array($attributes) || array_key_exists('state', $attributes) || array_key_exists('relationships', $payload['data'] ?? [])
+            || (isset($payload['data']['id']) && strcasecmp((string) $payload['data']['id'], $doi) !== 0)
+            || (isset($attributes['doi']) && strcasecmp((string) $attributes['doi'], $doi) !== 0)) {
+            throw new DataCiteVerificationException('invalid_datacite_update', 'The update must preserve DOI identity and repository.');
+        }
+        if ($publicationId !== null) {
+            $publication = ResourceDoiPublication::findOrFail($publicationId);
+            $publication->assertContext($this, $doi);
+            if (! in_array($publication->status, ['landing_page_published', 'remote_write_started'], true) || ! in_array($attributes['event'] ?? null, [null, 'publish'], true)) {
+                throw new DataCiteWriteSupersededException;
+            }
+        } elseif ($transitionId !== null) {
+            $this->assertTombstoneTransition($doi, $transitionId);
+            $transition = ResourceTombstoneTransition::findOrFail($transitionId);
+            if ($transition->test_mode !== $this->testMode
+                || ! in_array($attributes['event'] ?? null, [null, $transition->target_state === 'registered' ? 'hide' : 'publish'], true)) {
+                throw new DataCiteWriteSupersededException;
+            }
+
+            return;
+        } elseif (array_key_exists('event', $attributes)) {
+            throw new DataCiteVerificationException('explicit_publication_required', 'Metadata updates cannot change DOI visibility. Use an explicitly confirmed publication or tombstone action.');
+        }
+        $resources = Resource::query()->with('landingPage')->whereRaw('LOWER(doi) = ?', [strtolower(trim($doi))])->get();
+        if ($resources->count() !== 1 || $resources->first()?->landingPage?->is_published !== true) {
+            throw new DataCiteVerificationException('landing_page_not_published', 'The resource must have a published landing page before metadata can be sent to DataCite. Local changes remain saved.');
+        }
+        if ($publicationId !== null && ($resources->first()->id !== $publication->resource_id || $resources->first()->landingPage->is_tombstone)) {
+            throw new DataCiteWriteSupersededException;
+        }
     }
 
     private function assertTombstoneTransition(string $identifier, ?int $transitionId): void

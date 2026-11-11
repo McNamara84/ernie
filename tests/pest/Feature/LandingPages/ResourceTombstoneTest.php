@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\AccessLevel;
 use App\Enums\ResourceWorkflowStatus;
 use App\Enums\UserRole;
+use App\Exceptions\DataCiteVerificationException;
 use App\Http\Controllers\EditorController;
 use App\Jobs\SyncResourceTombstoneWithDataCiteJob;
 use App\Models\ContactMessage;
@@ -23,6 +24,7 @@ use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteDoiWriteLockService;
 use App\Services\DataCiteMemberApiClient;
+use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\KeywordSuggestionService;
 use App\Services\LandingPageMachineMetadataService;
@@ -40,8 +42,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
+
+require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 class TombstoneAdmissionClock extends DataCiteRequestLimiter
 {
@@ -63,6 +68,7 @@ beforeEach(function () {
     Queue::fake([SyncResourceTombstoneWithDataCiteJob::class]);
     config([
         'datacite.test_mode' => true,
+        'datacite.landing_page_url_update.minimum_interval_ms' => 0,
         'datacite.test.client_id' => 'test.repository',
         'datacite.test.username' => 'test.repository',
         'datacite.test.password' => 'test-password',
@@ -122,8 +128,10 @@ test('activation rejects a remote snapshot superseded by a metadata writer', fun
     Cache::flush();
     config(['datacite.landing_page_url_update.minimum_interval_ms' => 0]);
     Http::swap(new Factory);
-    Http::fake(function ($request) {
-        if ($request->method() === 'GET') {
+    $competingWriteSent = false;
+    Http::fake(function ($request) use (&$competingWriteSent) {
+        if ($request->method() === 'GET' && ! $competingWriteSent) {
+            $competingWriteSent = true;
             app(DataCiteMemberApiClient::class)->updateLandingPageUrl($this->resource->doi, 'https://example.org/new-target');
         }
 
@@ -161,7 +169,7 @@ test('a duplicate tombstone sync leaves its running worker in charge', function 
     app(ResourceTombstoneSyncService::class)->sync($transition->id);
 
     expect($transition->fresh()->status)->toBe('succeeded')->and($transition->fresh()->attempts)->toBe(1);
-    Http::assertSentCount(2);
+    Http::assertSentCount(3);
     Log::shouldHaveReceived('info')->once()->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'tombstone.datacite_synced');
 });
 
@@ -211,8 +219,10 @@ test('a matching remote snapshot changed by a newer write is retried instead of 
     $this->actingAs($this->user)->postJson($this->endpoint, $this->payload)->assertOk();
     $transition = ResourceTombstoneTransition::firstOrFail();
     Http::swap(new Factory);
-    Http::fake(function ($request) {
-        if ($request->method() === 'GET') {
+    $competingWriteSent = false;
+    Http::fake(function ($request) use (&$competingWriteSent) {
+        if ($request->method() === 'GET' && ! $competingWriteSent) {
+            $competingWriteSent = true;
             app(DataCiteMemberApiClient::class)->updateLandingPageUrl($this->resource->doi, $this->page->public_url);
         }
 
@@ -227,7 +237,7 @@ test('a matching remote snapshot changed by a newer write is retried instead of 
         ->and($transition->fresh()->completed_at)->toBeNull()
         ->and($transition->fresh()->available_at)->toBeGreaterThan(now());
     Log::shouldNotHaveReceived('info');
-    Http::assertSentCount(2);
+    Http::assertSentCount(3);
 
     $this->travel(2)->minutes();
     Http::swap(new Factory);
@@ -287,7 +297,7 @@ test('tombstone completion checks its own PUT revision after releasing the send 
     expect($transition->fresh()->status)->toBe($newerWrite ? 'pending' : 'succeeded')
         ->and($transition->fresh()->completed_at === null)->toBe($newerWrite)
         ->and($putCount)->toBe(1 + (int) $newerWrite + (int) $transientFailure);
-    Http::assertSentCount(2 + (int) $newerWrite + (int) $transientFailure);
+    Http::assertSentCount(3 + 2 * (int) $newerWrite + 2 * (int) $transientFailure);
     if ($newerWrite) {
         Log::shouldNotHaveReceived('info');
     } else {
@@ -311,24 +321,24 @@ test('tombstone lifecycle reads and writes each obey final API admission', funct
     app()->instance(DataCiteRequestLimiter::class, $clock);
     $sentAt = [];
     Http::swap(new Factory);
-    Http::fake(function ($request) use ($transition, $clock, &$sentAt) {
+    Http::fake(function ($request) use ($transition, $clock, &$sentAt, $sync) {
         $sentAt[] = [$request->method(), $clock->milliseconds];
         if ($request->method() === 'GET') {
             expect(DataCiteDoiWriteLockService::hasHeldLock())->toBeFalse();
 
             return Http::response(($this->remote)('findable'));
         }
-        expect($request['data']['attributes']['event'])->toBe('hide');
+        expect($request['data']['attributes']['event'] ?? null)->toBe($sync ? 'hide' : null);
 
-        return Http::response(($this->remote)('registered', $transition->target_url));
+        return Http::response(($this->remote)($sync ? 'registered' : 'findable', $transition->target_url));
     });
     if ($sync) {
         app(ResourceTombstoneSyncService::class)->sync($transition->id);
         expect($transition->fresh()->status)->toBe('succeeded');
     } else {
-        (new DataCiteMemberApiClient($clock, true))->updateDoi($transition->doi, ['data' => ['attributes' => ['event' => 'publish']]]);
+        (new DataCiteMemberApiClient($clock, true))->updateDoi($transition->doi, ['data' => ['attributes' => ['url' => $transition->target_url]]]);
     }
-    expect($sentAt)->toBe([['GET', 1_000_000], ['PUT', 1_001_000]]);
+    expect($sentAt)->toBe($sync ? [['GET', 1_000_000], ['GET', 1_001_000], ['PUT', 1_002_000]] : [['GET', 1_000_000], ['PUT', 1_001_000]]);
 })->with(['metadata update' => false, 'outbox synchronization' => true]);
 
 test('a tombstone sync cannot write after its remote read becomes superseded', function (bool $newLifecycle) {
@@ -338,7 +348,8 @@ test('a tombstone sync cannot write after its remote read becomes superseded', f
     $transition = ResourceTombstoneTransition::firstOrFail();
     $putCount = 0;
     Http::swap(new Factory);
-    Http::fake(function ($request) use ($transition, $newLifecycle, &$putCount) {
+    $competingWriteSent = false;
+    Http::fake(function ($request) use ($transition, $newLifecycle, &$putCount, &$competingWriteSent) {
         if ($request->method() === 'PUT') {
             $putCount++;
 
@@ -349,7 +360,10 @@ test('a tombstone sync cannot write after its remote read becomes superseded', f
             $newer = $transition->replicate();
             $newer->fill(['revision' => $transition->revision + 1, 'action' => 'restore', 'target_state' => 'findable', 'target_url' => 'https://example.test/restored', 'status' => 'pending'])->save();
         } else {
-            app(DataCiteMemberApiClient::class)->updateLandingPageUrl($transition->doi, $transition->target_url);
+            if (! $competingWriteSent) {
+                $competingWriteSent = true;
+                app(DataCiteMemberApiClient::class)->updateLandingPageUrl($transition->doi, $transition->target_url);
+            }
         }
 
         return Http::response(($this->remote)('findable'));
@@ -577,7 +591,8 @@ test('stale metadata publish and URL repair payloads preserve the active tombsto
     Http::swap(new Factory);
     Http::fake(['*datacite.org/*' => Http::response(($this->remote)('registered'))]);
     $client = app(DataCiteMemberApiClient::class);
-    $client->updateDoi($this->resource->doi, ['data' => ['type' => 'dois', 'attributes' => ['event' => 'publish', 'url' => 'https://example.org/stale', 'titles' => [['title' => 'Corrected metadata']]]]]);
+    expect(fn () => $client->updateDoi($this->resource->doi, ['data' => ['type' => 'dois', 'attributes' => ['event' => 'publish', 'url' => 'https://example.org/stale', 'titles' => [['title' => 'Corrected metadata']]]]]))->toThrow(DataCiteVerificationException::class);
+    Http::assertNothingSent();
     $client->updateLandingPageUrl($this->resource->doi, 'https://example.org/stale');
     Http::assertNotSent(fn ($request) => $request->method() === 'PUT' && ($request['data']['attributes']['event'] ?? null) === 'publish');
     Http::assertNotSent(fn ($request) => $request->method() === 'PUT' && $request['data']['attributes']['url'] !== $this->page->public_url);
@@ -699,15 +714,18 @@ test('completed restoration of a registered DOI allows later intentional publica
         ->and($this->page->fresh()->is_tombstone)->toBeFalse();
     $transition->update(['status' => $status]);
 
+    completeDataCiteFixture($this->resource);
+    URL::forceRootUrl('https://ernie.example');
+    URL::forceScheme('https');
+    $target = url('/datasets/'.$this->resource->id);
     Http::swap(new Factory);
-    Http::fake(['*datacite.org/*' => Http::response(($this->remote)('findable'))]);
-    app(DataCiteMemberApiClient::class)->updateDoi($this->resource->doi, [
-        'data' => ['type' => 'dois', 'id' => $this->resource->doi, 'attributes' => ['url' => 'https://example.org/published', 'event' => 'publish']],
-    ]);
-    Http::assertSentCount(1);
+    Http::fake(fn ($request) => $request->method() === 'HEAD' ? Http::response('', 200)
+        : Http::response(($this->remote)($request->method() === 'GET' ? 'registered' : 'findable', $target)));
+    $result = app(DataCiteRegistrationService::class)->registerDoi($this->resource, '');
+    expect($result['complete'])->toBeTrue();
     Http::assertSent(fn ($request) => $request->method() === 'PUT'
         && $request['data']['attributes']['event'] === 'publish'
-        && $request['data']['attributes']['url'] === 'https://example.org/published');
+        && $request['data']['attributes']['url'] === $target);
 })->with(['succeeded', 'superseded']);
 
 test('unfinished restoration still protects the desired registered state and URL', function (string $status) {
@@ -720,10 +738,10 @@ test('unfinished restoration still protects the desired registered state and URL
     Http::swap(new Factory);
     Http::fake(['*datacite.org/*' => Http::response(($this->remote)('findable'))]);
     app(DataCiteMemberApiClient::class)->updateDoi($this->resource->doi, [
-        'data' => ['type' => 'dois', 'id' => $this->resource->doi, 'attributes' => ['url' => 'https://example.org/stale', 'event' => 'publish']],
+        'data' => ['type' => 'dois', 'id' => $this->resource->doi, 'attributes' => ['url' => 'https://example.org/stale']],
     ]);
     Http::assertSent(fn ($request) => $request->method() === 'PUT'
-        && $request['data']['attributes']['event'] === 'hide'
+        && ! array_key_exists('event', $request['data']['attributes'])
         && $request['data']['attributes']['url'] === $transition->target_url);
 })->with(['pending', 'running', 'failed']);
 

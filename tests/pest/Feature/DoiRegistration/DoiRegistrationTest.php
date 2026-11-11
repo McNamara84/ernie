@@ -7,16 +7,22 @@ use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\withoutVite;
 
+require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
+
 beforeEach(function () {
     withoutVite();
+    URL::forceRootUrl('https://ernie.example');
+    URL::forceScheme('https');
 
     config([
         'datacite.test_mode' => true,
         'datacite.test.username' => 'TEST.USER',
+        'datacite.test.client_id' => 'test.repo',
         'datacite.test.password' => 'test-password',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
@@ -32,10 +38,12 @@ beforeEach(function () {
         'created_by_user_id' => $this->user->id,
         'updated_by_user_id' => $this->user->id,
     ]);
+    completeDataCiteFixture($this->resource);
 });
 
 test('doi registration requires authentication', function () {
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -45,7 +53,8 @@ test('doi registration requires authentication', function () {
 test('doi registration requires a landing page', function () {
     actingAs($this->user);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -66,7 +75,8 @@ test('doi registration validates prefix against allowed list in test mode', func
 
     config(['datacite.test_mode' => true]);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.5880', // Production prefix, not allowed in test mode
     ]);
 
@@ -83,7 +93,8 @@ test('doi registration validates prefix against allowed list in production mode'
 
     config(['datacite.test_mode' => false]);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279', // Test prefix, not allowed in production mode
     ]);
 
@@ -100,19 +111,23 @@ test('doi registration succeeds with valid data for new doi', function () {
 
     // Mock DataCite API response - use wildcard to catch any request
     Http::fake([
+        'https://ernie.example/*' => Http::response('', 200),
         '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/test-12345',
                 'type' => 'dois',
+                'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                 'attributes' => [
                     'doi' => '10.83279/test-12345',
                     'state' => 'findable',
+                    'url' => url('/datasets/'.$this->resource->id),
                 ],
             ],
         ], 201),
     ]);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -121,9 +136,9 @@ test('doi registration succeeds with valid data for new doi', function () {
         'success' => true,
         'doi' => '10.83279/test-12345',
         'publishedRecordCounts' => [
-            'resources' => 0,
+            'resources' => 1,
             'igsns' => 0,
-            'total' => 0,
+            'total' => 1,
         ],
     ]);
 
@@ -152,19 +167,23 @@ test('new doi registration returns a freshly invalidated published inventory cou
     ]);
 
     Http::fake([
+        'https://ernie.example/*' => Http::response('', 200),
         '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/published-test',
                 'type' => 'dois',
+                'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                 'attributes' => [
                     'doi' => '10.83279/published-test',
                     'state' => 'findable',
+                    'url' => url('/datasets/'.$this->resource->id),
                 ],
             ],
         ], 201),
     ]);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -181,13 +200,16 @@ test('new doi registration remains successful when the optional published invent
     LandingPage::factory()->for($this->resource)->published()->withoutDoi()->create();
 
     Http::fake([
+        'https://ernie.example/*' => Http::response('', 200),
         '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/count-failure',
                 'type' => 'dois',
+                'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                 'attributes' => [
                     'doi' => '10.83279/count-failure',
                     'state' => 'findable',
+                    'url' => url('/datasets/'.$this->resource->id),
                 ],
             ],
         ], 201),
@@ -199,7 +221,8 @@ test('new doi registration remains successful when the optional published invent
         ->andThrow(new RuntimeException('Published count unavailable'));
     $this->app->instance(ResourceCacheService::class, $cacheService);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -227,19 +250,22 @@ test('doi registration updates metadata for existing doi', function () {
 
     // Mock DataCite API response for update - use wildcard
     Http::fake([
+        'https://ernie.example/*' => Http::response('', 200),
         '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/existing-doi',
                 'type' => 'dois',
+                'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                 'attributes' => [
                     'doi' => '10.83279/existing-doi',
                     'state' => 'findable',
+                    'url' => url('/datasets/'.$this->resource->id),
                 ],
             ],
         ], 200),
     ]);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.update-datacite-metadata', ['resource' => $this->resource->id]), [
         'prefix' => '10.83279',
     ]);
 
@@ -268,20 +294,23 @@ test('doi registration allows metadata update without a prefix', function () {
     ]);
 
     Http::fake([
+        'https://ernie.example/*' => Http::response('', 200),
         '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/existing-doi',
                 'type' => 'dois',
+                'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                 'attributes' => [
                     'doi' => '10.83279/existing-doi',
                     'state' => 'findable',
+                    'url' => url('/datasets/'.$this->resource->id),
                 ],
             ],
         ], 200),
     ]);
 
     // Modal submits prefix='' when a DOI already exists – validation must accept it.
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.update-datacite-metadata', ['resource' => $this->resource->id]), [
         'prefix' => '',
     ]);
 
@@ -302,6 +331,7 @@ test('doi registration handles datacite api errors gracefully', function () {
 
     // Mock DataCite API error response - use wildcard
     Http::fake([
+        'https://ernie.example/*' => Http::response('', 200),
         '*datacite.org/*' => Http::response([
             'errors' => [
                 [
@@ -313,7 +343,8 @@ test('doi registration handles datacite api errors gracefully', function () {
         ], 422),
     ]);
 
-    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -389,26 +420,31 @@ test('beginner doi registration uses test prefixes even when global production m
         'is_published' => false,
     ]);
 
-    $productionPrefixResponse = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $productionPrefixResponse = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.5880',
     ]);
 
     $productionPrefixResponse->assertSessionHasErrors('prefix');
 
     Http::fake([
+        'https://ernie.example/*' => Http::response('', 200),
         '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/beginner-training',
                 'type' => 'dois',
+                'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                 'attributes' => [
                     'doi' => '10.83279/beginner-training',
                     'state' => 'findable',
+                    'url' => url('/datasets/'.$this->resource->id),
                 ],
             ],
         ], 201),
     ]);
 
-    $testPrefixResponse = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $testPrefixResponse = $this->post(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 

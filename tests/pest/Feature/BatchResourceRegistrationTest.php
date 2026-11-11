@@ -21,6 +21,7 @@ beforeEach(function () {
     config([
         'datacite.test_mode' => true,
         'datacite.test.username' => 'TEST.USER',
+        'datacite.test.client_id' => 'test.repo',
         'datacite.test.password' => 'test-password',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
@@ -37,18 +38,19 @@ describe('BatchResourceRegistrationController@register', function () {
     test('updates metadata for resources that already have a DOI', function () {
         $resource1 = Resource::factory()->create(['doi' => '10.83279/BATCH-REG-001']);
         $resource2 = Resource::factory()->create(['doi' => '10.83279/BATCH-REG-002']);
-        LandingPage::factory()->create(['resource_id' => $resource1->id]);
-        LandingPage::factory()->create(['resource_id' => $resource2->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource1->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource2->id]);
 
         Http::fake([
             '*datacite.org/*' => function (Request $request) {
                 $payload = $request->data();
-                $doi = $payload['data']['attributes']['doi'] ?? 'unknown';
+                $doi = $payload['data']['attributes']['doi'] ?? rawurldecode(basename($request->url()));
 
                 return Http::response([
                     'data' => [
                         'id' => $doi,
                         'type' => 'dois',
+                        'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                         'attributes' => ['state' => 'findable'],
                     ],
                 ], 200);
@@ -72,46 +74,20 @@ describe('BatchResourceRegistrationController@register', function () {
             ->and($issuedDate)->toBeNull();
     });
 
-    test('registers a new DOI when prefix is provided and resource lacks a DOI', function () {
+    test('never registers a new DOI in a batch even when a prefix is provided', function () {
         $resource = Resource::factory()->create(['doi' => null]);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
-
-        Http::fake([
-            '*datacite.org/*' => function (Request $request) {
-                $payload = $request->data();
-
-                return Http::response([
-                    'data' => [
-                        'id' => $payload['data']['attributes']['doi'] ?? '10.83279/NEW-001',
-                        'type' => 'dois',
-                        'attributes' => ['state' => 'findable'],
-                    ],
-                ], 201);
-            },
-        ]);
-
-        $response = $this->actingAs($this->user)
-            ->postJson('/resources/batch-register', [
-                'ids' => [$resource->id],
-                'prefix' => '10.83279',
-            ]);
-
-        $response->assertOk();
-
-        $resource->refresh();
-        $issuedDate = $resource->dates()->whereHas('dateType', function ($q) {
-            $q->whereRaw('LOWER(slug) = ?', ['issued']);
-        })->first();
-
-        expect($resource->doi)->not->toBeNull()->toStartWith('10.83279/');
-        expect($response->json('success.0.updated'))->toBeFalse()
-            ->and($issuedDate)->not->toBeNull()
-            ->and($issuedDate->date_value)->toBe($issuedDate->created_at->toDateString());
+        Http::fake();
+        $this->actingAs($this->user)->postJson('/resources/batch-register', [
+            'ids' => [$resource->id], 'prefix' => '10.83279',
+        ])->assertStatus(207)->assertJsonCount(0, 'success')->assertJsonCount(1, 'failed');
+        expect($resource->fresh()->doi)->toBeNull();
+        Http::assertNothingSent();
     });
 
     test('fails items without DOI when no prefix is provided', function () {
         $resource = Resource::factory()->create(['doi' => null]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $response = $this->actingAs($this->user)
             ->postJson('/resources/batch-register', [
@@ -120,12 +96,12 @@ describe('BatchResourceRegistrationController@register', function () {
 
         $response->assertStatus(207);
         expect($response->json('failed.0.reason'))
-            ->toBe('Resource has no DOI. Provide a prefix to register a new DOI.');
+            ->toBe('Publish this resource individually before updating DataCite metadata.');
     });
 
     test('rejects IGSN resources (must use IGSN batch endpoint)', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/IGSN-MIXED-001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
         IgsnMetadata::create([
             'resource_id' => $resource->id,
             'upload_status' => IgsnMetadata::STATUS_UPLOADED,
@@ -145,7 +121,7 @@ describe('BatchResourceRegistrationController@register', function () {
     test('reports failures for resources without landing pages', function () {
         $resource1 = Resource::factory()->create(['doi' => '10.83279/LP-YES']);
         $resource2 = Resource::factory()->create(['doi' => '10.83279/LP-NO']);
-        LandingPage::factory()->create(['resource_id' => $resource1->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource1->id]);
         // resource2 has no landing page
 
         Http::fake([
@@ -153,6 +129,7 @@ describe('BatchResourceRegistrationController@register', function () {
                 'data' => [
                     'id' => '10.83279/LP-YES',
                     'type' => 'dois',
+                    'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                     'attributes' => ['state' => 'findable'],
                 ],
             ], 200),
@@ -173,14 +150,15 @@ describe('BatchResourceRegistrationController@register', function () {
     test('isolates failures from successes', function () {
         $ok = Resource::factory()->create(['doi' => '10.83279/OK-001']);
         $bad = Resource::factory()->create(['doi' => null]);
-        LandingPage::factory()->create(['resource_id' => $ok->id]);
-        LandingPage::factory()->create(['resource_id' => $bad->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $ok->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $bad->id]);
 
         Http::fake([
             '*datacite.org/*' => Http::response([
                 'data' => [
                     'id' => '10.83279/OK-001',
                     'type' => 'dois',
+                    'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                     'attributes' => ['state' => 'findable'],
                 ],
             ], 200),
@@ -226,7 +204,7 @@ describe('BatchResourceRegistrationController@register', function () {
     test('allows beginners to batch update resources in test mode', function () {
         $beginner = User::factory()->beginner()->create();
         $resource = Resource::factory()->create(['doi' => '10.83279/BEG-001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         config(['datacite.test_mode' => false]);
 
@@ -235,6 +213,7 @@ describe('BatchResourceRegistrationController@register', function () {
                 'data' => [
                     'id' => '10.83279/BEG-001',
                     'type' => 'dois',
+                    'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                     'attributes' => ['doi' => '10.83279/BEG-001', 'state' => 'findable'],
                 ],
             ], 200),
@@ -267,7 +246,7 @@ describe('BatchResourceRegistrationController@register', function () {
 
     test('handles DataCite API errors gracefully', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/FAIL-001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         Http::fake([
             '*datacite.org/*' => Http::response([
@@ -288,7 +267,7 @@ describe('BatchResourceRegistrationController@register', function () {
 
     test('handles DataCite API error with detail-only error structure', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/DETAIL-ONLY']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         Http::fake([
             '*datacite.org/*' => Http::response([
@@ -309,7 +288,7 @@ describe('BatchResourceRegistrationController@register', function () {
 
     test('falls back to generic message when DataCite response has no errors body', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/NO-BODY']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         Http::fake([
             '*datacite.org/*' => Http::response([], 503),
@@ -327,7 +306,7 @@ describe('BatchResourceRegistrationController@register', function () {
 
     test('tolerates non-JSON DataCite error responses without raising a 500', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/NON-JSON']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         // Upstream returns an HTML error page, not JSON — `response()->json()` returns
         // null. The handler must guard against that instead of dereferencing null.
@@ -351,7 +330,7 @@ describe('BatchResourceRegistrationController@register', function () {
 
     test('treats empty prefix string as missing prefix for new DOI registration', function () {
         $resource = Resource::factory()->create(['doi' => null]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $response = $this->actingAs($this->user)
             ->postJson('/resources/batch-register', [
@@ -361,12 +340,12 @@ describe('BatchResourceRegistrationController@register', function () {
 
         $response->assertStatus(207);
         expect($response->json('failed.0.reason'))
-            ->toBe('Resource has no DOI. Provide a prefix to register a new DOI.');
+            ->toBe('Publish this resource individually before updating DataCite metadata.');
     });
 
     test('reports InvalidArgumentException from the registration service as a failure', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/INVALID-001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('updateMetadata')
@@ -384,11 +363,11 @@ describe('BatchResourceRegistrationController@register', function () {
     });
 
     test('reports RuntimeException from the registration service as a failure', function () {
-        $resource = Resource::factory()->create(['doi' => null]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        $resource = Resource::factory()->create(['doi' => '10.83279/offline']);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $mock = Mockery::mock(DataCiteRegistrationService::class);
-        $mock->shouldReceive('registerDoi')
+        $mock->shouldReceive('updateMetadata')
             ->once()
             ->andThrow(new RuntimeException('Service offline'));
         app()->instance(DataCiteRegistrationService::class, $mock);
@@ -407,7 +386,7 @@ describe('BatchResourceRegistrationController@register', function () {
         config(['app.debug' => false]);
 
         $resource = Resource::factory()->create(['doi' => '10.83279/UNEXPECTED-001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('updateMetadata')
@@ -429,7 +408,7 @@ describe('BatchResourceRegistrationController@register', function () {
         config(['app.debug' => true]);
 
         $resource = Resource::factory()->create(['doi' => '10.83279/UNEXPECTED-002']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('updateMetadata')
@@ -446,36 +425,22 @@ describe('BatchResourceRegistrationController@register', function () {
         expect($response->json('failed.0.reason'))->toBe('Detailed debug message');
     });
 
-    test('persists a freshly-minted DOI when DataCite returns a different identifier', function () {
-        $resource = Resource::factory()->create(['doi' => null]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
-
-        $mock = Mockery::mock(DataCiteRegistrationService::class);
-        $mock->shouldReceive('registerDoi')
-            ->once()
-            ->andReturn([
-                'data' => [
-                    'id' => '10.83279/SERVER-ASSIGNED-XYZ',
-                    'type' => 'dois',
-                    'attributes' => ['state' => 'findable'],
-                ],
-            ]);
-        app()->instance(DataCiteRegistrationService::class, $mock);
-
-        $response = $this->actingAs($this->user)
-            ->postJson('/resources/batch-register', [
-                'ids' => [$resource->id],
-                'prefix' => '10.83279',
-            ]);
-
-        $response->assertOk();
-        $resource->refresh();
-        expect($resource->doi)->toBe('10.83279/SERVER-ASSIGNED-XYZ');
+    test('does not call registration for a preassigned remote draft', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/draft']);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+        Http::fake(['*datacite.org/*' => Http::response([
+            'data' => ['id' => $resource->doi, 'attributes' => ['state' => 'draft'],
+                'relationships' => ['client' => ['data' => ['id' => 'test.repo']]]],
+        ])]);
+        $this->actingAs($this->user)->postJson('/resources/batch-register', [
+            'ids' => [$resource->id], 'prefix' => '10.83279',
+        ])->assertStatus(207)->assertJsonCount(0, 'success');
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET');
     });
 
     test('deduplicates repeated ids in the request payload', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/DEDUPE-001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('updateMetadata')
@@ -484,6 +449,7 @@ describe('BatchResourceRegistrationController@register', function () {
                 'data' => [
                     'id' => '10.83279/DEDUPE-001',
                     'type' => 'dois',
+                    'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                     'attributes' => ['state' => 'findable'],
                 ],
             ]);
@@ -501,7 +467,7 @@ describe('BatchResourceRegistrationController@register', function () {
     // --- Issue #610: ORCID preflight ---
     test('ORCID preflight skips resources with confirmed-invalid ORCIDs', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-BAD']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $person = Person::factory()->create([
             'given_name' => 'Bad',
@@ -543,7 +509,7 @@ describe('BatchResourceRegistrationController@register', function () {
 
     test('ORCID preflight skips resources when ORCID service is unreachable (warnings)', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-WARN']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $person = Person::factory()->create([
             'given_name' => 'Flaky',
@@ -581,7 +547,7 @@ describe('BatchResourceRegistrationController@register', function () {
 
     test('ORCID preflight reports combined invalid + warning counts', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-MIX']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $badPerson = Person::factory()->create([
             'given_name' => 'Bad',

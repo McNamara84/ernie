@@ -12,14 +12,16 @@ import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
+    type DataCiteActionStatus,
     type DataCitePrefixConfig,
     describeOrcidReason,
     type DoiRegistrationResponse,
     isOrcidPreflightPayload,
     type OrcidPreflightIssue,
+    publicationNeedsAttention,
 } from '@/lib/datacite-registration';
 import { type User as AuthUser } from '@/types';
-import { type ResourceDoiActionItem as Resource, shouldUseUpdateMetadataLabel } from '@/types/resources';
+import { type ResourceDoiActionItem as Resource } from '@/types/resources';
 
 interface RegisterDoiModalProps {
     resource: Resource;
@@ -47,15 +49,13 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
 
     const hasExistingDoi = Boolean(resource.doi);
-    const shouldUseUpdateLabel = shouldUseUpdateMetadataLabel(resource);
+    const [actionStatus, setActionStatus] = useState<DataCiteActionStatus | null>(null);
     const hasLandingPage = Boolean(resource.landingPage);
     const isBeginner = auth.user?.role === 'beginner';
-    const primaryActionLabel = shouldUseUpdateLabel ? 'Update metadata' : 'Register DOI';
-    const existingDoiDescription = shouldUseUpdateLabel
-        ? `Update metadata for registered DOI: ${resource.doi}`
-        : hasExistingDoi
-          ? `This resource already has DOI ${resource.doi}. Continue to sync the record with DataCite.`
-          : 'Register a new DOI for this resource with DataCite.';
+    const primaryActionLabel = 'Publish DOI and landing page';
+    const existingDoiDescription = hasExistingDoi
+        ? 'Publish the landing page and the preassigned DOI ' + resource.doi + '. The DOI is preserved.'
+        : 'Publish the landing page, then create and publish its DOI at DataCite.';
 
     // Load available prefixes from backend config
     useEffect(() => {
@@ -75,9 +75,17 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
 
     const loadPrefixConfiguration = async () => {
         setIsLoadingConfig(true);
+        setActionStatus(null);
         try {
             // Get prefix configuration from backend
-            const response = await axios.get<DataCitePrefixConfig>('/api/datacite/prefixes');
+            const [response, statusResponse] = await Promise.all([
+                axios.get<DataCitePrefixConfig>('/api/datacite/prefixes'),
+                axios.get<DataCiteActionStatus>('/resources/' + resource.id + '/datacite-status'),
+            ]);
+            setActionStatus(statusResponse.data);
+            if (!statusResponse.data.can_publish) {
+                setError('Publication is currently unavailable. Review the resource and DataCite status.');
+            }
 
             // Use test mode from backend configuration
             const testMode = response.data.test_mode;
@@ -121,11 +129,16 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         setSubmittingAction(action);
 
         try {
-            const response = await axios.post<DoiRegistrationResponse>(`/resources/${resource.id}/register-doi`, {
+            const response = await axios.post<DoiRegistrationResponse>(`/resources/${resource.id}/publish-doi`, {
                 prefix: selectedPrefix,
                 force,
+                confirm_publication: true,
             });
 
+            if (!response.data.success || !response.data.doi) {
+                setError(response.data.message);
+                return;
+            }
             const { doi, updated, mode } = response.data;
 
             // Show success toast
@@ -215,10 +228,27 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                         <DataCiteIcon className="size-5" />
                         {primaryActionLabel}
                     </DialogTitle>
-                    <DialogDescription>{existingDoiDescription}</DialogDescription>
+                    <DialogDescription>
+                        {existingDoiDescription} The landing page stays public if DataCite fails. Use this action again to reconcile an unconfirmed
+                        publication.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
+                    {actionStatus && (
+                        <p>
+                            DataCite state: {actionStatus.state}. Environment: {actionStatus.mode}.
+                        </p>
+                    )}
+                    {publicationNeedsAttention(actionStatus?.publication) && (
+                        <Alert variant="destructive">
+                            <AlertTitle>DOI publication needs attention</AlertTitle>
+                            <AlertDescription>
+                                {actionStatus?.publication?.last_error ??
+                                    'The earlier publication is not confirmed. Submit again to check its status.'}
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     {/* Landing Page Check */}
                     {!hasLandingPage && (
                         <Alert variant="destructive">
@@ -262,9 +292,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             <AlertDescription>
                                 This resource already has a DOI: <strong>{resource.doi}</strong>
                                 <br />
-                                {shouldUseUpdateLabel
-                                    ? 'Submitting will update the metadata at DataCite.'
-                                    : 'Submitting will sync this DOI record with DataCite.'}
+                                Submitting explicitly approves publication of this DOI and its landing page.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -378,7 +406,13 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                     // modal; on another failure, the catch branch repopulates them.
                                     handleSubmit(false, 'retry');
                                 }}
-                                disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
+                                disabled={
+                                    isSubmitting ||
+                                    !actionStatus?.can_publish ||
+                                    !hasLandingPage ||
+                                    (!hasExistingDoi && !selectedPrefix) ||
+                                    isLoadingConfig
+                                }
                                 data-testid="orcid-preflight-retry"
                             >
                                 Retry verification
@@ -386,10 +420,16 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             <LoadingButton
                                 loading={submittingAction === 'override'}
                                 onClick={() => handleSubmit(true, 'override')}
-                                disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
+                                disabled={
+                                    isSubmitting ||
+                                    !actionStatus?.can_publish ||
+                                    !hasLandingPage ||
+                                    (!hasExistingDoi && !selectedPrefix) ||
+                                    isLoadingConfig
+                                }
                                 data-testid="orcid-preflight-override"
                             >
-                                {shouldUseUpdateLabel ? 'Update anyway' : 'Register anyway'}
+                                Publish despite ORCID warning
                             </LoadingButton>
                         </>
                     ) : (
@@ -397,7 +437,12 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             loading={submittingAction === 'submit'}
                             onClick={() => handleSubmit()}
                             disabled={
-                                isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig || orcidBlockers.length > 0
+                                isSubmitting ||
+                                !actionStatus?.can_publish ||
+                                !hasLandingPage ||
+                                (!hasExistingDoi && !selectedPrefix) ||
+                                isLoadingConfig ||
+                                orcidBlockers.length > 0
                             }
                         >
                             {primaryActionLabel}

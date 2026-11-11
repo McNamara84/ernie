@@ -4,6 +4,11 @@
         "date": "Unreleased",
         "fixes": [
             {
+                "title": "Explicit DOI and Landing Page Publication",
+                "description": "Metadata updates now require a published landing page and authenticated confirmation of a registered DOI in the configured DataCite repository. Updates preserve DOI visibility. A separate confirmed action publishes the landing page and DOI while preserving preassigned identifiers; uncertain outcomes remain visible and are reconciled without duplicate registration. Resource batches only update existing registrations.",
+                "references": [{ "type": "issue", "number": 1537, "url": "https://github.com/McNamara84/ernie/issues/1537" }]
+            },
+            {
                 "title": "Public Metadata During Data Embargoes",
                 "description": "DOIs and internal metadata landing pages can be published while primary data remains under embargo. Future Available dates automatically select Embargoed access. Downloads stay hidden until manual release, with dashboard reminders and one email per resource and embargo date.",
                 "references": [

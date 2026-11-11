@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\DataCiteVerificationException;
 use App\Models\Resource;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -41,6 +43,10 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
             'prefix' => $prefix,
         ]);
 
+        if ($resource->doi) {
+            $prefix = explode('/', $resource->doi, 2)[0];
+        }
+
         // Validate prefix (same as real service)
         if (! in_array($prefix, $this->prefixes, true)) {
             throw new \InvalidArgumentException(
@@ -72,7 +78,11 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
         // Format: test-{resource_id}-{timestamp}
         $timestamp = now()->format('YmdHis');
         $suffix = "test-{$resource->id}-{$timestamp}";
-        $doi = "{$prefix}/{$suffix}";
+        $doi = $resource->doi ?: "{$prefix}/{$suffix}";
+        ($resource->landingPage ?? throw new \RuntimeException('The landing page no longer exists.'))->publish();
+        $resource->update(['doi' => $doi]);
+        app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
+        $this->setRegistrationState($doi, 'findable');
 
         Log::info('FakeDataCiteRegistrationService: Returning successful response', [
             'doi' => $doi,
@@ -129,6 +139,13 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
         }
 
         app(EmbargoService::class)->assertCanUpdateMetadata($resource);
+        if (! $landingPage->is_published) {
+            throw new DataCiteVerificationException('landing_page_not_published', 'Publish the landing page explicitly before updating DataCite metadata.');
+        }
+        $state = $this->getRegistrationState((string) $resource->doi);
+        if (! in_array($state, ['registered', 'findable'], true)) {
+            throw new DataCiteVerificationException('doi_registration_required', 'Explicit DOI publication is required.');
+        }
 
         // Use the landing page's computed public_url accessor
         $publicUrl = $landingPage->public_url;
@@ -141,7 +158,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
                 'attributes' => [
                     'doi' => $resource->doi,
                     'url' => $publicUrl,
-                    'state' => 'findable',
+                    'state' => $state,
                 ],
             ],
         ];
@@ -159,62 +176,13 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
      * @throws \RuntimeException If resource doesn't have a DOI/IGSN or landing page
      * @throws \InvalidArgumentException If the IGSN prefix is not allowed
      */
-    public function registerIgsn(Resource $resource): array
+    public function registerIgsn(Resource $resource, ?int $actorId = null): array
     {
-        Log::info('FakeDataCiteRegistrationService: registerIgsn called', [
-            'resource_id' => $resource->id,
-            'igsn' => $resource->doi,
-        ]);
-
-        // Validate resource has an IGSN
         if (! $resource->doi) {
-            throw new \RuntimeException(
-                "Resource #{$resource->id} must have an IGSN to register."
-            );
+            throw new \RuntimeException('The resource must have an IGSN before publication.');
         }
 
-        // Validate DOI/IGSN format: must be 10.NNNN/suffix
-        if (! preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $resource->doi)) {
-            throw new \InvalidArgumentException(
-                "IGSN '{$resource->doi}' has an invalid format. Expected: 10.XXXXX/SUFFIX"
-            );
-        }
-
-        // Extract prefix and validate
-        $prefix = explode('/', $resource->doi, 2)[0];
-        if (! in_array($prefix, $this->prefixes, true)) {
-            throw new \InvalidArgumentException(
-                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: ".implode(', ', $this->prefixes)
-            );
-        }
-
-        // Check if resource has a landing page
-        $resource->loadMissing('landingPage');
-        $landingPage = $resource->landingPage;
-        if ($landingPage === null) {
-            throw new \RuntimeException(
-                "Resource #{$resource->id} must have a landing page before registering an IGSN."
-            );
-        }
-
-        app(EmbargoService::class)->normalizeResource($resource);
-        app(EmbargoService::class)->assertCanRegister($resource);
-
-        $publicUrl = $landingPage->public_url;
-
-        // Return DataCite API response format – IGSN is kept as DOI
-        return [
-            'data' => [
-                'id' => $resource->doi,
-                'type' => 'dois',
-                'attributes' => [
-                    'doi' => $resource->doi,
-                    'prefix' => $prefix,
-                    'url' => $publicUrl,
-                    'state' => 'findable',
-                ],
-            ],
-        ];
+        return $this->registerDoi($resource, explode('/', $resource->doi, 2)[0]);
     }
 
     /**
@@ -246,16 +214,24 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
     /** @return array<string, mixed> */
     public function updateLandingPageUrl(string $identifier, string $targetUrl): array
     {
-        return [
-            'data' => [
-                'id' => $identifier,
-                'type' => 'dois',
-                'attributes' => [
-                    'doi' => $identifier,
-                    'url' => $targetUrl,
-                    'state' => 'findable',
-                ],
-            ],
-        ];
+        $resource = Resource::where('doi', $identifier)->sole();
+        $response = $this->updateMetadata($resource);
+        $response['data']['attributes']['url'] = $targetUrl;
+
+        return $response;
+    }
+
+    public function getRegistrationState(string $doi): string
+    {
+        return Cache::get('fake-datacite:test:'.strtolower($doi), 'missing');
+    }
+
+    /** Seed remote evidence independently of the resource for browser fixtures. */
+    public function setRegistrationState(string $doi, string $state): void
+    {
+        if (! in_array($state, ['missing', 'draft', 'registered', 'findable'], true)) {
+            throw new \InvalidArgumentException('Unknown fake DOI state.');
+        }
+        Cache::put('fake-datacite:test:'.strtolower($doi), $state, now()->addDay());
     }
 }

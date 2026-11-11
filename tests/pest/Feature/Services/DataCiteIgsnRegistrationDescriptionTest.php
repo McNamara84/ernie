@@ -6,11 +6,15 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
+
+require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 test('registerIgsn sends descriptions with datacite breaks', function () {
     config([
         'datacite.test_mode' => true,
         'datacite.test.username' => 'TEST.USER',
+        'datacite.test.client_id' => 'test.repo',
         'datacite.test.password' => 'test-password',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279'],
@@ -19,6 +23,10 @@ test('registerIgsn sends descriptions with datacite breaks', function () {
     $resource = Resource::factory()->create([
         'doi' => '10.83279/IGSN-1004',
     ]);
+    completeDataCiteFixture($resource);
+    $resource->descriptions()->delete();
+    URL::forceRootUrl('https://ernie.example');
+    URL::forceScheme('https');
     LandingPage::factory()->create([
         'resource_id' => $resource->id,
     ]);
@@ -33,21 +41,20 @@ test('registerIgsn sends descriptions with datacite breaks', function () {
         'description_type_id' => $type->id,
     ]);
 
-    Http::fake([
-        '*datacite.org/*' => Http::response([
-            'data' => [
-                'id' => $resource->doi,
-                'type' => 'dois',
-                'attributes' => ['doi' => $resource->doi],
-            ],
-        ], 201),
-    ]);
+    Http::fake(fn ($request) => match ($request->method()) {
+        'GET' => Http::response([], 404),
+        'HEAD' => Http::response('', 200),
+        default => Http::response(dataCiteRecord($resource->doi, attributes: $request['data']['attributes']), 201),
+    });
 
     $response = app(DataCiteRegistrationService::class)->registerIgsn($resource);
 
     expect($response['data']['id'])->toBe($resource->doi);
 
     Http::assertSent(function ($request) use ($resource) {
+        if ($request->method() !== 'POST') {
+            return false;
+        }
         $body = json_decode($request->body(), true);
         $description = $body['data']['attributes']['descriptions'][0]['description'];
 

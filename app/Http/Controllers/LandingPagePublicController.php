@@ -226,7 +226,7 @@ class LandingPagePublicController extends Controller
         abort_if($landingPage === null || ! $landingPage->isPublished(), HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
         // Redirect to new URL format
-        return redirect()->to($landingPage->public_url, HttpResponse::HTTP_MOVED_PERMANENTLY);
+        return redirect()->to($landingPage->public_url, $landingPage->doi_prefix === null ? HttpResponse::HTTP_FOUND : HttpResponse::HTTP_MOVED_PERMANENTLY);
     }
 
     /**

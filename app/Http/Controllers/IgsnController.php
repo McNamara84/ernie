@@ -515,32 +515,19 @@ class IgsnController extends Controller
             // New registration
             app(EmbargoService::class)->assertCanRegister($resource);
             $response = $service->registerIgsn($resource);
+            if (($response['complete'] ?? true) !== true) {
+                $metadata->markAsError('DOI publication needs reconciliation.');
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The landing page is public; DOI publication needs reconciliation. Resume registration to check the saved attempt.',
+                    'publication' => $response['publication'] ?? null,
+                ], 202);
+            }
+            $resource->refresh();
             $doi = $response['data']['id'] ?? $resource->doi;
 
-            // Update resource DOI if DataCite returned a different one
-            if ($doi !== null && $doi !== $resource->doi) {
-                $resource->doi = $doi;
-            }
-
-            // Keep local identifier, access right, page, and registration state atomic.
-            $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
-            DB::transaction(function () use ($resource, $metadata, $wasEmbargoed): void {
-                $resource->save();
-                if ($wasEmbargoed) {
-                    app(EmbargoService::class)->completeRegistration($resource);
-                }
-                $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
-            });
-            if ($wasEmbargoed && $resource->doi !== null) {
-                try {
-                    $service->updateLandingPageUrl($resource->doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
-                } catch (\Throwable $exception) {
-                    Log::warning('IGSN URL update failed; stable dataset alias remains available.', [
-                        'resource_id' => $resource->id,
-                        'error' => $exception->getMessage(),
-                    ]);
-                }
-            }
+            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
 
             Log::info('IGSN registered at DataCite', [
                 'resource_id' => $resource->id,
