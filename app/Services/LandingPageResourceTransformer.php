@@ -122,7 +122,7 @@ final class LandingPageResourceTransformer
 
         // Publisher metadata is used server-side for CSL formatting. Keep the
         // relation object out of the stable, scalar frontend resource contract.
-        unset($resourceData['publisher'], $resourceData['rights'], $resourceData['resource_rights']);
+        unset($resourceData['publisher'], $resourceData['rights'], $resourceData['resource_rights'], $resourceData['landing_page']);
 
         $resourceData['titles'] = $resource->titles
             ->map(static fn (Title $title): array => [

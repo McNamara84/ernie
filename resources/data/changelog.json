@@ -130,6 +130,23 @@
         ]
     },
     {
+        "version": "1.1.3",
+        "date": "Unreleased",
+        "fixes": [
+            {
+                "title": "Public Metadata During Data Embargoes",
+                "description": "DOIs and internal metadata landing pages can be published while primary data remains under embargo. Future Available dates automatically select Embargoed access. Downloads stay hidden until manual release, with dashboard reminders and one email per resource and embargo date.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1493,
+                        "url": "https://github.com/McNamara84/ernie/issues/1493"
+                    }
+                ]
+            }
+        ]
+    },
+    {
         "version": "1.1.2",
         "date": "2026-11-06",
         "fixes": [

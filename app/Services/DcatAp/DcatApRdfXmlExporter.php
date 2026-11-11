@@ -43,6 +43,8 @@ final class DcatApRdfXmlExporter
         }
         $landing = $resource->landingPage;
         assert($landing !== null);
+        // Embargo and source checks must reuse this eager-loaded metadata snapshot.
+        $landing->setRelation('resource', $resource);
         $rdf = new RdfDocument;
         $datasetUri = IdentifierUrl::resolve($resource->doi, 'DOI');
         $catalogUri = (string) config('dcatap.catalog.uri');

@@ -25,7 +25,7 @@ final class LandingPageContentLinkService
      */
     public function resolve(Resource $resource, LandingPage $landingPage): array
     {
-        if ($landingPage->is_tombstone) {
+        if ($landingPage->is_tombstone || $this->availability->isEmbargoed($landingPage)) {
             return ['mimeType' => null, 'contentLinks' => [], 'repositories' => []];
         }
 

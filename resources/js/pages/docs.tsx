@@ -1785,26 +1785,32 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             them again.
                         </p>
 
-                        <h4>Embargo and Manual Release</h4>
+                        <h4>Data Embargo and Manual Release</h4>
                         <p>
-                            Choose <strong>Embargoed access</strong> and enter exactly one full calendar <strong>Available</strong> date. Keep an
-                            internal landing page unpublished. ERNIE blocks registration before that date and does not release the resource
-                            automatically.
+                            Enter one complete future <strong>Available</strong> date. ERNIE automatically selects <strong>Embargoed access</strong>.
+                            You can publish an internal metadata landing page and register its DOI before that date. Only the primary data stays under
+                            embargo.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                The Resources List shows an <strong>Embargo</strong> badge. Use the <strong>Status</strong> filter to find embargoed
-                                resources.
-                                {permissions.sendReviewLinks && ' Selecting the badge opens and copies the tokenized landing-page preview link.'}
+                                Published metadata remains publicly accessible and harvestable. The <strong>Embargo</strong> badge opens the public
+                                landing page.
                             </li>
                             <li>
-                                The preview shows the embargo date but hides file, link, and FTP downloads. The landing page remains unpublished, even
-                                when the Available date has passed.
+                                The landing page shows the date below its heading and hides primary data downloads. Metadata downloads remain
+                                available.
                             </li>
                             <li>
-                                From the Available date onward, the Dashboard lists resources ready for manual release. Review the record, then use{' '}
-                                <strong>Register</strong> in the editor or the IGSN registration action. After DataCite accepts the registration,
-                                ERNIE changes access to Open, publishes the landing page, and shows <strong>Published</strong> status.
+                                From the Available day in ERNIE&apos;s timezone, the Dashboard lists data ready for manual release and the publication
+                                team receives one email per resource and date.
+                            </li>
+                            <li>
+                                Review the resource and choose <strong>Release data</strong> in the Data Editor or Dashboard. This changes access to
+                                Open; it does not publish drafts or override other download restrictions.
+                            </li>
+                            <li>
+                                The date alone never releases data. If the DataCite access update is pending, use <strong>Release data</strong> again
+                                in the editor to retry synchronization.
                             </li>
                         </ul>
 
@@ -3406,9 +3412,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Registering DOIs</h3>
                         <p>
-                            Once a landing page is configured, you can register a DOI through DataCite. Embargoed resources need an unpublished
-                            internal landing page and can be registered only from their Available date onward. Beginner users follow the same
-                            workflow, but ERNIE forces their requests to the DataCite test API.
+                            Once a landing page is configured, you can register a DOI through DataCite. Data embargoes require an internal landing
+                            page but do not delay metadata publication or DOI registration. Beginner users follow the same workflow, but ERNIE forces
+                            their requests to the DataCite test API.
                         </p>
                         <p>
                             In the Data Editor, <strong>Register</strong> and <strong>Update Metadata</strong> first run local completeness checks and

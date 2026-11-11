@@ -179,8 +179,8 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 // a second create request.
                 $resource->publication_year = now(config('app.timezone'))->year;
                 if (app(EmbargoService::class)->isEmbargoed($resource)) {
-                    // Verify the remote URL, Findable state, and Open access right
-                    // before completing a release interrupted after DataCite POST.
+                    // Verify the remote URL, Findable state, and submitted access right
+                    // before completing metadata publication interrupted after DataCite POST.
                     if ($resource->embargo_registration_started_at === null) {
                         app(EmbargoService::class)->claimRegistration(
                             $resource,
@@ -207,7 +207,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             DB::transaction(function () use ($resource, $metadata, $operation, $wasEmbargoed): void {
                 $resource->save();
                 if ($operation === 'register' && $wasEmbargoed) {
-                    app(EmbargoService::class)->completeRelease($resource);
+                    app(EmbargoService::class)->completeRegistration($resource);
                 }
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
             });

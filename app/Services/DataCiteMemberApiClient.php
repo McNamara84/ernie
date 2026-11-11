@@ -9,6 +9,7 @@ use App\Exceptions\DataCiteWriteSupersededException;
 use App\Models\LandingPage;
 use App\Models\ResourceTombstoneTransition;
 use App\Models\User;
+use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -152,8 +153,9 @@ class DataCiteMemberApiClient
     /**
      * @param  array<string, mixed>  $payload
      * @param  string|null  $writtenRevision  Receives this call's last PUT revision; verify under the DOI lock before acknowledging it later.
+     * @param  (Closure(): void)|null  $beforeWrite  Recheck local state under the DOI lock on every attempt, after admission waits.
      */
-    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null, ?string &$writtenRevision = null): Response
+    public function updateDoi(string $identifier, array $payload, ?int $tombstoneTransitionId = null, ?string $expectedWriteRevision = null, ?string &$writtenRevision = null, ?Closure $beforeWrite = null): Response
     {
         return $this->send(
             'PUT',
@@ -164,6 +166,7 @@ class DataCiteMemberApiClient
             tombstoneTransitionId: $tombstoneTransitionId,
             expectedWriteRevision: $expectedWriteRevision,
             writtenRevision: $writtenRevision,
+            beforeWrite: $beforeWrite,
         );
     }
 
@@ -217,6 +220,7 @@ class DataCiteMemberApiClient
 
     /**
      * @param  array<string, mixed>|null  $payload
+     * @param  (Closure(): void)|null  $beforeWrite
      */
     private function send(
         string $method,
@@ -228,6 +232,7 @@ class DataCiteMemberApiClient
         ?int $tombstoneTransitionId = null,
         ?string $expectedWriteRevision = null,
         ?string &$writtenRevision = null,
+        ?Closure $beforeWrite = null,
     ): Response {
         $maxAttempts = max(1, $maxAttempts);
         $writeRevision = $method === 'PUT' && $credentialIdentifier !== null && $payload !== null
@@ -246,7 +251,7 @@ class DataCiteMemberApiClient
             }
             try {
                 $response = $writeRevision !== null && $credentialIdentifier !== null && $payload !== null
-                    ? $this->sendWrite($credentialIdentifier, $url, $payload, $writeRevision, $deferWhenLimited, $tombstoneTransitionId)
+                    ? $this->sendWrite($credentialIdentifier, $url, $payload, $writeRevision, $deferWhenLimited, $tombstoneTransitionId, $beforeWrite)
                     : $this->limiter->runWhenReady(function () use ($method, $url, $payload, $credentialIdentifier): Response|int {
                         $delay = $this->limiter->reserveSlot(DataCiteDoiWriteLockService::hasHeldLock());
                         if ($delay > 0) {
@@ -280,19 +285,23 @@ class DataCiteMemberApiClient
         throw new \LogicException('The DataCite request loop ended without a response.');
     }
 
-    /** @param array<string, mixed> $payload */
-    private function sendWrite(string $identifier, string $url, array $payload, string &$revision, bool $deferWhenLimited, ?int $tombstoneTransitionId): Response
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  (Closure(): void)|null  $beforeWrite
+     */
+    private function sendWrite(string $identifier, string $url, array $payload, string &$revision, bool $deferWhenLimited, ?int $tombstoneTransitionId, ?Closure $beforeWrite): Response
     {
         $lifecycleRead = null;
         do {
-            $response = $this->limiter->runWhenReady(function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead): Response|int|null {
-                return DataCiteDoiWriteLockService::run($identifier, $this->testMode, function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead): Response|int|null {
+            $response = $this->limiter->runWhenReady(function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead, $beforeWrite): Response|int|null {
+                return DataCiteDoiWriteLockService::run($identifier, $this->testMode, function () use ($identifier, $url, $payload, &$revision, $tombstoneTransitionId, &$lifecycleRead, $beforeWrite): Response|int|null {
                     DataCiteDoiWriteLockService::assertCurrentWrite($identifier, $this->testMode, $revision);
                     $this->assertTombstoneTransition($identifier, $tombstoneTransitionId);
                     $prepared = $this->protectTombstonePayload($identifier, $payload, $lifecycleRead);
                     if ($prepared === null) {
                         return null;
                     }
+                    $beforeWrite?->__invoke();
                     // Nonblocking admission immediately before sending: a permit
                     // cannot age while waiting for this DOI or a lifecycle GET.
                     $delay = $this->limiter->reserveSlot(nonBlocking: true);

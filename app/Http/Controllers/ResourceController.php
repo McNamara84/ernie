@@ -115,7 +115,7 @@ class ResourceController extends Controller
         ]);
     }
 
-    /** Persist a fully validated resource without an implicit external write. */
+    /** Persist validated metadata; published access changes may queue an access-only update. */
     public function store(StoreResourceRequest $request): JsonResponse
     {
         try {
@@ -165,8 +165,8 @@ class ResourceController extends Controller
     /**
      * Store a draft resource with relaxed validation (Issue #548).
      *
-     * Only requires a Main Title; all other fields are optional. Does NOT trigger
-     * DataCite synchronization.
+     * Only requires a Main Title; all other fields are optional. Published access
+     * changes may queue an access-only update; other metadata stays local.
      */
     public function storeDraft(StoreDraftResourceRequest $request): JsonResponse
     {
