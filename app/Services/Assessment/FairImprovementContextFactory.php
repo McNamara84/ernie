@@ -40,6 +40,7 @@ final class FairImprovementContextFactory
         $externalDomain = null;
 
         if ($landingPage !== null) {
+            $landingPage->setRelation('resource', $resource);
             $this->requireLoaded($landingPage, 'files');
             $this->requireLoaded($landingPage, 'links');
             $this->requireLoaded($landingPage, 'externalDomain');

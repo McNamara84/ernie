@@ -288,6 +288,7 @@ class LandingPagePreviewController extends Controller
             'isPreview' => true,
             'embargoPending' => $embargoPending,
             'embargoDate' => $embargoPending ? app(EmbargoService::class)->availableDate($resource) : null,
+            'embargoDue' => $embargoPending && app(EmbargoService::class)->isDue($resource),
             'sectionOrder' => $sectionOrder,
             'customLogoUrl' => $customLogoUrl,
             'landingPageTemplateSource' => $resolvedTemplate['source'],

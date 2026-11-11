@@ -136,6 +136,7 @@ class ResourceStorageService
                 }
             }
 
+            $data = app(EmbargoService::class)->normalizeInput($data);
             $isUpdate = ! empty($data['resourceId']);
             $attributes = [
                 'publication_year' => $data['year'] ?? null,
@@ -180,6 +181,11 @@ class ResourceStorageService
                     }
                 }
 
+                $data = app(EmbargoService::class)->normalizeInput($data, $resource);
+                if (array_key_exists('accessLevel', $data)) {
+                    $attributes['access_level'] = $data['accessLevel'];
+                }
+
                 // Track who updated the resource
                 $attributes['updated_by_user_id'] = $userId;
 
@@ -198,6 +204,11 @@ class ResourceStorageService
             $this->storeMslLaboratories($resource, $data, $isUpdate);
             $this->storeDescriptions($resource, $data, $isUpdate);
             $this->storeDates($resource, $data, $isUpdate);
+            $resource->unsetRelation('dates');
+            app(EmbargoService::class)->normalizeResource($resource);
+            if (app(EmbargoService::class)->isEmbargoed($resource) && $resource->landingPage?->isExternal()) {
+                throw ValidationException::withMessages(['dates' => 'Data embargoes require an internal landing page. Change the landing page template before setting a future Available date.']);
+            }
             $this->storeSubjects($resource, $data, $isUpdate);
             // Relation query deletes bypass model events. Schedule the union of
             // resource-owned portal dependencies once after commit; draft

@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 import { navigateWithTlsRetry, prepareHtmlInterception } from '../helpers/navigation';
 
 const states = [
-    { name: 'running', date: '2027-01-01', due: false, notice: 'Under embargo until 2027-01-01' },
-    { name: 'expired', date: '2027-01-01', due: true, notice: 'Embargo expired on 2027-01-01; publication is pending manual release.' },
-    { name: 'invalid date', date: null, due: false, notice: 'Embargo date is missing or invalid; publication is blocked.' },
+    { name: 'running', date: '2027-01-01', due: false, notice: 'The data is under embargo until 01.01.2027.' },
+    { name: 'expired', date: '2027-01-01', due: true, notice: 'The data embargo expired on 01.01.2027; data is awaiting manual release.' },
+    { name: 'invalid date', date: null, due: false, notice: 'The data remains under embargo; the Available date needs correction.' },
 ] as const;
 
 // Reuse the anonymous application bootstrap within each worker. Repeated
@@ -40,7 +40,7 @@ for (const template of ['default_gfz', 'default_gfz_igsn']) {
                             payload.url = '/embargo-layout-preview';
                             payload.props = {
                                 ...payload.props,
-                                isPreview: true,
+                                isPreview: false,
                                 embargoPending: true,
                                 embargoDate: state.date,
                                 embargoDue: state.due,
@@ -57,7 +57,7 @@ for (const template of ['default_gfz', 'default_gfz_igsn']) {
                                     geo_locations: [],
                                     licenses: [],
                                 },
-                                landingPage: { id: 1437, status: 'draft', ftp_url: 'https://example.org/data.zip' },
+                                landingPage: { id: 1437, status: 'published', ftp_url: 'https://example.org/data.zip' },
                             };
                             return start + JSON.stringify(payload).replaceAll('<', '\\u003c') + end;
                         }),

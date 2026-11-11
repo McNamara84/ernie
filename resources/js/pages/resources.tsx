@@ -292,7 +292,7 @@ const createDefaultDeleteStatusSelection = (): Record<ResourceDeleteStatus, bool
 });
 
 const normalizeDeleteStatus = (resource: Resource): ResourceDeleteStatus => {
-    if (resource.publicstatus === 'published' || resource.publicstatus === 'dead') {
+    if (resource.landingPage?.is_published || resource.publicstatus === 'published' || resource.publicstatus === 'dead') {
         return 'published';
     }
 
@@ -1368,7 +1368,11 @@ function ResourcesPage({
 
     const handleStatusBadgeClick = useCallback(
         (resource: Resource, status: string) => {
-            if ((status === 'published' || status === 'dead') && resource.doi) {
+            if (status === 'embargo' && resource.landingPage?.is_published && resource.landingPage.public_url) {
+                const publicUrl = resource.landingPage.public_url;
+                void copyToClipboard(publicUrl, 'Landing page URL copied to clipboard', publicUrl);
+                window.open(publicUrl, '_blank', 'noopener,noreferrer');
+            } else if ((status === 'published' || status === 'dead') && resource.doi) {
                 // Published: Open DOI URL and copy to clipboard
                 const doiUrl = `https://doi.org/${resource.doi}`;
 
@@ -2220,6 +2224,7 @@ function ResourcesPage({
 
                 // Determine if badge is clickable
                 const isClickable =
+                    (status === 'embargo' && resource.landingPage?.is_published && resource.landingPage.public_url) ||
                     ((status === 'published' || status === 'dead') && resource.doi) ||
                     ((status === 'embargo' || (canSendReviewLinks && status === 'review')) && resource.landingPage?.preview_url);
 
@@ -2249,7 +2254,9 @@ function ResourcesPage({
                 const ariaLabel = isClickable
                     ? status === 'published' || status === 'dead'
                         ? `${statusLabel} - Click to open DOI and copy URL to clipboard`
-                        : `${statusLabel} - Click to open preview page and copy URL to clipboard`
+                        : resource.landingPage?.is_published
+                          ? `${statusLabel} - Click to open public landing page and copy URL to clipboard`
+                          : `${statusLabel} - Click to open preview page and copy URL to clipboard`
                     : statusLabel;
 
                 return (

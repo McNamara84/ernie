@@ -60,15 +60,9 @@ class ResourcePolicy
             return false;
         }
 
-        $resource->loadMissing([
-            'landingPage',
-            'titles.titleType',
-            'creators',
-            'rights',
-            'descriptions.descriptionType',
-        ]);
+        $resource->loadMissing(['landingPage']);
 
-        return ! in_array($resource->publicStatus(), ['published', 'dead'], true);
+        return ! $resource->landingPage?->is_published && ! $resource->landingPage?->is_tombstone;
     }
 
     /**
