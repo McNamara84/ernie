@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\CacheKey;
 use App\Enums\DataCiteUrlUpdateScope;
 use App\Enums\UserRole;
+use App\Exceptions\DataCiteVerificationException;
 use App\Exceptions\JsonValidationException;
 use App\Http\Requests\IndexIgsnsRequest;
 use App\Models\Datacenter;
@@ -475,6 +476,7 @@ class IgsnController extends Controller
             ], 422);
         }
         $wasAlreadyRegistered = $metadata->isRegistered();
+        $previousUploadState = $metadata->only(['upload_status', 'upload_error_message']);
 
         // Set publicationYear to current year only for new registrations (Issue #438).
         // Already-registered IGSNs keep their original publicationYear.
@@ -541,6 +543,26 @@ class IgsnController extends Controller
                 'mode' => $service->isTestMode() ? 'test' : 'production',
                 'updated' => false,
             ]);
+        } catch (DataCiteVerificationException $e) {
+            if ($e->retryable) {
+                // A retry must preserve the choice between registration and metadata update.
+                $metadata->update($previousUploadState);
+            } else {
+                $metadata->markAsError($e->getMessage());
+            }
+
+            Log::warning('IGSN registration verification failed', [
+                'resource_id' => $resource->id,
+                'reason' => $e->reason,
+                'retryable' => $e->retryable,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->reason,
+                'message' => $e->getMessage(),
+            ], $e->retryable ? 503 : 422);
+
         } catch (\InvalidArgumentException $e) {
             $metadata->markAsError($e->getMessage());
 

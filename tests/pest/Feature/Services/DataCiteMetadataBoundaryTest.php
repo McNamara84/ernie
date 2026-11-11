@@ -172,6 +172,32 @@ it('returns read-only action evidence without promoting a draft', function (): v
     Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET');
 });
 
+it('only offers publication when a non-tombstone landing page exists', function (string $pageState, bool $hasDoi): void {
+    if (! $hasDoi) {
+        $this->resource->update(['doi' => null]);
+    }
+    if ($pageState === 'missing') {
+        $this->page->delete();
+    } else {
+        $this->page->forceFill([
+            'is_published' => $pageState !== 'unpublished',
+            'is_tombstone' => $pageState === 'tombstone',
+        ])->save();
+    }
+    Http::fake(fn () => Http::response(($this->record)('draft')));
+
+    $this->actingAs(User::factory()->curator()->create())
+        ->getJson(route('resources.datacite-status', $this->resource))
+        ->assertOk()
+        ->assertJsonPath('state', $hasDoi ? 'draft' : 'unassigned')
+        ->assertJsonPath('landing_page_published', in_array($pageState, ['published', 'tombstone'], true))
+        ->assertJsonPath('can_update', false)
+        ->assertJsonPath('can_publish', in_array($pageState, ['unpublished', 'published'], true));
+
+    Http::assertSentCount($hasDoi ? 1 : 0);
+    Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET');
+})->with(['missing', 'unpublished', 'published', 'tombstone'])->with([false, true]);
+
 it('fails before any request when the repository client ID is missing', function (): void {
     config(['datacite.test.client_id' => '']);
     Http::fake();

@@ -206,7 +206,7 @@ class ResourceDoiRegistrationController extends Controller
         try {
             $state = $resource->doi ? $service->getRegistrationState($resource->doi) : 'unassigned';
 
-            return response()->json([...$local, 'state' => $state, 'can_update' => $local['landing_page_published'] && in_array($state, ['registered', 'findable'], true), 'can_publish' => ! $resource->landingPage?->is_tombstone]);
+            return response()->json([...$local, 'state' => $state, 'can_update' => $local['landing_page_published'] && in_array($state, ['registered', 'findable'], true), 'can_publish' => $resource->landingPage?->is_tombstone === false]);
         } catch (\Throwable $exception) {
             return response()->json([...$local, 'state' => 'unavailable', 'can_update' => false, 'can_publish' => false, 'message' => $exception->getMessage()], 503);
         }

@@ -327,6 +327,85 @@ describe('IgsnController@registerAtDataCite', function () {
         expect($resource->igsnMetadata->upload_error_message)->not->toBeNull();
     });
 
+    test('keeps the previous IGSN state when verification is retryable', function (string $missingEvidence, string $status): void {
+        $previousError = $status === IgsnMetadata::STATUS_ERROR ? 'An earlier registration failed.' : null;
+        $resource = createIgsnWithMetadata(['publication_year' => 2020], [
+            'upload_status' => $status,
+            'upload_error_message' => $previousError,
+        ]);
+        $registered = $status === IgsnMetadata::STATUS_REGISTERED;
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $registered]);
+        $record = dataCiteRecord($resource->doi);
+        data_forget($record, $missingEvidence);
+        $verificationUnavailable = true;
+        Http::fake(function () use ($record, &$verificationUnavailable) {
+            return $verificationUnavailable ? Http::response($record) : null;
+        });
+
+        $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")
+            ->assertStatus(503)
+            ->assertJsonPath('error', 'doi_verification_unavailable')
+            ->assertJsonPath('message', 'DataCite did not confirm the DOI identity, repository and state. No publication can be inferred.');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe($status)
+            ->and($resource->igsnMetadata->upload_error_message)->toBe($previousError)
+            ->and($resource->publication_year)->toBe(2020);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET');
+
+        $verificationUnavailable = false;
+        fakeIgsnMemberApi($registered ? [$resource->doi => 'findable'] : []);
+        $this->postJson("/igsns/{$resource->id}/register")
+            ->assertOk()->assertJsonPath('updated', $registered);
+        expect($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+    })->with(['data.id', 'data.attributes.state', 'data.relationships.client.data.id'])
+        ->with([IgsnMetadata::STATUS_UPLOADED, IgsnMetadata::STATUS_REGISTERED, IgsnMetadata::STATUS_ERROR]);
+
+    test('returns a definitive verification failure for a foreign IGSN repository', function (string $status): void {
+        $resource = createIgsnWithMetadata([], ['upload_status' => $status]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $status === IgsnMetadata::STATUS_REGISTERED]);
+        Http::fake(fn () => Http::response(dataCiteRecord($resource->doi, repository: 'foreign.repo')));
+
+        $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")
+            ->assertUnprocessable()
+            ->assertJsonPath('error', 'doi_repository_mismatch')
+            ->assertJsonPath('message', 'This DOI belongs to another DataCite repository.');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_ERROR)
+            ->and($resource->igsnMetadata->upload_error_message)->toBe('This DOI belongs to another DataCite repository.');
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET');
+    })->with([IgsnMetadata::STATUS_UPLOADED, IgsnMetadata::STATUS_REGISTERED]);
+
+    test('allows retrying IGSN publication after a temporarily unreachable landing page', function (): void {
+        $resource = createIgsnWithMetadata(['publication_year' => 2020]);
+        LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => false]);
+        $targetUnavailable = true;
+        Http::fake(function (Request $request) use (&$targetUnavailable) {
+            return $targetUnavailable ? Http::response([], $request->method() === 'HEAD' ? 503 : 404) : null;
+        });
+
+        $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")
+            ->assertStatus(503)
+            ->assertJsonPath('error', 'doi_target_unreachable')
+            ->assertJsonPath('message', 'The approved landing page is not publicly reachable. DOI publication has not been sent.');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED)
+            ->and($resource->igsnMetadata->upload_error_message)->toBeNull()
+            ->and($resource->publication_year)->toBe(2020)
+            ->and($resource->landingPage->is_published)->toBeTrue();
+        Http::assertSent(fn (Request $request) => $request->method() === 'HEAD');
+        Http::assertNotSent(fn (Request $request) => in_array($request->method(), ['POST', 'PUT'], true));
+
+        $targetUnavailable = false;
+        fakeIgsnMemberApi();
+        $this->postJson("/igsns/{$resource->id}/register")->assertOk()->assertJsonPath('updated', false);
+        expect($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+    });
+
     test('does not persist publicationYear on API failure', function () {
         $resource = createIgsnWithMetadata(['publication_year' => 2020]);
         LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
