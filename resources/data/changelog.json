@@ -4,6 +4,11 @@
         "date": "Unreleased",
         "fixes": [
             {
+                "title": "Remove All Contributors",
+                "description": "The last contributor can now be removed from the metadata editor, for both people and institutions. The optional Contributors section can be saved empty and remains empty when reopened.",
+                "references": [{ "type": "issue", "number": 1540, "url": "https://github.com/McNamara84/ernie/issues/1540" }]
+            },
+            {
                 "title": "DOI Publication Verification and Recovery",
                 "description": "External landing-page checks reject private network targets and pin verified public HTTPS destinations. IGSN registration displays reconciliation guidance for unconfirmed publication and reports temporary verification failures as retryable while preserving the previous registration status. Publication is offered only when a non-tombstone landing page exists. URL maintenance retries temporary verification failures, and stage and production containers receive the matching DataCite test repository configuration.",
                 "references": [{ "type": "pull_request", "number": 1551, "url": "https://github.com/McNamara84/ernie/pull/1551" }]
