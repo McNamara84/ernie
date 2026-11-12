@@ -100,12 +100,6 @@ final class DataEmbargoReleaseService
 
         // Both the verification GET and all rate-limit waits run without the
         // DOI lock. The transport rechecks our revision on every PUT attempt.
-        $remote = $client->getDoi($doi);
-        $remote->throw();
-        if (strcasecmp((string) $remote->json('data.id'), $doi) !== 0
-            || ! in_array($remote->json('data.attributes.state'), ['registered', 'findable'], true)) {
-            throw new \RuntimeException('DataCite registration could not be verified; no remote write was sent.');
-        }
         $attributes = (new DataCiteJsonExporter)->export($current)['data']['attributes'];
         $writtenRevision = null;
         $response = $client->updateDoi($doi, ['data' => [

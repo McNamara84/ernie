@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Exceptions\DataCiteVerificationException;
 use App\Models\Resource;
 use App\Services\DataCiteMemberApiClient;
+use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\DataEmbargoReleaseService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -18,7 +20,12 @@ final class SyncDataEmbargoAccessJob implements ShouldQueue
 
     public int $tries = 5;
 
-    public function __construct(public readonly int $resourceId, public readonly bool $testMode) {}
+    private ?string $dataCiteContext = null;
+
+    public function __construct(public readonly int $resourceId, public readonly bool $testMode)
+    {
+        $this->dataCiteContext = app(DataCiteRegistrationFactoryService::class)->clientForMode($testMode)->contextFingerprint();
+    }
 
     /** @return list<int> */
     public function backoff(): array
@@ -32,6 +39,18 @@ final class SyncDataEmbargoAccessJob implements ShouldQueue
         if ($resource === null || ! $resource->data_embargo_sync_pending) {
             return;
         }
-        $service->synchronize($resource, new DataCiteMemberApiClient($limiter, $this->testMode));
+        $client = new DataCiteMemberApiClient($limiter, $this->testMode);
+        if ($this->dataCiteContext !== $client->contextFingerprint()) {
+            return;
+        }
+        try {
+            $service->synchronize($resource, $client);
+        } catch (DataCiteVerificationException $exception) {
+            if ($exception->retryable) {
+                throw $exception;
+            }
+            // Keep the pending flag, but do not retry a missing registration or
+            // an unpublished page until a curator resolves that prerequisite.
+        }
     }
 }

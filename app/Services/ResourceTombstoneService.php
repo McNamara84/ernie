@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\TombstoneReason;
+use App\Exceptions\DataCiteVerificationException;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
@@ -72,28 +73,19 @@ final class ResourceTombstoneService
 
         try {
             $client = app(DataCiteMemberApiClient::class);
-            $response = $client->getDoi($resource->doi, deferWhenLimited: $deferWhenLimited);
-            if ($response->status() === 404) {
+            $evidence = app(DataCiteRegistrationVerifierService::class)->verify($client, $resource->doi, $deferWhenLimited);
+            if (! $evidence->isRegistered()) {
                 return [...$result, 'reason' => 'not_registered'];
             }
-            $response->throw();
-            $state = $response->json('data.attributes.state');
-            $url = $response->json('data.attributes.url');
-            $owner = $response->json('data.relationships.client.data.id');
-            if ($state === 'draft') {
-                return [...$result, 'reason' => 'not_registered'];
-            }
-            if (! in_array($state, ['registered', 'findable'], true) || ! is_string($owner)) {
-                return [...$result, 'status' => 'unavailable', 'reason' => 'verification_unavailable'];
-            }
-            if (! is_string($url) || trim($url) === '') {
+            $state = $evidence->state;
+            $url = $evidence->url;
+            if ($url === null || trim($url) === '') {
                 return [...$result, 'reason' => 'missing_target_url'];
-            }
-            if (strtolower($owner) !== $client->repositoryClientId()) {
-                return [...$result, 'reason' => 'foreign_repository'];
             }
 
             return ['status' => 'eligible', 'reason' => null, 'state' => $state, 'url' => $url];
+        } catch (DataCiteVerificationException $exception) {
+            return [...$result, 'status' => $exception->retryable ? 'unavailable' : 'ineligible', 'reason' => $exception->reason === 'doi_repository_mismatch' ? 'foreign_repository' : 'verification_unavailable'];
         } catch (\Throwable) {
             return [...$result, 'status' => 'unavailable', 'reason' => 'verification_unavailable'];
         }

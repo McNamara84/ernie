@@ -1,5 +1,6 @@
 {
     "complete": [
+        "doi-publication",
         "contact-persons",
         "editor-settings",
         "dump-downloads",
@@ -36,6 +37,11 @@
         "oai-pmh": ["oai-schema", "oai-services"]
     },
     "slices": {
+        "doi-publication": [
+            "tests/pest/Feature/Database/ResourceDoiPublicationSchemaTest.php",
+            "tests/pest/Feature/Database/DataCiteConcurrentWriteTest.php",
+            "tests/pest/Feature/Services/ResourceDoiPublicationTest.php"
+        ],
         "contact-persons": ["tests/pest/Feature/ContactPersons/ContactPersonOverviewTest.php", "tests/pest/Feature/Database/ContactPersonProjectionTest.php", "tests/pest/Feature/Database/ContactPersonConcurrencyTest.php"],
         "curation": ["tests/pest/Feature/Database/CurationConcurrencyTest.php", "tests/pest/Feature/Curation/CurationOverviewTest.php", "tests/pest/Feature/Curation/CurationQueueTest.php", "tests/pest/Feature/Curation/CurationReconciliationTest.php", "tests/pest/Feature/Curation/CurationSchemaAvailabilityTest.php", "tests/pest/Feature/Curation/CurationWorkflowTest.php"],
         "usage": [

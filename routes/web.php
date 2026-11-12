@@ -491,6 +491,13 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     Route::get('resources/{resource}/export-iso-19115-3', [ResourceExportController::class, 'exportIso19115'])
         ->name('resources.export-iso-19115-3');
 
+    Route::get('resources/{resource}/datacite-status', [ResourceDoiRegistrationController::class, 'status'])
+        ->middleware('can:register-doi')->name('resources.datacite-status');
+    Route::post('resources/{resource}/publish-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
+        ->middleware('can:register-doi')->name('resources.publish-doi');
+    Route::post('resources/{resource}/update-datacite-metadata', [ResourceDoiRegistrationController::class, 'registerDoi'])
+        ->middleware('can:register-doi')->name('resources.update-datacite-metadata');
+
     Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
         ->middleware('can:register-doi')
         ->name('resources.register-doi');

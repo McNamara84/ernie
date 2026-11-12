@@ -22,27 +22,50 @@ it('uses the interface binding for DOI registration and metadata updates', funct
     $prefix = $testMode ? '10.83279' : '10.5880';
     $doi = $prefix.'/interface-binding';
     $resource = Resource::factory()->create(['doi' => $existingDoi ? $doi : null]);
-    LandingPage::factory()->for($resource)->create();
+    LandingPage::factory()->for($resource)->create(['is_published' => $existingDoi]);
 
     // Bind only the contract so resolving the concrete service cannot satisfy the test.
     $service = Mockery::mock(DataCiteServiceInterface::class);
-    $service->shouldReceive('isTestMode')->atLeast()->once()->andReturn($testMode);
-    $service->shouldReceive($existingDoi ? 'updateMetadata' : 'registerDoi')
-        ->once()
-        ->withArgs(fn (Resource $actual, ?string $actualPrefix = null): bool => $actual->is($resource)
-            && $actualPrefix === ($existingDoi ? null : $prefix))
-        ->andReturn(['data' => ['id' => $doi, 'attributes' => ['state' => 'findable']]]);
+    if ($batch && ! $existingDoi) {
+        $service->shouldNotReceive('registerDoi');
+        $service->shouldNotReceive('updateMetadata');
+    } else {
+        $service->shouldReceive('isTestMode')->atLeast()->once()->andReturn($testMode);
+        $service->shouldReceive($existingDoi ? 'updateMetadata' : 'registerDoi')
+            ->once()
+            ->withArgs(fn (Resource $actual, ?string $actualPrefix = null): bool => $actual->is($resource)
+                && $actualPrefix === ($existingDoi ? null : $prefix))
+            ->andReturnUsing(function (Resource $actual) use ($doi, $existingDoi): array {
+                if (! $existingDoi) {
+                    $actual->update(['doi' => $doi]);
+                    $actual->landingPage->publish();
+                }
+
+                return ['data' => ['id' => $doi, 'attributes' => ['state' => 'findable']]];
+            });
+    }
     app()->instance(DataCiteServiceInterface::class, $service);
 
-    $payload = $existingDoi ? [] : ['prefix' => $prefix];
+    $payload = $existingDoi ? [] : ['prefix' => $prefix, 'confirm_publication' => true];
     if ($batch) {
         $payload['ids'] = [$resource->id];
     }
 
     $response = $this->actingAs($user)->postJson(
-        $batch ? '/resources/batch-register' : route('resources.register-doi', $resource),
+        $batch ? '/resources/batch-register' : route($existingDoi ? 'resources.register-doi' : 'resources.publish-doi', $resource),
         $payload,
-    )->assertOk();
+    );
+
+    if ($batch && ! $existingDoi) {
+        $response->assertStatus(207)->assertJsonCount(0, 'success')->assertJsonCount(1, 'failed');
+        expect($resource->fresh()->doi)->toBeNull()
+            ->and($resource->registrationEvidence()->count())->toBe(0);
+        Http::assertNothingSent();
+
+        return;
+    }
+
+    $response->assertOk();
 
     if ($batch) {
         $response->assertJsonCount(1, 'success')

@@ -215,7 +215,7 @@ class AssistanceController extends Controller
             'message' => $result->hasFailed()
                 ? 'DataCite synchronization failed: '.$result->errorMessage
                 : ($result->attempted ? 'DataCite synchronization completed.' : 'No DataCite synchronization was required.'),
-        ], $result->hasFailed() ? 502 : 200);
+        ], $result->hasFailed() ? ($result->retryable ? 502 : 422) : 200);
     }
 
     /**

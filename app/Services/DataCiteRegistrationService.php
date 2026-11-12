@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\AccessLevel;
+use App\Exceptions\DataCiteVerificationException;
 use App\Models\Resource;
 use App\Support\DataCiteSchemaVersion;
 use Illuminate\Http\Client\RequestException;
@@ -93,321 +93,27 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
     #[\NoDiscard('DOI registration response must be checked for success')]
     public function registerDoi(Resource $resource, string $prefix): array
     {
-        // Read the current dates, rights and landing page immediately before the
-        // external create. The list and editor may hold an older model snapshot.
-        $resource = Resource::query()->with(Resource::DATACITE_EXPORT_RELATIONS)->findOrFail($resource->id);
-        if ($resource->doi !== null && $resource->doi !== '') {
-            throw new \InvalidArgumentException('This resource already has a DOI; update its metadata instead.');
-        }
-        // Validate prefix
-        if (! in_array($prefix, $this->prefixes, true)) {
-            throw new \InvalidArgumentException(
-                "Invalid prefix '{$prefix}'. Allowed prefixes: ".implode(', ', $this->prefixes)
-            );
-        }
-
-        // Check if resource has a landing page
-        $resource->loadMissing('landingPage');
-        $landingPage = $resource->landingPage;
-        if ($landingPage === null) {
-            throw new \RuntimeException(
-                "Resource #{$resource->id} must have a landing page before registering a DOI."
-            );
-        }
-
-        app(EmbargoService::class)->normalizeResource($resource);
-
-        // Metadata may be published while the data remains under embargo.
-        app(EmbargoService::class)->assertCanRegister($resource);
-        $embargoRegistration = app(EmbargoService::class)->isEmbargoed($resource);
-        if ($embargoRegistration && $resource->embargo_registration_started_at !== null) {
-            return $this->reconcileEmbargoDoi($resource, $prefix);
-        }
-
-        // Generate DataCite metadata using the existing exporter
-        $jsonExporter = new DataCiteJsonExporter;
-        $dataCiteData = $jsonExporter->export($resource);
-
-        // Build the registration payload
-        $payload = [
-            'data' => [
-                'type' => 'dois',
-                'attributes' => array_merge(
-                    $dataCiteData['data']['attributes'],
-                    [
-                        'prefix' => $prefix,
-                        'url' => $embargoRegistration ? url("/datasets/{$resource->id}") : $landingPage->public_url,
-                        'event' => 'publish', // Publish the DOI immediately
-                    ]
-                ),
-            ],
-        ];
-
-        // Remove existing DOI from payload if present (let DataCite generate it)
-        unset($payload['data']['attributes']['doi']);
-
-        Log::info('Registering DOI with DataCite', [
-            'resource_id' => $resource->id,
-            'prefix' => $prefix,
-            'test_mode' => $this->testMode,
-            'url' => $landingPage->public_url,
-            'endpoint' => $this->endpoint,
-        ]);
-
-        // Log payload (mask sensitive data in production)
-        if (config('app.debug')) {
-            Log::debug('DOI registration payload', [
-                'payload' => $payload,
-            ]);
-        }
-
-        $claimedAttempt = false;
-        try {
-            // Claim before the external create. Another request must reconcile
-            // this attempt rather than sending another POST.
-            if ($embargoRegistration) {
-                if (! app(EmbargoService::class)->claimRegistration($resource, $prefix)) {
-                    return $this->reconcileEmbargoDoi(Resource::query()->findOrFail($resource->id), $prefix);
-                }
-                $claimedAttempt = true;
-                $current = Resource::query()->with(Resource::DATACITE_EXPORT_RELATIONS)->findOrFail($resource->id);
-                try {
-                    app(EmbargoService::class)->assertCanRegister($current);
-                    if (app(EmbargoService::class)->availableDate($current) !== app(EmbargoService::class)->availableDate($resource)) {
-                        throw new \InvalidArgumentException('The embargo date changed before registration. Please retry.');
-                    }
-                } catch (\InvalidArgumentException $exception) {
-                    app(EmbargoService::class)->clearRejectedRegistration($current);
-                    throw $exception;
-                }
-            }
-
-            // Send POST request to DataCite API
-            $response = $this->client->createDoi($payload, allowRetry: ! $embargoRegistration);
-            $response->throw();
-
-            $responseData = $response->json();
-
-            if ($responseData === null) {
-                Log::error('DataCite response is not valid JSON', [
-                    'resource_id' => $resource->id,
-                    'prefix' => $prefix,
-                    'response_body' => $response->body(),
-                ]);
-
-                throw new \RuntimeException('Received invalid JSON response from DataCite API');
-            }
-
-            Log::info('DOI registered successfully', [
-                'resource_id' => $resource->id,
-                'doi' => $responseData['data']['id'] ?? null,
-            ]);
-
-            return $responseData;
-        } catch (RequestException $e) {
-            // Log detailed error information
-            // PHPDoc indicates response is always present, but it can be null at runtime
-            $response = $e->response;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $statusCode = $response !== null ? $response->status() : null;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $responseBody = $response !== null ? $response->body() : null;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $responseJson = $response !== null ? $response->json() : null;
-
-            if ($claimedAttempt && in_array($statusCode, [400, 401, 403, 422, 429], true)) {
-                app(EmbargoService::class)->clearRejectedRegistration($resource);
-            }
-
-            Log::error('Failed to register DOI with DataCite', [
-                'resource_id' => $resource->id,
-                'prefix' => $prefix,
-                'status_code' => $statusCode,
-                'error_message' => $e->getMessage(),
-                'response_body' => $responseBody,
-                'response_json' => $responseJson,
-            ]);
-
-            throw $e;
-        }
+        return $this->publicationService()->publish($resource, $prefix);
     }
 
-    /**
-     * Register an IGSN with DataCite
-     *
-     * Unlike registerDoi(), this method keeps the existing DOI/IGSN in the payload
-     * because IGSNs have pre-defined identifiers that must be preserved.
-     *
-     * @param  Resource  $resource  The IGSN resource to register
-     * @return array<string, mixed> The DataCite API response
-     *
-     * @throws \RuntimeException If resource doesn't have a DOI/IGSN or landing page
-     * @throws \InvalidArgumentException If the IGSN prefix is not allowed
-     * @throws RequestException If the API request fails
-     */
-    #[\NoDiscard('IGSN registration response must be checked for success')]
-    public function registerIgsn(Resource $resource): array
+    /** @return array<string, mixed> */
+    public function registerIgsn(Resource $resource, ?int $actorId = null): array
     {
-        $publicationYear = $resource->publication_year;
-        $resource = Resource::query()->with(Resource::DATACITE_EXPORT_RELATIONS)->findOrFail($resource->id);
-        $resource->publication_year = $publicationYear;
-        // Validate resource has an IGSN (stored in doi field)
         if (! $resource->doi) {
-            throw new \RuntimeException(
-                "Resource #{$resource->id} must have an IGSN to register."
-            );
+            throw new \RuntimeException('An IGSN must be assigned before publication.');
         }
 
-        // Validate DOI/IGSN format: must be 10.NNNN/suffix
-        if (! preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $resource->doi)) {
-            throw new \InvalidArgumentException(
-                "IGSN '{$resource->doi}' has an invalid format. Expected: 10.XXXXX/SUFFIX"
-            );
-        }
-
-        // Extract and validate prefix from IGSN
-        $prefix = $this->extractPrefix($resource->doi);
-        $allowedIgsnPrefixes = $this->testMode
-            ? $this->prefixes
-            : [trim((string) Config::get('datacite.production.igsn_prefix', ''))];
-
-        if (! in_array($prefix, $allowedIgsnPrefixes, true)) {
-            throw new \InvalidArgumentException(
-                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: ".implode(', ', $allowedIgsnPrefixes)
-            );
-        }
-
-        // Check if resource has a landing page
-        $resource->loadMissing('landingPage');
-        $landingPage = $resource->landingPage;
-        if ($landingPage === null) {
-            throw new \RuntimeException(
-                "Resource #{$resource->id} must have a landing page before registering an IGSN."
-            );
-        }
-
-        app(EmbargoService::class)->normalizeResource($resource);
-
-        // Metadata may be published while the data remains under embargo.
-        app(EmbargoService::class)->assertCanRegister($resource);
-        $embargoRegistration = app(EmbargoService::class)->isEmbargoed($resource);
-        if ($embargoRegistration && $resource->embargo_registration_started_at !== null) {
-            return $this->reconcileEmbargoIgsn($resource, $prefix);
-        }
-
-        // Generate DataCite metadata using the existing exporter
-        $jsonExporter = new DataCiteJsonExporter;
-        $dataCiteData = $jsonExporter->export($resource);
-
-        // Build the registration payload – KEEP the DOI (unlike registerDoi which unsets it)
-        $payload = [
-            'data' => [
-                'type' => 'dois',
-                'attributes' => array_merge(
-                    $dataCiteData['data']['attributes'],
-                    [
-                        'doi' => $resource->doi,
-                        'prefix' => $prefix,
-                        'url' => $embargoRegistration ? url("/datasets/{$resource->id}") : $landingPage->public_url,
-                        'event' => 'publish',
-                        'publicationYear' => (string) now(config('app.timezone'))->year, // Always use current year at registration time
-                    ]
-                ),
-            ],
-        ];
-
-        Log::info('Registering IGSN with DataCite', [
-            'resource_id' => $resource->id,
-            'igsn' => $resource->doi,
-            'prefix' => $prefix,
-            'test_mode' => $this->testMode,
-            'url' => $landingPage->public_url,
-            'endpoint' => $this->endpoint,
-        ]);
-
-        if (config('app.debug')) {
-            Log::debug('IGSN registration payload', [
-                'payload' => $payload,
-            ]);
-        }
-
-        $claimedAttempt = false;
-        try {
-            if ($embargoRegistration) {
-                if (! app(EmbargoService::class)->claimRegistration($resource, $prefix)) {
-                    return $this->reconcileEmbargoIgsn(Resource::query()->findOrFail($resource->id), $prefix);
-                }
-                $claimedAttempt = true;
-                $current = Resource::query()->with(Resource::DATACITE_EXPORT_RELATIONS)->findOrFail($resource->id);
-                try {
-                    app(EmbargoService::class)->assertCanRegister($current);
-                    if (app(EmbargoService::class)->availableDate($current) !== app(EmbargoService::class)->availableDate($resource)) {
-                        throw new \InvalidArgumentException('The embargo date changed before registration. Please retry.');
-                    }
-                } catch (\InvalidArgumentException $exception) {
-                    app(EmbargoService::class)->clearRejectedRegistration($current);
-                    throw $exception;
-                }
-            }
-
-            $response = $this->client->createDoi($payload, allowRetry: ! $embargoRegistration);
-            $response->throw();
-
-            $responseData = $response->json();
-
-            if ($responseData === null) {
-                Log::error('DataCite response is not valid JSON', [
-                    'resource_id' => $resource->id,
-                    'igsn' => $resource->doi,
-                    'response_body' => $response->body(),
-                ]);
-
-                throw new \RuntimeException('Received invalid JSON response from DataCite API');
-            }
-
-            Log::info('IGSN registered successfully', [
-                'resource_id' => $resource->id,
-                'doi' => $responseData['data']['id'] ?? null,
-            ]);
-
-            return $responseData;
-        } catch (RequestException $e) {
-            $response = $e->response;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $statusCode = $response !== null ? $response->status() : null;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $responseBody = $response !== null ? $response->body() : null;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $responseJson = $response !== null ? $response->json() : null;
-
-            if ($claimedAttempt && in_array($statusCode, [400, 401, 403, 422, 429], true)) {
-                app(EmbargoService::class)->clearRejectedRegistration($resource);
-            }
-
-            Log::error('Failed to register IGSN with DataCite', [
-                'resource_id' => $resource->id,
-                'igsn' => $resource->doi,
-                'prefix' => $prefix,
-                'status_code' => $statusCode,
-                'error_message' => $e->getMessage(),
-                'response_body' => $responseBody,
-                'response_json' => $responseJson,
-            ]);
-
-            throw $e;
-        }
+        return $this->publicationService()->publish($resource, igsn: true, actorId: $actorId);
     }
 
-    /**
-     * Extract the DOI prefix from a full DOI/IGSN string.
-     *
-     * @example "10.60510/IEYRS123" → "10.60510"
-     */
-    private function extractPrefix(string $doi): string
+    public function getRegistrationState(string $doi): string
     {
-        $parts = explode('/', $doi, 2);
+        return app(DataCiteRegistrationVerifierService::class)->verify($this->client, $doi)->state;
+    }
 
-        return $parts[0];
+    private function publicationService(): ResourceDoiPublicationService
+    {
+        return new ResourceDoiPublicationService($this->client, app(DataCiteRegistrationVerifierService::class), app(ResourceDoiPublicationTargetService::class));
     }
 
     /**
@@ -442,6 +148,9 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
 
         $embargo = app(EmbargoService::class);
         $embargo->assertCanUpdateMetadata($resource);
+        if (! $landingPage->is_published) {
+            throw new DataCiteVerificationException('landing_page_not_published', 'Publish the landing page explicitly before updating DataCite metadata. Local changes remain saved.');
+        }
 
         // Generate DataCite metadata using the existing exporter
         $jsonExporter = new DataCiteJsonExporter;
@@ -456,9 +165,6 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                     $dataCiteData['data']['attributes'],
                     [
                         'url' => $landingPage->public_url,
-                        // A public legacy page may receive metadata updates without
-                        // changing the DOI state or publishing a remote draft.
-                        ...($embargo->isEmbargoed($resource) ? [] : ['event' => 'publish']),
                         'schemaVersion' => DataCiteSchemaVersion::KERNEL_4,
                     ]
                 ),
@@ -512,74 +218,6 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
 
             throw $e;
         }
-    }
-
-    /** @return array<string, mixed> */
-    private function reconcileEmbargoDoi(Resource $resource, string $prefix): array
-    {
-        if ($resource->embargo_registration_prefix !== $prefix) {
-            throw new \InvalidArgumentException('An embargo registration attempt with another DOI prefix is pending reconciliation.');
-        }
-
-        $targetUrl = url("/datasets/{$resource->id}");
-        $response = $this->client->findDoisByUrl($targetUrl, $prefix);
-        $response->throw();
-        $records = $response->json('data');
-        $matches = is_array($records) ? array_values(array_filter($records, function (mixed $record) use ($resource, $prefix): bool {
-            return is_array($record) && $this->matchesEmbargoRegistration($record, $resource, $prefix);
-        })) : [];
-
-        if (count($matches) !== 1) {
-            throw new \RuntimeException('The earlier DataCite embargo registration is pending reconciliation. No second POST was sent.');
-        }
-
-        return ['data' => $matches[0]];
-    }
-
-    /** @return array<string, mixed> */
-    private function reconcileEmbargoIgsn(Resource $resource, string $prefix): array
-    {
-        if ($resource->embargo_registration_prefix !== $prefix || ! is_string($resource->doi)) {
-            throw new \InvalidArgumentException('An IGSN embargo registration attempt is pending reconciliation.');
-        }
-
-        $response = $this->client->getDoi($resource->doi);
-        if ($response->status() === 404) {
-            throw new \RuntimeException('The earlier DataCite embargo registration is pending reconciliation. No second POST was sent.');
-        }
-        $response->throw();
-        $record = $response->json('data');
-        if (! is_array($record) || ! $this->matchesEmbargoRegistration($record, $resource, $prefix)
-            || strcasecmp((string) ($record['id'] ?? ''), $resource->doi) !== 0) {
-            throw new \RuntimeException('The remote IGSN does not match the expected embargo registration. No second POST was sent.');
-        }
-
-        return ['data' => ['id' => $record['id']]];
-    }
-
-    /** @param array<string, mixed> $record */
-    private function matchesEmbargoRegistration(array $record, Resource $resource, string $prefix): bool
-    {
-        $attributes = $record['attributes'] ?? null;
-        if (! is_array($attributes) || ! is_string($record['id'] ?? null)
-            || ! str_starts_with(strtolower($record['id']), strtolower($prefix).'/')
-            || ($attributes['url'] ?? null) !== url("/datasets/{$resource->id}")
-            || ($attributes['state'] ?? null) !== 'findable') {
-            return false;
-        }
-
-        $rights = $attributes['rightsList'] ?? null;
-        if (! is_array($rights)) {
-            return false;
-        }
-
-        foreach ($rights as $right) {
-            if (is_array($right) && ($right['rightsIdentifier'] ?? null) === ($resource->embargo_registration_access_level === AccessLevel::EMBARGOED->value ? AccessLevel::EMBARGOED : AccessLevel::OPEN)->coarIdentifier()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

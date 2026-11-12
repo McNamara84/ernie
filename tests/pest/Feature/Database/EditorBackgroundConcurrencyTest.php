@@ -20,6 +20,7 @@ use App\Services\Assessment\FujiAssessmentService;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
 use App\Services\RelationDiscoveryService;
 use App\Services\ResourceCacheService;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 uses()->group('mysql-sensitive');
+require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 it('persists editor changes on an independent connection while background HTTP is blocked', function (string $kind) {
     $this->withoutVite();
@@ -37,6 +39,8 @@ it('persists editor changes on an independent connection while background HTTP i
         'datacite.test_mode' => true,
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.username' => 'TEST.USER', 'datacite.test.password' => 'test-only',
+        'datacite.test.client_id' => 'test.repo',
+        'datacite.landing_page_url_update.minimum_interval_ms' => 0,
     ]);
     Cache::flush();
     Queue::fake();
@@ -171,9 +175,14 @@ it('persists editor changes on an independent connection while background HTTP i
             'titles' => [['title' => 'Saved while checks are running', 'titleType' => 'main-title']],
         ])->assertOk();
         expect(microtime(true) - $started)->toBeLessThan(5.0);
-        Http::fake(['api.test.datacite.org/*' => Http::response(['data' => ['id' => $resource->doi]], 200)]);
-        $this->postJson(route('resources.register-doi', $resource), ['prefix' => ''])
+        Http::fake(['api.test.datacite.org/*' => Http::response(dataCiteRecord((string) $resource->doi))]);
+        $this->postJson(route('resources.update-datacite-metadata', $resource))
             ->assertOk()->assertJson(['success' => true, 'updated' => true]);
+        Http::assertSentCount(2);
+        Http::assertSent(fn (Request $request) => $request->method() === 'GET');
+        Http::assertSent(fn (Request $request) => $request->method() === 'PUT'
+            && $request['data']['attributes']['titles'][0]['title'] === 'Saved while checks are running'
+            && ! array_key_exists('event', $request['data']['attributes']));
         fwrite($sockets[0], "resume-provider\n");
         if (is_array($secondSockets)) {
             fwrite($secondSockets[0], "resume-provider\n");

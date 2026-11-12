@@ -4,22 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DataCiteVerificationException;
 use App\Http\Requests\Batch\RegisterResourcesRequest;
 use App\Models\Resource;
 use App\Services\Curation\CurationRegistrationService;
 use App\Services\DataCiteServiceInterface;
-use App\Services\EmbargoService;
 use App\Services\FakeDataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
-use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Controller for batch registration of Resources (non-IGSN datasets) at DataCite.
+ * Controller for batch metadata updates of already registered non-IGSN resources.
  *
  * Processes each resource individually with error isolation – one failure
  * does not stop the remaining registrations.
@@ -27,15 +25,14 @@ use Illuminate\Support\Facades\Log;
 class BatchResourceRegistrationController extends Controller
 {
     /**
-     * Batch register or update resource DOIs at DataCite.
+     * Update verified resource DOIs without changing visibility.
      *
      * Each resource is processed independently: failures are recorded but do not
      * prevent other resources from being registered. Returns HTTP 200 if all
      * succeed, or HTTP 207 (Multi-Status) if some fail.
      *
-     * Resources already having a DOI are updated (metadata refresh). Resources
-     * without a DOI require the `prefix` request parameter for initial
-     * registration; otherwise those items are reported as failed.
+     * A prefix never enables registration. Every item needs a published landing
+     * page and authenticated evidence of remote registration.
      *
      * IGSN resources (resources carrying IGSN metadata) are rejected via the
      * `failed` list – they must be registered via the IGSN batch endpoint.
@@ -48,15 +45,11 @@ class BatchResourceRegistrationController extends Controller
         /** @var array<int> $ids */
         $ids = array_values(array_unique($validated['ids']));
 
-        /** @var string|null $prefix */
-        $prefix = $validated['prefix'] ?? null;
-
         /** @var array{success: list<array<string, mixed>>, failed: list<array<string, mixed>>} $results */
         $results = ['success' => [], 'failed' => []];
 
         /** @var DataCiteServiceInterface $service */
         $service = app(DataCiteServiceInterface::class);
-        $resourceStorageService = app(ResourceStorageService::class);
 
         // Resolve the ORCID preflight validator once and reuse it for every
         // resource in the batch to avoid repeated container lookups.
@@ -105,12 +98,8 @@ class BatchResourceRegistrationController extends Controller
 
             $wasAlreadyRegistered = $resource->doi !== null && $resource->doi !== '';
 
-            if (! $wasAlreadyRegistered && ($prefix === null || $prefix === '')) {
-                $results['failed'][] = [
-                    'id' => $resourceId,
-                    'doi' => null,
-                    'reason' => 'Resource has no DOI. Provide a prefix to register a new DOI.',
-                ];
+            if (! $wasAlreadyRegistered) {
+                $results['failed'][] = ['id' => $resourceId, 'doi' => null, 'reason' => 'Publish this resource individually before updating DataCite metadata.'];
 
                 continue;
             }
@@ -132,53 +121,27 @@ class BatchResourceRegistrationController extends Controller
             }
 
             try {
-                if ($wasAlreadyRegistered) {
-                    $response = $service->updateMetadata($resource);
-                } else {
-                    /** @var string $prefix */
-                    app(EmbargoService::class)->assertCanRegister($resource);
-                    $response = $service->registerDoi($resource, $prefix);
-                }
-
+                $response = $service->updateMetadata($resource);
                 $doi = $response['data']['id'] ?? $resource->doi;
 
-                // Persist the freshly-minted DOI for new registrations.
-                if (! $wasAlreadyRegistered && $doi !== null && $doi !== $resource->doi) {
-                    $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
-                    DB::transaction(function () use ($resource, $doi, $resourceStorageService, $wasEmbargoed): void {
-                        $resource->doi = $doi;
-                        $resource->save();
-                        $resourceStorageService->ensureSystemDate($resource, 'Issued');
-                        if ($wasEmbargoed) {
-                            app(EmbargoService::class)->completeRegistration($resource);
-                        }
-                    });
-                    if ($wasEmbargoed) {
-                        try {
-                            $service->updateLandingPageUrl($doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
-                        } catch (\Throwable $exception) {
-                            Log::warning('Embargo DOI URL update failed; stable dataset alias remains available.', [
-                                'resource_id' => $resource->id,
-                                'doi' => $doi,
-                                'error' => $exception->getMessage(),
-                            ]);
-                        }
-                    }
-                }
-
-                app(CurationRegistrationService::class)->record($resource, $response, $service instanceof FakeDataCiteRegistrationService ? 'fake' : ($service->isTestMode() ? 'test' : 'production'), $wasAlreadyRegistered ? 'update' : 'registration');
+                app(CurationRegistrationService::class)->record($resource, $response, $service instanceof FakeDataCiteRegistrationService ? 'fake' : ($service->isTestMode() ? 'test' : 'production'), 'update');
 
                 $results['success'][] = [
                     'id' => $resourceId,
                     'doi' => $doi,
-                    'updated' => $wasAlreadyRegistered,
+                    'updated' => true,
                 ];
 
                 Log::info('Batch resource registration: success', [
                     'resource_id' => $resourceId,
                     'doi' => $doi,
-                    'updated' => $wasAlreadyRegistered,
+                    'updated' => true,
                 ]);
+            } catch (DataCiteVerificationException $e) {
+                $results['failed'][] = [
+                    'id' => $resourceId, 'doi' => $resource->doi, 'operation' => 'update',
+                    'reason' => $e->getMessage(), 'code' => $e->reason, 'retryable' => $e->retryable,
+                ];
             } catch (RequestException $e) {
                 // DataCite API error – extract a user-friendly message.
                 // `response->json()` may legitimately return null for non-JSON
