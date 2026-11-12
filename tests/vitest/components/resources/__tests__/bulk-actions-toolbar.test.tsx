@@ -95,8 +95,8 @@ describe('ResourcesBulkActionsToolbar', () => {
         );
 
         await openActionsMenu();
-        expect(screen.getByTestId('resources-action-register-doi')).toHaveTextContent('creates and publishes one new DOI at DataCite');
-        expect(screen.getByTestId('resources-action-update-metadata')).toHaveTextContent('No new DOI');
+        expect(screen.getByTestId('resources-action-register-doi')).toHaveTextContent('publishes the landing page and its new or preassigned DOI');
+        expect(screen.getByTestId('resources-action-update-metadata')).toHaveTextContent('Updates verified registered DOIs with published landing pages; visibility stays unchanged.');
         expect(screen.getByTestId('resources-action-delete')).toHaveTextContent('DataCite records remain');
     });
 

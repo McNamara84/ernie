@@ -98,7 +98,7 @@ test.describe('DOI Registration Workflow', () => {
 
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible({ timeout: 15000 });
-        await expect(dialog.getByRole('heading', { name: /register doi/i })).toBeVisible();
+        await expect(dialog.getByRole('heading', { name: /publish doi and landing page/i })).toBeVisible();
         await expect(dialog.getByText(/test mode active/i)).toBeVisible();
         await expect(dialog.getByText(/datacite test environment.*not permanent/i)).toBeVisible();
     });
@@ -119,6 +119,35 @@ test.describe('DOI Registration Workflow', () => {
         await dialog.getByRole('button', { name: /cancel/i }).click();
 
         await expect(dialog).not.toBeVisible();
+    });
+
+    test('review metadata cannot be updated and explicit publication preserves its DOI', async ({ page }) => {
+        await page.goto('/resources');
+        await selectResourceByText(page, '10.1234/playwright-qa');
+        await openResourceActionsMenu(page);
+        await expect(page.getByTestId('resources-action-update-metadata')).toHaveAttribute('data-unavailable', 'true');
+        await page.getByTestId('resources-action-register-doi').click();
+        const dialog = page.getByRole('dialog');
+        await expect(dialog.getByRole('heading', { name: 'Publish DOI and landing page' })).toBeVisible();
+        await expect(dialog).toContainText('10.1234/playwright-qa');
+        await expect(dialog).toContainText('The DOI is preserved.');
+        await expect(dialog).toContainText('The landing page stays public if DataCite fails.');
+        await dialog.getByRole('button', { name: 'Cancel' }).click();
+    });
+
+    test('an unconfirmed publication keeps the dialog open and displays reconciliation guidance', async ({ page }) => {
+        await page.route('**/resources/*/publish-doi', (route) => {
+            expect(route.request().postDataJSON()).toMatchObject({ confirm_publication: true });
+            return route.fulfill({ status: 202, json: { success: false, doi: null, message: 'Landing page published; DOI publication not confirmed. Retry to reconcile.' } });
+        });
+        await page.goto('/resources');
+        await selectResourceByText(page, 'Playwright: Curation Resource (no DOI)');
+        await openResourceActionsMenu(page);
+        await page.getByTestId('resources-action-register-doi').click();
+        const dialog = page.getByRole('dialog');
+        await dialog.getByRole('button', { name: 'Publish DOI and landing page', exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await expect(dialog).toContainText('DOI publication not confirmed. Retry to reconcile.');
     });
 
     test('status badge is clickable for published resources', async ({ page }) => {

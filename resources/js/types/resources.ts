@@ -1,8 +1,8 @@
+import type { DoiPublicationSummary } from '@/lib/datacite-registration';
 /**
  * Shared type definitions for the resources feature.
  * These types are used across components and tests to ensure consistency.
  */
-
 import type { PartySearchMatch, PartySearchRole } from '@/types/party-search';
 
 export type ResourcePublicStatus = 'draft' | 'curation' | 'review' | 'embargo' | 'published' | 'dead';
@@ -90,6 +90,7 @@ export interface ResourceListItem {
     title?: string;
     first_author?: ResourceListAuthor | null;
     landingPage?: ResourceListLandingPage | null;
+    doiPublication?: DoiPublicationSummary | null;
     search_matches?: ResourcePartySearchMatch[];
     [key: string]: unknown;
 }

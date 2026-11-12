@@ -227,7 +227,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                                 <>
                                     <li>
                                         <a className="text-primary underline" href={docsActionHref('editor-register')}>
-                                            Register and publish a new DOI at DataCite
+                                            Publish a DOI and its landing page
                                         </a>
                                     </li>
                                     <li>
@@ -3463,8 +3463,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>ORCID Pre-flight Validation</h4>
                         <p>
-                            Both when registering a new DOI <em>and</em> when updating metadata for an existing DOI, ERNIE performs a final ORCID
-                            pre-flight check for every creator and contributor attached to the resource before any request is sent to DataCite:
+                            Both when publishing a DOI <em>and</em> when updating metadata for a registered DOI, ERNIE performs a final ORCID
+                            pre-flight check for every creator and contributor attached to the resource before metadata is written to DataCite:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -3476,10 +3476,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Warning (override possible)</strong> – If the ORCID service is temporarily unreachable (network error,
                                 timeout, API error), the registration modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
                                 re-runs the pre-flight against orcid.org (use this when the service may have recovered), and{' '}
-                                <strong>"Register anyway"</strong> (labeled <strong>"Update anyway"</strong> when updating an existing DOI) submits
-                                with an override flag. On the override attempt the throttled orcid.org call is skipped entirely – only the offline
-                                format + checksum gates still run, and registration (or metadata update) proceeds regardless of the earlier transient
-                                warning. Hard blockers (malformed / checksum / not found) are never overridden this way.
+                                <strong>"Publish despite ORCID warning"</strong> (labeled <strong>"Update anyway"</strong> when updating an existing
+                                DOI) submits with an override flag. On the override attempt the throttled orcid.org call is skipped entirely – only
+                                the offline format + checksum gates still run, and registration (or metadata update) proceeds regardless of the
+                                earlier transient warning. Hard blockers (malformed / checksum / not found) are never overridden this way.
                             </li>
                             <li>
                                 <strong>Success</strong> – On the first successful pre-flight, the person record is stamped with an internal{' '}
@@ -3491,8 +3491,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
                         <p className="mt-2 text-sm text-muted-foreground">
                             Note: Opening an existing resource in the editor no longer triggers ORCID validation for stored authors. The network check
-                            only runs when you actively edit an ORCID / name field or when you press <strong>Register DOI</strong> or{' '}
-                            <strong>Update metadata</strong>.
+                            only runs when you actively edit an ORCID / name field or when you confirm <strong>Publish DOI and landing page</strong>{' '}
+                            or <strong>Update metadata</strong>.
                         </p>
 
                         <h4>Test vs Production</h4>
@@ -3743,17 +3743,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         {permissions.registerDoi && (
                             <>
-                                <h4>Register one DOI or update selected metadata</h4>
+                                <h4>Publish one DOI or update selected metadata</h4>
                                 <p>
-                                    <strong>Register DOI</strong> is available only for exactly one selected resource without a DOI and with a landing
-                                    page. It opens a prefix dialog; after confirmation, ERNIE sends the saved metadata to DataCite to create and
-                                    publish a new DOI. It is not a bulk registration action.
+                                    <strong>Publish DOI and landing page</strong> handles exactly one resource with a configured landing page. The
+                                    dialog checks DataCite state. Confirmation releases the landing page before publishing the DOI; a preassigned DOI
+                                    is preserved. If DataCite fails, the landing page stays public and the pending publication remains visible. Reopen
+                                    the action to reconcile an uncertain result without creating a second DOI.
                                 </p>
                                 <p>
                                     <strong>Update metadata</strong> is available for selected resources that each already have a DOI and a landing
-                                    page. After confirmation, ERNIE updates existing DataCite records one by one from the saved metadata. It does not
-                                    save unsaved editor changes or mint a new DOI. Some updates may succeed while others fail; review each result.
-                                    Beginners use the DataCite test environment for both actions.
+                                    page that is already published. After confirmation, ERNIE verifies registered or findable state in its DataCite
+                                    repository before updating each record. DOI visibility remains unchanged. It does not save unsaved editor changes
+                                    or mint a new DOI. Some updates may succeed while others fail; review each result. Beginners use the DataCite test
+                                    environment for both actions.
                                 </p>
                                 <p className="text-sm text-muted-foreground">Update limit: up to 25 resources per batch.</p>
                             </>

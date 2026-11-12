@@ -43,6 +43,7 @@ import { useResourceTypeLicenses } from '@/hooks/use-resource-type-licenses';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { RorInputDraftContext, useRorInputDrafts } from '@/hooks/use-ror-input-drafts';
 import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS, isCurationAccordionItemValue } from '@/lib/curation-accordion';
+import { publicationNeedsAttention } from '@/lib/datacite-registration';
 import { type DoiRegistrationResponse, isOrcidPreflightPayload, type OrcidPreflightIssue } from '@/lib/datacite-registration';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import {
@@ -314,6 +315,7 @@ export default function DataCiteForm({
     initialResourceId,
     hasUnpersistedPrefill = false,
     initialPublicStatus = 'draft',
+    initialDoiPublication = null,
     initialLandingPage = null,
     initialAuthors = [],
     initialContributors = [],
@@ -2276,6 +2278,7 @@ export default function DataCiteForm({
 
         return Number.isFinite(parsed) ? parsed : null;
     });
+    const [doiPublication, setDoiPublication] = useState(initialDoiPublication);
     const [currentPublicStatus, setCurrentPublicStatus] = useState<ResourcePublicStatus>(initialPublicStatus);
     const [currentCanEditDoi, setCurrentCanEditDoi] = useState(canEditDoi ?? isAdmin);
     const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
@@ -3186,7 +3189,9 @@ export default function DataCiteForm({
             const payload = await prepareValidatedPayload();
             if (!payload) return;
 
-            setDataCiteAction(form.doi?.trim() ? 'update' : 'register');
+            setDataCiteAction(
+                form.doi?.trim() && landingPageForPreview?.is_published && !publicationNeedsAttention(doiPublication) ? 'update' : 'register',
+            );
             setPendingDataCitePayload(payload);
             setPendingDataCiteSnapshot(submittedSnapshot);
             setPendingDataCiteResourceId(null);
@@ -3211,10 +3216,20 @@ export default function DataCiteForm({
         setDataCiteError(null);
 
         try {
-            const response = await axios.post<DoiRegistrationResponse>(`/resources/${resourceId}/register-doi`, {
-                prefix,
-                force,
-            });
+            const response = await axios.post<DoiRegistrationResponse>(
+                `/resources/${resourceId}/${dataCiteAction === 'update' ? 'update-datacite-metadata' : 'publish-doi'}`,
+                {
+                    prefix,
+                    force,
+                    ...(dataCiteAction === 'register' ? { confirm_publication: true } : {}),
+                },
+            );
+            setDoiPublication(response.data.publication ?? null);
+            if (!response.data.success || !response.data.doi) {
+                setDataCiteError(response.data.message);
+                setIsDataCiteConfirmationOpen(true);
+                return;
+            }
             const { doi, mode, publishedRecordCounts, updated } = response.data;
             const modeLabel = mode === 'test' ? 'Test' : 'Production';
 
@@ -3688,6 +3703,7 @@ export default function DataCiteForm({
         isImportingMetadata ||
         isReleasingData;
     const hasExistingDoi = Boolean(form.doi?.trim());
+    const shouldUpdateDataCite = hasExistingDoi && landingPageForPreview?.is_published && !publicationNeedsAttention(doiPublication);
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
     const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
     const showLandingPagePreviewDisabledTooltip = !isPublishedResource && !isDraftSaveable && !isEditorActionInFlight;
@@ -3760,7 +3776,7 @@ export default function DataCiteForm({
                                 onClick={() => void handleRequestDataCiteAction()}
                             >
                                 <CloudUpload className="mr-2 h-4 w-4" />
-                                {hasExistingDoi ? 'Update Metadata' : 'Register'}
+                                {shouldUpdateDataCite ? 'Update DataCite metadata' : 'Publish DOI and landing page'}
                             </Button>
                         </span>
                     </TooltipTrigger>
@@ -4478,6 +4494,13 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+            {publicationNeedsAttention(doiPublication) && (
+                <div role="status" className="rounded-md border border-amber-500 p-4">
+                    <strong>DOI publication needs attention</strong>
+                    <p>{doiPublication?.last_error ?? 'The DOI publication has not been confirmed.'}</p>
+                    <p>The landing page may already be public. Use Publish DOI and landing page to resume the saved attempt.</p>
+                </div>
+            )}
             <ValidationAlert
                 severity="warning"
                 title="Legacy Keywords Detected"
@@ -4504,13 +4527,13 @@ export default function DataCiteForm({
                     )}
                     {canRegisterDoi && (
                         <p>
-                            <strong>{hasExistingDoi ? 'Update Metadata' : 'Register'}</strong>{' '}
-                            {hasExistingDoi
-                                ? 'saves locally, then updates the existing DOI at DataCite after confirmation.'
+                            <strong>{shouldUpdateDataCite ? 'Update DataCite metadata' : 'Publish DOI and landing page'}</strong>{' '}
+                            {shouldUpdateDataCite
+                                ? 'saves locally, then updates a verified, registered DOI without changing its visibility.'
                                 : 'saves locally, then publishes a DOI at DataCite after confirmation.'}{' '}
                             <a
                                 className="underline"
-                                href={docsActionHref(hasExistingDoi ? 'editor-update-metadata' : 'editor-register')}
+                                href={docsActionHref(shouldUpdateDataCite ? 'editor-update-metadata' : 'editor-register')}
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
@@ -4547,6 +4570,7 @@ export default function DataCiteForm({
                 />
             )}
             <EditorDataCiteConfirmationDialog
+                resourceId={resolvedResourceId}
                 open={isDataCiteConfirmationOpen}
                 action={dataCiteAction}
                 title={mainTitleForLandingPage}

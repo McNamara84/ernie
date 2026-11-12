@@ -108,6 +108,7 @@ class EditorDataTransformer
             'initialDataEmbargoSyncPending' => $resource->data_embargo_sync_pending,
             'resourceId' => (string) $resource->id,
             'publicStatus' => $resource->publicStatus(),
+            'doiPublication' => $resource->latestDoiPublication?->summary(),
             'titles' => $titles,
             'initialLicenses' => $initialLicenses,
             'initialRawRights' => $initialRawRights,

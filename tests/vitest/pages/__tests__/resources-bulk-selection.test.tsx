@@ -143,8 +143,8 @@ const buildResource = (overrides: Partial<Record<string, unknown>>) => ({
 
 const buildProps = (
     resources = [
-        buildResource({ id: 1, doi: '10.9999/one', title: 'First' }),
-        buildResource({ id: 2, doi: '10.9999/two', title: 'Second', landingPage: { ...landingPage, id: 11 } }),
+        buildResource({ id: 1, doi: '10.9999/one', title: 'First', landingPage: { ...landingPage, is_published: true } }),
+        buildResource({ id: 2, doi: '10.9999/two', title: 'Second', landingPage: { ...landingPage, id: 11, is_published: true } }),
         buildResource({ id: 3, doi: null, title: 'Third', publicstatus: 'draft', landingPage: { ...landingPage, id: 12 } }),
     ],
 ) => ({
@@ -438,7 +438,7 @@ describe('ResourcesPage - bulk selection', () => {
         fireEvent.click(screen.getByTestId('resources-row-checkbox-3'));
         await clickResourceAction('resources-action-register-doi');
 
-        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('prefix selection'));
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('one resource at a time'));
         expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
     });
 

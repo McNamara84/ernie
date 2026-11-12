@@ -385,7 +385,9 @@ export interface BatchSuggestionResponse {
         resource_id: number;
         doi: string | null;
         message: string | null;
-        retry_url: string;
+        retry_url: string | null;
+        reason?: string | null;
+        retryable?: boolean;
     }>;
     follow_ups: RorAffiliationBulkMatch[];
     results: BatchSuggestionResult[];

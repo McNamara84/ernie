@@ -14,6 +14,7 @@ beforeEach(function () {
     config([
         'datacite.test_mode' => true,
         'datacite.test.username' => 'TEST.USER',
+        'datacite.test.client_id' => 'test.repo',
         'datacite.test.password' => 'test-password',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
@@ -72,6 +73,7 @@ describe('DataCiteSyncService', function () {
                     'data' => [
                         'id' => $doi,
                         'type' => 'dois',
+                        'relationships' => ['client' => ['data' => ['id' => 'test.repo']]],
                         'attributes' => [
                             'doi' => $doi,
                             'state' => 'findable',
@@ -170,7 +172,7 @@ describe('DataCiteSyncService', function () {
             $result = $service->syncIfRegistered($resource);
 
             expect($result->success)->toBeFalse();
-            expect($result->errorMessage)->toContain('not found');
+            expect($result->errorMessage)->toContain('not registered');
         });
 
         test('returns user-friendly message for 429 rate limiting', function () {
@@ -204,7 +206,7 @@ describe('DataCiteSyncService', function () {
 
             Http::fake([
                 '*datacite.org/*' => Http::response([
-                    'data' => ['id' => $doi],
+                    'data' => ['id' => $doi, 'attributes' => ['state' => 'findable'], 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]]],
                 ], 200),
             ]);
 

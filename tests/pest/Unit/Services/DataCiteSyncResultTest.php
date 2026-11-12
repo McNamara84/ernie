@@ -70,6 +70,8 @@ describe('DataCiteSyncResult::toArray()', function (): void {
             'success' => true,
             'errorMessage' => null,
             'doi' => null,
+            'reason' => null,
+            'retryable' => true,
         ]);
     });
 
@@ -82,6 +84,8 @@ describe('DataCiteSyncResult::toArray()', function (): void {
             'success' => true,
             'errorMessage' => null,
             'doi' => $doi,
+            'reason' => null,
+            'retryable' => true,
         ]);
     });
 
@@ -95,6 +99,8 @@ describe('DataCiteSyncResult::toArray()', function (): void {
             'success' => false,
             'errorMessage' => $message,
             'doi' => $doi,
+            'reason' => null,
+            'retryable' => true,
         ]);
     });
 });

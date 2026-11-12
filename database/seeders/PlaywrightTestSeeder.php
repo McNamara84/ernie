@@ -19,6 +19,8 @@ use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\DatacenterNameService;
+use App\Services\DataCiteServiceInterface;
+use App\Services\FakeDataCiteRegistrationService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -252,6 +254,12 @@ class PlaywrightTestSeeder extends Seeder
         );
 
         $this->ensureCompleteFixture($publishedResource);
+        // Fake remote registration is explicit and independent of local DOI fields.
+        /** @var DataCiteServiceInterface $dataCite The development binding depends on configured credentials. */
+        $dataCite = app(DataCiteServiceInterface::class);
+        if ($dataCite instanceof FakeDataCiteRegistrationService) {
+            $dataCite->setRegistrationState(self::PLAYWRIGHT_PUBLISHED_RESOURCE_DOI, 'findable');
+        }
 
         // 2) Physical Object with an unpublished IGSN landing-page preview.
         // This fixture exercises the IGSN renderer without making a test DOI public.

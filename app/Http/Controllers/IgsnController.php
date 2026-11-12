@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\CacheKey;
 use App\Enums\DataCiteUrlUpdateScope;
 use App\Enums\UserRole;
+use App\Exceptions\DataCiteVerificationException;
 use App\Exceptions\JsonValidationException;
 use App\Http\Requests\IndexIgsnsRequest;
 use App\Models\Datacenter;
@@ -479,6 +480,7 @@ class IgsnController extends Controller
             ], 422);
         }
         $wasAlreadyRegistered = $metadata->isRegistered();
+        $previousUploadState = $metadata->only(['upload_status', 'upload_error_message']);
 
         // Set publicationYear to current year only for new registrations (Issue #438).
         // Already-registered IGSNs keep their original publicationYear.
@@ -519,32 +521,19 @@ class IgsnController extends Controller
             // New registration
             app(EmbargoService::class)->assertCanRegister($resource);
             $response = $service->registerIgsn($resource);
+            if (($response['complete'] ?? true) !== true) {
+                $metadata->markAsError('DOI publication needs reconciliation.');
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The landing page is public; DOI publication needs reconciliation. Resume registration to check the saved attempt.',
+                    'publication' => $response['publication'] ?? null,
+                ], 202);
+            }
+            $resource->refresh();
             $doi = $response['data']['id'] ?? $resource->doi;
 
-            // Update resource DOI if DataCite returned a different one
-            if ($doi !== null && $doi !== $resource->doi) {
-                $resource->doi = $doi;
-            }
-
-            // Keep local identifier, access right, page, and registration state atomic.
-            $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
-            DB::transaction(function () use ($resource, $metadata, $wasEmbargoed): void {
-                $resource->save();
-                if ($wasEmbargoed) {
-                    app(EmbargoService::class)->completeRegistration($resource);
-                }
-                $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
-            });
-            if ($wasEmbargoed && $resource->doi !== null) {
-                try {
-                    $service->updateLandingPageUrl($resource->doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
-                } catch (\Throwable $exception) {
-                    Log::warning('IGSN URL update failed; stable dataset alias remains available.', [
-                        'resource_id' => $resource->id,
-                        'error' => $exception->getMessage(),
-                    ]);
-                }
-            }
+            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
 
             Log::info('IGSN registered at DataCite', [
                 'resource_id' => $resource->id,
@@ -558,6 +547,26 @@ class IgsnController extends Controller
                 'mode' => $service->isTestMode() ? 'test' : 'production',
                 'updated' => false,
             ]);
+        } catch (DataCiteVerificationException $e) {
+            if ($e->retryable) {
+                // A retry must preserve the choice between registration and metadata update.
+                $metadata->update($previousUploadState);
+            } else {
+                $metadata->markAsError($e->getMessage());
+            }
+
+            Log::warning('IGSN registration verification failed', [
+                'resource_id' => $resource->id,
+                'reason' => $e->reason,
+                'retryable' => $e->retryable,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->reason,
+                'message' => $e->getMessage(),
+            ], $e->retryable ? 503 : 422);
+
         } catch (\InvalidArgumentException $e) {
             $metadata->markAsError($e->getMessage());
 

@@ -71,20 +71,44 @@ test.describe('Documentation Page - Interactive Features', () => {
     });
 
     test.describe('action guidance', () => {
-        test('explains the consequences of Register and Update metadata', async ({ page }) => {
+        test('distinguishes explicit publication from editor metadata updates', async ({ page }) => {
             await page.getByTestId('tab-datasets').click();
 
-            const register = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Register', exact: true }) });
-            await expect(register).toContainText('create and publish a DOI');
-            for (const label of ['Register', 'Update Metadata']) {
-                const action = page.locator('article').filter({ has: page.getByRole('heading', { name: label, exact: true }) });
+            const publish = page.locator('article[aria-labelledby="editor-register"]');
+            await expect(publish.getByRole('heading', { name: 'Publish DOI and landing page', exact: true })).toBeVisible();
+            await expect(publish).toContainText('An existing DOI is preserved');
+            await expect(publish).toContainText('missing DOIs are created and draft or registered DOIs are published');
+            await expect(publish).toContainText('The released landing page stays public');
+            await expect(publish).toContainText('reconcile it without a duplicate create');
+
+            const update = page.locator('article[aria-labelledby="editor-update-metadata"]');
+            await expect(update.getByRole('heading', { name: 'Update DataCite metadata', exact: true })).toBeVisible();
+            await expect(update).toContainText('The landing page is published');
+            await expect(update).toContainText('registered or findable');
+            await expect(update).toContainText('without changing DOI visibility');
+            await expect(update).toContainText('does not mint a new DOI');
+
+            for (const action of [publish, update]) {
                 await expect(action).toContainText(/successful local save remains stored/i);
                 await expect(action).toContainText(/\(503\).*external update is unconfirmed; wait briefly and retry/);
                 await expect(action).toContainText(/\(409\), reload the resource, review its latest metadata, then confirm again/);
             }
+        });
 
-            const update = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Update metadata', exact: true }) });
-            await expect(update).toContainText('does not mint new DOIs');
+        test('documents single-resource publication and update-only batches separately', async ({ page }) => {
+            await page.getByTestId('tab-datasets').click();
+
+            const publish = page.locator('article[aria-labelledby="resources-register-doi"]');
+            await expect(publish.getByRole('heading', { name: 'Publish DOI and landing page', exact: true })).toBeVisible();
+            await expect(publish).toContainText('Select exactly one non-tombstone resource with a landing page');
+            await expect(publish).toContainText('A preassigned DOI is preserved');
+
+            const update = page.locator('article[aria-labelledby="resources-update-metadata"]');
+            await expect(update.getByRole('heading', { name: 'Update metadata', exact: true })).toBeVisible();
+            await expect(update).toContainText('each with an existing DOI and a published landing page');
+            await expect(update).toContainText('without lifecycle events');
+            await expect(update).toContainText('Missing or draft remote records are blocked');
+            await expect(update).toContainText('the batch never creates DOIs');
             await expect(update).toContainText('partial success');
         });
 

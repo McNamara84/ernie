@@ -12,9 +12,9 @@ use App\Models\IgsnRegistrationRun;
 use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationFactoryService;
-use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunService;
+use App\Services\ResourceDoiPublicationService;
 use App\Services\UserActivityService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -72,7 +72,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             }
 
             if (! $this->configurationMatches($run, $registrations, $modeResolver)) {
-                $this->pause($run, 'DataCite mode or endpoint changed while the IGSN registration run was active.');
+                $this->pause($run, 'DataCite environment, repository or endpoint changed while the IGSN registration run was active.');
 
                 return;
             }
@@ -160,67 +160,33 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
         }
 
         $operation = $item->operation ?? ($metadata->isRegistered() ? 'update' : 'register');
+        if ($operation === 'register' && $item->approval_fingerprint !== ResourceDoiPublicationService::approvalFingerprint($resource)
+            && ! $resource->latestDoiPublication()->whereIn('status', ['remote_write_started', 'pending_reconciliation'])->exists()) {
+            $message = 'The approved metadata or landing page changed after this registration was queued. Start a new confirmed registration.';
+            $this->markMetadataError($metadata, $message);
+            $this->finishItem($run, $item, IgsnRegistrationItemStatus::FAILED, $message);
+
+            return;
+        }
         $item->update(['operation' => $operation]);
         $service = $registrations->forMode($run->test_mode);
         $originalPublicationYear = $resource->publication_year;
 
         try {
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
-            $remoteRegistrationExists = $operation === 'register'
-                && $item->attempts > 1
-                && $this->remoteIdentifierExists($registrations, $run, $item->identifier);
+            $response = $operation === 'update'
+                ? $service->updateMetadata($resource)
+                : $service->registerIgsn($resource, $run->initiated_by_user_id);
+            if (($response['complete'] ?? true) !== true) {
+                $message = 'DOI publication needs reconciliation. Resume registration to check the saved attempt.';
+                $this->markMetadataError($metadata, $message);
+                $this->finishItem($run, $item, IgsnRegistrationItemStatus::FAILED, $message);
 
-            if ($operation === 'update') {
-                $response = $service->updateMetadata($resource);
-            } elseif ($remoteRegistrationExists) {
-                // A worker can stop after DataCite accepted the create request but
-                // before ERNIE persisted success. On a resumed attempt, reconcile
-                // that remote identifier with a metadata update instead of sending
-                // a second create request.
-                $resource->publication_year = now(config('app.timezone'))->year;
-                if (app(EmbargoService::class)->isEmbargoed($resource)) {
-                    // Verify the remote URL, Findable state, and submitted access right
-                    // before completing metadata publication interrupted after DataCite POST.
-                    if ($resource->embargo_registration_started_at === null) {
-                        app(EmbargoService::class)->claimRegistration(
-                            $resource,
-                            explode('/', (string) $resource->doi, 2)[0],
-                        );
-                    }
-                    $response = $service->registerIgsn($resource);
-                } else {
-                    $response = $service->updateMetadata($resource);
-                }
-            } else {
-                $resource->publication_year = now(config('app.timezone'))->year;
-                app(EmbargoService::class)->assertCanRegister($resource);
-                $response = $service->registerIgsn($resource);
+                return;
             }
+            $resource->refresh();
 
-            $doi = data_get($response, 'data.id');
-            if ($operation === 'register' && is_string($doi) && $doi !== '' && $doi !== $resource->doi) {
-                $resource->doi = $doi;
-            }
-
-            $wasEmbargoed = $operation === 'register'
-                && app(EmbargoService::class)->isEmbargoed($resource);
-            DB::transaction(function () use ($resource, $metadata, $operation, $wasEmbargoed): void {
-                $resource->save();
-                if ($operation === 'register' && $wasEmbargoed) {
-                    app(EmbargoService::class)->completeRegistration($resource);
-                }
-                $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
-            });
-            if ($wasEmbargoed && $resource->doi !== null) {
-                try {
-                    $service->updateLandingPageUrl($resource->doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
-                } catch (Throwable $exception) {
-                    Log::warning('IGSN URL update failed; stable dataset alias remains available.', [
-                        'resource_id' => $resource->id,
-                        'error' => $exception->getMessage(),
-                    ]);
-                }
-            }
+            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
 
             $status = $operation === 'update'
                 ? IgsnRegistrationItemStatus::UPDATED
@@ -261,21 +227,6 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 'error' => $exception->getMessage(),
             ]);
         }
-    }
-
-    private function remoteIdentifierExists(
-        DataCiteRegistrationFactoryService $registrations,
-        IgsnRegistrationRun $run,
-        string $identifier,
-    ): bool {
-        $response = $registrations->clientForMode($run->test_mode)->getDoi($identifier);
-        if ($response->status() === 404) {
-            return false;
-        }
-
-        $response->throw();
-
-        return $response->successful();
     }
 
     private function finishItem(
@@ -400,7 +351,8 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
 
         $client = $registrations->clientForMode($run->test_mode);
 
-        return rtrim($client->endpoint(), '/') === rtrim($run->datacite_endpoint, '/');
+        return $run->datacite_context_fingerprint === $client->contextFingerprint()
+            && rtrim($client->endpoint(), '/') === rtrim($run->datacite_endpoint, '/');
     }
 
     private function responseMessage(mixed $responseData, string $fallback): string

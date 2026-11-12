@@ -12,6 +12,7 @@ use App\Models\Right;
 use App\Models\Title;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteRequestLimiter;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataEmbargoReleaseService;
 use App\Services\EmbargoService;
@@ -20,7 +21,10 @@ use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
+
+require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 function embargoResource(string $date, bool $withPage = true): Resource
 {
@@ -39,9 +43,15 @@ function embargoResource(string $date, bool $withPage = true): Resource
 }
 
 beforeEach(function (): void {
+    config(['app.url' => 'https://ernie.example']);
+    URL::forceRootUrl('https://ernie.example');
+    URL::forceScheme('https');
+    app(DataCiteRequestLimiter::class)->clear();
     config([
         'app.timezone' => 'Europe/Berlin',
         'datacite.test_mode' => true,
+        'datacite.test.client_id' => 'test.repo',
+        'datacite.landing_page_url_update.minimum_interval_ms' => 0,
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.password' => 'test-password',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
@@ -107,7 +117,7 @@ test('multiple Available dates fail closed', function (): void {
 test('registration before Available publishes metadata with embargoed access', function (): void {
     $resource = embargoResource('2027-01-01');
     $this->travelTo(Carbon::parse('2026-12-31 23:59:59', 'Europe/Berlin'));
-    Http::fake(['*datacite.org/*' => Http::response(['data' => ['id' => '10.83279/embargo']], 201)]);
+    Http::fake(fn ($request) => $request->method() === 'HEAD' ? Http::response('', 200) : Http::response(dataCiteRecord('10.83279/embargo', attributes: $request['data']['attributes']), 201));
     $result = app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279');
     expect($result['data']['id'])->toBe('10.83279/embargo');
     Http::assertSent(fn ($request): bool => $request->method() === 'POST'
@@ -118,22 +128,18 @@ test('an ambiguous DataCite create response does not automatically send a second
     $resource = embargoResource('2027-01-01');
     $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     config(['datacite.transport_transient_attempts' => 3]);
-    Http::fakeSequence()
-        ->push(['errors' => [['title' => 'Temporary failure']]], 500)
-        ->push(['data' => ['id' => '10.83279/duplicate']], 201);
-
-    expect(fn () => app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279'))
-        ->toThrow(RequestException::class);
-    Http::assertSentCount(1);
+    Http::fake(fn ($request) => $request->method() === 'HEAD' ? Http::response('', 200) : Http::response([], 500));
+    expect(app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279')['complete'])->toBeFalse();
+    Http::assertSentCount(2);
     expect($resource->fresh()->doi)->toBeNull()
         ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
-        ->and($resource->landingPage->fresh()->is_published)->toBeFalse();
+        ->and($resource->landingPage->fresh()->is_published)->toBeTrue();
 });
 
 test('a definitive DataCite rejection clears the pending attempt', function (): void {
     $resource = embargoResource('2027-01-01');
     $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
-    Http::fake(['*datacite.org/*' => Http::response(['errors' => [['title' => 'Invalid metadata']]], 422)]);
+    Http::fake(fn ($request) => $request->method() === 'HEAD' ? Http::response('', 200) : Http::response(['errors' => [['title' => 'Invalid metadata']]], 422));
 
     expect(fn () => app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279'))
         ->toThrow(RequestException::class);
@@ -182,12 +188,16 @@ test('a DataCite rate limit clears the embargo claim for another attempt', funct
         $resource->save();
     }
     $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
-    Http::fake(['*datacite.org/*' => Http::response(['errors' => [['title' => 'Rate limited']]], 429)]);
+    Http::fake(fn ($request) => match ($request->method()) {
+        'HEAD' => Http::response('', 200),
+        'GET' => Http::response([], 404),
+        default => Http::response(['errors' => [['title' => 'Rate limited']]], 429),
+    });
     $service = app(DataCiteRegistrationService::class);
 
     expect(fn () => $isIgsn ? $service->registerIgsn($resource) : $service->registerDoi($resource, '10.83279'))
         ->toThrow(RequestException::class);
-    Http::assertSentCount(1);
+    Http::assertSentCount($isIgsn ? 3 : 2);
     expect($resource->fresh()->embargo_registration_started_at)->toBeNull()
         ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
         ->and(app(EmbargoService::class)->claimRegistration($resource->fresh(), '10.83279'))->toBeTrue();
@@ -205,11 +215,14 @@ test('pending embargo registration blocks editor writes until reconciliation', f
 test('registration preserves data embargo until a separate manual release', function (): void {
     $resource = embargoResource('2027-01-01');
     $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
-    Http::fake(['*datacite.org/*' => Http::response(['data' => ['id' => '10.83279/embargo']], 201)]);
+    Http::fake(fn ($request) => $request->method() === 'HEAD' ? Http::response('', 200) : Http::response(dataCiteRecord('10.83279/embargo', attributes: $request['data']['attributes']), 201));
 
     $response = app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279');
     expect($response['data']['id'])->toBe('10.83279/embargo');
     Http::assertSent(function ($request) use ($resource): bool {
+        if ($request->method() !== 'POST') {
+            return false;
+        }
         $attributes = $request->data()['data']['attributes'];
         $available = collect($attributes['dates'])->firstWhere('dateType', 'Available');
         $openRight = collect($attributes['rightsList'])->firstWhere('rightsIdentifier', AccessLevel::EMBARGOED->coarIdentifier());
