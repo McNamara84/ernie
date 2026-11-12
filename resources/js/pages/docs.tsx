@@ -1903,6 +1903,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Managing Authors & Contributors</h3>
 
+                        <h4>Removing Contributors</h4>
+                        <p>
+                            Contributors are optional. Use the trash icon on each contributor card to remove a person or institution, including the
+                            last contributor. You can save the resource with no contributors. After a successful save, the section remains empty when
+                            you reopen the resource.
+                        </p>
+                        <p>
+                            To add contributors again, select <strong>Add First Contributor</strong> or <strong>Import CSV</strong> in the empty
+                            section.
+                        </p>
+
                         <h4>ORCID Integration</h4>
                         <p>ERNIE integrates with the ORCID Public API for researcher identification:</p>
                         <ul className="list-inside list-disc space-y-1">
