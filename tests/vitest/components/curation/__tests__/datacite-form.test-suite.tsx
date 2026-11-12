@@ -2071,6 +2071,67 @@ describe('DataCiteForm', () => {
         await waitFor(() => {
             expect(screen.queryByRole('heading', { name: 'Contributor 2' })).not.toBeInTheDocument();
         });
+
+        await user.click(screen.getByRole('button', { name: 'Remove contributor 1' }));
+
+        expect(screen.queryByRole('heading', { name: 'Contributor 1' })).not.toBeInTheDocument();
+        const emptyState = screen.getByTestId('contributors-empty-state');
+        expect(within(emptyState).getByText('No contributors yet')).toBeInTheDocument();
+        expect(within(emptyState).getByRole('button', { name: 'Import contributors from CSV file' })).toBeEnabled();
+        const trigger = getAccordionTrigger(/Contributors/i);
+        expect(within(trigger).getByText('(0)')).toBeInTheDocument();
+        expect(within(trigger).getByLabelText('Optional section')).toBeInTheDocument();
+
+        await user.click(within(emptyState).getByRole('button', { name: 'Add first contributor' }));
+
+        expect(screen.getByRole('heading', { name: 'Contributor 1' })).toBeInTheDocument();
+        expect(screen.queryByTestId('contributors-empty-state')).not.toBeInTheDocument();
+        expect(within(trigger).getByText('(1)')).toBeInTheDocument();
+    });
+
+    it.each([
+        ['person', 'draft'],
+        ['person', 'validate'],
+        ['institution', 'draft'],
+        ['institution', 'validate'],
+    ] as const)('saves an empty contributor list after removing the last %s via %s', { timeout: 30000 }, async (type, saveMode) => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const props: Partial<DataCiteFormProps> = {
+            initialResourceId: '42',
+            initialYear: '2025',
+            initialResourceType: '1',
+            initialTitles: [{ title: 'Contributor removal', titleType: 'main-title' }],
+            initialLicenses: ['MIT'],
+            initialAuthors: [{ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }],
+            initialDescriptions: [{ type: 'Abstract', description: 'A complete abstract describing this dataset for validation.' }],
+            initialContributors: type === 'person'
+                ? [{ type: 'person', firstName: 'Ada', lastName: 'Lovelace', roles: ['Researcher'] }]
+                : [{ type: 'institution', institutionName: 'Example Institute', roles: ['HostingInstitution'] }],
+            availableDatacenters,
+            initialDatacenterId: 1,
+        };
+        const view = renderDataCiteForm(props);
+        await ensureContributorsOpen(user);
+        await user.click(screen.getByRole('button', { name: 'Remove contributor 1' }));
+
+        await user.click(saveMode === 'draft'
+            ? screen.getByTestId('save-draft-button')
+            : screen.getByRole('button', { name: /^validate$/i }));
+
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        const endpoint = saveMode === 'draft' ? '/editor/resources/draft' : '/editor/resources';
+        await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith(endpoint, expect.any(Object), expect.any(Object)));
+        const payload = mockedAxios.post.mock.calls.find(([url]) => url === endpoint)![1];
+        expect(payload).toMatchObject({ resourceId: 42, contributors: [] });
+        expect(payload.authors).toEqual([
+            expect.objectContaining({ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }),
+        ]);
+
+        view.unmount();
+        renderDataCiteForm({ ...props, initialContributors: payload.contributors });
+        await ensureContributorsOpen(user);
+        expect(screen.getByTestId('contributors-empty-state')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Remove contributor/ })).not.toBeInTheDocument();
     });
 
     it('save button is always enabled regardless of required fields (Issue #538)', { timeout: 60000 }, async () => {
