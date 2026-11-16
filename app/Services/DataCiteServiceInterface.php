@@ -42,7 +42,7 @@ interface DataCiteServiceInterface
      * @throws \RuntimeException If resource doesn't have a DOI/IGSN or landing page
      * @throws \InvalidArgumentException If the IGSN prefix is not allowed
      */
-    public function registerIgsn(Resource $resource): array;
+    public function registerIgsn(Resource $resource, ?int $actorId = null): array;
 
     /**
      * Update metadata for an existing DOI.
@@ -77,4 +77,7 @@ interface DataCiteServiceInterface
      * Get the current API endpoint.
      */
     public function getEndpoint(): string;
+
+    /** Authenticated remote state; a local DOI alone proves no registration. */
+    public function getRegistrationState(string $doi): string;
 }

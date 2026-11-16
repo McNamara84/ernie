@@ -17,8 +17,8 @@ uses(RefreshDatabase::class);
 
 test('the embargo migration rebuilds existing listing statuses and published ranks', function (): void {
     $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
-    $embargoed = Resource::factory()->create(['doi' => null, 'access_level' => AccessLevel::EMBARGOED]);
-    LandingPage::factory()->draft()->create(['resource_id' => $embargoed->id]);
+    $embargoed = Resource::factory()->create(['doi' => '10.83279/public-embargo-projection', 'access_level' => AccessLevel::EMBARGOED]);
+    LandingPage::factory()->published()->create(['resource_id' => $embargoed->id]);
     $embargoed->dates()->create(['date_type_id' => $available->id, 'date_value' => '2027-01-01']);
 
     $range = Resource::factory()->create(['doi' => null, 'access_level' => AccessLevel::EMBARGOED]);

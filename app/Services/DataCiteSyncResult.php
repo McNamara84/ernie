@@ -29,7 +29,14 @@ final readonly class DataCiteSyncResult
         public bool $success,
         public ?string $errorMessage,
         public ?string $doi,
+        public ?string $reason = null,
+        public bool $retryable = true,
     ) {}
+
+    public static function blocked(string $doi, string $reason, string $message, bool $retryable = false): self
+    {
+        return new self(attempted: true, success: false, errorMessage: $message, doi: $doi, reason: $reason, retryable: $retryable);
+    }
 
     /**
      * Create a result indicating no sync was required.
@@ -91,7 +98,7 @@ final readonly class DataCiteSyncResult
     /**
      * Convert to array for JSON response.
      *
-     * @return array{attempted: bool, success: bool, errorMessage: string|null, doi: string|null}
+     * @return array{attempted: bool, success: bool, errorMessage: string|null, doi: string|null, reason: string|null, retryable: bool}
      */
     public function toArray(): array
     {
@@ -100,6 +107,8 @@ final readonly class DataCiteSyncResult
             'success' => $this->success,
             'errorMessage' => $this->errorMessage,
             'doi' => $this->doi,
+            'reason' => $this->reason,
+            'retryable' => $this->retryable,
         ];
     }
 }

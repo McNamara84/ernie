@@ -75,7 +75,7 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.13.0** from `.node-version` and npm **12.2.2** from
+    Use Node **26.13.1** from `.node-version` and npm **12.2.2** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
@@ -97,7 +97,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
 
-    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.0** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.1** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
@@ -111,6 +111,10 @@ If the repository stays under `D:\` or another NTFS path:
 
     - Main URL: `https://ernie.localhost:3333`
     - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
+
+    The Traefik dashboard uses port 8080 by default. If another local application
+    such as ELMO uses that port, set `TRAEFIK_DASHBOARD_PORT=8084` in `.env.docker`
+    before starting the stack.
 
     If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
@@ -249,10 +253,13 @@ the certificate bundle excludes the compromised emSign ECC Root CA - G3, and
 Chromium launches without the installers, then scans the complete image alongside
 the application and Nginx images before Stage publication.
 
-F-UJI 4.0.1 restricts Pandas, Levenshtein, Tika, and Uvicorn to specific release
-lines; Playwright also fixes its supported Pyee major. Their newer incompatible
-releases require an upstream compatibility update. The image build keeps these
-constraints and fails if the installed Python packages become inconsistent.
+F-UJI 4.0.1 restricts Pandas, Levenshtein, Tika, Uvicorn, and python-dateutil to
+specific release lines. Their newer incompatible releases require an upstream
+compatibility update. The image build keeps these constraints and fails if the
+installed Python packages become inconsistent. Playwright 1.65.2 no longer
+requires Pyee, allowing the inherited package to update to its current release.
+The image also installs `libatomic1`, which Playwright's bundled Node runtime
+needs before it can install Chromium.
 
 For a one-worker local load comparison, run:
 
@@ -1054,11 +1061,23 @@ The effective level appears in Schema.org `conditionsOfAccess`, Dublin Core `DC.
 
 `npm run artisan -- metadata:backfill-access-content` audits missing stored access levels without writes; `--apply` persists unambiguous candidates and reports unresolved resources for review. Existing curated levels are preserved. Earlier versions initialized digital resources to Open even without internal download evidence; those stored values cannot be distinguished from curated Open values and need review when the actual access is unknown.
 
-### Embargo workflow (issue #1350)
+### Data embargo workflow (issue #1493)
 
-ERNIE uses `Embargo` only as an internal workflow status. DataCite 4.7 metadata keeps `dateType=Available` and the COAR `Embargoed access` right. A valid embargo needs exactly one day-precision `Available` date (`YYYY-MM-DD`). The configured `APP_TIMEZONE` determines when that date becomes due at 00:00. The status remains Embargo until a curator manually registers the DOI or IGSN; successful registration changes the access right to Open and publishes the internal landing page. The dashboard lists due resources for every curator. Unpublished preview URLs require their token and omit stored download destinations. The XML schema snapshot under `resources/data/scheme/datacite-4.7/` comes from the official DataCite 4.7 schema and is used by the schema regression test.
+A future day-precision DataCite `Available` date automatically selects `Embargoed access` in the editor, backend storage and imports. DOI and IGSN registration persist this normalization before checking eligibility, including the fake service used by E2E tests. Exactly one valid `YYYY-MM-DD` date is required for final embargo validation. Existing Embargoed access remains in force after the date until an explicit **Release data** action. `APP_TIMEZONE` determines the day boundary, including the dashboard and notifications.
 
-An uncertain DataCite create response leaves a durable registration attempt on the resource. A retry first reads DataCite by the stable `/datasets/{id}` target (or by the known IGSN) and completes the local release only when the remote record is Findable and has the expected Open access right. It never sends a second POST while the attempt is pending; editor saves are blocked until reconciliation. If the retry reports that no matching record exists, an operator must inspect the correct DataCite environment and prefix before clearing `embargo_registration_started_at` and `embargo_registration_prefix` for that resource in MySQL. Keep the marker when the remote outcome is uncertain or when multiple records match.
+Internal metadata landing pages and DOI/IGSN registrations may be published before Available. Public metadata, metadata downloads and OAI-PMH harvesting remain available. ERNIE redacts primary data destinations from public page payloads and machine-readable distributions, and blocks its download redirects until data release. External landing-page templates are not supported for active data embargoes. Stored download configuration is preserved. Independently hosted data still needs access control on its own server.
+
+**Release data** is available in the editor and the due-embargo dashboard. It changes the data access level to Open without publishing drafts, creating identifiers, removing the historical Available date, or overriding other download restrictions. Repeating the action after release is allowed only for Open access; a pending access update for Restricted or Metadata only access continues through its synchronization job and does not qualify as a data release. Production release respects the existing production permissions. A non-empty DOI keeps access synchronization pending even when its landing page is a draft or missing. The access-only update verifies an existing registered/findable record through the authenticated API, changes only rights, and sends no create/publish event or landing-page URL. A missing or remote draft record is not registered automatically; failed verification or synchronization remains pending and can be retried with the same editor action. No local landing page is created or published by this action.
+
+The editor drains an in-flight autosave and pauses further saves during release. Editor persistence and remote PUTs share the DOI lock; rate-limit waits release that lock and recheck the write revision. Release and editor saves verify the current DOI under the resource row lock, retrying lock selection if registration or DOI editing changed it. An effective or stored access-level change on a published DOI resource marks access synchronization pending and queues `SyncDataEmbargoAccessJob`, including a renewed future Available date after a fully synchronized release. An edit superseding an already pending release also queues that job. It synchronizes the latest access rights without creating or publishing a DOI; unchanged access, drafts and tombstones do not start a new access update. Keep the queue worker running; failed corrective jobs retain the pending flag and can be inspected/retried through the normal failed-job workflow.
+
+The scheduler runs `embargo:notify-due` every minute. The queue sends one individual HTML/text email per resource and Available day to `LANDING_PAGE_CONTACT_CC_EMAIL` through `DataPublicationTeamRecipientService`. Configure the scheduler, queue worker and a valid team address. A unique database key identifies each notice. The scheduler atomically reserves a `pending` notice as `queued` before dispatching after commit; that reservation does not expire while a queue is delayed, so repeated or concurrent scans do not add duplicate jobs. A broker failure resets the reservation to `pending`. Missing or invalid recipients leave notices pending without queueing new jobs; workers also recheck the recipient, embargo and date, returning obsolete or misconfigured queued notices to pending. Existing jobs for legacy `pending` notices remain supported.
+
+The worker atomically claims delivery as `sending` before SMTP and records `sent` on success. An uncertain SMTP outcome is recorded as `uncertain` (or `sending` if a worker stopped); inspect the mail transport before explicitly resetting a verified-undelivered row to `pending`. Never blindly retry a possibly accepted message. If a `queued` reservation has no queued, running or failed job after a process interruption, verify that absence before resetting it to `pending`; use the normal failed-job retry workflow when a failed job exists. No preview tokens or primary data URLs are included.
+
+`npm run artisan -- embargo:audit` reports ambiguous/missing dates, external pages, missing pages, inconsistent access and pending registration attempts without writes. `npm run artisan -- embargo:audit --apply` normalizes future access levels; it never creates/publishes landing pages or writes to DataCite. The additive migration normalizes existing future dates and rebuilds listing projections without publishing drafts. Review external embargo pages and convert them deliberately before rollout.
+
+A new uncertain DataCite create retains the existing registration marker and additionally records the submitted access level. Retries reconcile by the stable `/datasets/{id}` target (or known IGSN), Findable state and submitted access right. Null access markers identify pre-fix attempts that submitted Open metadata. Neither reconciliation nor successful registration releases primary data. Keep unresolved markers and inspect the correct DataCite environment/prefix before any operator reset; do not send a second POST while the outcome remains uncertain.
 
 ### Subject hierarchy correction (issue #1050)
 
@@ -1282,31 +1301,81 @@ can pass this stage; the probe does not substitute unreviewed development code.
 
 ### Dependency update evidence
 
-The version inventory, upstream constraints and remaining image findings from
-5 November 2026 are recorded in [dependency-update-audit.json](dependency-update-audit.json).
-Composer and application npm audits were checked again on 6 November 2026 and
-report no known vulnerabilities. Some
-transitive packages remain at the newest versions permitted by their upstream
-dependencies; the inventory names these constraints explicitly.
+The version inventory, upstream constraints, validation results and image findings
+for the 16 November 2026 update are recorded in
+[dependency-update-audit.json](dependency-update-audit.json). Composer and npm
+audits report no known vulnerabilities. Transitive packages that cannot use the
+latest major release remain within their upstream requirements; the inventory
+records those constraints.
 
-npm 12.2.2 includes Undici 6.29.1, so the temporary npm patch has been removed
-from Docker builds and CI ([npm release notes](https://github.com/npm/cli/releases/tag/v12.2.2)).
-Install the pinned npm version on the host as shown above; no manual dependency
-replacement is needed.
+Node 26.13.1 and Composer 2.11.2 include upstream security fixes. Node archives
+are verified for both supported architectures, and container images retain exact
+digests. All 13 GitHub Actions were checked against their latest stable releases
+and verified commit hashes; their existing pins were already current.
 
-Playwright stays pinned to 1.64.1: at the time of this audit, the announced
-1.65.0 release lacked both `playwright-core@1.65.0` in npm and its matching
-container image. Update the test runner and browser image together once the
-complete release is available. Major upgrades and incompatible upstream changes
-are tracked separately for `dev` in the audit.
+npm 12.2.2 includes Undici 6.29.1, so no manual npm dependency patch is needed.
+Install the pinned npm version on the host as shown above. Playwright 1.65.1 and
+its matching Microsoft browser image are available together. F-UJI independently
+uses Python Playwright 1.65.2 and installs the Chromium revision supplied by that
+package. The jsdom 31, Oxfmt and SoupSieve upgrades are included and validated.
 
 Local Trivy scans of the application, Nginx and F-UJI images pass the existing
-gate for fixable HIGH/CRITICAL findings. The application and F-UJI images still
-have distribution findings without available fixes; the audit records these
-separately. A passing gate does not mean that an image has no known vulnerabilities.
+gate for fixable HIGH/CRITICAL findings. The application and F-UJI images retain
+findings without available fixes. A passing gate does not mean that an image has
+no known vulnerabilities; the audit records the remaining findings separately.
 
-The official MySQL 9.7.4 image still contains scanner findings in its bundled
-`mysqlsh` Python dependencies and the Go library embedded in `gosu`. These are
-listed individually in the audit; updating the image does not establish that it
-has no known vulnerabilities. The server remains pinned to MySQL 9.7, and the
-existing security gates retain their original severity rules and suppressions.
+The latest official MySQL 9.7.4 image still has 35 HIGH/CRITICAL findings in its
+bundled `mysqlsh` Python dependencies and the Go library embedded in `gosu`.
+Fixed component versions exist, but no newer supported official MySQL 9.7 image
+was available during this update. These findings are recorded individually and
+remain unresolved. The server stays on the required MySQL 9.7 line; no security
+rules or suppressions were weakened.
+
+### DOI publication and metadata update safety
+
+Configure `DATACITE_TEST_CLIENT_ID`, `DATACITE_CLIENT_ID`, and
+`DATACITE_IGSN_CLIENT_ID` alongside the matching credentials. Authenticated DOI
+responses must confirm identity, repository ownership and registered/findable
+state before ordinary metadata, URL or schema updates. Unpublished landing pages
+block those writes. Local saves remain intact. No registration is inferred from a
+stored DOI or from a public API lookup.
+
+The authenticated web endpoints (session and CSRF protection; existing
+`register-doi` gate) are:
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /resources/{id}/datacite-status` | Read-only state, effective mode, permitted actions and latest publication summary. Requested when opening a DOI action, never by editor autoload. |
+| `POST /resources/{id}/publish-doi` | Requires `confirm_publication=true`, plus `prefix` when no DOI exists. Validates saved metadata, publishes the landing page, checks its public target, then publishes the preserved DOI or creates a new one. |
+| `POST /resources/{id}/update-datacite-metadata` | Updates only a verified registration with a published local landing page; preserves remote state. |
+| `POST /resources/{id}/register-doi` | Compatibility adapter for the safe update path only; never first-publishes, even with a prefix or `force=true`. |
+| `POST /resources/batch-register` | Metadata updates only, with per-resource failures and HTTP 207 on partial failure. The separate explicit IGSN batch registration workflow remains available. |
+
+`force` overrides transient ORCID warnings only. It cannot bypass publication,
+registration, ownership or environment checks. HTTP 200 confirms completion;
+HTTP 202 reports an uncertain publication with `success=false` and a persisted
+publication summary. Business prerequisites return 422; verification or transport
+failures remain errors, not proof of registration.
+
+Apply the additive migration and restart queue workers with the new code. Existing
+records are not backfilled or published. Queue runs created before the context
+snapshot was introduced pause and must be cancelled and recreated after review.
+Queued IGSN first publications also compare their approved metadata and target;
+changed records require a newly confirmed run. Restore the original context to
+reconcile existing uncertain publications instead of starting in another repository.
+
+`resource_doi_publications` stores the approved payload, target, environment,
+actor, status and errors without credentials. A unique active-resource key prevents
+overlapping publication attempts. Internal publications use `/datasets/{id}`;
+its temporary redirect before DOI assignment avoids caching a draft path.
+After a lost response, repeat the publication action to verify the saved attempt.
+A zero-result or ambiguous lookup remains pending and never triggers a second
+DOI-generating POST. Keep the ledger for manual reconciliation; do not delete its
+pending entry to force another create. The released page stays public.
+
+For offline browser fixtures, seed remote state explicitly with
+`FakeDataCiteRegistrationService::setRegistrationState`; its default is missing,
+independent of local DOI values. The fake is restricted to test mode without API
+credentials. Real HTTP boundary and reconciliation tests use authenticated-response
+fixtures. Run `npm run test:php:mysql-sensitive -- --slice doi-publication` for
+MySQL migration, active-attempt uniqueness and independent-worker checks.

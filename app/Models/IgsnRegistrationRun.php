@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property IgsnRegistrationRunStatus $status
  * @property array{id: int, name: string}|null $activity_actor
  * @property bool $test_mode
+ * @property string|null $datacite_context_fingerprint
  * @property string $datacite_endpoint
  * @property int $total
  * @property int $processed
@@ -52,6 +53,7 @@ class IgsnRegistrationRun extends Model
         'status',
         'test_mode',
         'datacite_endpoint',
+        'datacite_context_fingerprint',
         'total',
         'processed',
         'registered',

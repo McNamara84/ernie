@@ -8,6 +8,7 @@ use App\Enums\DataCiteUrlUpdateRunStatus;
 use App\Enums\DataCiteUrlUpdateScope;
 use App\Models\DataCiteUrlUpdateRun;
 use App\Models\User;
+use App\Services\DataCiteMemberApiClient;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<DataCiteUrlUpdateRun> */
@@ -25,6 +26,7 @@ class DataCiteUrlUpdateRunFactory extends Factory
             'initiated_by_user_id' => User::factory(),
             'last_controlled_by_user_id' => null,
             'test_mode' => true,
+            'datacite_context_fingerprint' => app(DataCiteMemberApiClient::class)->contextFingerprint(),
             'datacite_endpoint' => 'https://api.test.datacite.org',
             'target_base_url' => 'https://dataservices.gfz.de',
             'total' => 0,

@@ -222,14 +222,8 @@ describe('ResourcePolicy', function () {
 
             /** @var Resource&MockInterface $resource */
             $resource = Mockery::mock(Resource::class);
-            $resource->shouldReceive('loadMissing')->once()->with([
-                'landingPage',
-                'titles.titleType',
-                'creators',
-                'rights',
-                'descriptions.descriptionType',
-            ])->andReturnSelf();
-            $resource->shouldReceive('publicStatus')->once()->andReturn('draft');
+            $resource->shouldReceive('loadMissing')->once()->with(['landingPage'])->andReturnSelf();
+            $resource->shouldReceive('getAttribute')->with('landingPage')->twice()->andReturn(null);
 
             expect($this->policy->delete($user, $resource))->toBeTrue();
         });

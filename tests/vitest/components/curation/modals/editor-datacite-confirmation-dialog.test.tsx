@@ -42,7 +42,7 @@ describe('EditorDataCiteConfirmationDialog', () => {
         render(<EditorDataCiteConfirmationDialog {...defaultProps} onConfirm={onConfirm} />);
 
         expect(
-            screen.getByText(/save your editor changes in ERNIE, prepare a landing page if needed, then create and publish a DOI at DataCite/i),
+            screen.getByText(/publish the landing page, then publish the DOI at DataCite/i),
         ).toBeInTheDocument();
         expect(onConfirm).not.toHaveBeenCalled();
 
@@ -55,7 +55,7 @@ describe('EditorDataCiteConfirmationDialog', () => {
 
     it('explains that an update changes the existing DOI and a local save may remain on failure', () => {
         render(<EditorDataCiteConfirmationDialog {...defaultProps} action="update" doi="10.5880/existing" />);
-        expect(screen.getByText(/No new DOI is created. If DataCite fails, the local save may remain/i)).toBeInTheDocument();
+        expect(screen.getByText(/Visibility stays unchanged. Local changes remain saved if the transfer fails/i)).toBeInTheDocument();
     });
 
     it('closes without confirming and explains the landing-page continuation', async () => {
@@ -72,7 +72,7 @@ describe('EditorDataCiteConfirmationDialog', () => {
         expect(onConfirm).not.toHaveBeenCalled();
     });
 
-    it('allows an existing DOI update when prefix configuration cannot be loaded', async () => {
+    it('blocks an existing DOI update when its environment cannot be loaded', async () => {
         const user = userEvent.setup();
         const onConfirm = vi.fn();
         vi.mocked(axios.get).mockRejectedValueOnce(new Error('Configuration unavailable'));
@@ -80,13 +80,13 @@ describe('EditorDataCiteConfirmationDialog', () => {
         render(<EditorDataCiteConfirmationDialog {...defaultProps} action="update" doi="10.5880/existing" onConfirm={onConfirm} />);
 
         expect(await screen.findByText('DOI prefix configuration unavailable')).toBeInTheDocument();
-        expect(screen.getByText(/Prefix configuration is not required to update an existing DOI/)).toBeInTheDocument();
+        expect(screen.getByText(/The environment must be verified/)).toBeInTheDocument();
 
         const confirmButton = screen.getByTestId('confirm-editor-datacite-action');
-        await waitFor(() => expect(confirmButton).toBeEnabled());
+        await waitFor(() => expect(confirmButton).toBeDisabled());
         await user.click(confirmButton);
 
-        expect(onConfirm).toHaveBeenCalledWith({ prefix: '', force: false, submittingAction: 'submit' });
+        expect(onConfirm).not.toHaveBeenCalled();
     });
 
     it('keeps a prefix configuration failure blocking for a new DOI registration', async () => {
@@ -119,4 +119,19 @@ describe('EditorDataCiteConfirmationDialog', () => {
         expect(onConfirm).toHaveBeenNthCalledWith(1, { prefix: '10.83279', force: false, submittingAction: 'retry' });
         expect(onConfirm).toHaveBeenNthCalledWith(2, { prefix: '10.83279', force: true, submittingAction: 'override' });
     });
+    it.each(['missing', 'draft'])('blocks ordinary updates for a remote %s even with a local DOI', async (state) => {
+        vi.mocked(axios.get).mockImplementation((url) => Promise.resolve({ data: url.endsWith('/datacite-status')
+            ? { state, mode: 'test', can_update: false, can_publish: true, publication: null }
+            : { test: ['10.83279'], production: ['10.5880'], test_mode: true } }));
+        render(<EditorDataCiteConfirmationDialog {...defaultProps} action="update" resourceId={42} doi="10.83279/preassigned" />);
+        expect(await screen.findByText(/Metadata updates require a registered DOI/)).toBeVisible();
+        expect(screen.getByTestId('confirm-editor-datacite-action')).toBeDisabled();
+        expect(defaultProps.onConfirm).not.toHaveBeenCalled();
+    });
+
+    it('does not load remote state until an explicit action opens', () => {
+        render(<EditorDataCiteConfirmationDialog {...defaultProps} open={false} resourceId={42} doi="10.83279/preassigned" />);
+        expect(axios.get).not.toHaveBeenCalled();
+    });
+
 });

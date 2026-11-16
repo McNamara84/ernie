@@ -1,5 +1,35 @@
 [
     {
+        "version": "1.1.3",
+        "date": "2026-11-16",
+        "fixes": [
+            {
+                "title": "Remove All Contributors",
+                "description": "All contributors can now be removed, and the optional Contributors section stays empty after saving.",
+                "references": [{ "type": "issue", "number": 1540, "url": "https://github.com/McNamara84/ernie/issues/1540" }]
+            },
+            {
+                "title": "Explicit DOI and Landing Page Publication",
+                "description": "DOIs and landing pages now require explicit publication, with recovery guidance when publication cannot be confirmed.",
+                "references": [
+                    { "type": "issue", "number": 1537, "url": "https://github.com/McNamara84/ernie/issues/1537" },
+                    { "type": "pull_request", "number": 1551, "url": "https://github.com/McNamara84/ernie/pull/1551" }
+                ]
+            },
+            {
+                "title": "Public Metadata During Data Embargoes",
+                "description": "DOIs and metadata can now be published during data embargoes while downloads remain hidden until manual release.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1493,
+                        "url": "https://github.com/McNamara84/ernie/issues/1493"
+                    }
+                ]
+            }
+        ]
+    },
+    {
         "version": "1.1.2",
         "date": "2026-11-06",
         "fixes": [

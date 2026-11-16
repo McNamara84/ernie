@@ -65,6 +65,7 @@ final class IgsnRegistrationRunService
                     'status' => IgsnRegistrationRunStatus::PREPARING,
                     'test_mode' => $testMode,
                     'datacite_endpoint' => $endpoint,
+                    'datacite_context_fingerprint' => app(DataCiteRegistrationFactoryService::class)->clientForMode($testMode)->contextFingerprint(),
                     'total' => count($ids),
                 ]);
 
@@ -84,6 +85,7 @@ final class IgsnRegistrationRunService
                         'identifier' => trim((string) $resource->doi),
                         'status' => IgsnRegistrationItemStatus::PENDING->value,
                         'operation' => $metadata->isRegistered() ? 'update' : 'register',
+                        'approval_fingerprint' => ResourceDoiPublicationService::approvalFingerprint($resource),
                         'attempts' => 0,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -248,7 +250,7 @@ final class IgsnRegistrationRunService
 
         foreach (array_chunk($ids, IgsnBulkOperation::DATABASE_CHUNK_SIZE) as $chunk) {
             $resources->push(...Resource::query()
-                ->with(['igsnMetadata', 'landingPage'])
+                ->with(Resource::DATACITE_EXPORT_RELATIONS)
                 ->whereIn('id', $chunk)
                 ->get());
         }

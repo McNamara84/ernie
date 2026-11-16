@@ -7,22 +7,32 @@ use App\Models\DateType;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Resource;
-use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteSyncService;
+use App\Services\EmbargoService;
 use App\Services\FakeDataCiteRegistrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 
 uses(RefreshDatabase::class);
+require_once __DIR__.'/../Support/DataCitePublicationFixtures.php';
+
+beforeEach(function (): void {
+    config(['app.url' => 'https://ernie.example']);
+    URL::forceRootUrl('https://ernie.example');
+    URL::forceScheme('https');
+    config(['datacite.test.client_id' => 'test.repo', 'datacite.landing_page_url_update.minimum_interval_ms' => 0]);
+});
 
 function workflowEmbargo(string $date): Resource
 {
     $resource = Resource::factory()->create(['doi' => null, 'access_level' => AccessLevel::EMBARGOED]);
-    Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Embargoed dataset']);
+    completeDataCiteFixture($resource);
+    $resource->update(['access_level' => AccessLevel::EMBARGOED]);
     $type = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
     $resource->dates()->create(['date_type_id' => $type->id, 'date_value' => $date]);
 
@@ -69,21 +79,16 @@ test('an invalid embargo date still hides stored download targets in preview', f
             ->where('landingPage.ftp_url', null));
 });
 
-test('a curator cannot publish or redirect an embargo preview directly', function (): void {
+test('a curator can publish embargo metadata but cannot use an external landing page', function (): void {
     $user = User::factory()->curator()->create();
     $resource = workflowEmbargo('2027-01-01');
-    $resource->created_by_user_id = $user->id;
-    $resource->save();
     $this->actingAs($user)
-        ->postJson("/resources/{$resource->id}/landing-page", ['template' => 'default_gfz', 'status' => 'published'])
-        ->assertStatus(422);
+        ->postJson("/resources/{$resource->id}/landing-page", ['template' => 'default_gfz', 'status' => 'draft'])->assertCreated();
     $this->actingAs($user)
-        ->postJson("/resources/{$resource->id}/landing-page", ['template' => 'default_gfz', 'status' => 'draft'])
-        ->assertCreated();
+        ->putJson("/resources/{$resource->id}/landing-page", ['template' => 'default_gfz', 'status' => 'published'])->assertOk();
+    expect($resource->fresh()->landingPage->is_published)->toBeTrue();
     $this->actingAs($user)
-        ->putJson("/resources/{$resource->id}/landing-page", ['template' => 'default_gfz', 'status' => 'published'])
-        ->assertStatus(422);
-    expect($resource->fresh()->landingPage->is_published)->toBeFalse();
+        ->putJson("/resources/{$resource->id}/landing-page", ['template' => 'external'])->assertStatus(422);
 });
 
 test('due embargo notifications reach unassigned curators and change at midnight', function (): void {
@@ -104,9 +109,10 @@ test('due embargo notifications reach unassigned curators and change at midnight
             ->where('dueEmbargos.0.availableDate', '2027-01-01'));
 });
 
-test('the resource list filters Embargo and exposes the tokenized preview to a beginner editor', function (): void {
+test('the resource list filters public Embargo metadata for a beginner editor', function (): void {
     $resource = workflowEmbargo('2027-01-01');
-    $landingPage = LandingPage::factory()->draft()->create([
+    $resource->update(['doi' => '10.83279/public-embargo']);
+    $landingPage = LandingPage::factory()->published()->create([
         'resource_id' => $resource->id,
         'doi_prefix' => null,
         'template' => 'default_gfz',
@@ -118,47 +124,17 @@ test('the resource list filters Embargo and exposes the tokenized preview to a b
         ->assertInertia(fn ($page) => $page
             ->where('resources.0.id', $resource->id)
             ->where('resources.0.publicstatus', 'embargo')
-            ->where('resources.0.landingPage.preview_url', $landingPage->preview_url));
+            ->where('resources.0.landingPage.public_url', $landingPage->public_url));
 });
 
-test('new DOI and IGSN HTTP registration paths block before the embargo date', function (): void {
-    config([
-        'datacite.test_mode' => true,
-        'datacite.test.username' => 'TEST.USER',
-        'datacite.test.password' => 'test-password',
-        'datacite.test.endpoint' => 'https://api.test.datacite.org',
-        'datacite.test.prefixes' => ['10.83279'],
-    ]);
-    Http::fake();
-    $user = User::factory()->curator()->create();
+test('a data embargo does not prevent registration before the Available date', function (): void {
     $resource = workflowEmbargo('2099-01-01');
-    LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
-
-    $this->actingAs($user)
-        ->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279'])
-        ->assertStatus(422)
-        ->assertJsonPath('error', 'Invalid request');
-    $this->actingAs($user)
-        ->postJson('/resources/batch-register', ['ids' => [$resource->id], 'prefix' => '10.83279'])
-        ->assertStatus(207)
-        ->assertJsonPath('failed.0.id', $resource->id);
-
-    $igsn = workflowEmbargo('2099-01-01');
-    $igsn->doi = '10.83279/EMBARGO-IGSN';
-    $igsn->save();
-    IgsnMetadata::create(['resource_id' => $igsn->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
-    LandingPage::factory()->draft()->create(['resource_id' => $igsn->id, 'doi_prefix' => null]);
-    $this->actingAs($user)
-        ->postJson("/igsns/{$igsn->id}/register")
-        ->assertStatus(422);
-
-    Http::assertNotSent(fn ($request): bool => $request->method() === 'POST' && str_contains($request->url(), 'datacite.org'));
-    expect($resource->fresh()->doi)->toBeNull()
-        ->and($resource->fresh()->landingPage->is_published)->toBeFalse()
-        ->and($igsn->fresh()->landingPage->is_published)->toBeFalse();
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    app(EmbargoService::class)->assertCanRegister($resource);
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED);
 });
 
-test('manual DOI registration on the Available day publishes with Open access and a stable redirect', function (): void {
+test('manual DOI registration publishes metadata while keeping the data embargo', function (): void {
     config([
         'app.timezone' => 'Europe/Berlin',
         'datacite.test_mode' => true,
@@ -175,56 +151,37 @@ test('manual DOI registration on the Available day publishes with Open access an
         'doi_prefix' => null,
         'template' => 'default_gfz',
     ]);
-    Http::fake(fn (Request $request) => Http::response([
-        'data' => ['id' => '10.83279/RELEASED', 'type' => 'dois'],
-    ], $request->method() === 'POST' ? 201 : 200));
+    Http::fake(fn (Request $request) => Http::response(dataCiteRecord('10.83279/RELEASED', attributes: $request->data()['data']['attributes'] ?? []), $request->method() === 'POST' ? 201 : 200));
 
     $this->actingAs($user)
-        ->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279'])
+        ->postJson(route('resources.publish-doi', $resource), ['prefix' => '10.83279', 'confirm_publication' => true])
         ->assertOk()
         ->assertJsonPath('doi', '10.83279/RELEASED');
 
-    expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
         ->and($resource->fresh()->doi)->toBe('10.83279/RELEASED')
         ->and($landingPage->fresh()->is_published)->toBeTrue();
     $this->get('/datasets/'.$resource->id)
         ->assertRedirect($landingPage->fresh()->public_url);
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
         && $request->data()['data']['attributes']['url'] === url('/datasets/'.$resource->id));
-    Http::assertSent(fn (Request $request): bool => $request->method() === 'PUT'
-        && $request->data()['data']['attributes']['url'] === $landingPage->fresh()->public_url);
+    Http::assertNotSent(fn (Request $request): bool => $request->method() === 'PUT');
 });
 
-test('batch DOI registration releases a due embargo only after DataCite accepts it', function (): void {
-    config([
-        'app.timezone' => 'Europe/Berlin',
-        'datacite.test_mode' => true,
-        'datacite.test.username' => 'TEST.USER',
-        'datacite.test.password' => 'test-password',
-        'datacite.test.endpoint' => 'https://api.test.datacite.org',
-        'datacite.test.prefixes' => ['10.83279'],
-    ]);
-    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
-    $resource = workflowEmbargo('2027-01-01');
-    $landingPage = LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
-    $user = User::factory()->curator()->create();
-    Http::fake(fn (Request $request) => Http::response([
-        'data' => ['id' => '10.83279/BATCH-RELEASED', 'type' => 'dois'],
-    ], $request->method() === 'POST' ? 201 : 200));
-
-    $this->actingAs($user)
+test('resource batch updates never first-publish a due embargo', function (): void {
+    $resource = workflowEmbargo('2020-01-01');
+    $page = LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    Http::fake();
+    $this->actingAs(User::factory()->curator()->create())
         ->postJson('/resources/batch-register', ['ids' => [$resource->id], 'prefix' => '10.83279'])
-        ->assertOk()
-        ->assertJsonPath('success.0.doi', '10.83279/BATCH-RELEASED');
-
-    expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
-        ->and($resource->fresh()->doi)->toBe('10.83279/BATCH-RELEASED')
-        ->and($landingPage->fresh()->is_published)->toBeTrue();
-    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
-        && $request->data()['data']['attributes']['url'] === url('/datasets/'.$resource->id));
+        ->assertStatus(207)->assertJsonPath('failed.0.id', $resource->id);
+    expect($resource->fresh()->doi)->toBeNull()
+        ->and($page->fresh()->is_published)->toBeFalse()
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED);
+    Http::assertNothingSent();
 });
 
-test('manual IGSN registration releases a due embargo with Open access', function (): void {
+test('manual IGSN registration preserves data embargo', function (): void {
     config([
         'app.timezone' => 'Europe/Berlin',
         'datacite.test_mode' => true,
@@ -240,165 +197,126 @@ test('manual IGSN registration releases a due embargo with Open access', functio
     $metadata = IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
     $landingPage = LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
     $user = User::factory()->curator()->create();
-    Http::fake(fn (Request $request) => Http::response([
-        'data' => ['id' => '10.83279/IGSN-RELEASED', 'type' => 'dois'],
-    ], $request->method() === 'POST' ? 201 : 200));
+    fakeIgsnMemberApi();
 
     $this->actingAs($user)
         ->postJson("/igsns/{$resource->id}/register")
         ->assertOk()
         ->assertJsonPath('doi', '10.83279/IGSN-RELEASED');
 
-    expect($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
         ->and($resource->fresh()->publication_year)->toBe(2027)
         ->and($metadata->fresh()->isRegistered())->toBeTrue()
         ->and($landingPage->fresh()->is_published)->toBeTrue();
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
         && $request->data()['data']['attributes']['url'] === url('/datasets/'.$resource->id)
         && collect($request->data()['data']['attributes']['rightsList'])
-            ->contains('rightsIdentifier', AccessLevel::OPEN->coarIdentifier()));
+            ->contains('rightsIdentifier', AccessLevel::EMBARGOED->coarIdentifier()));
 });
 
-test('a timed-out embargo DOI create is reconciled without a second POST', function (): void {
+test('fake registration persists a future data embargo before publishing metadata', function (string $kind): void {
     config([
         'app.timezone' => 'Europe/Berlin',
         'datacite.test_mode' => true,
-        'datacite.test.username' => 'TEST.USER',
-        'datacite.test.password' => 'test-password',
-        'datacite.test.endpoint' => 'https://api.test.datacite.org',
+        'datacite.test.username' => null,
+        'datacite.test.password' => null,
         'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
-    $resource = workflowEmbargo('2027-01-01');
-    $landingPage = LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
-    $user = User::factory()->curator()->create();
-    $postCount = 0;
-    Http::fake(function (Request $request) use (&$postCount, $resource) {
-        if ($request->method() === 'POST') {
-            $postCount++;
+    $this->travelTo(Carbon::parse('2026-12-30 00:00:00', 'Europe/Berlin'));
+    expect(app(DataCiteRegistrationService::class))->toBeInstanceOf(FakeDataCiteRegistrationService::class);
+    $resource = workflowEmbargo('2026-12-31');
+    $resource->update(['access_level' => AccessLevel::OPEN]);
+    if ($kind === 'igsn') {
+        $resource->update(['doi' => '10.83279/FAKE-FUTURE-IGSN']);
+        IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
+    }
+    $landingPage = LandingPage::factory()->draft()->create([
+        'resource_id' => $resource->id, 'doi_prefix' => null, 'template' => 'default_gfz',
+        'downloads_unavailable' => false, 'ftp_url' => 'https://example.org/private.zip',
+    ]);
+    $file = $landingPage->files()->create(['url' => 'https://example.org/private.csv', 'position' => 0]);
+    Http::fake();
+    $this->actingAs(User::factory()->curator()->create());
 
-            return Http::response(['errors' => [['title' => 'Gateway timeout']]], 500);
-        }
-        if ($request->method() === 'GET') {
-            return Http::response(['data' => [[
-                'id' => '10.83279/RECOVERED',
-                'attributes' => [
-                    'url' => url('/datasets/'.$resource->id),
-                    'state' => 'findable',
-                    'rightsList' => [['rightsIdentifier' => AccessLevel::OPEN->coarIdentifier()]],
-                ],
-            ]]], 200);
-        }
+    $response = match ($kind) {
+        'doi' => $this->postJson(route('resources.publish-doi', $resource), ['prefix' => '10.83279', 'confirm_publication' => true]),
+        'batch-doi' => $this->postJson('/resources/batch-register', ['ids' => [$resource->id], 'prefix' => '10.83279']),
+        'igsn' => $this->postJson("/igsns/{$resource->id}/register"),
+    };
+    if ($kind === 'batch-doi') {
+        $response->assertStatus(207)->assertJsonPath('failed.0.id', $resource->id);
+        expect($landingPage->fresh()->is_published)->toBeFalse()->and($resource->fresh()->doi)->toBeNull();
+        Http::assertNothingSent();
 
-        return Http::response(['data' => ['id' => '10.83279/RECOVERED']], 200);
-    });
-
-    $this->actingAs($user)
-        ->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279'])
-        ->assertStatus(500);
-    expect($resource->fresh()->embargo_registration_started_at)->not->toBeNull();
-    expect($resource->fresh()->landingPage->is_published)->toBeFalse();
-
-    $this->actingAs($user)
-        ->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279'])
-        ->assertOk()
-        ->assertJsonPath('doi', '10.83279/RECOVERED');
-
-    expect($postCount)->toBe(1)
-        ->and($resource->fresh()->embargo_registration_started_at)->toBeNull()
-        ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+        return;
+    }
+    $response->assertOk()->assertJsonPath('updated', false);
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and($resource->fresh()->doi)->toStartWith('10.83279/')
         ->and($landingPage->fresh()->is_published)->toBeTrue();
-    Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
-        && str_contains($request->url(), 'query=url%3A%22'));
-});
 
-test('an unresolved embargo DOI create stays private and is never posted twice', function (): void {
+    // The Available day alone must not release data after fake registration.
+    $this->travelTo(Carbon::parse('2026-12-31 00:00:00', 'Europe/Berlin'));
+    $this->get($landingPage->fresh()->getPublicPath())->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('embargoPending', true)->where('embargoDue', true)
+            ->where('landingPage.ftp_url', null)->where('landingPage.files', []));
+    $this->get(route('landing-page.download.primary', $landingPage))->assertNotFound();
+    $this->get(route('landing-page.download.file', ['landingPage' => $landingPage, 'landingPageFile' => $file]))->assertNotFound();
+    expect($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and($landingPage->fresh()->ftp_url)->toBe('https://example.org/private.zip');
+    Http::assertNothingSent();
+})->with(['doi', 'batch-doi', 'igsn']);
+
+test('uncertain embargo publications remain visible and reconcile without a second create', function (string $kind, bool $recover): void {
     config([
-        'app.timezone' => 'Europe/Berlin',
-        'datacite.test_mode' => true,
-        'datacite.test.username' => 'TEST.USER',
-        'datacite.test.password' => 'test-password',
-        'datacite.test.endpoint' => 'https://api.test.datacite.org',
-        'datacite.test.prefixes' => ['10.83279'],
+        'datacite.test_mode' => true, 'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password', 'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
-    $resource = workflowEmbargo('2027-01-01');
-    LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
-    $user = User::factory()->curator()->create();
-    $postCount = 0;
-    Http::fake(function (Request $request) use (&$postCount) {
+    $resource = workflowEmbargo('2099-01-01');
+    $doi = '10.83279/RECOVERED';
+    if ($kind === 'igsn') {
+        $resource->update(['doi' => $doi]);
+        IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
+    }
+    $page = LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
+    $posts = 0;
+    $accepted = null;
+    Http::fake(function (Request $request) use (&$posts, &$accepted, $doi, $recover) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
         if ($request->method() === 'POST') {
-            $postCount++;
+            $posts++;
+            $accepted = dataCiteRecord($doi, attributes: $request->data()['data']['attributes']);
 
             return Http::response(['errors' => [['title' => 'Gateway timeout']]], 500);
         }
+        if (str_contains($request->url(), '?')) {
+            return Http::response(['data' => $recover && $accepted ? [$accepted['data']] : []]);
+        }
 
-        return Http::response(['data' => []], 200);
+        return $recover && $accepted ? Http::response($accepted) : Http::response([], 404);
     });
-
-    $this->actingAs($user)
-        ->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279'])
-        ->assertStatus(500);
-    $this->actingAs($user)
-        ->postJson(route('resources.register-doi', $resource), ['prefix' => '10.83279'])
-        ->assertStatus(422)
-        ->assertJsonPath('error', 'Registration failed');
-
-    expect($postCount)->toBe(1)
+    $this->actingAs(User::factory()->curator()->create());
+    $register = fn () => $kind === 'igsn'
+        ? $this->postJson("/igsns/{$resource->id}/register")
+        : $this->postJson(route('resources.publish-doi', $resource), ['prefix' => '10.83279', 'confirm_publication' => true]);
+    $register()->assertStatus(202);
+    expect($resource->fresh()->latestDoiPublication->status)->toBe('pending_reconciliation')
+        ->and($page->fresh()->is_published)->toBeTrue();
+    $register()->assertStatus($recover ? 200 : 202);
+    expect($posts)->toBe(1)
+        ->and($resource->fresh()->latestDoiPublication->status)->toBe($recover ? 'succeeded' : 'pending_reconciliation')
         ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
-        ->and($resource->fresh()->embargo_registration_started_at)->not->toBeNull()
-        ->and($resource->fresh()->landingPage->is_published)->toBeFalse();
-});
-
-test('a timed-out embargo IGSN create is reconciled by identifier', function (): void {
-    config([
-        'app.timezone' => 'Europe/Berlin',
-        'datacite.test_mode' => true,
-        'datacite.test.username' => 'TEST.USER',
-        'datacite.test.password' => 'test-password',
-        'datacite.test.endpoint' => 'https://api.test.datacite.org',
-        'datacite.test.prefixes' => ['10.83279'],
-    ]);
-    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
-    $resource = workflowEmbargo('2027-01-01');
-    $resource->doi = '10.83279/RECOVERED-IGSN';
-    $resource->save();
-    $metadata = IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
-    $landingPage = LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
-    $user = User::factory()->curator()->create();
-    $postCount = 0;
-    Http::fake(function (Request $request) use (&$postCount, $resource) {
-        if ($request->method() === 'POST') {
-            $postCount++;
-
-            return Http::response(['errors' => [['title' => 'Gateway timeout']]], 500);
-        }
-        if ($request->method() === 'GET') {
-            return Http::response(['data' => [
-                'id' => '10.83279/RECOVERED-IGSN',
-                'attributes' => [
-                    'url' => url('/datasets/'.$resource->id),
-                    'state' => 'findable',
-                    'rightsList' => [['rightsIdentifier' => AccessLevel::OPEN->coarIdentifier()]],
-                ],
-            ]], 200);
-        }
-
-        return Http::response(['data' => ['id' => '10.83279/RECOVERED-IGSN']], 200);
-    });
-
-    $this->actingAs($user)->postJson("/igsns/{$resource->id}/register")->assertStatus(500);
-    expect($resource->fresh()->embargo_registration_started_at)->not->toBeNull();
-    $this->actingAs($user)->postJson("/igsns/{$resource->id}/register")
-        ->assertOk()
-        ->assertJsonPath('doi', '10.83279/RECOVERED-IGSN');
-
-    expect($postCount)->toBe(1)
-        ->and($resource->fresh()->embargo_registration_started_at)->toBeNull()
-        ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
-        ->and($metadata->fresh()->isRegistered())->toBeTrue()
-        ->and($landingPage->fresh()->is_published)->toBeTrue();
-});
+        ->and($page->fresh()->is_published)->toBeTrue();
+    if ($recover) {
+        expect($resource->fresh()->doi)->toBe($doi);
+    }
+    if ($kind === 'igsn') {
+        expect($resource->fresh()->igsnMetadata->isRegistered())->toBe($recover);
+    }
+})->with([['doi', true], ['doi', false], ['igsn', true], ['igsn', false]]);
 
 test('an unpublished embargo page prevents existing DOI metadata updates before and after its date', function (string $date): void {
     config([
@@ -443,7 +361,7 @@ test('existing public embargo identifiers remain updatable without a publish eve
     $resource = workflowEmbargo('2099-01-01');
     $resource->update(['doi' => '10.83279/PUBLIC-LEGACY']);
     LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => true]);
-    Http::fake(['*datacite.org/*' => Http::response(['data' => ['id' => $resource->doi]], 200)]);
+    Http::fake(['*datacite.org/*' => Http::response(dataCiteRecord($resource->doi), 200)]);
 
     app(DataCiteRegistrationService::class)->updateMetadata($resource);
 
@@ -461,8 +379,8 @@ test('automatic sync defers imported IGSNs with an embargo draft page', function
 
     $result = app(DataCiteSyncService::class)->syncIfRegistered($resource);
 
-    expect($result->attempted)->toBeFalse()
-        ->and($result->success)->toBeTrue()
+    expect($result->attempted)->toBeTrue()
+        ->and($result->success)->toBeFalse()
         ->and($resource->fresh()->landingPage->is_published)->toBeFalse();
     Http::assertNothingSent();
 });
@@ -505,6 +423,43 @@ test('a registered IGSN with a draft embargo page cannot be updated manually', f
         ->assertStatus(422);
     Http::assertNothingSent();
 });
+
+test('an ambiguous create can reconcile using the same claimed Resource instance', function (string $kind): void {
+    config([
+        'datacite.test_mode' => true, 'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password', 'datacite.test.prefixes' => ['10.83279'],
+    ]);
+    $resource = workflowEmbargo('2099-01-01');
+    $identifier = '10.83279/INSTANCE-RETRY';
+    if ($kind === 'igsn') {
+        $resource->update(['doi' => $identifier]);
+        IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_UPLOADED]);
+    }
+    LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+    $posts = 0;
+    $accepted = null;
+    Http::fake(function (Request $request) use ($identifier, &$accepted, &$posts) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+        if ($request->method() === 'POST') {
+            $posts++;
+            $accepted = dataCiteRecord($identifier, attributes: $request->data()['data']['attributes']);
+
+            return Http::response(['errors' => [['title' => 'Uncertain create']]], 500);
+        }
+        if (str_contains($request->url(), '?')) {
+            return Http::response(['data' => $accepted ? [$accepted['data']] : []]);
+        }
+
+        return $accepted ? Http::response($accepted) : Http::response([], 404);
+    });
+    $service = app(DataCiteRegistrationService::class);
+    $register = fn () => $kind === 'igsn' ? $service->registerIgsn($resource) : $service->registerDoi($resource, '10.83279');
+    expect($register()['complete'])->toBeFalse();
+    expect($resource->fresh()->latestDoiPublication->status)->toBe('pending_reconciliation');
+    expect($register()['data']['id'])->toBe($identifier)->and($posts)->toBe(1);
+})->with(['doi', 'igsn']);
 
 test('the fake DataCite update also rejects an embargo draft', function (): void {
     $resource = workflowEmbargo('2099-01-01');

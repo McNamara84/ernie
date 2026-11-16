@@ -8,6 +8,7 @@ use App\Enums\IgsnRegistrationItemStatus;
 use App\Models\IgsnRegistrationItem;
 use App\Models\IgsnRegistrationRun;
 use App\Models\Resource;
+use App\Services\ResourceDoiPublicationService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<IgsnRegistrationItem> */
@@ -24,6 +25,7 @@ class IgsnRegistrationItemFactory extends Factory
             'identifier' => '10.83279/'.strtoupper(fake()->unique()->bothify('TEST-####??')),
             'status' => IgsnRegistrationItemStatus::PENDING,
             'attempts' => 0,
+            'approval_fingerprint' => fn (array $attributes) => ResourceDoiPublicationService::approvalFingerprint(Resource::findOrFail((int) $attributes['resource_id'])),
         ];
     }
 }

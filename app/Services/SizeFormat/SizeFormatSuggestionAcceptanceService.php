@@ -71,7 +71,7 @@ final class SizeFormatSuggestionAcceptanceService
         return [
             ...$result,
             'datacite_sync' => $syncResult->toArray(),
-            'datacite_sync_retry_url' => $syncResult->hasFailed()
+            'datacite_sync_retry_url' => $syncResult->hasFailed() && $syncResult->retryable
                 ? route('assistance.datacite-sync.retry', ['resource' => $resource->id])
                 : null,
             'synced_dois' => $syncResult->attempted && $syncResult->success && $syncResult->doi !== null

@@ -299,6 +299,7 @@ class EditorController extends Controller
                 'instruments',
                 'datacenter',
                 'landingPage.externalDomain',
+                'latestDoiPublication',
             ]);
             $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::SUPPLEMENTAL_RELATIONS_LOADED);
 

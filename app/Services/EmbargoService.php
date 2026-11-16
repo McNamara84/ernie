@@ -8,18 +8,94 @@ use App\Enums\AccessLevel;
 use App\Models\Resource;
 use App\Models\ResourceDate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
-/** The local workflow policy for a DataCite Available date and embargoed access. */
+/** Data access policy; an embargo never prevents public metadata. */
 final class EmbargoService
 {
     public function isEmbargoed(Resource $resource): bool
     {
+        if ($resource->landingPage?->is_tombstone) {
+            return false;
+        }
+
         return $resource->access_level === AccessLevel::EMBARGOED
-            && ! $resource->landingPage?->is_tombstone;
+            || $this->hasFutureAvailableDate($resource);
+    }
+
+    private function hasFutureAvailableDate(Resource $resource): bool
+    {
+        if (! $resource->exists && ! $resource->relationLoaded('dates')) {
+            return false;
+        }
+        // Also load complete date attributes. Ambiguity must block release, not
+        // make a future date invisible to the data-access guard.
+        $this->availableDate($resource);
+        foreach ($resource->dates as $date) {
+            if (strcasecmp($date->dateType->slug, 'available') === 0) {
+                $day = $this->validDay($date->date_value ?? $date->start_date);
+                if ($day !== null && $day > $this->today()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public function today(): string
+    {
+        return now(config('app.timezone'))->toDateString();
+    }
+
+    public function validDay(mixed $value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/', $value, $matches)) {
+            return null;
+        }
+
+        return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]) ? $value : null;
+    }
+
+    /** @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function normalizeInput(array $data, ?Resource $existing = null): array
+    {
+        $dates = $data['dates'] ?? null;
+        $future = false;
+        if (is_array($dates)) {
+            foreach ($dates as $date) {
+                if (is_array($date) && is_string($date['dateType'] ?? null) && Str::kebab($date['dateType']) === 'available') {
+                    $day = $this->validDay($date['startDate'] ?? null);
+                    $future = $future || ($day !== null && $day > $this->today());
+                }
+            }
+        } elseif ($existing !== null) {
+            $future = ($day = $this->availableDate($existing)) !== null && $day > $this->today();
+        }
+
+        // Only the explicit release action may end an existing data embargo.
+        if ($future || ($existing !== null && $this->isEmbargoed($existing))) {
+            $data['accessLevel'] = AccessLevel::EMBARGOED->value;
+        }
+
+        return $data;
+    }
+
+    public function normalizeResource(Resource $resource): void
+    {
+        if (! $resource->landingPage?->is_tombstone && $this->hasFutureAvailableDate($resource) && $resource->access_level !== AccessLevel::EMBARGOED) {
+            $resource->access_level = AccessLevel::EMBARGOED;
+            $resource->save();
+        }
     }
 
     public function availableDate(Resource $resource): ?string
     {
+        if (! $resource->exists && ! $resource->relationLoaded('dates')) {
+            return null;
+        }
         // A caller may have eager-loaded only the columns needed for a list.
         // Missing end_date must not make an Available range look like a single day.
         if ($resource->relationLoaded('dates') && $resource->dates->contains(
@@ -43,11 +119,8 @@ final class EmbargoService
         }
 
         $value = $date->date_value ?? $date->start_date;
-        if (! is_string($value) || ! preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/', $value, $matches)) {
-            return null;
-        }
 
-        return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]) ? $value : null;
+        return $this->validDay($value);
     }
 
     public function isDue(Resource $resource): bool
@@ -70,17 +143,9 @@ final class EmbargoService
             throw new \InvalidArgumentException('Embargoed access requires exactly one valid day-precision Available date.');
         }
 
-        if (! $this->isDue($resource)) {
-            throw new \InvalidArgumentException("Embargoed resources cannot be registered before {$date}.");
-        }
-
         $resource->loadMissing('landingPage');
         if ($resource->landingPage === null || $resource->landingPage->isExternal()) {
-            throw new \InvalidArgumentException('Embargo release requires an internal landing page.');
-        }
-
-        if ($resource->landingPage->is_published) {
-            throw new \InvalidArgumentException('The embargoed landing page is already published; reconcile its registration before retrying.');
+            throw new \InvalidArgumentException('Data embargoes require an internal landing page.');
         }
     }
 
@@ -99,7 +164,7 @@ final class EmbargoService
     public function assertCanUpdateMetadata(Resource $resource): void
     {
         if (! $this->canUpdateMetadata($resource)) {
-            throw new \InvalidArgumentException('Embargoed resources need a published landing page before DataCite metadata can be updated. Release the embargo first.');
+            throw new \InvalidArgumentException('Embargoed resources need a published landing page before DataCite metadata can be updated. The data may remain under embargo.');
         }
     }
 
@@ -118,11 +183,13 @@ final class EmbargoService
             ->update([
                 'embargo_registration_started_at' => $startedAt,
                 'embargo_registration_prefix' => $prefix,
+                'embargo_registration_access_level' => AccessLevel::EMBARGOED->value,
             ]) === 1;
 
         if ($claimed) {
             $resource->embargo_registration_started_at = $startedAt;
             $resource->embargo_registration_prefix = $prefix;
+            $resource->embargo_registration_access_level = AccessLevel::EMBARGOED->value;
         }
 
         return $claimed;
@@ -137,33 +204,36 @@ final class EmbargoService
             ->update([
                 'embargo_registration_started_at' => null,
                 'embargo_registration_prefix' => null,
+                'embargo_registration_access_level' => null,
             ]);
         $resource->embargo_registration_started_at = null;
         $resource->embargo_registration_prefix = null;
+        $resource->embargo_registration_access_level = null;
     }
 
-    /** Complete the local release only after DataCite has accepted the create request. */
-    public function completeRelease(Resource $resource): void
+    /** Finish metadata publication after a confirmed create; keep the data embargo. */
+    public function completeRegistration(Resource $resource): void
     {
         if (! $this->isEmbargoed($resource)) {
             return;
         }
 
         DB::transaction(function () use ($resource): void {
-            $resource->access_level = AccessLevel::OPEN;
             $resource->embargo_registration_started_at = null;
             $resource->embargo_registration_prefix = null;
+            $resource->embargo_registration_access_level = null;
             $resource->save();
             // The DataCite service may have claimed the attempt through a
             // separate fresh model, so clear the database marker explicitly.
             DB::table('resources')->where('id', $resource->id)->update([
                 'embargo_registration_started_at' => null,
                 'embargo_registration_prefix' => null,
+                'embargo_registration_access_level' => null,
             ]);
 
             $landingPage = $resource->landingPage;
             if ($landingPage === null) {
-                throw new \RuntimeException('Cannot finish embargo release without a landing page.');
+                throw new \RuntimeException('Cannot finish metadata publication without a landing page.');
             }
 
             $landingPage->is_published = true;

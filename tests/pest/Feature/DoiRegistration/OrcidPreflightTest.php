@@ -76,7 +76,8 @@ test('force confirmation cannot override an ORCID cached as missing', function (
     attachCreatorWithOrcid($this->resource, $bareId);
     Cache::put('orcid:negative:'.$bareId, true, 600);
     $this->mock(OrcidService::class, fn (MockInterface $mock) => $mock->shouldNotReceive('validateOrcid'));
-    actingAs($this->user)->postJson(route('resources.register-doi', $this->resource), [
+    actingAs($this->user)->postJson(route('resources.publish-doi', $this->resource), [
+        'confirm_publication' => true,
         'prefix' => '10.83279', 'force' => true,
     ])->assertStatus(422)->assertJsonPath('invalid.0.reason', 'not_found');
     expect($this->resource->fresh()->doi)->toBeNull();
@@ -97,7 +98,8 @@ test('registerDoi blocks with 422 when a creator ORCID is not found', function (
             ]);
     });
 
-    $response = $this->postJson(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->postJson(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -131,7 +133,8 @@ test('registerDoi returns 409 warning for transient ORCID failures and succeeds 
     });
 
     // 1st call – without force → 409.
-    $warning = $this->postJson(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $warning = $this->postJson(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
     $warning->assertStatus(409);
@@ -139,7 +142,8 @@ test('registerDoi returns 409 warning for transient ORCID failures and succeeds 
     expect($warning->json('warnings'))->toHaveCount(1);
 
     // 2nd call – with force=true → proceeds to DataCite and succeeds.
-    $ok = $this->postJson(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $ok = $this->postJson(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
         'force' => true,
     ]);
@@ -163,7 +167,8 @@ test('registerDoi stamps orcid_verified_at and proceeds when preflight confirms 
             ]);
     });
 
-    $response = $this->postJson(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->postJson(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -180,7 +185,8 @@ test('registerDoi does not call ORCID API when resource has no ORCIDs', function
         $mock->shouldNotReceive('validateOrcid');
     });
 
-    $response = $this->postJson(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->postJson(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
     ]);
 
@@ -194,7 +200,8 @@ test('registerDoi accepts the `force` boolean in the validated request', functio
         $mock->shouldNotReceive('validateOrcid');
     });
 
-    $response = $this->postJson(route('resources.register-doi', ['resource' => $this->resource->id]), [
+    $response = $this->postJson(route('resources.publish-doi', ['resource' => $this->resource->id]), [
+        'confirm_publication' => true,
         'prefix' => '10.83279',
         'force' => 'not-a-boolean',
     ]);

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\DataCiteVerificationException;
 use App\Models\Resource;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 
@@ -12,7 +14,7 @@ use Illuminate\Support\Facades\Log;
  * Service for automatic DataCite synchronization when saving resources.
  *
  * This service handles the "sync on save" logic (Issue #383):
- * - Checks if a resource is registered with DataCite (has DOI)
+ * - Verifies registration with DataCite before every metadata write
  * - If registered: Updates metadata at DataCite
  * - If not registered: No action needed
  * - API errors do NOT prevent database save (graceful degradation)
@@ -39,7 +41,7 @@ class DataCiteSyncService
      */
     public function syncIfRegistered(Resource $resource): DataCiteSyncResult
     {
-        // Check if resource has a DOI (= is registered with DataCite)
+        // A DOI identifies the candidate; remote registration is verified before writing.
         if ($resource->doi === null || $resource->doi === '') {
             Log::debug('DataCite sync skipped: Resource has no DOI', [
                 'resource_id' => $resource->id,
@@ -60,16 +62,15 @@ class DataCiteSyncService
                 'doi' => $doi,
             ]);
 
-            return DataCiteSyncResult::failed(
+            return DataCiteSyncResult::blocked(
                 $doi,
+                'landing_page_required',
                 'Landing page is required to update DataCite metadata.'
             );
         }
 
-        // Imported IGSNs can have an identifier while their embargo page is
-        // still a draft. There is nothing public to synchronize yet.
-        if (! app(EmbargoService::class)->canUpdateMetadata($resource)) {
-            return DataCiteSyncResult::notRequired();
+        if (! $resource->landingPage->is_published) {
+            return DataCiteSyncResult::blocked((string) $resource->doi, 'landing_page_not_published', 'Local changes are saved. Publish the landing page explicitly before sending metadata to DataCite.');
         }
 
         return $this->performSync($resource);
@@ -93,21 +94,21 @@ class DataCiteSyncService
         $landingPage = $resource->landingPage;
 
         if ($landingPage === null) {
-            return DataCiteSyncResult::failed($doi, 'Landing page is required to update the DataCite URL.');
+            return DataCiteSyncResult::blocked($doi, 'landing_page_required', 'Landing page is required to update the DataCite URL.');
         }
 
         if (! $landingPage->is_published) {
-            return DataCiteSyncResult::failed($doi, 'Only published landing pages may be synchronized with DataCite.');
+            return DataCiteSyncResult::blocked($doi, 'landing_page_not_published', 'Only published landing pages may be synchronized with DataCite.');
         }
 
         if ($landingPage->isExternal()) {
-            return DataCiteSyncResult::failed($doi, 'External landing pages are not eligible for imported DataCite URL synchronization.');
+            return DataCiteSyncResult::blocked($doi, 'external_landing_page', 'External landing pages are not eligible for imported DataCite URL synchronization.');
         }
 
         $targetUrl = trim((string) $landingPage->public_url);
 
         if ($targetUrl === '') {
-            return DataCiteSyncResult::failed($doi, 'The published landing page has no public URL.');
+            return DataCiteSyncResult::blocked($doi, 'landing_page_url_required', 'The published landing page has no public URL.');
         }
 
         try {
@@ -121,6 +122,10 @@ class DataCiteSyncService
             $this->registrationService->updateLandingPageUrl($doi, $targetUrl);
 
             return DataCiteSyncResult::succeeded($doi);
+        } catch (DataCiteVerificationException $exception) {
+            return DataCiteSyncResult::blocked($doi, $exception->reason, $exception->getMessage(), $exception->retryable);
+        } catch (ConnectionException $exception) {
+            return DataCiteSyncResult::failed($doi, 'DataCite could not be reached. Local changes remain saved.');
         } catch (RequestException $exception) {
             return DataCiteSyncResult::failed($doi, $this->extractErrorMessage($exception));
         } catch (\RuntimeException $exception) {
@@ -156,6 +161,10 @@ class DataCiteSyncService
 
             return DataCiteSyncResult::succeeded($doi);
 
+        } catch (DataCiteVerificationException $e) {
+            return DataCiteSyncResult::blocked($doi, $e->reason, $e->getMessage(), $e->retryable);
+        } catch (ConnectionException $e) {
+            return DataCiteSyncResult::failed($doi, 'DataCite could not be reached. Local changes remain saved.');
         } catch (RequestException $e) {
             $errorMessage = $this->extractErrorMessage($e);
 

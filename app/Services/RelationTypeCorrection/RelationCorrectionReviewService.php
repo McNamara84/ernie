@@ -119,7 +119,7 @@ final readonly class RelationCorrectionReviewService
         $sync = $this->sync->syncIfRegistered($resource);
 
         return [...$result, 'datacite_sync' => $sync->toArray(),
-            'datacite_sync_retry_url' => $sync->hasFailed() ? route('assistance.datacite-sync.retry', ['resource' => $resource->id]) : null,
+            'datacite_sync_retry_url' => $sync->hasFailed() && $sync->retryable ? route('assistance.datacite-sync.retry', ['resource' => $resource->id]) : null,
             'synced_dois' => $sync->attempted && $sync->success && $sync->doi !== null ? [$sync->doi] : []];
     }
 

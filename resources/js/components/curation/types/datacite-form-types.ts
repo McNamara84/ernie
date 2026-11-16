@@ -1,3 +1,4 @@
+import type { DoiPublicationSummary } from '@/lib/datacite-registration';
 // organize-imports-ignore
 /**
  * DataCite Form Types
@@ -5,7 +6,6 @@
  * Shared type definitions for the DataCite metadata editor form.
  * Extracted from datacite-form.tsx for better maintainability.
  */
-
 import type {
     DateType,
     DescriptionType,
@@ -235,6 +235,7 @@ export interface DataCiteFormProps {
     initialLanguage?: string;
     initialResourceType?: string;
     initialAccessLevel?: AccessLevel;
+    initialDataEmbargoSyncPending?: boolean;
     initialTitles?: { title: string; titleType: string; language?: string | null }[];
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
@@ -242,6 +243,7 @@ export interface DataCiteFormProps {
     /** Imported or query-provided values that have not been saved as a resource. */
     hasUnpersistedPrefill?: boolean;
     initialPublicStatus?: ResourcePublicStatus;
+    initialDoiPublication?: DoiPublicationSummary | null;
     initialLandingPage?: EditorLandingPageSummary | null;
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];

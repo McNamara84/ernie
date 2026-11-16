@@ -29,9 +29,8 @@ class RegisterDoiRequest extends FormRequest
      * Get the validation rules that apply to the request.
      *
      * The `prefix` field is only required when registering a *new* DOI.
-     * When the bound resource already has a DOI, the controller performs a
-     * metadata update and ignores the prefix entirely, so the modal is allowed
-     * to submit without a selection.
+     * A preassigned DOI keeps its prefix during explicit publication.
+     * Ordinary updates never create identifiers and need no prefix selection.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -44,11 +43,12 @@ class RegisterDoiRequest extends FormRequest
 
         return [
             'prefix' => [
-                $hasExistingDoi ? 'nullable' : 'required',
+                ! $this->routeIs('resources.publish-doi') || $hasExistingDoi ? 'nullable' : 'required',
                 'string',
                 Rule::in($allowedPrefixes),
             ],
             'force' => ['sometimes', 'boolean'],
+            'confirm_publication' => $this->routeIs('resources.publish-doi') ? ['required', 'accepted'] : ['prohibited'],
         ];
     }
 

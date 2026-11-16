@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:3edaff85f7cc21888c0815e4698347568dc78bd03db0c86ff234c7a72f2a00ea}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -55,6 +55,10 @@ services:
       - DATACITE_TEST_MODE=${DATACITE_TEST_MODE:-true}
       - DATACITE_USERNAME=${DATACITE_USERNAME}
       - DATACITE_PASSWORD=${DATACITE_PASSWORD}
+      - DATACITE_TEST_ENDPOINT=${DATACITE_TEST_ENDPOINT:-https://api.test.datacite.org}
+      - DATACITE_TEST_CLIENT_ID=${DATACITE_TEST_CLIENT_ID:-}
+      - DATACITE_TEST_USERNAME=${DATACITE_TEST_USERNAME:-}
+      - DATACITE_TEST_PASSWORD=${DATACITE_TEST_PASSWORD:-}
       - DATACITE_IGSN_PREFIX=${DATACITE_IGSN_PREFIX:-10.60510}
       - DATACITE_IGSN_CLIENT_ID=${DATACITE_IGSN_CLIENT_ID:-gfz.igsn}
       - DATACITE_IGSN_USERNAME=${DATACITE_IGSN_USERNAME}
@@ -175,7 +179,7 @@ services:
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:def8eddd5f914e7adfab18ce19bc458787b95f5f808578d1c6e70167edd2c0f0}"
+    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:091098ef750c3197de4c0965e14da3afe850c67fe7d6425523ded132c9ea9e83}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -274,7 +278,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:8.10.3-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     container_name: dockerized-laravel-redis
     restart: unless-stopped
     networks:
@@ -287,7 +291,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:58f070e989ba9cd6ef214fcbeff1633705086043079f9e9173c8cea8d382cc2c}"
+    image: "${ERNIE_PROD_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:1570fb9e3f52607a8b3478066ac3ddf699a9803b2d58690964a1649f98845e83}"
     container_name: ernie-fuji-prod
     restart: unless-stopped
     entrypoint:
@@ -318,7 +322,7 @@ services:
       start_period: 60s
 
   queue: &ernie-queue
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:3edaff85f7cc21888c0815e4698347568dc78bd03db0c86ff234c7a72f2a00ea}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -349,6 +353,10 @@ services:
       - DATACITE_TEST_MODE=${DATACITE_TEST_MODE:-true}
       - DATACITE_USERNAME=${DATACITE_USERNAME}
       - DATACITE_PASSWORD=${DATACITE_PASSWORD}
+      - DATACITE_TEST_ENDPOINT=${DATACITE_TEST_ENDPOINT:-https://api.test.datacite.org}
+      - DATACITE_TEST_CLIENT_ID=${DATACITE_TEST_CLIENT_ID:-}
+      - DATACITE_TEST_USERNAME=${DATACITE_TEST_USERNAME:-}
+      - DATACITE_TEST_PASSWORD=${DATACITE_TEST_PASSWORD:-}
       - DATACITE_IGSN_PREFIX=${DATACITE_IGSN_PREFIX:-10.60510}
       - DATACITE_IGSN_CLIENT_ID=${DATACITE_IGSN_CLIENT_ID:-gfz.igsn}
       - DATACITE_IGSN_USERNAME=${DATACITE_IGSN_USERNAME}
@@ -449,7 +457,7 @@ services:
     command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:3edaff85f7cc21888c0815e4698347568dc78bd03db0c86ff234c7a72f2a00ea}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -522,7 +530,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:afcbd3f329ed4a8dddd6fb21c539fd168c0535633e6d955ebdd43ac520c455c8}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:3edaff85f7cc21888c0815e4698347568dc78bd03db0c86ff234c7a72f2a00ea}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped

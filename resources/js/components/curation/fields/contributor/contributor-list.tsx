@@ -256,7 +256,7 @@ export default function ContributorList({
                                 onAffiliationsChange={(value) => handleAffiliationsChange(index, value)}
                                 onContributorChange={(updatedContributor) => onContributorChange(index, updatedContributor)}
                                 onRemove={() => onRemove(index)}
-                                canRemove={contributors.length > 1}
+                                canRemove
                                 affiliationSuggestions={affiliationSuggestions}
                                 personRoleOptions={personRoleOptions}
                                 institutionRoleOptions={institutionRoleOptions}

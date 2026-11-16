@@ -119,6 +119,7 @@ final readonly class ResourceQueryBuilder
             ])
             ->with([
                 'language:id,code,name',
+                'latestDoiPublication',
                 'landingPage' => function ($query): void {
                     $query->select([
                         'id',

@@ -38,7 +38,7 @@ it('is idempotent and preserves an existing landing page', function (): void {
         ->and(LandingPage::where('resource_id', $resource->id)->count())->toBe(1);
 });
 
-it('keeps an unregistered embargoed IGSN in tokenized draft preview', function (): void {
+it('publishes imported IGSN metadata while keeping its data embargo', function (): void {
     $resource = Resource::factory()->create(['doi' => '10.60510/future', 'access_level' => AccessLevel::EMBARGOED]);
     IgsnMetadata::create(['resource_id' => $resource->id, 'upload_status' => IgsnMetadata::STATUS_PENDING]);
     $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
@@ -46,7 +46,7 @@ it('keeps an unregistered embargoed IGSN in tokenized draft preview', function (
 
     $result = app(AutomaticIgsnLandingPageService::class)->createPublished($resource);
 
-    expect($result['landing_page']->is_published)->toBeFalse()
+    expect($result['landing_page']->is_published)->toBeTrue()
         ->and($result['landing_page']->preview_token)->not->toBeNull();
 });
 

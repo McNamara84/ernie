@@ -507,10 +507,10 @@ describe('DataCiteForm', () => {
             headers: {},
             config: {},
         });
-        mockedAxios.get = vi.fn().mockResolvedValue({
-            data: { test: ['10.83279'], production: ['10.5880'], test_mode: true },
+        mockedAxios.get = vi.fn().mockImplementation((url: string) => Promise.resolve({
+            data: url.endsWith('/datacite-status') ? { state: 'registered', mode: 'test', can_update: true, can_publish: true, publication: null } : { test: ['10.83279'], production: ['10.5880'], test_mode: true },
             status: 200,
-        });
+        }));
         mockedAxios.put = vi.fn().mockResolvedValue({
             data: undefined,
             status: 204,
@@ -619,6 +619,61 @@ describe('DataCiteForm', () => {
             window.dispatchEvent(event);
             return event.defaultPrevented;
         };
+
+        it('drains an in-flight embargo autosave and pauses new writes until release finishes', async () => {
+            vi.useFakeTimers();
+            const autosave = createDeferred<{ data: { resource: { id: number } }; status: number }>();
+            const release = createDeferred<{ data: { synchronized: boolean; message: string } }>();
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post
+                .mockReturnValueOnce(autosave.promise)
+                .mockReturnValueOnce(release.promise)
+                .mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            const view = renderDataCiteForm({
+                initialResourceId: '42',
+                initialAccessLevel: 'embargoed',
+                initialTitles: [{ title: 'Embargo data', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2020-01-01', endDate: '' }],
+            });
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'New metadata' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                fireEvent.click(screen.getByRole('button', { name: 'Release data' }));
+                fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Release data' }));
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                await act(async () => {
+                    autosave.resolve({ data: { resource: { id: 42 } }, status: 200 });
+                });
+                expect(mockedAxios.post).toHaveBeenNthCalledWith(2, '/resources/42/release-data-embargo');
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Changed during release' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+                expect(screen.getByTestId('save-draft-button')).toBeDisabled();
+                await act(async () => {
+                    release.resolve({ data: { synchronized: true, message: 'Released' } });
+                });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(mockedAxios.post).toHaveBeenNthCalledWith(
+                    3,
+                    '/editor/resources/draft',
+                    expect.objectContaining({ accessLevel: 'open', intent: 'autosave' }),
+                    expect.any(Object),
+                );
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
 
         it('warns only while a metadata edit differs from the last saved state', async () => {
             renderDataCiteForm();
@@ -1270,7 +1325,7 @@ describe('DataCiteForm', () => {
             }
 
             unmount();
-            renderDataCiteForm({ initialDoi: '10.5880/existing.001', initialPublicStatus: 'published' });
+            renderDataCiteForm({ initialDoi: '10.5880/existing.001', initialPublicStatus: 'published', initialLandingPage: { id: 7, is_published: true, status: 'published', public_url: 'https://example.test/page', preview_url: null, external_url: null } });
             const updateHelp = within(screen.getByTestId('editor-floating-actions')).getByRole('link', {
                 name: 'What happens? (opens in a new tab)',
             });
@@ -2016,6 +2071,67 @@ describe('DataCiteForm', () => {
         await waitFor(() => {
             expect(screen.queryByRole('heading', { name: 'Contributor 2' })).not.toBeInTheDocument();
         });
+
+        await user.click(screen.getByRole('button', { name: 'Remove contributor 1' }));
+
+        expect(screen.queryByRole('heading', { name: 'Contributor 1' })).not.toBeInTheDocument();
+        const emptyState = screen.getByTestId('contributors-empty-state');
+        expect(within(emptyState).getByText('No contributors yet')).toBeInTheDocument();
+        expect(within(emptyState).getByRole('button', { name: 'Import contributors from CSV file' })).toBeEnabled();
+        const trigger = getAccordionTrigger(/Contributors/i);
+        expect(within(trigger).getByText('(0)')).toBeInTheDocument();
+        expect(within(trigger).getByLabelText('Optional section')).toBeInTheDocument();
+
+        await user.click(within(emptyState).getByRole('button', { name: 'Add first contributor' }));
+
+        expect(screen.getByRole('heading', { name: 'Contributor 1' })).toBeInTheDocument();
+        expect(screen.queryByTestId('contributors-empty-state')).not.toBeInTheDocument();
+        expect(within(trigger).getByText('(1)')).toBeInTheDocument();
+    });
+
+    it.each([
+        ['person', 'draft'],
+        ['person', 'validate'],
+        ['institution', 'draft'],
+        ['institution', 'validate'],
+    ] as const)('saves an empty contributor list after removing the last %s via %s', { timeout: 30000 }, async (type, saveMode) => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const props: Partial<DataCiteFormProps> = {
+            initialResourceId: '42',
+            initialYear: '2025',
+            initialResourceType: '1',
+            initialTitles: [{ title: 'Contributor removal', titleType: 'main-title' }],
+            initialLicenses: ['MIT'],
+            initialAuthors: [{ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }],
+            initialDescriptions: [{ type: 'Abstract', description: 'A complete abstract describing this dataset for validation.' }],
+            initialContributors: type === 'person'
+                ? [{ type: 'person', firstName: 'Ada', lastName: 'Lovelace', roles: ['Researcher'] }]
+                : [{ type: 'institution', institutionName: 'Example Institute', roles: ['HostingInstitution'] }],
+            availableDatacenters,
+            initialDatacenterId: 1,
+        };
+        const view = renderDataCiteForm(props);
+        await ensureContributorsOpen(user);
+        await user.click(screen.getByRole('button', { name: 'Remove contributor 1' }));
+
+        await user.click(saveMode === 'draft'
+            ? screen.getByTestId('save-draft-button')
+            : screen.getByRole('button', { name: /^validate$/i }));
+
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        const endpoint = saveMode === 'draft' ? '/editor/resources/draft' : '/editor/resources';
+        await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith(endpoint, expect.any(Object), expect.any(Object)));
+        const payload = mockedAxios.post.mock.calls.find(([url]) => url === endpoint)![1];
+        expect(payload).toMatchObject({ resourceId: 42, contributors: [] });
+        expect(payload.authors).toEqual([
+            expect.objectContaining({ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }),
+        ]);
+
+        view.unmount();
+        renderDataCiteForm({ ...props, initialContributors: payload.contributors });
+        await ensureContributorsOpen(user);
+        expect(screen.getByTestId('contributors-empty-state')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Remove contributor/ })).not.toBeInTheDocument();
     });
 
     it('save button is always enabled regardless of required fields (Issue #538)', { timeout: 60000 }, async () => {
@@ -6150,7 +6266,7 @@ describe('DataCiteForm', () => {
             expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(`${futureYear}-10-13`);
         });
 
-        it('rejects a future Available date for Open access with seeded slugs', { timeout: 60000 }, async () => {
+        it('automatically selects Embargoed access for a future Available date', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const futureYear = new Date().getFullYear() + 2;
             renderDataCiteForm({
@@ -6168,8 +6284,9 @@ describe('DataCiteForm', () => {
             await fillRequiredAbstract(user);
             await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
-            expect(axios.post).not.toHaveBeenCalled();
-            expect(screen.getAllByText('A future Available date requires Embargoed access.').length).toBeGreaterThan(0);
+            expect(axios.post).toHaveBeenCalledWith('/editor/resources', expect.objectContaining({ accessLevel: 'embargoed' }), expect.anything());
+            expect(screen.queryByText('A future Available date requires Embargoed access.')).not.toBeInTheDocument();
+            expect(screen.getByRole('combobox', { name: /Access Level/i })).toHaveTextContent('Embargoed access');
         });
 
         it('rejects a future Created date with seeded slugs', async () => {
@@ -7091,7 +7208,7 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('opens an existing published landing page public URL after saving the draft', { timeout: 30000 }, async () => {
+        it('opens a public embargo landing page without entering the draft workflow', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const { previewWindow } = createPreopenedPreviewWindow();
             const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
@@ -7106,6 +7223,9 @@ describe('DataCiteForm', () => {
 
             renderDataCiteForm({
                 initialResourceId: '43',
+                initialPublicStatus: 'embargo',
+                initialAccessLevel: 'embargoed',
+                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2099-01-01', endDate: '' }],
                 initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 8,
@@ -7119,10 +7239,9 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
-            await waitFor(() => {
-                expect(previewWindow.location.href).toBe('https://example.test/published-resource');
-            });
+            expect(openSpy).toHaveBeenCalledWith('https://example.test/published-resource', '_blank', 'noopener,noreferrer');
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.queryByTestId('save-draft-button')).not.toBeInTheDocument();
             expect(openSpy).toHaveBeenCalledTimes(1);
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
@@ -7155,7 +7274,7 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(openSpy).toHaveBeenCalledWith('https://example.test/published-resource', '_blank', 'noopener,noreferrer');
             expect(mockedAxios.post).not.toHaveBeenCalled();
             expect(toast.error).toHaveBeenCalledWith('Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.');
         });
@@ -7357,10 +7476,10 @@ describe('DataCiteForm', () => {
                 ],
                 initialLandingPage: {
                     id: 16,
-                    is_published: true,
-                    status: 'published',
-                    public_url: 'https://example.test/preparing-published',
-                    preview_url: null,
+                    is_published: false,
+                    status: 'draft',
+                    public_url: 'https://example.test/preparing-draft',
+                    preview_url: 'https://example.test/preparing-draft?preview=token',
                     external_url: null,
                 },
             });
@@ -7392,12 +7511,12 @@ describe('DataCiteForm', () => {
             });
 
             await waitFor(() => {
-                expect(previewWindow.location.href).toBe('https://example.test/preparing-published');
+                expect(previewWindow.location.href).toBe('https://example.test/preparing-draft?preview=token');
             });
             expect(openSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('falls back to the existing resource ID and external URL for published external landing pages', { timeout: 30000 }, async () => {
+        it('opens a published external landing page directly without a draft save', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const { previewWindow } = createPreopenedPreviewWindow();
             const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
@@ -7425,18 +7544,8 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
-            expect(previewWindow.opener).toBeNull();
-            await waitFor(() => {
-                expect(mockedAxios.post).toHaveBeenCalledWith(
-                    '/editor/resources/draft',
-                    expect.objectContaining({ resourceId: 44, intent: 'landing-page-preview' }),
-                    expect.any(Object),
-                );
-            });
-            await waitFor(() => {
-                expect(previewWindow.location.href).toBe('https://external.example.org/dataset');
-            });
+            expect(openSpy).toHaveBeenCalledWith('https://external.example.org/dataset', '_blank', 'noopener,noreferrer');
+            expect(mockedAxios.post).not.toHaveBeenCalled();
         });
 
         it('shows an error instead of opening a draft landing page without a preview URL', { timeout: 30000 }, async () => {
@@ -7505,11 +7614,12 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
-            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(openSpy).not.toHaveBeenCalled();
             await waitFor(() => {
                 expect(toast.error).toHaveBeenCalledWith('Unable to open landing page. The public or external URL is missing.');
             });
-            expect(close).toHaveBeenCalledTimes(1);
+            expect(close).not.toHaveBeenCalled();
+            expect(mockedAxios.post).not.toHaveBeenCalled();
             expect(previewWindow.location.href).toBe('about:blank');
         });
 
@@ -7528,10 +7638,10 @@ describe('DataCiteForm', () => {
                 initialTitles: [{ title: 'Existing Preview Save Failure', titleType: 'main-title' }],
                 initialLandingPage: {
                     id: 12,
-                    is_published: true,
-                    status: 'published',
+                    is_published: false,
+                    status: 'draft',
                     public_url: 'https://example.test/save-failure',
-                    preview_url: null,
+                    preview_url: 'https://example.test/save-failure?preview=token',
                     external_url: null,
                 },
             });
@@ -8961,7 +9071,7 @@ describe('DataCiteForm', () => {
                     });
                 }
 
-                if (url === '/resources/42/register-doi') {
+                if (url === '/resources/42/publish-doi') {
                     return Promise.resolve({
                         data: {
                             success: true,
@@ -9036,7 +9146,7 @@ describe('DataCiteForm', () => {
             });
 
             await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(3));
-            expect(mockedAxios.post.mock.calls[2]).toEqual(['/resources/42/register-doi', { prefix: '10.83279', force: false }]);
+            expect(mockedAxios.post.mock.calls[2]).toEqual(['/resources/42/publish-doi', { prefix: '10.83279', force: false, confirm_publication: true }]);
             expect(await screen.findByTestId('doi-registration-success-dialog')).toBeInTheDocument();
             expect(screen.getByTestId('published-record-total')).toHaveTextContent('125');
             expect(mockRouterVisit).not.toHaveBeenCalled();
@@ -9057,26 +9167,26 @@ describe('DataCiteForm', () => {
                 },
             });
 
-            expect(screen.getByRole('button', { name: 'Update Metadata' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Update DataCite metadata' })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Show LP' })).toBeInTheDocument();
             expect(screen.queryByTestId('save-draft-button')).not.toBeInTheDocument();
             expect(screen.queryByTestId('save-resource-button')).not.toBeInTheDocument();
         });
 
-        it.each(['draft', 'curation', 'review'] as const)('shows Update Metadata for an existing DOI in %s status', (publicStatus) => {
+        it.each(['draft', 'curation', 'review'] as const)('offers explicit publication for a preassigned DOI in %s status', (publicStatus) => {
             renderDataCiteForm({
                 initialDoi: ' 10.5880/legacy-resource ',
                 initialPublicStatus: publicStatus,
                 initialTitles: [{ title: 'Imported legacy dataset', titleType: 'main-title' }],
             });
 
-            expect(screen.getByRole('button', { name: 'Update Metadata' })).toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: 'Register' })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Publish DOI and landing page' })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Update DataCite metadata' })).not.toBeInTheDocument();
             expect(screen.getByTestId('save-draft-button')).toBeInTheDocument();
             expect(screen.getByTestId('save-resource-button')).toBeInTheDocument();
         });
 
-        it('opens the update confirmation without requiring a prefix for an imported review resource', { timeout: 60000 }, async () => {
+        it('opens publication confirmation without requiring a prefix for an imported review resource', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             renderDataCiteForm({
@@ -9102,12 +9212,12 @@ describe('DataCiteForm', () => {
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
-            await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
+            await user.click(screen.getByRole('button', { name: 'Publish DOI and landing page' }));
 
-            expect(await screen.findByRole('heading', { name: 'Confirm DataCite update' })).toBeInTheDocument();
+            expect(await screen.findByRole('heading', { name: 'Confirm DOI and landing page publication' })).toBeInTheDocument();
             expect(screen.getByText('Existing DOI')).toBeInTheDocument();
             expect(screen.queryByLabelText(/DOI prefix/)).not.toBeInTheDocument();
-            await waitFor(() => expect(screen.getByRole('button', { name: 'Update metadata' })).toBeEnabled());
+            await waitFor(() => expect(screen.getByRole('button', { name: 'Publish DOI and landing page' })).toBeEnabled());
         });
 
         it.each(['published', 'dead'] as const)('opens a %s landing page without saving invalid editor changes', async (publicStatus) => {
@@ -9159,7 +9269,7 @@ describe('DataCiteForm', () => {
                         });
                     }
 
-                    if (url === '/resources/42/register-doi') {
+                    if (url === '/resources/42/update-datacite-metadata') {
                         if (outcome !== 'success' && updateAttempts++ === 0) {
                             return Promise.reject({
                                 isAxiosError: true,
@@ -9210,7 +9320,7 @@ describe('DataCiteForm', () => {
                 await fillRequiredAuthor(user);
                 await fillRequiredContributor(user);
                 await fillRequiredAbstract(user);
-                await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
+                await user.click(screen.getByRole('button', { name: 'Update DataCite metadata' }));
                 expect(mockedAxios.post).not.toHaveBeenCalled();
 
                 const confirmButton = await screen.findByTestId('confirm-editor-datacite-action');
@@ -9219,7 +9329,7 @@ describe('DataCiteForm', () => {
 
                 await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
                 expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
-                expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/register-doi', { prefix: '', force: false }]);
+                expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/update-datacite-metadata', { prefix: '', force: false }]);
                 if (outcome !== 'success') {
                     expect(await screen.findByText(busyMessage)).toBeInTheDocument();
                     expect(mockRouterVisit).not.toHaveBeenCalled();

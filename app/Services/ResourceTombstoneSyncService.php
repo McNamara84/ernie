@@ -96,14 +96,10 @@ final class ResourceTombstoneSyncService
             $client = new DataCiteMemberApiClient(app(DataCiteRequestLimiter::class), $transition->test_mode);
             $response = $client->getDoi($transition->doi);
             $response->throw();
-            $state = $response->json('data.attributes.state');
-            $owner = $response->json('data.relationships.client.data.id');
-            if (! is_string($owner) || strtolower($owner) !== $client->repositoryClientId()) {
-                throw new \RuntimeException('The DOI repository ownership could not be verified.');
-            }
-            if (! in_array($state, ['registered', 'findable'], true)) {
-                throw new \RuntimeException('The DOI is no longer registered.');
-            }
+            $verifier = app(DataCiteRegistrationVerifierService::class);
+            $evidence = $verifier->fromResponse($client, $transition->doi, $response);
+            $verifier->requireRegistered($evidence);
+            $state = $evidence->state;
             if ($state !== $transition->target_state || $response->json('data.attributes.url') !== $transition->target_url) {
                 $attributes = ['url' => $transition->target_url];
                 if ($state !== $transition->target_state) {

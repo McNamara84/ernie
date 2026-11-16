@@ -226,9 +226,9 @@ class LandingPageController extends Controller
 
         $resource->loadMissing(['resourceType', 'formats', 'sizes']);
         if (app(EmbargoService::class)->isEmbargoed($resource)
-            && (($validated['status'] ?? null) === 'published' || ($validated['is_published'] ?? false) || $validated['template'] === 'external')) {
+            && $validated['template'] === 'external') {
             return response()->json([
-                'message' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                'message' => 'Data embargoes require an internal landing page. Metadata may be published.',
                 'error' => 'embargo_pending',
             ], 422);
         }
@@ -302,9 +302,9 @@ class LandingPageController extends Controller
                 }
 
                 if (app(EmbargoService::class)->isEmbargoed($lockedResource)
-                    && ($isPublished || $validated['template'] === 'external')) {
+                    && $validated['template'] === 'external') {
                     throw ValidationException::withMessages([
-                        'status' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                        'status' => 'Data embargoes require an internal landing page. Metadata may be published.',
                     ]);
                 }
 
@@ -554,9 +554,9 @@ class LandingPageController extends Controller
             }
 
             if (app(EmbargoService::class)->isEmbargoed($lockedResource)
-                && (($requestedStatus === true && ! $lockedLandingPage->isPublished()) || $effectiveTemplate === 'external')) {
+                && $effectiveTemplate === 'external') {
                 return response()->json([
-                    'message' => 'Embargoed resources require an unpublished internal landing page until registration.',
+                    'message' => 'Data embargoes require an internal landing page. Metadata may be published.',
                     'error' => 'embargo_pending',
                 ], 422);
             }
@@ -818,6 +818,9 @@ class LandingPageController extends Controller
             : null;
 
         $payload = $landingPage->toArray();
+        // The resource is supplied separately. Loaded back-references can
+        // otherwise serialize an unredacted nested landing page into previews.
+        unset($payload['resource']);
         $payload['template'] = $effectiveTemplate;
         // Keep the stored override separate from the dynamically effective template.
         $payload['landing_page_template_id'] = $explicitLandingPageTemplate?->id;

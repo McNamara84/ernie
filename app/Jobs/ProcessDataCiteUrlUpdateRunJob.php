@@ -7,10 +7,12 @@ namespace App\Jobs;
 use App\Enums\DataCiteUrlUpdateItemStatus;
 use App\Enums\DataCiteUrlUpdateRunStatus;
 use App\Exceptions\DataCiteRequestDeferredException;
+use App\Exceptions\DataCiteVerificationException;
 use App\Models\DataCiteUrlUpdateItem;
 use App\Models\DataCiteUrlUpdateRun;
 use App\Models\Resource;
 use App\Services\DataCiteMemberApiClient;
+use App\Services\DataCiteRegistrationVerifierService;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\DataCiteUrlUpdateCandidateService;
 use App\Services\DataCiteUrlUpdateTargetService;
@@ -19,6 +21,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -28,7 +31,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Persistent one-request-at-a-time orchestrator for a DataCite URL update run.
+ * Persistent orchestrator with fresh registration verification before each write for a DataCite URL update run.
  */
 class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
 {
@@ -68,7 +71,7 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
             }
 
             if (! $this->configurationMatches($run, $client, $target)) {
-                $this->pause($run, 'DataCite mode, endpoint, or APP_URL changed while the run was active.');
+                $this->pause($run, 'DataCite mode, repository, endpoint, or APP_URL changed while the run was active.');
 
                 return;
             }
@@ -147,6 +150,19 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
             return;
         }
 
+        try {
+            $verifier = app(DataCiteRegistrationVerifierService::class);
+            $verifier->requireRegistered($verifier->fromResponse($client, $item->identifier, $response));
+        } catch (DataCiteVerificationException $exception) {
+            if ($exception->retryable) {
+                $this->handleTransient($run, $item, $response->status(), $exception->getMessage(), true);
+            } else {
+                $this->finishItem($run, $item, DataCiteUrlUpdateItemStatus::FAILED, $exception->getMessage());
+            }
+
+            return;
+        }
+
         $beforeUrl = $response->json('data.attributes.url');
         $state = $response->json('data.attributes.state');
         $beforeUrl = is_string($beforeUrl) ? trim($beforeUrl) : '';
@@ -200,6 +216,22 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
             $response = $client->updateLandingPageUrl($item->identifier, $item->target_url, true);
         } catch (DataCiteRequestDeferredException $exception) {
             $this->scheduleNext((int) ceil($exception->retryAfterMilliseconds / 1000));
+
+            return;
+        } catch (DataCiteVerificationException $exception) {
+            $item->increment('update_attempts');
+            $item->refresh();
+            if ($exception->retryable) {
+                $this->handleTransient($run, $item, null, $exception->getMessage(), false);
+            } else {
+                $this->finishItem($run, $item, DataCiteUrlUpdateItemStatus::FAILED, $exception->getMessage());
+            }
+
+            return;
+        } catch (RequestException $exception) {
+            $item->increment('update_attempts');
+            $item->refresh();
+            $this->handleCommonResponseFailure($run, $item, $exception->response, $limiter, false);
 
             return;
         } catch (ConnectionException $exception) {
@@ -423,6 +455,7 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
         $targetValidation = $target->validateTargetBase();
 
         return $targetValidation['valid']
+            && $run->datacite_context_fingerprint === $client->contextFingerprint()
             && $run->test_mode === $client->isTestMode()
             && rtrim($run->datacite_endpoint, '/') === rtrim($client->endpoint(), '/')
             && $target->urlsEqual($run->target_base_url, $target->targetBaseUrl());

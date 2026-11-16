@@ -99,6 +99,7 @@ final class ResourceListItemResource extends JsonResource
             'updated_at' => $updatedDate ?? $resource->updated_at?->toIso8601String(),
             'curator' => $curator,
             'publicstatus' => $publicStatus,
+            'doiPublication' => $resource->latestDoiPublication?->summary(),
             'resourcetypegeneral' => $resourceTypeName,
             'resource_type' => $resourceTypeName !== null ? [
                 'name' => $resourceTypeName,
@@ -144,7 +145,7 @@ final class ResourceListItemResource extends JsonResource
                 'is_published' => $resource->landingPage->is_published,
                 'public_url' => $resource->landingPage->public_url,
                 'preview_url' => $this->when(
-                    $canSendReviewLinks || $publicStatus === 'embargo',
+                    $canSendReviewLinks || ($publicStatus === 'embargo' && ! $resource->landingPage->is_published),
                     fn (): ?string => $resource->landingPage->preview_url,
                 ),
             ] : null,
@@ -177,6 +178,7 @@ final class ResourceListItemResource extends JsonResource
             'rights',
             'language',
             'landingPage',
+            'latestDoiPublication',
         ];
 
         if (! array_key_exists('listing_workflow_status', $resource->getAttributes())) {

@@ -339,6 +339,27 @@ describe('ContributorList', () => {
         });
     });
 
+    it.each([
+        ['person', createPersonContributor],
+        ['institution', createInstitutionContributor],
+    ] as const)('allows removing the last %s contributor', async (_type, createContributor) => {
+        const user = userEvent.setup();
+
+        render(
+            <ContributorList
+                contributors={[createContributor({ id: 'last-contributor' })]}
+                onAdd={onAdd}
+                onRemove={onRemove}
+                onContributorChange={onContributorChange}
+                onReorder={onReorder}
+                {...defaultProps}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Remove' }));
+        expect(onRemove).toHaveBeenCalledExactlyOnceWith(0);
+    });
+
     describe('type change', () => {
         it('resets person fields when changing from person to institution', async () => {
             const user = userEvent.setup();

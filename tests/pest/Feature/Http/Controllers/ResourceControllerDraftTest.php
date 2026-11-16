@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
 use App\Enums\ResourceWorkflowStatus;
+use App\Http\Controllers\EditorController;
 use App\Http\Controllers\ResourceController;
+use App\Models\ContributorType;
 use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
@@ -16,6 +18,8 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Editor\EditorDataTransformer;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 
 covers(ResourceController::class);
@@ -70,6 +74,96 @@ beforeEach(function () {
         ],
         'datacenter_id' => $this->datacenter->id,
     ], $overrides);
+});
+
+describe('Removing the last contributor (Issue #1540)', function () {
+    it('persists an empty contributor section and preserves other credits', function (string $type, bool $preserveDerived, string $endpoint) {
+        $role = $type === 'contact' ? 'ContactPerson' : 'Other';
+        ContributorType::firstOrCreate(['slug' => $role], ['name' => $role, 'category' => $type === 'contact' ? 'person' : 'both']);
+        $contributor = [
+            'type' => $type === 'institution' ? 'institution' : 'person',
+            'roles' => [$role],
+            'position' => 0,
+            'affiliations' => [['value' => 'Contributor affiliation', 'rorId' => null]],
+        ];
+        if ($type === 'institution') {
+            $contributor['institutionName'] = 'Contributor Institute';
+        } else {
+            $contributor['firstName'] = 'Removed';
+            $contributor['lastName'] = 'Contributor';
+            if ($type === 'contact') {
+                $contributor['email'] = 'removed@example.org';
+            }
+        }
+
+        $payload = ($this->validEditorPayload)(['contributors' => [$contributor]]);
+        if ($preserveDerived) {
+            ContributorType::firstOrCreate(['slug' => 'ContactPerson'], ['name' => 'Contact Person', 'category' => 'person']);
+            ContributorType::firstOrCreate(['slug' => 'HostingInstitution'], ['name' => 'Hosting Institution', 'category' => 'institution']);
+            $payload['authors'][0]['isContact'] = true;
+            $payload['authors'][0]['email'] = 'author@example.org';
+            $payload['authors'][0]['website'] = 'https://example.org/author';
+            $payload['mslLaboratories'] = [[
+                'identifier' => 'lab-1540',
+                'name' => 'Retained Laboratory',
+                'affiliation_name' => 'Laboratory affiliation',
+                'position' => 0,
+            ]];
+        }
+        if ($endpoint === '/editor/resources/draft') {
+            $payload['intent'] = EditorDraftSaveIntent::SAVE_DRAFT->value;
+        }
+
+        $created = $this->actingAs($this->user)->postJson($endpoint, $payload)->assertCreated();
+        $resource = Resource::findOrFail($created->json('resource.id'));
+        $removed = $resource->contributors()->whereHas('contributorTypes', fn ($query) => $query->where('slug', $role))->sole();
+        $affiliationId = $removed->affiliations()->sole()->id;
+        $this->assertDatabaseHas('resource_contributor_contributor_type', ['resource_contributor_id' => $removed->id]);
+        $transformer = app(EditorDataTransformer::class);
+        $before = $transformer->transformCreators($resource);
+        expect($before['contributors'])->toHaveCount(1);
+
+        $this->postJson($endpoint, [
+            ...$payload,
+            'resourceId' => $resource->id,
+            'contributors' => [],
+        ])->assertOk()->assertJsonPath('resource.id', $resource->id);
+
+        $this->assertDatabaseMissing('resource_contributors', ['id' => $removed->id]);
+        $this->assertDatabaseMissing('affiliations', ['id' => $affiliationId]);
+        $this->assertDatabaseMissing('resource_contributor_contributor_type', ['resource_contributor_id' => $removed->id]);
+
+        $reloaded = $resource->fresh();
+        $editorUrl = '/editor?resourceId='.$resource->id;
+        $token = $this->get($editorUrl)->assertOk()->inertiaProps('editorLoad.token');
+        $editor = $this->withHeader(EditorController::RESOURCE_LOAD_TOKEN_HEADER, $token)->get($editorUrl)->assertOk();
+        $authors = $editor->inertiaProps('authors');
+
+        // Saving rebuilds the resource-creator links; compare their metadata, not their row IDs.
+        expect($editor->inertiaProps('contributors'))->toBeEmpty()
+            ->and($authors)->toHaveCount(1)
+            ->and(Arr::except($authors[0], ['resourceCreatorId']))->toEqual(Arr::except($before['authors'][0], ['resourceCreatorId']))
+            ->and($reloaded->contributors)->toHaveCount($preserveDerived ? 2 : 0);
+
+        if ($preserveDerived) {
+            expect($authors[0]['isContact'])->toBeTrue()
+                ->and($authors[0]['email'])->toBe('author@example.org')
+                ->and($authors[0]['website'])->toBe('https://example.org/author');
+            $labs = $editor->inertiaProps('mslLaboratories');
+            expect($labs)->toHaveCount(1)
+                ->and($labs[0]['identifier'])->toBe('lab-1540')
+                ->and($labs[0]['name'])->toBe('Retained Laboratory')
+                ->and($labs[0]['affiliation_name'])->toBe('Laboratory affiliation');
+        }
+    })->with([
+        'person' => ['person', false],
+        'institution' => ['institution', false],
+        'standalone contact person' => ['contact', false],
+        'contact author and laboratory' => ['person', true],
+    ])->with([
+        'validate' => '/editor/resources',
+        'save draft' => '/editor/resources/draft',
+    ]);
 });
 
 describe('Draft save (Issue #548)', function () {

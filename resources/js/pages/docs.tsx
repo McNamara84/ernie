@@ -228,7 +228,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                                 <>
                                     <li>
                                         <a className="text-primary underline" href={docsActionHref('editor-register')}>
-                                            Register and publish a new DOI at DataCite
+                                            Publish a DOI and its landing page
                                         </a>
                                     </li>
                                     <li>
@@ -1696,26 +1696,32 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             them again.
                         </p>
 
-                        <h4>Embargo and Manual Release</h4>
+                        <h4>Data Embargo and Manual Release</h4>
                         <p>
-                            Choose <strong>Embargoed access</strong> and enter exactly one full calendar <strong>Available</strong> date. Keep an
-                            internal landing page unpublished. ERNIE blocks registration before that date and does not release the resource
-                            automatically.
+                            Enter one complete future <strong>Available</strong> date. ERNIE automatically selects <strong>Embargoed access</strong>.
+                            You can publish an internal metadata landing page and register its DOI before that date. Only the primary data stays under
+                            embargo.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                The Resources List shows an <strong>Embargo</strong> badge. Use the <strong>Status</strong> filter to find embargoed
-                                resources.
-                                {permissions.sendReviewLinks && ' Selecting the badge opens and copies the tokenized landing-page preview link.'}
+                                Published metadata remains publicly accessible and harvestable. The <strong>Embargo</strong> badge opens the public
+                                landing page.
                             </li>
                             <li>
-                                The preview shows the embargo date but hides file, link, and FTP downloads. The landing page remains unpublished, even
-                                when the Available date has passed.
+                                The landing page shows the date below its heading and hides primary data downloads. Metadata downloads remain
+                                available.
                             </li>
                             <li>
-                                From the Available date onward, the Dashboard lists resources ready for manual release. Review the record, then use{' '}
-                                <strong>Register</strong> in the editor or the IGSN registration action. After DataCite accepts the registration,
-                                ERNIE changes access to Open, publishes the landing page, and shows <strong>Published</strong> status.
+                                From the Available day in ERNIE&apos;s timezone, the Dashboard lists data ready for manual release and the publication
+                                team receives one email per resource and date.
+                            </li>
+                            <li>
+                                Review the resource and choose <strong>Release data</strong> in the Data Editor or Dashboard. This changes access to
+                                Open; it does not publish drafts or override other download restrictions.
+                            </li>
+                            <li>
+                                The date alone never releases data. If the DataCite access update is pending, use <strong>Release data</strong> again
+                                in the editor to retry synchronization.
                             </li>
                         </ul>
 
@@ -1896,6 +1902,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>Managing Authors & Contributors</h3>
+
+                        <h4>Removing Contributors</h4>
+                        <p>
+                            Contributors are optional. Use the trash icon on each contributor card to remove a person or institution, including the
+                            last contributor. You can save the resource with no contributors. After a successful save, the section remains empty when
+                            you reopen the resource.
+                        </p>
+                        <p>
+                            To add contributors again, select <strong>Add First Contributor</strong> or <strong>Import CSV</strong> in the empty
+                            section.
+                        </p>
 
                         <h4>ORCID Integration</h4>
                         <p>ERNIE integrates with the ORCID Public API for researcher identification:</p>
@@ -3221,9 +3238,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Registering DOIs</h3>
                         <p>
-                            Once a landing page is configured, you can register a DOI through DataCite. Embargoed resources need an unpublished
-                            internal landing page and can be registered only from their Available date onward. Beginner users follow the same
-                            workflow, but ERNIE forces their requests to the DataCite test API.
+                            Once a landing page is configured, you can register a DOI through DataCite. Data embargoes require an internal landing
+                            page but do not delay metadata publication or DOI registration. Beginner users follow the same workflow, but ERNIE forces
+                            their requests to the DataCite test API.
                         </p>
                         <p>
                             In the Data Editor, <strong>Register</strong> and <strong>Update Metadata</strong> first run local completeness checks and
@@ -3272,8 +3289,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>ORCID Pre-flight Validation</h4>
                         <p>
-                            Both when registering a new DOI <em>and</em> when updating metadata for an existing DOI, ERNIE performs a final ORCID
-                            pre-flight check for every creator and contributor attached to the resource before any request is sent to DataCite:
+                            Both when publishing a DOI <em>and</em> when updating metadata for a registered DOI, ERNIE performs a final ORCID
+                            pre-flight check for every creator and contributor attached to the resource before metadata is written to DataCite:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -3285,10 +3302,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Warning (override possible)</strong> – If the ORCID service is temporarily unreachable (network error,
                                 timeout, API error), the registration modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
                                 re-runs the pre-flight against orcid.org (use this when the service may have recovered), and{' '}
-                                <strong>"Register anyway"</strong> (labeled <strong>"Update anyway"</strong> when updating an existing DOI) submits
-                                with an override flag. On the override attempt the throttled orcid.org call is skipped entirely – only the offline
-                                format + checksum gates still run, and registration (or metadata update) proceeds regardless of the earlier transient
-                                warning. Hard blockers (malformed / checksum / not found) are never overridden this way.
+                                <strong>"Publish despite ORCID warning"</strong> (labeled <strong>"Update anyway"</strong> when updating an existing
+                                DOI) submits with an override flag. On the override attempt the throttled orcid.org call is skipped entirely – only
+                                the offline format + checksum gates still run, and registration (or metadata update) proceeds regardless of the
+                                earlier transient warning. Hard blockers (malformed / checksum / not found) are never overridden this way.
                             </li>
                             <li>
                                 <strong>Success</strong> – On the first successful pre-flight, the person record is stamped with an internal{' '}
@@ -3300,8 +3317,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
                         <p className="mt-2 text-sm text-muted-foreground">
                             Note: Opening an existing resource in the editor no longer triggers ORCID validation for stored authors. The network check
-                            only runs when you actively edit an ORCID / name field or when you press <strong>Register DOI</strong> or{' '}
-                            <strong>Update metadata</strong>.
+                            only runs when you actively edit an ORCID / name field or when you confirm <strong>Publish DOI and landing page</strong>{' '}
+                            or <strong>Update metadata</strong>.
                         </p>
 
                         <h4>Test vs Production</h4>
@@ -3552,17 +3569,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         {permissions.registerDoi && (
                             <>
-                                <h4>Register one DOI or update selected metadata</h4>
+                                <h4>Publish one DOI or update selected metadata</h4>
                                 <p>
-                                    <strong>Register DOI</strong> is available only for exactly one selected resource without a DOI and with a landing
-                                    page. It opens a prefix dialog; after confirmation, ERNIE sends the saved metadata to DataCite to create and
-                                    publish a new DOI. It is not a bulk registration action.
+                                    <strong>Publish DOI and landing page</strong> handles exactly one resource with a configured landing page. The
+                                    dialog checks DataCite state. Confirmation releases the landing page before publishing the DOI; a preassigned DOI
+                                    is preserved. If DataCite fails, the landing page stays public and the pending publication remains visible. Reopen
+                                    the action to reconcile an uncertain result without creating a second DOI.
                                 </p>
                                 <p>
                                     <strong>Update metadata</strong> is available for selected resources that each already have a DOI and a landing
-                                    page. After confirmation, ERNIE updates existing DataCite records one by one from the saved metadata. It does not
-                                    save unsaved editor changes or mint a new DOI. Some updates may succeed while others fail; review each result.
-                                    Beginners use the DataCite test environment for both actions.
+                                    page that is already published. After confirmation, ERNIE verifies registered or findable state in its DataCite
+                                    repository before updating each record. DOI visibility remains unchanged. It does not save unsaved editor changes
+                                    or mint a new DOI. Some updates may succeed while others fail; review each result. Beginners use the DataCite test
+                                    environment for both actions.
                                 </p>
                                 <p className="text-sm text-muted-foreground">Update limit: up to 25 resources per batch.</p>
                             </>

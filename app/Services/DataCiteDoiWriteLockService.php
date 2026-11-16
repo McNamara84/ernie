@@ -27,7 +27,7 @@ final class DataCiteDoiWriteLockService
         return is_string($revision) ? $revision : self::beginWrite($doi, $testMode);
     }
 
-    /** Advance under run(), immediately before a real HTTP write attempt. */
+    /** Advance under run() before a PUT or when an editor supersedes pending access metadata. */
     public static function beginWrite(string $doi, bool $testMode): string
     {
         $revision = (string) Str::uuid();

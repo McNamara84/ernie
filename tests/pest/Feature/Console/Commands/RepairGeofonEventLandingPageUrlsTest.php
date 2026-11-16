@@ -225,7 +225,7 @@ it('updates DataCite first, verifies it, then updates ERNIE and stores a snapsho
         ->toBe('https://geofon.gfz.de/db/eqpage.php?id=gfz2010gtdx');
 
     $methods = Http::recorded()->map(fn (array $pair): string => $pair[0]->method())->all();
-    expect($methods)->toBe(['GET', 'HEAD', 'PUT', 'GET']);
+    expect($methods)->toBe(['GET', 'HEAD', 'GET', 'PUT', 'GET']);
     Http::assertSent(function (Request $request) use ($doi): bool {
         return $request->method() === 'PUT'
             && rawurldecode((string) parse_url($request->url(), PHP_URL_PATH)) === '/dois/'.$doi
@@ -269,7 +269,7 @@ it('repairs either ERNIE or DataCite independently and is idempotent', function 
         ->and($records[$remoteOnlyDoi]['overall_status'])->toBe('updated_datacite')
         ->and($records[$currentDoi]['overall_status'])->toBe('already_current');
 
-    Http::assertSentCount(7);
+    Http::assertSentCount(8);
     $putCount = Http::recorded()->filter(fn (array $pair): bool => $pair[0]->method() === 'PUT')->count();
     expect($putCount)->toBe(1);
 
@@ -565,7 +565,7 @@ it('does not update ERNIE until a post-update DataCite GET confirms the target',
 
     $result = app(GeofonEventLandingPageUrlRepairService::class)->run(apply: true);
 
-    expect($getCount)->toBe(2)
+    expect($getCount)->toBe(3)
         ->and($result)->toMatchArray(['updated' => 0, 'local_updated' => 0, 'errors' => 1])
         ->and($result['records'][0]['overall_status'])->toBe('datacite_verification_failed')
         ->and($resource->landingPage->fresh()->external_path)->toBe('db/eqpage.php?id=gfz2011ewla');

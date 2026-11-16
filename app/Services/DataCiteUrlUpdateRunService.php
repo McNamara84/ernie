@@ -55,6 +55,7 @@ class DataCiteUrlUpdateRunService
                     'activity_actor' => app(UserActivityService::class)->actor($user),
                     'test_mode' => $this->client->isTestMode(),
                     'datacite_endpoint' => $this->client->endpoint(),
+                    'datacite_context_fingerprint' => $this->client->contextFingerprint(),
                     'target_base_url' => $this->target->targetBaseUrl(),
                 ]);
 

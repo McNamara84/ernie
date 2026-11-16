@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $last_controlled_by_user_id
  * @property array{id: int, name: string}|null $activity_actor
  * @property bool $test_mode
+ * @property string|null $datacite_context_fingerprint
  * @property string $datacite_endpoint
  * @property string $target_base_url
  * @property int $total
@@ -62,6 +63,7 @@ class DataCiteUrlUpdateRun extends Model
         'last_controlled_by_user_id',
         'test_mode',
         'datacite_endpoint',
+        'datacite_context_fingerprint',
         'target_base_url',
         'total',
         'processed',

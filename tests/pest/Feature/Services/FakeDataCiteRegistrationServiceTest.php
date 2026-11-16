@@ -29,7 +29,7 @@ describe('interface compliance', function () {
 
 describe('registerDoi', function () {
     it('returns successful response with DOI for valid request', function () {
-        $resource = Resource::factory()->create();
+        $resource = Resource::factory()->create(['doi' => null]);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         $result = $this->service->registerDoi($resource, '10.83279');
@@ -43,7 +43,7 @@ describe('registerDoi', function () {
     });
 
     it('generates predictable DOI suffix containing resource ID', function () {
-        $resource = Resource::factory()->create();
+        $resource = Resource::factory()->create(['doi' => null]);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         $result = $this->service->registerDoi($resource, '10.83186');
@@ -52,7 +52,7 @@ describe('registerDoi', function () {
     });
 
     it('throws InvalidArgumentException for invalid prefix', function () {
-        $resource = Resource::factory()->create();
+        $resource = Resource::factory()->create(['doi' => null]);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         expect(fn () => $this->service->registerDoi($resource, '10.99999'))
@@ -60,14 +60,14 @@ describe('registerDoi', function () {
     });
 
     it('throws RuntimeException when resource has no landing page', function () {
-        $resource = Resource::factory()->create();
+        $resource = Resource::factory()->create(['doi' => null]);
 
         expect(fn () => $this->service->registerDoi($resource, '10.83279'))
             ->toThrow(RuntimeException::class, 'must have a landing page');
     });
 
     it('uses public_url from landing page accessor', function () {
-        $resource = Resource::factory()->create();
+        $resource = Resource::factory()->create(['doi' => null]);
         LandingPage::factory()->create([
             'resource_id' => $resource->id,
             'doi_prefix' => '10.5880/gfz.2025.12345',
@@ -80,7 +80,7 @@ describe('registerDoi', function () {
     });
 
     it('accepts all three valid prefixes', function (string $prefix) {
-        $resource = Resource::factory()->create();
+        $resource = Resource::factory()->create(['doi' => null]);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         $result = $this->service->registerDoi($resource, $prefix);
@@ -96,8 +96,9 @@ describe('registerDoi', function () {
 describe('updateMetadata', function () {
     it('returns successful response for resource with DOI', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/test.2025.001']);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
+        $this->service->setRegistrationState((string) $resource->doi, 'findable');
         $result = $this->service->updateMetadata($resource);
 
         expect($result)->toHaveKey('data')
@@ -107,7 +108,7 @@ describe('updateMetadata', function () {
 
     it('throws RuntimeException when resource has no DOI', function () {
         $resource = Resource::factory()->create(['doi' => null]);
-        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         expect(fn () => $this->service->updateMetadata($resource))
             ->toThrow(RuntimeException::class, 'must have a DOI');
@@ -122,12 +123,13 @@ describe('updateMetadata', function () {
 
     it('uses public_url from landing page accessor', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/test.2025.001']);
-        LandingPage::factory()->create([
+        LandingPage::factory()->published()->create([
             'resource_id' => $resource->id,
             'doi_prefix' => '10.5880/gfz.2025.67890',
             'slug' => 'another-dataset',
         ]);
 
+        $this->service->setRegistrationState((string) $resource->doi, 'findable');
         $result = $this->service->updateMetadata($resource);
 
         expect($result['data']['attributes']['url'])->toContain('10.5880/gfz.2025.67890/another-dataset');

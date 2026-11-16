@@ -261,9 +261,25 @@ erDiagram
         varchar workflow_status_override "20, nullable, indexed"
         timestamp embargo_registration_started_at "nullable"
         varchar embargo_registration_prefix "64, nullable"
+        varchar embargo_registration_access_level "32, nullable"
+        boolean data_embargo_sync_pending "default false"
         timestamp created_at
         timestamp updated_at
     }
+
+    data_embargo_notifications {
+        bigint id PK
+        bigint resource_id FK "unique with available_date"
+        date available_date
+        varchar status "24, indexed with created_at"
+        timestamp claimed_at "nullable"
+        timestamp sent_at "nullable"
+        text last_error "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    resources ||--o{ data_embargo_notifications : "data embargo reminders"
 
     resource_listing_projections {
         bigint resource_id PK,FK
@@ -1233,6 +1249,33 @@ erDiagram
         timestamp updated_at
     }
 
+    resource_doi_publications {
+        bigint id PK
+        uuid uuid UK
+        bigint resource_id FK "cascade delete"
+        bigint_unsigned active_resource_id UK "nullable, active publication marker; no FK"
+        varchar operation "32, default doi_publication"
+        bigint user_id FK "nullable, null on user deletion"
+        boolean test_mode
+        varchar endpoint "255"
+        varchar repository "255"
+        varchar prefix "64"
+        varchar doi "255, nullable"
+        text target_url
+        varchar metadata_hash "64"
+        json payload
+        varchar previous_state "32, nullable"
+        varchar status "40, default prepared"
+        int_unsigned attempts "default 0"
+        text last_error "nullable"
+        varchar last_error_code "80, nullable"
+        timestamp completed_at "nullable"
+        timestamp created_at "nullable"
+        timestamp updated_at "nullable"
+    }
+    %% resource_doi_publications index(resource_id, test_mode, status)
+    %% active_resource_id permits at most one active publication per resource across environments; terminal publications use NULL.
+
     datacite_url_update_runs {
         uuid id PK
         varchar scope "20, indexed"
@@ -1244,6 +1287,7 @@ erDiagram
         boolean test_mode
         varchar datacite_endpoint "500"
         varchar target_base_url "500"
+        varchar datacite_context_fingerprint "64, nullable"
         int_unsigned total
         int_unsigned processed
         int_unsigned updated
@@ -1286,6 +1330,7 @@ erDiagram
         varchar status "30, indexed"
         boolean test_mode
         varchar datacite_endpoint "500"
+        varchar datacite_context_fingerprint "64, nullable"
         int_unsigned total
         int_unsigned processed
         int_unsigned registered
@@ -1309,6 +1354,7 @@ erDiagram
         varchar identifier "255"
         varchar status "30, indexed"
         varchar operation "20, nullable"
+        varchar approval_fingerprint "64, nullable"
         smallint_unsigned attempts
         smallint_unsigned last_http_status "nullable"
         text error_message "nullable"
@@ -1428,6 +1474,10 @@ erDiagram
     users ||--o{ database_dump_exports : "requests"
     users ||--o{ database_dump_downloads : "downloads"
     database_dump_exports ||--o{ database_dump_downloads : "has"
+
+    %% Explicit DOI publication relationships
+    resources ||--o{ resource_doi_publications : "publication attempts; cascade delete"
+    users |o--o{ resource_doi_publications : "approves; null on user deletion"
 
     %% DataCite landing-page URL migration relationships
     users |o--o{ datacite_url_update_runs : "initiates"

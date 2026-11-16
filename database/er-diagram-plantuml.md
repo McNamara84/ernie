@@ -291,9 +291,27 @@ entity "resources" as resources {
     workflow_status_override : VARCHAR(20) <<nullable>> //indexed//
     embargo_registration_started_at : TIMESTAMP <<nullable>>
     embargo_registration_prefix : VARCHAR(64) <<nullable>>
+    embargo_registration_access_level : VARCHAR(32) <<nullable>>
+    * data_embargo_sync_pending : BOOLEAN = false
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+
+entity "data_embargo_notifications" as data_embargo_notifications {
+    * **id** : BIGINT <<PK>>
+    * resource_id : BIGINT <<FK>>
+    * available_date : DATE
+    * status : VARCHAR(24)
+    claimed_at : TIMESTAMP <<nullable>>
+    sent_at : TIMESTAMP <<nullable>>
+    last_error : TEXT <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+    --
+    UNIQUE(resource_id, available_date)
+    INDEX(status, created_at)
+}
+resources ||--o{ data_embargo_notifications
 
 entity "resource_listing_projections" as resource_listing_projections {
     * **resource_id** : BIGINT <<PK, FK>>
@@ -1333,6 +1351,37 @@ entity "dismissed_rors" as dismissed_rors {
     updated_at : TIMESTAMP
 }
 
+entity "resource_doi_publications" as resource_doi_publications {
+    * **id** : BIGINT <<PK>>
+    --
+    * uuid : UUID <<UK>>
+    * resource_id : BIGINT <<FK>> //cascade delete//
+    active_resource_id : BIGINT UNSIGNED <<UK>> <<nullable>> //active publication marker; no FK//
+    * operation : VARCHAR(32) = 'doi_publication'
+    user_id : BIGINT <<FK>> <<nullable>> //null on user deletion//
+    * test_mode : BOOLEAN
+    * endpoint : VARCHAR(255)
+    * repository : VARCHAR(255)
+    * prefix : VARCHAR(64)
+    doi : VARCHAR(255) <<nullable>>
+    * target_url : TEXT
+    * metadata_hash : VARCHAR(64)
+    * payload : JSON
+    previous_state : VARCHAR(32) <<nullable>>
+    * status : VARCHAR(40) = 'prepared'
+    * attempts : INT UNSIGNED = 0
+    last_error : TEXT <<nullable>>
+    last_error_code : VARCHAR(80) <<nullable>>
+    completed_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP <<nullable>>
+    updated_at : TIMESTAMP <<nullable>>
+}
+note right of resource_doi_publications
+    INDEX(resource_id, test_mode, status)
+    UNIQUE(active_resource_id): at most one active publication
+    per resource across environments; terminal publications use NULL.
+end note
+
 entity "datacite_url_update_runs" as datacite_url_update_runs {
     * **id** : UUID <<PK>>
     --
@@ -1345,6 +1394,7 @@ entity "datacite_url_update_runs" as datacite_url_update_runs {
     * test_mode : BOOLEAN
     * datacite_endpoint : VARCHAR(500)
     * target_base_url : VARCHAR(500)
+    datacite_context_fingerprint : VARCHAR(64) <<nullable>>
     * total : INT UNSIGNED
     * processed : INT UNSIGNED
     * updated : INT UNSIGNED
@@ -1389,6 +1439,7 @@ entity "igsn_registration_runs" as igsn_registration_runs {
     * status : VARCHAR(30)
     * test_mode : BOOLEAN
     * datacite_endpoint : VARCHAR(500)
+    datacite_context_fingerprint : VARCHAR(64) <<nullable>>
     * total : INT UNSIGNED
     * processed : INT UNSIGNED
     * registered : INT UNSIGNED
@@ -1413,6 +1464,7 @@ entity "igsn_registration_items" as igsn_registration_items {
     * identifier : VARCHAR(255)
     * status : VARCHAR(30)
     operation : VARCHAR(20) <<nullable>>
+    approval_fingerprint : VARCHAR(64) <<nullable>>
     * attempts : SMALLINT UNSIGNED
     last_http_status : SMALLINT UNSIGNED <<nullable>>
     error_message : TEXT <<nullable>>
@@ -1540,6 +1592,10 @@ guided_tours ||--o{ user_guided_tour_assignments
 users ||--o{ database_dump_exports : "user_id"
 users ||--o{ database_dump_downloads : "user_id"
 database_dump_exports ||--o{ database_dump_downloads
+
+' Explicit DOI publication relationships
+resources ||--o{ resource_doi_publications : "resource_id; cascade delete"
+users |o--o{ resource_doi_publications : "user_id; null on delete"
 
 ' DataCite landing-page URL migration relationships
 users |o--o{ datacite_url_update_runs : "initiated_by_user_id"

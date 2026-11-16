@@ -40,16 +40,14 @@ class AutomaticIgsnLandingPageService
                     return ['landing_page' => $existing, 'created' => false];
                 }
 
-                $publish = ! app(EmbargoService::class)->isEmbargoed($lockedResource)
-                    || $lockedResource->igsnMetadata?->isRegistered() === true;
                 $landingPage = new LandingPage([
                     'resource_id' => $lockedResource->id,
                     'template' => 'default_gfz_igsn',
                     'landing_page_template_id' => null,
                     'ftp_url' => null,
                     'downloads_unavailable' => true,
-                    'is_published' => $publish,
-                    'published_at' => $publish ? now() : null,
+                    'is_published' => true,
+                    'published_at' => now(),
                 ]);
                 $landingPage->setRelation('resource', $lockedResource);
                 $landingPage->save();

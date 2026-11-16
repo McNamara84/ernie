@@ -601,9 +601,14 @@ function IgsnsPage({
     const handleRegister = useCallback(async (igsn: Igsn) => {
         setRegisteringIgsns((prev) => new Set(prev).add(igsn.id));
         try {
-            const response = await axios.post<{ success: boolean; doi: string; mode: string; updated: boolean; message: string }>(
+            const response = await axios.post<{ success: boolean; doi?: string; mode?: string; updated?: boolean; message?: string }>(
                 `/igsns/${igsn.id}/register`,
             );
+            if (response.status === 202 || response.data.success !== true) {
+                toast.warning(response.data.message || 'DOI publication needs reconciliation. Resume registration to check the saved attempt.');
+                router.reload();
+                return;
+            }
             const { doi, mode, updated } = response.data;
 
             toast.success(updated ? `Metadata updated at DataCite (${mode})` : `IGSN registered at DataCite (${mode}): ${doi}`);

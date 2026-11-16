@@ -18,16 +18,22 @@ use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+
+require_once __DIR__.'/../../Support/DataCitePublicationFixtures.php';
 
 beforeEach(function (): void {
     config([
         'app.url' => 'https://dataservices.gfz.de',
         'datacite.test_mode' => true,
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
+        'datacite.test.client_id' => 'test.repo',
+        'datacite.production.client_id' => 'prod.repo',
+        'datacite.production.igsn_client_id' => 'igsn.repo',
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.password' => 'secret',
         'datacite.production.endpoint' => 'https://api.datacite.org',
@@ -151,9 +157,8 @@ test('a rate-limited URL job is requeued without counting an HTTP attempt', func
 });
 
 test('the member client sends an authenticated JSON API partial URL update only', function (): void {
-    Http::fake(['https://api.test.datacite.org/*' => Http::response([
-        'data' => ['attributes' => ['url' => 'https://dataservices.gfz.de/new']],
-    ])]);
+    createJobUrlMigrationResource('10.5880/ABC 1');
+    Http::fake(['https://api.test.datacite.org/*' => Http::response(dataCiteRecord('10.5880/ABC 1', repository: 'test.repo', attributes: ['url' => 'https://dataservices.gfz.de/new']))]);
 
     app(DataCiteMemberApiClient::class)->updateLandingPageUrl('10.5880/ABC 1', 'https://dataservices.gfz.de/new');
 
@@ -174,9 +179,8 @@ test('the member client sends an authenticated JSON API partial URL update only'
 
 test('the production member client uses the dedicated IGSN repository credentials for prefix 10.60510', function (): void {
     config(['datacite.test_mode' => false]);
-    Http::fake(['https://api.datacite.org/*' => Http::response([
-        'data' => ['attributes' => ['url' => 'https://dataservices.gfz.de/igsn/new']],
-    ])]);
+    createJobUrlMigrationResource('10.60510/GFTEST001');
+    Http::fake(['https://api.datacite.org/*' => Http::response(dataCiteRecord('10.60510/GFTEST001', repository: 'igsn.repo', attributes: ['url' => 'https://dataservices.gfz.de/igsn/new']))]);
 
     app(DataCiteMemberApiClient::class)->updateLandingPageUrl(
         '10.60510/GFTEST001',
@@ -189,9 +193,8 @@ test('the production member client uses the dedicated IGSN repository credential
 
 test('the production member client keeps generic repository credentials for non-IGSN DOIs', function (): void {
     config(['datacite.test_mode' => false]);
-    Http::fake(['https://api.datacite.org/*' => Http::response([
-        'data' => ['attributes' => ['url' => 'https://dataservices.gfz.de/resources/new']],
-    ])]);
+    createJobUrlMigrationResource('10.5880/GFTEST001');
+    Http::fake(['https://api.datacite.org/*' => Http::response(dataCiteRecord('10.5880/GFTEST001', repository: 'prod.repo', attributes: ['url' => 'https://dataservices.gfz.de/resources/new']))]);
 
     app(DataCiteMemberApiClient::class)->updateLandingPageUrl(
         '10.5880/GFTEST001',
@@ -207,6 +210,7 @@ test('the production member client fails clearly before an IGSN write when repos
         'datacite.test_mode' => false,
         'datacite.production.igsn_password' => '',
     ]);
+    createJobUrlMigrationResource('10.60510/GFTEST001');
     Http::fake();
 
     expect(fn () => app(DataCiteMemberApiClient::class)->updateLandingPageUrl(
@@ -276,14 +280,14 @@ test('the job performs a remote GET before a minimal PUT and completes the audit
         }
 
         if ($request->method() === 'GET') {
-            return Http::response(['data' => ['attributes' => [
+            return Http::response(['data' => ['id' => $item->identifier, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => [
                 'url' => 'https://ernie.rz-vm499.gfz.de'.$item->resource->landingPage->getPublicPath(),
                 'state' => 'findable',
             ]]]);
         }
 
         if ($request->method() === 'PUT') {
-            return Http::response(['data' => ['attributes' => ['url' => $item->target_url]]]);
+            return Http::response(['data' => ['id' => $item->identifier, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['url' => $item->target_url, 'state' => 'findable']]]);
         }
 
         return Http::response([], 500);
@@ -308,7 +312,7 @@ test('the job performs a remote GET before a minimal PUT and completes the audit
         && $context['activity']['operation_id'] === $run->id)->once();
 
     $methods = Http::recorded()->map(fn (array $pair): string => $pair[0]->method())->all();
-    expect($methods)->toBe(['HEAD', 'GET', 'HEAD', 'PUT']);
+    expect($methods)->toBe(['HEAD', 'GET', 'HEAD', 'GET', 'PUT']);
 
     Http::assertSent(function (Request $request) use ($item): bool {
         $data = $request->data();
@@ -345,10 +349,10 @@ test('an eligible internal ERNIE resource is updated from its previous URL to th
         }
 
         if ($request->method() === 'GET') {
-            return Http::response(['data' => ['attributes' => ['url' => 'https://previous-ernie.example/landing', 'state' => 'findable']]]);
+            return Http::response(['data' => ['id' => $item->identifier, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['url' => 'https://previous-ernie.example/landing', 'state' => 'findable']]]);
         }
 
-        return Http::response(['data' => ['attributes' => ['url' => $item->target_url]]]);
+        return Http::response(['data' => ['id' => $item->identifier, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['url' => $item->target_url, 'state' => 'findable']]]);
     });
 
     handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
@@ -399,7 +403,7 @@ test('an already current URL completes without a PUT', function (): void {
     Http::fake(function (Request $request) use ($item) {
         return $request->method() === 'HEAD'
             ? Http::response('', 200)
-            : Http::response(['data' => ['attributes' => ['url' => $item->target_url, 'state' => 'findable']]]);
+            : Http::response(['data' => ['id' => $item->identifier, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['url' => $item->target_url, 'state' => 'findable']]]);
     });
 
     handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
@@ -481,10 +485,10 @@ test('an unexpected successful update response is recorded as failed', function 
         'status' => DataCiteUrlUpdateItemStatus::PENDING_UPDATE,
         'before_url' => 'https://ernie.rz-vm499.gfz.de/old',
     ]);
-    Http::fake(function (Request $request) {
+    Http::fake(function (Request $request) use ($item) {
         return $request->method() === 'HEAD'
             ? Http::response('', 200)
-            : Http::response(['data' => ['attributes' => ['url' => 'https://wrong.example/value']]]);
+            : Http::response(['data' => ['id' => $item->identifier, 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]], 'attributes' => ['url' => 'https://wrong.example/value', 'state' => 'findable']]]);
     });
 
     handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
@@ -492,4 +496,90 @@ test('an unexpected successful update response is recorded as failed', function 
     expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::FAILED)
         ->and($item->fresh()->error_message)->toContain('did not confirm')
         ->and($run->fresh()->failed)->toBe(1);
+});
+
+test('URL maintenance rejects a remote draft before any write and terminates the item', function (): void {
+    $resource = createJobUrlMigrationResource('10.5880/remote-draft');
+    [$run, $item] = createPendingUrlMigrationJob($resource);
+    Http::fake(fn (Request $request) => $request->method() === 'HEAD' ? Http::response('', 200)
+        : Http::response(dataCiteRecord($resource->doi, 'draft')));
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::FAILED)->and($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::COMPLETED);
+    Http::assertNotSent(fn (Request $request) => in_array($request->method(), ['POST', 'PUT']));
+});
+
+test('URL maintenance pauses when repository ownership configuration changes', function (): void {
+    $resource = createJobUrlMigrationResource('10.5880/repo-change');
+    [$run] = createPendingUrlMigrationJob($resource);
+    config(['datacite.test.client_id' => 'new.repo']);
+    Http::fake();
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+    expect($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::PAUSED);
+    Http::assertNothingSent();
+});
+
+test('incomplete verification evidence is retried before a URL update can proceed', function (string $missing): void {
+    $this->freezeTime();
+    config(['datacite.landing_page_url_update.max_transient_attempts' => 3]);
+    $resource = createJobUrlMigrationResource('10.5880/retry-verification');
+    [$run, $item] = createPendingUrlMigrationJob($resource);
+    $record = dataCiteRecord($item->identifier, attributes: ['url' => 'https://previous.example/page']);
+    Arr::forget($record, $missing);
+    $gets = 0;
+    Http::fake(function (Request $request) use (&$gets, $record, $item) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response(++$gets === 1 ? $record
+            : dataCiteRecord($item->identifier, attributes: ['url' => 'https://previous.example/page']));
+    });
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::PENDING_PREFLIGHT)
+        ->and($item->fresh()->preflight_attempts)->toBe(1)
+        ->and($item->fresh()->last_http_status)->toBe(200)
+        ->and($run->fresh()->processed)->toBe(0)
+        ->and($run->fresh()->failed)->toBe(0);
+    Queue::assertPushed(ProcessDataCiteUrlUpdateRunJob::class,
+        fn (ProcessDataCiteUrlUpdateRunJob $job): bool => $job->delay >= now()->addSeconds(5) && $job->delay <= now()->addSeconds(8));
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::PENDING_UPDATE)
+        ->and($item->fresh()->preflight_attempts)->toBe(2)
+        ->and($item->fresh()->error_message)->toBeNull();
+    Http::assertNotSent(fn (Request $request): bool => in_array($request->method(), ['PUT', 'POST']));
+})->with(['data.id', 'data.attributes.state', 'data.relationships.client.data.id']);
+
+test('verification retries stop at the configured limit without writing to DataCite', function (): void {
+    config(['datacite.landing_page_url_update.max_transient_attempts' => 2]);
+    [$run, $item] = createPendingUrlMigrationJob(createJobUrlMigrationResource('10.5880/retry-exhausted'));
+    Http::fake(fn (Request $request) => $request->method() === 'HEAD'
+        ? Http::response('', 200) : Http::response(['data' => []]));
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::FAILED)
+        ->and($item->fresh()->preflight_attempts)->toBe(2)
+        ->and($run->fresh()->failed)->toBe(1)
+        ->and($run->fresh()->processed)->toBe(1)
+        ->and($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::COMPLETED);
+    Http::assertNotSent(fn (Request $request): bool => in_array($request->method(), ['PUT', 'POST']));
+});
+
+test('a verified foreign repository remains a permanent preflight failure', function (): void {
+    [$run, $item] = createPendingUrlMigrationJob(createJobUrlMigrationResource('10.5880/wrong-owner'));
+    Http::fake(fn (Request $request) => $request->method() === 'HEAD'
+        ? Http::response('', 200) : Http::response(dataCiteRecord($item->identifier, repository: 'foreign.repo')));
+
+    handleUrlMigrationJob(new ProcessDataCiteUrlUpdateRunJob($run->id));
+
+    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::FAILED)
+        ->and($item->fresh()->preflight_attempts)->toBe(1)
+        ->and($run->fresh()->failed)->toBe(1)
+        ->and($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::COMPLETED);
+    Http::assertNotSent(fn (Request $request): bool => in_array($request->method(), ['PUT', 'POST']));
 });

@@ -53,6 +53,8 @@ export interface AssessmentAverageSummary {
 }
 
 export interface SharedData {
+    serverToday?: string;
+    canReleaseData?: boolean;
     name: string;
     quote: { message: string; author: string };
     auth: Auth;

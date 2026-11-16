@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEditorLoadTimeline } from '@/hooks/use-editor-load-timeline';
 import { useEditorSlowLoadReporter } from '@/hooks/use-editor-slow-load-reporter';
 import AppLayout from '@/layouts/app-layout';
+import type { DoiPublicationSummary } from '@/lib/datacite-registration';
 import { clearEditorLoadTimeline, EDITOR_CLIENT_READY_PROGRESS, EDITOR_RESOURCE_TYPES_PROGRESS } from '@/lib/editor-load';
 import { type WarmupResponse, warmupSession } from '@/lib/session-warmup';
 import { editor } from '@/routes';
@@ -43,11 +44,14 @@ interface EditorProps {
     version?: string;
     language?: string;
     resourceType?: string;
+    initialAccessLevel?: import('@/components/curation/types/datacite-form-types').AccessLevel;
+    initialDataEmbargoSyncPending?: boolean;
     titles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     resourceId?: string;
     publicStatus?: ResourcePublicStatus;
+    doiPublication?: DoiPublicationSummary | null;
     canEditDoi?: boolean;
     landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];
@@ -94,11 +98,14 @@ export default function Editor({
     version = '',
     language = '',
     resourceType = '',
+    initialAccessLevel = 'open',
+    initialDataEmbargoSyncPending = false,
     titles = [],
     initialLicenses = [],
     initialRawRights = [],
     resourceId,
     publicStatus,
+    doiPublication,
     canEditDoi,
     landingPage = null,
     authors = [],
@@ -334,12 +341,15 @@ export default function Editor({
                         initialVersion={version}
                         initialLanguage={language}
                         initialResourceType={resourceType}
+                        initialAccessLevel={initialAccessLevel}
+                        initialDataEmbargoSyncPending={initialDataEmbargoSyncPending}
                         initialTitles={titles}
                         initialLicenses={initialLicenses}
                         initialRawRights={initialRawRights}
                         initialResourceId={resourceId}
                         hasUnpersistedPrefill={hasUnpersistedPrefill}
                         initialPublicStatus={publicStatus}
+                        initialDoiPublication={doiPublication}
                         canEditDoi={canEditDoi}
                         initialLandingPage={landingPage}
                         initialAuthors={authors}

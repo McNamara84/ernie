@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { type DataCitePrefixConfig, describeOrcidReason, type OrcidPreflightIssue } from '@/lib/datacite-registration';
+import { type DataCiteActionStatus, type DataCitePrefixConfig, describeOrcidReason, type OrcidPreflightIssue } from '@/lib/datacite-registration';
 
 export type EditorDataCiteAction = 'register' | 'update';
 export type EditorDataCiteSubmittingAction = 'submit' | 'retry' | 'override' | null;
@@ -26,6 +26,7 @@ interface EditorDataCiteConfirmationDialogProps {
     doi?: string | null;
     hasLandingPage: boolean;
     initialPrefix?: string;
+    resourceId?: number | null;
     isSubmitting: boolean;
     submittingAction: EditorDataCiteSubmittingAction;
     error: string | null;
@@ -42,6 +43,7 @@ export function EditorDataCiteConfirmationDialog({
     doi,
     hasLandingPage,
     initialPrefix = '',
+    resourceId,
     isSubmitting,
     submittingAction,
     error,
@@ -55,10 +57,11 @@ export function EditorDataCiteConfirmationDialog({
     const [availablePrefixes, setAvailablePrefixes] = useState<string[]>([]);
     const [isTestMode, setIsTestMode] = useState(true);
     const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+    const [actionStatus, setActionStatus] = useState<DataCiteActionStatus | null>(null);
     const [configurationError, setConfigurationError] = useState<string | null>(null);
     const hasExistingDoi = Boolean(doi?.trim());
     const isUpdate = action === 'update';
-    const primaryLabel = isUpdate ? 'Update metadata' : 'Register DOI';
+    const primaryLabel = isUpdate ? 'Update DataCite metadata' : 'Publish DOI and landing page';
 
     useEffect(() => {
         if (!open) {
@@ -67,11 +70,17 @@ export function EditorDataCiteConfirmationDialog({
 
         let isCurrent = true;
         setConfigurationError(null);
+        setActionStatus(null);
         setIsLoadingConfig(true);
 
-        void axios
-            .get<DataCitePrefixConfig>('/api/datacite/prefixes')
-            .then((response) => {
+        void Promise.all([
+            axios.get<DataCitePrefixConfig>('/api/datacite/prefixes'),
+            resourceId ? axios.get<DataCiteActionStatus>('/resources/' + resourceId + '/datacite-status') : Promise.resolve(null),
+        ])
+            .then(([response, status]) => {
+                if (!isCurrent) return;
+                if (status) setActionStatus(status.data);
+
                 if (!isCurrent) return;
 
                 const prefixes = response.data.test_mode ? response.data.test : response.data.production;
@@ -94,12 +103,13 @@ export function EditorDataCiteConfirmationDialog({
         return () => {
             isCurrent = false;
         };
-    }, [hasExistingDoi, initialPrefix, open]);
+    }, [hasExistingDoi, initialPrefix, open, resourceId]);
 
     const canSubmit =
         !isSubmitting &&
         !isLoadingConfig &&
-        (!configurationError || hasExistingDoi) &&
+        !configurationError &&
+        (!resourceId || (isUpdate ? actionStatus?.can_update : actionStatus?.can_publish)) &&
         orcidBlockers.length === 0 &&
         (hasExistingDoi || selectedPrefix !== '');
 
@@ -116,16 +126,24 @@ export function EditorDataCiteConfirmationDialog({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DataCiteIcon className="size-5" />
-                        Confirm {isUpdate ? 'DataCite update' : 'DOI registration'}
+                        Confirm {isUpdate ? 'DataCite update' : 'DOI and landing page publication'}
                     </DialogTitle>
                     <DialogDescription>
                         {isUpdate
-                            ? `Confirm to save your editor changes in ERNIE, then update existing DOI ${doi ?? 'metadata'} at DataCite. No new DOI is created. If DataCite fails, the local save may remain.`
-                            : 'Confirm to save your editor changes in ERNIE, prepare a landing page if needed, then create and publish a DOI at DataCite. In production, the DOI becomes publicly resolvable. If DataCite fails, the local save may remain.'}
+                            ? `Confirm to save your editor changes in ERNIE, then update existing DOI ${doi ?? 'metadata'} at DataCite. The landing page must already be published and the DOI registration will be verified. Visibility stays unchanged. Local changes remain saved if the transfer fails.`
+                            : 'Confirm to save your changes, publish the landing page, then publish the DOI at DataCite. An existing DOI is preserved. The landing page stays public if DataCite fails; the saved publication can be resumed.'}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-2">
+                    {actionStatus && (
+                        <p role="status">
+                            Saved DOI at DataCite: {actionStatus.state}. Environment: {actionStatus.mode}.
+                            {isUpdate &&
+                                !actionStatus.can_update &&
+                                ' Metadata updates require a registered DOI and a published landing page. Use Publish DOI and landing page in the resource actions for explicit publication.'}
+                        </p>
+                    )}
                     {title && (
                         <Alert>
                             <CheckCircle2 className="size-4" />
@@ -226,7 +244,7 @@ export function EditorDataCiteConfirmationDialog({
                             <AlertTitle>{hasExistingDoi ? 'DOI prefix configuration unavailable' : 'DataCite action unavailable'}</AlertTitle>
                             <AlertDescription>
                                 {configurationError}
-                                {hasExistingDoi && ' Prefix configuration is not required to update an existing DOI.'}
+                                {hasExistingDoi && ' The environment must be verified before any DataCite action. Please retry.'}
                             </AlertDescription>
                         </Alert>
                     )}

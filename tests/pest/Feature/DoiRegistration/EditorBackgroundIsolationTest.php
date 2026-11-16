@@ -24,10 +24,11 @@ beforeEach(function () {
         'datacite.test_mode' => true,
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.username' => 'TEST.USER',
+        'datacite.test.client_id' => 'test.repo',
         'datacite.test.password' => 'test-only',
         'datacite.landing_page_url_update.minimum_interval_ms' => 0,
-        'datacite.landing_page_url_update.requests_per_window' => 10,
-        'datacite.interactive_reserved_requests' => 1,
+        'datacite.landing_page_url_update.requests_per_window' => 20,
+        'datacite.interactive_reserved_requests' => 2,
     ]);
     $this->actor = User::factory()->groupLeader()->create();
     $this->resource = Resource::factory()->withDoi('10.5880/editor-isolation')->create();
@@ -45,11 +46,11 @@ beforeEach(function () {
 
 it('updates ROR metadata as group leader after background work exhausts its share', function () {
     $limiter = app(DataCiteRequestLimiter::class);
-    for ($index = 0; $index < 9; $index++) {
+    for ($index = 0; $index < 18; $index++) {
         expect($limiter->reserveSlot())->toBe(0);
     }
     expect($limiter->reserveSlot())->toBeGreaterThan(0);
-    Http::fake(['https://api.test.datacite.org/*' => Http::response(['data' => ['id' => $this->resource->doi]], 200)]);
+    Http::fake(['https://api.test.datacite.org/*' => Http::response(['data' => ['id' => $this->resource->doi, 'attributes' => ['state' => 'findable'], 'relationships' => ['client' => ['data' => ['id' => 'test.repo']]]]], 200)]);
 
     $this->actingAs($this->actor)->postJson(route('resources.register-doi', $this->resource), ['prefix' => ''])
         ->assertOk()->assertJson(['success' => true, 'updated' => true]);

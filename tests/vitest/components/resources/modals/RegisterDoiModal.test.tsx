@@ -108,45 +108,47 @@ describe('RegisterDoiModal', () => {
         mockPost.mockReset();
 
         // Default mock for prefix config
-        mockGet.mockResolvedValue({
-            data: mockPrefixConfig,
-        });
+        mockGet.mockImplementation((url: string) => Promise.resolve({
+            data: url.endsWith('/datacite-status')
+                ? { state: 'findable', mode: 'test', can_publish: true, can_update: true, publication: null }
+                : mockPrefixConfig,
+        }));
         mockPost.mockRejectedValue(new Error('Unexpected DOI registration request in test.'));
     });
 
     it('renders modal with correct title for new DOI registration', async () => {
         render(<RegisterDoiModal {...defaultProps} />);
 
-        expect(screen.getByRole('heading', { name: 'Register DOI' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Publish DOI and landing page' })).toBeInTheDocument();
         await waitFor(() => {
-            expect(screen.getByText(/register a new doi/i)).toBeInTheDocument();
+            expect(screen.getByText(/create and publish its DOI/i)).toBeInTheDocument();
         });
     });
 
     it('renders modal with update title only for published DOI records', async () => {
         render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithDoi} />);
 
-        expect(screen.getByRole('heading', { name: 'Update metadata' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Publish DOI and landing page' })).toBeInTheDocument();
         await waitFor(() => {
-            expect(screen.getByText(/update metadata for registered doi/i)).toBeInTheDocument();
+            expect(screen.getByText(/publish the landing page and the preassigned DOI/i)).toBeInTheDocument();
         });
     });
 
     it('keeps the register title for review records that already have a DOI', async () => {
         render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithReviewDoi} />);
 
-        expect(screen.getByRole('heading', { name: 'Register DOI' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Publish DOI and landing page' })).toBeInTheDocument();
         await waitFor(() => {
-            expect(screen.getByText(/continue to sync the record with datacite/i)).toBeInTheDocument();
+            expect(screen.getByText(/The DOI is preserved/i)).toBeInTheDocument();
         });
     });
 
     it('uses the published landing page flag when the resource status is not published', async () => {
         render(<RegisterDoiModal {...defaultProps} resource={mockDraftStatusResourceWithPublishedLandingPage} />);
 
-        expect(screen.getByRole('heading', { name: 'Update metadata' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Publish DOI and landing page' })).toBeInTheDocument();
         await waitFor(() => {
-            expect(screen.getByText(/update metadata for registered doi/i)).toBeInTheDocument();
+            expect(screen.getByText(/publish the landing page and the preassigned DOI/i)).toBeInTheDocument();
         });
     });
 
@@ -212,7 +214,7 @@ describe('RegisterDoiModal', () => {
             expect(screen.getByText('Existing DOI')).toBeInTheDocument();
             expect(screen.getByText('10.83279/existing-doi')).toBeInTheDocument();
             expect(
-                screen.getByText(/submitting will update the metadata at datacite/i)
+                screen.getByText(/explicitly approves publication/i)
             ).toBeInTheDocument();
         });
     });
@@ -226,7 +228,7 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} resource={resourceWithoutLandingPage} />);
 
         await waitFor(() => {
-            const submitButton = screen.getByRole('button', { name: /register doi/i });
+            const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
             expect(submitButton).toBeDisabled();
         });
     });
@@ -247,16 +249,17 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} />);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
         });
 
-        const submitButton = screen.getByRole('button', { name: /register doi/i });
+        const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         await user.click(submitButton);
 
         await waitFor(() => {
-            expect(mockPost).toHaveBeenCalledWith('/resources/1/register-doi', {
+            expect(mockPost).toHaveBeenCalledWith('/resources/1/publish-doi', {
                 prefix: '10.83279',
                 force: false,
+                confirm_publication: true,
             });
         });
     });
@@ -278,10 +281,10 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
         });
 
-        const submitButton = screen.getByRole('button', { name: /register doi/i });
+        const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         await user.click(submitButton);
 
         await waitFor(() => {
@@ -306,10 +309,10 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} onClose={onClose} />);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
         });
 
-        const submitButton = screen.getByRole('button', { name: /register doi/i });
+        const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         await user.click(submitButton);
 
         await waitFor(() => {
@@ -333,10 +336,10 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} />);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
         });
 
-        const submitButton = screen.getByRole('button', { name: /register doi/i });
+        const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         await user.click(submitButton);
 
         await waitFor(() => {
@@ -349,7 +352,7 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithDoi} />);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /update metadata/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).toBeInTheDocument();
         });
     });
 
@@ -357,7 +360,7 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithReviewDoi} />);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /register doi/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).toBeInTheDocument();
         });
     });
 
@@ -397,7 +400,7 @@ describe('RegisterDoiModal', () => {
         expect(selectTrigger).toHaveTextContent('Select a prefix');
 
         // Submit button should be disabled when no prefix is available
-        const submitButton = screen.getByRole('button', { name: /register doi/i });
+        const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         expect(submitButton).toBeDisabled();
     });
 
@@ -417,7 +420,7 @@ describe('RegisterDoiModal', () => {
 
         // Should reload config
         await waitFor(() => {
-            expect(mockGet).toHaveBeenCalledTimes(2);
+            expect(mockGet).toHaveBeenCalledTimes(4);
         });
     });
 
@@ -435,16 +438,16 @@ describe('RegisterDoiModal', () => {
         render(<RegisterDoiModal {...defaultProps} />);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
         });
 
-        const submitButton = screen.getByRole('button', { name: /register doi/i });
+        const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         await user.click(submitButton);
 
         // Buttons should be disabled while submitting. With <LoadingButton> the
         // accessible name stays "Register DOI" – only the spinner + aria-busy
         // indicate progress. The Cancel button is gated by the same isSubmitting flag.
-        const loadingButton = screen.getByRole('button', { name: /register doi/i });
+        const loadingButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         expect(loadingButton).toBeDisabled();
         expect(loadingButton).toHaveAttribute('aria-busy', 'true');
         expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
@@ -484,10 +487,10 @@ describe('RegisterDoiModal', () => {
             render(<RegisterDoiModal {...defaultProps} />);
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const alert = await screen.findByTestId('orcid-preflight-blockers');
             expect(alert).toBeInTheDocument();
@@ -499,7 +502,7 @@ describe('RegisterDoiModal', () => {
             expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
 
             // Primary submit stays disabled due to blockers.
-            expect(screen.getByRole('button', { name: /register doi/i })).toBeDisabled();
+            expect(screen.getByRole('button', { name: /publish doi and landing page/i })).toBeDisabled();
 
             // No override button is offered when hard blockers exist.
             expect(screen.queryByTestId('orcid-preflight-override')).not.toBeInTheDocument();
@@ -542,10 +545,10 @@ describe('RegisterDoiModal', () => {
             render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const warningAlert = await screen.findByTestId('orcid-preflight-warnings');
             expect(warningAlert).toHaveTextContent('Alex Contributor');
@@ -556,14 +559,15 @@ describe('RegisterDoiModal', () => {
 
             // Override button replaces the regular submit button.
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
-            expect(overrideButton.textContent).toMatch(/register anyway/i);
+            expect(overrideButton.textContent).toMatch(/publish despite ORCID warning/i);
 
             await user.click(overrideButton);
 
             await waitFor(() => {
-                expect(mockPost).toHaveBeenLastCalledWith('/resources/1/register-doi', {
+                expect(mockPost).toHaveBeenLastCalledWith('/resources/1/publish-doi', {
                     prefix: '10.83279',
                     force: true,
+                    confirm_publication: true,
                 });
             });
 
@@ -596,14 +600,14 @@ describe('RegisterDoiModal', () => {
             render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithDoi} />);
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /update metadata/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /update metadata/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
-            expect(overrideButton.textContent).toMatch(/update anyway/i);
-            expect(overrideButton.textContent).not.toMatch(/register anyway/i);
+            expect(overrideButton.textContent).toMatch(/publish despite ORCID warning/i);
+            expect(overrideButton.textContent).not.toMatch(/Update anyway/i);
         });
 
         it('keeps the override button as "Register anyway" for review DOI records', async () => {
@@ -630,14 +634,14 @@ describe('RegisterDoiModal', () => {
             render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithReviewDoi} />);
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
-            expect(overrideButton.textContent).toMatch(/register anyway/i);
-            expect(overrideButton.textContent).not.toMatch(/update anyway/i);
+            expect(overrideButton.textContent).toMatch(/publish despite ORCID warning/i);
+            expect(overrideButton.textContent).not.toMatch(/Update anyway/i);
         });
 
         it('renders plural identifier count when multiple ORCIDs are invalid', async () => {
@@ -671,9 +675,9 @@ describe('RegisterDoiModal', () => {
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const alert = await screen.findByTestId('orcid-preflight-blockers');
             expect(alert.textContent).toMatch(/2 identifiers/i);
@@ -702,10 +706,10 @@ describe('RegisterDoiModal', () => {
 
             render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             await waitFor(() => {
                 expect(onSuccess).toHaveBeenCalledWith('10.83279/new-doi');
@@ -728,10 +732,10 @@ describe('RegisterDoiModal', () => {
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             await waitFor(() => {
                 expect(screen.getByText(/internal server error/i)).toBeInTheDocument();
@@ -776,10 +780,10 @@ describe('RegisterDoiModal', () => {
             const onSuccess = vi.fn();
             render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const retryButton = await screen.findByTestId('orcid-preflight-retry');
             expect(retryButton.textContent).toMatch(/retry verification/i);
@@ -788,9 +792,10 @@ describe('RegisterDoiModal', () => {
 
             // Second call must use force=false (not an override).
             await waitFor(() => {
-                expect(mockPost).toHaveBeenLastCalledWith('/resources/1/register-doi', {
+                expect(mockPost).toHaveBeenLastCalledWith('/resources/1/publish-doi', {
                     prefix: '10.83279',
                     force: false,
+                confirm_publication: true,
                 });
             });
 
@@ -829,10 +834,10 @@ describe('RegisterDoiModal', () => {
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
             const retryButton = screen.getByTestId('orcid-preflight-retry');
@@ -874,10 +879,10 @@ describe('RegisterDoiModal', () => {
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+                expect(screen.getByRole('button', { name: /publish doi and landing page/i })).not.toBeDisabled();
             });
 
-            await user.click(screen.getByRole('button', { name: /register doi/i }));
+            await user.click(screen.getByRole('button', { name: /publish doi and landing page/i }));
 
             const retryButton = await screen.findByTestId('orcid-preflight-retry');
             await user.click(retryButton);
@@ -891,4 +896,33 @@ describe('RegisterDoiModal', () => {
             expect(screen.getByTestId('orcid-preflight-warnings')).toBeInTheDocument();
         });
     });
+    it('does not report an unconfirmed publication as success', async () => {
+        mockPost.mockResolvedValue({ status: 202, data: { success: false, doi: null, message: 'Landing page published; DOI publication not confirmed.' } });
+        render(<RegisterDoiModal {...defaultProps} />);
+        const button = await screen.findByRole('button', { name: 'Publish DOI and landing page' });
+        await waitFor(() => expect(button).toBeEnabled());
+        await userEvent.click(button);
+        expect(await screen.findByText('Landing page published; DOI publication not confirmed.')).toBeVisible();
+        expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+        expect(defaultProps.onClose).not.toHaveBeenCalled();
+        expect(mockPost).toHaveBeenCalledWith('/resources/1/publish-doi', expect.objectContaining({ confirm_publication: true, force: false }));
+    });
+
+    it('displays a persisted publication failure when the dialog is reopened', async () => {
+        mockGet.mockImplementation((url: string) => Promise.resolve({ data: url.endsWith('/datacite-status')
+            ? { state: 'missing', mode: 'test', can_publish: true, can_update: false, publication: { status: 'pending_reconciliation', last_error: 'Earlier response was lost.' } }
+            : mockPrefixConfig }));
+        render(<RegisterDoiModal {...defaultProps} />);
+        expect(await screen.findByText('Earlier response was lost.')).toBeVisible();
+        expect(mockPost).not.toHaveBeenCalled();
+    });
+
+    it('blocks publication when the authenticated status is unavailable', async () => {
+        mockGet.mockImplementation((url: string) => url.endsWith('/datacite-status') ? Promise.reject(new Error('Unavailable')) : Promise.resolve({ data: mockPrefixConfig }));
+        render(<RegisterDoiModal {...defaultProps} />);
+        expect(await screen.findByText(/Failed to load DOI prefix configuration/)).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Publish DOI and landing page' })).toBeDisabled();
+        expect(mockPost).not.toHaveBeenCalled();
+    });
+
 });

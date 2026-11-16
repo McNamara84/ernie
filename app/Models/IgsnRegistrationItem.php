@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $resource_id
  * @property string $identifier
  * @property IgsnRegistrationItemStatus $status
+ * @property string|null $approval_fingerprint
  * @property string|null $operation
  * @property int $attempts
  * @property int|null $last_http_status
@@ -37,6 +38,7 @@ class IgsnRegistrationItem extends Model
         'identifier',
         'status',
         'operation',
+        'approval_fingerprint',
         'attempts',
         'last_http_status',
         'error_message',

@@ -37,6 +37,7 @@ import { type ValidationError, ValidationErrorModal } from '@/components/ui/vali
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import { publicationNeedsAttention } from '@/lib/datacite-registration';
 import { handleXmlFiles } from '@/lib/datacite-upload';
 import { openDetachedTab } from '@/lib/detached-tab';
 import { validateDOIFormat } from '@/lib/doi-validation';
@@ -294,7 +295,7 @@ const createDefaultDeleteStatusSelection = (): Record<ResourceDeleteStatus, bool
 });
 
 const normalizeDeleteStatus = (resource: Resource): ResourceDeleteStatus => {
-    if (resource.publicstatus === 'published' || resource.publicstatus === 'dead') {
+    if (resource.landingPage?.is_published || resource.publicstatus === 'published' || resource.publicstatus === 'dead') {
         return 'published';
     }
 
@@ -1378,7 +1379,11 @@ function ResourcesPage({
 
     const handleStatusBadgeClick = useCallback(
         (resource: Resource, status: string) => {
-            if ((status === 'published' || status === 'dead') && resource.doi) {
+            if (status === 'embargo' && resource.landingPage?.is_published && resource.landingPage.public_url) {
+                const publicUrl = resource.landingPage.public_url;
+                void copyToClipboard(publicUrl, 'Landing page URL copied to clipboard', publicUrl);
+                window.open(publicUrl, '_blank', 'noopener,noreferrer');
+            } else if ((status === 'published' || status === 'dead') && resource.doi) {
                 // Published: Open DOI URL and copy to clipboard
                 const doiUrl = `https://doi.org/${resource.doi}`;
 
@@ -1924,15 +1929,15 @@ function ResourcesPage({
             available:
                 selectedCount === 1 &&
                 singleSelectedResource !== null &&
-                !hasPersistentIdentifier(singleSelectedResource) &&
+                singleSelectedResource.publicstatus !== 'dead' &&
                 Boolean(singleSelectedResource.landingPage),
             reason:
                 selectedCount === 0
                     ? noSelectionReason
                     : selectedCount > 1
-                      ? 'Bulk DOI registration is not available because DOI minting requires a prefix selection. Register DOI-less resources one at a time.'
-                      : singleSelectedResource && hasPersistentIdentifier(singleSelectedResource)
-                        ? 'Register DOI is only available for resources without a DOI. Use Update metadata for registered resources.'
+                      ? 'First publication is available for one resource at a time.'
+                      : singleSelectedResource?.publicstatus === 'dead'
+                        ? 'Restore the tombstone before publishing this resource.'
                         : singleSelectedResource && !singleSelectedResource.landingPage
                           ? 'A landing page must be set up before registering a DOI.'
                           : undefined,
@@ -1940,7 +1945,8 @@ function ResourcesPage({
         },
         'update-metadata': {
             visible: canRegisterDoi,
-            available: selectedCount > 0 && selectedWithoutDoiCount === 0 && selectedWithoutLandingPageCount === 0,
+            available:
+                selectedCount > 0 && selectedWithoutDoiCount === 0 && selectedResources.every((resource) => resource.landingPage?.is_published),
             reason:
                 selectedCount === 0
                     ? noSelectionReason
@@ -1948,7 +1954,9 @@ function ResourcesPage({
                       ? `Update metadata is only available for resources that already have a DOI. ${formatSelectionCount(selectedWithoutDoiCount, 'selected resource has', 'selected resources have')} no DOI.`
                       : selectedWithoutLandingPageCount > 0
                         ? `${formatSelectionCount(selectedWithoutLandingPageCount, 'selected resource is', 'selected resources are')} missing a landing page.`
-                        : undefined,
+                        : selectedResources.some((resource) => !resource.landingPage?.is_published)
+                          ? 'Publish the landing pages explicitly before updating DataCite metadata.'
+                          : undefined,
             loading: isBulkRegistering,
         },
         'send-review-link': {
@@ -2130,6 +2138,11 @@ function ResourcesPage({
                 return (
                     <div className="flex min-w-0 flex-col gap-1 text-left" aria-label={accessibleLabel}>
                         <ResourcePartySearchMatches matches={searchMatches} />
+                        {publicationNeedsAttention(resource.doiPublication) && (
+                            <span role="status" className="text-sm text-amber-700 dark:text-amber-300">
+                                DOI publication needs attention
+                            </span>
+                        )}
                         <div className="flex min-w-0 items-center gap-1">
                             <OverflowTooltipText value={identifierValue} className={cn(identifierClasses, 'min-w-0 flex-1')} />
                             {hasValidDoi && (
@@ -2230,6 +2243,7 @@ function ResourcesPage({
 
                 // Determine if badge is clickable
                 const isClickable =
+                    (status === 'embargo' && resource.landingPage?.is_published && resource.landingPage.public_url) ||
                     ((status === 'published' || status === 'dead') && resource.doi) ||
                     ((status === 'embargo' || (canSendReviewLinks && status === 'review')) && resource.landingPage?.preview_url);
 
@@ -2259,7 +2273,9 @@ function ResourcesPage({
                 const ariaLabel = isClickable
                     ? status === 'published' || status === 'dead'
                         ? `${statusLabel} - Click to open DOI and copy URL to clipboard`
-                        : `${statusLabel} - Click to open preview page and copy URL to clipboard`
+                        : resource.landingPage?.is_published
+                          ? `${statusLabel} - Click to open public landing page and copy URL to clipboard`
+                          : `${statusLabel} - Click to open preview page and copy URL to clipboard`
                     : statusLabel;
 
                 return (

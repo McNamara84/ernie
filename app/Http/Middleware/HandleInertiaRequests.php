@@ -85,6 +85,8 @@ class HandleInertiaRequests extends Middleware
                     'can_access_database_dumps' => $request->user()->can('access-database-dumps'),
                 ] : null,
             ],
+            'canReleaseData' => $request->user()?->can('manage-landing-pages') && (config('datacite.test_mode', true) || $request->user()->can('register-production-doi')),
+            'serverToday' => now(config('app.timezone'))->toDateString(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
             'curationAccordionOpenItems' => $request->user()?->curation_accordion_open_items,

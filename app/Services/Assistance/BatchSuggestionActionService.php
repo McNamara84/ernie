@@ -136,7 +136,9 @@ final class BatchSuggestionActionService
                     'resource_id' => $resource->id,
                     'doi' => $syncResult->doi,
                     'message' => $syncResult->errorMessage,
-                    'retry_url' => route('assistance.datacite-sync.retry', ['resource' => $resource->id]),
+                    'retry_url' => $syncResult->retryable ? route('assistance.datacite-sync.retry', ['resource' => $resource->id]) : null,
+                    'reason' => $syncResult->reason,
+                    'retryable' => $syncResult->retryable,
                 ];
             }
         }

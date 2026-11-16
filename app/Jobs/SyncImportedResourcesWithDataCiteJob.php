@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\CacheKey;
 use App\Models\Resource;
+use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\DataCiteSyncService;
 use App\Services\ImportProgressService;
 use App\Services\UserActivityService;
@@ -26,6 +27,8 @@ class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
 
     public int $tries = 1;
 
+    private ?string $dataCiteContext = null;
+
     /**
      * @param  list<int>  $resourceIds
      * @param  list<int>  $fullMetadataResourceIds
@@ -35,7 +38,11 @@ class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
         private readonly string $importId,
         private readonly array $resourceIds,
         private readonly array $fullMetadataResourceIds = [],
-    ) {}
+    ) {
+        if (config('datacite.test_mode') === false) {
+            $this->dataCiteContext = app(DataCiteRegistrationFactoryService::class)->clientForMode(false)->contextFingerprint();
+        }
+    }
 
     public function handle(DataCiteSyncService $syncService, ImportProgressService $progressService): void
     {
@@ -70,6 +77,11 @@ class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
             }
 
             try {
+                if ($this->dataCiteContext !== app(DataCiteRegistrationFactoryService::class)->clientForMode(false)->contextFingerprint()) {
+                    $progressService->recordSyncFailure($this->importType, $this->importId, $resourceId, $resource->doi, 'DataCite repository or environment changed after this import was queued.');
+
+                    continue;
+                }
                 $requiresFullMetadata = $this->importType !== ImportProgressService::TYPE_RESOURCE
                     || in_array($resourceId, $this->fullMetadataResourceIds, true);
                 $result = $requiresFullMetadata
