@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import CuratorChart from '@/components/statistics/curator-chart';
 
@@ -23,9 +23,6 @@ describe('CuratorChart', () => {
         { name: 'Bob Johnson', count: 28 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<CuratorChart data={mockData} />);

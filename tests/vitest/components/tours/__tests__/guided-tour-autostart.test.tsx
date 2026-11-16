@@ -20,7 +20,6 @@ vi.mock('@/lib/tours/run-guided-tour', () => ({
 
 describe('GuidedTourAutostart', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         document.body.innerHTML = '';
         apiRequestMock.mockResolvedValue(null);
     });

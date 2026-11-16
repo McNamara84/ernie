@@ -17,7 +17,6 @@ import { AppSidebarWorkspaceSwitcher } from '@/components/app-sidebar-workspace-
 
 describe('AppSidebarWorkspaceSwitcher', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         useSidebarMock.mockReturnValue({ isMobile: false, state: 'expanded' });
     });
 

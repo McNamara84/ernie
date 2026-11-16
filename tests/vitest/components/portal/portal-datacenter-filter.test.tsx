@@ -5,7 +5,7 @@ import '@testing-library/jest-dom/vitest';
 
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PortalDatacenterFilter } from '@/components/portal/PortalDatacenterFilter';
 import type { DatacenterFacet } from '@/types/portal';
@@ -23,9 +23,6 @@ describe('PortalDatacenterFilter', () => {
         onSelectionChange: vi.fn(),
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('shows the search, datacenters, and resource counts inline without another trigger', () => {
         render(<PortalDatacenterFilter {...defaultProps} />);

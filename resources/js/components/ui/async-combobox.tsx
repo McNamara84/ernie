@@ -4,7 +4,7 @@ import { Check, ChevronsUpDown, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { ComboboxTrigger } from '@/components/ui/combobox-trigger';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Spinner } from '@/components/ui/spinner';
@@ -243,8 +243,9 @@ export function AsyncCombobox<T = unknown>({
                     {displayItems.map((opt) => (
                         <Badge key={opt.value} variant="secondary" className="mr-1">
                             {renderValue ? renderValue(opt) : opt.label}
-                            <button
+                            <button disabled={disabled}
                                 type="button"
+                                aria-label={`Remove ${opt.label}`}
                                 className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                 onClick={(e) => handleRemoveValue(e, opt.value)}
                             >
@@ -273,7 +274,7 @@ export function AsyncCombobox<T = unknown>({
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button
+                <ComboboxTrigger multiple={multiple}
                     id={id}
                     variant="outline"
                     role="combobox"
@@ -291,11 +292,11 @@ export function AsyncCombobox<T = unknown>({
                     <span className="flex-1 text-left">{renderTriggerContent()}</span>
                     <div className="flex items-center gap-1">
                         {showClearButton && (
-                            <X className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100" onClick={handleClear} aria-label="Clear selection" />
+                            <X className="pointer-events-auto! h-4 w-4 shrink-0 opacity-50 hover:opacity-100" onClick={handleClear} aria-label="Clear selection" />
                         )}
                         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                     </div>
-                </Button>
+                </ComboboxTrigger>
             </PopoverTrigger>
             <PopoverContent className={cn('p-0', popoverWidth)}>
                 <Command shouldFilter={false}>

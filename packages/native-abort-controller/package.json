@@ -1,0 +1,16 @@
+{
+    "name": "@ernie/native-abort-controller",
+    "version": "3.1.1-ernie.1",
+    "private": true,
+    "description": "Native AbortController exports for Swagger Client on supported ERNIE runtimes",
+    "main": "index.cjs",
+    "browser": "index.cjs",
+    "license": "MIT",
+    "engines": {
+        "node": ">=26.13.1"
+    },
+    "files": [
+        "index.cjs",
+        "README.md"
+    ]
+}

@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
@@ -74,9 +75,7 @@ describe('CitationManagerModal', () => {
         const user = userEvent.setup();
         renderModal();
 
-        await waitFor(() =>
-            expect(screen.getByText(/No related items yet/i)).toBeInTheDocument(),
-        );
+        await waitFor(() => expect(screen.getByText(/No related items yet/i)).toBeInTheDocument());
 
         await user.click(screen.getByRole('button', { name: /Add related item/i }));
         expect(screen.getByText('Type *')).toBeInTheDocument();
@@ -155,15 +154,10 @@ describe('CitationManagerModal', () => {
         const user = userEvent.setup();
         renderModal();
 
-        await waitFor(() =>
-            expect(screen.getByText(/No related items yet/i)).toBeInTheDocument(),
-        );
+        await waitFor(() => expect(screen.getByText(/No related items yet/i)).toBeInTheDocument());
         await user.click(screen.getByRole('button', { name: /Add related item/i }));
 
-        await user.type(
-            screen.getByPlaceholderText('Title'),
-            'New related',
-        );
+        await user.type(screen.getByPlaceholderText('Title'), 'New related');
 
         // Select type
         await user.click(screen.getAllByRole('combobox')[0]);
@@ -179,11 +173,7 @@ describe('CitationManagerModal', () => {
     });
 
     it('renders an error message when the fetch fails', async () => {
-        server.use(
-            http.get(base, () =>
-                HttpResponse.json({ message: 'boom' }, { status: 500 }),
-            ),
-        );
+        server.use(http.get(base, () => HttpResponse.json({ message: 'boom' }, { status: 500 })));
         renderModal();
 
         await waitFor(() => {
@@ -206,9 +196,7 @@ describe('CitationManagerModal', () => {
             />,
         );
 
-        await waitFor(() =>
-            expect(screen.getByText(/No related items yet/i)).toBeInTheDocument(),
-        );
+        await waitFor(() => expect(screen.getByText(/No related items yet/i)).toBeInTheDocument());
         // The Dialog wrapper exposes its own "Close" (X) button; pick the
         // footer text button which is the last one in DOM order.
         const closeButtons = screen.getAllByRole('button', { name: /^Close$/ });
@@ -229,13 +217,9 @@ describe('CitationManagerModal', () => {
         const user = userEvent.setup();
         renderModal();
 
-        await waitFor(() =>
-            expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
-        );
+        await waitFor(() => expect(screen.getByText(/Sample paper/)).toBeInTheDocument());
 
-        await user.click(
-            screen.getByRole('button', { name: /delete related item/i }),
-        );
+        await user.click(screen.getByRole('button', { name: /delete related item/i }));
 
         const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
         await user.click(cancelBtn);
@@ -256,21 +240,15 @@ describe('CitationManagerModal', () => {
         const user = userEvent.setup();
         renderModal();
 
-        await waitFor(() =>
-            expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
-        );
+        await waitFor(() => expect(screen.getByText(/Sample paper/)).toBeInTheDocument());
 
-        await user.click(
-            screen.getByRole('button', { name: /delete related item/i }),
-        );
+        await user.click(screen.getByRole('button', { name: /delete related item/i }));
 
         const confirmBtn = await screen.findByRole('button', { name: /^delete$/i });
         await user.click(confirmBtn);
 
         await waitFor(() => expect(deleted).toBe(true));
-        await waitFor(() =>
-            expect(screen.queryByText(/Sample paper/)).toBeNull(),
-        );
+        await waitFor(() => expect(screen.queryByText(/Sample paper/)).toBeNull());
     });
 
     it('opens the edit form with pre-filled title', async () => {
@@ -278,12 +256,12 @@ describe('CitationManagerModal', () => {
         const user = userEvent.setup();
         renderModal();
 
-        await waitFor(() =>
-            expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
-        );
+        await waitFor(() => expect(screen.getByText(/Sample paper/)).toBeInTheDocument());
 
         await user.click(screen.getByRole('button', { name: /edit/i }));
 
         expect(screen.getByDisplayValue('Sample paper')).toBeInTheDocument();
     });
 });
+
+installCsrfFixture();

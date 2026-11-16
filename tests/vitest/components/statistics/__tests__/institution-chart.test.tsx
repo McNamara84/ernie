@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import InstitutionChart from '@/components/statistics/institution-chart';
 
@@ -23,9 +23,6 @@ describe('InstitutionChart', () => {
         { name: 'University of Berlin', rorId: null, count: 150 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<InstitutionChart data={mockData} />);

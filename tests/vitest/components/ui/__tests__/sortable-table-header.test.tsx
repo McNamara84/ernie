@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SortableTableHeader, type SortDirection,useSortState } from '@/components/ui/sortable-table-header';
 import { Table, TableBody, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,9 +28,6 @@ describe('SortableTableHeader', () => {
         onSort: vi.fn(),
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('rendering', () => {
         it('renders the label text', () => {

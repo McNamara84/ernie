@@ -24,7 +24,6 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-    vi.clearAllMocks();
     shapes.length = 0;
     markers.length = 0;
     extendedBounds.length = 0;

@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useEditorPrefetch } from '@/hooks/use-editor-prefetch';
@@ -28,9 +29,7 @@ describe('useEditorPrefetch', () => {
         server.use(
             http.get('/api/v1/ror-affiliations', () => {
                 hits += 1;
-                return HttpResponse.json([
-                    { prefLabel: 'Test Org', rorId: 'https://ror.org/000000001' },
-                ]);
+                return HttpResponse.json([{ prefLabel: 'Test Org', rorId: 'https://ror.org/000000001' }]);
             }),
         );
 
@@ -79,3 +78,5 @@ describe('useEditorPrefetch', () => {
         expect(() => result.current()).not.toThrow();
     });
 });
+
+installCsrfFixture();

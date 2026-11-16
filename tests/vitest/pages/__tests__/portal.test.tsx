@@ -345,7 +345,6 @@ const defaultProps: PortalPageProps = {
 
 describe('Portal', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         axiosGetMock.mockReset();
         headTitleMock.mockReset();
         localStorage.clear();

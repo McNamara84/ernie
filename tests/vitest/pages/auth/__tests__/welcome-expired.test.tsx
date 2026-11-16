@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia
 vi.mock('@inertiajs/react', () => ({
@@ -39,9 +39,6 @@ vi.mock('@/layouts/auth-layout', () => ({
 import WelcomeExpired from '@/pages/auth/welcome-expired';
 
 describe('WelcomeExpired', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the page title', () => {
         render(<WelcomeExpired email="test@example.com" />);

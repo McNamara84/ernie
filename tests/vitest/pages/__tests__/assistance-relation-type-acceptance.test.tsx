@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import type { Mock } from 'vitest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
     AssistanceRelationTypeOption,
@@ -136,9 +136,6 @@ function groupedPage(suggestion: SuggestedRelationItem): PaginatedData<Assistanc
     };
 }
 
-beforeEach(() => {
-    vi.clearAllMocks();
-});
 
 describe('relation type acceptance input', () => {
     it('sends a changed relation type through the single acceptance endpoint', async () => {

@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
 import { render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PortalResultList } from '@/components/portal/PortalResultList';
 import type { PortalPagination, PortalResource } from '@/types/portal';
@@ -54,9 +54,6 @@ describe('PortalResultList', () => {
         isLoading: false,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('Results Display', () => {
         it('renders all resource cards', () => {

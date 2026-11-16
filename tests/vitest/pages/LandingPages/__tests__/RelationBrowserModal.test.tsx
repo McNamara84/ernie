@@ -1,8 +1,11 @@
-import { render, screen } from '@tests/vitest/utils/render';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+import { render as rawRender, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RelationBrowserModal } from '@/pages/LandingPages/components/RelationBrowserModal';
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
+
+const render = settleRender(rawRender);
 
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -84,8 +87,8 @@ describe('RelationBrowserModal', () => {
         });
     });
 
-    it('renders dialog with "Relation Browser" title when open', () => {
-        render(
+    it('renders dialog with "Relation Browser" title when open', async () => {
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={vi.fn()}
@@ -97,8 +100,8 @@ describe('RelationBrowserModal', () => {
         expect(screen.getByText('Relation Browser')).toBeInTheDocument();
     });
 
-    it('renders description text when open', () => {
-        render(
+    it('renders description text when open', async () => {
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={vi.fn()}
@@ -110,8 +113,8 @@ describe('RelationBrowserModal', () => {
         expect(screen.getByText(/Interactive graph of relationships between this resource, related works, their creators, and contributors/)).toBeInTheDocument();
     });
 
-    it('does not render graph content when closed', () => {
-        render(
+    it('does not render graph content when closed', async () => {
+        await render(
             <RelationBrowserModal
                 open={false}
                 onOpenChange={vi.fn()}
@@ -123,8 +126,8 @@ describe('RelationBrowserModal', () => {
         expect(screen.queryByTestId('relation-browser-graph')).not.toBeInTheDocument();
     });
 
-    it('renders graph when open', () => {
-        render(
+    it('renders graph when open', async () => {
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={vi.fn()}
@@ -136,8 +139,8 @@ describe('RelationBrowserModal', () => {
         expect(screen.getByTestId('relation-browser-graph')).toBeInTheDocument();
     });
 
-    it('renders legend with active identifier types', () => {
-        render(
+    it('renders legend with active identifier types', async () => {
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={vi.fn()}
@@ -151,8 +154,8 @@ describe('RelationBrowserModal', () => {
         expect(screen.getByText('URL')).toBeInTheDocument();
     });
 
-    it('includes Creator legend entry when resource has creators', () => {
-        render(
+    it('includes Creator legend entry when resource has creators', async () => {
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={vi.fn()}
@@ -165,7 +168,7 @@ describe('RelationBrowserModal', () => {
         expect(screen.getByTestId('legend-node-Creator')).toBeInTheDocument();
     });
 
-    it('includes Contributor legend entry when resource has contributors', () => {
+    it('includes Contributor legend entry when resource has contributors', async () => {
         const resourceWithContributors: LandingPageResource = {
             ...mockResource,
             contributors: [
@@ -187,7 +190,7 @@ describe('RelationBrowserModal', () => {
             ],
         };
 
-        render(
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={vi.fn()}
@@ -199,7 +202,7 @@ describe('RelationBrowserModal', () => {
         expect(screen.getByTestId('legend-node-Contributor')).toBeInTheDocument();
     });
 
-    it('filters out unsupported identifier types', () => {
+    it('filters out unsupported identifier types', async () => {
         const identifiersWithUnsupported: LandingPageRelatedIdentifier[] = [
             ...mockRelatedIdentifiers,
             {
@@ -210,7 +213,7 @@ describe('RelationBrowserModal', () => {
             },
         ];
 
-        render(
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={vi.fn()}
@@ -223,10 +226,10 @@ describe('RelationBrowserModal', () => {
         expect(screen.queryByText('PMID')).not.toBeInTheDocument();
     });
 
-    it('calls onOpenChange when closed', () => {
+    it('calls onOpenChange when closed', async () => {
         const onOpenChange = vi.fn();
 
-        render(
+        await render(
             <RelationBrowserModal
                 open={true}
                 onOpenChange={onOpenChange}

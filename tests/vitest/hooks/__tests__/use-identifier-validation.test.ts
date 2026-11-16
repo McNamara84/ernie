@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
 
@@ -19,9 +19,6 @@ vi.mock('@/lib/doi-validation', () => ({
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('useIdentifierValidation', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(() => {
         vi.restoreAllMocks();

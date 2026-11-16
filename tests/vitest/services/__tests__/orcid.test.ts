@@ -9,7 +9,6 @@ import { OrcidService } from '@/services/orcid';
 const mockFetch = vi.fn();
 
 beforeEach(() => {
-    vi.clearAllMocks();
     global.fetch = mockFetch;
 });
 
@@ -50,8 +49,7 @@ describe('OrcidService', () => {
 
     describe('formatOrcidUrl', () => {
         it('returns full ORCID URL', () => {
-            expect(OrcidService.formatOrcidUrl('0000-0002-1825-0097'))
-                .toBe('https://orcid.org/0000-0002-1825-0097');
+            expect(OrcidService.formatOrcidUrl('0000-0002-1825-0097')).toBe('https://orcid.org/0000-0002-1825-0097');
         });
 
         it('handles any input string', () => {
@@ -130,12 +128,16 @@ describe('OrcidService', () => {
         });
 
         it('returns network error on fetch failure', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
             const result = await OrcidService.fetchOrcidRecord('0000-0002-1825-0097');
 
             expect(result.success).toBe(false);
             expect(result.error).toBe('Network error: Could not connect to ORCID service');
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith('ORCID fetch error:', expect.objectContaining({ message: 'Network error' }));
         });
 
         it('encodes ORCID in URL', async () => {
@@ -146,10 +148,7 @@ describe('OrcidService', () => {
 
             await OrcidService.fetchOrcidRecord('0000-0002-1825-009X');
 
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('0000-0002-1825-009X'),
-                expect.any(Object),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('0000-0002-1825-009X'), expect.any(Object));
         });
     });
 
@@ -181,21 +180,23 @@ describe('OrcidService', () => {
         });
 
         it('returns network error on fetch failure', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
 
             const result = await OrcidService.validateOrcid('0000-0002-1825-0097');
 
             expect(result.success).toBe(false);
             expect(result.error).toBe('Network error: Could not validate ORCID');
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith('ORCID validation error:', expect.objectContaining({ message: 'Connection refused' }));
         });
     });
 
     describe('searchOrcid', () => {
         it('returns search results on success', async () => {
             const searchResults = {
-                results: [
-                    { orcid: '0000-0002-1825-0097', firstName: 'John', lastName: 'Doe', creditName: null, institutions: ['GFZ'] },
-                ],
+                results: [{ orcid: '0000-0002-1825-0097', firstName: 'John', lastName: 'Doe', creditName: null, institutions: ['GFZ'] }],
                 total: 1,
             };
 
@@ -218,14 +219,8 @@ describe('OrcidService', () => {
 
             await OrcidService.searchOrcid('John Doe', 20);
 
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('q=John+Doe'),
-                expect.any(Object),
-            );
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('limit=20'),
-                expect.any(Object),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('q=John+Doe'), expect.any(Object));
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=20'), expect.any(Object));
         });
 
         it('limits results to maximum of 50', async () => {
@@ -236,10 +231,7 @@ describe('OrcidService', () => {
 
             await OrcidService.searchOrcid('John Doe', 100);
 
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('limit=50'),
-                expect.any(Object),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=50'), expect.any(Object));
         });
 
         it('uses default limit of 10', async () => {
@@ -250,10 +242,7 @@ describe('OrcidService', () => {
 
             await OrcidService.searchOrcid('John Doe');
 
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('limit=10'),
-                expect.any(Object),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=10'), expect.any(Object));
         });
 
         it('returns error message from API on failure', async () => {
@@ -297,12 +286,16 @@ describe('OrcidService', () => {
         });
 
         it('returns network error on fetch failure', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
             const result = await OrcidService.searchOrcid('test');
 
             expect(result.success).toBe(false);
             expect(result.error).toBe('Network error: Could not search ORCID');
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith('ORCID search error:', expect.objectContaining({ message: 'Network error' }));
         });
     });
 

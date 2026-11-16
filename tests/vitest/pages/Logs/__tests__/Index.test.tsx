@@ -1,6 +1,6 @@
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import Index from '@/pages/Logs/Index';
 
@@ -82,9 +82,6 @@ describe('Logs/Index', () => {
         can_delete_all_resources: false,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders safe clickable dataset and DOI links without expanding the row', async () => {
         const user = userEvent.setup();

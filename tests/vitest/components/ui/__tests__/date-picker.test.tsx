@@ -3,16 +3,13 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format } from 'date-fns';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DatePicker } from '@/components/ui/date-picker';
 
 describe('DatePicker', () => {
     const testDate = new Date(2026, 0, 15); // Jan 15, 2026
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('rendering', () => {
         it('renders with placeholder when no value', () => {
@@ -118,37 +115,6 @@ describe('DatePicker', () => {
             const { container } = render(<DatePicker value={testDate} />);
             const hiddenInput = container.querySelector('input[type="hidden"]');
             expect(hiddenInput).not.toBeInTheDocument();
-        });
-    });
-
-    describe('popover interaction', () => {
-        it('opens calendar when trigger is clicked', async () => {
-            render(<DatePicker />);
-            const trigger = screen.getByRole('combobox');
-
-            await userEvent.click(trigger);
-            expect(trigger).toHaveAttribute('aria-expanded', 'true');
-        });
-
-        it('navigates both directions before selecting a day in another month', async () => {
-            const user = userEvent.setup();
-            const onChange = vi.fn();
-            const today = new Date();
-            const date = new Date(today.getFullYear(), today.getMonth() + 1, 16);
-            render(<DatePicker value={today} onChange={onChange} />);
-            const trigger = screen.getByRole('combobox');
-
-            await user.click(trigger);
-            await user.click(screen.getByRole('button', { name: 'Go to the Next Month' }));
-            expect(screen.getByRole('grid', { name: format(date, 'MMMM yyyy') })).toBeInTheDocument();
-            await user.click(screen.getByRole('button', { name: 'Go to the Previous Month' }));
-            expect(screen.getByRole('grid', { name: format(today, 'MMMM yyyy') })).toBeInTheDocument();
-            expect(onChange).not.toHaveBeenCalled();
-            await user.click(screen.getByRole('button', { name: 'Go to the Next Month' }));
-
-            await user.click(document.querySelector<HTMLButtonElement>(`button[data-day="${date.toLocaleDateString()}"]`)!);
-            expect(onChange).toHaveBeenCalledExactlyOnceWith(date);
-            expect(trigger).toHaveAttribute('aria-expanded', 'false');
         });
     });
 

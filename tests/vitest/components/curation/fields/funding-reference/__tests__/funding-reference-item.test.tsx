@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { FundingReferenceItem } from '@/components/curation/fields/funding-reference/funding-reference-item';
 import type { FundingReferenceEntry, RorFunder } from '@/components/curation/fields/funding-reference/types';
@@ -52,9 +52,6 @@ describe('FundingReferenceItem', () => {
         rorFunders: mockRorFunders,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the funding item with correct heading', () => {
         render(<FundingReferenceItem {...defaultProps} index={0} />);

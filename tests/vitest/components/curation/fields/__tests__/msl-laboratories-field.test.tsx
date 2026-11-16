@@ -55,7 +55,6 @@ describe('MSLLaboratoriesField', () => {
     const onChange = vi.fn();
 
     beforeEach(() => {
-        vi.clearAllMocks();
         mockUseMslLaboratories.mockReturnValue(AVAILABLE_RESULT);
     });
 

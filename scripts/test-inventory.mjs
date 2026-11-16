@@ -29,7 +29,11 @@ export function testInventory() {
         kind: 'configured-file-inventory',
         note: 'File discovery only; runtime dataset counts and conditional skips come from actual suite reports.',
         pest: { configured: pest, pureUnit, outsideDefaultSuites: allPest.filter((path) => !pest.includes(path)) },
-        vitest: { configured: files('tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}') },
+        vitest: {
+            configured: files(['tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}', 'tests/vitest-browser/**/*.{test,spec}.{js,ts,jsx,tsx}']),
+            jsdom: files('tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}'),
+            browser: files('tests/vitest-browser/**/*.{test,spec}.{js,ts,jsx,tsx}'),
+        },
         playwright: { configured: playwright, outsideDefaultSuites: allPlaywright.filter((path) => !playwright.includes(path)) },
     };
 }
@@ -43,6 +47,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         pureUnit: inventory.pest.pureUnit.length,
         pestOutsideDefault: inventory.pest.outsideDefaultSuites,
         vitest: inventory.vitest.configured.length,
+        vitestProjects: { jsdom: inventory.vitest.jsdom.length, browser: inventory.vitest.browser.length },
         playwright: inventory.playwright.configured.length,
         playwrightOutsideDefault: inventory.playwright.outsideDefaultSuites,
     }, null, 2));

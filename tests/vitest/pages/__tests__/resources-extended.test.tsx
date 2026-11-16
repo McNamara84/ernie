@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render as rawRender, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -86,8 +86,12 @@ vi.mock('@/hooks/use-citation-vocabularies', () => ({
     }),
 }));
 
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+
 import ResourcesPage, { deriveResourceRowKey } from '@/pages/resources';
 import { DEFAULT_RESOURCE_COLUMN_WIDTHS } from '@/pages/resources-column-widths';
+
+const render = settleRender(rawRender);
 
 interface TestResource {
     id: number;
@@ -150,7 +154,7 @@ function makePagination(overrides = {}) {
 
 const defaultSort = { key: 'updated_at' as const, direction: 'desc' as const };
 
-function renderPage(propsOverrides: Record<string, unknown> = {}) {
+async function renderPage(propsOverrides: Record<string, unknown> = {}) {
     const props = {
         resources: [makeResource()],
         pagination: makePagination(),
@@ -158,11 +162,11 @@ function renderPage(propsOverrides: Record<string, unknown> = {}) {
         ...propsOverrides,
     };
     // oxlint-disable-next-line typescript/no-explicit-any
-    return render(<ResourcesPage {...(props as any)} />);
+    return await render(<ResourcesPage {...(props as any)} />);
 }
 
 async function renderPageReady(propsOverrides: Record<string, unknown> = {}) {
-    const result = renderPage(propsOverrides);
+    const result = await renderPage(propsOverrides);
     await screen.findByTestId('resources-filters');
     return result;
 }
@@ -194,7 +198,6 @@ describe('ResourcesPage - extended', () => {
     let openMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-        vi.clearAllMocks();
         openDetachedTabMock.mockReturnValue({} as Window);
         window.localStorage.clear();
         axiosGetMock.mockResolvedValue({ data: {} });
@@ -290,22 +293,22 @@ describe('ResourcesPage - extended', () => {
             expect(screen.getByText(/sorted by: id ascending/i)).toBeInTheDocument();
         });
 
-        it('marks active and inactive sort buttons correctly', () => {
-            renderPage();
+        it('marks active and inactive sort buttons correctly', async () => {
+            await renderPage();
             expect(screen.getByRole('button', { name: /sort by the updated date.*currently sorted/i })).toHaveAttribute('aria-pressed', 'true');
             expect(screen.getByRole('button', { name: /sort by the resource id/i })).toHaveAttribute('aria-pressed', 'false');
         });
 
-        it('navigates with sort params when sort button is clicked', () => {
-            renderPage();
+        it('navigates with sort params when sort button is clicked', async () => {
+            await renderPage();
             fireEvent.click(screen.getByRole('button', { name: /sort by the resource id/i }));
             expect(routerMock.visit).toHaveBeenCalledWith(expect.stringContaining('sort_key=id'), expect.any(Object));
         });
     });
 
     describe('resource overview layout', () => {
-        it('renders resource type below ID and DOI above title in row cells', () => {
-            renderPage({
+        it('renders resource type below ID and DOI above title in row cells', async () => {
+            await renderPage({
                 resources: [makeResource({ id: 7, doi: '10.5880/compact-layout', title: 'Compact Layout Resource' })],
             });
 
@@ -320,8 +323,8 @@ describe('ResourcesPage - extended', () => {
             ]);
         });
 
-        it('keeps the regrouped columns compact and resizable', () => {
-            renderPage();
+        it('keeps the regrouped columns compact and resizable', async () => {
+            await renderPage();
 
             expect(screen.getByTestId('resources-column-id_resourcetype')).toHaveStyle({
                 width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.id_resourcetype}px`,
@@ -333,8 +336,8 @@ describe('ResourcesPage - extended', () => {
             expect(screen.getByRole('separator', { name: /resize doi and title column/i })).toBeInTheDocument();
         });
 
-        it('renders normalized party matches above the DOI with roles in canonical order', () => {
-            renderPage({
+        it('renders normalized party matches above the DOI with roles in canonical order', async () => {
+            await renderPage({
                 resources: [
                     makeResource({
                         search_matches: [
@@ -361,23 +364,23 @@ describe('ResourcesPage - extended', () => {
             expect(screen.getByLabelText(/CP & Author & Contributor: Hans, Peter.*DOI:/i)).toBeInTheDocument();
         });
 
-        it('does not render a party hint for empty matches', () => {
-            renderPage({ resources: [makeResource({ search_matches: [] })] });
+        it('does not render a party hint for empty matches', async () => {
+            await renderPage({ resources: [makeResource({ search_matches: [] })] });
 
             expect(screen.queryByTestId('resource-party-search-matches')).not.toBeInTheDocument();
         });
     });
 
     describe('metadata formatting', () => {
-        it('formats created and updated dates via time elements', () => {
-            renderPage({ resources: [makeResource({ created_at: '2024-03-10T08:00:00Z', updated_at: '2024-09-25T15:00:00Z' })] });
+        it('formats created and updated dates via time elements', async () => {
+            await renderPage({ resources: [makeResource({ created_at: '2024-03-10T08:00:00Z', updated_at: '2024-09-25T15:00:00Z' })] });
             const datetimeValues = Array.from(document.querySelectorAll('time')).map((time) => time.getAttribute('datetime'));
             expect(datetimeValues.some((value) => value?.includes('2024-03-10'))).toBe(true);
             expect(datetimeValues.some((value) => value?.includes('2024-09-25'))).toBe(true);
         });
 
-        it('formats personal and institutional authors', () => {
-            const { rerender } = renderPage({ resources: [makeResource({ first_author: { familyName: 'Smith', givenName: 'Alice' } })] });
+        it('formats personal and institutional authors', async () => {
+            const { rerender } = await renderPage({ resources: [makeResource({ first_author: { familyName: 'Smith', givenName: 'Alice' } })] });
             expect(screen.getByText('Smith, Alice')).toBeInTheDocument();
 
             rerender(
@@ -403,22 +406,22 @@ describe('ResourcesPage - extended', () => {
             expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
         });
 
-        it('renders status labels and clickable DOI/preview badges', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'published', doi: '10.5880/test.2024.001' })] });
+        it('renders status labels and clickable DOI/preview badges', async () => {
+            await renderPage({ resources: [makeResource({ publicstatus: 'published', doi: '10.5880/test.2024.001' })] });
             expect(screen.getByText('Published')).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /published.*click to open doi/i })).toBeInTheDocument();
         });
 
-        it('renders review badge as preview link when a landing page URL exists', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'review', landingPage })] });
+        it('renders review badge as preview link when a landing page URL exists', async () => {
+            await renderPage({ resources: [makeResource({ publicstatus: 'review', landingPage })] });
             expect(screen.getByText('Review')).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /review.*click to open preview/i })).toBeInTheDocument();
         });
     });
 
     describe('imports and permissions', () => {
-        it('does not offer retired legacy resource imports', () => {
-            renderPage();
+        it('does not offer retired legacy resource imports', async () => {
+            await renderPage();
             expect(screen.queryByRole('button', { name: /import all old resources/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import all resources from a datacenter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
@@ -426,7 +429,7 @@ describe('ResourcesPage - extended', () => {
 
         it('shows or hides landing page action based on permission', async () => {
             mockUser.can_manage_landing_pages = true;
-            const { rerender } = renderPage();
+            const { rerender } = await renderPage();
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();
             expect(screen.getByTestId('resources-action-setup-landing-page')).toBeInTheDocument();
@@ -439,7 +442,7 @@ describe('ResourcesPage - extended', () => {
 
         it('hides DataCite actions when registration permission is missing', async () => {
             mockUser.can_register_doi = false;
-            renderPage();
+            await renderPage();
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();
 
@@ -450,7 +453,7 @@ describe('ResourcesPage - extended', () => {
 
     describe('toolbar actions', () => {
         it('opens DOI registration for one DOI-less resource with a landing page', async () => {
-            renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage })] });
+            await renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
             await clickResourceAction('resources-action-register-doi');
@@ -459,7 +462,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('explains when DOI registration is blocked by a missing landing page', async () => {
-            renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage: null })] });
+            await renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
             await clickResourceAction('resources-action-register-doi');
@@ -469,7 +472,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('enables update metadata for registered resources with landing pages', async () => {
-            renderPage({ resources: [makeResource()] });
+            await renderPage({ resources: [makeResource()] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();
@@ -480,7 +483,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('renders export actions in the action menu', async () => {
-            renderPage();
+            await renderPage();
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();
 
@@ -490,7 +493,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('enables delete for selected non-published resources', async () => {
-            renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+            await renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await openResourceActionsMenu();
@@ -502,7 +505,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('keeps published resources out of the request until explicitly selected', async () => {
-            renderPage({ resources: [makeResource({ id: 5, publicstatus: 'published', landingPage })] });
+            await renderPage({ resources: [makeResource({ id: 5, publicstatus: 'published', landingPage })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await clickResourceAction('resources-action-delete');
@@ -514,7 +517,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('submits the batch delete request for draft resources', async () => {
-            renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+            await renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await clickResourceAction('resources-action-delete');
@@ -526,7 +529,7 @@ describe('ResourcesPage - extended', () => {
         it('hides delete action when the user lacks delete permission', async () => {
             mockUser.role = 'beginner';
             mockUser.can_delete_published_resources = false;
-            renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+            await renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await openResourceActionsMenu();
 
@@ -534,7 +537,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('opens the editor from the selected edit action', async () => {
-            renderPage();
+            await renderPage();
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await clickResourceAction('resources-action-edit');
@@ -547,14 +550,14 @@ describe('ResourcesPage - extended', () => {
     });
 
     describe('sync and persistence', () => {
-        it('syncs refreshed resources and pagination props into local state after reloads', () => {
+        it('syncs refreshed resources and pagination props into local state after reloads', async () => {
             const initialProps = {
                 resources: [makeResource({ id: 1, title: 'Old Resource Title', doi: '10.5880/test.2024.001' })],
                 pagination: makePagination({ total: 1, to: 1 }),
                 sort: defaultSort,
             };
 
-            const { rerender } = render(<ResourcesPage {...initialProps} />);
+            const { rerender } = await render(<ResourcesPage {...initialProps} />);
 
             expect(screen.getByText('Old Resource Title')).toBeInTheDocument();
             expect(screen.getByText(/all resources have been loaded.*1 total/i)).toBeInTheDocument();
@@ -573,7 +576,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('writes sort state to localStorage', async () => {
-            renderPage({ sort: { key: 'title', direction: 'asc' } });
+            await renderPage({ sort: { key: 'title', direction: 'asc' } });
 
             await waitFor(() => {
                 const stored = JSON.parse(localStorage.getItem('resources.sort-preference')!);
@@ -583,7 +586,7 @@ describe('ResourcesPage - extended', () => {
 
         it('requests server data for a saved sort on mount', async () => {
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'doi', direction: 'asc' }));
-            renderPage();
+            await renderPage();
 
             await waitFor(() => {
                 expect(routerMock.visit).toHaveBeenCalledWith(

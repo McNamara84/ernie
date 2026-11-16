@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import ResourceTypeChart from '@/components/statistics/resource-type-chart';
 
@@ -24,9 +24,6 @@ describe('ResourceTypeChart', () => {
         { type: 'Image', count: 25 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<ResourceTypeChart data={mockData} />);

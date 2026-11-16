@@ -4,7 +4,7 @@
 
 import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen, waitFor } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ContributorItem, { buildContributorRoleOptions } from '@/components/curation/fields/contributor/contributor-item';
 import type { ContributorEntry } from '@/components/curation/fields/contributor/types';
@@ -99,9 +99,6 @@ describe('ContributorItem Component', () => {
         institutionRoleOptions: ['Sponsor', 'Funder'] as const,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(() => {
         cleanup();

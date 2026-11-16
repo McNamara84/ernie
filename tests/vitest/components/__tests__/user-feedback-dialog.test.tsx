@@ -91,7 +91,6 @@ async function completeValidForm(user: ReturnType<typeof userEvent.setup>) {
 
 describe('UserFeedbackDialog', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         mocks.snapshot.mockReturnValue(structuredClone(technicalSnapshot));
         mocks.post.mockResolvedValue({ data: { message: 'Feedback submitted.', feedback_id: 'feedback-id' } });
     });

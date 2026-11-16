@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';
 import type { GeoBounds } from '@/types/portal';
@@ -15,9 +15,6 @@ describe('PortalGeoFilter', () => {
         onBoundsChange: vi.fn(),
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('Disabled State', () => {
         it('renders the toggle switch and label', () => {

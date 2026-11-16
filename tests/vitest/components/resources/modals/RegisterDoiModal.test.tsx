@@ -103,16 +103,17 @@ describe('RegisterDoiModal', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         mockGet.mockReset();
         mockPost.mockReset();
 
         // Default mock for prefix config
-        mockGet.mockImplementation((url: string) => Promise.resolve({
-            data: url.endsWith('/datacite-status')
-                ? { state: 'findable', mode: 'test', can_publish: true, can_update: true, publication: null }
-                : mockPrefixConfig,
-        }));
+        mockGet.mockImplementation((url: string) =>
+            Promise.resolve({
+                data: url.endsWith('/datacite-status')
+                    ? { state: 'findable', mode: 'test', can_publish: true, can_update: true, publication: null }
+                    : mockPrefixConfig,
+            }),
+        );
         mockPost.mockRejectedValue(new Error('Unexpected DOI registration request in test.'));
     });
 
@@ -162,9 +163,7 @@ describe('RegisterDoiModal', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Landing Page Required')).toBeInTheDocument();
-            expect(
-                screen.getByText(/a landing page must be created before you can register a doi/i)
-            ).toBeInTheDocument();
+            expect(screen.getByText(/a landing page must be created before you can register a doi/i)).toBeInTheDocument();
         });
     });
 
@@ -173,9 +172,7 @@ describe('RegisterDoiModal', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Test Mode Active')).toBeInTheDocument();
-            expect(
-                screen.getByText(/you are using the datacite test environment/i)
-            ).toBeInTheDocument();
+            expect(screen.getByText(/you are using the datacite test environment/i)).toBeInTheDocument();
         });
     });
 
@@ -213,9 +210,7 @@ describe('RegisterDoiModal', () => {
         await waitFor(() => {
             expect(screen.getByText('Existing DOI')).toBeInTheDocument();
             expect(screen.getByText('10.83279/existing-doi')).toBeInTheDocument();
-            expect(
-                screen.getByText(/explicitly approves publication/i)
-            ).toBeInTheDocument();
+            expect(screen.getByText(/explicitly approves publication/i)).toBeInTheDocument();
         });
     });
 
@@ -321,6 +316,7 @@ describe('RegisterDoiModal', () => {
     });
 
     it('displays error message on registration failure', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         const user = userEvent.setup();
 
         mockPost.mockRejectedValue({
@@ -346,6 +342,9 @@ describe('RegisterDoiModal', () => {
             expect(screen.getByText('Error')).toBeInTheDocument();
             expect(screen.getByText('Invalid metadata')).toBeInTheDocument();
         });
+
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('DOI registration failed:', expect.objectContaining({ isAxiosError: true }));
     });
 
     it('changes button text to "Update metadata" for published DOI records', async () => {
@@ -385,6 +384,7 @@ describe('RegisterDoiModal', () => {
     });
 
     it('displays error when API call fails and shows no prefixes', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         mockGet.mockRejectedValue(new Error('Network error'));
 
         render(<RegisterDoiModal {...defaultProps} />);
@@ -402,6 +402,9 @@ describe('RegisterDoiModal', () => {
         // Submit button should be disabled when no prefix is available
         const submitButton = screen.getByRole('button', { name: /publish doi and landing page/i });
         expect(submitButton).toBeDisabled();
+
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('Failed to load prefix configuration:', expect.objectContaining({ message: 'Network error' }));
     });
 
     it('resets state when modal closes', async () => {
@@ -720,6 +723,7 @@ describe('RegisterDoiModal', () => {
         });
 
         it('re-displays generic error message when 500 response has no ORCID payload', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             const user = userEvent.setup();
 
             mockPost.mockRejectedValueOnce({
@@ -743,6 +747,9 @@ describe('RegisterDoiModal', () => {
             // No preflight alerts.
             expect(screen.queryByTestId('orcid-preflight-blockers')).not.toBeInTheDocument();
             expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith('DOI registration failed:', expect.objectContaining({ isAxiosError: true }));
         });
 
         it('offers a "Retry verification" button that re-runs preflight with force=false', async () => {
@@ -765,17 +772,15 @@ describe('RegisterDoiModal', () => {
             });
 
             // First: warning. Second (retry): success.
-            mockPost
-                .mockRejectedValueOnce(warningResponse)
-                .mockResolvedValueOnce({
-                    data: {
-                        success: true,
-                        message: 'DOI registered successfully',
-                        doi: '10.83279/retried-doi',
-                        mode: 'test',
-                        updated: false,
-                    },
-                });
+            mockPost.mockRejectedValueOnce(warningResponse).mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'DOI registered successfully',
+                    doi: '10.83279/retried-doi',
+                    mode: 'test',
+                    updated: false,
+                },
+            });
 
             const onSuccess = vi.fn();
             render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
@@ -795,7 +800,7 @@ describe('RegisterDoiModal', () => {
                 expect(mockPost).toHaveBeenLastCalledWith('/resources/1/publish-doi', {
                     prefix: '10.83279',
                     force: false,
-                confirm_publication: true,
+                    confirm_publication: true,
                 });
             });
 
@@ -828,9 +833,7 @@ describe('RegisterDoiModal', () => {
 
             // First call: warning. Second (override): pending forever so we can
             // observe the loading state while the request is in flight.
-            mockPost
-                .mockRejectedValueOnce(warningResponse)
-                .mockImplementationOnce(() => new Promise(() => {}));
+            mockPost.mockRejectedValueOnce(warningResponse).mockImplementationOnce(() => new Promise(() => {}));
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {
@@ -873,9 +876,7 @@ describe('RegisterDoiModal', () => {
 
             // First call: warning. Second (retry): pending forever so we can
             // observe the retry button's loading state while the request is in flight.
-            mockPost
-                .mockRejectedValueOnce(warningResponse)
-                .mockImplementationOnce(() => new Promise(() => {}));
+            mockPost.mockRejectedValueOnce(warningResponse).mockImplementationOnce(() => new Promise(() => {}));
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {
@@ -897,7 +898,10 @@ describe('RegisterDoiModal', () => {
         });
     });
     it('does not report an unconfirmed publication as success', async () => {
-        mockPost.mockResolvedValue({ status: 202, data: { success: false, doi: null, message: 'Landing page published; DOI publication not confirmed.' } });
+        mockPost.mockResolvedValue({
+            status: 202,
+            data: { success: false, doi: null, message: 'Landing page published; DOI publication not confirmed.' },
+        });
         render(<RegisterDoiModal {...defaultProps} />);
         const button = await screen.findByRole('button', { name: 'Publish DOI and landing page' });
         await waitFor(() => expect(button).toBeEnabled());
@@ -909,20 +913,35 @@ describe('RegisterDoiModal', () => {
     });
 
     it('displays a persisted publication failure when the dialog is reopened', async () => {
-        mockGet.mockImplementation((url: string) => Promise.resolve({ data: url.endsWith('/datacite-status')
-            ? { state: 'missing', mode: 'test', can_publish: true, can_update: false, publication: { status: 'pending_reconciliation', last_error: 'Earlier response was lost.' } }
-            : mockPrefixConfig }));
+        mockGet.mockImplementation((url: string) =>
+            Promise.resolve({
+                data: url.endsWith('/datacite-status')
+                    ? {
+                          state: 'missing',
+                          mode: 'test',
+                          can_publish: true,
+                          can_update: false,
+                          publication: { status: 'pending_reconciliation', last_error: 'Earlier response was lost.' },
+                      }
+                    : mockPrefixConfig,
+            }),
+        );
         render(<RegisterDoiModal {...defaultProps} />);
         expect(await screen.findByText('Earlier response was lost.')).toBeVisible();
         expect(mockPost).not.toHaveBeenCalled();
     });
 
     it('blocks publication when the authenticated status is unavailable', async () => {
-        mockGet.mockImplementation((url: string) => url.endsWith('/datacite-status') ? Promise.reject(new Error('Unavailable')) : Promise.resolve({ data: mockPrefixConfig }));
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockGet.mockImplementation((url: string) =>
+            url.endsWith('/datacite-status') ? Promise.reject(new Error('Unavailable')) : Promise.resolve({ data: mockPrefixConfig }),
+        );
         render(<RegisterDoiModal {...defaultProps} />);
         expect(await screen.findByText(/Failed to load DOI prefix configuration/)).toBeVisible();
         expect(screen.getByRole('button', { name: 'Publish DOI and landing page' })).toBeDisabled();
         expect(mockPost).not.toHaveBeenCalled();
-    });
 
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('Failed to load prefix configuration:', expect.objectContaining({ message: 'Unavailable' }));
+    });
 });

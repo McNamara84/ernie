@@ -98,7 +98,6 @@ function renderPage(grouped = false, items = [suggestion()]) {
     return render(pageElement(grouped, items));
 }
 beforeEach(() => {
-    vi.clearAllMocks();
     window.localStorage.clear();
     vi.mocked(axios.post).mockResolvedValue({ data: { success: true, message: 'Saved.', results: [], follow_ups: [], failure_count: 0 } });
 });

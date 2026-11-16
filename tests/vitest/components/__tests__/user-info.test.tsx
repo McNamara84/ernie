@@ -13,10 +13,8 @@ vi.mock('@/hooks/use-initials', () => ({
 
 vi.mock('@/components/ui/avatar', () => ({
     Avatar: ({ children }: { children?: ReactNode }) => <div data-testid="avatar">{children}</div>,
-    AvatarImage: (props: ComponentProps<'img'>) => <img data-testid="avatar-image" {...props} />,
-    AvatarFallback: ({ children }: { children?: ReactNode }) => (
-        <div data-testid="avatar-fallback">{children}</div>
-    ),
+    AvatarImage: (props: ComponentProps<'img'>) => (props.src ? <img data-testid="avatar-image" {...props} /> : null),
+    AvatarFallback: ({ children }: { children?: ReactNode }) => <div data-testid="avatar-fallback">{children}</div>,
 }));
 
 describe('UserInfo', () => {

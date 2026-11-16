@@ -41,7 +41,6 @@ describe('ContactModal', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         // Reassign after MSW hook so the spy captures calls.
         global.fetch = mockFetch;
         // Setup CSRF meta tag

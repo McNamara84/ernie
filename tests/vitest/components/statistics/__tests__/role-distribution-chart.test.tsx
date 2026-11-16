@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import RoleDistributionChart from '@/components/statistics/role-distribution-chart';
 
@@ -24,9 +24,6 @@ describe('RoleDistributionChart', () => {
         { role: 'Researcher', count: 100 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<RoleDistributionChart data={mockData} />);

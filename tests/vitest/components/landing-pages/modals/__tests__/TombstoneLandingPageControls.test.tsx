@@ -46,7 +46,6 @@ function setup(state: TombstoneState = initial, status: 'eligible' | 'ineligible
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
     sessionStorage.clear();
     previewWindow.location.href = '';
 });

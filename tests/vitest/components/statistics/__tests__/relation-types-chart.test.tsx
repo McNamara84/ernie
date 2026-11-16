@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import RelationTypesChart from '@/components/statistics/relation-types-chart';
 
@@ -25,9 +25,6 @@ describe('RelationTypesChart', () => {
         { type: 'IsCitedBy', count: 80, datasetCount: 60, percentage: 8.0 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<RelationTypesChart data={mockData} />);

@@ -89,7 +89,6 @@ function renderPage(item: BaseSuggestionItem, grouped = false) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
     vi.mocked(axios.post).mockResolvedValue({ data: { success: true, message: 'Saved.', results: [], follow_ups: [], failure_count: 0 } });
 });
 
