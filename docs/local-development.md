@@ -82,7 +82,7 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.13.0** from `.node-version` and npm **12.2.2** from
+    Use Node **26.13.1** from `.node-version` and npm **12.2.2** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
@@ -104,7 +104,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
 
-    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.0** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.1** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
@@ -118,6 +118,10 @@ If the repository stays under `D:\` or another NTFS path:
 
     - Main URL: `https://ernie.localhost:3333`
     - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
+
+    The Traefik dashboard uses port 8080 by default. If another local application
+    such as ELMO uses that port, set `TRAEFIK_DASHBOARD_PORT=8084` in `.env.docker`
+    before starting the stack.
 
     If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
@@ -313,10 +317,13 @@ the certificate bundle excludes the compromised emSign ECC Root CA - G3, and
 Chromium launches without the installers, then scans the complete image alongside
 the application and Nginx images before Stage publication.
 
-F-UJI 4.0.1 restricts Pandas, Levenshtein, Tika, and Uvicorn to specific release
-lines; Playwright also fixes its supported Pyee major. Their newer incompatible
-releases require an upstream compatibility update. The image build keeps these
-constraints and fails if the installed Python packages become inconsistent.
+F-UJI 4.0.1 restricts Pandas, Levenshtein, Tika, Uvicorn, and python-dateutil to
+specific release lines. Their newer incompatible releases require an upstream
+compatibility update. The image build keeps these constraints and fails if the
+installed Python packages become inconsistent. Playwright 1.65.2 no longer
+requires Pyee, allowing the inherited package to update to its current release.
+The image also installs `libatomic1`, which Playwright's bundled Node runtime
+needs before it can install Chromium.
 
 For a one-worker local load comparison, run:
 
@@ -1375,36 +1382,35 @@ can pass this stage; the probe does not substitute unreviewed development code.
 
 ### Dependency update evidence
 
-The version inventory, upstream constraints and remaining image findings from
-5 November 2026 are recorded in [dependency-update-audit.json](dependency-update-audit.json).
-Composer and application npm audits were checked again on 6 November 2026 and
-report no known vulnerabilities. Some
-transitive packages remain at the newest versions permitted by their upstream
-dependencies; the inventory names these constraints explicitly.
+The version inventory, upstream constraints, validation results and image findings
+for the 16 November 2026 update are recorded in
+[dependency-update-audit.json](dependency-update-audit.json). Composer and npm
+audits report no known vulnerabilities. Transitive packages that cannot use the
+latest major release remain within their upstream requirements; the inventory
+records those constraints.
 
-npm 12.2.2 includes Undici 6.29.1, so the temporary npm patch has been removed
-from Docker builds and CI ([npm release notes](https://github.com/npm/cli/releases/tag/v12.2.2)).
-Install the pinned npm version on the host as shown above; no manual dependency
-replacement is needed.
+Node 26.13.1 and Composer 2.11.2 include upstream security fixes. Node archives
+are verified for both supported architectures, and container images retain exact
+digests. All 13 GitHub Actions were checked against their latest stable releases
+and verified commit hashes; their existing pins were already current.
 
-On `dev`, Playwright stays pinned to 1.63.0 because versions 1.64.0 and 1.64.1
-have a [Linux WebKit rendering regression](testing.md#linux-webkit-rendering-regression).
-The v1.1.2 dependency audit records the versions tested on `main`; this branch
-retains its browser compatibility pin and CI mitigations. Update the test runner
-and browser image together after verifying the affected WebKit scenarios.
-Major upgrades and incompatible upstream changes are tracked separately in the audit.
+npm 12.2.2 includes Undici 6.29.1, so no manual npm dependency patch is needed.
+Install the pinned npm version on the host as shown above. Playwright 1.65.1 and
+its matching Microsoft browser image are available together. F-UJI independently
+uses Python Playwright 1.65.2 and installs the Chromium revision supplied by that
+package. The jsdom 31, Oxfmt and SoupSieve upgrades are included and validated.
 
 Local Trivy scans of the application, Nginx and F-UJI images pass the existing
-gate for fixable HIGH/CRITICAL findings. The application and F-UJI images still
-have distribution findings without available fixes; the audit records these
-separately. A passing gate does not mean that an image has no known vulnerabilities.
+gate for fixable HIGH/CRITICAL findings. The application and F-UJI images retain
+findings without available fixes. A passing gate does not mean that an image has
+no known vulnerabilities; the audit records the remaining findings separately.
 
-The official MySQL 9.7.4 image still contains scanner findings in its bundled
-`mysqlsh` Python dependencies and the Go library embedded in `gosu`. These are
-listed individually in the audit; updating the image does not establish that it
-has no known vulnerabilities. The server remains pinned to MySQL 9.7, and the
-existing security gates retain their original severity rules and suppressions.
-
+The latest official MySQL 9.7.4 image still has 35 HIGH/CRITICAL findings in its
+bundled `mysqlsh` Python dependencies and the Go library embedded in `gosu`.
+Fixed component versions exist, but no newer supported official MySQL 9.7 image
+was available during this update. These findings are recorded individually and
+remain unresolved. The server stays on the required MySQL 9.7 line; no security
+rules or suppressions were weakened.
 
 ### DOI publication and metadata update safety
 

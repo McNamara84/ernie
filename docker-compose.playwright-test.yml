@@ -20,3 +20,8 @@ services:
       DATACITE_TEST_PASSWORD: ""
       DATACITE_USERNAME: ""
       DATACITE_PASSWORD: ""
+      # Exercise the optional legacy citation-cache fallback immediately in FPM.
+      DB_METAWORKS_HOST: "127.0.0.1"
+      DB_METAWORKS_PORT: "3306"
+      DB_METAWORKS_USER: ""
+      DB_METAWORKS_PASSWORD: ""
