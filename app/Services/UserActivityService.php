@@ -97,7 +97,7 @@ final class UserActivityService
             'titles', 'resourceRights', 'creators.creatorable', 'creators.affiliations',
             'contributors.contributorable', 'contributors.contributorTypes', 'contributors.affiliations',
             'descriptions', 'dates.dateType', 'subjects', 'geoLocations',
-            'relatedIdentifiers', 'fundingReferences', 'instruments',
+            'relatedIdentifiers', 'fundingReferences', 'instruments', 'formats', 'sizes',
         ];
         if ($includeRelatedItems) {
             $relations = [...$relations, 'relatedItems.titles', 'relatedItems.creators.affiliations', 'relatedItems.contributors.affiliations'];

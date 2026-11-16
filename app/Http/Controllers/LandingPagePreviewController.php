@@ -15,6 +15,7 @@ use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageDownloadAvailabilityService;
+use App\Services\LandingPageLinkSyncService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\Usage\CounterReadService;
@@ -127,12 +128,12 @@ class LandingPagePreviewController extends Controller
                 ? $effectivePrimaryDownloadLabel
                 : null,
             'ftp_format_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
-                ? ($validated['ftp_format_id'] ?? null)
+                ? $resource->landingPage?->ftp_format_id
                 : null,
             'ftp_size_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
-                ? ($validated['ftp_size_id'] ?? null)
+                ? $resource->landingPage?->ftp_size_id
                 : null,
-            'links' => $isLinksTemplate ? ($validated['links'] ?? $resource->landingPage?->links->toArray() ?? []) : [],
+            'links' => $isLinksTemplate ? app(LandingPageLinkSyncService::class)->preview($resource->landingPage, $validated['links'] ?? $resource->landingPage?->links->toArray() ?? []) : [],
             'files' => $previewFiles,
             'resource_id' => $resource->id,
         ]);

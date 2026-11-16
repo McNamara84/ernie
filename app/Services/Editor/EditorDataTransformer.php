@@ -22,6 +22,7 @@ use App\Models\Right;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\InstrumentNameResolutionService;
 use App\Services\Rights\CustomRightCatalogService;
+use App\Services\SizeFormat\ResourceContentMetadataService;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
@@ -124,6 +125,7 @@ class EditorDataTransformer
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
             'instruments' => $instruments,
+            'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'initialDatacenterId' => $resource->datacenter_id,
             'landingPage' => $resource->landingPage ? [
                 'id' => $resource->landingPage->id,

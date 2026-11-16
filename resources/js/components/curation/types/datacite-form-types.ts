@@ -1,3 +1,4 @@
+import type { ContentMetadata } from '@/lib/content-metadata';
 import type { DoiPublicationSummary } from '@/lib/datacite-registration';
 // organize-imports-ignore
 /**
@@ -280,6 +281,7 @@ export interface DataCiteFormProps {
     initialFundingReferences?: FundingReferenceEntry[];
     initialMslLaboratories?: MSLLaboratory[];
     initialInstruments?: InstrumentSelection[];
+    initialContentMetadata?: ContentMetadata;
     /** Initial datacenter assigned to this resource */
     initialDatacenterId?: number | null;
     /** Available datacenters for selection */

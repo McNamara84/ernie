@@ -27,6 +27,8 @@ final readonly class DataCiteXmlImportResult
      * @param  array<int, array<string, mixed>>  $fundingReferences
      * @param  array<int, array<string, string|null>>  $mslLaboratories
      * @param  array<int, array<string, mixed>>  $relatedItems
+     * @param  list<array<string, mixed>>  $formats
+     * @param  list<array<string, mixed>>  $sizes
      */
     public function __construct(
         public ?string $doi,
@@ -49,6 +51,8 @@ final readonly class DataCiteXmlImportResult
         public array $fundingReferences,
         public array $mslLaboratories,
         public array $relatedItems,
+        public array $formats = [],
+        public array $sizes = [],
     ) {}
 
     /**
@@ -83,6 +87,8 @@ final readonly class DataCiteXmlImportResult
             'fundingReferences' => $this->fundingReferences,
             'mslLaboratories' => $this->mslLaboratories,
             'relatedItems' => $this->relatedItems,
+            'formats' => $this->formats,
+            'sizes' => $this->sizes,
         ];
     }
 }

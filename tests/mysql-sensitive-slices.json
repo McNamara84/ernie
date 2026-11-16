@@ -82,6 +82,7 @@
         "assessment": ["tests/pest/Feature/Database/AssessmentRunSchemaTest.php"],
         "editor-background": [
             "tests/pest/Feature/Database/EditorBackgroundConcurrencyTest.php",
+            "tests/pest/Feature/Database/ResourceContentMetadataConcurrencyTest.php",
             "tests/pest/Feature/Database/DataCiteConcurrentWriteTest.php"
         ],
         "tombstone-schema": ["tests/pest/Feature/Database/ResourceTombstoneSchemaTest.php"],

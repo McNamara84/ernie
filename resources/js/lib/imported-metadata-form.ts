@@ -7,6 +7,7 @@ import type { TagInputItem } from '@/components/curation/fields/tag-input-field'
 import type { DateEntry, LicenseEntry, TitleEntry } from '@/components/curation/types/datacite-form-types';
 import { isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from '@/components/curation/utils/date-rules';
 import { mapInitialAuthorToEntry, mapInitialContributorToEntry, normalizeTitleTypeSlug } from '@/components/curation/utils/form-helpers';
+import { type FormatEntry, type SizeEntry, withClientIds } from '@/lib/content-metadata';
 import { parseDateTime } from '@/lib/date-utils';
 import type { ImportedMetadata } from '@/lib/imported-metadata';
 import { identityPart } from '@/lib/imported-metadata';
@@ -14,6 +15,8 @@ import type { InstrumentSelection, Language, License, MSLLaboratory, RelatedIden
 import type { SelectedKeyword } from '@/types/vocabulary';
 
 export interface ImportedFormParts {
+    formats: FormatEntry[];
+    sizes: SizeEntry[];
     scalar: Pick<ImportedMetadata, 'doi' | 'year' | 'resourceType' | 'version'> & { language: string };
     titles: TitleEntry[];
     licenses: LicenseEntry[];
@@ -57,6 +60,8 @@ export function toImportedFormParts(metadata: ImportedMetadata, languages: Langu
     ];
 
     return {
+        formats: withClientIds(metadata.formats ?? []),
+        sizes: withClientIds(metadata.sizes ?? []),
         scalar: { doi: metadata.doi, year: metadata.year, resourceType: metadata.resourceType, version: metadata.version, language },
         titles: (metadata.titles ?? [])
             .filter((item) => typeof item.title === 'string' && item.title.trim() !== '')

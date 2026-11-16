@@ -21,6 +21,7 @@ use App\Services\Editor\EditorResourceSaveService;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceListingPayloadService;
 use App\Services\Resources\ResourceQueryBuilder;
+use App\Services\SizeFormat\ResourceContentMetadataService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
@@ -154,6 +155,7 @@ class ResourceController extends Controller
         return response()->json([
             'message' => $message,
             'geoLocationChanges' => $changes,
+            'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
@@ -212,6 +214,7 @@ class ResourceController extends Controller
         return response()->json([
             'message' => $message,
             'geoLocationChanges' => $changes,
+            'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),

@@ -621,6 +621,54 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('resource formats and sizes', () => {
+        it('saves resource metadata independently of landing-page setup with assistant size meanings', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialResourceId: '42',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Assistant metadata', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [{ id: 1, value: 'application/x-netcdf' }],
+                    sizes: [{ id: 2, numeric_value: '2048.0000', unit: 'bytes', type: 'Uncompressed Primary Data Size', editable: true }],
+                    fingerprint: 'a'.repeat(64),
+                },
+            });
+            const section = getAccordionTrigger(/Format & Size/);
+            if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+            await user.clear(screen.getByTestId('size-value-0'));
+            await user.type(screen.getByTestId('size-value-0'), '4096');
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() =>
+                expect(axios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({
+                        resourceId: 42,
+                        formats: [{ id: 1, value: 'application/x-netcdf' }],
+                        sizes: [{ id: 2, numeric_value: '4096', unit: 'bytes', type: 'Uncompressed Primary Data Size' }],
+                        contentMetadataFingerprint: 'a'.repeat(64),
+                        contentMetadataChanged: true,
+                    }),
+                    expect.any(Object),
+                ),
+            );
+        });
+
+        it('opens the new section and blocks invalid digital sizes before saving a draft', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Invalid size', titleType: 'main-title' }],
+                initialContentMetadata: { formats: [], sizes: [{ numeric_value: '-2', unit: 'MB', type: null }], fingerprint: null },
+            });
+            const section = getAccordionTrigger(/Format & Size/);
+            if (section.getAttribute('aria-expanded') === 'true') await user.click(section);
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(section).toHaveAttribute('aria-expanded', 'true'));
+            expect(screen.getByTestId('size-value-0')).toHaveAttribute('aria-invalid', 'true');
+            expect(axios.post).not.toHaveBeenCalled();
+        });
+    });
+
     describe('unsaved editor changes', () => {
         const unloadIsBlocked = () => {
             const event = new Event('beforeunload', { cancelable: true });

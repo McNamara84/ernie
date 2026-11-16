@@ -1,8 +1,11 @@
 import type { FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import type { DataCiteFormProps } from '@/components/curation/types/datacite-form-types';
+import type { ResourceFormat, ResourceSize } from '@/lib/content-metadata';
 import type { SelectedKeyword } from '@/types/vocabulary';
 
 export interface ImportedMetadata {
+    formats?: ResourceFormat[];
+    sizes?: ResourceSize[];
     doi?: string | null;
     year?: string | null;
     resourceType?: string | null;

@@ -116,13 +116,11 @@ interface BuildLandingPagePayloadOptions {
     supportsFtpUrl: boolean;
     ftpUrl?: string;
     primaryDownloadLabel?: string;
-    ftpFormatId?: number | null;
-    ftpSizeId?: number | null;
     supportsDownloadActivation?: boolean;
     activateDownloads?: boolean;
     supportsLinks: boolean;
     links?: LandingPageLink[];
-    files?: Array<{ id: number; label?: string | null; format_id?: number | null; size_id?: number | null }>;
+    files?: Array<{ id: number; label?: string | null }>;
     isExternal: boolean;
     externalDomainId?: string;
     externalPath?: string;
@@ -134,11 +132,10 @@ function getCompleteLandingPageLinks(links: LandingPageLink[] = []) {
     return links
         .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
         .map((link, index) => ({
+            ...(link.id !== undefined ? { id: link.id } : {}),
             url: link.url,
             label: link.label,
             kind: link.kind ?? 'related',
-            format_id: link.kind === 'download' ? (link.format_id ?? null) : null,
-            size_id: link.kind === 'download' ? (link.size_id ?? null) : null,
             position: index,
         }));
 }
@@ -156,8 +153,6 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
     if (options.supportsFtpUrl) {
         payload.ftp_url = options.ftpUrl || null;
         payload.primary_download_label = options.ftpUrl ? options.primaryDownloadLabel?.trim() || null : null;
-        payload.ftp_format_id = options.ftpUrl ? (options.ftpFormatId ?? null) : null;
-        payload.ftp_size_id = options.ftpUrl ? (options.ftpSizeId ?? null) : null;
     }
 
     if (options.supportsDownloadActivation) {
@@ -181,8 +176,6 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
         payload.files = options.files.map((file) => ({
             id: file.id,
             label: file.label?.trim() || null,
-            format_id: file.format_id ?? null,
-            size_id: file.size_id ?? null,
         }));
     }
 

@@ -26,6 +26,35 @@ XML;
     return UploadedFile::fake()->createWithContent('import.xml', $xml);
 }
 
+test('XML and JSON uploads preserve formats and size meanings through preview and draft persistence', function (string $format, bool $preview) {
+    $this->actingAs(User::factory()->curator()->create());
+    $type = ResourceType::firstOrCreate(['slug' => 'dataset'], ['name' => 'Dataset']);
+    if ($format === 'xml') {
+        $file = editorPreviewXml(relatedItems: '<resourceType resourceTypeGeneral="Dataset">Dataset</resourceType><formats><format>text/csv</format><format>application/x-legacy-format</format></formats><sizes><size>2048 Uncompressed Primary Data Size [bytes]</size><size>15 pages</size></sizes>');
+    } else {
+        $file = UploadedFile::fake()->createWithContent('content.json', dataCiteJson(minimalAttributes([
+            'formats' => ['text/csv', 'application/x-legacy-format'],
+            'sizes' => ['2048 Uncompressed Primary Data Size [bytes]', '15 pages'],
+        ])));
+    }
+    $url = $preview ? route('editor.upload-'.$format.'.preview') : '/dashboard/upload-'.$format;
+    $response = $this->postJson($url, ['file' => $file])->assertSuccessful();
+    if ($preview) {
+        $response->assertJsonPath('metadata.formats.0.value', 'text/csv')
+            ->assertJsonPath('metadata.sizes.0.type', 'Uncompressed Primary Data Size')
+            ->assertJsonPath('metadata.sizes.1.editable', false);
+        $data = $response->json('metadata');
+        $sizes = array_map(fn (array $row) => array_diff_key($row, ['editable' => true]), $data['sizes']);
+        $this->postJson('/editor/resources/draft', ['intent' => 'save-draft', 'resourceType' => $type->id,
+            'titles' => $data['titles'], 'formats' => $data['formats'], 'sizes' => $sizes,
+        ])->assertCreated();
+    }
+    $resource = Resource::latest('id')->firstOrFail();
+    expect($resource->formats()->pluck('value')->all())->toBe(['text/csv', 'application/x-legacy-format'])
+        ->and($resource->sizes()->first()->export_string)->toBe('2048 Uncompressed Primary Data Size [bytes]')
+        ->and($resource->sizes()->latest('id')->first()->unit)->toBe('pages');
+})->with(['xml', 'json'])->with([true, false]);
+
 test('editor XML preview returns parsed metadata without creating a draft or session', function () {
     $this->actingAs(User::factory()->create(['role' => 'curator']));
     $existing = Resource::factory()->create(['doi' => '10.5880/preview']);

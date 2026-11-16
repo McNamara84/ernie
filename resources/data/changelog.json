@@ -4,6 +4,10 @@
         "date": "2026-11-09",
         "features": [
             {
+                "title": "Format and Size Editing in the Data Editor",
+                "description": "Curators can add and edit resource formats and sizes in a dedicated Format & Size section, even before configuring a landing page. Formats use a searchable catalog of all registered IANA MIME types; sizes combine a decimal number with decimal or binary units. Existing assistant values, size meanings and download assignments are preserved, while XML and JSON uploads include these fields. Format and size controls have been removed from landing-page setup. Concurrent metadata changes are detected before they can be overwritten."
+            },
+            {
                 "title": "DCAT-AP 3.0.1 Resource Metadata",
                 "description": "Eligible published resources offer the same DCAT-AP 3.0.1 RDF/XML on their landing pages and through the dcat_ap OAI-PMH format. Discovery links, distribution formats and sizes, controlled EU themes, contact details, geographic coverage and rights are included. IGSNs are excluded. A read-only audit reports missing required metadata and ambiguous licenses; persistent format-specific deletion history keeps incremental harvesting reliable. Withdrawn resources retain metadata without direct downloads. Offline RDF parser and SHACL checks cover real and synthetic datasets. The format has an independent feature flag and a documented audit and synchronization rollout.",
                 "references": [

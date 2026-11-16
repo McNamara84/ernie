@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEditorLoadTimeline } from '@/hooks/use-editor-load-timeline';
 import { useEditorSlowLoadReporter } from '@/hooks/use-editor-slow-load-reporter';
 import AppLayout from '@/layouts/app-layout';
+import type { ContentMetadata } from '@/lib/content-metadata';
 import type { DoiPublicationSummary } from '@/lib/datacite-registration';
 import { clearEditorLoadTimeline, EDITOR_CLIENT_READY_PROGRESS, EDITOR_RESOURCE_TYPES_PROGRESS } from '@/lib/editor-load';
 import { type WarmupResponse, warmupSession } from '@/lib/session-warmup';
@@ -67,6 +68,7 @@ interface EditorProps {
     fundingReferences?: FundingReferenceEntry[];
     mslLaboratories?: MSLLaboratory[];
     instruments?: InstrumentSelection[];
+    contentMetadata?: ContentMetadata;
     activeRelationTypes?: string[];
     activeIdentifierTypes?: string[];
     initialDatacenterId?: number | null;
@@ -121,6 +123,7 @@ export default function Editor({
     fundingReferences = [],
     mslLaboratories = [],
     instruments = [],
+    contentMetadata,
     activeRelationTypes,
     activeIdentifierTypes,
     initialDatacenterId = null,
@@ -365,6 +368,7 @@ export default function Editor({
                         initialFundingReferences={fundingReferences}
                         initialMslLaboratories={mslLaboratories}
                         initialInstruments={instruments}
+                        initialContentMetadata={contentMetadata}
                         isUserAdmin={isUserAdmin}
                         activeRelationTypes={activeRelationTypes}
                         activeIdentifierTypes={activeIdentifierTypes}

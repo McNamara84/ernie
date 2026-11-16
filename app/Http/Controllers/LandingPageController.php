@@ -14,9 +14,9 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\EmbargoService;
 use App\Services\KeywordSuggestionService;
-use App\Services\LandingPageContentDescriptorOptionsService;
 use App\Services\LandingPageDownloadAvailabilityService;
 use App\Services\LandingPageDownloadUrlSuggestionService;
+use App\Services\LandingPageLinkSyncService;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\UserActivityService;
 use App\Support\Traits\ChecksCacheTagging;
@@ -650,8 +650,6 @@ class LandingPageController extends Controller
                         'label' => array_key_exists('label', $fileData)
                             ? self::normalizeOptionalLabel($fileData['label'])
                             : $file->label,
-                        'format_id' => $fileData['format_id'] ?? null,
-                        'size_id' => $fileData['size_id'] ?? null,
                     ]);
                     $file->save();
                 }
@@ -662,12 +660,7 @@ class LandingPageController extends Controller
                 // Template does not support links – clear any existing ones
                 $lockedLandingPage->links()->delete();
             } elseif (array_key_exists('links', $validated)) {
-                // Template supports links and payload includes link data – replace all
-                $lockedLandingPage->links()->delete();
-
-                if (! empty($validated['links'])) {
-                    $lockedLandingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
-                }
+                app(LandingPageLinkSyncService::class)->sync($lockedLandingPage, $validated['links'] ?? []);
             }
 
             // Relations may have been replaced above. Clear only a now-empty legacy hold.
@@ -849,11 +842,6 @@ class LandingPageController extends Controller
         $payload['links'] = self::templateSupportsLinks($effectiveTemplate)
             ? $landingPage->links->values()->toArray()
             : [];
-        $payload = [
-            ...$payload,
-            ...app(LandingPageContentDescriptorOptionsService::class)->for($resource),
-        ];
-
         if (self::templateSupportsExternalFields($effectiveTemplate)) {
             $payload['external_domain_id'] = $landingPage->external_domain_id;
             $payload['external_path'] = $landingPage->external_path;

@@ -37,6 +37,7 @@ use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
+use App\Services\SizeFormat\ResourceContentMetadataService;
 use App\Services\Subjects\SubjectEquivalenceService;
 use App\Support\OrcidNormalizer;
 use App\Support\PersonIdentityMatcher;
@@ -227,6 +228,7 @@ class ResourceStorageService
             $this->storeRelatedItems($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
             $this->storeInstruments($resource, $data, $isUpdate);
+            app(ResourceContentMetadataService::class)->sync($resource, $data, $isUpdate);
 
             if ($isUpdate) {
                 // Child-only edits can leave every parent attribute unchanged.

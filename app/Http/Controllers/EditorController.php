@@ -37,7 +37,7 @@ class EditorController extends Controller
     private const UPLOAD_SESSION_REQUIRED_ARRAY_KEYS = [
         'titles', 'licenses', 'rawRights', 'authors', 'contributors', 'descriptions',
         'dates', 'controlledKeywords', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'gemetKeywords',
-        'coverages', 'relatedWorks', 'relatedItems', 'instruments', 'fundingReferences', 'mslLaboratories',
+        'coverages', 'relatedWorks', 'relatedItems', 'instruments', 'fundingReferences', 'mslLaboratories', 'formats', 'sizes',
     ];
 
     /**
@@ -150,6 +150,7 @@ class EditorController extends Controller
                 'relatedItems' => $sessionData['relatedItems'] ?? [],
                 'instruments' => $this->instrumentResolver->resolve($sessionData['instruments'] ?? []),
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
+                'contentMetadata' => ['formats' => $sessionData['formats'] ?? [], 'sizes' => $sessionData['sizes'] ?? [], 'fingerprint' => null],
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
             ]
         ));
@@ -215,6 +216,7 @@ class EditorController extends Controller
                 'relatedItems' => $sessionData['relatedItems'] ?? [],
                 'instruments' => $this->instrumentResolver->resolve($sessionData['instruments'] ?? []),
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
+                'contentMetadata' => ['formats' => $sessionData['formats'] ?? [], 'sizes' => $sessionData['sizes'] ?? [], 'fingerprint' => null],
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
             ]
         ));
@@ -278,6 +280,8 @@ class EditorController extends Controller
                 'resourceRights.right',
                 'descriptions.descriptionType',
                 'dates.dateType',
+                'formats',
+                'sizes',
             ]);
             $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::CONTENT_RELATIONS_LOADED);
 

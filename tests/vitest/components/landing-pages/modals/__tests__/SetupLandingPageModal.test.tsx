@@ -341,8 +341,6 @@ describe('SetupLandingPageModal', () => {
                     expect.objectContaining({
                         ftp_url: null,
                         primary_download_label: null,
-                        ftp_format_id: null,
-                        ftp_size_id: null,
                         activate_downloads: false,
                     }),
                 ),
@@ -483,7 +481,7 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
-        it('hydrates the exact primary download format and digital size selectors', async () => {
+        it('does not render resource format or size selectors in the landing-page modal', async () => {
             const descriptorConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 ftp_format_id: 7,
@@ -495,8 +493,9 @@ describe('SetupLandingPageModal', () => {
 
             await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            expect(await screen.findByTestId('primary-download-format')).toHaveTextContent('application/zip');
-            expect(screen.getByTestId('primary-download-size')).toHaveTextContent('2 MiB');
+            expect(await openDownloadInput()).toBeInTheDocument();
+            expect(screen.queryByTestId('primary-download-format')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('primary-download-size')).not.toBeInTheDocument();
         });
 
         it('offers explicit activation for protected existing downloads', async () => {
@@ -810,14 +809,10 @@ describe('SetupLandingPageModal', () => {
                 {
                     id: 7,
                     label: 'Download model data',
-                    format_id: null,
-                    size_id: null,
                 },
                 {
                     id: 8,
                     label: 'Documentation',
-                    format_id: null,
-                    size_id: null,
                 },
             ]);
             expect(payload.files?.[0]).not.toHaveProperty('url');
@@ -890,9 +885,9 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
-            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
+                if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
                     return Promise.resolve({ data: { landing_page: legacyConfig } });
                 }
@@ -963,8 +958,8 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -1092,8 +1087,6 @@ describe('SetupLandingPageModal', () => {
                                 label: 'Download package',
                                 kind: 'download',
                                 position: 0,
-                                format_id: null,
-                                size_id: null,
                             },
                         ],
                     }),
@@ -1678,7 +1671,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
@@ -1725,7 +1718,7 @@ describe('SetupLandingPageModal', () => {
 
         it('shows the resulting external URL using the normalized previewable path', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -1763,7 +1756,7 @@ describe('SetupLandingPageModal', () => {
 
         it('does not fall back to the saved external URL when unsaved edits clear the external path', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -1930,15 +1923,13 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Source repository');
         });
 
-        it('retains unsaved imported file descriptors after closing and reopening', async () => {
+        it('does not restore imported-file descriptor controls after reopening', async () => {
             const descriptorConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 files: [
                     {
                         id: 17,
                         url: 'https://downloads.example.org/imported-file.zip',
-                        format_id: null,
-                        size_id: null,
                         position: 0,
                     },
                 ],
@@ -1947,33 +1938,17 @@ describe('SetupLandingPageModal', () => {
             };
             mockModalGetRequests({ landingPage: descriptorConfig });
 
-            const user = userEvent.setup();
             const { rerender } = await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
             );
 
-            await user.click(await screen.findByTestId('imported-file-17-format'));
-            await user.click(await screen.findByRole('option', { name: 'application/zip' }));
-            await user.click(screen.getByTestId('imported-file-17-size'));
-            await user.click(await screen.findByRole('option', { name: '2 MiB (2097152 bytes)' }));
-
-            await waitFor(() => {
-                const persistedDraft = JSON.parse(window.sessionStorage.getItem('setup-landing-page-modal:draft:123') ?? '{}');
-
-                expect(persistedDraft.files).toEqual([
-                    expect.objectContaining({
-                        id: 17,
-                        format_id: 7,
-                        size_id: 8,
-                    }),
-                ]);
-            });
-
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-format')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-size')).not.toBeInTheDocument();
             rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
             rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
-
-            expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
-            expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-format')).not.toBeInTheDocument();
         });
 
         it('keeps server imported files when restoring a legacy persisted draft without files', async () => {
@@ -2010,8 +1985,9 @@ describe('SetupLandingPageModal', () => {
 
             await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
-            expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-format')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-size')).not.toBeInTheDocument();
         });
 
         it('clears persisted unsaved values after a successful save', async () => {
@@ -2291,7 +2267,7 @@ describe('SetupLandingPageModal', () => {
     describe('Custom Templates', () => {
         it('loads custom templates from API on open', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2335,7 +2311,7 @@ describe('SetupLandingPageModal', () => {
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.reject(new Error('API error'));
                 }
@@ -2363,7 +2339,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2405,7 +2381,7 @@ describe('SetupLandingPageModal', () => {
 
         it('renders custom templates in dropdown when loaded', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2459,7 +2435,7 @@ describe('SetupLandingPageModal', () => {
 
         it('selects a custom template and sets landing_page_template_id', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2534,7 +2510,7 @@ describe('SetupLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the save payload for Physical Object resources', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2623,7 +2599,7 @@ describe('SetupLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the preview payload for Physical Object resources', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2720,7 +2696,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2800,7 +2776,7 @@ describe('SetupLandingPageModal', () => {
             const onSuccess = vi.fn();
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2840,7 +2816,7 @@ describe('SetupLandingPageModal', () => {
             const onSuccess = vi.fn();
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2879,7 +2855,7 @@ describe('SetupLandingPageModal', () => {
             const { toast } = await import('sonner');
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2922,7 +2898,7 @@ describe('SetupLandingPageModal', () => {
             const { toast } = await import('sonner');
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2970,7 +2946,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -3019,7 +2995,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -3059,7 +3035,7 @@ describe('SetupLandingPageModal', () => {
         it('prevents removal of published landing page with error toast', async () => {
             // Published config cannot be removed
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -3121,7 +3097,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3155,7 +3131,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3204,7 +3180,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3255,7 +3231,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3310,7 +3286,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3352,7 +3328,7 @@ describe('SetupLandingPageModal', () => {
 
         it('resets landing_page_template_id to null on 404 (no landing page exists)', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3417,7 +3393,7 @@ describe('SetupLandingPageModal', () => {
             // noisy console.error output and mirrors real production behavior
             // when a resource has no landing page yet.
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
@@ -3530,7 +3506,7 @@ describe('SetupLandingPageModal', () => {
         it('shows the Loading state inside the scrollable zone (footer still rendered)', async () => {
             // Keep the initial GET pending so the modal stays in its loading state.
             mockedAxiosGet.mockImplementation((url: string) => {
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
@@ -3551,7 +3527,9 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('applies the same accessible tooltip and layout classes for short titles', async () => {
-            await render(<SetupLandingPageModal context="resource-list" resource={{ id: 1, title: 'Short title' }} isOpen={true} onClose={mockOnClose} />);
+            await render(
+                <SetupLandingPageModal context="resource-list" resource={{ id: 1, title: 'Short title' }} isOpen={true} onClose={mockOnClose} />,
+            );
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             // Short titles use the same accessible tooltip pattern for consistency.
@@ -3611,7 +3589,9 @@ describe('SetupLandingPageModal', () => {
         it.each([{ doi: null }, { resourcetypegeneral: 'Physical Object' }])(
             'skips tombstone checks for excluded resources %j',
             async (overrides) => {
-                await render(<SetupLandingPageModal context="resource-list" resource={{ ...mockResource, ...overrides }} isOpen onClose={mockOnClose} />);
+                await render(
+                    <SetupLandingPageModal context="resource-list" resource={{ ...mockResource, ...overrides }} isOpen onClose={mockOnClose} />,
+                );
                 await screen.findByLabelText('Landing Page Template');
                 expect(mockedAxiosGet.mock.calls.some(([url]) => String(url).includes('/tombstone'))).toBe(false);
             },
@@ -3628,9 +3608,9 @@ describe('SetupLandingPageModal', () => {
             const base = mockedAxiosGet.getMockImplementation()!;
             const active = { ...tombstone, is_tombstone: true, revision: 1, statement: 'Lost data.' };
             mockedAxiosGet.mockImplementation((url: string, config: unknown) => {
-            if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
-            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
-            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
+                if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.endsWith('/tombstone')) return Promise.resolve({ data: { tombstone: active } });
                 if (url === `/resources/${mockResource.id}/landing-page`)
                     return Promise.resolve({ data: { landing_page: { ...mockExistingConfig, is_tombstone: true, tombstone_revision: 1 } } });

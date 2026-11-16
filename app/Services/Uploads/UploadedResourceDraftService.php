@@ -102,6 +102,8 @@ final class UploadedResourceDraftService
             'mslLaboratories' => $this->mslLaboratoryList($payload['mslLaboratories'] ?? []),
             'instruments' => $this->positionedList($payload['instruments'] ?? []),
             'datacenter_id' => null,
+            'formats' => $this->arrayList($payload['formats'] ?? []),
+            'sizes' => $this->arrayList($payload['sizes'] ?? []),
         ];
     }
 
