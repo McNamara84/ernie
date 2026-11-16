@@ -10,12 +10,14 @@ const options = [
 ];
 
 test('advances fake timers while waiting for a debounced option, then clears the selection', async () => {
+    const debounceMs = 300;
     const onSearch = vi.fn().mockResolvedValue(options);
     const onChange = vi.fn();
     function Search() {
         const [selected, setSelected] = useState<AsyncComboboxOption>();
         return (
             <AsyncCombobox
+                debounceMs={debounceMs}
                 onSearch={onSearch}
                 value={selected?.value}
                 selectedOption={selected}
@@ -29,9 +31,13 @@ test('advances fake timers while waiting for a debounced option, then clears the
     await render(<Search />);
     await page.getByRole('combobox').click();
     vi.useFakeTimers();
+    const startedAt = Date.now();
     await page.getByPlaceholder('Type to search...').fill('GFZ');
     expect(onSearch).not.toHaveBeenCalled();
+    // Vitest 5.1 advances fake timers while locator actions wait for their target.
+    // Keep the clock implicit here to test that behavior across the debounce.
     await page.getByRole('option', { name: 'GFZ Potsdam' }).click();
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(debounceMs);
     expect(onSearch).toHaveBeenCalledExactlyOnceWith('GFZ');
     expect(onChange).toHaveBeenCalledExactlyOnceWith('gfz', options[0]);
     await expect.element(page.getByRole('combobox')).toHaveTextContent('GFZ Potsdam');

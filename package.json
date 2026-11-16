@@ -2,6 +2,7 @@
   "name": "ernie",
   "version": "1.0.0",
   "private": true,
+  "workspaces": ["packages/native-abort-controller"],
   "type": "module",
   "packageManager": "npm@12.2.2",
   "volta": {
@@ -169,7 +170,7 @@
     "leaflet.markercluster": "^1.5.3",
     "lucide-react": "^1.73.0",
     "maplibre-gl": "^6.18.0",
-    "node-abort-controller": "file:packages/native-abort-controller",
+    "node-abort-controller": "3.1.1",
     "nprogress": "^0.2.0",
     "papaparse": "^5.7.1",
     "qrcode.react": "^4.2.0",
@@ -212,8 +213,7 @@
     "seroval-plugins": "^1.8.0",
     "remarkable": {
       "argparse": "^2.0.1"
-    },
-    "node-abort-controller": "$node-abort-controller"
+    }
   },
   "allowScripts": {
     "tree-sitter@0.21.1": true,

@@ -525,9 +525,11 @@ test projects and the report-merging configuration.
 Swagger Client still requests the deprecated `node-abort-controller` package.
 The private `packages/native-abort-controller` adapter supplies its named
 exports from the native APIs provided by the required Node and browser
-runtimes. Its direct file dependency and npm override are covered by Swagger
-export and native fetch-cancellation regressions; remove them when upstream
-removes that dependency.
+runtimes. It is a private npm workspace named `node-abort-controller`; the root
+dependency selects its compatibility version rather than a relative
+file path in a transitive package. Regression tests reject dangling nested links,
+verify workspace resolution and test native fetch cancellation. Remove the
+workspace and root dependency when upstream removes that dependency.
 
 Why frontend validation stays on the host:
 
