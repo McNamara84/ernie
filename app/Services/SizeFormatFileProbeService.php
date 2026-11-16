@@ -1133,11 +1133,6 @@ class SizeFormatFileProbeService
 
                 if ($entrySize >= 0) {
                     $uncompressedBytes += (float) $entrySize;
-
-                    if (! is_finite($uncompressedBytes)) {
-                        return $this->skip($sourceUrl, 'zip_uncompressed_size_overflow');
-                    }
-
                     $parsedSizeCount++;
                 }
 

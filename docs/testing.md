@@ -443,21 +443,21 @@ waypoints. Keep these checks active for public pages and previews in all browser
 
 The usage statistics browser suite submits the real export form with both blank
 and bounded month ranges. It verifies the access-method and date parameters,
-the attachment filename, and the CSV columns. Chromium and Firefox also verify
-the completed file download, copied with `saveAs` so local and remote browser
-connections work alike. Playwright's Linux WebKit renders this CSV response
-as a document despite its attachment header, so WebKit checks the actual HTTP
-status, download headers and response body instead. This is the
-[known Playwright navigation/download limitation](https://github.com/microsoft/playwright/issues/34076);
-the export test still runs in every browser without mocking the response.
+the attachment filename, and the CSV columns. All three browsers verify the
+completed file download, copied with `saveAs` so local and remote browser
+connections work alike. Playwright 1.65.1 also delivers the CSV as a download in
+Linux WebKit, so the previous response-body workaround is no longer needed.
+The export test submits the real form without mocking the response.
 
 ### Linux WebKit rendering regression
 
-`playwright` and `@playwright/test` are pinned to **1.63.0**. Playwright 1.64.0
-and 1.64.1 bundle WebKit r2370, which can stop producing animation frames on
+`playwright` and `@playwright/test` are pinned to **1.65.1**. The previous
+1.63.0 compatibility pin avoided Playwright 1.64.0 and 1.64.1. Their bundled
+WebKit r2370 can stop producing animation frames on
 two-CPU Linux runners when a page uses `backdrop-filter`. This makes ordinary
 dropdown clicks and focus restoration time out, including the statistics filter
-scenario in WebKit shard 3. See [Playwright #43426](https://github.com/microsoft/playwright/issues/43426).
+scenario in WebKit shard 3. The corrected WebKit is included in the 1.65
+release line; see [Playwright #43426](https://github.com/microsoft/playwright/issues/43426).
 
 The CI workflow also limits WebKit to **one worker per shard**, retaining all
 three shards and two workers for Chromium/Firefox. On a two-CPU Linux browser
@@ -475,8 +475,8 @@ Set it on the **browser server**, rather than the Playwright client, when
 reproducing CI with a remote Linux browser (for Docker, add
 `--env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` to `docker run`).
 
-Keep both exact pins until a stable release includes the corrected WebKit.
-Before upgrading or restoring two WebKit workers, repeat
+Keep both exact package pins aligned. Before a future browser upgrade or
+restoring two WebKit workers, repeat
 `workflows/counter-usage.spec.ts` with `--repeat-each=3` and the matching Linux
 browser server constrained to two CPUs, then verify the complete CI shards.
 Preserve the real backdrop styling, actionability checks and existing
@@ -555,7 +555,9 @@ The wrapper temporarily applies `docker-compose.playwright-test.yml` to the app
 so contact submissions use synchronous log mail, a fixed example.test team
 recipient, and DataCite's existing fake service. Inertia DevTools request
 recording is disabled for this temporary browser backend. A backend preflight verifies
-these settings before starting browsers. It restores the normal
+these settings before starting browsers. The optional legacy citation cache points
+to the FPM container's unused loopback database endpoint, so its fallback is
+immediate even when an internal database hostname cannot resolve locally. The wrapper restores the normal
 app and webserver Compose configurations even if preparation or browser tests fail. Nginx reloads
 after both app container changes to refresh its FPM upstream. Before starting
 tests, the public `/login` route must return HTTP 200 HTML. A separate readiness
@@ -586,7 +588,8 @@ The wrapper restores the original `public/hot` bytes even on failure; the Vite
 service keeps running. The default remains `vite` for normal local feedback.
 
 The catalogue and landing-page HTML fixtures establish a native connection before
-intercepting HTML on Windows Chromium and WebKit. Otherwise the first real TLS
+intercepting HTML in Chromium and WebKit, including remote Linux browsers.
+Otherwise the first real TLS
 exchange can occur on the stylesheet request and fail with
 `ERR_TOO_MANY_RETRIES` or `SSL connect error`, leaving the intercepted page
 unstyled. This setup does not relax the stylesheet or accessibility assertions.
@@ -602,16 +605,15 @@ Local runs keep failure screenshots and make videos opt-in with
 videos adds runtime cost. CI keeps its existing recording settings. Use
 `--trace=on` when a detailed local failure trace is needed.
 
-For Windows browser-runtime failures, a Linux Playwright server can run the
-browsers while the test runner stays on the host with the pinned Node version.
-The server must match the installed Playwright version. This branch retains
-Playwright 1.63.0 because of the Linux WebKit regression described above. This example uses the
-existing package installation read-only and forwards loopback requests,
+For browser-runtime failures or missing host libraries, a Linux Playwright server
+can run the browsers while the test runner stays on the host with the pinned Node version.
+The server must match the installed Playwright version, currently 1.65.1.
+This PowerShell example uses the existing package installation read-only and forwards loopback requests,
 including `ernie.localhost`, to the host:
 
 ```powershell
 $playwrightModules = Join-Path $PWD 'node_modules'
-docker run --rm --init -d --name ernie-browser-tests --workdir /home/pwuser --user pwuser --env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1 --shm-size=1g -p 127.0.0.1:39333:3000 -v "${playwrightModules}:/work/node_modules:ro" mcr.microsoft.com/playwright:v1.63.0-noble node /work/node_modules/playwright/cli.js run-server --port 3000 --host 0.0.0.0
+docker run --rm --init -d --name ernie-browser-tests --workdir /home/pwuser --user pwuser --env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1 --shm-size=1g -p 127.0.0.1:39333:3000 -v "${playwrightModules}:/work/node_modules:ro" mcr.microsoft.com/playwright:v1.65.1-resolute@sha256:dcf385f7a31aa1cbb0a7a0c97a539142bf70480b661f89f26a774ec1fe2edd1d node /work/node_modules/playwright/cli.js run-server --port 3000 --host 0.0.0.0
 $env:PW_TEST_CONNECT_WS_ENDPOINT = 'ws://127.0.0.1:39333/'
 $env:PW_TEST_CONNECT_EXPOSE_NETWORK = '<loopback>'
 $env:ERNIE_PLAYWRIGHT_ASSETS = 'build'

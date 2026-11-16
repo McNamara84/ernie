@@ -6,7 +6,7 @@ export function isLocalWindowsWebKit(browserName: string) {
     );
 }
 
-/** Windows browsers can reject the local Traefik certificate on the first exchange. */
+/** Browsers can reject the local Traefik certificate on the first exchange. */
 export async function navigateWithTlsRetry(page: Page, url: string, options?: Parameters<Page['goto']>[1]) {
     const navigate = () => page.goto(url, options);
 
@@ -22,7 +22,7 @@ export async function navigateWithTlsRetry(page: Page, url: string, options?: Pa
 /** Establish native TLS before fulfilled HTML moves the first real request to CSS. */
 export async function prepareHtmlInterception(page: Page) {
     const browserName = page.context().browser()?.browserType().name();
-    if (process.platform === 'win32' && (browserName === 'webkit' || browserName === 'chromium')) {
+    if (browserName === 'webkit' || browserName === 'chromium') {
         await navigateWithTlsRetry(page, '/robots.txt', { waitUntil: 'domcontentloaded' });
     }
 }

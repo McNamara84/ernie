@@ -3,7 +3,7 @@ services:
   # Serves application on https://localhost:3333 (no prefix)
   # On Windows: Docker provider disabled, uses static routes.yml
   traefik:
-    image: traefik:v3.7.17@sha256:68ae5fe5b64ca166704b746a9e8afcd385e36b3f569a5691401bf652d57b3748
+    image: traefik:v3.7.19@sha256:aa942a00bce033c909bf1f7e861d93761be4b31a035f10d2410d33e38a8f41cf
     container_name: ernie-traefik
     restart: unless-stopped
     command:
@@ -17,7 +17,7 @@ services:
       - "--log.level=INFO"
     ports:
       - "3333:443"
-      - "8080:8080"  # Traefik Dashboard
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"  # Traefik Dashboard
     volumes:
       - ./docker/traefik/certs:/etc/traefik/certs:ro
       - ./docker/traefik/dynamic:/etc/traefik/dynamic:ro
@@ -293,7 +293,7 @@ services:
 
   # Redis for caching and sessions
   redis:
-    image: redis:8.10.3-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     container_name: ernie-redis-dev
     restart: unless-stopped
     networks:

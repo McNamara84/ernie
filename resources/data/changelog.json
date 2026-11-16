@@ -131,26 +131,24 @@
     },
     {
         "version": "1.1.3",
-        "date": "Unreleased",
+        "date": "2026-11-16",
         "fixes": [
             {
                 "title": "Remove All Contributors",
-                "description": "The last contributor can now be removed from the metadata editor, for both people and institutions. The optional Contributors section can be saved empty and remains empty when reopened.",
+                "description": "All contributors can now be removed, and the optional Contributors section stays empty after saving.",
                 "references": [{ "type": "issue", "number": 1540, "url": "https://github.com/McNamara84/ernie/issues/1540" }]
             },
             {
-                "title": "DOI Publication Verification and Recovery",
-                "description": "External landing-page checks reject private network targets and pin verified public HTTPS destinations. IGSN registration displays reconciliation guidance for unconfirmed publication and reports temporary verification failures as retryable while preserving the previous registration status. Publication is offered only when a non-tombstone landing page exists. URL maintenance retries temporary verification failures, and stage and production containers receive the matching DataCite test repository configuration.",
-                "references": [{ "type": "pull_request", "number": 1551, "url": "https://github.com/McNamara84/ernie/pull/1551" }]
-            },
-            {
                 "title": "Explicit DOI and Landing Page Publication",
-                "description": "Metadata updates now require a published landing page and authenticated confirmation of a registered DOI in the configured DataCite repository. Updates preserve DOI visibility. A separate confirmed action publishes the landing page and DOI while preserving preassigned identifiers; uncertain outcomes remain visible and are reconciled without duplicate registration. Resource batches only update existing registrations.",
-                "references": [{ "type": "issue", "number": 1537, "url": "https://github.com/McNamara84/ernie/issues/1537" }]
+                "description": "DOIs and landing pages now require explicit publication, with recovery guidance when publication cannot be confirmed.",
+                "references": [
+                    { "type": "issue", "number": 1537, "url": "https://github.com/McNamara84/ernie/issues/1537" },
+                    { "type": "pull_request", "number": 1551, "url": "https://github.com/McNamara84/ernie/pull/1551" }
+                ]
             },
             {
                 "title": "Public Metadata During Data Embargoes",
-                "description": "DOIs and internal metadata landing pages can be published while primary data remains under embargo. Future Available dates automatically select Embargoed access. Downloads stay hidden until manual release, with dashboard reminders and one email per resource and embargo date.",
+                "description": "DOIs and metadata can now be published during data embargoes while downloads remain hidden until manual release.",
                 "references": [
                     {
                         "type": "issue",

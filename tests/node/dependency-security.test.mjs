@@ -71,15 +71,18 @@ test('Joi validates multiple addresses and rejects long whitespace without block
     assert.equal(output.trim(), 'string.email');
 });
 
-test('Swagger glob preprocessing bounds expanded patterns before matching', () => {
+test('Swagger glob preprocessing rejects excessive pattern expansion before matching', () => {
     const output = execFileSync(process.execPath, ['--eval', `
+        const assert = require('node:assert/strict');
         const { Minimatch } = require(process.argv[1]);
         const pattern = Array(22).fill('**/../catalog/item').join('/');
-        const compiled = new Minimatch(pattern, { optimizationLevel: 2, braceExpandMax: 40 });
-        console.log(compiled.set.length);
+        assert.throws(
+            () => new Minimatch(pattern, { optimizationLevel: 2, braceExpandMax: 40 }),
+            { name: 'RangeError', message: /too many patterns/ },
+        );
+        console.log('rejected');
     `, apidomRequire.resolve('minimatch')], { encoding: 'utf8', timeout: 5000 });
-    assert.ok(Number(output.trim()) > 0);
-    assert.ok(Number(output.trim()) <= 40);
+    assert.equal(output.trim(), 'rejected');
 });
 
 test('Swagger file resolver preserves its allowlist with the patched glob dependency', async () => {
