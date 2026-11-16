@@ -271,8 +271,6 @@ final class FairImprovementOpportunityResolver
             }
         }
 
-        /** @var array{F: float, A: float, I: float, R: float} $totals */
-        /** @var array{F: float, A: float, I: float, R: float} $gaps */
         return [
             'totals' => $totals,
             'gaps' => $gaps,

@@ -483,7 +483,9 @@ The wrapper temporarily applies `docker-compose.playwright-test.yml` to the app
 so contact submissions use synchronous log mail, a fixed example.test team
 recipient, and DataCite's existing fake service. Inertia DevTools request
 recording is disabled for this temporary browser backend. A backend preflight verifies
-these settings before starting browsers. It restores the normal
+these settings before starting browsers. The optional legacy citation cache points
+to the FPM container's unused loopback database endpoint, so its fallback is
+immediate even when an internal database hostname cannot resolve locally. The wrapper restores the normal
 app and webserver Compose configurations even if preparation or browser tests fail. Nginx reloads
 after both app container changes to refresh its FPM upstream. Before starting
 tests, the public `/login` route must return HTTP 200 HTML. A separate readiness
@@ -514,7 +516,8 @@ The wrapper restores the original `public/hot` bytes even on failure; the Vite
 service keeps running. The default remains `vite` for normal local feedback.
 
 The catalogue and landing-page HTML fixtures establish a native connection before
-intercepting HTML on Windows Chromium and WebKit. Otherwise the first real TLS
+intercepting HTML in Chromium and WebKit, including remote Linux browsers.
+Otherwise the first real TLS
 exchange can occur on the stylesheet request and fail with
 `ERR_TOO_MANY_RETRIES` or `SSL connect error`, leaving the intercepted page
 unstyled. This setup does not relax the stylesheet or accessibility assertions.
@@ -530,18 +533,15 @@ Local runs keep failure screenshots and make videos opt-in with
 videos adds runtime cost. CI keeps its existing recording settings. Use
 `--trace=on` when a detailed local failure trace is needed.
 
-For Windows browser-runtime failures, a Linux Playwright server can run the
-browsers while the test runner stays on the host with the pinned Node version.
-Playwright 1.64.1 has a reported Windows Firefox startup race that can fail
-context teardown with `_maybeDontRestoreTabs` even when test assertions pass
-([upstream issue](https://github.com/microsoft/playwright/issues/43413)). The
-server must match the installed Playwright version. This example uses the
-existing package installation read-only and forwards loopback requests,
+For browser-runtime failures or missing host libraries, a Linux Playwright server
+can run the browsers while the test runner stays on the host with the pinned Node version.
+The server must match the installed Playwright version, currently 1.65.1.
+This PowerShell example uses the existing package installation read-only and forwards loopback requests,
 including `ernie.localhost`, to the host:
 
 ```powershell
 $playwrightModules = Join-Path $PWD 'node_modules'
-docker run --rm --init -d --name ernie-browser-tests --workdir /home/pwuser --user pwuser --shm-size=1g -p 127.0.0.1:39333:3000 -v "${playwrightModules}:/work/node_modules:ro" mcr.microsoft.com/playwright:v1.64.1-resolute@sha256:f76885029244e5a384243a930ff283cef67d90653978ee27a77dd4cff8882fb4 node /work/node_modules/playwright/cli.js run-server --port 3000 --host 0.0.0.0
+docker run --rm --init -d --name ernie-browser-tests --workdir /home/pwuser --user pwuser --shm-size=1g -p 127.0.0.1:39333:3000 -v "${playwrightModules}:/work/node_modules:ro" mcr.microsoft.com/playwright:v1.65.1-resolute@sha256:dcf385f7a31aa1cbb0a7a0c97a539142bf70480b661f89f26a774ec1fe2edd1d node /work/node_modules/playwright/cli.js run-server --port 3000 --host 0.0.0.0
 $env:PW_TEST_CONNECT_WS_ENDPOINT = 'ws://127.0.0.1:39333/'
 $env:PW_TEST_CONNECT_EXPOSE_NETWORK = '<loopback>'
 $env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
