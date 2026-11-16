@@ -1,7 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { render as rawRender, screen } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
 import { describe, expect, it, vi } from 'vitest';
 
 import ResourcesPage from '@/pages/resources';
+
+const render = settleRender(rawRender);
 
 // Mock Inertia router
 vi.mock('@inertiajs/react', () => ({
@@ -25,7 +29,7 @@ vi.mock('@inertiajs/react', () => ({
 // Mock axios
 vi.mock('axios', () => ({
     default: {
-        get: vi.fn(),
+        get: vi.fn().mockResolvedValue({ data: { datacenters: [], resource_types: [], curators: [], statuses: [], year_range: {} } }),
     },
     isAxiosError: vi.fn(),
 }));
@@ -60,8 +64,8 @@ describe('ResourcesPage - Filter Visibility', () => {
         direction: 'desc' as const,
     };
 
-    it('shows filters even when no resources are found', () => {
-        render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
+    it('shows filters even when no resources are found', async () => {
+        await render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
 
         // Search input should be visible
         expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
@@ -70,7 +74,7 @@ describe('ResourcesPage - Filter Visibility', () => {
         expect(screen.getByText(/no resources found matching your filters/i)).toBeInTheDocument();
     });
 
-    it('shows filters when resources are available', () => {
+    it('shows filters when resources are available', async () => {
         const mockResources = [
             {
                 id: 1,
@@ -88,7 +92,7 @@ describe('ResourcesPage - Filter Visibility', () => {
             to: 1,
         };
 
-        render(<ResourcesPage resources={mockResources} pagination={mockPaginationWithData} sort={mockSort} />);
+        await render(<ResourcesPage resources={mockResources} pagination={mockPaginationWithData} sort={mockSort} />);
 
         // Search input should be visible
         expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
@@ -97,8 +101,8 @@ describe('ResourcesPage - Filter Visibility', () => {
         expect(screen.getByText('Test Resource')).toBeInTheDocument();
     });
 
-    it('shows helpful message when filters return no results', () => {
-        render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
+    it('shows helpful message when filters return no results', async () => {
+        await render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
 
         // Message should guide users to adjust filters
         expect(screen.getByText(/no resources found matching your filters/i)).toBeInTheDocument();
@@ -107,10 +111,12 @@ describe('ResourcesPage - Filter Visibility', () => {
         expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
     });
 
-    it('shows filters during loading state', () => {
-        render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
+    it('shows filters during loading state', async () => {
+        await render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
 
         // Filters should be present (even if disabled during loading)
         expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
     });
 });
+
+installCsrfFixture();

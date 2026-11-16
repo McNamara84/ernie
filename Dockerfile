@@ -117,6 +117,7 @@ RUN composer install --no-interaction --no-plugins --no-scripts \
 # Copy package files and install node dependencies (cached unless package.json changes)
 COPY package.json package-lock.json .npmrc ./
 COPY packages/deepmerge ./packages/deepmerge
+COPY packages/native-abort-controller ./packages/native-abort-controller
 RUN npm ci
 
 # NOW copy the rest of the application (this changes frequently)
@@ -145,7 +146,7 @@ RUN APP_ENV=production \
     NODE_ENV=production \
     npm run build \
     && rm -f public/hot \
-    && rm -rf node_modules packages/deepmerge /root/.npm /root/.cache \
+    && rm -rf node_modules packages/deepmerge packages/native-abort-controller /root/.npm /root/.cache \
     && rm -f package.json package-lock.json .npmrc
 
 FROM app-base AS app

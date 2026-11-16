@@ -64,7 +64,6 @@ describe('UnifiedDropzone', () => {
     const mockOnJsonUpload = vi.fn();
 
     beforeEach(() => {
-        vi.clearAllMocks();
         mockOnXmlUpload.mockImplementation(async (files: File[]) => ({
             success: true,
             uploadKind: 'datacite',

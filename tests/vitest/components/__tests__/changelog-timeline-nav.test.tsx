@@ -17,7 +17,6 @@ describe('ChangelogTimelineNav', () => {
     const onNavigate = vi.fn();
 
     beforeEach(() => {
-        vi.clearAllMocks();
         Object.defineProperty(window, 'innerWidth', { value: 1440, writable: true });
     });
 

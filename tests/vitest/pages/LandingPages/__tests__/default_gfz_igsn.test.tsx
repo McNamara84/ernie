@@ -71,7 +71,6 @@ describe('DefaultGfzIgsnTemplate', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         document.title = '';
     });
 

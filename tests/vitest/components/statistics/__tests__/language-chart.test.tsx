@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import LanguageChart from '@/components/statistics/language-chart';
 
@@ -24,9 +24,6 @@ describe('LanguageChart', () => {
         { language: 'Spanish', count: 30 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<LanguageChart data={mockData} />);

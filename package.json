@@ -2,6 +2,7 @@
   "name": "ernie",
   "version": "1.0.0",
   "private": true,
+  "workspaces": ["packages/native-abort-controller"],
   "type": "module",
   "packageManager": "npm@12.2.2",
   "volta": {
@@ -60,7 +61,7 @@
     "check:backend": "npm run pint:check && npm run test:php && npm run test:jsonld && npm run test:dcat-ap && npm run phpstan:check",
     "check:frontend": "npm run lint:check && npm run openapi:check && npm run types && npm run test:tooling && npm run test:run",
     "check:parity": "docker compose --env-file .env.docker -f docker-compose.dev.yml --profile parity up --build -d --wait && npm run test:php:mysql-sensitive && npm run test:e2e:devstack",
-    "types": "npm run types:app && npm run types:test",
+    "types": "npm run types:app && npm run types:test && npm run types:browser",
     "types:app": "tsc -p tsconfig.json --noEmit --checkers 4",
     "types:test": "tsc -p tests/vitest/tsconfig.json --noEmit --checkers 4",
     "types:watch": "npm run types:watch:app",
@@ -91,7 +92,15 @@
     "test:e2e:stage": "playwright test --config=playwright.stage.config.ts",
     "test:e2e:stage:headed": "playwright test --config=playwright.stage.config.ts --headed",
     "test:e2e:stage:ui": "playwright test --config=playwright.stage.config.ts --ui",
-    "test:php:shard-timings": "node ./scripts/run-pest.mjs --update-shards"
+    "test:php:shard-timings": "node ./scripts/run-pest.mjs --update-shards",
+    "types:browser": "tsc -p tests/vitest-browser/tsconfig.json --noEmit --checkers 4",
+    "test:browser:install": "playwright install chromium",
+    "test:browser": "node ./scripts/run-vitest.mjs run --project browser",
+    "test:browser:watch": "node ./scripts/run-vitest.mjs --project browser --browser.headless=false",
+    "test:failed": "node ./scripts/run-vitest.mjs run --last-failed",
+    "test:affected": "node ./scripts/run-vitest.mjs run --since-last-run",
+    "test:trace": "node ./scripts/run-vitest.mjs run --experimental.traceTimeline",
+    "test:merge": "node ./scripts/run-vitest.mjs --config vitest.merge.config.ts --merge-reports --coverage"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
@@ -128,7 +137,8 @@
     "playwright": "1.65.1",
     "start-server-and-test": "^3.0.13",
     "vite": "^8.3.8",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "vitest-browser-react": "^2.3.0"
   },
   "dependencies": {
     "@americana/diplomat": "^0.6.0",
@@ -160,6 +170,7 @@
     "leaflet.markercluster": "^1.5.3",
     "lucide-react": "^1.73.0",
     "maplibre-gl": "^6.18.0",
+    "node-abort-controller": "3.1.1",
     "nprogress": "^0.2.0",
     "papaparse": "^5.7.1",
     "qrcode.react": "^4.2.0",

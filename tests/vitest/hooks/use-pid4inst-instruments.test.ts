@@ -1,4 +1,5 @@
 import { act, waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it } from 'vitest';
 
 import { fetchPid4instInstruments, usePid4instInstruments } from '@/hooks/use-pid4inst-instruments';
@@ -25,11 +26,7 @@ const mockInstruments = [
 
 describe('usePid4instInstruments', () => {
     it('fetches instruments on mount', async () => {
-        server.use(
-            http.get(apiEndpoints.pid4instInstruments, () =>
-                HttpResponse.json({ data: mockInstruments }),
-            ),
-        );
+        server.use(http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ data: mockInstruments })));
 
         const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
@@ -42,11 +39,7 @@ describe('usePid4instInstruments', () => {
     });
 
     it('handles 404 with backend error message', async () => {
-        server.use(
-            http.get(apiEndpoints.pid4instInstruments, () =>
-                HttpResponse.json({ error: 'Registry not downloaded' }, { status: 404 }),
-            ),
-        );
+        server.use(http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ error: 'Registry not downloaded' }, { status: 404 })));
 
         const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
@@ -57,9 +50,7 @@ describe('usePid4instInstruments', () => {
     });
 
     it('handles 404 with default message when body is absent', async () => {
-        server.use(
-            http.get(apiEndpoints.pid4instInstruments, () => new HttpResponse(null, { status: 404 })),
-        );
+        server.use(http.get(apiEndpoints.pid4instInstruments, () => new HttpResponse(null, { status: 404 })));
 
         const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
@@ -69,9 +60,7 @@ describe('usePid4instInstruments', () => {
     });
 
     it('handles generic HTTP errors', async () => {
-        server.use(
-            http.get(apiEndpoints.pid4instInstruments, () => new HttpResponse(null, { status: 500 })),
-        );
+        server.use(http.get(apiEndpoints.pid4instInstruments, () => new HttpResponse(null, { status: 500 })));
 
         const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
@@ -81,9 +70,7 @@ describe('usePid4instInstruments', () => {
     });
 
     it('validates the payload shape', async () => {
-        server.use(
-            http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ unexpected: true })),
-        );
+        server.use(http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ unexpected: true })));
 
         const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
@@ -115,23 +102,17 @@ describe('usePid4instInstruments', () => {
 
     describe('fetchPid4instInstruments', () => {
         it('extracts the data array on success', async () => {
-            server.use(
-                http.get(apiEndpoints.pid4instInstruments, () =>
-                    HttpResponse.json({ data: mockInstruments }),
-                ),
-            );
+            server.use(http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ data: mockInstruments })));
 
             await expect(fetchPid4instInstruments()).resolves.toEqual(mockInstruments);
         });
 
         it('throws user-friendly message on 404', async () => {
-            server.use(
-                http.get(apiEndpoints.pid4instInstruments, () =>
-                    HttpResponse.json({ error: 'Custom msg' }, { status: 404 }),
-                ),
-            );
+            server.use(http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ error: 'Custom msg' }, { status: 404 })));
 
             await expect(fetchPid4instInstruments()).rejects.toThrow('Custom msg');
         });
     });
 });
+
+installCsrfFixture();

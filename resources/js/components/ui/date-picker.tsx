@@ -92,6 +92,7 @@ export function DatePicker({
 
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (disabled) return;
         onChange?.(undefined);
     };
 
@@ -116,7 +117,7 @@ export function DatePicker({
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {value ? format(value, dateFormat) : <span>{placeholder}</span>}
                     {clearable && value && (
-                        <X className="ml-auto h-4 w-4 opacity-50 hover:opacity-100" onClick={handleClear} aria-label="Clear date" />
+                        <X className="pointer-events-auto! ml-auto h-4 w-4 opacity-50 hover:opacity-100" onClick={handleClear} aria-label="Clear date" />
                     )}
                 </Button>
             </PopoverTrigger>

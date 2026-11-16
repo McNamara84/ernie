@@ -114,7 +114,6 @@ function renderDatabasePage(targets: TargetPayload[]) {
 
 describe('DatabasePage', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         vi.useRealTimers();
     });
 

@@ -1,8 +1,11 @@
-import { render, screen } from '@tests/vitest/utils/render';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+import { render as rawRender, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RelationBrowserGraph } from '@/pages/LandingPages/components/relation-browser/RelationBrowserGraph';
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
+
+const render = settleRender(rawRender);
 
 // Mock matchMedia for prefers-reduced-motion
 Object.defineProperty(window, 'matchMedia', {
@@ -92,8 +95,8 @@ describe('RelationBrowserGraph', () => {
         });
     });
 
-    it('renders SVG element', () => {
-        render(
+    it('renders SVG element', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={mockRelatedIdentifiers}
@@ -104,8 +107,8 @@ describe('RelationBrowserGraph', () => {
         expect(screen.getByRole('img', { name: 'Relation Browser Graph' })).toBeInTheDocument();
     });
 
-    it('renders with the correct container structure', () => {
-        render(
+    it('renders with the correct container structure', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={mockRelatedIdentifiers}
@@ -117,8 +120,8 @@ describe('RelationBrowserGraph', () => {
         expect(container.querySelector('svg')).toBeInTheDocument();
     });
 
-    it('handles empty related identifiers', () => {
-        render(
+    it('handles empty related identifiers', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={[]}
@@ -128,7 +131,7 @@ describe('RelationBrowserGraph', () => {
         expect(screen.getByTestId('relation-browser-graph')).toBeInTheDocument();
     });
 
-    it('filters out identifiers with unsupported types', () => {
+    it('filters out identifiers with unsupported types', async () => {
         const identifiers: LandingPageRelatedIdentifier[] = [
             {
                 id: 1,
@@ -144,7 +147,7 @@ describe('RelationBrowserGraph', () => {
             },
         ];
 
-        render(
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={identifiers}
@@ -155,8 +158,8 @@ describe('RelationBrowserGraph', () => {
         expect(screen.getByTestId('relation-browser-graph')).toBeInTheDocument();
     });
 
-    it('creates central node label from resource creators', () => {
-        render(
+    it('creates central node label from resource creators', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={mockRelatedIdentifiers}
@@ -169,8 +172,8 @@ describe('RelationBrowserGraph', () => {
         expect(labels).toContain('Doe, 2024');
     });
 
-    it('creates correct number of nodes', () => {
-        render(
+    it('creates correct number of nodes', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={mockRelatedIdentifiers}
@@ -183,8 +186,8 @@ describe('RelationBrowserGraph', () => {
         expect(circles.length).toBe(5);
     });
 
-    it('creates correct number of links', () => {
-        render(
+    it('creates correct number of links', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={mockRelatedIdentifiers}
@@ -197,8 +200,8 @@ describe('RelationBrowserGraph', () => {
         expect(lines.length).toBe(4);
     });
 
-    it('uses GFZ blue for central node', () => {
-        render(
+    it('uses GFZ blue for central node', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={mockRelatedIdentifiers}
@@ -211,8 +214,8 @@ describe('RelationBrowserGraph', () => {
         expect(circles[0]?.getAttribute('fill')).toBe('#0C2A63');
     });
 
-    it('uses correct colors for related nodes', () => {
-        render(
+    it('uses correct colors for related nodes', async () => {
+        await render(
             <RelationBrowserGraph
                 resource={mockResource}
                 relatedIdentifiers={mockRelatedIdentifiers}
@@ -229,14 +232,14 @@ describe('RelationBrowserGraph', () => {
         expect(circles[3]?.getAttribute('fill')).toBe('#F97316');
     });
 
-    it('handles resource without creators gracefully', () => {
+    it('handles resource without creators gracefully', async () => {
         const resourceWithoutCreators: LandingPageResource = {
             ...mockResource,
             creators: [],
             titles: [{ id: 1, title: 'Fallback Title', title_type: 'MainTitle' }],
         };
 
-        render(
+        await render(
             <RelationBrowserGraph
                 resource={resourceWithoutCreators}
                 relatedIdentifiers={mockRelatedIdentifiers}

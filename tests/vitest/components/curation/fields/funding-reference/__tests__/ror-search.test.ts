@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getFunderByRorId, loadRorFunders, searchRorFunders } from '@/components/curation/fields/funding-reference/ror-search';
 import type { RorFunder } from '@/components/curation/fields/funding-reference/types';
@@ -182,9 +182,6 @@ describe('ror-search', () => {
     describe('loadRorFunders', () => {
         const originalFetch = globalThis.fetch;
 
-        beforeEach(() => {
-            vi.clearAllMocks();
-        });
 
         afterEach(() => {
             globalThis.fetch = originalFetch;

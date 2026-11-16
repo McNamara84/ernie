@@ -20,6 +20,12 @@ inactive until explicitly activated; migrations alone preserve legacy counting.
 
 Host-side frontend commands require local `node_modules` in the repository checkout. Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile.
 
+Frontend validation includes jsdom tests and Chromium component tests. After
+`npm ci`, run `npm run test:browser:install` once to install the browser version
+required by the lockfile. `npm run check:frontend` runs both projects; focused
+browser runs, failure traces and optional incremental feedback are documented
+in [Frontend Validation](testing.md#frontend-validation).
+
 | Mode               | Purpose                                                                                                                                                   | Command                         |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
 | Fast Mode          | Start the core development stack only                                                                                                                     | `npm run docker:dev:up`         |

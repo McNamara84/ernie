@@ -304,10 +304,13 @@ Why backend validation stays Docker-backed:
 
 ## Frontend Validation
 
-Host prerequisite:
+Use the exact Node version in `.node-version` and the npm version in
+`package.json`. Frontend validation runs on the host. Install the locked
+dependencies and the matching Chromium binary once:
 
 ```bash
 npm ci
+npm run test:browser:install
 ```
 
 Recommended commands:
@@ -317,7 +320,100 @@ npm run lint:check
 npm run format:check
 npm run types
 npm run test:run
+npm run check:frontend
 ```
+
+`vitest.config.ts` runs two projects: `jsdom` for logic, hooks, SSR and component
+contracts, and `browser` for interactions that need real layout, pointer events,
+focus, Tagify or DnD sensors. Their configurations are separate from application
+build plugins. The projects run in successive groups so the local worker budget
+is not multiplied by starting two pools together. `test:run`, `test:coverage`
+and `check:frontend` include both projects; missing browser binaries are errors.
+
+```bash
+npm run test:run -- --project jsdom tests/vitest/path/to/file.test.tsx
+npm run test:browser
+npm run test:browser -- tests/vitest-browser/components/select.test.tsx
+npm run test:browser:watch
+```
+
+In Windows PowerShell, use `npm.cmd` when forwarding options, for example
+`npm.cmd run test:run -- --project browser`. This preserves the `--` separator
+instead of allowing the PowerShell npm shim to consume it.
+
+Browser Mode uses `vitest-browser-react`, `vitest/browser` locators and awaited
+`expect.element` assertions. Import the browser test fixture from
+`tests/vitest-browser/helpers/test` for a fresh user-event instance and its
+cleanup. Its renderer provides isolated QueryClient and Tooltip contexts.
+Use `installCsrfFixture` for jsdom suites that model an authenticated page;
+it supplies and cleans up Laravel's CSRF meta element. Missing-token regressions
+remove that input explicitly and assert the diagnostic.
+Application fetch/XHR requests use explicit Playwright responses; unhandled
+requests fail the test during teardown. This keeps module mocks working without
+requiring experimental import maps or a Service Worker. Default response data
+is shared with the jsdom MSW handlers.
+
+The migration keeps property, SSR, invalid-input and error-path assertions in
+jsdom where a real browser adds no useful evidence. Select, Dialog, Tooltip and
+calendar interaction cases have moved to Browser Mode. Native tests also cover
+popover/dropdown keyboard handling, async and form comboboxes, ORCID selection,
+all four sortable list families, template-layout ordering, Tagify editing, and actual table resizing.
+Full-page Laravel workflows and map-service integration remain in Playwright.
+Use `npm run test:inventory -- --json` to inspect both Vitest file sets and avoid
+silently dropping tests when moving them.
+
+For components whose mount starts asynchronous work, use `settleRender` from
+`tests/vitest/helpers/settled-render` with the existing render function and await
+the result. Loading-state tests should hold a response with
+`Promise.withResolvers` and resolve it inside awaited `act`; they must not rely
+on a mocked response accidentally finishing after an assertion. Keep explicit
+mock resets between phases of a test. The project already clears call history
+before each test. Short-lived spies can use `using` for reliable restoration.
+
+The default reporter keeps diagnostics from passing tests visible. Expected
+errors should be captured and asserted within their own test, rather than
+suppressed globally. Set `ERNIE_VITEST_REPORT_DIR` to a local directory when a
+complete JSON result and blob report are needed for a review; normal runs do
+not write these extra reports.
+
+### Optional local Vitest feedback
+
+```bash
+npm run test:failed
+npm run test:affected
+npm run test:trace -- tests/vitest/path/to/file.test.ts
+```
+
+`test:failed` uses Vitest 5.1's persistent `--last-failed` selection.
+`test:affected` opts into experimental dependency recording and
+`--since-last-run`. Its first run is complete. Configuration, dependency or
+runtime changes force a complete recording run; a focused run cannot certify
+the complete suite. Ordinary `test:run` runs do not certify this recording
+baseline. Both the initial and later affected runs keep dependency recording
+enabled. Imported data and generated routes are tracked, but inputs
+read indirectly from the filesystem still require an explicit complete run.
+The incremental shortcut is rejected in CI and never replaces the final
+`check:frontend` validation.
+
+`test:trace` opts into the Node trace timeline for async polling failures.
+Browser failure traces are stable and enabled for normal runs. Failure
+screenshots and Playwright traces are retained under `.vitest/attachments` and
+`.vitest/browser` and uploaded by CI on failure. `userEvent.pointer` and
+`browser.importMapMocks` remain outside mandatory validation while experimental.
+
+CI runs both projects in the existing three shards. Report merging verifies
+the complete configured file inventory, rejects duplicate or omitted files,
+and then produces the aggregate coverage report. The existing project coverage
+baseline remains binding; source exclusions have not been broadened.
+Vitest 5.1's `coverage.ignoreNode` omits only Oxc's generated `_jsxFileName`
+string declaration and Vite's generated CJS import bindings, matching Vitest's built-in handling of SSR import bindings. These transforms otherwise add
+statements at import source locations. Application logic remains measured.
+
+Test watchers ignore backend dependencies and generated output (`vendor`,
+`storage`, `.tmp`, `.vitest`, and report directories), matching the application
+watcher. This also avoids scanning preserved local dependency backups.
+
+### Frontend performance and runtime setup
 
 TypeScript 7 uses four parallel type checkers for the application and test projects. This fixed value was the fastest configuration in local measurements across two to twelve checkers while avoiding the substantially higher memory use of larger worker counts.
 
@@ -364,7 +460,7 @@ The persistent filesystem module cache is stable in Vitest 5 but remains opt-in 
 
 ```bash
 npm run test:run -- tests/vitest/path/to/file.test.tsx --fsModuleCache
-npx vitest --clearCache
+npm run test:run -- --clearCache
 ```
 
 The cache is intentionally not enabled by default. The full Vitest 5 Doctor run
@@ -418,7 +514,22 @@ npm run docker:dev:backend:d
 WAYFINDER_COMMAND="php -d memory_limit=2G artisan ernie:wayfinder-generate" npm run test:run
 ```
 
-The separate `vitest.browser.config.ts` deliberately contains only browser-test transforms. Laravel HMR and Wayfinder generation stay in the main Vite configuration: Vitest 5 starts multiple browser environments, and generating files from their `buildStart` hooks can repeatedly invalidate the browser test server. Generate Wayfinder sources before introducing or running browser tests that import them.
+The Vitest wrapper prepares Wayfinder before either project starts. It generates
+into a temporary workspace directory and copies only changed output, preserving
+modification times for incremental tests. A manifest fingerprints PHP route,
+controller, configuration and Composer inputs and verifies every generated file
+before reusing the output. Deleted routes are removed only when their previous
+generated contents are intact. Application build hooks are absent from both
+test projects and the report-merging configuration.
+
+Swagger Client still requests the deprecated `node-abort-controller` package.
+The private `packages/native-abort-controller` adapter supplies its named
+exports from the native APIs provided by the required Node and browser
+runtimes. It is a private npm workspace named `node-abort-controller`; the root
+dependency selects its compatibility version rather than a relative
+file path in a transitive package. Regression tests reject dangling nested links,
+verify workspace resolution and test native fetch cancellation. Remove the
+workspace and root dependency when upstream removes that dependency.
 
 Why frontend validation stays on the host:
 

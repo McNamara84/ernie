@@ -1,10 +1,13 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+import { act, fireEvent, render as rawRender, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ResourcesPage, { appendUniqueResources, mergeLoadMorePagination, mergeLoadMoreState } from '@/pages/resources';
+
+const render = settleRender(rawRender);
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -220,7 +223,7 @@ describe('ResourcesPage', () => {
 
         it('restores a saved sort through navigation before using a cursor', async () => {
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'desc' }));
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
             await waitFor(() => expect(routerMock.visit).toHaveBeenCalledTimes(1));
             expect(routerMock.visit).toHaveBeenCalledWith('/resources?sort_key=id&sort_direction=desc&per_page=50', expect.any(Object));
             await intersect();
@@ -231,7 +234,7 @@ describe('ResourcesPage', () => {
         it('honors explicit URL sorting over the saved preference', async () => {
             window.history.replaceState({}, '', '/resources?sort_key=updated_at&sort_direction=desc');
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'desc' }));
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
             await intersect();
             expect(routerMock.visit).not.toHaveBeenCalled();
             expect(loadMoreCalls()[0]?.[1].params.get('sort_key')).toBe('updated_at');
@@ -250,7 +253,7 @@ describe('ResourcesPage', () => {
                     : Promise.resolve({ data: { datacenters: [] } }),
             );
             try {
-                render(<ResourcesPage {...listProps} />);
+                await render(<ResourcesPage {...listProps} />);
                 await intersect();
                 await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1));
                 await intersect();
@@ -267,7 +270,7 @@ describe('ResourcesPage', () => {
             async (query) => {
                 window.history.replaceState({}, '', `/resources?${query}`);
                 localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'asc' }));
-                render(<ResourcesPage {...listProps} />);
+                await render(<ResourcesPage {...listProps} />);
                 await intersect();
                 expect(routerMock.visit).not.toHaveBeenCalled();
                 expect(loadMoreCalls()[0]?.[1].params.get('sort_key')).toBe('updated_at');
@@ -279,7 +282,7 @@ describe('ResourcesPage', () => {
             'does not navigate for missing, invalid or matching storage: %s',
             async (stored) => {
                 if (stored !== null) localStorage.setItem('resources.sort-preference', stored);
-                render(<ResourcesPage {...listProps} />);
+                await render(<ResourcesPage {...listProps} />);
                 await intersect();
                 expect(routerMock.visit).not.toHaveBeenCalled();
                 expect(loadMoreCalls()).toHaveLength(1);
@@ -294,7 +297,7 @@ describe('ResourcesPage', () => {
                 throw new Error('Unavailable');
             });
             try {
-                render(<ResourcesPage {...listProps} />);
+                await render(<ResourcesPage {...listProps} />);
                 await intersect();
                 expect(routerMock.visit).not.toHaveBeenCalled();
                 expect(loadMoreCalls()).toHaveLength(1);
@@ -308,7 +311,7 @@ describe('ResourcesPage', () => {
             window.history.replaceState({}, '', '/resources?search=climate&per_page=25&without_spdx_license=1');
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'title', direction: 'asc' }));
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'without_datacenter' }));
-            render(
+            await render(
                 <ResourcesPage
                     {...listProps}
                     pagination={{ ...listProps.pagination, per_page: 25 }}
@@ -336,7 +339,7 @@ describe('ResourcesPage', () => {
             );
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'desc' }));
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
             await intersect();
             expect(loadMoreCalls()).toHaveLength(0);
             expect(routerMock.visit).not.toHaveBeenCalled();
@@ -357,7 +360,7 @@ describe('ResourcesPage', () => {
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'desc' }));
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
             try {
-                render(<ResourcesPage {...listProps} />);
+                await render(<ResourcesPage {...listProps} />);
                 await waitFor(() => expect(routerMock.visit).toHaveBeenCalledTimes(1));
                 expect(routerMock.visit).toHaveBeenCalledWith('/resources?sort_key=id&sort_direction=desc&per_page=50', expect.any(Object));
             } finally {
@@ -375,7 +378,7 @@ describe('ResourcesPage', () => {
             );
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'desc' }));
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
             fireEvent.click(screen.getByTestId('select-without-datacenter'));
             await act(async () => resolveOptions({ data: { datacenters: [{ id: 7, name: 'GFZ' }] } }));
             expect(routerMock.visit).toHaveBeenCalledTimes(1);
@@ -387,7 +390,7 @@ describe('ResourcesPage', () => {
 
         it('loads only the new cursor after the restored server response arrives', async () => {
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'desc' }));
-            const { rerender } = render(<ResourcesPage {...listProps} />);
+            const { rerender } = await render(<ResourcesPage {...listProps} />);
             const visit = routerMock.visit.mock.calls[0][1];
             await intersect();
             expect(loadMoreCalls()).toHaveLength(0);
@@ -422,7 +425,7 @@ describe('ResourcesPage', () => {
                 });
             });
             try {
-                render(<ResourcesPage {...listProps} />);
+                await render(<ResourcesPage {...listProps} />);
                 await intersect();
                 await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry' })));
                 await intersect();
@@ -463,7 +466,7 @@ describe('ResourcesPage', () => {
                     pagination: { ...listProps.pagination, per_page: 25 },
                     filters: { search: 'climate', without_spdx_license: true },
                 };
-                const { rerender } = render(<ResourcesPage {...props} />);
+                const { rerender } = await render(<ResourcesPage {...props} />);
                 fireEvent.click(screen.getByTestId('resources-row-checkbox-51'));
                 await intersect();
                 fireEvent.click(screen.getByRole('button', { name: 'Reload list' }));
@@ -515,7 +518,7 @@ describe('ResourcesPage', () => {
                 url === '/resources/load-more' ? Promise.reject(error) : Promise.resolve({ data: {} }),
             );
             try {
-                render(<ResourcesPage {...listProps} />);
+                await render(<ResourcesPage {...listProps} />);
                 await intersect();
                 expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
                 expect(screen.queryByRole('button', { name: 'Reload list' })).not.toBeInTheDocument();
@@ -527,7 +530,7 @@ describe('ResourcesPage', () => {
         });
 
         it('offers a reload instead of loading the first page when the next cursor is missing', async () => {
-            render(<ResourcesPage {...listProps} pagination={{ ...listProps.pagination, next_cursor: null }} />);
+            await render(<ResourcesPage {...listProps} pagination={{ ...listProps.pagination, next_cursor: null }} />);
             await intersect();
             expect(loadMoreCalls()).toHaveLength(0);
             expect(screen.getByRole('button', { name: 'Reload list' })).toBeInTheDocument();
@@ -542,7 +545,7 @@ describe('ResourcesPage', () => {
                       })
                     : Promise.resolve({ data: {} }),
             );
-            const { rerender } = render(<ResourcesPage {...listProps} />);
+            const { rerender } = await render(<ResourcesPage {...listProps} />);
             await intersect();
             const oldCallback = intersectionCallback;
             const signal = loadMoreCalls()[0][1].signal as AbortSignal;
@@ -573,8 +576,8 @@ describe('ResourcesPage', () => {
             expect(toastErrorMock).not.toHaveBeenCalled();
         });
 
-        it('ignores completion of superseded visits', () => {
-            render(<ResourcesPage {...listProps} />);
+        it('ignores completion of superseded visits', async () => {
+            await render(<ResourcesPage {...listProps} />);
             fireEvent.click(screen.getByTestId('select-without-datacenter'));
             const oldVisit = routerMock.visit.mock.calls[0][1];
             fireEvent.click(screen.getByRole('button', { name: /sort by the resource title/i }));
@@ -591,7 +594,7 @@ describe('ResourcesPage', () => {
             routerMock.visit.mockImplementationOnce(() => {
                 throw new Error('Navigation unavailable');
             });
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
             fireEvent.click(screen.getByTestId('select-without-datacenter'));
             expect(screen.getByRole('button', { name: 'Reload list' })).toBeEnabled();
             await intersect();
@@ -609,7 +612,7 @@ describe('ResourcesPage', () => {
                             : {},
                 }),
             );
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
             const oldCallback = intersectionCallback;
             await intersect();
             await act(async () => oldCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
@@ -628,7 +631,7 @@ describe('ResourcesPage', () => {
                       })
                     : Promise.resolve({ data: {} }),
             );
-            const { unmount } = render(<ResourcesPage {...listProps} />);
+            const { unmount } = await render(<ResourcesPage {...listProps} />);
             await intersect();
             const signal = loadMoreCalls()[0][1].signal as AbortSignal;
             unmount();
@@ -637,11 +640,11 @@ describe('ResourcesPage', () => {
             expect(toastErrorMock).not.toHaveBeenCalled();
         });
 
-        it('restores both sorting and the without-datacenter preference without waiting for options', () => {
+        it('restores both sorting and the without-datacenter preference without waiting for options', async () => {
             axiosGetMock.mockImplementation(() => new Promise(() => {}));
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'id', direction: 'desc' }));
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'without_datacenter' }));
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
             expect(routerMock.visit).toHaveBeenCalledTimes(1);
             expect(routerMock.visit).toHaveBeenCalledWith(
                 '/resources?sort_key=id&sort_direction=desc&per_page=50&without_datacenter=1',
@@ -659,7 +662,7 @@ describe('ResourcesPage', () => {
             canCreateResource: true,
         };
 
-        render(<ResourcesPage {...props} />);
+        await render(<ResourcesPage {...props} />);
         expect(screen.getByTestId('resources-xml-upload')).toBeInTheDocument();
         expect(screen.queryByText('Import all old Resources')).not.toBeInTheDocument();
 
@@ -674,7 +677,7 @@ describe('ResourcesPage', () => {
         handleXmlFilesMock
             .mockRejectedValueOnce(new Error('Duplicate DOI'))
             .mockResolvedValueOnce({ resourceId: null, editorUrl: '/editor?xmlSession=old' });
-        render(
+        await render(
             <ResourcesPage
                 resources={[]}
                 pagination={{ per_page: 25, total: 0, from: null, to: null, has_more: false }}
@@ -781,7 +784,7 @@ describe('ResourcesPage', () => {
         const newerResource = { id: 3, title: 'Newer resource', publicstatus: 'draft' } as never;
         const sort = { key: 'id' as const, direction: 'asc' as const };
         const filters = {};
-        const { rerender } = render(
+        const { rerender } = await render(
             <ResourcesPage
                 resources={[firstResource]}
                 pagination={{
@@ -837,11 +840,12 @@ describe('ResourcesPage', () => {
     });
 
     it('loads the exact count asynchronously and accepts only the matching fingerprint', async () => {
+        const count = Promise.withResolvers<{ data: { filter_fingerprint: string; total: number; count_status: string } }>();
         axiosGetMock
             .mockResolvedValueOnce({ data: { datacenters: [] } })
-            .mockResolvedValueOnce({ data: { filter_fingerprint: 'matching', total: 42, count_status: 'ready' } });
+            .mockReturnValueOnce(count.promise);
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[]}
                 pagination={{
@@ -861,6 +865,7 @@ describe('ResourcesPage', () => {
         );
 
         expect(screen.getByTestId('resource-total-count')).toHaveTextContent('pending');
+        await act(async () => { count.resolve({ data: { filter_fingerprint: 'matching', total: 42, count_status: 'ready' } }); });
         await waitFor(() => expect(screen.getByTestId('resource-total-count')).toHaveTextContent('42'));
         expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
     });
@@ -903,7 +908,7 @@ describe('ResourcesPage', () => {
         });
 
         it.each(['resources', 'pagination'] as const)('refreshes a completed count after a %s-only reload', async (prop) => {
-            const { rerender } = render(<ResourcesPage {...props} />);
+            const { rerender } = await render(<ResourcesPage {...props} />);
             await act(async () => requests[0].resolve(42));
             expect(screen.getByTestId('resource-total-count')).toHaveTextContent('42');
             expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
@@ -925,7 +930,7 @@ describe('ResourcesPage', () => {
         });
 
         it.each(['success', 'failure'] as const)('ignores a superseded count %s with the same fingerprint', async (outcome) => {
-            const { rerender } = render(<ResourcesPage {...props} />);
+            const { rerender } = await render(<ResourcesPage {...props} />);
             rerender(<ResourcesPage {...props} resources={[...props.resources]} />);
 
             expect(requests[0].signal.aborted).toBe(true);
@@ -941,7 +946,7 @@ describe('ResourcesPage', () => {
         });
 
         it('allows retrying a count that fails after a partial reload', async () => {
-            const { rerender } = render(<ResourcesPage {...props} />);
+            const { rerender } = await render(<ResourcesPage {...props} />);
             await act(async () => requests[0].resolve(42));
             rerender(<ResourcesPage {...props} resources={[...props.resources]} />);
 
@@ -956,9 +961,9 @@ describe('ResourcesPage', () => {
             expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
         });
 
-        it('keeps a ready server count without requesting another count after a partial reload', () => {
+        it('keeps a ready server count without requesting another count after a partial reload', async () => {
             const pagination = { ...props.pagination, total: 42, count_status: 'ready' as const };
-            const { rerender } = render(<ResourcesPage {...props} pagination={pagination} />);
+            const { rerender } = await render(<ResourcesPage {...props} pagination={pagination} />);
             rerender(<ResourcesPage {...props} pagination={pagination} resources={[...props.resources]} />);
 
             expect(requests).toHaveLength(0);
@@ -981,7 +986,7 @@ describe('ResourcesPage', () => {
         );
         window.history.replaceState({}, '', `/resources?contact=${contact}`);
         localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ type: 'datacenter', datacenterId: 7 }));
-        render(
+        await render(
             <ResourcesPage
                 resources={[{ id: 1, title: 'Contact resource', publicstatus: 'draft' } as never]}
                 pagination={{
@@ -1042,7 +1047,7 @@ describe('ResourcesPage', () => {
             filters: { without_spdx_license: true },
         };
 
-        render(<ResourcesPage {...props} />);
+        await render(<ResourcesPage {...props} />);
 
         await waitFor(() => {
             const countCall = axiosGetMock.mock.calls.find(([url]) => url === '/resources/count');
@@ -1085,7 +1090,7 @@ describe('ResourcesPage', () => {
             .mockResolvedValueOnce({ data: { datacenters: [] } })
             .mockResolvedValueOnce({ data: { filter_fingerprint: 'stale', total: 999, count_status: 'ready' } });
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[]}
                 pagination={{
@@ -1120,7 +1125,7 @@ describe('ResourcesPage', () => {
             });
         });
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[{ id: 1, title: 'First resource', publicstatus: 'draft' } as never]}
                 pagination={{
@@ -1184,7 +1189,7 @@ describe('ResourcesPage', () => {
                 data: { datacenters: [{ id: 7, name: 'GFZ' }], resource_types: [], curators: [], statuses: [], year_range: {} },
             });
 
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
 
             await waitFor(() => {
                 expect(routerMock.visit).toHaveBeenCalledWith(
@@ -1202,7 +1207,7 @@ describe('ResourcesPage', () => {
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'without_datacenter' }));
             axiosGetMock.mockResolvedValueOnce({ data: { datacenters: [] } });
 
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
 
             await waitFor(() => {
                 expect(routerMock.visit).toHaveBeenCalledWith(
@@ -1219,7 +1224,7 @@ describe('ResourcesPage', () => {
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 99 }));
             axiosGetMock.mockResolvedValueOnce({ data: { datacenters: [{ id: 7, name: 'GFZ' }] } });
 
-            render(<ResourcesPage {...listProps} />);
+            await render(<ResourcesPage {...listProps} />);
 
             await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/resources/filter-options'));
             await waitFor(() => expect(localStorage.getItem('ernie.resources.datacenter-filter.v1')).toBeNull());
@@ -1231,15 +1236,15 @@ describe('ResourcesPage', () => {
             localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
             axiosGetMock.mockResolvedValueOnce({ data: { datacenters: [{ id: 7, name: 'GFZ' }] } });
 
-            render(<ResourcesPage {...listProps} filters={{ search: 'volcano' }} />);
+            await render(<ResourcesPage {...listProps} filters={{ search: 'volcano' }} />);
 
             await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/resources/filter-options'));
             expect(routerMock.visit).not.toHaveBeenCalled();
             expect(screen.getByTestId('resource-filter-state')).toHaveTextContent('"search":"volcano"');
         });
 
-        it('updates and clears only the datacenter preference after user changes', () => {
-            render(<ResourcesPage {...listProps} filters={{ search: 'volcano' }} />);
+        it('updates and clears only the datacenter preference after user changes', async () => {
+            await render(<ResourcesPage {...listProps} filters={{ search: 'volcano' }} />);
 
             fireEvent.click(screen.getByTestId('select-datacenter'));
             expect(localStorage.getItem('ernie.resources.datacenter-filter.v1')).toBe(
@@ -1265,7 +1270,7 @@ describe('ResourcesPage', () => {
             },
             sort: { key: 'id' as const, direction: 'asc' as const },
         };
-        const { rerender } = render(<ResourcesPage {...listProps} canUpdateDataCiteLandingPageUrls />);
+        const { rerender } = await render(<ResourcesPage {...listProps} canUpdateDataCiteLandingPageUrls />);
 
         await userEvent.click(screen.getByTestId('resources-datacite-url-update'));
         expect(screen.getByTestId('datacite-url-update-modal-mock')).toHaveTextContent('resources');
@@ -1307,7 +1312,7 @@ describe('ResourcesPage', () => {
             },
         };
 
-        render(<ResourcesPage {...props} />);
+        await render(<ResourcesPage {...props} />);
 
         expect(screen.getByTestId('app-layout')).toBeInTheDocument();
         expect(screen.getByRole('heading', { level: 1, name: /resources/i })).toBeInTheDocument();
@@ -1332,8 +1337,8 @@ describe('ResourcesPage', () => {
         expect(screen.getByTestId('resources-action-delete')).toBeInTheDocument();
     });
 
-    it('shows a friendly empty state when there are no resources', () => {
-        render(
+    it('shows a friendly empty state when there are no resources', async () => {
+        await render(
             <ResourcesPage
                 resources={[]}
                 pagination={{
@@ -1352,7 +1357,7 @@ describe('ResourcesPage', () => {
         expect(screen.getByText(/no resources found/i)).toBeInTheDocument();
     });
 
-    it('uses a friendly placeholder when a resource has no DOI', () => {
+    it('uses a friendly placeholder when a resource has no DOI', async () => {
         const props = {
             resources: [
                 {
@@ -1378,7 +1383,7 @@ describe('ResourcesPage', () => {
             sort: { key: 'id' as const, direction: 'asc' as const },
         };
 
-        render(<ResourcesPage {...props} />);
+        await render(<ResourcesPage {...props} />);
 
         const dataRows = screen.getAllByRole('row').slice(1);
         expect(within(dataRows[0]).getByText('Not registered')).toBeInTheDocument();
@@ -1396,7 +1401,7 @@ describe('ResourcesPage', () => {
             landingPage: { id: 1, is_published: true, public_url: 'https://example.test/resource' },
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1427,7 +1432,7 @@ describe('ResourcesPage', () => {
         expect(await screen.findByTestId('setup-lp-context')).toHaveTextContent('resource-list');
     });
 
-    it('opens the curation editor in a new tab when a resource row is clicked', () => {
+    it('opens the curation editor in a new tab when a resource row is clicked', async () => {
         const resource = {
             id: 1,
             doi: '10.9999/example',
@@ -1439,7 +1444,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1474,7 +1479,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1518,7 +1523,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1555,7 +1560,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1589,7 +1594,7 @@ describe('ResourcesPage', () => {
         }
     });
 
-    it('shows no DOI copy action for null, empty, or whitespace-only DOI values', () => {
+    it('shows no DOI copy action for null, empty, or whitespace-only DOI values', async () => {
         const resources = [
             { id: 4, doi: null, title: 'Null DOI resource' },
             { id: 5, doi: '', title: 'Empty DOI resource' },
@@ -1603,7 +1608,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         }));
 
-        render(
+        await render(
             <ResourcesPage
                 resources={resources as never}
                 pagination={{
@@ -1623,7 +1628,7 @@ describe('ResourcesPage', () => {
         expect(screen.queryByRole('button', { name: /copy doi/i })).not.toBeInTheDocument();
     });
 
-    it('shows a malformed saved DOI without offering a copy action', () => {
+    it('shows a malformed saved DOI without offering a copy action', async () => {
         const resource = {
             id: 9,
             doi: 'not-a-doi',
@@ -1635,7 +1640,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1670,7 +1675,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1713,7 +1718,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1737,7 +1742,7 @@ describe('ResourcesPage', () => {
         expect(openMock).not.toHaveBeenCalled();
     });
 
-    it('opens the curation editor from keyboard row activation', () => {
+    it('opens the curation editor from keyboard row activation', async () => {
         const resource = {
             id: 7,
             doi: null,
@@ -1749,7 +1754,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1779,7 +1784,7 @@ describe('ResourcesPage', () => {
         expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=7');
     });
 
-    it('opens the editor when a non-interactive status cell area is clicked', () => {
+    it('opens the editor when a non-interactive status cell area is clicked', async () => {
         const resource = {
             id: 1,
             doi: '10.9999/example',
@@ -1791,7 +1796,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1813,7 +1818,7 @@ describe('ResourcesPage', () => {
         expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
     });
 
-    it('does not open the editor when the row checkbox is clicked', () => {
+    it('does not open the editor when the row checkbox is clicked', async () => {
         const resource = {
             id: 1,
             doi: '10.9999/example',
@@ -1825,7 +1830,7 @@ describe('ResourcesPage', () => {
             landingPage: null,
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1848,7 +1853,7 @@ describe('ResourcesPage', () => {
         expect(openDetachedTabMock).not.toHaveBeenCalled();
     });
 
-    it('keeps the published status badge behavior separate from row editor activation', () => {
+    it('keeps the published status badge behavior separate from row editor activation', async () => {
         const resource = {
             id: 1,
             doi: '10.9999/example',
@@ -1860,7 +1865,7 @@ describe('ResourcesPage', () => {
             landingPage: { id: 1, is_published: true, public_url: 'https://example.test/resource' },
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{
@@ -1884,7 +1889,7 @@ describe('ResourcesPage', () => {
         expect(openDetachedTabMock).not.toHaveBeenCalled();
     });
 
-    it('opens and copies the tokenized preview URL from a review badge', () => {
+    it('opens and copies the tokenized preview URL from a review badge', async () => {
         const resource = {
             id: 1,
             doi: '10.9999/example',
@@ -1901,7 +1906,7 @@ describe('ResourcesPage', () => {
             },
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource]}
                 pagination={{
@@ -1924,7 +1929,7 @@ describe('ResourcesPage', () => {
         expect(clipboardWriteTextMock).not.toHaveBeenCalledWith('https://example.test/resource');
     });
 
-    it('does not expose review badge interactions without review-link permission', () => {
+    it('does not expose review badge interactions without review-link permission', async () => {
         authUserMock.can_send_review_links = false;
         const resource = {
             id: 1,
@@ -1942,7 +1947,7 @@ describe('ResourcesPage', () => {
             },
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource]}
                 pagination={{
@@ -1967,7 +1972,7 @@ describe('ResourcesPage', () => {
         expect(openMock).not.toHaveBeenCalled();
     });
 
-    it('does not activate the row when an interactive status badge text node is clicked', () => {
+    it('does not activate the row when an interactive status badge text node is clicked', async () => {
         const resource = {
             id: 1,
             doi: '10.9999/example',
@@ -1979,7 +1984,7 @@ describe('ResourcesPage', () => {
             landingPage: { id: 1, is_published: true, public_url: 'https://example.test/resource' },
         };
 
-        render(
+        await render(
             <ResourcesPage
                 resources={[resource as never]}
                 pagination={{

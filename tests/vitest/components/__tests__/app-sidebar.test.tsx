@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render as rawRender, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SIDEBAR_WORKSPACE_STORAGE_KEY } from '@/hooks/use-sidebar-workspace';
@@ -203,11 +203,14 @@ vi.mock('@/routes', () => ({
     settings: () => ({ url: '/settings' }),
 }));
 
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+
 import { AppSidebar } from '@/components/app-sidebar';
+
+const render = settleRender(rawRender);
 
 describe('AppSidebar', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         window.localStorage.clear();
         mockUrl = '/dashboard';
         setMockUser();
@@ -215,11 +218,11 @@ describe('AppSidebar', () => {
         axiosGetMock.mockResolvedValue({ data: { dataResourceCount: 12, igsnCount: 5 } });
     });
 
-    it.each(['admin', 'group_leader', 'curator'])('shows Contact Persons once under Tools for %s', (role) => {
+    it.each(['admin', 'group_leader', 'curator'])('shows Contact Persons once under Tools for %s', async (role) => {
         setMockUser({ role, can_access_contact_persons: true });
         mockUrl = '/contact-persons';
         window.localStorage.setItem(SIDEBAR_WORKSPACE_STORAGE_KEY, 'administration');
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
         expect(screen.getAllByRole('link', { name: 'Contact Persons' })).toHaveLength(1);
         const tools = NavSectionMock.mock.calls.find((call) => call[0].label === 'Tools');
         expect(tools?.[0].items.map((item) => item.title)).toContain('Contact Persons');
@@ -228,14 +231,14 @@ describe('AppSidebar', () => {
         if (role !== 'curator') expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
     });
 
-    it('hides Contact Persons when its permission is absent', () => {
+    it('hides Contact Persons when its permission is absent', async () => {
         setMockUser({ role: 'beginner', can_access_contact_persons: false });
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
         expect(screen.queryByRole('link', { name: 'Contact Persons' })).not.toBeInTheDocument();
     });
 
-    it('renders the curation workspace by default for admin users on curation pages', () => {
-        render(<AppSidebar />);
+    it('renders the curation workspace by default for admin users on curation pages', async () => {
+        await render(<AppSidebar />);
 
         expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'curation');
         expect(NavSectionMock).toHaveBeenCalledTimes(3);
@@ -259,10 +262,10 @@ describe('AppSidebar', () => {
         expect(within(footer).getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/docs');
     });
 
-    it('renders the administration workspace automatically on administration routes for admin users', () => {
+    it('renders the administration workspace automatically on administration routes for admin users', async () => {
         mockUrl = '/users';
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
 
@@ -273,7 +276,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Database', 'Statistics', 'Logs']);
     });
 
-    it('renders the reduced administration workspace for group leaders', () => {
+    it('renders the reduced administration workspace for group leaders', async () => {
         mockUrl = '/users';
         setMockUser({
             role: 'group_leader',
@@ -284,7 +287,7 @@ describe('AppSidebar', () => {
             can_access_database_dumps: false,
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
 
@@ -295,7 +298,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics']);
     });
 
-    it('does not render a leading separator when the team section is filtered out', () => {
+    it('does not render a leading separator when the team section is filtered out', async () => {
         mockUrl = '/settings';
         setMockUser({
             role: 'admin',
@@ -306,7 +309,7 @@ describe('AppSidebar', () => {
             can_manage_landing_page_templates: false,
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         const sectionCalls = NavSectionMock.mock.calls;
         expect(sectionCalls.map((call) => call[0].label)).toEqual(['Configuration', 'Operations']);
@@ -314,12 +317,12 @@ describe('AppSidebar', () => {
         expect(sectionCalls[1][0].showSeparator).toBe(true);
     });
 
-    it('shows the assistance badge with warning tone in the administration workspace', () => {
+    it('shows the assistance badge with warning tone in the administration workspace', async () => {
         mockUrl = '/assistance';
         setMockUser({ can_access_assistance: true });
         setMockSharedProps({ pendingAssistanceTotalCount: 7 });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
         expect(operationsSection).toBeDefined();
@@ -328,7 +331,7 @@ describe('AppSidebar', () => {
         expect(operationsSection?.[0].items[0].badgeTone).toBe('warning');
     });
 
-    it('shows assessment metrics in the administration workspace', () => {
+    it('shows assessment metrics in the administration workspace', async () => {
         mockUrl = '/assessment';
         setMockUser({ can_access_assessment: true });
         setMockSharedProps({
@@ -339,7 +342,7 @@ describe('AppSidebar', () => {
             },
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
         expect(operationsSection).toBeDefined();
@@ -347,13 +350,13 @@ describe('AppSidebar', () => {
         expect(operationsSection?.[0].items[0].badge).toBe('6.9 / 3.2');
     });
 
-    it('preserves visible zero badges in the curation workspace', () => {
+    it('preserves visible zero badges in the curation workspace', async () => {
         setMockSharedProps({
             dataResourceCount: 0,
             igsnCount: 0,
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         const sectionCalls = NavSectionMock.mock.calls;
         expect(sectionCalls[1][0].items[2].badge).toBe(0);
@@ -366,7 +369,7 @@ describe('AppSidebar', () => {
         setMockSharedProps({ dataResourceCount: undefined, igsnCount: undefined });
         axiosGetMock.mockResolvedValueOnce({ data: { dataResourceCount: 27, igsnCount: 9 } });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(axiosGetMock).toHaveBeenCalledWith('/resource-inventory', { signal: expect.any(AbortSignal) });
         await waitFor(() => {
@@ -377,36 +380,36 @@ describe('AppSidebar', () => {
         });
     });
 
-    it('does not request resource inventory when both shared counts are available', () => {
-        render(<AppSidebar />);
+    it('does not request resource inventory when both shared counts are available', async () => {
+        await render(<AppSidebar />);
 
         expect(axiosGetMock).not.toHaveBeenCalled();
     });
 
-    it('shows Landing Pages inside the administration configuration section when permitted', () => {
+    it('shows Landing Pages inside the administration configuration section when permitted', async () => {
         mockUrl = '/landing-pages';
         setMockUser({ can_manage_landing_page_templates: true });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         const configurationSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Configuration');
         expect(configurationSection).toBeDefined();
         expect(configurationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings', 'Landing Pages']);
     });
 
-    it('restores the stored administration workspace on global routes without rendering an open-page section', () => {
+    it('restores the stored administration workspace on global routes without rendering an open-page section', async () => {
         mockUrl = '/docs';
         window.localStorage.setItem(SIDEBAR_WORKSPACE_STORAGE_KEY, 'administration');
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
         expect(screen.queryByText('Open Page')).not.toBeInTheDocument();
         expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Operations']);
     });
 
-    it('shows an open-page section when an admin manually switches away from the current workspace', () => {
-        render(<AppSidebar />);
+    it('shows an open-page section when an admin manually switches away from the current workspace', async () => {
+        await render(<AppSidebar />);
 
         fireEvent.click(screen.getByRole('button', { name: /switch to administration/i }));
 
@@ -417,7 +420,7 @@ describe('AppSidebar', () => {
         expect(screen.getByRole('link', { name: /^users$/i })).toHaveAttribute('href', '/users');
     });
 
-    it('falls back to zero badges for assistance when shared counts are missing', () => {
+    it('falls back to zero badges for assistance when shared counts are missing', async () => {
         mockUrl = '/assistance';
         setMockUser({
             role: 'group_leader',
@@ -434,14 +437,14 @@ describe('AppSidebar', () => {
             pendingAssistanceTotalCount: undefined,
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
         expect(operationsSection).toBeDefined();
         expect(operationsSection?.[0].items[0].badge).toBe(0);
     });
 
-    it('appends tools and administration sections for roles without the workspace switcher', () => {
+    it('appends tools and administration sections for roles without the workspace switcher', async () => {
         setMockUser({
             role: 'curator',
             can_manage_users: false,
@@ -462,7 +465,7 @@ describe('AppSidebar', () => {
             },
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
         expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual([
@@ -487,7 +490,7 @@ describe('AppSidebar', () => {
         expect(administrationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Logs', 'Editor Settings', 'Landing Pages']);
     });
 
-    it('hides the workspace switcher when privileged users have no administration destinations', () => {
+    it('hides the workspace switcher when privileged users have no administration destinations', async () => {
         setMockUser({
             role: 'admin',
             can_access_logs: false,
@@ -500,13 +503,13 @@ describe('AppSidebar', () => {
             can_access_assessment: false,
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
         expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual([undefined, 'Data Curation', 'IGSN Curation']);
     });
 
-    it('does not render the workspace switcher for beginner users', () => {
+    it('does not render the workspace switcher for beginner users', async () => {
         setMockUser({
             role: 'beginner',
             can_manage_users: false,
@@ -520,14 +523,14 @@ describe('AppSidebar', () => {
             can_access_assessment: false,
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
         expect(NavSectionMock).toHaveBeenCalledTimes(3);
         expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual([undefined, 'Data Curation', 'IGSN Curation']);
     });
 
-    it('does not render the workspace switcher for curator users', () => {
+    it('does not render the workspace switcher for curator users', async () => {
         setMockUser({
             role: 'curator',
             can_manage_users: false,
@@ -541,7 +544,7 @@ describe('AppSidebar', () => {
             can_access_assessment: false,
         });
 
-        render(<AppSidebar />);
+        await render(<AppSidebar />);
 
         expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
         expect(NavSectionMock).toHaveBeenCalledTimes(3);

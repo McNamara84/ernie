@@ -1,4 +1,5 @@
 import { act, waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it } from 'vitest';
 
 import { fetchRorAffiliations, useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -52,11 +53,7 @@ describe('useRorAffiliations', () => {
     });
 
     it('reports an error when the request fails', async () => {
-        server.use(
-            http.get(apiEndpoints.rorAffiliations, () =>
-                HttpResponse.json({ message: 'Server exploded' }, { status: 500 }),
-            ),
-        );
+        server.use(http.get(apiEndpoints.rorAffiliations, () => HttpResponse.json({ message: 'Server exploded' }, { status: 500 })));
 
         const { result } = renderHookWithQueryClient(() => useRorAffiliations());
 
@@ -78,9 +75,7 @@ describe('useRorAffiliations', () => {
     });
 
     it('returns an empty array when the payload is not an array', async () => {
-        server.use(
-            http.get(apiEndpoints.rorAffiliations, () => HttpResponse.json({ oops: true })),
-        );
+        server.use(http.get(apiEndpoints.rorAffiliations, () => HttpResponse.json({ oops: true })));
 
         const { result } = renderHookWithQueryClient(() => useRorAffiliations());
 
@@ -107,9 +102,7 @@ describe('useRorAffiliations', () => {
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        expect(result.current.suggestions).toEqual([
-            { value: 'Valid', rorId: 'https://ror.org/ok', searchTerms: [] },
-        ]);
+        expect(result.current.suggestions).toEqual([{ value: 'Valid', rorId: 'https://ror.org/ok', searchTerms: [] }]);
     });
 
     it('dedupes concurrent fetches through the shared cache', async () => {
@@ -134,9 +127,7 @@ describe('useRorAffiliations', () => {
 
     describe('fetchRorAffiliations (direct call)', () => {
         it('propagates HTTP errors', async () => {
-            server.use(
-                http.get(apiEndpoints.rorAffiliations, () => new HttpResponse(null, { status: 503 })),
-            );
+            server.use(http.get(apiEndpoints.rorAffiliations, () => new HttpResponse(null, { status: 503 })));
 
             await expect(fetchRorAffiliations()).rejects.toThrow();
         });
@@ -157,3 +148,5 @@ describe('useRorAffiliations', () => {
         });
     });
 });
+
+installCsrfFixture();

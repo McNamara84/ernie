@@ -1,11 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render as rawRender, screen, waitFor } from '@testing-library/react';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { latestVersion } from '@/lib/version';
 import Dashboard, { handleJsonFiles, handleXmlFiles } from '@/pages/dashboard';
+
+const render = settleRender(rawRender);
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
@@ -97,18 +100,18 @@ const removeCsrfMeta = () => {
 describe('Dashboard', () => {
     it.each([null, undefined, { period: '2026-Q4', isDue: false, completedAt: '2026-10-19T10:00:00Z' }])(
         'does not show an unavailable or completed review reminder (%j)',
-        (thesaurusReviewReminder) => {
+        async (thesaurusReviewReminder) => {
             const props = usePageMock().props;
             usePageMock.mockReturnValue({ props: { ...props, thesaurusReviewReminder } });
-            render(<Dashboard />);
+            await render(<Dashboard />);
             expect(screen.queryByRole('link', { name: /Quarterly thesaurus review/ })).not.toBeInTheDocument();
         },
     );
 
-    it('links the entire due reminder to the thesauri section', () => {
+    it('links the entire due reminder to the thesauri section', async () => {
         const props = usePageMock().props;
         usePageMock.mockReturnValue({ props: { ...props, thesaurusReviewReminder: { period: '2026-Q4', isDue: true, completedAt: null } } });
-        render(<Dashboard />);
+        await render(<Dashboard />);
         expect(screen.getByRole('link', { name: /Quarterly thesaurus review/ })).toHaveAttribute('href', '/settings?section=thesauri');
     });
 
@@ -143,13 +146,13 @@ describe('Dashboard', () => {
         });
     });
 
-    it('greets the user by name', () => {
-        render(<Dashboard />);
+    it('greets the user by name', async () => {
+        await render(<Dashboard />);
         expect(screen.getByText(/hello jane!/i)).toBeInTheDocument();
     });
 
-    it('passes the guided tour payload to the autostart component and renders stable tour anchors', () => {
-        usePageMock.mockReturnValueOnce({
+    it('passes the guided tour payload to the autostart component and renders stable tour anchors', async () => {
+        usePageMock.mockReturnValue({
             props: {
                 auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
@@ -167,41 +170,44 @@ describe('Dashboard', () => {
             },
         });
 
-        render(<Dashboard />);
+        await render(<Dashboard />);
 
         expect(screen.getByTestId('guided-tour-autostart')).toHaveAttribute('data-assignment-id', '99');
         expect(screen.getByText(/hello jane!/i).closest('[data-tour="dashboard-welcome"]')).toBeInTheDocument();
         expect(screen.getByText(/upload files/i).closest('[data-tour="dashboard-upload"]')).toBeInTheDocument();
     });
 
-    it('displays the data resource count and institution count in the statistics card', () => {
-        render(<Dashboard />);
+    it('displays the data resource count and institution count in the statistics card', async () => {
+        await render(<Dashboard />);
         expect(screen.getByText('Datasets')).toBeInTheDocument();
         expect(screen.getByText('17')).toBeInTheDocument();
         expect(screen.getByText('3 institutions with registered data resources')).toBeInTheDocument();
     });
 
-    it('displays the IGSN count and institution count in the statistics card', () => {
-        render(<Dashboard />);
+    it('displays the IGSN count and institution count in the statistics card', async () => {
+        await render(<Dashboard />);
         expect(screen.getByText('IGSNs')).toBeInTheDocument();
         expect(screen.getByText('5')).toBeInTheDocument();
         expect(screen.getByText('2 institutions with sample records')).toBeInTheDocument();
     });
 
     it('loads metrics asynchronously when aggregate props are unavailable', async () => {
-        axiosGetMock.mockResolvedValueOnce({
-            data: {
-                dataResourceCount: 0,
-                igsnCount: 0,
-                dataInstitutionCount: 0,
-                igsnInstitutionCount: 0,
-                draftCount: 0,
-            },
-        });
-        usePageMock.mockReturnValueOnce({ props: { auth: { user: { name: 'Jane' } } } });
-        render(<Dashboard />);
+        const metrics = {
+            dataResourceCount: 0,
+            igsnCount: 0,
+            dataInstitutionCount: 0,
+            igsnInstitutionCount: 0,
+            draftCount: 0,
+        };
+        const request = Promise.withResolvers<{ data: typeof metrics }>();
+        axiosGetMock.mockReturnValueOnce(request.promise);
+        usePageMock.mockReturnValue({ props: { auth: { user: { name: 'Jane' } } } });
+        await render(<Dashboard />);
 
         expect(screen.getAllByText('…').length).toBeGreaterThanOrEqual(3);
+        await act(async () => {
+            request.resolve({ data: metrics });
+        });
         await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/dashboard/metrics', expect.objectContaining({ signal: expect.anything() })));
         expect(await screen.findByText('0 institutions with registered data resources')).toBeInTheDocument();
         expect(screen.getByText('0 institutions with sample records')).toBeInTheDocument();
@@ -217,16 +223,16 @@ describe('Dashboard', () => {
                 draftCount: 4,
             },
         });
-        usePageMock.mockReturnValueOnce({ props: { auth: { user: { name: 'Jane' } } } });
-        render(<Dashboard />);
+        usePageMock.mockReturnValue({ props: { auth: { user: { name: 'Jane' } } } });
+        await render(<Dashboard />);
 
         expect(await screen.findByText('Metrics are temporarily unavailable.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(await screen.findByText('6 institutions with registered data resources')).toBeInTheDocument();
     });
 
-    it('renders role-aware quick actions and recent resources', () => {
-        render(<Dashboard />);
+    it('renders role-aware quick actions and recent resources', async () => {
+        await render(<Dashboard />);
 
         expect(screen.getByRole('link', { name: /create resource/i })).toHaveAttribute('href', '/editor');
         expect(screen.getByRole('link', { name: /resume latest resource/i })).toHaveAttribute('href', '/editor?resourceId=12');
@@ -239,8 +245,8 @@ describe('Dashboard', () => {
         expect(screen.getByText(/updated/i)).toBeInTheDocument();
     });
 
-    it('renders review, published and dead status labels while skipping unknown status labels', () => {
-        usePageMock.mockReturnValueOnce({
+    it('renders review, published and dead status labels while skipping unknown status labels', async () => {
+        usePageMock.mockReturnValue({
             props: {
                 auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
@@ -257,7 +263,7 @@ describe('Dashboard', () => {
             },
         });
 
-        render(<Dashboard />);
+        await render(<Dashboard />);
 
         expect(screen.getByText('Review')).toBeInTheDocument();
         expect(screen.getByText('Published')).toBeInTheDocument();
@@ -266,29 +272,29 @@ describe('Dashboard', () => {
         expect(screen.getAllByText('Resource available to resume')).toHaveLength(4);
     });
 
-    it('keeps the page container overflow-safe and surfaces the import hub in the side column', () => {
-        render(<Dashboard />);
+    it('keeps the page container overflow-safe and surfaces the import hub in the side column', async () => {
+        await render(<Dashboard />);
 
         expect(screen.getByTestId('dashboard-page')).toHaveClass('overflow-x-hidden');
         expect(screen.getByTestId('dashboard-side-column')).toBeInTheDocument();
         expect(screen.getByTestId('dashboard-upload-card')).toBeInTheDocument();
     });
 
-    it('marks create resource as the primary quick action', () => {
-        render(<Dashboard />);
+    it('marks create resource as the primary quick action', async () => {
+        await render(<Dashboard />);
 
         expect(screen.getByRole('link', { name: /create resource/i })).toHaveAttribute('data-variant', 'default');
     });
 
-    it('does not render a redundant upload metadata quick action', () => {
-        render(<Dashboard />);
+    it('does not render a redundant upload metadata quick action', async () => {
+        await render(<Dashboard />);
 
         expect(screen.queryByRole('button', { name: /upload metadata/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /upload metadata/i })).not.toBeInTheDocument();
     });
 
-    it('renders an actionable empty state when there are no recent resources', () => {
-        usePageMock.mockReturnValueOnce({
+    it('renders an actionable empty state when there are no recent resources', async () => {
+        usePageMock.mockReturnValue({
             props: {
                 auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
@@ -300,14 +306,14 @@ describe('Dashboard', () => {
             },
         });
 
-        render(<Dashboard />);
+        await render(<Dashboard />);
 
         expect(screen.getByText('No recent resources')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /browse resources/i })).toHaveAttribute('href', '/resources');
     });
 
-    it('links the ERNIE version to the changelog', () => {
-        render(<Dashboard />);
+    it('links the ERNIE version to the changelog', async () => {
+        await render(<Dashboard />);
         const versionLink = screen.getByRole('link', {
             name: new RegExp(`view changelog for version ${latestVersion}`, 'i'),
         });
@@ -315,8 +321,8 @@ describe('Dashboard', () => {
         expect(versionLink).toHaveTextContent(latestVersion);
     });
 
-    it('displays PHP version badge with link to PHP release notes', () => {
-        render(<Dashboard />);
+    it('displays PHP version badge with link to PHP release notes', async () => {
+        await render(<Dashboard />);
         const phpVersionLink = screen.getByRole('link', {
             name: /view php 8\.4 release notes/i,
         });
@@ -326,8 +332,8 @@ describe('Dashboard', () => {
         expect(phpVersionLink).toHaveTextContent('8.4.12');
     });
 
-    it('displays Laravel version badge with link to Laravel release notes', () => {
-        render(<Dashboard />);
+    it('displays Laravel version badge with link to Laravel release notes', async () => {
+        await render(<Dashboard />);
         const laravelVersionLink = screen.getByRole('link', {
             name: /view laravel 12\.x release notes/i,
         });
@@ -337,8 +343,8 @@ describe('Dashboard', () => {
         expect(laravelVersionLink).toHaveTextContent('12.28.1');
     });
 
-    it('generates correct PHP release link for major.minor version', () => {
-        usePageMock.mockReturnValueOnce({
+    it('generates correct PHP release link for major.minor version', async () => {
+        usePageMock.mockReturnValue({
             props: {
                 auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
@@ -349,7 +355,7 @@ describe('Dashboard', () => {
                 laravelVersion: '12.28.1',
             },
         });
-        render(<Dashboard />);
+        await render(<Dashboard />);
         const phpVersionLink = screen.getByRole('link', {
             name: /view php 8\.5 release notes/i,
         });
@@ -357,8 +363,8 @@ describe('Dashboard', () => {
         expect(phpVersionLink).toHaveTextContent('8.5.3');
     });
 
-    it('generates correct Laravel release link for major version', () => {
-        usePageMock.mockReturnValueOnce({
+    it('generates correct Laravel release link for major version', async () => {
+        usePageMock.mockReturnValue({
             props: {
                 auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
@@ -369,7 +375,7 @@ describe('Dashboard', () => {
                 laravelVersion: '13.5.10',
             },
         });
-        render(<Dashboard />);
+        await render(<Dashboard />);
         const laravelVersionLink = screen.getByRole('link', {
             name: /view laravel 13\.x release notes/i,
         });
@@ -377,8 +383,8 @@ describe('Dashboard', () => {
         expect(laravelVersionLink).toHaveTextContent('13.5.10');
     });
 
-    it('falls back to default versions when props are missing', () => {
-        usePageMock.mockReturnValueOnce({
+    it('falls back to default versions when props are missing', async () => {
+        usePageMock.mockReturnValue({
             props: {
                 auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
@@ -387,7 +393,7 @@ describe('Dashboard', () => {
                 igsnInstitutionCount: 2,
             },
         });
-        render(<Dashboard />);
+        await render(<Dashboard />);
 
         // Should still display badges with fallback values
         const phpBadge = screen.getByText('8.4.12');
@@ -397,8 +403,8 @@ describe('Dashboard', () => {
         expect(laravelBadge).toBeInTheDocument();
     });
 
-    it('toggles dropzone highlight on drag events', () => {
-        render(<Dashboard />);
+    it('toggles dropzone highlight on drag events', async () => {
+        await render(<Dashboard />);
         const dropzone = screen.getByTestId('unified-dropzone');
         expect(dropzone).toHaveClass('bg-muted/60');
         fireEvent.dragOver(dropzone);
@@ -408,7 +414,7 @@ describe('Dashboard', () => {
     });
 
     it('renders unicorn overlay as decorative when the easter egg is active', async () => {
-        render(<Dashboard />);
+        await render(<Dashboard />);
         const welcomeCard = screen.getByTestId('dashboard-welcome-card');
         const environmentCard = screen.getByTestId('dashboard-environment-card');
 
@@ -430,27 +436,31 @@ describe('Dashboard', () => {
         expect(unicornImage).toHaveAttribute('aria-hidden', 'true');
     });
 
-    it('triggers file input when clicking upload button', () => {
-        const { container } = render(<Dashboard />);
+    it('triggers file input when clicking upload button', async () => {
+        const { container } = await render(<Dashboard />);
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
         const clickSpy = vi.spyOn(input, 'click');
         fireEvent.click(screen.getByRole('button', { name: /browse files/i }));
         expect(clickSpy).toHaveBeenCalled();
     });
 
-    it('handles only xml files on drop', () => {
-        render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
+    it('handles only xml files on drop', async () => {
+        await render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
         const dropzone = screen.getByTestId('unified-dropzone');
         const xmlFile = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const otherFile = new File(['data'], 'image.png', { type: 'image/png' });
-        fireEvent.dragOver(dropzone, { dataTransfer: { files: [xmlFile, otherFile] } });
-        fireEvent.drop(dropzone, { dataTransfer: { files: [xmlFile, otherFile] } });
+        await act(async () => {
+            fireEvent.dragOver(dropzone, { dataTransfer: { files: [xmlFile, otherFile] } });
+        });
+        await act(async () => {
+            fireEvent.drop(dropzone, { dataTransfer: { files: [xmlFile, otherFile] } });
+        });
         expect(handleXmlFilesSpy).toHaveBeenCalledTimes(1);
         expect(handleXmlFilesSpy).toHaveBeenCalledWith([xmlFile]);
     });
 
-    it('ignores unsupported file types on drop', () => {
-        render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
+    it('ignores unsupported file types on drop', async () => {
+        await render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
         const dropzone = screen.getByTestId('unified-dropzone');
         const imageFile = new File(['data'], 'image.png', { type: 'image/png' });
         fireEvent.dragOver(dropzone, { dataTransfer: { files: [imageFile] } });
@@ -459,19 +469,21 @@ describe('Dashboard', () => {
         expect(handleXmlFilesSpy).not.toHaveBeenCalled();
     });
 
-    it('handles only xml files on file selection', () => {
-        const { container } = render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
+    it('handles only xml files on file selection', async () => {
+        const { container } = await render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
         const xmlFile = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const otherFile = new File(['data'], 'note.txt', { type: 'text/plain' });
-        fireEvent.change(input, { target: { files: [xmlFile, otherFile] } });
+        await act(async () => {
+            fireEvent.change(input, { target: { files: [xmlFile, otherFile] } });
+        });
         expect(handleXmlFilesSpy).toHaveBeenCalledTimes(1);
         expect(handleXmlFilesSpy).toHaveBeenCalledWith([xmlFile]);
     });
 
     it('shows an error alert when upload fails', async () => {
         handleXmlFilesSpy.mockRejectedValue(new Error('Invalid file'));
-        render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
+        await render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
         const dropzone = screen.getByTestId('unified-dropzone');
         const xmlFile = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         fireEvent.dragOver(dropzone, { dataTransfer: { files: [xmlFile] } });
@@ -554,6 +566,7 @@ describe('handleXmlFiles', () => {
     });
 
     it('throws when csrf token is missing', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         removeCsrfMeta();
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi.spyOn(global, 'fetch');
@@ -562,9 +575,13 @@ describe('handleXmlFiles', () => {
         expect(fetchMock).not.toHaveBeenCalled();
 
         fetchMock.mockRestore();
+
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('[CSRF] No CSRF token found in meta tag or cookie');
     });
 
     it('throws server error message', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, json: async () => ({ message: 'Bad request' }) } as Response);
 
@@ -573,6 +590,9 @@ describe('handleXmlFiles', () => {
 
         fetchMock.mockRestore();
         routerMock.get.mockReset();
+
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('xmlSession upload failed', expect.objectContaining({ message: 'Bad request' }));
     });
 
     it('logs and throws when fetch fails', async () => {

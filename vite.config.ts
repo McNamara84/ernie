@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { availableParallelism } from 'node:os';
 import { resolve } from 'node:path';
 
 import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 
 const releases = JSON.parse(readFileSync(resolve(process.cwd(), 'resources/data/changelog.json'), 'utf8')) as unknown;
 
@@ -16,43 +15,8 @@ if (!Array.isArray(releases) || typeof releases[0]?.version !== 'string' || rele
 
 const latestVersion: string = releases[0].version;
 
-export function resolveVitestMaxWorkers(
-    isCi = Boolean(process.env.CI),
-    configuredWorkers = process.env.ERNIE_VITEST_WORKERS,
-    availableCpus?: number,
-): number | undefined {
-    if (isCi) {
-        return undefined;
-    }
-
-    const normalizedWorkers = configuredWorkers?.trim();
-
-    if (!normalizedWorkers) {
-        availableCpus ??= availableParallelism();
-
-        return Math.max(1, Math.min(8, Math.floor(availableCpus / 2)));
-    }
-
-    const workers = Number(normalizedWorkers);
-
-    if (!Number.isSafeInteger(workers) || workers < 1) {
-        throw new Error('ERNIE_VITEST_WORKERS must be a positive integer.');
-    }
-
-    return workers;
-}
-
-export function resolveVitestRetry(isCi = Boolean(process.env.CI)): number {
-    // GitHub-hosted runners occasionally expose timing-sensitive test flakes.
-    // Retry once in CI while keeping local runs strict; deterministic failures
-    // still fail the shard on the second attempt.
-    return isCi ? 1 : 0;
-}
-
 export default defineConfig(({ command }) => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
-    const isCi = Boolean(process.env.CI);
-    const vitestMaxWorkers = resolveVitestMaxWorkers(isCi);
     const isDev = command === 'serve';
     const wayfinderCommand = process.env.WAYFINDER_COMMAND ?? 'php artisan ernie:wayfinder-generate';
 
@@ -123,57 +87,6 @@ export default defineConfig(({ command }) => {
                 // Runtime data, dependencies and generated reports are not HMR sources.
                 // Polling them across the Windows bind mount can stall CSS generation.
                 ignored: [/(?:^|[/\\])(?:\.tmp|\.trivy-cache|vendor|storage|coverage|test-results|playwright-report|blob-report)(?:[/\\]|$)/],
-            },
-        },
-        test: {
-            environment: 'jsdom',
-            // Threads are 25-30% faster locally, while GitHub-hosted runners
-            // perform better with the process-isolated fork pool. Capping the
-            // local pool avoids oversubscribing CPU-heavy jsdom form suites.
-            pool: isCi ? 'forks' : 'threads',
-            maxWorkers: vitestMaxWorkers,
-            retry: resolveVitestRetry(isCi),
-            clearMocks: true,
-            environmentOptions: {
-                jsdom: {
-                    url: 'http://localhost/',
-                },
-            },
-            globals: true,
-            css: false,
-            setupFiles: './vitest.setup.ts',
-            include: ['tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-            testTimeout: 10000, // Increased from default 5000ms for controlled vocabulary (GCMD) loading in DataCiteForm initialization
-            env: {
-                VITE_APP_URL: '',
-                APP_URL: '',
-            },
-            coverage: {
-                provider: 'v8' as const,
-                reporter: ['text', 'json-summary', 'lcov'],
-                reportsDirectory: 'coverage',
-                include: ['resources/js/**/*.{js,ts,jsx,tsx}'],
-                exclude: [
-                    // Test files and mocks
-                    'tests/vitest/**',
-                    'resources/js/**/__mocks__/**',
-                    // Auto-generated Wayfinder files (Laravel route helpers)
-                    'resources/js/actions/**',
-                    'resources/js/routes/**',
-                    'resources/js/routes.ts',
-                    // Application entry points (not unit-testable)
-                    'resources/js/app.tsx',
-                    'resources/js/ssr.tsx',
-                    'resources/js/swagger.tsx',
-                    // Third-party UI library (shadcn/ui components)
-                    'resources/js/components/ui/**',
-                    // Pure type definition files (no executable code)
-                    'resources/js/**/*.d.ts',
-                    'resources/js/types/affiliations.ts',
-                    'resources/js/types/docs.ts',
-                    'resources/js/types/portal.ts',
-                    'resources/js/types/resources.ts',
-                ],
             },
         },
     };

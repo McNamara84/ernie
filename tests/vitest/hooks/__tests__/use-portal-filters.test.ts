@@ -33,7 +33,6 @@ describe('usePortalFilters', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         window.history.replaceState({}, '', '/');
     });
 

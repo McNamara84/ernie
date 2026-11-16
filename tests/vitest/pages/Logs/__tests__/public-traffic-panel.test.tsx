@@ -45,7 +45,6 @@ const mockedGet = vi.mocked(axios.get);
 
 describe('PublicTrafficPanel', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         mockedGet.mockResolvedValue({ data: response });
     });
 

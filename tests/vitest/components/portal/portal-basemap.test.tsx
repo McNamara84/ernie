@@ -19,9 +19,7 @@ const maplibreGLMock = vi.hoisted(() => vi.fn(() => layerMock));
 const setWorkerUrlMock = vi.hoisted(() => vi.fn());
 const localizeStyleMock = vi.hoisted(() => vi.fn());
 const boundaryCountryNames = vi.hoisted(() => ({ DEU: 'Germany', POL: 'Poland' }));
-const getGlobalStateForLocalizationMock = vi.hoisted(() =>
-    vi.fn(() => ({ diplomat__countryNamesByCode: boundaryCountryNames })),
-);
+const getGlobalStateForLocalizationMock = vi.hoisted(() => vi.fn(() => ({ diplomat__countryNamesByCode: boundaryCountryNames })));
 const attributionControlMock = vi.hoisted(() => ({
     addAttribution: vi.fn(),
     removeAttribution: vi.fn(),
@@ -48,7 +46,6 @@ const config: PortalBasemapConfig = {
 
 describe('PortalBasemap', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         maplibreEvents.clear();
         maplibreGLMock.mockImplementation(() => layerMock);
         localizeStyleMock.mockImplementation(() => undefined);
@@ -85,9 +82,7 @@ describe('PortalBasemap', () => {
         expect(getGlobalStateForLocalizationMock).toHaveBeenCalledWith(['en']);
         expect(maplibreMapMock.setGlobalStateProperty).toHaveBeenCalledWith('diplomat__countryNamesByCode', boundaryCountryNames);
         expect(localizeStyleMock).toHaveBeenCalledWith(maplibreMapMock, ['en'], { glossLocalNames: false });
-        expect(maplibreMapMock.setGlobalStateProperty.mock.invocationCallOrder[0]).toBeLessThan(
-            localizeStyleMock.mock.invocationCallOrder[0],
-        );
+        expect(maplibreMapMock.setGlobalStateProperty.mock.invocationCallOrder[0]).toBeLessThan(localizeStyleMock.mock.invocationCallOrder[0]);
         expect(onStatusChange).toHaveBeenLastCalledWith('loading');
 
         act(() => maplibreEvents.get('idle')?.());
@@ -103,6 +98,7 @@ describe('PortalBasemap', () => {
     });
 
     it('keeps observing resource errors and becomes ready only after a successful recovery cycle', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         const onStatusChange = vi.fn();
         render(<PortalBasemap config={config} maxZoom={18} onStatusChange={onStatusChange} />);
         await waitFor(() => expect(maplibreEvents.has('idle')).toBe(true));
@@ -131,6 +127,10 @@ describe('PortalBasemap', () => {
             maplibreEvents.get('idle')?.();
         });
         expect(onStatusChange).toHaveBeenLastCalledWith('ready');
+
+        expect(diagnostic).toHaveBeenCalledTimes(2);
+        expect(diagnostic).toHaveBeenCalledWith('Portal basemap loading failed.', expect.objectContaining({ message: 'Tile request failed' }));
+        expect(diagnostic).toHaveBeenCalledWith('Portal basemap loading failed.', expect.objectContaining({ message: 'Tile retry failed' }));
     });
 
     it('reports a missing style URL without initializing MapLibre', () => {
@@ -146,6 +146,7 @@ describe('PortalBasemap', () => {
     });
 
     it('reports initialization and pre-load style errors', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         const initializationStatus = vi.fn();
         maplibreGLMock.mockImplementationOnce(() => {
             throw new Error('WebGL unavailable');
@@ -155,7 +156,7 @@ describe('PortalBasemap', () => {
         await waitFor(() => expect(initializationStatus).toHaveBeenLastCalledWith('error'));
         firstRender.unmount();
 
-        vi.clearAllMocks();
+        maplibreGLMock.mockClear();
         maplibreEvents.clear();
         maplibreGLMock.mockImplementation(() => layerMock);
         const styleStatus = vi.fn();
@@ -164,9 +165,14 @@ describe('PortalBasemap', () => {
 
         act(() => maplibreEvents.get('error')?.({ error: new Error('Style request failed') }));
         expect(styleStatus).toHaveBeenLastCalledWith('error');
+
+        expect(diagnostic).toHaveBeenCalledTimes(2);
+        expect(diagnostic).toHaveBeenCalledWith('Portal basemap initialization failed.', expect.objectContaining({ message: 'WebGL unavailable' }));
+        expect(diagnostic).toHaveBeenCalledWith('Portal basemap loading failed.', expect.objectContaining({ message: 'Style request failed' }));
     });
 
     it('reports localization errors and never adds a layer after unmount', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         const localizationStatus = vi.fn();
         localizeStyleMock.mockImplementationOnce(() => {
             throw new Error('Unsupported style');
@@ -178,12 +184,15 @@ describe('PortalBasemap', () => {
         expect(localizationStatus).toHaveBeenLastCalledWith('error');
         firstRender.unmount();
 
-        vi.clearAllMocks();
+        maplibreGLMock.mockClear();
         maplibreEvents.clear();
         const secondRender = render(<PortalBasemap config={config} maxZoom={18} onStatusChange={vi.fn()} />);
         secondRender.unmount();
 
         await act(async () => Promise.resolve());
         expect(maplibreGLMock).not.toHaveBeenCalled();
+
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('Portal basemap loading failed.', expect.objectContaining({ message: 'Unsupported style' }));
     });
 });

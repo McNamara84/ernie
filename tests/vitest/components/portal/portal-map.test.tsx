@@ -236,7 +236,6 @@ const response = (overrides: Partial<PortalMapResponse> = {}): PortalMapResponse
 
 describe('PortalMap', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         useMediaQueryMock.mockReturnValue(false);
         mapEvents.clear();
         mockMap.getCenter.mockReturnValue({ lat: 0, lng: 180 });

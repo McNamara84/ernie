@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it, vi } from 'vitest';
 
 import { RelatedItemForm } from '@/components/citations/RelatedItemForm';
@@ -388,3 +389,5 @@ describe('RelatedItemForm — titles field array', () => {
         expect(screen.getByDisplayValue('Existing Sub')).toBeInTheDocument();
     });
 });
+
+installCsrfFixture();

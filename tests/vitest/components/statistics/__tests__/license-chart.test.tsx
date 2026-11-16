@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import LicenseChart from '@/components/statistics/license-chart';
 
@@ -24,9 +24,6 @@ describe('LicenseChart', () => {
         { name: 'Apache 2.0', count: 30 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<LicenseChart data={mockData} />);

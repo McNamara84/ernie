@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ContributorCsvImport from '@/components/curation/fields/contributor-csv-import';
 
@@ -41,9 +41,6 @@ describe('ContributorCsvImport', () => {
     const mockOnImport = vi.fn();
     const mockOnClose = vi.fn();
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(() => {
         cleanup();

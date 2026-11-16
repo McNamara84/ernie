@@ -27,7 +27,6 @@ import { syncXsrfTokenToAxios } from '@/lib/csrf-token';
 
 describe('useSessionWarmup', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         (axios.get as Mock).mockResolvedValue({ data: {} });
     });
 
@@ -46,9 +45,7 @@ describe('useSessionWarmup', () => {
         renderHook(() => useSessionWarmup());
 
         await waitFor(() => {
-            expect(syncXsrfTokenToAxios).toHaveBeenCalledWith(
-                axios.defaults.headers.common,
-            );
+            expect(syncXsrfTokenToAxios).toHaveBeenCalledWith(axios.defaults.headers.common);
         });
     });
 
@@ -66,14 +63,25 @@ describe('useSessionWarmup', () => {
     });
 
     it('does not throw when csrf-cookie request fails', async () => {
+        using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
         (axios.get as Mock).mockRejectedValue(new Error('Network error'));
 
         expect(() => {
             renderHook(() => useSessionWarmup());
         }).not.toThrow();
+
+        await waitFor(() =>
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith(
+                '[Session] Failed to initialize CSRF token:',
+                expect.objectContaining({ message: 'Network error' }),
+            ),
+        );
     });
 
     it('does not sync token when request fails', async () => {
+        using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
         (axios.get as Mock).mockRejectedValue(new Error('Network error'));
 
         renderHook(() => useSessionWarmup());
@@ -84,5 +92,12 @@ describe('useSessionWarmup', () => {
         });
 
         expect(syncXsrfTokenToAxios).not.toHaveBeenCalled();
+
+        await waitFor(() =>
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith(
+                '[Session] Failed to initialize CSRF token:',
+                expect.objectContaining({ message: 'Network error' }),
+            ),
+        );
     });
 });

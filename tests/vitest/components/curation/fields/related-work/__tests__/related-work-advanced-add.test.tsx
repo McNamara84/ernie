@@ -33,7 +33,6 @@ describe('RelatedWorkAdvancedAdd', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'idle',
             metadata: undefined,

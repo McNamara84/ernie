@@ -1,10 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render as rawRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrcidSearchDialog } from '@/components/curation/fields/orcid-search-dialog';
 import type { OrcidSearchResult } from '@/services/orcid';
 import { OrcidService } from '@/services/orcid';
+
+const render = settleRender(rawRender);
 
 // Type for OrcidService.searchOrcid response
 type OrcidServiceResponse = {
@@ -51,7 +54,6 @@ describe('OrcidSearchDialog', () => {
     ];
 
     beforeEach(() => {
-        vi.clearAllMocks();
         vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
@@ -60,14 +62,14 @@ describe('OrcidSearchDialog', () => {
     });
 
     describe('trigger button', () => {
-        it('renders search button with accessible label', () => {
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+        it('renders search button with accessible label', async () => {
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             expect(screen.getByRole('button', { name: /search for orcid/i })).toBeInTheDocument();
         });
 
-        it('applies custom trigger class name', () => {
-            render(<OrcidSearchDialog onSelect={mockOnSelect} triggerClassName="custom-class" />);
+        it('applies custom trigger class name', async () => {
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} triggerClassName="custom-class" />);
 
             expect(screen.getByRole('button', { name: /search for orcid/i })).toHaveClass('custom-class');
         });
@@ -76,7 +78,7 @@ describe('OrcidSearchDialog', () => {
     describe('dialog opening', () => {
         it('opens dialog when trigger is clicked', async () => {
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
 
@@ -85,7 +87,7 @@ describe('OrcidSearchDialog', () => {
 
         it('displays dialog title', async () => {
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
 
@@ -94,7 +96,7 @@ describe('OrcidSearchDialog', () => {
 
         it('displays dialog description', async () => {
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
 
@@ -103,7 +105,7 @@ describe('OrcidSearchDialog', () => {
 
         it('shows initial empty state before search', async () => {
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
 
@@ -114,7 +116,7 @@ describe('OrcidSearchDialog', () => {
     describe('search input', () => {
         it('renders search input field with placeholder', async () => {
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
 
@@ -124,7 +126,7 @@ describe('OrcidSearchDialog', () => {
 
         it('allows typing in search input', async () => {
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
@@ -142,14 +144,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: [], total: 0 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'John');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             expect(OrcidService.searchOrcid).toHaveBeenCalledWith('John', 20);
         });
@@ -161,14 +165,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: [], total: 0 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'J');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             expect(OrcidService.searchOrcid).not.toHaveBeenCalled();
         });
@@ -183,14 +189,16 @@ describe('OrcidSearchDialog', () => {
                     }),
             );
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             // Wait for loading state to appear
             await waitFor(() => {
@@ -198,7 +206,9 @@ describe('OrcidSearchDialog', () => {
             });
 
             // Resolve the search
-            resolveSearch!({ success: true, data: { results: [], total: 0 } });
+            await act(async () => {
+                resolveSearch!({ success: true, data: { results: [], total: 0 } });
+            });
         });
 
         it('shows no results message when search returns empty', async () => {
@@ -208,14 +218,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: [], total: 0 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'nonexistent12345');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/no orcid records found/i)).toBeInTheDocument();
@@ -231,14 +243,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: mockSearchResults, total: 3 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/Smith, John/i)).toBeInTheDocument();
@@ -253,14 +267,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: mockSearchResults, total: 3 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/3 results found/i)).toBeInTheDocument();
@@ -274,14 +290,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: mockSearchResults, total: 3 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/GFZ German Research Centre/i)).toBeInTheDocument();
@@ -298,14 +316,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: mockSearchResults, total: 3 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/Smith, John/i)).toBeInTheDocument();
@@ -324,14 +344,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: mockSearchResults, total: 3 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/Smith, John/i)).toBeInTheDocument();
@@ -351,7 +373,7 @@ describe('OrcidSearchDialog', () => {
                 data: { results: mockSearchResults, total: 3 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             // First search
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
@@ -359,7 +381,9 @@ describe('OrcidSearchDialog', () => {
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/Smith, John/i)).toBeInTheDocument();
@@ -377,21 +401,27 @@ describe('OrcidSearchDialog', () => {
 
     describe('error handling', () => {
         it('shows empty results on API error', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
             vi.mocked(OrcidService.searchOrcid).mockRejectedValue(new Error('Network error'));
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/no orcid records found/i)).toBeInTheDocument();
             });
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith('ORCID search error:', expect.objectContaining({ message: 'Network error' }));
         });
 
         it('handles unsuccessful response', async () => {
@@ -400,14 +430,16 @@ describe('OrcidSearchDialog', () => {
                 success: false,
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText(/no orcid records found/i)).toBeInTheDocument();
@@ -423,14 +455,16 @@ describe('OrcidSearchDialog', () => {
                 data: { results: [mockSearchResults[0]], total: 1 },
             });
 
-            render(<OrcidSearchDialog onSelect={mockOnSelect} />);
+            await render(<OrcidSearchDialog onSelect={mockOnSelect} />);
 
             await user.click(screen.getByRole('button', { name: /search for orcid/i }));
             const input = screen.getByRole('combobox');
             await user.type(input, 'test');
 
             // Advance past debounce timer
-            await vi.advanceTimersByTimeAsync(350);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
 
             await waitFor(() => {
                 const link = screen.getByRole('link', { name: /view on orcid\.org/i });

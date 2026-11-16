@@ -4,7 +4,7 @@ import { Check, ChevronsUpDown, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { ComboboxTrigger } from '@/components/ui/combobox-trigger';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -182,7 +182,7 @@ export function Combobox({
                         <Badge key={opt.value} variant="secondary" className="mr-1">
                             {renderValue ? renderValue(opt) : opt.label}
                             {/* Native button used here intentionally - Button component would break Badge layout */}
-                            <button
+                            <button disabled={disabled}
                                 type="button"
                                 className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                 onClick={(e) => handleRemoveValue(e, opt.value)}
@@ -213,7 +213,7 @@ export function Combobox({
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button
+                <ComboboxTrigger multiple={multiple}
                     type="button"
                     id={id}
                     variant="outline"
@@ -240,7 +240,7 @@ export function Combobox({
                         )}
                         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                     </div>
-                </Button>
+                </ComboboxTrigger>
             </PopoverTrigger>
             <PopoverContent className={cn('p-0', popoverWidth)}>
                 <Command>

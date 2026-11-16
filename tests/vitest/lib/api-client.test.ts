@@ -49,12 +49,21 @@ describe('ApiError', () => {
 describe('apiRequest', () => {
     beforeEach(() => {
         // Ensure no meta tag / cookie leaks from other tests.
-        document.head.innerHTML = '';
+        document.head.innerHTML = '<meta name=csrf-token content=vitest-csrf-token>';
         clearAllCookies();
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
+        document.head.innerHTML = '';
+    });
+
+    it('reports an absent CSRF token while retaining a readable API response', async () => {
+        document.head.innerHTML = '';
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+        server.use(http.get(ENDPOINT, () => HttpResponse.json({ ok: true })));
+        await expect(apiRequest(ENDPOINT)).resolves.toEqual({ ok: true });
+        expect(diagnostic).toHaveBeenCalledExactlyOnceWith('[CSRF] No CSRF token found in meta tag or cookie');
     });
 
     it('returns parsed JSON for 200 responses', async () => {
@@ -202,11 +211,7 @@ describe('apiRequest', () => {
     });
 
     it('throws ApiError with backend message for non-2xx JSON responses', async () => {
-        server.use(
-            http.get(ENDPOINT, () =>
-                HttpResponse.json({ message: 'Nope' }, { status: 422 }),
-            ),
-        );
+        server.use(http.get(ENDPOINT, () => HttpResponse.json({ message: 'Nope' }, { status: 422 })));
 
         await expect(apiRequest(ENDPOINT)).rejects.toMatchObject({
             name: 'ApiError',
@@ -217,9 +222,7 @@ describe('apiRequest', () => {
     });
 
     it('falls back to generic message when error body is not JSON', async () => {
-        server.use(
-            http.get(ENDPOINT, () => new HttpResponse('plain text error', { status: 500 })),
-        );
+        server.use(http.get(ENDPOINT, () => new HttpResponse('plain text error', { status: 500 })));
 
         await expect(apiRequest(ENDPOINT)).rejects.toMatchObject({
             name: 'ApiError',
@@ -231,11 +234,13 @@ describe('apiRequest', () => {
 
     it('throws ApiError on malformed JSON in 200 responses', async () => {
         server.use(
-            http.get(ENDPOINT, () =>
-                new HttpResponse('not-json-{', {
-                    status: 200,
-                    headers: { 'content-type': 'application/json' },
-                }),
+            http.get(
+                ENDPOINT,
+                () =>
+                    new HttpResponse('not-json-{', {
+                        status: 200,
+                        headers: { 'content-type': 'application/json' },
+                    }),
             ),
         );
 
@@ -252,6 +257,7 @@ describe('apiRequest', () => {
     });
 
     it('injects CSRF headers from meta tag', async () => {
+        document.head.innerHTML = '';
         const meta = document.createElement('meta');
         meta.setAttribute('name', 'csrf-token');
         meta.setAttribute('content', 'test-csrf-token-abc');
@@ -287,6 +293,7 @@ describe('apiRequest', () => {
 
     describe('cross-origin behaviour', () => {
         it('does not inject X-Requested-With or CSRF headers for cross-origin requests', async () => {
+            document.head.innerHTML = '';
             const meta = document.createElement('meta');
             meta.setAttribute('name', 'csrf-token');
             meta.setAttribute('content', 'should-not-leak');
@@ -308,6 +315,7 @@ describe('apiRequest', () => {
         });
 
         it('respects skipCsrf=true on same-origin requests', async () => {
+            document.head.innerHTML = '';
             const meta = document.createElement('meta');
             meta.setAttribute('name', 'csrf-token');
             meta.setAttribute('content', 'should-not-leak');

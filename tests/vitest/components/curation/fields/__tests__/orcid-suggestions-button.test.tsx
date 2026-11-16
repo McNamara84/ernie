@@ -4,7 +4,7 @@
 
 import userEvent from '@testing-library/user-event';
 import { render, screen } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { OrcidSuggestionsButton } from '@/components/curation/fields/orcid-suggestions-button';
 import type { PendingOrcidData } from '@/hooks/use-orcid-autofill';
@@ -21,9 +21,6 @@ describe('OrcidSuggestionsButton', () => {
         onDiscard: vi.fn(),
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(() => {
         vi.restoreAllMocks();

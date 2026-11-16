@@ -55,7 +55,6 @@ const mockedGet = vi.mocked(axios.get);
 
 describe('SystemMetricsPanel', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         mockedGet.mockResolvedValue({ data: dayResponse });
     });
 

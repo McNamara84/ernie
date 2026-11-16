@@ -143,6 +143,12 @@
             "env": {
                 "node": true
             }
+        },
+        {
+            "files": ["packages/native-abort-controller/**/*.cjs"],
+            "env": {
+                "node": true
+            }
         }
     ]
 }

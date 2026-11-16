@@ -1,7 +1,7 @@
 import { fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkItem from '@/components/curation/fields/related-work/related-work-item';
 import type { RelatedIdentifier } from '@/types';
@@ -26,9 +26,6 @@ describe('RelatedWorkItem', () => {
         onRemove: mockOnRemove,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the card heading and current select values', () => {
         render(<RelatedWorkItem {...defaultProps} />);

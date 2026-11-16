@@ -114,7 +114,6 @@ function memoryStorage(): Storage {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
 
     if (window.localStorage === undefined) {
         Object.defineProperty(window, 'localStorage', {

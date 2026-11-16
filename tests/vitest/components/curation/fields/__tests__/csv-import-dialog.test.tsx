@@ -33,7 +33,6 @@ describe('CsvImportDialog', () => {
     let mockedPapaParse: MockInstance;
 
     beforeEach(() => {
-        vi.clearAllMocks();
         mockedPapaParse = vi.mocked(Papa.parse);
     });
 
