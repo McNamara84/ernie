@@ -14,9 +14,11 @@ const verifyBrowserBackend = [
     "if (config('mail.default') !== 'log' || config('queue.default') !== 'sync'",
     "    || config('view.compiled') !== '/tmp/ernie-playwright-views'",
     "    || config('inertia.devtools.enabled') !== false",
+    "    || config('database.connections.legacy_metaworks.host') !== '127.0.0.1'",
+    "    || (string) config('database.connections.legacy_metaworks.port') !== '3306'",
     '    || !app(App\\Services\\DataPublicationTeamRecipientService::class)->isAvailable()',
     '    || !(app(App\\Services\\DataCiteRegistrationService::class) instanceof App\\Services\\FakeDataCiteRegistrationService)) {',
-    '    fwrite(STDERR, "Browser backend requires synchronous log mail, a team recipient, fake DataCite, a native view cache, and disabled Inertia DevTools.\\n"); exit(1);',
+    '    fwrite(STDERR, "Browser backend requires synchronous log mail, a team recipient, fake DataCite, a local legacy-cache fallback, a native view cache, and disabled Inertia DevTools.\\n"); exit(1);',
     '}',
 ].join('\n');
 
