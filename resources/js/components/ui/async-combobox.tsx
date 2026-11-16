@@ -215,6 +215,7 @@ export function AsyncCombobox<T = unknown>({
 
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (disabled) return;
         if (multiple) {
             onValuesChange?.([], []);
         } else {

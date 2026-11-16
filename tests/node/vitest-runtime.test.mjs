@@ -42,10 +42,50 @@ test('the first affected run or a changed configuration forces a complete depend
 
 test('matching fingerprints retain incremental selection and focused runs cannot certify the whole suite', () => {
     const args = ['run', '--since-last-run'];
-    assert.deepEqual(resolveAffectedArguments(args, 'same', 'same', false), { args, fullRun: false });
+    assert.deepEqual(resolveAffectedArguments(args, 'same', 'same', false), {
+        args: [...args, '--experimental.recordDependencies'],
+        fullRun: false,
+    });
     assert.equal(resolveAffectedArguments([...args, 'one.test.ts'], 'new', 'old', false).fullRun, false);
-    assert.equal(resolveAffectedArguments(['run'], 'new', 'old', false).fullRun, true);
+    assert.equal(resolveAffectedArguments(['run'], 'new', 'old', false).fullRun, false);
     assert.equal(resolveAffectedArguments(['run', '--project', 'browser'], 'new', 'old', false).fullRun, false);
+});
+
+test('an ordinary complete run cannot certify a dependency-recording baseline', () => {
+    for (const previous of [undefined, 'old', 'current']) {
+        assert.deepEqual(resolveAffectedArguments(['run'], 'current', previous, false), { args: ['run'], fullRun: false });
+        assert.deepEqual(resolveAffectedArguments(['run', '--coverage'], 'current', previous, false), {
+            args: ['run', '--coverage'],
+            fullRun: false,
+        });
+    }
+});
+
+test('only an unfiltered complete recording run can certify the baseline', () => {
+    const args = ['run', '--experimental.recordDependencies'];
+    assert.deepEqual(resolveAffectedArguments(args, 'current', undefined, false), { args, fullRun: true });
+    assert.equal(resolveAffectedArguments([...args, '--coverage'], 'current', undefined, false).fullRun, true);
+    assert.equal(resolveAffectedArguments(['run', '--experimental.recordDependencies=true'], 'current', undefined, false).fullRun, true);
+    assert.equal(resolveAffectedArguments(['--experimental.recordDependencies'], 'current', undefined, false).fullRun, false);
+    assert.equal(resolveAffectedArguments(['--since-last-run'], 'current', undefined, false).fullRun, false);
+    for (const filter of [['one.test.ts'], ['run'], ['--project', 'browser'], ['-t', 'one case'], ['--shard=1/3'], ['--last-failed']]) {
+        assert.equal(resolveAffectedArguments([...args, ...filter], 'current', undefined, false).fullRun, false);
+    }
+});
+
+test('affected runs retain recording without duplicating an explicit recording flag', () => {
+    for (const recordingFlag of ['--experimental.recordDependencies', '--experimental.recordDependencies=true']) {
+        const args = ['run', '--since-last-run', recordingFlag];
+        assert.deepEqual(resolveAffectedArguments(args, 'same', 'same', false), { args, fullRun: false });
+        assert.deepEqual(resolveAffectedArguments(args, 'new', 'old', false), {
+            args: ['run', recordingFlag],
+            fullRun: true,
+        });
+    }
+    assert.throws(
+        () => resolveAffectedArguments(['run', '--since-last-run', '--experimental.recordDependencies=false'], 'same', 'same', false),
+        /requires dependency recording/,
+    );
 });
 
 test('CI rejects the local incremental shortcut instead of silently narrowing validation', () => {

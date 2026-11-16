@@ -388,7 +388,9 @@ npm run test:trace -- tests/vitest/path/to/file.test.ts
 `test:affected` opts into experimental dependency recording and
 `--since-last-run`. Its first run is complete. Configuration, dependency or
 runtime changes force a complete recording run; a focused run cannot certify
-the complete suite. Imported data and generated routes are tracked, but inputs
+the complete suite. Ordinary `test:run` runs do not certify this recording
+baseline. Both the initial and later affected runs keep dependency recording
+enabled. Imported data and generated routes are tracked, but inputs
 read indirectly from the filesystem still require an explicit complete run.
 The incremental shortcut is rejected in CI and never replaces the final
 `check:frontend` validation.

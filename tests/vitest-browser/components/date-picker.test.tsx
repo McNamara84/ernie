@@ -47,3 +47,16 @@ test('clears a selected date through its real pointer target without opening the
     expect(onChange).toHaveBeenCalledExactlyOnceWith(undefined);
     await expect.element(page.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
 });
+
+test('does not clear a disabled date through the clear icon', async () => {
+    const onChange = vi.fn();
+    await render(<DatePicker value={new Date(2026, 0, 15)} onChange={onChange} clearable disabled dateFormat="yyyy-MM-dd" />);
+    const trigger = page.getByRole('combobox');
+    await expect.element(trigger).toBeDisabled();
+    // Bypass the driver's disabled-ancestor check to reach the exposed SVG.
+    await page.getByLabelText('Clear date').click({ force: true });
+    expect(onChange).not.toHaveBeenCalled();
+    await expect.element(trigger).toHaveTextContent('2026-01-15');
+    await expect.element(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect.element(page.getByRole('grid')).not.toBeInTheDocument();
+});

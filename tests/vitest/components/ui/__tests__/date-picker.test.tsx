@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format } from 'date-fns';
 import { describe, expect, it, vi } from 'vitest';
@@ -9,7 +9,6 @@ import { DatePicker } from '@/components/ui/date-picker';
 
 describe('DatePicker', () => {
     const testDate = new Date(2026, 0, 15); // Jan 15, 2026
-
 
     describe('rendering', () => {
         it('renders with placeholder when no value', () => {
@@ -48,6 +47,13 @@ describe('DatePicker', () => {
         it('disables button when disabled prop is true', () => {
             render(<DatePicker disabled />);
             expect(screen.getByRole('combobox')).toBeDisabled();
+        });
+
+        it('ignores a click dispatched directly to the clear icon when disabled', () => {
+            const onChange = vi.fn();
+            render(<DatePicker value={testDate} onChange={onChange} clearable disabled />);
+            fireEvent.click(screen.getByLabelText('Clear date'));
+            expect(onChange).not.toHaveBeenCalled();
         });
     });
 

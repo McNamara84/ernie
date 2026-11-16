@@ -42,6 +42,7 @@ test.for([false, true])('removes a badge and opens a valid multi-select trigger 
 });
 
 test.for([false, true])('keeps a disabled multi-select and its remove buttons inactive (async: %s)', async (asynchronous) => {
+    const onValuesChange = vi.fn();
     await render(
         <>
             <label htmlFor="disabled-organization">Organizations</label>
@@ -52,10 +53,11 @@ test.for([false, true])('keeps a disabled multi-select and its remove buttons in
                     multiple
                     values={['gfz']}
                     selectedOptions={options}
+                    onValuesChange={onValuesChange}
                     onSearch={vi.fn().mockResolvedValue([])}
                 />
             ) : (
-                <Combobox id="disabled-organization" disabled multiple values={['gfz']} options={options} />
+                <Combobox id="disabled-organization" disabled multiple values={['gfz']} options={options} onValuesChange={onValuesChange} />
             )}
         </>,
     );
@@ -63,6 +65,11 @@ test.for([false, true])('keeps a disabled multi-select and its remove buttons in
     await expect.element(trigger).toHaveAttribute('aria-disabled', 'true');
     await expect.element(trigger).toHaveAttribute('tabindex', '-1');
     await expect.element(page.getByRole('button', { name: 'Remove GFZ Potsdam' })).toBeDisabled();
+    // Exercise the actual SVG target even though Playwright recognizes its
+    // ancestor as disabled; the icon can override the ancestor's pointer rules.
+    await page.getByLabelText('Clear selection').click({ force: true });
+    expect(onValuesChange).not.toHaveBeenCalled();
+    await expect.element(trigger).toHaveTextContent('GFZ Potsdam');
     await page.getByText('Organizations', { exact: true }).click();
     await expect.element(trigger).not.toHaveFocus();
     await expect.element(trigger).toHaveAttribute('aria-expanded', 'false');

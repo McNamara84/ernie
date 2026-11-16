@@ -119,12 +119,23 @@ export function vitestInputFingerprint(root = process.cwd()) {
     return hash.digest('hex');
 }
 
+const recordingFlag = '--experimental.recordDependencies';
+const recordingFlags = [recordingFlag, `${recordingFlag}=true`];
+const recordsDependencies = (args) => recordingFlags.some((flag) => args.includes(flag));
+
+// Only an explicitly recorded, unfiltered run can certify the local baseline.
+const isCompleteRecordingRun = (args) =>
+    args[0] === 'run' && recordsDependencies(args) && args.slice(1).every((arg) => ['--coverage', ...recordingFlags].includes(arg));
+
 export function resolveAffectedArguments(args, fingerprint, previousFingerprint, isCi = Boolean(process.env.CI)) {
-    if (!args.includes('--since-last-run')) return { args, fullRun: args.length === 1 && args[0] === 'run' };
+    if (!args.includes('--since-last-run')) return { args, fullRun: isCompleteRecordingRun(args) };
     if (isCi) throw new Error('--since-last-run is a local shortcut; CI must run the complete suite.');
-    if (fingerprint === previousFingerprint) return { args, fullRun: false };
+    if (args.includes(`${recordingFlag}=false`)) throw new Error('--since-last-run requires dependency recording.');
+    const recordingArgs = recordsDependencies(args) ? args : [...args, recordingFlag];
+    if (fingerprint === previousFingerprint) return { args: recordingArgs, fullRun: false };
+    const completeArgs = recordingArgs.filter((arg) => arg !== '--since-last-run');
     return {
-        args: [...args.filter((arg) => arg !== '--since-last-run'), '--experimental.recordDependencies'],
-        fullRun: args.every((arg) => ['run', '--since-last-run', '--coverage'].includes(arg)),
+        args: completeArgs,
+        fullRun: isCompleteRecordingRun(completeArgs),
     };
 }

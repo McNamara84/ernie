@@ -92,6 +92,7 @@ export function DatePicker({
 
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (disabled) return;
         onChange?.(undefined);
     };
 
