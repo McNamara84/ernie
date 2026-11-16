@@ -1,0 +1,18 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "allowImportingTsExtensions": true,
+        "types": ["vite/client", "vitest/browser", "@vitest/browser-playwright", "node", "google.maps"]
+    },
+    "include": [
+        "./**/*.ts",
+        "./**/*.tsx",
+        "../../resources/js/**/*.d.ts",
+        "../../vitest.config.ts",
+        "../../vitest.jsdom.config.ts",
+        "../../vitest.browser.config.ts",
+        "../../vitest.merge.config.ts",
+        "../../vitest.shared.ts",
+        "../../scripts/vitest-completeness-reporter.ts"
+    ]
+}

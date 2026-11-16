@@ -56,7 +56,6 @@ function Harness({
 
 describe('PortalSearchInput', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         suggestionsState.data = [
             { value: 'Seismology', scheme: null, count: 12 },
             { value: 'Paleoseismology', scheme: null, count: 3 },

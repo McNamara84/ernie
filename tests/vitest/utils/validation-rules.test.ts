@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
     checkDOIRegistration,
@@ -65,9 +65,6 @@ describe('Validation Rules Utilities', () => {
     });
 
     describe('checkDOIRegistration', () => {
-        beforeEach(() => {
-            vi.clearAllMocks();
-        });
 
         it('should return true for registered DOI', async () => {
             global.fetch = vi.fn().mockResolvedValue({

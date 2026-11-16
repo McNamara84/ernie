@@ -273,7 +273,6 @@ import LandingPageTemplatesPage from '@/pages/landing-page-templates';
 
 describe('LandingPageTemplatesPage', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         dndContextMock.handlers.length = 0;
         dndContextMock.startHandlers.length = 0;
         dndContextMock.overHandlers.length = 0;

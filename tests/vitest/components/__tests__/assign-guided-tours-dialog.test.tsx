@@ -4,7 +4,7 @@ import { router } from '@inertiajs/react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AssignGuidedToursDialog } from '@/components/assign-guided-tours-dialog';
 
@@ -83,9 +83,6 @@ const eligibleTours = [
 ];
 
 describe('AssignGuidedToursDialog', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders nothing when no tours are eligible for the selected user role', () => {
         render(

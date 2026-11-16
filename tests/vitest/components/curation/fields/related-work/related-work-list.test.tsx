@@ -90,7 +90,6 @@ describe('RelatedWorkList', () => {
     });
 
     beforeEach(() => {
-        vi.clearAllMocks();
         dndState.event = {
             active: { id: 'related-work-0' },
             over: { id: 'related-work-1' },

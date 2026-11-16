@@ -59,12 +59,10 @@ afterEach(() => {
     }
 });
 
-// Global cleanup after each test to prevent Tagify timer errors
-// Tagify uses internal setTimeout that can fire after test teardown
+// Only clear an existing fake clock. Installing a new fake clock cannot cancel
+// real timers; real component timers are released by component unmount cleanup.
 afterEach(() => {
-    // Use fake timers briefly to clear any pending timeouts from Tagify
-    vi.useFakeTimers();
-    vi.clearAllTimers();
+    if (vi.isFakeTimers()) vi.clearAllTimers();
     vi.useRealTimers();
 });
 

@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -115,9 +116,7 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Smith',
                     creditName: null,
                     emails: ['jane@example.com'],
-                    affiliations: [
-                        { type: 'employment', name: 'University of Testing', role: null, department: null, rorId: null },
-                    ],
+                    affiliations: [{ type: 'employment', name: 'University of Testing', role: null, department: null, rorId: null }],
                     verifiedAt: new Date().toISOString(),
                 },
             });
@@ -429,9 +428,7 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Smith',
                     creditName: null,
                     emails: [],
-                    affiliations: [
-                        { type: 'employment', name: 'Same University', role: null, department: null, rorId: null },
-                    ],
+                    affiliations: [{ type: 'employment', name: 'Same University', role: null, department: null, rorId: null }],
                     verifiedAt: new Date().toISOString(),
                 },
             });
@@ -525,9 +522,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             expect(result.current.isFormatValid).toBe(false);
         });
@@ -539,9 +534,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             expect(result.current.isFormatValid).toBe(true);
         });
@@ -553,9 +546,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6780' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             expect(result.current.isFormatValid).toBe(false);
         });
@@ -569,9 +560,7 @@ describe('useOrcidAutofill', () => {
             };
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             expect(result.current.isFormatValid).toBe(false);
         });
@@ -596,9 +585,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 vi.advanceTimersByTime(1200);
@@ -633,9 +620,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             // Advance past debounce (500ms)
             await act(async () => {
@@ -701,9 +686,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6780' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -726,9 +709,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -751,9 +732,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -776,9 +755,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -797,9 +774,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789', orcidVerified: true });
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -815,9 +790,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: 'invalid' });
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -842,9 +815,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -867,9 +838,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -903,9 +872,7 @@ describe('useOrcidAutofill', () => {
             const entry = { ...createPersonEntry({ orcid: '0000-0001-2345-6789' }), email: '' };
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true, includeEmail: true }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true, includeEmail: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(600);
@@ -946,9 +913,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             // Without interaction, nothing happens even after debounce.
             await act(async () => {
@@ -985,9 +950,7 @@ describe('useOrcidAutofill', () => {
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
                 data: {
-                    results: [
-                        { orcid: '0000-0001-2345-6789', firstName: 'Jane', lastName: 'Smith', creditName: null, institutions: [] },
-                    ],
+                    results: [{ orcid: '0000-0001-2345-6789', firstName: 'Jane', lastName: 'Smith', creditName: null, institutions: [] }],
                     total: 1,
                 },
             });
@@ -995,9 +958,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'Jane', lastName: 'Smith' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             // Advance past suggestion debounce (800ms)
             await act(async () => {
@@ -1014,9 +975,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'Jane', lastName: 'Smith' });
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 vi.advanceTimersByTime(900);
@@ -1038,9 +997,7 @@ describe('useOrcidAutofill', () => {
             });
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(900);
@@ -1065,9 +1022,7 @@ describe('useOrcidAutofill', () => {
             });
             const onEntryChange = vi.fn();
 
-            renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(900);
@@ -1086,9 +1041,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'Jane', lastName: 'Smith' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(900);
@@ -1119,9 +1072,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'Jane', lastName: 'Smith' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }));
 
             await act(async () => {
                 vi.advanceTimersByTime(900);
@@ -1137,9 +1088,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry();
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             act(() => {
                 result.current.retryVerification();
@@ -1168,9 +1117,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1201,9 +1148,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Müller' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1232,9 +1177,7 @@ describe('useOrcidAutofill', () => {
             const entry = { ...createPersonEntry({ firstName: 'John', lastName: 'Doe' }), email: 'old@example.com' };
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1260,9 +1203,7 @@ describe('useOrcidAutofill', () => {
             const entry = { ...createPersonEntry({ firstName: 'John', lastName: 'Doe' }), email: 'same@example.com' };
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1288,9 +1229,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1318,9 +1257,7 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Doe',
                     creditName: null,
                     emails: [],
-                    affiliations: [
-                        { type: 'employment', name: 'New University', role: null, department: null, rorId: null },
-                    ],
+                    affiliations: [{ type: 'employment', name: 'New University', role: null, department: null, rorId: null }],
                     verifiedAt: new Date().toISOString(),
                 },
             });
@@ -1328,9 +1265,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1353,9 +1288,7 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Doe',
                     creditName: null,
                     emails: [],
-                    affiliations: [
-                        { type: 'employment', name: 'Existing University', role: null, department: null, rorId: null },
-                    ],
+                    affiliations: [{ type: 'employment', name: 'Existing University', role: null, department: null, rorId: null }],
                     verifiedAt: new Date().toISOString(),
                 },
             });
@@ -1367,9 +1300,7 @@ describe('useOrcidAutofill', () => {
             });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1407,9 +1338,7 @@ describe('useOrcidAutofill', () => {
             });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1470,9 +1399,7 @@ describe('useOrcidAutofill', () => {
             });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1491,9 +1418,7 @@ describe('useOrcidAutofill', () => {
         });
 
         it('handles fetch error for ROR resolution gracefully', async () => {
-            server.use(
-                http.post(apiEndpoints.rorResolve, () => HttpResponse.error()),
-            );
+            server.use(http.post(apiEndpoints.rorResolve, () => HttpResponse.error()));
 
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
@@ -1503,9 +1428,7 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Doe',
                     creditName: null,
                     emails: [],
-                    affiliations: [
-                        { type: 'employment', name: 'Some University', role: null, department: null, rorId: null },
-                    ],
+                    affiliations: [{ type: 'employment', name: 'Some University', role: null, department: null, rorId: null }],
                     verifiedAt: new Date().toISOString(),
                 },
             });
@@ -1513,9 +1436,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1563,9 +1484,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1587,9 +1506,7 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Doe',
                     creditName: null,
                     emails: [],
-                    affiliations: [
-                        { type: 'employment', name: 'New University', role: null, department: null, rorId: 'https://ror.org/xxx' },
-                    ],
+                    affiliations: [{ type: 'employment', name: 'New University', role: null, department: null, rorId: 'https://ror.org/xxx' }],
                     verifiedAt: new Date().toISOString(),
                 },
             });
@@ -1601,9 +1518,7 @@ describe('useOrcidAutofill', () => {
             });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1664,9 +1579,7 @@ describe('useOrcidAutofill', () => {
             });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1714,9 +1627,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Muller' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1757,9 +1668,7 @@ describe('useOrcidAutofill', () => {
             const entry = { ...createPersonEntry({ firstName: 'John', lastName: 'Doe' }), email: 'old@example.com' };
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1791,9 +1700,7 @@ describe('useOrcidAutofill', () => {
             };
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             act(() => {
                 result.current.applyPendingData({
@@ -1826,9 +1733,7 @@ describe('useOrcidAutofill', () => {
             const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
             const onEntryChange = vi.fn();
 
-            const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
-            );
+            const { result } = renderHook(() => useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }));
 
             await act(async () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
@@ -1844,3 +1749,5 @@ describe('useOrcidAutofill', () => {
         });
     });
 });
+
+installCsrfFixture();

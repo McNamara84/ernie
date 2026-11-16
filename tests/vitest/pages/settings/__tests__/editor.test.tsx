@@ -1,12 +1,15 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+import { act, fireEvent, render as rawRender, screen, waitFor, within } from '@tests/vitest/utils/render';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EDITOR_SETTINGS_SECTION_ORDER } from '@/components/settings/editor-settings-section';
 import EditorSettings from '@/pages/settings/index';
+
+const render = settleRender(rawRender);
 
 const formHarness = vi.hoisted(() => ({
     initialData: null as Record<string, unknown> | null,
@@ -187,8 +190,8 @@ const defaultProps: React.ComponentProps<typeof EditorSettings> = {
     datacenters: [],
 };
 
-function renderSettings(overrides: Partial<React.ComponentProps<typeof EditorSettings>> = {}) {
-    return render(<EditorSettings {...defaultProps} {...overrides} />);
+async function renderSettings(overrides: Partial<React.ComponentProps<typeof EditorSettings>> = {}) {
+    return await render(<EditorSettings {...defaultProps} {...overrides} />);
 }
 
 function sectionTrigger(name: string | RegExp): HTMLButtonElement {
@@ -227,7 +230,7 @@ describe('EditorSettings accordion page', () => {
         const ready = Promise.withResolvers<void>();
         Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: ready.promise } });
         const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
-        const view = renderSettings({ focusSection: 'thesauri' });
+        const view = await renderSettings({ focusSection: 'thesauri' });
         try {
             const trigger = sectionTrigger(/^Thesauri/);
             await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
@@ -251,7 +254,7 @@ describe('EditorSettings accordion page', () => {
         const ready = Promise.withResolvers<void>();
         Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: ready.promise } });
         const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
-        const view = renderSettings({ focusSection: 'thesauri' });
+        const view = await renderSettings({ focusSection: 'thesauri' });
         try {
             const trigger = sectionTrigger(/^Thesauri/);
             await userEvent.click(trigger);
@@ -276,7 +279,7 @@ describe('EditorSettings accordion page', () => {
         const ready = Promise.withResolvers<void>();
         Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: ready.promise } });
         const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
-        const view = renderSettings({ focusSection: 'thesauri' });
+        const view = await renderSettings({ focusSection: 'thesauri' });
         try {
             await userEvent.click(sectionTrigger(/^Resource Types/));
             const input = within(section('resource-types')).getAllByRole('textbox', { name: 'Name' })[0];
@@ -295,7 +298,7 @@ describe('EditorSettings accordion page', () => {
     });
 
     it('opens and focuses only the linked thesauri section without dirtying settings or refocusing on reload', async () => {
-        const view = renderSettings({ focusSection: 'thesauri' });
+        const view = await renderSettings({ focusSection: 'thesauri' });
         const trigger = sectionTrigger(/^Thesauri/);
         await waitFor(() => expect(trigger).toHaveFocus());
         expect(settingsTriggers().filter((item) => item.getAttribute('aria-expanded') === 'true')).toEqual([trigger]);
@@ -322,8 +325,8 @@ describe('EditorSettings accordion page', () => {
         axiosMocks.delete.mockReset();
     });
 
-    it('renders all sections in the agreed full-width order and collapses them initially', () => {
-        renderSettings();
+    it('renders all sections in the agreed full-width order and collapses them initially', async () => {
+        await renderSettings();
 
         const accordion = screen.getByTestId('settings-accordion');
         expect(accordion).toHaveClass('flex', 'flex-col');
@@ -343,7 +346,7 @@ describe('EditorSettings accordion page', () => {
 
     it('opens sections independently and closes only the chosen section', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
 
         const resourceTypes = sectionTrigger(/^Resource Types/);
         const licenses = sectionTrigger(/^Licenses/);
@@ -367,7 +370,7 @@ describe('EditorSettings accordion page', () => {
 
     it('keeps all three Contributor Roles cards open together', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
 
         for (const title of [/^Contributor Roles \(Persons\)/, /^Contributor Roles \(Institutions\)/, /^Contributor Roles \(Both\)/]) {
             await user.click(sectionTrigger(title));
@@ -381,7 +384,7 @@ describe('EditorSettings accordion page', () => {
 
     it('moves a contributor role between open cards without closing them or losing edits', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
         for (const title of [/^Contributor Roles \(Persons\)/, /^Contributor Roles \(Institutions\)/, /^Contributor Roles \(Both\)/]) {
             await user.click(sectionTrigger(title));
         }
@@ -412,7 +415,7 @@ describe('EditorSettings accordion page', () => {
 
     it('expands and collapses every card from different headings and mixed states', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
 
         await user.click(sectionTrigger(/^Licenses/));
         expectBulkActions(true, true);
@@ -443,13 +446,13 @@ describe('EditorSettings accordion page', () => {
 
     it('keeps bulk actions outside the card trigger and returns keyboard focus to that trigger', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
         const resourceTypes = sectionTrigger(/^Resource Types/);
         const expand = bulkAction('resource-types', 'Expand');
         expect(expand).toHaveAttribute('type', 'button');
         expect(resourceTypes).not.toContainElement(expand);
 
-        expand.focus();
+        act(() => expand.focus());
         await user.keyboard('{Enter}');
         expect(resourceTypes).toHaveFocus();
         settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
@@ -457,7 +460,7 @@ describe('EditorSettings accordion page', () => {
         const collapse = bulkAction('resource-types', 'Collapse');
         expect(collapse).toHaveAttribute('type', 'button');
         expect(resourceTypes).not.toContainElement(collapse);
-        collapse.focus();
+        act(() => collapse.focus());
         await user.keyboard(' ');
         expect(resourceTypes).toHaveFocus();
         settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
@@ -466,7 +469,7 @@ describe('EditorSettings accordion page', () => {
 
     it('starts collapsed on a new mount and keeps open cards during partial prop updates', async () => {
         const user = userEvent.setup();
-        const view = renderSettings();
+        const view = await renderSettings();
         await user.click(sectionTrigger(/^Resource Types/));
         await user.click(sectionTrigger(/^Persistent Identifiers/));
 
@@ -475,14 +478,14 @@ describe('EditorSettings accordion page', () => {
         expect(sectionTrigger(/^Persistent Identifiers/)).toHaveAttribute('aria-expanded', 'true');
 
         view.unmount();
-        renderSettings();
+        await renderSettings();
         settingsTriggers().forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
         expectBulkActions(true, false);
     });
 
     it('mounts regular section content only while that section is open', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
 
         expect(screen.queryByDisplayValue('Dataset')).not.toBeInTheDocument();
 
@@ -498,7 +501,7 @@ describe('EditorSettings accordion page', () => {
 
     it('keeps force-mounted Thesaurus and PID content alive when individually or collectively collapsed', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
 
         expect(screen.getByTestId('thesaurus-card-mock')).not.toBeVisible();
         expect(screen.getByTestId('pid-settings-card-mock')).not.toBeVisible();
@@ -537,7 +540,7 @@ describe('EditorSettings accordion page', () => {
 
     it('shows live section summaries from current form data', async () => {
         const user = userEvent.setup();
-        renderSettings({
+        await renderSettings({
             resourceTypes: [
                 { id: 1, name: 'Dataset', active: false, elmo_active: false, elmo_msl_active: false },
                 { id: 2, name: 'Collection', active: false, elmo_active: true, elmo_msl_active: false },
@@ -560,7 +563,7 @@ describe('EditorSettings accordion page', () => {
 
     it('keeps unsaved edits when switching sections and submits the current full form data', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
 
         const save = screen.getByRole('button', { name: 'Save changes' });
         expect(save).toBeDisabled();
@@ -590,7 +593,7 @@ describe('EditorSettings accordion page', () => {
 
     it('preserves unsaved values through bulk actions and keeps cards open after saving', async () => {
         const user = userEvent.setup();
-        renderSettings();
+        await renderSettings();
         await user.click(sectionTrigger(/^Resource Types/));
         await user.type(within(section('resource-types')).getAllByLabelText('Name')[0], ' edited');
         const save = screen.getByRole('button', { name: 'Save changes' });
@@ -619,7 +622,7 @@ describe('EditorSettings accordion page', () => {
 
     it.each([false, true])('omits the unchanged installation order when saving other settings (section opened: %s)', async (openSuggestions) => {
         const user = userEvent.setup();
-        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
 
         if (openSuggestions) {
             await user.click(sectionTrigger(/^Download URL suggestions/));
@@ -637,7 +640,7 @@ describe('EditorSettings accordion page', () => {
 
     it('submits reordered download suggestions with the other settings', async () => {
         const user = userEvent.setup();
-        renderSettings({
+        await renderSettings({
             downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'],
             downloadUrlSuggestions: [{ value: 'https://example.org/', usage_count: 5 }],
         });
@@ -656,7 +659,7 @@ describe('EditorSettings accordion page', () => {
 
     it('submits an explicitly empty order after the last prefix is removed', async () => {
         const user = userEvent.setup();
-        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
         await user.click(sectionTrigger(/^Download URL suggestions/));
         await user.click(screen.getByRole('button', { name: 'Remove suggestion 1' }));
         await user.click(screen.getByRole('button', { name: 'Save changes' }));
@@ -666,7 +669,7 @@ describe('EditorSettings accordion page', () => {
 
     it('omits the order when prefix edits are reverted before saving another section', async () => {
         const user = userEvent.setup();
-        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
         await user.click(sectionTrigger(/^Download URL suggestions/));
         const prefix = screen.getByLabelText('Download URL suggestion 1');
         await user.type(prefix, 's');
@@ -680,7 +683,7 @@ describe('EditorSettings accordion page', () => {
 
     it('retries changed prefixes and omits them from unrelated saves only after success', async () => {
         const user = userEvent.setup();
-        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
         await user.click(sectionTrigger(/^Download URL suggestions/));
         await user.type(screen.getByLabelText('Download URL suggestion 1'), '/data');
         const save = screen.getByRole('button', { name: 'Save changes' });
@@ -703,7 +706,7 @@ describe('EditorSettings accordion page', () => {
 
     it('retains edits made while a previous prefix change is being saved', async () => {
         const user = userEvent.setup();
-        renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
+        await renderSettings({ downloadUrlSuggestionOrder: ['https://datapub.gfz.de/download'] });
         await user.click(sectionTrigger(/^Download URL suggestions/));
         const prefix = screen.getByLabelText('Download URL suggestion 1');
         await user.type(prefix, '/first');
@@ -715,8 +718,8 @@ describe('EditorSettings accordion page', () => {
         expect(formHarness.post.mock.calls[1][1]).toHaveProperty('downloadUrlSuggestionOrder', ['https://datapub.gfz.de/download/first/second']);
     });
 
-    it('does not mark semantically equal data as dirty when object keys are reordered', () => {
-        renderSettings();
+    it('does not mark semantically equal data as dirty when object keys are reordered', async () => {
+        await renderSettings();
 
         const reorderedData = Object.fromEntries(Object.entries(formHarness.initialData ?? {}).reverse());
         act(() => formHarness.replaceData?.(reorderedData));
@@ -728,7 +731,7 @@ describe('EditorSettings accordion page', () => {
     it('never substitutes an abbreviated license identifier into submitted form data', async () => {
         const user = userEvent.setup();
         const identifier = 'CUSTOM-THE-DATA-MADE-AVAILABLE-THROUGH-INTERMAGNET-ARE-PROVIDED-FOR-YOUR-USE-AND-ARE-NOT-FOR-COMMERCIAL-USE-83AF93FC8F37';
-        renderSettings({
+        await renderSettings({
             licenses: [
                 {
                     id: 7,
@@ -766,7 +769,7 @@ describe('EditorSettings accordion page', () => {
                 message: 'Domain added',
             },
         });
-        renderSettings();
+        await renderSettings();
 
         await user.click(sectionTrigger(/^Landing Page Domains/));
         await user.type(screen.getByPlaceholderText('https://example.org/'), 'https://example.org/');
@@ -782,7 +785,7 @@ describe('EditorSettings accordion page', () => {
         axiosMocks.patch.mockResolvedValue({
             data: { datacenter: { id: 8, name: 'Alpha renamed', resources_count: 3 }, message: 'Datacenter renamed successfully.' },
         });
-        renderSettings({
+        await renderSettings({
             datacenters: [
                 { id: 8, name: 'Zulu', resources_count: 3 },
                 { id: 9, name: 'Beta', resources_count: 0 },
@@ -808,7 +811,7 @@ describe('EditorSettings accordion page', () => {
 
     it('cancels a datacenter rename without sending a request', async () => {
         const user = userEvent.setup();
-        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
         await user.click(sectionTrigger(/^Datacenters/));
         await user.click(screen.getByRole('button', { name: 'Rename Original' }));
         await user.type(screen.getByRole('textbox', { name: 'Datacenter name for Original' }), ' changed');
@@ -821,7 +824,7 @@ describe('EditorSettings accordion page', () => {
     it('keeps the rename draft and shows a name conflict returned by the API', async () => {
         const user = userEvent.setup();
         axiosMocks.patch.mockRejectedValue({ response: { data: { errors: { name: ['This datacenter name is already in use.'] } } } });
-        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
         await user.click(sectionTrigger(/^Datacenters/));
         await user.click(screen.getByRole('button', { name: 'Rename Original' }));
         const input = screen.getByRole('textbox', { name: 'Datacenter name for Original' });
@@ -839,7 +842,7 @@ describe('EditorSettings accordion page', () => {
 
     it('rejects an empty rename before calling the API', async () => {
         const user = userEvent.setup();
-        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
         await user.click(sectionTrigger(/^Datacenters/));
         await user.click(screen.getByRole('button', { name: 'Rename Original' }));
         const input = screen.getByRole('textbox', { name: 'Datacenter name for Original' });
@@ -867,7 +870,7 @@ describe('EditorSettings accordion page', () => {
                     resolveRename = resolve;
                 }),
         );
-        renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
+        await renderSettings({ datacenters: [{ id: 8, name: 'Original', resources_count: 1 }] });
         await user.click(sectionTrigger(/^Datacenters/));
         await user.click(screen.getByRole('button', { name: 'Rename Original' }));
         await user.type(screen.getByRole('textbox', { name: 'Datacenter name for Original' }), ' renamed');
@@ -882,8 +885,8 @@ describe('EditorSettings accordion page', () => {
         await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Original renamed' })).toBeInTheDocument());
     });
 
-    it('initializes the form with complete backend values and enforces Abstract as active', () => {
-        renderSettings({
+    it('initializes the form with complete backend values and enforces Abstract as active', async () => {
+        await renderSettings({
             descriptionTypes: [
                 { id: 1, name: 'Abstract', slug: 'Abstract', active: false, elmo_active: false, elmo_msl_active: false },
                 { id: 2, name: 'Methods', slug: 'Methods', active: false, elmo_active: true, elmo_msl_active: false },

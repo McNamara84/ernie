@@ -18,7 +18,6 @@ vi.mock('@/hooks/use-font-size', () => ({
 
 describe('FontSizeQuickToggle', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         mocks.fontSize = 'regular';
     });
 

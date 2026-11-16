@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import IsSupplementToChart from '@/components/statistics/is-supplement-to-chart';
 
@@ -24,9 +24,6 @@ describe('IsSupplementToChart', () => {
         percentageWithout: 25.0,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<IsSupplementToChart data={mockData} />);

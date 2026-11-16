@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { render, screen } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
 import CurationOverview from '@/pages/curation';
 import type { CurationRow } from '@/types/curation';
@@ -44,9 +44,6 @@ const props = {
     curators: row.curators,
     datacenters: [{ id: 1, name: 'GFZ' }],
 };
-beforeEach(() => {
-    vi.clearAllMocks();
-});
 
 it('preserves combined filters in navigation and CSV, including dashboard all-stage links', async () => {
     render(<CurationOverview {...props} />);

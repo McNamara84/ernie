@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import CreationTimeChart from '@/components/statistics/creation-time-chart';
 
@@ -24,9 +24,6 @@ describe('CreationTimeChart', () => {
         { hour: 15, count: 55 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<CreationTimeChart data={mockData} />);

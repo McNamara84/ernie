@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it } from 'vitest';
 
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
@@ -29,11 +30,7 @@ describe('useCitationVocabularies', () => {
     it('serves the cached result on subsequent mounts', async () => {
         // The previous test has already populated the module-level cache.
         // Mount another hook with a 500 handler – if the cache works it must never be hit.
-        server.use(
-            http.get('/related-items/vocabularies', () =>
-                HttpResponse.json({ message: 'should not be called' }, { status: 500 }),
-            ),
-        );
+        server.use(http.get('/related-items/vocabularies', () => HttpResponse.json({ message: 'should not be called' }, { status: 500 })));
 
         const { result } = renderHook(() => useCitationVocabularies());
         await act(async () => Promise.resolve());
@@ -43,3 +40,5 @@ describe('useCitationVocabularies', () => {
         expect(result.current.error).toBeNull();
     });
 });
+
+installCsrfFixture();

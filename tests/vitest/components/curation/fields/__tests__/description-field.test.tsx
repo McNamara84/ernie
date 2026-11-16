@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@tests/vitest/utils/render';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import DescriptionField, { type DescriptionEntry } from '@/components/curation/fields/description-field';
 import type { DescriptionType, Language } from '@/types';
@@ -45,9 +45,6 @@ const groupFor = (type: DescriptionEntry['type']): HTMLElement => {
 describe('DescriptionField', () => {
     const onChange = vi.fn();
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the formatting notice and a type-grouped Abstract', () => {
         render(<DescriptionHarness initialDescriptions={[abstract('abstract-1')]} />);

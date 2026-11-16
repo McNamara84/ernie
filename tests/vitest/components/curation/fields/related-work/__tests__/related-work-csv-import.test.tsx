@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkCsvImport from '@/components/curation/fields/related-work/related-work-csv-import';
 
@@ -10,9 +10,6 @@ describe('RelatedWorkCsvImport', () => {
     const onImport = vi.fn();
     const onClose = vi.fn();
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     function renderComponent({ onSubmit }: { onSubmit?: () => void } = {}) {
         return render(

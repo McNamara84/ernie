@@ -1,7 +1,7 @@
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SortableFundingReferenceItem } from '@/components/curation/fields/funding-reference/sortable-funding-reference-item';
 import type { FundingReferenceEntry } from '@/components/curation/fields/funding-reference/types';
@@ -45,9 +45,6 @@ describe('SortableFundingReferenceItem', () => {
         rorFunders: [],
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the funding reference item', () => {
         render(

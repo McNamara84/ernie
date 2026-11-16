@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { act, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -319,3 +320,5 @@ describe('IgsnRegistrationRunModal', () => {
         expect(screen.queryByText('The registration needs attention')).not.toBeInTheDocument();
     });
 });
+
+installCsrfFixture();

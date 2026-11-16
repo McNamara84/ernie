@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 
@@ -13,9 +13,6 @@ const options: ComboboxOption[] = [
 ];
 
 describe('Combobox', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('single select', () => {
         describe('rendering', () => {

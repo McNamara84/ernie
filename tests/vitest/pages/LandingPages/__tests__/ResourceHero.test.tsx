@@ -12,7 +12,6 @@ const mockClipboard = {
 };
 
 beforeEach(() => {
-    vi.clearAllMocks();
     Object.assign(navigator, {
         clipboard: mockClipboard,
     });

@@ -1,4 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { act } from 'react';
 import { describe, expect, it } from 'vitest';
 
@@ -51,9 +52,7 @@ describe('useRelatedItems', () => {
     it('replaces an item after update', async () => {
         server.use(
             http.get(base, () => HttpResponse.json({ data: [makeItem({ id: 1 })] })),
-            http.put(`${base}/1`, () =>
-                HttpResponse.json({ data: makeItem({ id: 1, related_item_type: 'Book' }) }),
-            ),
+            http.put(`${base}/1`, () => HttpResponse.json({ data: makeItem({ id: 1, related_item_type: 'Book' }) })),
         );
 
         const { result } = renderHook(() => useRelatedItems(resourceId));
@@ -68,9 +67,7 @@ describe('useRelatedItems', () => {
 
     it('removes an item after delete', async () => {
         server.use(
-            http.get(base, () =>
-                HttpResponse.json({ data: [makeItem({ id: 1 }), makeItem({ id: 2 })] }),
-            ),
+            http.get(base, () => HttpResponse.json({ data: [makeItem({ id: 1 }), makeItem({ id: 2 })] })),
             http.delete(`${base}/1`, () => new HttpResponse(null, { status: 204 })),
         );
 
@@ -126,3 +123,5 @@ describe('useRelatedItems', () => {
         await expect(result.current.create({ related_item_type: 'Book' })).rejects.toThrow();
     });
 });
+
+installCsrfFixture();

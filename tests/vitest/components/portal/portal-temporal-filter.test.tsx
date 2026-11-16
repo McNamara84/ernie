@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PortalTemporalFilter } from '@/components/portal/PortalTemporalFilter';
 import type { TemporalFilterValue, TemporalRange } from '@/types/portal';
@@ -21,9 +21,6 @@ describe('PortalTemporalFilter', () => {
         onTemporalChange: vi.fn(),
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('Disabled State', () => {
         it('renders the toggle switch and label', () => {

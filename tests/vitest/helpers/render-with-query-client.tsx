@@ -1,28 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, renderHook, type RenderHookOptions, type RenderOptions } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
 
-/**
- * Build a {@link QueryClient} configured for unit tests.
- *
- * - `retry: false` prevents deterministic assertions from being slowed down
- *   by retry backoffs.
- * - `gcTime: 0` avoids cross-test pollution by discarding unused queries
- *   immediately.
- *
- * This is the single source of truth for test `QueryClient` defaults; other
- * test helpers (e.g. the component `render` helper in `tests/vitest/utils`)
- * re-use this factory so defaults cannot drift over time.
- */
-export function createTestQueryClient(): QueryClient {
-    return new QueryClient({
-        defaultOptions: {
-            queries: { retry: false, gcTime: 0, staleTime: 0 },
-            mutations: { retry: false },
-        },
-    });
-}
+import { createTestQueryClient } from './query-client';
+
+export { createTestQueryClient } from './query-client';
 
 interface TestProvidersProps {
     children: ReactNode;

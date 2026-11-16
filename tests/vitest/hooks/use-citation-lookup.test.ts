@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useCitationLookup } from '@/hooks/use-citation-lookup';
@@ -86,9 +87,7 @@ describe('useCitationLookup', () => {
     });
 
     it('surfaces a rate-limit error on 429', async () => {
-        server.use(
-            http.get(endpoint, () => HttpResponse.json({ message: 'rate limited' }, { status: 429 })),
-        );
+        server.use(http.get(endpoint, () => HttpResponse.json({ message: 'rate limited' }, { status: 429 })));
 
         const { result } = renderHook(() => useCitationLookup({ debounceMs: 100 }));
         act(() => result.current.lookup('10.1234/xyz'));
@@ -101,3 +100,5 @@ describe('useCitationLookup', () => {
         expect(result.current.result).toBeNull();
     });
 });
+
+installCsrfFixture();

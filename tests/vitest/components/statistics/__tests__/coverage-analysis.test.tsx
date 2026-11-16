@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import CoverageAnalysis from '@/components/statistics/coverage-analysis';
 
@@ -24,9 +24,6 @@ describe('CoverageAnalysis', () => {
         avgTypesPerDataset: 2.5,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<CoverageAnalysis data={mockData} totalDatasets={500} />);

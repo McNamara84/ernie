@@ -63,7 +63,6 @@ function panel(overrides: Partial<CurationPanelData> = {}): CurationPanelData {
 let data: CurationPanelData;
 let events: CurationEvent[];
 beforeEach(() => {
-    vi.clearAllMocks();
     data = panel();
     events = [];
     vi.mocked(axios.get).mockImplementation(async (url) => ({

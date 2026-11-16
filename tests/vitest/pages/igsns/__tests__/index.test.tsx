@@ -273,7 +273,6 @@ const defaultProps = {
 
 describe('IgsnsPage', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         mockAxiosGet.mockResolvedValue({ data: { prefixes: [], statuses: [] } });
         localStorage.clear();
         // Mock window.location

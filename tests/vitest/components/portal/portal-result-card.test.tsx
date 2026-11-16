@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -170,9 +171,11 @@ describe('PortalResultCard', () => {
         });
 
         it('renders matching sample names as text', () => {
-            renderCard(createMockResource({
-                sampleNameMatches: [{ label: 'Local sample name', display_value: '<script>unsafe()</script>' }],
-            }));
+            renderCard(
+                createMockResource({
+                    sampleNameMatches: [{ label: 'Local sample name', display_value: '<script>unsafe()</script>' }],
+                }),
+            );
 
             const matches = screen.getByTestId('portal-sample-name-matches');
             expect(within(matches).getByText('<script>unsafe()</script>')).toBeInTheDocument();
@@ -400,3 +403,5 @@ describe('PortalResultCard', () => {
         });
     });
 });
+
+installCsrfFixture();

@@ -2,11 +2,14 @@
  * @vitest-environment jsdom
  */
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render as rawRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import CoordinateCsvImport from '@/components/curation/fields/spatial-temporal-coverage/coordinate-csv-import';
+
+const render = settleRender(rawRender);
 
 describe('CoordinateCsvImport Component', () => {
     const mockOnImport = vi.fn();
@@ -18,10 +21,6 @@ describe('CoordinateCsvImport Component', () => {
         existingPointCount: 0,
         geoType: 'polygon' as const,
     };
-
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(() => {
         cleanup();
@@ -39,7 +38,7 @@ describe('CoordinateCsvImport Component', () => {
 
     const uploadFile = async (content: string, filename = 'coordinates.csv') => {
         const user = userEvent.setup({ delay: null });
-        render(<CoordinateCsvImport {...defaultProps} />);
+        await render(<CoordinateCsvImport {...defaultProps} />);
         const fileInput = getFileInput();
         const file = createMockFile(content, filename);
         await user.upload(fileInput, file);
@@ -47,40 +46,40 @@ describe('CoordinateCsvImport Component', () => {
     };
 
     describe('Initial Render', () => {
-        it('renders CSV import dialog with header', () => {
-            render(<CoordinateCsvImport {...defaultProps} />);
+        it('renders CSV import dialog with header', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             expect(screen.getByText('CSV Coordinate Import')).toBeInTheDocument();
             expect(screen.getByText(/Import coordinate pairs for your polygon/)).toBeInTheDocument();
         });
 
-        it('shows line label when geoType is line', () => {
-            render(<CoordinateCsvImport {...defaultProps} geoType="line" />);
+        it('shows line label when geoType is line', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} geoType="line" />);
 
             expect(screen.getByText(/Import coordinate pairs for your line/)).toBeInTheDocument();
         });
 
-        it('shows close button', () => {
-            render(<CoordinateCsvImport {...defaultProps} />);
+        it('shows close button', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             expect(screen.getByLabelText('Close CSV import')).toBeInTheDocument();
         });
 
-        it('shows example download button', () => {
-            render(<CoordinateCsvImport {...defaultProps} />);
+        it('shows example download button', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             expect(screen.getByText('Example CSV')).toBeInTheDocument();
         });
 
-        it('shows file upload area with instructions', () => {
-            render(<CoordinateCsvImport {...defaultProps} />);
+        it('shows file upload area with instructions', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             expect(screen.getByText('Drop your CSV file here or click to browse')).toBeInTheDocument();
             expect(screen.getByText(/One coordinate pair per row/)).toBeInTheDocument();
         });
 
-        it('has hidden file input', () => {
-            render(<CoordinateCsvImport {...defaultProps} />);
+        it('has hidden file input', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             const fileInput = getFileInput();
             expect(fileInput).toBeInTheDocument();
@@ -88,15 +87,15 @@ describe('CoordinateCsvImport Component', () => {
             expect(fileInput).toHaveAttribute('accept', '.csv,text/csv');
         });
 
-        it('import button is disabled initially', () => {
-            render(<CoordinateCsvImport {...defaultProps} />);
+        it('import button is disabled initially', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             const importButton = screen.getByRole('button', { name: /Import/ });
             expect(importButton).toBeDisabled();
         });
 
-        it('does not show replace/append when no existing points', () => {
-            render(<CoordinateCsvImport {...defaultProps} existingPointCount={0} />);
+        it('does not show replace/append when no existing points', async () => {
+            await render(<CoordinateCsvImport {...defaultProps} existingPointCount={0} />);
 
             expect(screen.queryByText('Import Mode')).not.toBeInTheDocument();
         });
@@ -123,7 +122,7 @@ describe('CoordinateCsvImport Component', () => {
             });
 
             try {
-                render(<CoordinateCsvImport {...defaultProps} geoType="polygon" />);
+                await render(<CoordinateCsvImport {...defaultProps} geoType="polygon" />);
 
                 await user.click(screen.getByText('Example CSV'));
 
@@ -302,7 +301,7 @@ describe('CoordinateCsvImport Component', () => {
         });
 
         it('shows warning when polygon has fewer than 3 points and disables import', async () => {
-            render(<CoordinateCsvImport {...defaultProps} geoType="polygon" />);
+            await render(<CoordinateCsvImport {...defaultProps} geoType="polygon" />);
             const fileInput = getFileInput();
             const file = createMockFile(`latitude,longitude\n52.381,13.066\n52.382,13.068`, 'coords.csv');
             const user = userEvent.setup({ delay: null });
@@ -317,7 +316,7 @@ describe('CoordinateCsvImport Component', () => {
         });
 
         it('shows warning when line has fewer than 2 points and disables import', async () => {
-            render(<CoordinateCsvImport {...defaultProps} geoType="line" />);
+            await render(<CoordinateCsvImport {...defaultProps} geoType="line" />);
             const fileInput = getFileInput();
             const file = createMockFile(`latitude,longitude\n52.381,13.066`, 'coords.csv');
             const user = userEvent.setup({ delay: null });
@@ -344,7 +343,7 @@ describe('CoordinateCsvImport Component', () => {
     describe('File Validation', () => {
         it('rejects non-CSV files via drag and drop', async () => {
             const user = userEvent.setup({ delay: null });
-            render(<CoordinateCsvImport {...defaultProps} />);
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             const dropZone = screen.getByText('Drop your CSV file here or click to browse').closest('div')!;
             const file = new File(['test'], 'data.txt', { type: 'text/plain' });
@@ -356,11 +355,15 @@ describe('CoordinateCsvImport Component', () => {
             };
 
             await user.pointer([{ target: dropZone }]);
-            dropZone.dispatchEvent(new Event('dragover', { bubbles: true }));
+            await act(async () => {
+                dropZone.dispatchEvent(new Event('dragover', { bubbles: true }));
+            });
             const dropEvent = new Event('drop', { bubbles: true }) as unknown as DragEvent;
             Object.defineProperty(dropEvent, 'dataTransfer', { value: dataTransfer });
             Object.defineProperty(dropEvent, 'preventDefault', { value: vi.fn() });
-            dropZone.dispatchEvent(dropEvent);
+            await act(async () => {
+                dropZone.dispatchEvent(dropEvent);
+            });
 
             await waitFor(() => {
                 expect(screen.getByText('Please drop a valid CSV file')).toBeInTheDocument();
@@ -370,7 +373,7 @@ describe('CoordinateCsvImport Component', () => {
 
     describe('Replace / Append Mode', () => {
         it('shows replace/append options when existing points exist', async () => {
-            render(<CoordinateCsvImport {...defaultProps} existingPointCount={5} />);
+            await render(<CoordinateCsvImport {...defaultProps} existingPointCount={5} />);
             const fileInput = getFileInput();
             const file = createMockFile(`latitude,longitude\n52.381,13.066\n52.382,13.068\n52.383,13.070`, 'coords.csv');
             const user = userEvent.setup({ delay: null });
@@ -393,7 +396,7 @@ describe('CoordinateCsvImport Component', () => {
         });
 
         it('defaults to replace mode', async () => {
-            render(<CoordinateCsvImport {...defaultProps} existingPointCount={3} />);
+            await render(<CoordinateCsvImport {...defaultProps} existingPointCount={3} />);
             const fileInput = getFileInput();
             const file = createMockFile(`latitude,longitude\n52.381,13.066\n52.382,13.068\n52.383,13.070`, 'coords.csv');
             const user = userEvent.setup({ delay: null });
@@ -410,7 +413,7 @@ describe('CoordinateCsvImport Component', () => {
 
     describe('Import Action', () => {
         it('calls onImport with parsed points and replace mode', async () => {
-            render(<CoordinateCsvImport {...defaultProps} existingPointCount={0} />);
+            await render(<CoordinateCsvImport {...defaultProps} existingPointCount={0} />);
             const fileInput = getFileInput();
             const file = createMockFile(`latitude,longitude\n52.381,13.066\n52.382,13.068\n52.383,13.070`, 'coords.csv');
             const user = userEvent.setup({ delay: null });
@@ -436,7 +439,7 @@ describe('CoordinateCsvImport Component', () => {
         });
 
         it('calls onImport with append mode when selected', async () => {
-            render(<CoordinateCsvImport {...defaultProps} existingPointCount={2} />);
+            await render(<CoordinateCsvImport {...defaultProps} existingPointCount={2} />);
             const fileInput = getFileInput();
             const file = createMockFile(`latitude,longitude\n52.381,13.066\n52.382,13.068\n52.383,13.070`, 'coords.csv');
             const user = userEvent.setup({ delay: null });
@@ -456,7 +459,7 @@ describe('CoordinateCsvImport Component', () => {
         });
 
         it('enables import in append mode when parsed + existing >= minPoints', async () => {
-            render(<CoordinateCsvImport {...defaultProps} existingPointCount={2} geoType="polygon" />);
+            await render(<CoordinateCsvImport {...defaultProps} existingPointCount={2} geoType="polygon" />);
             const fileInput = getFileInput();
             const file = createMockFile(`latitude,longitude\n52.381,13.066`, 'coords.csv');
             const user = userEvent.setup({ delay: null });
@@ -475,7 +478,7 @@ describe('CoordinateCsvImport Component', () => {
 
         it('calls onClose when cancel is clicked', async () => {
             const user = userEvent.setup({ delay: null });
-            render(<CoordinateCsvImport {...defaultProps} />);
+            await render(<CoordinateCsvImport {...defaultProps} />);
 
             await user.click(screen.getByRole('button', { name: 'Cancel' }));
             expect(mockOnClose).toHaveBeenCalled();

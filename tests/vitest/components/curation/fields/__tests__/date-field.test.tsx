@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import DateField from '@/components/curation/fields/date-field';
 
@@ -49,9 +49,6 @@ describe('DateField', () => {
         onEndTimezoneChange: mockOnEndTimezoneChange,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders an editable date input and a calendar button', () => {
         render(<DateField {...defaultProps} />);

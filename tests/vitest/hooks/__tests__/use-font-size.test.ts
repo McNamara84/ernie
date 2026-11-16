@@ -18,7 +18,6 @@ vi.mock('@inertiajs/react', () => ({
 
 describe('use-font-size', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         // Reset document class
         document.documentElement.classList.remove('font-large');
         // Default mock

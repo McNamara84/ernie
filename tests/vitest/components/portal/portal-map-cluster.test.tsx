@@ -63,7 +63,6 @@ import { ClusterLayer } from '@/components/portal/PortalMapCluster';
 
 describe('PortalMapCluster', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         leafletState.markers = [];
         leafletState.layers = [];
         leafletState.boundsArguments = [];

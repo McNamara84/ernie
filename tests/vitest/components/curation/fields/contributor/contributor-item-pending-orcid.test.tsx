@@ -6,7 +6,7 @@
  */
 
 import { cleanup, render, screen } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ContributorItem from '@/components/curation/fields/contributor/contributor-item';
 import type { ContributorEntry } from '@/components/curation/fields/contributor/types';
@@ -91,9 +91,6 @@ describe('ContributorItem with pendingOrcidData', () => {
         institutionRoleOptions: ['Sponsor', 'Funder'] as const,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(() => {
         cleanup();

@@ -1,6 +1,6 @@
 import { fireEvent } from '@testing-library/react';
 import { render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkItem from '@/components/curation/fields/related-work/related-work-item';
 import type { RelatedIdentifier } from '@/types';
@@ -19,9 +19,6 @@ describe('RelatedWorkItem variants', () => {
     const renderItem = (item: RelatedIdentifier) =>
         render(<RelatedWorkItem sortableId="related-work-0" item={item} index={0} onChange={mockOnChange} onRemove={mockOnRemove} />);
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders Handle identifiers as clickable preview links', () => {
         renderItem(

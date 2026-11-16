@@ -14,7 +14,6 @@ vi.mock('axios', () => ({
 
 describe('session-warmup', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         resetWarmupState();
         vi.useFakeTimers();
     });
@@ -48,6 +47,7 @@ describe('session-warmup', () => {
         });
 
         it('returns failure when request fails', async () => {
+            using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
             mocks.axiosGet.mockRejectedValue(new Error('Network error'));
 
             const result = await warmupSession();
@@ -56,6 +56,12 @@ describe('session-warmup', () => {
                 success: false,
                 data: null,
             });
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith(
+                '[Session] Warmup request failed, session may not be initialized:',
+                expect.objectContaining({ message: 'Network error' }),
+            );
         });
 
         it('uses cached data for subsequent calls within TTL', async () => {
@@ -78,9 +84,7 @@ describe('session-warmup', () => {
         it('makes a new request when cache expires (5 minutes TTL)', async () => {
             const mockData1 = { types: ['dataset'] };
             const mockData2 = { types: ['software'] };
-            mocks.axiosGet
-                .mockResolvedValueOnce({ data: mockData1 })
-                .mockResolvedValueOnce({ data: mockData2 });
+            mocks.axiosGet.mockResolvedValueOnce({ data: mockData1 }).mockResolvedValueOnce({ data: mockData2 });
 
             // First call
             await warmupSession();
@@ -128,9 +132,8 @@ describe('session-warmup', () => {
         });
 
         it('allows retry after failure', async () => {
-            mocks.axiosGet
-                .mockRejectedValueOnce(new Error('Network error'))
-                .mockResolvedValueOnce({ data: { types: ['dataset'] } });
+            using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            mocks.axiosGet.mockRejectedValueOnce(new Error('Network error')).mockResolvedValueOnce({ data: { types: ['dataset'] } });
 
             // First call fails
             const result1 = await warmupSession();
@@ -141,6 +144,12 @@ describe('session-warmup', () => {
             const result2 = await warmupSession();
             expect(result2.success).toBe(true);
             expect(mocks.axiosGet).toHaveBeenCalledTimes(2);
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith(
+                '[Session] Warmup request failed, session may not be initialized:',
+                expect.objectContaining({ message: 'Network error' }),
+            );
         });
     });
 
@@ -158,11 +167,18 @@ describe('session-warmup', () => {
         });
 
         it('returns false after failed warmup', async () => {
+            using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
             mocks.axiosGet.mockRejectedValue(new Error('Network error'));
 
             await warmupSession();
 
             expect(isSessionWarmedUp()).toBe(false);
+
+            expect(diagnostic).toHaveBeenCalledTimes(1);
+            expect(diagnostic).toHaveBeenCalledWith(
+                '[Session] Warmup request failed, session may not be initialized:',
+                expect.objectContaining({ message: 'Network error' }),
+            );
         });
 
         it('returns false after cache expires', async () => {
@@ -193,9 +209,7 @@ describe('session-warmup', () => {
         it('forces a new request on next warmup call', async () => {
             const mockData1 = { types: ['dataset'] };
             const mockData2 = { types: ['software'] };
-            mocks.axiosGet
-                .mockResolvedValueOnce({ data: mockData1 })
-                .mockResolvedValueOnce({ data: mockData2 });
+            mocks.axiosGet.mockResolvedValueOnce({ data: mockData1 }).mockResolvedValueOnce({ data: mockData2 });
 
             // First call
             await warmupSession();

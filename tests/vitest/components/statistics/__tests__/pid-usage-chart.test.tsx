@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import PidUsageChart from '@/components/statistics/pid-usage-chart';
 
@@ -24,9 +24,6 @@ describe('PidUsageChart', () => {
         { type: 'ISNI', count: 100, percentage: 6.67 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<PidUsageChart data={mockData} />);

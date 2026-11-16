@@ -51,13 +51,22 @@ describe('session-warmup', () => {
     });
 
     it('returns failure on network error', async () => {
+        using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
         vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network Error'));
         const result = await warmupSession();
         expect(result.success).toBe(false);
         expect(result.data).toBeNull();
+
+        expect(diagnostic).toHaveBeenCalledExactlyOnceWith(
+            '[Session] Warmup request failed, session may not be initialized:',
+            expect.objectContaining({ message: 'Network Error' }),
+        );
     });
 
     it('allows retry after failure', async () => {
+        using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
         vi.mocked(axios.get).mockRejectedValueOnce(new Error('fail'));
         await warmupSession();
 
@@ -65,6 +74,11 @@ describe('session-warmup', () => {
         const result = await warmupSession();
         expect(result.success).toBe(true);
         expect(result.data).toEqual(['retry']);
+
+        expect(diagnostic).toHaveBeenCalledExactlyOnceWith(
+            '[Session] Warmup request failed, session may not be initialized:',
+            expect.objectContaining({ message: 'fail' }),
+        );
     });
 
     it('resetWarmupState clears cache', async () => {
