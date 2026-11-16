@@ -67,9 +67,14 @@ for (const width of [390, 768, 1024, 1440]) {
             }
 
             async function expectControlsFit() {
-                const violations = await dialog.getByRole('button', { name: /^Reorder / }).evaluateAll((handles) =>
-                    handles.flatMap((handle) => {
-                        const row = handle.parentElement!;
+                const handles = dialog.getByRole('button', { name: /^Reorder / });
+                await expect(handles.first()).toBeVisible();
+                const violations: (string | null)[] = [];
+                // Firefox 159 crashes in evaluateAll for this fixture. Measure each
+                // row separately while preserving every overflow and overlap check.
+                for (const handle of await handles.all()) {
+                    const rowViolations = await handle.evaluate((element) => {
+                        const row = element.parentElement!;
                         const bounds = row.getBoundingClientRect();
                         const label = row.querySelector('span')!.getBoundingClientRect();
                         const controls = [...row.querySelectorAll('button')];
@@ -83,9 +88,10 @@ for (const width of [390, 768, 1024, 1440]) {
                                     (index === 0 ? rect.right <= label.left : rect.left >= label.right)
                                 );
                             });
-                        return fits ? [] : [handle.getAttribute('aria-label')];
-                    }),
-                );
+                        return fits ? [] : [element.getAttribute('aria-label')];
+                    });
+                    violations.push(...rowViolations);
+                }
                 expect(violations).toEqual([]);
             }
             await expectControlsFit();

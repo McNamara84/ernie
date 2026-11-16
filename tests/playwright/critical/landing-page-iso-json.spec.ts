@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { LandingPage } from '../helpers/page-objects/LandingPage';
 
-test('downloads ISO JSON next to XML on a resource landing page', async ({ page, browserName }) => {
+test('downloads ISO JSON next to XML on a resource landing page', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.goto('mandatory-fields-only');
     await landingPage.verifyPageLoaded();
@@ -15,28 +15,15 @@ test('downloads ISO JSON next to XML on a resource landing page', async ({ page,
     const exportUrl = await jsonLink.getAttribute('href');
     expect(exportUrl).toMatch(/\/metadata\/iso-19115-4\.json$/);
     const filename = 'mandatory-fields-only-iso-19115-4.json';
-    let content: string;
-
-    if (browserName === 'webkit') {
-        // Playwright's Linux WebKit renders attachment navigations instead of
-        // emitting a download: https://github.com/microsoft/playwright/issues/34076.
-        // Check the real click response, including the attachment contract.
-        const [response] = await Promise.all([page.waitForResponse((result) => result.url() === exportUrl), jsonLink.click()]);
-        expect(response.status()).toBe(200);
-        expect(response.headers()['content-type']).toBe('application/json; charset=UTF-8');
-        expect(response.headers()['content-disposition']).toBe(`attachment; filename="${filename}"`);
-        content = await response.text();
-    } else {
-        const [download] = await Promise.all([page.waitForEvent('download'), jsonLink.click()]);
-        expect(download.url()).toBe(exportUrl);
-        expect(download.suggestedFilename()).toBe(filename);
-        expect(await download.failure()).toBeNull();
-        const stream = await download.createReadStream();
-        if (!stream) throw new Error('Metadata download has no readable content');
-        const chunks: Buffer[] = [];
-        for await (const chunk of stream) chunks.push(Buffer.from(chunk));
-        content = Buffer.concat(chunks).toString('utf8');
-    }
+    const [download] = await Promise.all([page.waitForEvent('download'), jsonLink.click()]);
+    expect(download.url()).toBe(exportUrl);
+    expect(download.suggestedFilename()).toBe(filename);
+    expect(await download.failure()).toBeNull();
+    const stream = await download.createReadStream();
+    if (!stream) throw new Error('Metadata download has no readable content');
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const content = Buffer.concat(chunks).toString('utf8');
 
     const metadata = JSON.parse(content);
     expect(metadata.type).toBe('Feature');
