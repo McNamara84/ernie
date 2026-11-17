@@ -35,9 +35,11 @@ final class InstrumentReferenceClassifierService
                 } catch (InvalidArgumentException) {
                     continue;
                 }
-                if (($reference['resourceTypeGeneral'] ?? null) === 'Instrument') {
+                $resourceType = $reference['resourceTypeGeneral'] ?? null;
+                if ($resourceType === 'Instrument') {
                     $result[$index] = true;
-                } else {
+                } elseif ($resourceType === null) {
+                    // Local matches only infer a type for unmarked legacy references.
                     $known ??= $this->knownDois();
                     $result[$index] = ($known[$doi] ?? 0) === 1;
                 }

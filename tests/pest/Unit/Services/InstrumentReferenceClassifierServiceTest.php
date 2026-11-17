@@ -57,3 +57,30 @@ it('does not keep stale DOI classifications between imports', function (): void 
     app(Pid4instVocabularyService::class)->replace(json_encode(['data' => [['pid' => '10.1234/sensor', 'pidType' => 'DOI', 'name' => 'Sensor']]]));
     expect($service->classify($references))->toBe([true]);
 });
+
+it('does not infer an instrument from a DOI with an explicit different resource type', function (string $resourceType, bool $alias): void {
+    app(Pid4instVocabularyService::class)->replace(json_encode(['data' => [[
+        'id' => $alias ? 'b2inst-sensor' : 'datacite:10.1234/sensor',
+        'pid' => $alias ? '21.1234/sensor' : '10.1234/sensor',
+        'pidType' => $alias ? 'Handle' : 'DOI', 'name' => 'Sensor',
+        'lookupIdentifiers' => [['value' => '10.1234/sensor', 'type' => 'DOI', 'source' => 'metadata']],
+    ]]]));
+    $references = [[
+        'relationType' => 'IsCollectedBy', 'relatedIdentifierType' => 'DOI',
+        'relatedIdentifier' => 'https://doi.org/10.1234/SENSOR', 'resourceTypeGeneral' => $resourceType,
+    ]];
+
+    expect(app(InstrumentReferenceClassifierService::class)->classify($references))->toBe([false]);
+    Http::assertNothingSent();
+})->with(['Dataset', 'Software', 'Other', 'PhysicalObject', ''])->with([false, true]);
+
+it('treats a null resource type as an unmarked legacy DOI reference', function (): void {
+    app(Pid4instVocabularyService::class)->replace(json_encode(['data' => [[
+        'pid' => '10.1234/sensor', 'pidType' => 'DOI', 'name' => 'Sensor',
+    ]]]));
+    expect(app(InstrumentReferenceClassifierService::class)->classify([[
+        'relationType' => 'IsCollectedBy', 'relatedIdentifierType' => 'DOI',
+        'relatedIdentifier' => '10.1234/sensor', 'resourceTypeGeneral' => null,
+    ]]))->toBe([true]);
+    Http::assertNothingSent();
+});

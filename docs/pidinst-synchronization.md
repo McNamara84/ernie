@@ -55,7 +55,7 @@ To roll back, stop concurrent refresh workers, preserve both files, restore the 
 
 ## DOI instrument import and export
 
-Selections retain their DOI type through saving, loading and DataCite XML/JSON export. Exports mark instrument relations with `IsCollectedBy` and `resourceTypeGeneral=Instrument`; this allows reimport even when the vocabulary is unavailable. Names are filled locally when possible. Legacy unmarked `IsCollectedBy` DOI references are classified as instruments only when a unique active local record matches. Other DOI relationships remain Related Work; classification adds no external lookups. Existing Handle imports remain supported.
+Selections retain their DOI type through saving, loading and DataCite XML/JSON export. Exports mark instrument relations with `IsCollectedBy` and `resourceTypeGeneral=Instrument`; this allows reimport even when the vocabulary is unavailable. Names are filled locally when possible. Legacy unmarked `IsCollectedBy` DOI references are classified as instruments only when a unique active local record matches. An explicit resource type other than `Instrument` keeps a DOI reference in Related Work, including when it matches a local instrument or B2INST DOI alias. Classification adds no external lookups. Existing Handle imports remain supported.
 
 ## Validation
 

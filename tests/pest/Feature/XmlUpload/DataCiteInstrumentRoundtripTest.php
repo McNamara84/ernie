@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\IdentifierType;
 use App\Models\PidSetting;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\TitleType;
 use App\Models\User;
@@ -49,6 +51,46 @@ it('saves selected DOI instruments and preserves their type through export and u
         ->and($metadata['relatedWorks'])->toBe([]);
     Http::assertNothingSent();
 })->with(['xml', 'json'])->with([true, false]);
+
+it('keeps explicitly typed DOI references in related work despite a local instrument match', function (string $format, string $resourceType, bool $alias): void {
+    if ($alias) {
+        app(Pid4instVocabularyService::class)->replace(json_encode(['data' => [[
+            'id' => 'b2inst-sensor', 'pid' => '21.1234/sensor', 'pidType' => 'Handle', 'name' => 'B2INST sensor',
+            'lookupIdentifiers' => [['value' => '10.1234/sensor', 'type' => 'DOI', 'source' => 'metadata']],
+        ]]]));
+    }
+    $source = Resource::factory()->create(['doi' => null]);
+    $source->titles()->create(['value' => 'Explicit resource type regression', 'title_type_id' => TitleType::where('slug', 'MainTitle')->value('id')]);
+    $source->relatedIdentifiers()->create([
+        'identifier' => '10.1234/sensor',
+        'identifier_type_id' => IdentifierType::firstOrCreate(['slug' => 'DOI'], ['name' => 'DOI'])->id,
+        'relation_type_id' => RelationType::firstOrCreate(['slug' => 'IsCollectedBy'], ['name' => 'Is Collected By'])->id,
+        'resource_type_general' => $resourceType, 'position' => 0,
+    ]);
+    $export = $format === 'xml' ? app(DataCiteXmlExporter::class)->export($source) : json_encode(app(DataCiteJsonExporter::class)->export($source));
+    Http::fake(['*' => Http::response([], 404)]);
+
+    $metadata = $this->postJson('/editor/upload-'.$format.'/preview', [
+        'file' => UploadedFile::fake()->createWithContent('explicit-type.'.$format, $export),
+    ])->assertOk()->json('metadata');
+    expect($metadata['instruments'])->toBe([])
+        ->and($metadata['relatedWorks'])->toHaveCount(1)
+        ->and($metadata['relatedWorks'][0])->toMatchArray([
+            'identifier' => '10.1234/sensor', 'identifier_type' => 'DOI', 'relation_type' => 'IsCollectedBy',
+        ]);
+
+    $id = $this->postJson('/dashboard/upload-'.$format, [
+        'file' => UploadedFile::fake()->createWithContent('explicit-type.'.$format, $export),
+    ])->assertOk()->json('resourceId');
+    $imported = Resource::findOrFail($id);
+    expect($imported->instruments)->toHaveCount(0)->and($imported->relatedIdentifiers)->toHaveCount(1);
+    $reexported = app(DataCiteJsonExporter::class)->export($imported)['data']['attributes']['relatedIdentifiers'];
+    expect($reexported)->toHaveCount(1)
+        ->and($reexported[0]['relatedIdentifier'])->toBe('10.1234/sensor')
+        ->and($reexported[0]['relationType'])->toBe('IsCollectedBy')
+        ->and($reexported[0]['resourceTypeGeneral'] ?? null)->not->toBe('Instrument');
+    expect(app(DataCiteXmlExporter::class)->export($imported))->not->toContain('resourceTypeGeneral="Instrument"');
+})->with(['xml', 'json'])->with(['Dataset', 'Software'])->with([false, true]);
 
 it('recognizes unmarked legacy DOI references only when found locally', function (string $format, bool $known): void {
     $doi = $known ? '10.1234/sensor' : '10.1234/unrelated';
