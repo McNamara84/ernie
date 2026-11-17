@@ -6,17 +6,18 @@ namespace App\Services;
 
 use App\Models\PidSetting;
 use App\Services\B2inst\B2instClient;
+use App\Services\Pidinst\DataCiteInstrumentClient;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Service for checking PID4INST instrument status and comparing with b2inst API.
+ * Compare each registry's raw count independently of the deduplicated selection.
  */
 class Pid4instStatusService
 {
     /**
      * Get the local status of a PID setting (from stored JSON file).
      *
-     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, serverCount: int|null, excludedCount?: int, exclusions?: list<array{id: string, reasonCode: string}>, refreshPending?: bool}
+     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, serverCount: int|null, sourceCounts?: array<string, int>, excludedCount?: int, exclusions?: list<array{id: string, reasonCode: string, source?: string}>, refreshPending?: bool}
      */
     public function getLocalStatus(PidSetting $setting): array
     {
@@ -42,7 +43,7 @@ class Pid4instStatusService
             ];
         }
 
-        /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>, _sync?: array{serverCount?: mixed}}|null $data */
+        /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>, _sync?: array<string, mixed>}|null $data */
         $data = json_decode($content, true);
 
         if (! is_array($data)) {
@@ -55,27 +56,38 @@ class Pid4instStatusService
         }
 
         $serverCount = data_get($data, '_sync.serverCount');
+        $sourceCounts = [];
+        foreach (['b2inst', 'datacite'] as $source) {
+            $count = data_get($data, '_sync.sources.'.$source.'.serverCount');
+            if (is_int($count) && $count >= 0) {
+                $sourceCounts[$source] = $count;
+            }
+        }
 
         return [
             'exists' => true,
             'itemCount' => $data['total'] ?? count($data['data'] ?? []),
             'lastUpdated' => $data['lastUpdated'] ?? null,
             'serverCount' => is_int($serverCount) && $serverCount >= 0 ? $serverCount : null,
+            'sourceCounts' => $sourceCounts,
             ...Pid4instUpdateDiagnosticsService::fromSnapshot($data),
         ];
     }
 
     /**
-     * Get the instrument count from the b2inst API.
-     *
-     * Makes a lightweight request (size=1) to get the total hits count
-     * without downloading all instruments.
+     * Sum raw source counts, including overlaps and records later excluded.
      *
      * @throws \RuntimeException If the API request fails
      */
     public function getRemoteCount(): int
     {
-        return app(B2instClient::class)->count();
+        return array_sum($this->getRemoteCounts());
+    }
+
+    /** @return array{b2inst: int, datacite: int} */
+    public function getRemoteCounts(): array
+    {
+        return ['b2inst' => app(B2instClient::class)->count(), 'datacite' => app(DataCiteInstrumentClient::class)->count()];
     }
 
     /**
@@ -83,25 +95,33 @@ class Pid4instStatusService
      *
      * An update is considered available when the remote count differs
      * from the last synchronized server count, including excluded records.
-     * Legacy snapshots fall back to their offered instrument count.
+     * A legacy snapshot needs an initial combined refresh even at equal counts.
      *
      * Equal counts do not establish metadata freshness.
      *
-     * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null, comparisonBasis: string}
+     * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null, comparisonBasis: string, sources: array<string, array{syncedCount: int|null, remoteCount: int}>}
      *
      * @throws \RuntimeException If the API request fails
      */
     public function compareWithRemote(PidSetting $setting): array
     {
         $localStatus = $this->getLocalStatus($setting);
-        $remoteCount = $this->getRemoteCount();
+        $remoteCounts = $this->getRemoteCounts();
+        $sources = [];
+        $updateAvailable = false;
+        foreach ($remoteCounts as $source => $remoteCount) {
+            $syncedCount = $localStatus['sourceCounts'][$source] ?? null;
+            $sources[$source] = ['syncedCount' => $syncedCount, 'remoteCount' => $remoteCount];
+            $updateAvailable = $updateAvailable || $syncedCount !== $remoteCount;
+        }
 
         return [
             'localCount' => $localStatus['itemCount'],
-            'remoteCount' => $remoteCount,
-            'updateAvailable' => $remoteCount !== ($localStatus['serverCount'] ?? $localStatus['itemCount']),
+            'remoteCount' => array_sum($remoteCounts),
+            'updateAvailable' => $updateAvailable,
             'lastUpdated' => $localStatus['lastUpdated'],
             'comparisonBasis' => 'count',
+            'sources' => $sources,
         ];
     }
 }

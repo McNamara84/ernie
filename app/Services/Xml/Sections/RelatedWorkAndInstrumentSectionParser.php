@@ -6,13 +6,14 @@ namespace App\Services\Xml\Sections;
 
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\InstrumentNameResolutionService;
+use App\Services\InstrumentReferenceClassifierService;
 use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use Saloon\XmlWrangler\XmlReader;
 
 /**
  * Parses `<relatedIdentifiers>/<relatedIdentifier>` from a DataCite XML
- * document and separates instrument PIDs (relationType="IsCollectedBy" with
- * identifierType="Handle") into their own array used by the editor's
+ * document and separates legacy Handles and explicitly typed or locally known
+ * instrument DOIs with relationType="IsCollectedBy" into the editor's
  * "Used Instruments" form section.
  */
 final readonly class RelatedWorkAndInstrumentSectionParser
@@ -21,6 +22,7 @@ final readonly class RelatedWorkAndInstrumentSectionParser
         private OriginalDataCiteRelatedIdentifierExtractionService $relatedIdentifierExtractor,
         private RelatedIdentifierCitationLabelService $citationLabelService,
         private InstrumentNameResolutionService $instrumentResolver,
+        private InstrumentReferenceClassifierService $instrumentClassifier,
     ) {}
 
     /**
@@ -37,12 +39,13 @@ final readonly class RelatedWorkAndInstrumentSectionParser
         $instruments = [];
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
-        foreach ($relatedIdentifiers as $relatedIdentifier) {
+        $instrumentReferences = $this->instrumentClassifier->classify($relatedIdentifiers);
+        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
             $identifier = $relatedIdentifier['relatedIdentifier'];
             $identifierType = $relatedIdentifier['relatedIdentifierType'];
             $relationType = $relatedIdentifier['relationType'];
 
-            if ($relationType === 'IsCollectedBy' && $identifierType === 'Handle') {
+            if ($instrumentReferences[$index]) {
                 $instruments[] = [
                     'pid' => $identifier,
                     'pidType' => $identifierType,

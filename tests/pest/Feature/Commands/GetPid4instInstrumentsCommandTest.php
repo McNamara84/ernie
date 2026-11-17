@@ -8,12 +8,12 @@ use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
 use App\Models\ResourceInstrument;
 use App\Services\B2inst\B2instInstrumentNormalizer;
-use App\Services\B2inst\B2instSnapshotStore;
-use App\Services\B2inst\B2instSyncService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\InstrumentNameResolutionService;
 use App\Services\Pid4instStatusService;
 use App\Services\Pid4instVocabularyService;
+use App\Services\Pidinst\PidinstSnapshotStore;
+use App\Services\Pidinst\PidinstSyncService;
 use App\Services\VocabularyCacheService;
 use App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser;
 use Illuminate\Contracts\Cache\Lock;
@@ -25,21 +25,23 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Saloon\XmlWrangler\XmlReader;
 use Tests\Fixtures\B2instFixture as Fixture;
+use Tests\Fixtures\DataCiteInstrumentFixture;
 
-covers(GetPid4instInstruments::class, B2instSyncService::class, B2instSnapshotStore::class);
+covers(GetPid4instInstruments::class, PidinstSyncService::class, PidinstSnapshotStore::class);
 
 beforeEach(function (): void {
     config(['b2inst.host' => 'https://b2inst.example.test', 'b2inst.retry_delay' => 0]);
     Storage::fake('local');
     Cache::flush();
     Http::preventStrayRequests();
+    DataCiteInstrumentFixture::fakeEmpty();
 });
 
 it('publishes compatible data with internal provenance and invalidates the cache', function (): void {
     Http::fake(['https://b2inst.example.test/*' => Http::response(Fixture::page([Fixture::record()]))]);
     app(VocabularyCacheService::class)->cacheVocabulary(CacheKey::PID4INST_INSTRUMENTS, fn () => ['old']);
     expect(Artisan::call('get-pid4inst-instruments'))->toBe(0);
-    $payload = app(B2instSnapshotStore::class)->read();
+    $payload = app(PidinstSnapshotStore::class)->read();
     expect($payload['total'])->toBe(1)
         ->and($payload['data'][0]['pid'])->toBe('21.T11975/abc12-def34')
         ->and($payload['_sync']['records']['abc12-def34']['parentId'])->toBe('parent-abc12-def34')
@@ -51,7 +53,7 @@ it('updates an existing instrument with blank measured variables through the bac
     $record = Fixture::record('4mfvj-1q724');
     $previous = app(B2instInstrumentNormalizer::class)->normalize($record);
     $old = json_encode(['lastUpdated' => '2026-05-22T08:01:00Z', 'total' => 1, 'data' => [$previous]], JSON_THROW_ON_ERROR);
-    Storage::put(B2instSnapshotStore::FILE, $old);
+    Storage::put(PidinstSnapshotStore::FILE, $old);
     $vocabulary = app(Pid4instVocabularyService::class);
     expect($vocabulary->getPublicPayload()['data'][0]['measuredVariables'])->toBe(['Temperature']);
     $link = ResourceInstrument::factory()->create([
@@ -68,18 +70,18 @@ it('updates an existing instrument with blank measured variables through the bac
     expect(Cache::get(UpdatePidJob::getCacheKey($jobId)))->toMatchArray([
         'status' => 'completed', 'itemCount' => 2, 'excludedCount' => 0, 'exclusions' => [], 'refreshPending' => false,
     ])->and($link->refresh()->getAttributes())->toBe($attributes)
-        ->and(Storage::get(B2instSnapshotStore::FILE.'.previous'))->toBe($old);
+        ->and(Storage::get(PidinstSnapshotStore::FILE.'.previous'))->toBe($old);
     $payload = $vocabulary->getPublicPayload();
     expect($payload['total'])->toBe(2)->and($payload['data'][0])->toMatchArray([
         'id' => $record['id'], 'pid' => $previous['pid'], 'name' => $previous['name'], 'measuredVariables' => [],
     ])->and($payload)->not->toHaveKey('_sync');
-    Http::assertSentCount(2);
+    Http::assertSentCount(4);
 });
 
 it('stops at an invalid existing record before resolving later instruments', function (string $field, mixed $value): void {
     $record = Fixture::record();
     $old = json_encode(['total' => 1, 'data' => [app(B2instInstrumentNormalizer::class)->normalize($record)]], JSON_THROW_ON_ERROR);
-    Storage::put(B2instSnapshotStore::FILE, $old);
+    Storage::put(PidinstSnapshotStore::FILE, $old);
     $vocabulary = app(Pid4instVocabularyService::class);
     $cached = $vocabulary->getPublicPayload();
     data_set($record, $field, $value);
@@ -90,10 +92,10 @@ it('stops at an invalid existing record before resolving later instruments', fun
         'https://hdl.handle.net/*' => Http::response(Fixture::handle($later['metadata']['LandingPage'])),
     ]);
 
-    expect(fn () => app(B2instSyncService::class)->sync())->toThrow(RuntimeException::class, 'Invalid B2INST record would remove an existing selection: '.$record['id']);
-    expect(Storage::get(B2instSnapshotStore::FILE))->toBe($old)->and($vocabulary->getPublicPayload())->toBe($cached);
+    expect(fn () => app(PidinstSyncService::class)->sync())->toThrow(RuntimeException::class, 'Invalid B2INST record would remove an existing selection: '.$record['id']);
+    expect(Storage::get(PidinstSnapshotStore::FILE))->toBe($old)->and($vocabulary->getPublicPayload())->toBe($cached);
     Http::assertNotSent(fn (Request $request): bool => str_starts_with($request->url(), 'https://hdl.handle.net/'));
-    Http::assertSentCount(2);
+    Http::assertSentCount(4);
 })->with([
     ['metadata.MeasuredVariable', ['Temperature', 7]], ['metadata.Name', ' '], ['metadata.Identifier.identifierValue', ''],
 ]);
@@ -103,22 +105,22 @@ it('updates same-count metadata, preserves saved links and keeps the previous sn
     $before = $link->fresh()->getAttributes();
     $original = Fixture::page([Fixture::record()]);
     $renamed = Fixture::page([Fixture::record(overrides: ['metadata' => ['Name' => 'Renamed'], 'revision_id' => 3])]);
-    Http::fakeSequence()->push($original)->push($original)->push($renamed)->push($renamed);
-    $service = app(B2instSyncService::class);
+    Http::fakeSequence('https://b2inst.example.test/*')->push($original)->push($original)->push($renamed)->push($renamed);
+    $service = app(PidinstSyncService::class);
     $service->sync();
     $selection = ['pid' => $link->instrument_pid, 'pidType' => 'Handle', 'name' => $link->instrument_pid];
     $resolver = app(InstrumentNameResolutionService::class);
     expect($resolver->resolve([$selection])[0]['name'])->toBe('Test instrument abc12-def34');
-    $old = Storage::get(B2instSnapshotStore::FILE);
+    $old = Storage::get(PidinstSnapshotStore::FILE);
     $this->travel(1)->minutes();
     $result = $service->sync();
     expect($result['changes']['changed'])->toBe(1)->and($result['itemCount'])->toBe(1)
         ->and($result['storedLinksOutsideSelection'])->toBe(0)
-        ->and(app(B2instSnapshotStore::class)->read()['data'][0]['name'])->toBe('Renamed')
-        ->and(Storage::get(B2instSnapshotStore::FILE.'.previous'))->toBe($old)
+        ->and(app(PidinstSnapshotStore::class)->read()['data'][0]['name'])->toBe('Renamed')
+        ->and(Storage::get(PidinstSnapshotStore::FILE.'.previous'))->toBe($old)
         ->and($link->fresh()->getAttributes())->toBe($before);
     expect($resolver->resolve([$selection])[0]['name'])->toBe('Renamed');
-    Http::assertSentCount(4);
+    Http::assertSentCount(8);
 });
 
 it('resolves both original identifiers from a v3 snapshot without changing saved selections or fetching remotely', function (bool $cached): void {
@@ -129,7 +131,7 @@ it('resolves both original identifiers from a v3 snapshot without changing saved
         'https://hdl.handle.net/api/handles/21.11157/d96a9d31-fd99-4a0c-9b98-514a04b18423' => Http::response(Fixture::handle($record['metadata']['LandingPage'])),
     ]);
     expect(Artisan::call('get-pid4inst-instruments'))->toBe(0);
-    $snapshot = app(B2instSnapshotStore::class)->read();
+    $snapshot = app(PidinstSnapshotStore::class)->read();
     if ($cached) {
         Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), $snapshot);
     }
@@ -149,8 +151,8 @@ it('resolves both original identifiers from a v3 snapshot without changing saved
     expect($vocabulary->getPublicPayload())->not->toHaveKey('_sync')
         ->and($vocabulary->getPublicPayload()['data'][0])->not->toHaveKey('lookupIdentifiers')
         ->and($vocabulary->getLocalPayload()['data'][0]['lookupIdentifiers'])->toHaveCount(2)
-        ->and(app(B2instSnapshotStore::class)->read())->toBe($snapshot);
-    Http::assertSentCount(4);
+        ->and(app(PidinstSnapshotStore::class)->read())->toBe($snapshot);
+    Http::assertSentCount(6);
 })->with([false, true]);
 
 it('preserves the previous snapshot and name cache when an existing instrument PID is blank', function (string $pid): void {
@@ -159,13 +161,13 @@ it('preserves the previous snapshot and name cache when an existing instrument P
         Fixture::record(overrides: ['metadata' => ['Identifier' => ['identifierValue' => $pid]]]),
         Fixture::record('second'),
     ]);
-    Http::fakeSequence()->push($valid)->push($valid)->push($invalid)->push($invalid);
+    Http::fakeSequence('https://b2inst.example.test/*')->push($valid)->push($valid)->push($invalid)->push($invalid);
     expect(Artisan::call('get-pid4inst-instruments'))->toBe(0);
     $vocabulary = app(Pid4instVocabularyService::class);
     $before = $vocabulary->getLocalPayload();
-    $snapshot = Storage::get(B2instSnapshotStore::FILE);
+    $snapshot = Storage::get(PidinstSnapshotStore::FILE);
     expect(Artisan::call('get-pid4inst-instruments'))->toBe(1)
-        ->and(Storage::get(B2instSnapshotStore::FILE))->toBe($snapshot)
+        ->and(Storage::get(PidinstSnapshotStore::FILE))->toBe($snapshot)
         ->and($vocabulary->getLocalPayload())->toBe($before);
 })->with(['', " \t\n "]);
 
@@ -175,8 +177,8 @@ it('does not report reordered records or usage statistics as metadata changes', 
     $original = Fixture::page([$b, $a]);
     $a['stats'] = ['views' => 99];
     $reordered = Fixture::page([$a, $b]);
-    Http::fakeSequence()->push($original)->push($original)->push($reordered)->push($reordered);
-    $service = app(B2instSyncService::class);
+    Http::fakeSequence('https://b2inst.example.test/*')->push($original)->push($original)->push($reordered)->push($reordered);
+    $service = app(PidinstSyncService::class);
     $first = $service->sync();
     $this->travel(1)->minutes();
     $second = $service->sync();
@@ -189,17 +191,17 @@ it('supports a dry run without modifying files or caches', function (): void {
     Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), ['old']);
     expect(Artisan::call('get-pid4inst-instruments', ['--dry-run' => true]))->toBe(0)
         ->and(Artisan::output())->toContain('"published": false');
-    Storage::assertMissing(B2instSnapshotStore::FILE);
+    Storage::assertMissing(PidinstSnapshotStore::FILE);
     expect(Cache::get(CacheKey::PID4INST_INSTRUMENTS->key()))->toBe(['old']);
 });
 
 it('keeps the previous file on late HTTP errors, incomplete pages, invalid records and empty candidates', function (string $failure): void {
     $old = json_encode(['lastUpdated' => '2026-01-01T00:00:00Z', 'total' => 1, 'data' => [['id' => 'abc12-def34', 'pid' => '21.T11975/abc12-def34']]]);
-    Storage::put(B2instSnapshotStore::FILE, $old);
+    Storage::put(PidinstSnapshotStore::FILE, $old);
     Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), ['old']);
     if ($failure === 'late HTTP') {
         config(['b2inst.page_size' => 1]);
-        Http::fakeSequence()->push(Fixture::page([Fixture::record()], 2, '?page=2&size=1&sort=newest&allversions=false'))->push([], 400);
+        Http::fakeSequence('https://b2inst.example.test/*')->push(Fixture::page([Fixture::record()], 2, '?page=2&size=1&sort=newest&allversions=false'))->push([], 400);
     } else {
         $records = match ($failure) {
             'empty' => [],
@@ -210,13 +212,13 @@ it('keeps the previous file on late HTTP errors, incomplete pages, invalid recor
         Http::fake(['*' => Http::response(Fixture::page($records, $failure === 'incomplete' ? 2 : count($records)))]);
     }
     expect(Artisan::call('get-pid4inst-instruments'))->toBe(1)
-        ->and(Storage::get(B2instSnapshotStore::FILE))->toBe($old)
+        ->and(Storage::get(PidinstSnapshotStore::FILE))->toBe($old)
         ->and(Cache::get(CacheKey::PID4INST_INSTRUMENTS->key()))->toBe(['old']);
 })->with(['late HTTP', 'incomplete', 'empty', 'invalid', 'duplicate PID']);
 
 it('reports excluded new records separately from the server count', function (): void {
     Http::fake(['*' => Http::response(Fixture::page([Fixture::record(), Fixture::record('unknown', ['metadata' => ['Identifier' => ['identifierType' => 'ARK']]])]))]);
-    $result = app(B2instSyncService::class)->sync();
+    $result = app(PidinstSyncService::class)->sync();
     expect($result['serverCount'])->toBe(2)->and($result['itemCount'])->toBe(1)
         ->and($result['excluded'][0]['id'])->toBe('unknown');
     $status = app(Pid4instStatusService::class)->compareWithRemote(new PidSetting(['type' => 'pid4inst']));
@@ -225,7 +227,7 @@ it('reports excluded new records separately from the server count', function ():
 });
 
 it('refuses concurrent imports including direct commands', function (): void {
-    $lock = Cache::lock(B2instSyncService::LOCK, 1200);
+    $lock = Cache::lock(PidinstSyncService::LOCK, 1200);
     $lock->get();
     Http::fake();
     try {
@@ -239,7 +241,7 @@ it('refuses concurrent imports including direct commands', function (): void {
 
 it('preserves the existing snapshot when writing or renaming fails', function (string $operation): void {
     $old = '{"total":1,"data":[]}';
-    Storage::put(B2instSnapshotStore::FILE, $old);
+    Storage::put(PidinstSnapshotStore::FILE, $old);
     $disk = Storage::disk();
     Storage::shouldReceive('disk')->andReturn($disk);
     foreach (['put', 'get', 'exists', 'move', 'copy', 'delete'] as $method) {
@@ -249,9 +251,9 @@ it('preserves the existing snapshot when writing or renaming fails', function (s
             Storage::shouldReceive($method)->andReturnUsing(fn (...$args) => $disk->{$method}(...$args));
         }
     }
-    expect(fn () => app(B2instSnapshotStore::class)->publish(['total' => 2, 'data' => []]))->toThrow(RuntimeException::class);
-    expect($disk->get(B2instSnapshotStore::FILE))->toBe($old)
-        ->and($disk->files())->toBe([B2instSnapshotStore::FILE]);
+    expect(fn () => app(PidinstSnapshotStore::class)->publish(['total' => 2, 'data' => []]))->toThrow(RuntimeException::class);
+    expect($disk->get(PidinstSnapshotStore::FILE))->toBe($old)
+        ->and($disk->files())->toBe([PidinstSnapshotStore::FILE]);
 })->with(['put', 'move']);
 
 it('reports publication independently of cache failure and retries without fetching again', function (): void {
@@ -259,13 +261,13 @@ it('reports publication independently of cache failure and retries without fetch
     $cache = Mockery::mock(VocabularyCacheService::class);
     $cache->shouldReceive('invalidateVocabularyCache')->once()->andThrow(new RuntimeException('cache down'));
     $this->app->instance(VocabularyCacheService::class, $cache);
-    $result = app(B2instSyncService::class)->sync();
+    $result = app(PidinstSyncService::class)->sync();
     expect($result['published'])->toBeTrue()->and($result['refreshPending'])->toBeTrue()
-        ->and(app(B2instSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeTrue();
+        ->and(app(PidinstSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeTrue();
     $this->app->forgetInstance(VocabularyCacheService::class);
     expect(Artisan::call('get-pid4inst-instruments', ['--refresh-caches' => true]))->toBe(0)
-        ->and(app(B2instSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeFalse();
-    Http::assertSentCount(2);
+        ->and(app(PidinstSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeFalse();
+    Http::assertSentCount(4);
 });
 
 it('reports the published count and timestamp through the background job', function (): void {
@@ -275,13 +277,13 @@ it('reports the published count and timestamp through the background job', funct
     (new UpdatePidJob('pid4inst', $jobId))->handle();
     $status = Cache::get(UpdatePidJob::getCacheKey($jobId));
     expect($status['status'])->toBe('completed')->and($status['itemCount'])->toBe(1)
-        ->and($status['lastUpdated'])->toBe(app(B2instSnapshotStore::class)->read()['lastUpdated']);
+        ->and($status['lastUpdated'])->toBe(app(PidinstSnapshotStore::class)->read()['lastUpdated']);
 });
 
 it('roundtrips a synchronized bare Handle through DataCite XML as IsCollectedBy', function (): void {
     Http::fake(['*' => Http::response(Fixture::page([Fixture::record()]))]);
-    app(B2instSyncService::class)->sync();
-    $instrument = app(B2instSnapshotStore::class)->read()['data'][0];
+    app(PidinstSyncService::class)->sync();
+    $instrument = app(PidinstSnapshotStore::class)->read()['data'][0];
     $resource = App\Models\Resource::factory()->create();
     ResourceInstrument::factory()->create([
         'resource_id' => $resource->id, 'instrument_pid' => $instrument['pid'],
@@ -299,14 +301,17 @@ it('roundtrips a synchronized bare Handle through DataCite XML as IsCollectedBy'
 it('does not misreport publication when a cache outage prevents releasing the lock', function (): void {
     Http::fake(['*' => Http::response(Fixture::page([Fixture::record()]))]);
     $this->mock(VocabularyCacheService::class)->shouldReceive('invalidateVocabularyCache')->once();
-    $service = app(B2instSyncService::class);
+    $service = app(PidinstSyncService::class);
     $lock = Mockery::mock(Lock::class);
     $lock->shouldReceive('get')->once()->andReturn(true);
     $lock->shouldReceive('release')->once()->andThrow(new RuntimeException('Cache unavailable'));
-    Cache::shouldReceive('lock')->once()->with(B2instSyncService::LOCK, 1200)->andReturn($lock);
+    $cacheManager = Cache::getFacadeRoot();
+    Cache::swap(Mockery::mock($cacheManager));
+    Cache::shouldReceive('lock')->with('datacite:public-discovery:lock', 5)->andReturnUsing(fn ($key, $seconds) => $cacheManager->lock($key, $seconds));
+    Cache::shouldReceive('lock')->once()->with(PidinstSyncService::LOCK, 1200)->andReturn($lock);
     $result = $service->sync();
     expect($result['published'])->toBeTrue()->and($result['refreshPending'])->toBeFalse()
-        ->and(app(B2instSnapshotStore::class)->read()['total'])->toBe(1);
+        ->and(app(PidinstSnapshotStore::class)->read()['total'])->toBe(1);
 });
 
 it('compares legacy DOI forms and preserves case-sensitive URL identities in the link audit', function (): void {
@@ -317,6 +322,6 @@ it('compares legacy DOI forms and preserves case-sensitive URL identities in the
     }
     ResourceInstrument::factory()->create(['instrument_pid_type' => 'Handle', 'instrument_pid' => 'invalid']);
     Http::fake(['*' => Http::response(Fixture::page($records))]);
-    $result = app(B2instSyncService::class)->sync(true);
+    $result = app(PidinstSyncService::class)->sync(true);
     expect($result['itemCount'])->toBe(3)->and($result['storedLinksOutsideSelection'])->toBe(1);
 });

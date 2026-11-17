@@ -9,7 +9,7 @@ final class Pid4instUpdateDiagnosticsService
 {
     /**
      * @param  array<string, mixed>  $snapshot
-     * @return array{excludedCount: int, exclusions: list<array{id: string, reasonCode: string}>, refreshPending: bool}
+     * @return array{excludedCount: int, exclusions: list<array{id: string, reasonCode: string, source?: string}>, refreshPending: bool}
      */
     public static function fromSnapshot(array $snapshot): array
     {
@@ -25,6 +25,7 @@ final class Pid4instUpdateDiagnosticsService
                 $details[] = [
                     'id' => $entry['id'],
                     'reasonCode' => is_string($entry['reasonCode'] ?? null) ? $entry['reasonCode'] : 'invalid_record',
+                    ...(in_array($entry['source'] ?? null, ['b2inst', 'datacite'], true) ? ['source' => $entry['source']] : []),
                 ];
             }
         }

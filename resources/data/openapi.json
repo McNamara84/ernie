@@ -1112,8 +1112,8 @@
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
-                "summary": "Get PID4INST instruments vocabulary",
-                "description": "Returns the complete PID4INST instruments vocabulary from b2inst (EUDAT instrument registry). Each instrument includes a persistent identifier (Handle PID), name, description, and additional metadata such as owners, manufacturers, instrument types, and measured variables. Provide the API key via the `X-API-Key` header.",
+                "summary": "Get PIDINST instruments vocabulary",
+                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header.",
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4167,8 +4167,8 @@
         "/api/v1/elmo-msl/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
-                "summary": "Get PID4INST instruments vocabulary",
-                "description": "Returns the complete PID4INST instruments vocabulary from b2inst (EUDAT instrument registry). Each instrument includes a persistent identifier (Handle PID), name, description, and additional metadata such as owners, manufacturers, instrument types, and measured variables. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "summary": "Get PIDINST instruments vocabulary",
+                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -6152,7 +6152,7 @@
             },
             "Pid4instInstruments": {
                 "type": "object",
-                "description": "Public latest-version instruments synchronized from B2INST v3. Internal synchronization diagnostics are excluded from this response.",
+                "description": "Combined public instruments from B2INST v3 and DataCite, deduplicated by DOI with B2INST precedence. Internal synchronization diagnostics are excluded from this response.",
                 "properties": {
                     "lastUpdated": {
                         "type": "string",
@@ -6167,7 +6167,7 @@
                     },
                     "data": {
                         "type": "array",
-                        "description": "Array of instrument records from b2inst",
+                        "description": "Array of offered instruments from B2INST and DataCite after exclusions and DOI deduplication",
                         "items": {
                             "$ref": "#/components/schemas/Pid4instInstrument"
                         }
@@ -6177,11 +6177,11 @@
             },
             "Pid4instInstrument": {
                 "type": "object",
-                "description": "A single instrument record from the b2inst PID registry. Fields are flattened from the original b2inst API response — nested objects are reduced to their name strings for simpler consumption.",
+                "description": "An instrument from the combined PIDINST vocabulary. B2INST and DataCite metadata are normalized to this common shape; unavailable optional details use empty values.",
                 "properties": {
                     "id": {
                         "type": "string",
-                        "description": "B2INST record ID, distinct from the instrument PID and version parent ID",
+                        "description": "B2INST record ID or datacite: followed by the canonical DOI for DataCite-only records; distinct from the instrument PID",
                         "example": "7z780-7kj63"
                     },
                     "pid": {
@@ -6207,7 +6207,7 @@
                     },
                     "landingPage": {
                         "type": "string",
-                        "description": "Instrument landing page supplied in PIDINST metadata; not necessarily the B2INST record page (empty string if absent)",
+                        "description": "Instrument landing page from B2INST metadata or DataCite attributes.url (empty string if absent)",
                         "example": "https://sensors.gfz.de/devices/842"
                     },
                     "owners": {
@@ -6310,7 +6310,7 @@
                         "displayName": {
                             "type": "string",
                             "description": "Human-readable name of the PID registry",
-                            "example": "PID4INST (b2inst)"
+                            "example": "PIDINST (B2INST + DataCite)"
                         }
                     },
                     "required": ["available", "displayName"]
@@ -6318,7 +6318,7 @@
                 "example": {
                     "pid4inst": {
                         "available": true,
-                        "displayName": "PID4INST (b2inst)"
+                        "displayName": "PIDINST (B2INST + DataCite)"
                     },
                     "ror": {
                         "available": true,

@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Fixtures\B2instFixture;
+use Tests\Fixtures\DataCiteInstrumentFixture;
 
 require_once __DIR__.'/../../Helpers/ElmoCacheRefresh.php';
 
@@ -36,6 +37,7 @@ covers(EditorSettingsChangeService::class);
 beforeEach(function (): void {
     configureElmoCacheRefreshTests();
     Http::preventStrayRequests();
+    DataCiteInstrumentFixture::fakeEmpty();
     Bus::fake([RefreshElmoCacheJob::class]);
     $this->actingAs(User::factory()->admin()->create());
     $flags = ['is_active' => true, 'is_elmo_active' => true, 'is_elmo_msl_active' => true];

@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { getCompletedPidLocalStatus, getTypeLabels } from '@/components/settings/pid-settings-card';
 
 describe('getTypeLabels', () => {
-    it('returns b2inst labels for PID4INST settings by default', () => {
+    it('names both instrument sources for PIDINST settings', () => {
         expect(getTypeLabels('pid4inst')).toEqual({
             countLabel: 'instruments',
-            sourceName: 'b2inst',
+            sourceName: 'B2INST + DataCite',
         });
     });
 
@@ -27,13 +27,7 @@ describe('getTypeLabels', () => {
 
 describe('getCompletedPidLocalStatus', () => {
     it('uses the remote count and completion timestamp after a successful update', () => {
-        expect(
-            getCompletedPidLocalStatus(
-                { itemCount: 0 },
-                { remoteCount: 570 },
-                '2026-06-26T03:00:00Z',
-            ),
-        ).toEqual({
+        expect(getCompletedPidLocalStatus({ itemCount: 0 }, { remoteCount: 570 }, '2026-06-26T03:00:00Z')).toEqual({
             exists: true,
             itemCount: 570,
             lastUpdated: '2026-06-26T03:00:00Z',
@@ -41,13 +35,7 @@ describe('getCompletedPidLocalStatus', () => {
     });
 
     it('falls back to the current item count when no update comparison is available', () => {
-        expect(
-            getCompletedPidLocalStatus(
-                { itemCount: 42 },
-                null,
-                '2026-06-26T03:05:00Z',
-            ),
-        ).toEqual({
+        expect(getCompletedPidLocalStatus({ itemCount: 42 }, null, '2026-06-26T03:05:00Z')).toEqual({
             exists: true,
             itemCount: 42,
             lastUpdated: '2026-06-26T03:05:00Z',
