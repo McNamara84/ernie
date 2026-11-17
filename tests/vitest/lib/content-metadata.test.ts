@@ -6,10 +6,65 @@ import {
     formatPayload,
     normalizedSizeNumber,
     normalizedSizeUnit,
+    remapContentMetadataErrors,
     sizePayload,
 } from '@/lib/content-metadata';
 
 describe('resource content metadata', () => {
+    it('maps compacted server errors to their current UI rows and preserves unrelated errors', () => {
+        expect(
+            remapContentMetadataErrors(
+                {
+                    'formats.0.value': ['Invalid MIME type'],
+                    'sizes.0.unit': ['Invalid unit'],
+                    doi: ['DOI error'],
+                },
+                { formats: ['format-value'], sizes: ['size-value'] },
+                {
+                    formats: [
+                        { clientId: 'empty-format', value: '' },
+                        { clientId: 'format-value', value: 'text/csv' },
+                    ],
+                    sizes: [
+                        { clientId: 'empty-size', numeric_value: '', unit: '', type: null },
+                        { clientId: 'size-value', numeric_value: '2', unit: 'MB', type: null },
+                    ],
+                },
+            ),
+        ).toEqual({ 'formats.1.value': ['Invalid MIME type'], 'sizes.1.unit': ['Invalid unit'], doi: ['DOI error'] });
+    });
+
+    it('keeps errors for rows deleted in flight at section level instead of highlighting another row', () => {
+        expect(
+            remapContentMetadataErrors(
+                {
+                    formats: ['Collection error'],
+                    'formats.0.value': ['Removed row error'],
+                    'formats.1.value': ['Remaining row error'],
+                    'sizes.99.unit': ['Unmapped size error'],
+                },
+                { formats: ['removed', 'remaining'], sizes: [] },
+                {
+                    formats: [{ clientId: 'remaining', value: 'text/csv' }],
+                    sizes: [],
+                },
+            ),
+        ).toEqual({
+            formats: ['Collection error', 'Removed row error'],
+            'formats.0.value': ['Remaining row error'],
+            sizes: ['Unmapped size error'],
+        });
+    });
+
+    it('keeps client validation indexes when earlier new size placeholders are empty', () => {
+        expect(
+            contentMetadataErrors([
+                { numeric_value: '', unit: '', type: null },
+                { numeric_value: '-2', unit: 'MB', type: null },
+            ]),
+        ).toEqual({ 'sizes.1.numeric_value': expect.any(String) });
+    });
+
     it.each([
         ['1,5', '1.5'],
         ['001.5000', '1.5'],

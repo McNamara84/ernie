@@ -49,3 +49,78 @@ test('edits resource formats and sizes before landing-page setup and preserves t
     await expect(page.getByTestId('format-select-0')).toHaveText('text/csv', { timeout: 60_000 });
     await expect(page.getByTestId('size-value-0')).toHaveValue('1.5000');
 });
+
+test('keeps format and size controls usable at desktop, tablet, and mobile widths', async ({ page }, testInfo) => {
+    test.setTimeout(240_000);
+    await page.goto('/editor');
+    await expect(page.getByTestId('main-title-input')).toBeVisible({ timeout: 60_000 });
+    await page.getByTestId('main-title-input').fill('Resource formats and sizes');
+    const collapse = page.getByTestId('resource-info-section').getByRole('button', { name: 'Collapse all field groups', exact: true });
+    if (await collapse.isVisible()) await collapse.click();
+    const section = page.getByTestId('format-size-section');
+    const trigger = section.getByRole('button', { name: /Format & Size/ });
+    if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+
+    for (const [index, mimeType] of ['text/csv', 'application/json'].entries()) {
+        await section.getByRole('button', { name: 'Add format', exact: true }).click();
+        await page.getByTestId(`format-select-${index}`).click();
+        await page.getByPlaceholder('Search all IANA MIME types...').fill(mimeType);
+        await page.getByRole('option', { name: mimeType, exact: true }).click();
+    }
+    for (const [index, size] of [
+        { value: '1,5', unit: 'GiB' },
+        { value: '2048', unit: 'KiB' },
+    ].entries()) {
+        await section.getByRole('button', { name: 'Add size', exact: true }).click();
+        await page.getByTestId(`size-value-${index}`).fill(size.value);
+        await page.getByTestId(`size-unit-${index}`).click();
+        await page.getByRole('option', { name: size.unit, exact: true }).click();
+    }
+
+    for (const viewport of [
+        { name: 'desktop', width: 1440, height: 1100 },
+        { name: 'tablet', width: 768, height: 1024 },
+        { name: 'mobile', width: 390, height: 844 },
+    ]) {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.mouse.move(0, 0);
+        await section.scrollIntoViewIfNeeded();
+        await expect(page.getByTestId('format-select-0')).toHaveText('text/csv');
+        await expect(page.getByTestId('size-value-0')).toHaveValue('1,5');
+        await expect(page.getByTestId('size-unit-0')).toContainText('GiB');
+        expect(await section.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBeTruthy();
+
+        if (testInfo.project.name === 'chromium') {
+            // Capture the complete section without the unrelated floating toolbar
+            // covering it. Interactions below still use the original viewport.
+            const sectionHeight = (await section.boundingBox())!.height;
+            const toolbarHeight = (await page.getByTestId('editor-floating-actions').boundingBox())!.height;
+            await page.setViewportSize({ width: viewport.width, height: Math.max(viewport.height, Math.ceil(sectionHeight + toolbarHeight + 192)) });
+            await section.evaluate((element) => element.scrollIntoView({ block: 'start' }));
+            await page.evaluate(() => window.scrollBy(0, -96));
+            const screenshot = testInfo.outputPath(`format-size-${viewport.name}.png`);
+            await section.screenshot({ path: screenshot, animations: 'disabled' });
+            await testInfo.attach(`Format & Size ${viewport.width}px`, { path: screenshot, contentType: 'image/png' });
+            await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        }
+
+        await page.getByTestId('format-select-0').click();
+        await page.getByPlaceholder('Search all IANA MIME types...').fill('application/');
+        await expect(page.getByRole('option').first()).toBeVisible();
+        if (testInfo.project.name === 'chromium' && viewport.name !== 'tablet') {
+            const screenshot = testInfo.outputPath(`mime-search-${viewport.name}.png`);
+            await page.screenshot({ path: screenshot, animations: 'disabled' });
+            await testInfo.attach(`MIME search ${viewport.width}px`, { path: screenshot, contentType: 'image/png' });
+        }
+        await page.keyboard.press('Escape');
+        await page.getByTestId('size-unit-0').evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        await page.getByTestId('size-unit-0').click();
+        await expect(page.getByRole('option', { name: 'GiB', exact: true })).toBeVisible();
+        if (testInfo.project.name === 'chromium' && viewport.name === 'tablet') {
+            const screenshot = testInfo.outputPath('size-units-tablet.png');
+            await page.screenshot({ path: screenshot, animations: 'disabled' });
+            await testInfo.attach('Size units 768px', { path: screenshot, contentType: 'image/png' });
+        }
+        await page.keyboard.press('Escape');
+    }
+});

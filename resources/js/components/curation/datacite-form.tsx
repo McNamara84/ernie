@@ -659,6 +659,7 @@ export default function DataCiteForm({
         applySaved: applySavedContentMetadata,
         lastSaved: lastSavedContentMetadata,
         errors: contentMetadataErrors,
+        mapServerErrors: mapContentMetadataServerErrors,
     } = contentMetadata;
     const [isImportingMetadata, setIsImportingMetadata] = useState(false);
     const [hasPendingTagInput, setHasPendingTagInput] = useState(false);
@@ -3069,10 +3070,15 @@ export default function DataCiteForm({
      * and scrolls/focuses the first errored field or section trigger.
      */
     const applyBackendValidationErrors = useCallback(
-        (errors: Record<string, string[]>, serverMessage: string | undefined, defaultHeader: string) => {
-            revealValidationErrors(errors, serverMessage ?? defaultHeader, submittedDescriptionIds);
+        (
+            errors: Record<string, string[]>,
+            serverMessage: string | undefined,
+            defaultHeader: string,
+            submitted: ReturnType<typeof buildPayload>['contentMetadataClientIds'],
+        ) => {
+            revealValidationErrors(mapContentMetadataServerErrors(errors, submitted), serverMessage ?? defaultHeader, submittedDescriptionIds);
         },
-        [revealValidationErrors, submittedDescriptionIds],
+        [revealValidationErrors, submittedDescriptionIds, mapContentMetadataServerErrors],
     );
 
     const checkContentMetadataInputs = useCallback(() => {
@@ -3211,7 +3217,7 @@ export default function DataCiteForm({
                     }
 
                     if (parsed?.errors) {
-                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
+                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError, payload.contentMetadataClientIds);
                     } else {
                         setErrorMessage(parsed?.message || defaultError);
                     }
@@ -3489,7 +3495,7 @@ export default function DataCiteForm({
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
 
                     if (parsed?.errors) {
-                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
+                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError, payload.contentMetadataClientIds);
                     } else {
                         setErrorMessage(parsed?.message || defaultError);
                     }
@@ -3590,7 +3596,7 @@ export default function DataCiteForm({
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
 
                     if (parsed?.errors) {
-                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
+                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError, payload.contentMetadataClientIds);
                     } else {
                         setErrorMessage(parsed?.message || defaultError);
                     }

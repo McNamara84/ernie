@@ -7,7 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { type FormatEntry, normalizedSizeUnit, SIZE_UNITS, type SizeEntry } from '@/lib/content-metadata';
+import {
+    contentMetadataErrors,
+    type FormatEntry,
+    normalizedSizeUnit,
+    REMOVED_METADATA_MESSAGE,
+    SIZE_UNITS,
+    type SizeEntry,
+} from '@/lib/content-metadata';
 import { loadMimeTypes } from '@/lib/mime-types';
 
 function MimeTypeSelect({
@@ -41,8 +48,8 @@ function MimeTypeSelect({
                         id={id}
                         data-testid={`format-select-${index}`}
                         aria-expanded={open}
-                        aria-invalid={Boolean(error)}
-                        aria-describedby={error ? `${id}-error` : undefined}
+                        aria-invalid={Boolean(error) || row.removedOnServer}
+                        aria-describedby={row.removedOnServer ? `${id}-conflict` : error ? `${id}-error` : undefined}
                         className="w-full justify-between font-normal"
                     >
                         <span className="truncate">{row.value || 'Select MIME type'}</span>
@@ -88,11 +95,44 @@ function MimeTypeSelect({
             {row.value && types.length > 0 && !types.includes(row.value) && (
                 <p className="text-sm text-muted-foreground">Existing format; select an IANA MIME type to replace it.</p>
             )}
-            {error && (
+            {error && !row.removedOnServer && (
                 <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
                     {error}
                 </p>
             )}
+        </div>
+    );
+}
+
+function RemovedEntryNotice({
+    id,
+    kind,
+    canKeep,
+    onKeep,
+    onDiscard,
+    help,
+}: {
+    id: string;
+    kind: 'format' | 'size';
+    canKeep: boolean;
+    onKeep?: () => void;
+    onDiscard: () => void;
+    help?: string;
+}) {
+    return (
+        <div id={id} role="alert" className="space-y-2 rounded-md border border-destructive p-3 text-sm">
+            <p>{REMOVED_METADATA_MESSAGE}</p>
+            {help && <p className="text-muted-foreground">{help}</p>}
+            <div className="flex flex-wrap gap-2">
+                {onKeep && (
+                    <Button type="button" variant="outline" disabled={!canKeep} onClick={onKeep}>
+                        Keep as new {kind}
+                    </Button>
+                )}
+                <Button type="button" variant="outline" onClick={onDiscard}>
+                    Discard local {kind} change
+                </Button>
+            </div>
         </div>
     );
 }
@@ -145,34 +185,60 @@ export function FormatSizeField({
             )}
             <div className="space-y-3">
                 {formats.map((row, index) => (
-                    <div key={row.clientId} className="flex items-start gap-2">
-                        <MimeTypeSelect
-                            row={row}
-                            index={index}
-                            types={types}
-                            error={errors[`formats.${index}.value`] ?? errors[`formats.${index}.id`]}
-                            onChange={(value) =>
-                                onFormatsChange((current) =>
-                                    current.map((entry) => (entry.clientId === row.clientId ? { ...entry, value, importKey: undefined } : entry)),
-                                )
-                            }
-                        />
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="mt-6"
-                            aria-label={`Remove format ${index + 1}`}
-                            onClick={() => onFormatsChange((current) => current.filter((entry) => entry.clientId !== row.clientId))}
-                        >
-                            <Trash2 className="size-4" />
-                        </Button>
+                    <div key={row.clientId} className="space-y-2" data-testid={`format-row-${index}`}>
+                        <div className="flex items-start gap-2">
+                            <MimeTypeSelect
+                                row={row}
+                                index={index}
+                                types={types}
+                                error={errors[`formats.${index}.value`] ?? errors[`formats.${index}.id`]}
+                                onChange={(value) =>
+                                    onFormatsChange((current) =>
+                                        current.map((entry) => (entry.clientId === row.clientId ? { ...entry, value, importKey: undefined } : entry)),
+                                    )
+                                }
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="mt-6"
+                                aria-label={`Remove format ${index + 1}`}
+                                onClick={() => onFormatsChange((current) => current.filter((entry) => entry.clientId !== row.clientId))}
+                            >
+                                <Trash2 className="size-4" />
+                            </Button>
+                        </div>
+                        {row.removedOnServer && (
+                            <RemovedEntryNotice
+                                id={`format-${row.clientId}-conflict`}
+                                kind="format"
+                                canKeep={types.includes(row.value.trim().toLowerCase())}
+                                help="Select a registered MIME type to keep this change as a new entry."
+                                onKeep={() =>
+                                    onFormatsChange((current) =>
+                                        current.map((entry) =>
+                                            entry.clientId === row.clientId
+                                                ? {
+                                                      ...entry,
+                                                      id: undefined,
+                                                      importKey: undefined,
+                                                      removedOnServer: undefined,
+                                                      value: entry.value.trim().toLowerCase(),
+                                                  }
+                                                : entry,
+                                        ),
+                                    )
+                                }
+                                onDiscard={() => onFormatsChange((current) => current.filter((entry) => entry.clientId !== row.clientId))}
+                            />
+                        )}
                     </div>
                 ))}
                 <Button
                     type="button"
                     variant="outline"
-                    disabled={formats.some((row) => row.value.trim() === '')}
+                    disabled={formats.some((row) => row.id === undefined && row.value.trim() === '')}
                     onClick={() => {
                         const clientId = crypto.randomUUID();
                         onFormatsChange((current) => [...current, { clientId, value: '' }]);
@@ -185,6 +251,7 @@ export function FormatSizeField({
             <div className="space-y-3">
                 {sizes.map((row, index) => {
                     const readOnly = row.editable === false || physicalObject;
+                    const canRestore = !readOnly && row.type === null;
                     const id = `size-${row.clientId}`;
                     const error =
                         errors[`sizes.${index}.numeric_value`] ??
@@ -194,6 +261,31 @@ export function FormatSizeField({
                     return (
                         <div key={row.clientId} className="space-y-2 rounded-md border p-3" data-testid={`size-row-${index}`}>
                             {row.type && <p className="text-sm font-medium">{row.type}</p>}
+                            {row.removedOnServer && (
+                                <RemovedEntryNotice
+                                    id={`${id}-conflict`}
+                                    kind="size"
+                                    canKeep={Object.keys(contentMetadataErrors([{ ...row, removedOnServer: undefined }])).length === 0}
+                                    help={
+                                        canRestore
+                                            ? undefined
+                                            : 'A removed size with a preserved meaning or non-digital value cannot be recreated here. You can copy its number and unit into a new digital size.'
+                                    }
+                                    onKeep={
+                                        canRestore
+                                            ? () =>
+                                                  onSizesChange((current) =>
+                                                      current.map((entry) =>
+                                                          entry.clientId === row.clientId
+                                                              ? { ...entry, id: undefined, importKey: undefined, removedOnServer: undefined }
+                                                              : entry,
+                                                      ),
+                                                  )
+                                            : undefined
+                                    }
+                                    onDiscard={() => onSizesChange((current) => current.filter((entry) => entry.clientId !== row.clientId))}
+                                />
+                            )}
                             {readOnly ? (
                                 <p className="text-sm">
                                     {row.label || [row.numeric_value, row.unit].filter(Boolean).join(' ')}{' '}
@@ -209,8 +301,8 @@ export function FormatSizeField({
                                             type="text"
                                             inputMode="decimal"
                                             value={row.numeric_value ?? ''}
-                                            aria-invalid={Boolean(error)}
-                                            aria-describedby={error ? `${id}-error` : undefined}
+                                            aria-invalid={Boolean(error) || row.removedOnServer}
+                                            aria-describedby={row.removedOnServer ? `${id}-conflict` : error ? `${id}-error` : undefined}
                                             onChange={(event) => {
                                                 const numericValue = event.currentTarget.value;
                                                 onSizesChange((current) =>
@@ -231,7 +323,11 @@ export function FormatSizeField({
                                                 )
                                             }
                                         >
-                                            <SelectTrigger id={`${id}-unit`} data-testid={`size-unit-${index}`} aria-invalid={Boolean(error)}>
+                                            <SelectTrigger
+                                                id={`${id}-unit`}
+                                                data-testid={`size-unit-${index}`}
+                                                aria-invalid={Boolean(error) || row.removedOnServer}
+                                            >
                                                 <SelectValue placeholder="Unit" />
                                             </SelectTrigger>
                                             <SelectContent position="popper" side="top" align="start">
@@ -254,7 +350,7 @@ export function FormatSizeField({
                                     </Button>
                                 </div>
                             )}
-                            {error && (
+                            {error && !row.removedOnServer && (
                                 <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
                                     {error}
                                 </p>
@@ -277,6 +373,11 @@ export function FormatSizeField({
                     </Button>
                 )}
             </div>
+            {(errors.formats || errors.sizes) && (
+                <p role="alert" className="text-sm text-destructive">
+                    {errors.formats || errors.sizes}
+                </p>
+            )}
             {errors.contentMetadataFingerprint && (
                 <p role="alert" className="text-sm text-destructive">
                     {errors.contentMetadataFingerprint}

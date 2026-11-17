@@ -622,6 +622,147 @@ describe('DataCiteForm', () => {
         );
 
     describe('resource formats and sizes', () => {
+        it('keeps client errors and focus on the second size when the first new row is empty', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Size validation indexes', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [],
+                    sizes: [
+                        { numeric_value: '', unit: '', type: null },
+                        { numeric_value: '-2', unit: 'MB', type: null },
+                    ],
+                    fingerprint: null,
+                },
+            });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(screen.getByTestId('size-value-1')).toHaveAttribute('aria-invalid', 'true'));
+            expect(screen.getByTestId('size-value-0')).not.toHaveAttribute('aria-invalid', 'true');
+            await user.click(within(screen.getByTestId('global-validation-alert')).getByRole('button', { name: /Enter a positive number/ }));
+            await waitFor(() => expect(screen.getByTestId('size-value-1')).toHaveFocus());
+            expect(axios.post).not.toHaveBeenCalled();
+        });
+
+        it('renders compacted server errors on their submitted format and size rows', async () => {
+            const user = userEvent.setup();
+            vi.mocked(axios.post).mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 422,
+                    data: {
+                        errors: { 'formats.0.value': ['Format rejected by server'], 'sizes.0.unit': ['Unit rejected by server'] },
+                    },
+                },
+            });
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Server validation indexes', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [{ value: '' }, { value: 'text/csv' }],
+                    sizes: [
+                        { numeric_value: '', unit: '', type: null },
+                        { numeric_value: '2', unit: 'MB', type: null },
+                    ],
+                    fingerprint: null,
+                },
+            });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(screen.getByTestId('format-select-1')).toHaveAttribute('aria-invalid', 'true'));
+            expect(screen.getByTestId('format-select-0')).not.toHaveAttribute('aria-invalid', 'true');
+            expect(screen.getByTestId('size-unit-1')).toHaveAttribute('aria-invalid', 'true');
+            expect(screen.getByTestId('size-unit-0')).not.toHaveAttribute('aria-invalid', 'true');
+            await user.click(within(screen.getByTestId('global-validation-alert')).getByRole('button', { name: /Unit rejected by server/ }));
+            await waitFor(() => expect(screen.getByTestId('size-unit-1')).toHaveFocus());
+        });
+
+        it('rebases server error locations when an earlier placeholder is removed while the request is in flight', async () => {
+            const user = userEvent.setup();
+            const response = createDeferred<never>();
+            vi.mocked(axios.post).mockReturnValueOnce(response.promise);
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Rows moved during saving', titleType: 'main-title' }],
+                initialContentMetadata: { formats: [{ value: '' }, { value: 'text/csv' }], sizes: [], fingerprint: null },
+            });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(axios.post).toHaveBeenCalledTimes(1));
+            await user.click(screen.getByRole('button', { name: 'Remove format 1' }));
+            await act(async () =>
+                response.reject({
+                    isAxiosError: true,
+                    response: {
+                        status: 422,
+                        data: {
+                            errors: { 'formats.0.value': ['Review this MIME type'] },
+                        },
+                    },
+                }),
+            );
+            await waitFor(() => expect(screen.getByTestId('format-select-0')).toHaveAttribute('aria-invalid', 'true'));
+            expect(screen.getByTestId('format-select-0')).toHaveTextContent('text/csv');
+            expect(screen.queryByTestId('format-select-1')).not.toBeInTheDocument();
+        });
+
+        it('pauses autosave for deleted size conflicts until the curator discards the local edit', async () => {
+            vi.useFakeTimers();
+            const response = createDeferred<{
+                data: { resource: { id: number }; contentMetadata: NonNullable<DataCiteFormProps['initialContentMetadata']> };
+                status: number;
+            }>();
+            vi.mocked(axios.post)
+                .mockReturnValueOnce(response.promise)
+                .mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            const view = await renderDataCiteForm({
+                initialResourceId: '42',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Conflict autosave', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [{ id: 1, value: 'application/x-netcdf' }],
+                    sizes: [{ id: 2, numeric_value: '1.0000', unit: 'GB', type: 'Primary Data Size' }],
+                    fingerprint: 'a'.repeat(64),
+                },
+            });
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unrelated title edit' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(axios.post).toHaveBeenCalledTimes(1);
+                fireEvent.change(screen.getByTestId('size-value-0'), { target: { value: '2' } });
+                await act(async () =>
+                    response.resolve({
+                        data: {
+                            resource: { id: 42 },
+                            contentMetadata: {
+                                formats: [{ id: 3, value: 'application/x-netcdf' }],
+                                sizes: [],
+                                fingerprint: 'b'.repeat(64),
+                            },
+                        },
+                        status: 200,
+                    }),
+                );
+                expect(screen.getByText(/This entry was removed elsewhere/)).toBeInTheDocument();
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                fireEvent.click(screen.getByTestId('save-draft-button'));
+                expect(axios.post).toHaveBeenCalledTimes(1);
+                expect(screen.queryByRole('button', { name: 'Keep as new size' })).not.toBeInTheDocument();
+                fireEvent.click(screen.getByRole('button', { name: 'Discard local size change' }));
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(axios.post).toHaveBeenCalledTimes(2);
+                expect(vi.mocked(axios.post).mock.calls[1][1]).toMatchObject({
+                    formats: [{ id: 3, value: 'application/x-netcdf' }],
+                    sizes: [],
+                    contentMetadataFingerprint: 'b'.repeat(64),
+                });
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
         it('saves resource metadata independently of landing-page setup with assistant size meanings', async () => {
             const user = userEvent.setup();
             await renderDataCiteForm({

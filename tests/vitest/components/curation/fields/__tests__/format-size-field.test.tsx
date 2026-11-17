@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
+import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
@@ -14,6 +14,86 @@ function EditorFields() {
 }
 
 describe('Format & Size fields', () => {
+    it('can discard a removed non-IANA format without recreating its legacy value', async () => {
+        const user = userEvent.setup();
+        function LegacyConflict() {
+            const [formats, setFormats] = useState<FormatEntry[]>([{ clientId: 'legacy', value: 'CSV legacy', removedOnServer: true }]);
+            return <FormatSizeField formats={formats} sizes={[]} onFormatsChange={setFormats} onSizesChange={() => {}} />;
+        }
+        render(<LegacyConflict />);
+        expect(screen.getByRole('button', { name: 'Keep as new format' })).toBeDisabled();
+        await user.click(screen.getByRole('button', { name: 'Discard local format change' }));
+        expect(screen.queryByTestId('format-select-0')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('requires a registered MIME type to resolve a removed legacy format as a new entry', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        function ConflictFields() {
+            const [formats, setFormats] = useState<FormatEntry[]>([{ clientId: 'conflict', value: 'application/x-netcdf', removedOnServer: true }]);
+            onChange(formats);
+            return <FormatSizeField formats={formats} sizes={[]} onFormatsChange={setFormats} onSizesChange={() => {}} />;
+        }
+        render(<ConflictFields />);
+        expect(screen.getByRole('alert')).toHaveTextContent('removed elsewhere');
+        expect(screen.getByRole('button', { name: 'Keep as new format' })).toBeDisabled();
+        await user.click(screen.getByTestId('format-select-0'));
+        await user.type(screen.getByPlaceholderText('Search all IANA MIME types...'), 'image/png');
+        await user.click(await screen.findByRole('option', { name: 'image/png' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Keep as new format' })).toBeEnabled());
+        await user.click(screen.getByRole('button', { name: 'Keep as new format' }));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(onChange).toHaveBeenLastCalledWith([
+            expect.objectContaining({ value: 'image/png', id: undefined, importKey: undefined, removedOnServer: undefined }),
+        ]);
+    });
+
+    it('resolves a removed manual digital size without recreating protected meanings or non-digital metadata', async () => {
+        const user = userEvent.setup();
+        function ConflictSizes() {
+            const [sizes, setSizes] = useState<SizeEntry[]>([
+                { clientId: 'manual', numeric_value: '-2', unit: 'GB', type: null, removedOnServer: true },
+                { clientId: 'meaning', numeric_value: '3', unit: 'GB', type: 'Primary Data Size', removedOnServer: true },
+                { clientId: 'physical', numeric_value: '15', unit: 'pages', type: null, editable: false, removedOnServer: true },
+            ]);
+            return <FormatSizeField formats={[]} sizes={sizes} onFormatsChange={() => {}} onSizesChange={setSizes} />;
+        }
+        render(<ConflictSizes />);
+        expect(screen.getAllByRole('button', { name: 'Keep as new size' })).toHaveLength(1);
+        expect(screen.getByRole('button', { name: 'Keep as new size' })).toBeDisabled();
+        expect(within(screen.getByTestId('size-row-1')).queryByRole('button', { name: 'Keep as new size' })).not.toBeInTheDocument();
+        expect(within(screen.getByTestId('size-row-2')).queryByRole('button', { name: 'Keep as new size' })).not.toBeInTheDocument();
+        await user.clear(screen.getByTestId('size-value-0'));
+        await user.type(screen.getByTestId('size-value-0'), '2');
+        expect(screen.getByRole('button', { name: 'Keep as new size' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'Keep as new size' }));
+        expect(within(screen.getByTestId('size-row-0')).queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByTestId('size-value-0')).toHaveValue('2');
+        await user.click(within(screen.getByTestId('size-row-1')).getByRole('button', { name: 'Discard local size change' }));
+        expect(screen.queryByText('Primary Data Size')).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Discard local size change' }));
+        expect(screen.queryByText(/preserved metadata/)).not.toBeInTheDocument();
+    });
+
+    it.each(['', '   '])('allows adding a MIME type alongside a preserved blank format (%j)', async (value) => {
+        const user = userEvent.setup();
+        function LegacyFields() {
+            const [formats, setFormats] = useState<FormatEntry[]>([{ id: 1, clientId: 'legacy', value }]);
+            return <FormatSizeField formats={formats} sizes={[]} onFormatsChange={setFormats} onSizesChange={() => {}} />;
+        }
+        render(<LegacyFields />);
+        expect(screen.getByRole('button', { name: 'Add format' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'Add format' }));
+        expect(screen.getByRole('button', { name: 'Add format' })).toBeDisabled();
+        await user.click(screen.getByTestId('format-select-1'));
+        await user.type(screen.getByPlaceholderText('Search all IANA MIME types...'), 'text/csv');
+        await user.click(await screen.findByRole('option', { name: 'text/csv' }));
+        expect(screen.getByTestId('format-select-1')).toHaveTextContent('text/csv');
+        expect(screen.getByRole('button', { name: 'Add format' })).toBeEnabled();
+        expect(screen.getByTestId('format-select-0')).not.toHaveTextContent('text/csv');
+    });
+
     it('searches the complete IANA catalog and keeps format and size entries independent', async () => {
         const user = userEvent.setup();
         render(<EditorFields />);
