@@ -7,6 +7,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\DataCiteJsonLdContextService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
@@ -31,13 +32,25 @@ test('XML and JSON uploads preserve formats and size meanings through preview an
     $type = ResourceType::firstOrCreate(['slug' => 'dataset'], ['name' => 'Dataset']);
     if ($format === 'xml') {
         $file = editorPreviewXml(relatedItems: '<resourceType resourceTypeGeneral="Dataset">Dataset</resourceType><formats><format>text/csv</format><format>application/x-legacy-format</format></formats><sizes><size>2048 Uncompressed Primary Data Size [bytes]</size><size>15 pages</size></sizes>');
+    } elseif ($format === 'jsonld') {
+        $file = UploadedFile::fake()->createWithContent('content.jsonld', json_encode([
+            '@context' => app(DataCiteJsonLdContextService::class)->url(),
+            'titles' => ['title' => ['value' => 'Imported title']],
+            'creators' => ['creator' => ['creatorName' => ['value' => 'Doe, Jane']]],
+            'publisher' => ['value' => 'GFZ Data Services'],
+            'publicationYear' => ['value' => '2026'],
+            'resourceType' => ['attrs' => ['resourceTypeGeneral' => 'Dataset'], 'value' => 'Dataset'],
+            'formats' => ['format' => [['value' => 'text/csv'], ['value' => 'application/x-legacy-format']]],
+            'sizes' => ['size' => [['value' => '2048 Uncompressed Primary Data Size [bytes]'], ['value' => '15 pages']]],
+        ], JSON_THROW_ON_ERROR));
     } else {
         $file = UploadedFile::fake()->createWithContent('content.json', dataCiteJson(minimalAttributes([
             'formats' => ['text/csv', 'application/x-legacy-format'],
             'sizes' => ['2048 Uncompressed Primary Data Size [bytes]', '15 pages'],
         ])));
     }
-    $url = $preview ? route('editor.upload-'.$format.'.preview') : '/dashboard/upload-'.$format;
+    $routeFormat = $format === 'xml' ? 'xml' : 'json';
+    $url = $preview ? route('editor.upload-'.$routeFormat.'.preview') : '/dashboard/upload-'.$routeFormat;
     $response = $this->postJson($url, ['file' => $file])->assertSuccessful();
     if ($preview) {
         $response->assertJsonPath('metadata.formats.0.value', 'text/csv')
@@ -53,7 +66,8 @@ test('XML and JSON uploads preserve formats and size meanings through preview an
     expect($resource->formats()->pluck('value')->all())->toBe(['text/csv', 'application/x-legacy-format'])
         ->and($resource->sizes()->first()->export_string)->toBe('2048 Uncompressed Primary Data Size [bytes]')
         ->and($resource->sizes()->latest('id')->first()->unit)->toBe('pages');
-})->with(['xml', 'json'])->with([true, false]);
+    $this->assertDatabaseCount('content_metadata_import_rows', 0);
+})->with(['xml', 'json', 'jsonld'])->with([true, false]);
 
 test('editor XML preview returns parsed metadata without creating a draft or session', function () {
     $this->actingAs(User::factory()->create(['role' => 'curator']));

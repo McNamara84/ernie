@@ -90,6 +90,10 @@
         ],
         "fixes": [
             {
+                "title": "Resource Format and Size Import Validation",
+                "description": "Import exceptions for legacy formats and size meanings now use server-side, user-bound evidence that expires after 24 hours and is consumed once when creating a resource. Tokens cannot authorize changes on existing resources or be replayed after a successful save. Failed saves roll back consumption so imports remain retryable. Format popularity caching now uses the central cache-key registry with consistent expiry and tagged or untagged invalidation."
+            },
+            {
                 "title": "DCAT-AP Harvest Recovery for Missing Resources",
                 "description": "Synchronization and OAI-PMH requests recover from missing resource links in DCAT-AP history. Orphaned records return persistent deleted headers without crashing GetRecord or repeatedly blocking fresh harvests. Affected pagination tokens require a restart, while unrelated harvests remain valid. Eligible resources regain detached history links even when their metadata is unchanged."
             },

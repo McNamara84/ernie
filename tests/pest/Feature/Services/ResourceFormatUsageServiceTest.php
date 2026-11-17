@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\SizeFormat\ResourceFormatUsageService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function () {
-    Cache::forget(ResourceFormatUsageService::CACHE_KEY);
+    CacheKey::EDITOR_FORMAT_USAGE->forget();
     $this->usage = app(ResourceFormatUsageService::class);
     $this->datasetType = ResourceType::firstOrCreate(['slug' => 'dataset'], ['name' => 'Dataset']);
 });
@@ -67,3 +67,18 @@ it('supplies normalized popularity to new editors through common props', functio
         ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->component('editor')->where('formatUsage.text/csv', 1));
 });
+
+it('uses enum invalidation with both tagged and untagged cache stores', function (string $driver) {
+    config(['cache.default' => $driver]);
+    $this->freezeTime();
+    $resource = Resource::factory()->create(['resource_type_id' => $this->datasetType->id]);
+    expect($this->usage->counts())->toBe([]);
+    $resource->formats()->create(['value' => 'text/csv']);
+    expect($this->usage->counts())->toBe([])
+        ->and(CacheKey::EDITOR_FORMAT_USAGE->forget())->toBeTrue()
+        ->and($this->usage->counts())->toBe(['text/csv' => 1]);
+    $resource->formats()->create(['value' => 'application/json']);
+    expect($this->usage->counts())->toBe(['text/csv' => 1]);
+    $this->travel(CacheKey::EDITOR_FORMAT_USAGE->ttl())->seconds();
+    expect($this->usage->counts())->toHaveCount(2);
+})->with(['array', 'database']);

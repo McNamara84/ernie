@@ -8,6 +8,7 @@ use App\Enums\UploadErrorCode;
 use App\Exceptions\DuplicateUploadedResourceDoiException;
 use App\Http\Requests\UploadXmlRequest;
 use App\Services\ResourceStorageService;
+use App\Services\SizeFormat\ContentMetadataImportEvidenceService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Services\Xml\DataCiteXmlImportParser;
@@ -83,6 +84,8 @@ class UploadXmlController extends Controller
         $sessionPayload = $result->toSessionPayload();
 
         if ($request->routeIs('editor.upload-xml.preview')) {
+            $sessionPayload = app(ContentMetadataImportEvidenceService::class)->issue($sessionPayload, $request->user()?->id);
+
             return response()->json([
                 'success' => true,
                 'metadata' => $sessionPayload,

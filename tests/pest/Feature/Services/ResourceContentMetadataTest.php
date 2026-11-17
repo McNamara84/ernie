@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteXmlExporter;
 use App\Services\Editor\EditorDataTransformer;
+use App\Services\SizeFormat\ContentMetadataImportEvidenceService;
 use App\Services\SizeFormat\ContentMetadataImportService;
 use App\Services\SizeFormat\DigitalContentSizeService;
 use App\Services\SizeFormat\MimeTypeRegistry;
@@ -25,6 +26,17 @@ beforeEach(function () {
     $this->contentMetadata = app(ResourceContentMetadataService::class);
     $this->draft = ['intent' => 'save-draft', 'titles' => [['title' => 'Content metadata', 'titleType' => 'main-title']], 'resourceType' => $this->datasetType->id];
 });
+
+/** @return array<string, mixed> */
+function authorizedContentMetadataImport(array $formats = [], array $sizes = []): array
+{
+    $importer = app(ContentMetadataImportService::class);
+
+    return app(ContentMetadataImportEvidenceService::class)->issue([
+        'formats' => $importer->formats($formats),
+        'sizes' => array_map(fn (array $row): array => array_diff_key($row, ['editable' => true]), $importer->sizes($sizes)),
+    ], auth()->id());
+}
 
 it('creates independent resource formats and sizes without a landing page for each save intent', function (string $intent) {
     $response = $this->postJson('/editor/resources/draft', [...$this->draft, 'intent' => $intent,
@@ -125,8 +137,7 @@ it('rejects duplicate new formats and editing protected physical sizes', functio
 });
 
 it('preserves imported meaning labels when a new digital value is edited before saving', function () {
-    $row = app(ContentMetadataImportService::class)->sizes(['2048 Uncompressed Primary Data Size [bytes]'])[0];
-    unset($row['editable']);
+    $row = authorizedContentMetadataImport(sizes: ['2048 Uncompressed Primary Data Size [bytes]'])['sizes'][0];
     $row['numeric_value'] = '4096';
     $this->postJson('/editor/resources/draft', [...$this->draft, 'sizes' => [$row]])->assertCreated()
         ->assertJsonPath('contentMetadata.sizes.0.numeric_value', '4096.0000')
@@ -145,16 +156,15 @@ it('retains blank and whitespace-bearing legacy formats while adding a new IANA 
 });
 
 it('coalesces equivalent imported formats while retaining other formats', function () {
-    $rows = app(ContentMetadataImportService::class)->formats(['CSV', 'text/csv', 'TEXT/CSV', 'application/zip']);
+    $rows = authorizedContentMetadataImport(formats: ['CSV', 'text/csv', 'TEXT/CSV', 'application/zip'])['formats'];
     $this->postJson('/editor/resources/draft', [...$this->draft, 'formats' => $rows])->assertCreated()
         ->assertJsonCount(2, 'contentMetadata.formats');
 });
 
-it('does not let signed import evidence replace the meaning of an existing size', function () {
+it('does not let import evidence replace the meaning of an existing size', function () {
     $resource = Resource::factory()->create(['resource_type_id' => $this->datasetType->id]);
     $size = $resource->sizes()->create(['numeric_value' => '2048', 'unit' => 'bytes', 'type' => 'Primary Data Size']);
-    $row = app(ContentMetadataImportService::class)->sizes(['4096 Uncompressed Primary Data Size [bytes]'])[0];
-    unset($row['editable']);
+    $row = authorizedContentMetadataImport(sizes: ['4096 Uncompressed Primary Data Size [bytes]'])['sizes'][0];
     $this->postJson('/editor/resources/draft', [...$this->draft, 'resourceId' => $resource->id,
         'contentMetadataFingerprint' => $this->contentMetadata->state($resource)['fingerprint'],
         'sizes' => [['id' => $size->id, ...$row]],
@@ -188,16 +198,15 @@ it('rejects stale editor changes while allowing an unrelated save without overwr
     expect($resource->formats()->count())->toBe(1);
 });
 
-it('preserves signed imported formats and labeled sizes and rejects altered import evidence', function () {
-    $importer = app(ContentMetadataImportService::class);
-    $formats = $importer->formats(['application/x-custom-imported']);
-    $sizes = $importer->sizes(['2048 Uncompressed Primary Data Size [bytes]', '15 pages', 'unknown size']);
-    $response = $this->postJson('/editor/resources/draft', [...$this->draft, 'formats' => $formats, 'sizes' => array_map(fn ($row) => array_diff_key($row, ['editable' => true]), $sizes)])
+it('preserves imported formats and labeled sizes and rejects altered import evidence', function () {
+    $metadata = authorizedContentMetadataImport(['application/x-custom-imported'], ['2048 Uncompressed Primary Data Size [bytes]', '15 pages', 'unknown size']);
+    $response = $this->postJson('/editor/resources/draft', [...$this->draft, ...$metadata])
         ->assertCreated()->assertJsonPath('contentMetadata.sizes.0.type', 'Uncompressed Primary Data Size');
     $resource = Resource::findOrFail($response->json('resource.id'));
     expect($resource->sizes()->count())->toBe(3)->and($resource->sizes()->first()->export_string)->toBe('2048 Uncompressed Primary Data Size [bytes]');
-    $formats[0]['value'] = 'application/x-forged-import';
-    $this->postJson('/editor/resources/draft', [...$this->draft, 'formats' => $formats])->assertUnprocessable()->assertJsonValidationErrors('formats.0.value');
+    $metadata = authorizedContentMetadataImport(['application/x-custom-imported']);
+    $metadata['formats'][0]['value'] = 'application/x-forged-import';
+    $this->postJson('/editor/resources/draft', [...$this->draft, ...$metadata])->assertUnprocessable()->assertJsonValidationErrors('formats.0.value');
 });
 
 it('preserves exact large decimal sizes and distinguishes decimal from binary units', function () {

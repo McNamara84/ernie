@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services\SizeFormat;
 
+use App\Enums\CacheKey;
 use App\Models\Format;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Cache;
 
 /** Global format popularity in the Resources workspace, counting each resource once. */
 final readonly class ResourceFormatUsageService
 {
-    public const CACHE_KEY = 'editor:resource-format-usage:v1';
+    use ChecksCacheTagging;
 
     public function __construct(private MimeTypeRegistry $registry) {}
 
     /** @return array<string, int> */
     public function counts(): array
     {
-        return Cache::remember(self::CACHE_KEY, now()->addMinute(), function (): array {
+        $key = CacheKey::EDITOR_FORMAT_USAGE;
+
+        return $this->getCacheInstance($key->tags())->remember($key->key(), $key->ttl(), function (): array {
             $counts = [];
             $previousResourceId = null;
             $seen = [];

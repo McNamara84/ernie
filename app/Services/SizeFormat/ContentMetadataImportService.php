@@ -21,7 +21,7 @@ final readonly class ContentMetadataImportService
                 }
                 $seen[$key] = true;
                 $row = ['value' => trim($value)];
-                $rows[] = ResourceContentMetadataService::signedImport('format', $row);
+                $rows[] = $row;
             }
         }
 
@@ -47,7 +47,7 @@ final readonly class ContentMetadataImportService
                 $row = ['numeric_value' => null, 'unit' => $value, 'type' => null];
             }
             $number = ResourceContentMetadataService::number($row['numeric_value']);
-            $rows[] = [...ResourceContentMetadataService::signedImport('size', $row),
+            $rows[] = [...$row,
                 'editable' => $number !== null && $number !== '0' && in_array(ResourceContentMetadataService::unit($row['unit']), ResourceContentMetadataService::UNITS, true),
             ];
         }

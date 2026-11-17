@@ -15,6 +15,7 @@ use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\ResourceStorageService;
+use App\Services\SizeFormat\ContentMetadataImportEvidenceService;
 use App\Services\Subjects\SubjectEquivalenceService;
 use App\Services\UserActivityService;
 use App\Support\GeoLocations\GeoLocationWriteReport;
@@ -50,6 +51,7 @@ final class UploadedResourceDraftService
         }
 
         try {
+            $storagePayload = app(ContentMetadataImportEvidenceService::class)->issue($storagePayload, $userId);
             [$resource, , $changes] = $this->resourceStorageService->store($storagePayload, $userId);
             if ($geoReport !== null) {
                 $geoReport->removedCount += $changes['removedCount'];

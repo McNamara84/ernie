@@ -7,16 +7,14 @@ namespace App\Services\SizeFormat;
 use App\Models\Format;
 use App\Models\Resource;
 use App\Models\Size;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 /** Resource-level metadata shared by the editor, uploads, and the assistance workflow. */
 final readonly class ResourceContentMetadataService
 {
     public const UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
 
-    public function __construct(private MimeTypeRegistry $mimeTypes) {}
+    public function __construct(private MimeTypeRegistry $mimeTypes, private ContentMetadataImportEvidenceService $imports) {}
 
     public static function number(?string $value): ?string
     {
@@ -76,7 +74,7 @@ final readonly class ResourceContentMetadataService
     }
 
     /** @param array<string, mixed> $data */
-    public function sync(Resource $resource, array $data, bool $isUpdate): void
+    public function sync(Resource $resource, array $data, bool $isUpdate, ?int $userId): void
     {
         if (($data['contentMetadataChanged'] ?? true) === false || (! array_key_exists('formats', $data) && ! array_key_exists('sizes', $data))) {
             return;
@@ -85,17 +83,21 @@ final readonly class ResourceContentMetadataService
         if ($isUpdate && ($data['contentMetadataFingerprint'] ?? null) !== $this->state($resource)['fingerprint']) {
             $this->fail('contentMetadataFingerprint', 'Format or size metadata changed in another editor or assistant. Reload the resource and review your changes.');
         }
+        $evidence = $this->imports->consume($data, $userId, $isUpdate);
         if (array_key_exists('formats', $data)) {
-            $this->syncFormats($resource, $data['formats']);
+            $this->syncFormats($resource, $data['formats'], $evidence);
         }
         if (array_key_exists('sizes', $data)) {
-            $this->syncSizes($resource, $data['sizes']);
+            $this->syncSizes($resource, $data['sizes'], $evidence);
         }
         $resource->unsetRelation('formats')->unsetRelation('sizes');
     }
 
-    /** @param list<array<string, mixed>> $rows */
-    private function syncFormats(Resource $resource, array $rows): void
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, array{kind: string, row: array<string, mixed>}>  $evidence
+     */
+    private function syncFormats(Resource $resource, array $rows, array $evidence): void
     {
         $retained = [];
         $seen = [];
@@ -113,7 +115,7 @@ final readonly class ResourceContentMetadataService
             if ($unchanged) {
                 $value = $format->value;
             }
-            $imported = $format === null && $this->importMatches('format', $row);
+            $imported = $format === null && $this->importMatches('format', $row, $evidence["formats.{$index}"] ?? null);
             if (! $unchanged && ! $this->mimeTypes->contains($value) && ! $imported) {
                 $this->fail("formats.{$index}.value", 'Select an officially registered IANA MIME type.');
             }
@@ -137,8 +139,11 @@ final readonly class ResourceContentMetadataService
         }
     }
 
-    /** @param list<array<string, mixed>> $rows */
-    private function syncSizes(Resource $resource, array $rows): void
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, array{kind: string, row: array<string, mixed>}>  $evidence
+     */
+    private function syncSizes(Resource $resource, array $rows, array $evidence): void
     {
         $retained = [];
         foreach ($rows as $index => $row) {
@@ -165,7 +170,9 @@ final readonly class ResourceContentMetadataService
             if ($size !== null && ! $this->editable($size, $resource) && ! $unchanged) {
                 $this->fail("sizes.{$index}.numeric_value", 'This imported or physical size must be preserved unchanged.');
             }
-            $imported = $size === null && $this->importMatches('size', $row);
+            $source = $evidence["sizes.{$index}"] ?? null;
+            $imported = $size === null && $this->importMatches('size', $row, $source);
+            $importedType = $source !== null && $source['kind'] === 'size' ? ($source['row']['type'] ?? null) : null;
             if (! $unchanged && ! $imported) {
                 $number = self::number($raw['numeric_value']);
                 if ($number === null || $number === '0') {
@@ -178,7 +185,7 @@ final readonly class ResourceContentMetadataService
                     $this->fail("sizes.{$index}.unit", 'Physical objects do not use digital size metadata.');
                 }
                 if (($size !== null && $raw['type'] !== $size->type)
-                    || ($size === null && $raw['type'] !== null && ! $this->importedSizeTypeMatches($row))) {
+                    || ($size === null && $raw['type'] !== null && $raw['type'] !== $importedType)) {
                     $this->fail("sizes.{$index}.type", 'The meaning of this size must be preserved.');
                 }
                 $raw['numeric_value'] = $number;
@@ -197,50 +204,22 @@ final readonly class ResourceContentMetadataService
         }
     }
 
-    /** @param array<string, mixed> $row
-     * @return array<string, mixed>
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array{kind: string, row: array<string, mixed>}|null  $source
      */
-    public static function signedImport(string $kind, array $row): array
+    private function importMatches(string $kind, array $row, ?array $source): bool
     {
-        return [...$row, 'importKey' => Crypt::encryptString(json_encode(['kind' => $kind, 'row' => $row], JSON_THROW_ON_ERROR))];
-    }
-
-    /** @param array<string, mixed> $row */
-    private function importMatches(string $kind, array $row): bool
-    {
-        if (! is_string($row['importKey'] ?? null)) {
+        if ($source === null || $source['kind'] !== $kind) {
             return false;
         }
-        try {
-            $source = json_decode(Crypt::decryptString($row['importKey']), true, flags: JSON_THROW_ON_ERROR);
-            $fields = $kind === 'format' ? ['value'] : ['numeric_value', 'unit', 'type'];
-            $values = array_intersect_key($row, array_flip($fields));
-            $original = $source['row'] ?? null;
-            if (! is_array($original)) {
-                return false;
-            }
-            ksort($original);
-            ksort($values);
+        $fields = $kind === 'format' ? ['value'] : ['numeric_value', 'unit', 'type'];
+        $values = array_intersect_key($row, array_flip($fields));
+        $original = $source['row'];
+        ksort($original);
+        ksort($values);
 
-            return ($source['kind'] ?? null) === $kind && $original === $values;
-        } catch (Throwable) {
-            return false;
-        }
-    }
-
-    /** @param array<string, mixed> $row */
-    private function importedSizeTypeMatches(array $row): bool
-    {
-        if (! is_string($row['importKey'] ?? null)) {
-            return false;
-        }
-        try {
-            $source = json_decode(Crypt::decryptString($row['importKey']), true, flags: JSON_THROW_ON_ERROR);
-
-            return ($source['kind'] ?? null) === 'size' && ($source['row']['type'] ?? null) === ($row['type'] ?? null);
-        } catch (Throwable) {
-            return false;
-        }
+        return $original === $values;
     }
 
     private function fail(string $field, string $message): never

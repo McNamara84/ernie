@@ -228,7 +228,7 @@ class ResourceStorageService
             $this->storeRelatedItems($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
             $this->storeInstruments($resource, $data, $isUpdate);
-            app(ResourceContentMetadataService::class)->sync($resource, $data, $isUpdate);
+            app(ResourceContentMetadataService::class)->sync($resource, $data, $isUpdate, $userId);
 
             if ($isUpdate) {
                 // Child-only edits can leave every parent attribute unchanged.

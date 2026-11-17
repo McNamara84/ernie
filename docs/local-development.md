@@ -428,8 +428,14 @@ Existing non-IANA formats remain visible and can be preserved or deliberately
 replaced. Assistant size meanings such as **Uncompressed Primary Data Size** are
 retained when their numeric value changes. Physical and unstructured size
 metadata remains visible and is preserved. XML, JSON and JSON-LD uploads carry
-these values into the editor; signed import evidence permits existing free-text
-metadata without allowing arbitrary new format entries in the regular field.
+these values into the editor. Import evidence is stored server-side, belongs to
+the uploading user, and expires after 24 hours. Each row can be consumed once,
+only while creating a resource. Consumption shares the resource transaction, so
+a failed save can be retried. Existing resources preserve their stored legacy
+rows by ID; upload tokens cannot authorize new exceptions on other resources.
+This permits imported free-text metadata without allowing arbitrary new format
+entries in the regular field. Deployments must run the migration that creates
+`content_metadata_import_rows` before accepting uploads.
 
 Landing-page setup edits URLs, button labels and layout. It no longer edits
 formats or sizes. Existing download assignments retain their record IDs across
