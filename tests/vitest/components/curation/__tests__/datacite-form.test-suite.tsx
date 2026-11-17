@@ -622,6 +622,28 @@ describe('DataCiteForm', () => {
         );
 
     describe('resource formats and sizes', () => {
+        it('uses resource popularity for readable format choices while posting the MIME type', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Readable formats', titleType: 'main-title' }],
+                formatUsage: { 'text/csv': 100 },
+            });
+            const section = getAccordionTrigger(/Format & Size/);
+            if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+            await user.click(screen.getByRole('button', { name: 'Add format' }));
+            await user.click(screen.getByTestId('format-select-0'));
+            const csv = await screen.findByRole('option', { name: 'CSV (text/csv)' });
+            expect(screen.getAllByRole('option')[0]).toBe(csv);
+            await user.click(csv);
+            expect(screen.getByTestId('format-select-0')).toHaveTextContent('CSV');
+            await user.click(screen.getByTestId('save-draft-button'));
+            expect(axios.post).toHaveBeenCalledWith(
+                '/editor/resources/draft',
+                expect.objectContaining({ formats: [{ value: 'text/csv' }] }),
+                expect.any(Object),
+            );
+        });
+
         it('keeps client errors and focus on the second size when the first new row is empty', async () => {
             const user = userEvent.setup();
             await renderDataCiteForm({
@@ -697,7 +719,7 @@ describe('DataCiteForm', () => {
                 }),
             );
             await waitFor(() => expect(screen.getByTestId('format-select-0')).toHaveAttribute('aria-invalid', 'true'));
-            expect(screen.getByTestId('format-select-0')).toHaveTextContent('text/csv');
+            expect(screen.getByTestId('format-select-0')).toHaveTextContent('CSV');
             expect(screen.queryByTestId('format-select-1')).not.toBeInTheDocument();
         });
 

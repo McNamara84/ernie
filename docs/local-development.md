@@ -414,6 +414,16 @@ each digital size uses a decimal input and a separate decimal or binary unit.
 Decimal commas and points are accepted, with up to 16 integer digits and four
 decimal places. Values are transported as strings to preserve precision.
 
+The format picker shows familiar names such as **CSV**, **JSON** and **Excel (XLSX)**,
+with the MIME type underneath for disambiguation. Both names and MIME types are
+searchable; persistence still uses the MIME type. Options are ordered by the
+number of ERNIE Resources using that format, then alphabetically by display name
+and MIME type. Each resource contributes at most once per normalized format,
+including legacy aliases such as `CSV` and MIME values with parameters. IGSN
+Physical Objects are excluded, matching the Resources workspace. Counts are
+cached for one minute and supplied when an editor is loaded. Unused formats
+remain available in the same complete IANA catalog.
+
 Existing non-IANA formats remain visible and can be preserved or deliberately
 replaced. Assistant size meanings such as **Uncompressed Primary Data Size** are
 retained when their numeric value changes. Physical and unstructured size

@@ -282,6 +282,7 @@ export interface DataCiteFormProps {
     initialMslLaboratories?: MSLLaboratory[];
     initialInstruments?: InstrumentSelection[];
     initialContentMetadata?: ContentMetadata;
+    formatUsage?: Readonly<Record<string, number>>;
     /** Initial datacenter assigned to this resource */
     initialDatacenterId?: number | null;
     /** Available datacenters for selection */

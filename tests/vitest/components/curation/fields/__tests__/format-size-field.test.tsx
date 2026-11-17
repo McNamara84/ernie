@@ -14,6 +14,45 @@ function EditorFields() {
 }
 
 describe('Format & Size fields', () => {
+    it('orders readable names by resource usage and searches names as well as MIME types', async () => {
+        const spreadsheet = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        const loader = vi
+            .spyOn(mimeTypes, 'loadMimeTypes')
+            .mockResolvedValue(['image/png', 'application/pdf', 'text/csv', 'application/json', spreadsheet]);
+        const user = userEvent.setup();
+        function PopularFormats() {
+            const [formats, setFormats] = useState<FormatEntry[]>([]);
+            return (
+                <FormatSizeField
+                    formats={formats}
+                    sizes={[]}
+                    formatUsage={{ 'text/csv': 8, 'application/json': 2, 'application/pdf': 2 }}
+                    onFormatsChange={setFormats}
+                    onSizesChange={() => {}}
+                />
+            );
+        }
+        try {
+            render(<PopularFormats />);
+            await user.click(screen.getByRole('button', { name: 'Add format' }));
+            await user.click(screen.getByTestId('format-select-0'));
+            await screen.findByRole('option', { name: 'CSV (text/csv)' });
+            expect(screen.getAllByRole('option').map((option) => option.getAttribute('aria-label'))).toEqual([
+                'CSV (text/csv)',
+                'JSON (application/json)',
+                'PDF (application/pdf)',
+                `Excel (XLSX) (${spreadsheet})`,
+                'PNG (image/png)',
+            ]);
+            await user.type(screen.getByPlaceholderText('Search formats or MIME types...'), 'Excel');
+            await user.click(screen.getByRole('option', { name: `Excel (XLSX) (${spreadsheet})` }));
+            expect(screen.getByTestId('format-select-0')).toHaveTextContent('Excel (XLSX)');
+            expect(screen.getByTestId('format-select-0')).toHaveAttribute('title', spreadsheet);
+        } finally {
+            loader.mockRestore();
+        }
+    });
+
     it('can discard a removed non-IANA format without recreating its legacy value', async () => {
         const user = userEvent.setup();
         function LegacyConflict() {
@@ -39,8 +78,8 @@ describe('Format & Size fields', () => {
         expect(screen.getByRole('alert')).toHaveTextContent('removed elsewhere');
         expect(screen.getByRole('button', { name: 'Keep as new format' })).toBeDisabled();
         await user.click(screen.getByTestId('format-select-0'));
-        await user.type(screen.getByPlaceholderText('Search all IANA MIME types...'), 'image/png');
-        await user.click(await screen.findByRole('option', { name: 'image/png' }));
+        await user.type(screen.getByPlaceholderText('Search formats or MIME types...'), 'image/png');
+        await user.click(await screen.findByRole('option', { name: 'PNG (image/png)' }));
         await waitFor(() => expect(screen.getByRole('button', { name: 'Keep as new format' })).toBeEnabled());
         await user.click(screen.getByRole('button', { name: 'Keep as new format' }));
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -87,11 +126,11 @@ describe('Format & Size fields', () => {
         await user.click(screen.getByRole('button', { name: 'Add format' }));
         expect(screen.getByRole('button', { name: 'Add format' })).toBeDisabled();
         await user.click(screen.getByTestId('format-select-1'));
-        await user.type(screen.getByPlaceholderText('Search all IANA MIME types...'), 'text/csv');
-        await user.click(await screen.findByRole('option', { name: 'text/csv' }));
-        expect(screen.getByTestId('format-select-1')).toHaveTextContent('text/csv');
+        await user.type(screen.getByPlaceholderText('Search formats or MIME types...'), 'text/csv');
+        await user.click(await screen.findByRole('option', { name: 'CSV (text/csv)' }));
+        expect(screen.getByTestId('format-select-1')).toHaveTextContent('CSV');
         expect(screen.getByRole('button', { name: 'Add format' })).toBeEnabled();
-        expect(screen.getByTestId('format-select-0')).not.toHaveTextContent('text/csv');
+        expect(screen.getByTestId('format-select-0')).not.toHaveTextContent('CSV');
     });
 
     it('searches the complete IANA catalog and keeps format and size entries independent', async () => {
@@ -99,9 +138,9 @@ describe('Format & Size fields', () => {
         render(<EditorFields />);
         await user.click(screen.getByRole('button', { name: 'Add format' }));
         await user.click(screen.getByTestId('format-select-0'));
-        await user.type(screen.getByPlaceholderText('Search all IANA MIME types...'), 'model/gltf+json');
-        await user.click(await screen.findByRole('option', { name: 'model/gltf+json' }));
-        expect(screen.getByTestId('format-select-0')).toHaveTextContent('model/gltf+json');
+        await user.type(screen.getByPlaceholderText('Search formats or MIME types...'), 'model/gltf+json');
+        await user.click(await screen.findByRole('option', { name: 'glTF (JSON) (model/gltf+json)' }));
+        expect(screen.getByTestId('format-select-0')).toHaveTextContent('glTF (JSON)');
         expect(screen.queryByTestId('size-value-0')).not.toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Add size' }));
         await user.type(screen.getByTestId('size-value-0'), '1,5');
@@ -132,7 +171,7 @@ describe('Format & Size fields', () => {
                 onSizesChange={() => {}}
             />,
         );
-        expect(screen.getByTestId('format-select-0')).toHaveTextContent('application/x-netcdf');
+        expect(screen.getByTestId('format-select-0')).toHaveTextContent('NetCDF');
         await waitFor(() => expect(screen.getByText(/Existing format/)).toBeInTheDocument());
         expect(screen.getByText('Page Count')).toBeInTheDocument();
         expect(screen.getByText(/15 Page Count/)).toBeInTheDocument();
@@ -172,7 +211,7 @@ describe('Format & Size fields', () => {
         );
         await user.click(await screen.findByRole('button', { name: 'Retry MIME types' }));
         await waitFor(() => expect(screen.queryByText(/could not be loaded/)).not.toBeInTheDocument());
-        expect(screen.getByTestId('format-select-0')).toHaveTextContent('text/csv');
+        expect(screen.getByTestId('format-select-0')).toHaveTextContent('CSV');
         expect(loader).toHaveBeenCalledTimes(2);
         loader.mockRestore();
     });
@@ -182,10 +221,10 @@ describe('Format & Size fields', () => {
         render(<EditorFields />);
         await user.click(screen.getByRole('button', { name: 'Add format' }));
         await user.click(screen.getByTestId('format-select-0'));
-        await user.type(screen.getByPlaceholderText('Search all IANA MIME types...'), 'image/png');
-        await screen.findByRole('option', { name: 'image/png' });
+        await user.type(screen.getByPlaceholderText('Search formats or MIME types...'), 'image/png');
+        await screen.findByRole('option', { name: 'PNG (image/png)' });
         await user.keyboard('{Enter}');
-        expect(screen.getByTestId('format-select-0')).toHaveTextContent('image/png');
+        expect(screen.getByTestId('format-select-0')).toHaveTextContent('PNG');
         await user.click(screen.getByRole('button', { name: 'Add size' }));
         await user.click(screen.getByRole('button', { name: 'Remove size 1' }));
         expect(screen.queryByTestId('size-row-0')).not.toBeInTheDocument();
@@ -200,8 +239,8 @@ describe('Format & Size fields', () => {
         expect(screen.getAllByRole('option')).toHaveLength(61);
         await user.click(screen.getByRole('option', { name: /Show more MIME types/ }));
         expect(screen.getAllByRole('option')).toHaveLength(121);
-        await user.type(screen.getByPlaceholderText('Search all IANA MIME types...'), 'no-such-registered-media-type');
-        expect(await screen.findByText('No matching MIME type.')).toBeInTheDocument();
+        await user.type(screen.getByPlaceholderText('Search formats or MIME types...'), 'no-such-registered-media-type');
+        expect(await screen.findByText('No matching format.')).toBeInTheDocument();
         await user.keyboard('{Escape}');
         expect(screen.getByTestId('format-select-0')).toHaveAttribute('aria-expanded', 'false');
     });

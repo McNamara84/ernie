@@ -13,8 +13,8 @@ test('edits resource formats and sizes before landing-page setup and preserves t
     }
     await section.getByRole('button', { name: 'Add format' }).click();
     await page.getByTestId('format-select-0').click();
-    await page.getByPlaceholder('Search all IANA MIME types...').fill('text/csv');
-    await page.getByRole('option', { name: 'text/csv', exact: true }).click();
+    await page.getByPlaceholder('Search formats or MIME types...').fill('text/csv');
+    await page.getByRole('option', { name: 'CSV (text/csv)', exact: true }).click();
     await section.getByRole('button', { name: 'Add size' }).click();
     await page.getByTestId('size-value-0').fill('1,5');
     await expect(page.getByTestId('size-value-0')).toHaveValue('1,5');
@@ -34,7 +34,7 @@ test('edits resource formats and sizes before landing-page setup and preserves t
     const resourceId = saved.resource.id;
 
     await page.goto(`/editor?resourceId=${resourceId}`);
-    await expect(page.getByTestId('format-select-0')).toHaveText('text/csv', { timeout: 60_000 });
+    await expect(page.getByTestId('format-select-0')).toHaveText('CSV', { timeout: 60_000 });
     await expect(page.getByTestId('size-value-0')).toHaveValue('1.5000');
     await expect(page.getByTestId('size-unit-0')).toContainText('GiB');
     await page.getByTestId('show-lp-preview-button').click();
@@ -46,7 +46,7 @@ test('edits resource formats and sizes before landing-page setup and preserves t
     await setupSave.click();
     await expect(modal).toHaveCount(0, { timeout: 30_000 });
     await page.goto(`/editor?resourceId=${resourceId}`);
-    await expect(page.getByTestId('format-select-0')).toHaveText('text/csv', { timeout: 60_000 });
+    await expect(page.getByTestId('format-select-0')).toHaveText('CSV', { timeout: 60_000 });
     await expect(page.getByTestId('size-value-0')).toHaveValue('1.5000');
 });
 
@@ -64,8 +64,8 @@ test('keeps format and size controls usable at desktop, tablet, and mobile width
     for (const [index, mimeType] of ['text/csv', 'application/json'].entries()) {
         await section.getByRole('button', { name: 'Add format', exact: true }).click();
         await page.getByTestId(`format-select-${index}`).click();
-        await page.getByPlaceholder('Search all IANA MIME types...').fill(mimeType);
-        await page.getByRole('option', { name: mimeType, exact: true }).click();
+        await page.getByPlaceholder('Search formats or MIME types...').fill(mimeType);
+        await page.getByRole('option', { name: `${mimeType === 'text/csv' ? 'CSV' : 'JSON'} (${mimeType})`, exact: true }).click();
     }
     for (const [index, size] of [
         { value: '1,5', unit: 'GiB' },
@@ -85,9 +85,27 @@ test('keeps format and size controls usable at desktop, tablet, and mobile width
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
         await page.mouse.move(0, 0);
         await section.scrollIntoViewIfNeeded();
-        await expect(page.getByTestId('format-select-0')).toHaveText('text/csv');
+        await expect(page.getByTestId('format-select-0')).toHaveText('CSV');
         await expect(page.getByTestId('size-value-0')).toHaveValue('1,5');
         await expect(page.getByTestId('size-unit-0')).toContainText('GiB');
+        const wasLarge = await page.evaluate(() => document.documentElement.classList.contains('font-large'));
+        for (const large of [false, true]) {
+            // Exercise both supported font scales locally without changing the user's saved preference.
+            await page.evaluate((enabled) => document.documentElement.classList.toggle('font-large', enabled), large);
+            for (const index of [0, 1]) {
+                await expect
+                    .poll(() =>
+                        page.evaluate((row) => {
+                            const number = document.querySelector(`[data-testid="size-value-${row}"]`)!.getBoundingClientRect();
+                            const unit = document.querySelector(`[data-testid="size-unit-${row}"]`)!.getBoundingClientRect();
+                            if (number.height === 0 || unit.height === 0) return Infinity;
+                            return Math.max(Math.abs(number.top - unit.top), Math.abs(number.height - unit.height));
+                        }, index),
+                    )
+                    .toBeLessThanOrEqual(1);
+            }
+        }
+        await page.evaluate((enabled) => document.documentElement.classList.toggle('font-large', enabled), wasLarge);
         expect(await section.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBeTruthy();
 
         if (testInfo.project.name === 'chromium') {
@@ -105,7 +123,7 @@ test('keeps format and size controls usable at desktop, tablet, and mobile width
         }
 
         await page.getByTestId('format-select-0').click();
-        await page.getByPlaceholder('Search all IANA MIME types...').fill('application/');
+        await page.getByPlaceholder('Search formats or MIME types...').fill('application/');
         await expect(page.getByRole('option').first()).toBeVisible();
         if (testInfo.project.name === 'chromium' && viewport.name !== 'tablet') {
             const screenshot = testInfo.outputPath(`mime-search-${viewport.name}.png`);

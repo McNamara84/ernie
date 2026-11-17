@@ -69,6 +69,7 @@ interface EditorProps {
     mslLaboratories?: MSLLaboratory[];
     instruments?: InstrumentSelection[];
     contentMetadata?: ContentMetadata;
+    formatUsage?: Readonly<Record<string, number>>;
     activeRelationTypes?: string[];
     activeIdentifierTypes?: string[];
     initialDatacenterId?: number | null;
@@ -124,6 +125,7 @@ export default function Editor({
     mslLaboratories = [],
     instruments = [],
     contentMetadata,
+    formatUsage,
     activeRelationTypes,
     activeIdentifierTypes,
     initialDatacenterId = null,
@@ -369,6 +371,7 @@ export default function Editor({
                         initialMslLaboratories={mslLaboratories}
                         initialInstruments={instruments}
                         initialContentMetadata={contentMetadata}
+                        formatUsage={formatUsage}
                         isUserAdmin={isUserAdmin}
                         activeRelationTypes={activeRelationTypes}
                         activeIdentifierTypes={activeIdentifierTypes}

@@ -15,25 +15,28 @@ import {
     SIZE_UNITS,
     type SizeEntry,
 } from '@/lib/content-metadata';
-import { loadMimeTypes } from '@/lib/mime-types';
+import { EMPTY_FORMAT_USAGE, type FormatUsage, loadMimeTypes, mimeTypeLabel, type MimeTypeOption, mimeTypeOptions } from '@/lib/mime-types';
 
 function MimeTypeSelect({
     row,
     index,
-    types,
+    options,
     onChange,
     error,
 }: {
     row: FormatEntry;
     index: number;
-    types: string[];
+    options: MimeTypeOption[];
     onChange: (value: string) => void;
     error?: string;
 }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [limit, setLimit] = useState(60);
-    const matching = useMemo(() => types.filter((type) => type.includes(query.trim().toLowerCase())), [types, query]);
+    const matching = useMemo(
+        () => options.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(query.trim().toLowerCase())),
+        [options, query],
+    );
     const id = `format-${row.clientId}`;
 
     return (
@@ -51,15 +54,16 @@ function MimeTypeSelect({
                         aria-invalid={Boolean(error) || row.removedOnServer}
                         aria-describedby={row.removedOnServer ? `${id}-conflict` : error ? `${id}-error` : undefined}
                         className="w-full justify-between font-normal"
+                        title={row.value || undefined}
                     >
-                        <span className="truncate">{row.value || 'Select MIME type'}</span>
+                        <span className="truncate">{row.value ? mimeTypeLabel(row.value) : 'Select format'}</span>
                         <ChevronsUpDown className="ml-2 size-4 shrink-0" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[min(32rem,90vw)] p-0" align="start">
                     <Command shouldFilter={false}>
                         <CommandInput
-                            placeholder="Search all IANA MIME types..."
+                            placeholder="Search formats or MIME types..."
                             value={query}
                             onValueChange={(value) => {
                                 setQuery(value);
@@ -67,19 +71,26 @@ function MimeTypeSelect({
                             }}
                         />
                         <CommandList>
-                            <CommandEmpty>{types.length === 0 ? 'Loading MIME types...' : 'No matching MIME type.'}</CommandEmpty>
-                            <CommandGroup>
-                                {matching.slice(0, limit).map((type) => (
+                            <CommandEmpty>{options.length === 0 ? 'Loading MIME types...' : 'No matching format.'}</CommandEmpty>
+                            <CommandGroup heading="Most used in ERNIE first">
+                                {matching.slice(0, limit).map((option) => (
                                     <CommandItem
-                                        key={type}
-                                        value={type}
+                                        key={option.value}
+                                        value={option.value}
+                                        aria-label={`${option.label} (${option.value})`}
+                                        className="items-start"
                                         onSelect={() => {
-                                            onChange(type);
+                                            onChange(option.value);
                                             setOpen(false);
                                         }}
                                     >
-                                        <Check className={`mr-2 size-4 ${row.value === type ? 'opacity-100' : 'opacity-0'}`} />
-                                        <span className="break-all">{type}</span>
+                                        <Check
+                                            className={`mt-0.5 mr-2 size-4 shrink-0 ${row.value === option.value ? 'opacity-100' : 'opacity-0'}`}
+                                        />
+                                        <div className="min-w-0">
+                                            <span className="block font-medium break-words">{option.label}</span>
+                                            <span className="block text-xs break-all text-muted-foreground">{option.value}</span>
+                                        </div>
                                     </CommandItem>
                                 ))}
                                 {matching.length > limit && (
@@ -92,7 +103,7 @@ function MimeTypeSelect({
                     </Command>
                 </PopoverContent>
             </Popover>
-            {row.value && types.length > 0 && !types.includes(row.value) && (
+            {row.value && options.length > 0 && !options.some((option) => option.value === row.value) && (
                 <p className="text-sm text-muted-foreground">Existing format; select an IANA MIME type to replace it.</p>
             )}
             {error && !row.removedOnServer && (
@@ -144,6 +155,7 @@ export function FormatSizeField({
     onSizesChange,
     errors = {},
     physicalObject = false,
+    formatUsage = EMPTY_FORMAT_USAGE,
 }: {
     formats: FormatEntry[];
     sizes: SizeEntry[];
@@ -151,10 +163,12 @@ export function FormatSizeField({
     onSizesChange: Dispatch<SetStateAction<SizeEntry[]>>;
     errors?: Record<string, string>;
     physicalObject?: boolean;
+    formatUsage?: FormatUsage;
 }) {
     const [types, setTypes] = useState<string[]>([]);
     const [loadError, setLoadError] = useState(false);
     const [attempt, setAttempt] = useState(0);
+    const options = useMemo(() => mimeTypeOptions(types, formatUsage), [types, formatUsage]);
     useEffect(() => {
         let active = true;
         setLoadError(false);
@@ -190,7 +204,7 @@ export function FormatSizeField({
                             <MimeTypeSelect
                                 row={row}
                                 index={index}
-                                types={types}
+                                options={options}
                                 error={errors[`formats.${index}.value`] ?? errors[`formats.${index}.id`]}
                                 onChange={(value) =>
                                     onFormatsChange((current) =>
@@ -293,7 +307,7 @@ export function FormatSizeField({
                                 </p>
                             ) : (
                                 <div className="flex items-end gap-2">
-                                    <div className="min-w-0 flex-1 space-y-2">
+                                    <div className="flex min-w-0 flex-1 flex-col gap-2">
                                         <Label htmlFor={id}>Size {index + 1}</Label>
                                         <Input
                                             id={id}
@@ -313,7 +327,7 @@ export function FormatSizeField({
                                             }}
                                         />
                                     </div>
-                                    <div className="w-28 space-y-2">
+                                    <div className="flex w-28 shrink-0 flex-col gap-2">
                                         <Label htmlFor={`${id}-unit`}>Unit {index + 1}</Label>
                                         <Select
                                             value={normalizedSizeUnit(row.unit)}

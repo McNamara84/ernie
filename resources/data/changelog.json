@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Format and Size Editing in the Data Editor",
-                "description": "Curators can add and edit resource formats and sizes in a dedicated Format & Size section, even before configuring a landing page. Formats use a searchable catalog of all registered IANA MIME types; sizes combine a decimal number with decimal or binary units. Existing assistant values, size meanings and download assignments are preserved, while XML and JSON uploads include these fields. Format and size controls have been removed from landing-page setup. Concurrent metadata changes are detected before they can be overwritten."
+                "description": "Curators can add and edit resource formats and sizes in a dedicated Format & Size section, even before configuring a landing page. Formats use a searchable catalog of all registered IANA MIME types, displayed with familiar names and ordered by their use across ERNIE Resources. MIME types remain the stored values. Sizes combine an aligned decimal input and unit dropdown with decimal or binary units. Existing assistant values, size meanings and download assignments are preserved, while XML and JSON uploads include these fields. Format and size controls have been removed from landing-page setup. Concurrent metadata changes are detected before they can be overwritten."
             },
             {
                 "title": "DCAT-AP 3.0.1 Resource Metadata",

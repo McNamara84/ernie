@@ -61,6 +61,7 @@ import { feedback } from '@/lib/feedback';
 import { applyGeoLocationChanges, type GeoLocationChanges, snapshotWithSavedGeoLocations } from '@/lib/geo-location-save-result';
 import { identityPart, type ImportedMetadata, mergeImportedEntries } from '@/lib/imported-metadata';
 import { toImportedFormParts } from '@/lib/imported-metadata-form';
+import { EMPTY_FORMAT_USAGE } from '@/lib/mime-types';
 import { indexRorSuggestions } from '@/lib/ror-input';
 import { editor, resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
@@ -333,6 +334,7 @@ export default function DataCiteForm({
     initialMslLaboratories = [],
     initialInstruments = [],
     initialContentMetadata,
+    formatUsage = EMPTY_FORMAT_USAGE,
     initialRelatedWorks = [],
     initialRelatedItems = [],
     initialFundingReferences = [],
@@ -4337,6 +4339,7 @@ export default function DataCiteForm({
                     <AccordionContent>
                         <FormatSizeField
                             formats={contentMetadata.formats}
+                            formatUsage={formatUsage}
                             sizes={contentMetadata.sizes}
                             onFormatsChange={setFormats}
                             onSizesChange={setSizes}

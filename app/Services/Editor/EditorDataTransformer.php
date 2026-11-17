@@ -23,6 +23,7 @@ use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\InstrumentNameResolutionService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\SizeFormat\ResourceContentMetadataService;
+use App\Services\SizeFormat\ResourceFormatUsageService;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
@@ -151,6 +152,7 @@ class EditorDataTransformer
             'activeRelationTypes' => RelationType::active()->orderByName()->pluck('slug')->values()->all(),
             'activeIdentifierTypes' => IdentifierType::active()->orderByName()->pluck('slug')->values()->all(),
             'availableDatacenters' => Datacenter::orderBy('name')->get(['id', 'name'])->toArray(),
+            'formatUsage' => (object) app(ResourceFormatUsageService::class)->counts(),
         ];
     }
 
