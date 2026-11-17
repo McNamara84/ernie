@@ -57,6 +57,9 @@ const SECTION_MAP: Record<string, SectionMapping> = {
     authors: { sectionId: 'authors', sectionName: 'Authors' },
     contributors: { sectionId: 'contributors', sectionName: 'Contributors' },
     descriptions: { sectionId: 'descriptions', sectionName: 'Descriptions' },
+    formats: { sectionId: 'format-size', sectionName: 'Format & Size' },
+    sizes: { sectionId: 'format-size', sectionName: 'Format & Size' },
+    contentMetadataFingerprint: { sectionId: 'format-size', sectionName: 'Format & Size' },
     gcmdKeywords: { sectionId: 'controlled-vocabularies', sectionName: 'Controlled Vocabularies' },
     freeKeywords: { sectionId: 'free-keywords', sectionName: 'Free Keywords' },
     mslLaboratories: { sectionId: 'msl-laboratories', sectionName: 'MSL Laboratories' },
@@ -167,6 +170,10 @@ function resolveFieldSelector(backendKey: string, context: ErrorFieldMappingCont
         const [, prefix, index, subfield] = arrayMatch;
 
         switch (prefix) {
+            case 'formats':
+                return `[data-testid="format-select-${index}"]`;
+            case 'sizes':
+                return `[data-testid="${subfield === 'unit' ? 'size-unit' : 'size-value'}-${index}"]`;
             case 'titles':
                 // Main title (index 0) has a stable data-testid; secondary titles use the section
                 return subfield === 'title' && index === '0' ? '[data-testid="main-title-input"]' : null;

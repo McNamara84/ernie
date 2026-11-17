@@ -11,6 +11,7 @@ use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Editor\EditorResourceSaveService;
+use App\Services\SizeFormat\ResourceContentMetadataService;
 use App\Services\UserActivityService;
 use Database\Seeders\ContributorTypeSeeder;
 use Database\Seeders\DateTypeSeeder;
@@ -68,6 +69,7 @@ it('records autosave creation and ignores equivalent replacement rows and genera
 it('records semantic autosave edits without including metadata values', function (string $path, mixed $value, string $field) {
     [$resource] = $this->save->saveRelaxed($this->payload, $this->actor, EditorDraftSaveIntent::AUTOSAVE);
     $this->payload['resourceId'] = $resource->id;
+    $this->payload['contentMetadataFingerprint'] = app(ResourceContentMetadataService::class)->state($resource)['fingerprint'];
     data_set($this->payload, $path, $value);
     Log::spy();
     $this->save->saveRelaxed($this->payload, $this->actor, EditorDraftSaveIntent::AUTOSAVE);
@@ -88,7 +90,25 @@ it('records semantic autosave edits without including metadata values', function
     ], 'geo_locations'],
     'cleared creators' => ['authors', [], 'creators'],
     'version' => ['version', '2.0', 'version'],
+    'format' => ['formats', [['value' => 'text/csv']], 'formats'],
+    'size' => ['sizes', [['numeric_value' => '1,5', 'unit' => 'GiB', 'type' => null]], 'sizes'],
 ]);
+
+it('does not record equivalent format and size metadata as an autosave edit', function () {
+    $this->payload['formats'] = [['value' => 'text/csv']];
+    $this->payload['sizes'] = [['numeric_value' => '1.5', 'unit' => 'GiB', 'type' => null]];
+    [$resource] = $this->save->saveRelaxed($this->payload, $this->actor, EditorDraftSaveIntent::AUTOSAVE);
+    $metadata = app(ResourceContentMetadataService::class)->state($resource);
+    $this->payload = [...$this->payload, 'resourceId' => $resource->id,
+        'contentMetadataFingerprint' => $metadata['fingerprint'],
+        'formats' => $metadata['formats'],
+        'sizes' => [['id' => $metadata['sizes'][0]['id'], 'numeric_value' => '1,5000', 'unit' => 'GiB', 'type' => null]],
+    ];
+    Log::spy();
+    $this->save->saveRelaxed($this->payload, $this->actor, EditorDraftSaveIntent::AUTOSAVE);
+
+    Log::shouldNotHaveReceived('info');
+});
 
 it('records catalog selections while treating numeric string IDs as unchanged', function () {
     [$resource] = $this->save->saveRelaxed($this->payload, $this->actor, EditorDraftSaveIntent::AUTOSAVE);
@@ -171,7 +191,10 @@ it('avoids export snapshots and reuses loaded editor relations', function () {
 
     expect($narrowQueries)->toBeLessThan($exportQueries / 2)
         ->and($coldNarrowQueries)->toBeLessThan($exportQueries)
-        ->and($snapshot)->not->toHaveKeys(['igsn_metadata', 'alternate_identifiers', 'sizes', 'formats', 'related_items'])
+        ->and($snapshot)->not->toHaveKeys(['igsn_metadata', 'alternate_identifiers', 'related_items'])
+        ->and($snapshot)->toHaveKeys(['sizes', 'formats'])
+        ->and($snapshot['formats'])->toMatch('/^[a-f0-9]{64}$/')
+        ->and($snapshot['sizes'])->toMatch('/^[a-f0-9]{64}$/')
         ->and($snapshot['creators'])->toMatch('/^[a-f0-9]{64}$/');
 });
 

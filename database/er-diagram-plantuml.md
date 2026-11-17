@@ -215,6 +215,18 @@ entity "users" as users {
     updated_at : TIMESTAMP
 }
 
+entity "content_metadata_import_rows" as content_metadata_import_rows {
+    * **id** : UUID <<PK>> //opaque single-use import key//
+    --
+    user_id : BIGINT UNSIGNED <<FK>> <<INDEX>> //nullable; MySQL FK index; cascade on user deletion//
+    * kind : VARCHAR(6) //format or size//
+    * payload : JSON //original imported row//
+    * expires_at : TIMESTAMP <<INDEX>>
+}
+' content_metadata_import_rows indexes: primary(id), MySQL FK index(user_id), index(expires_at).
+' Evidence expires after 24 hours and is consumed in the resource creation transaction.
+' No created_at/updated_at columns.
+
 entity "guided_tours" as guided_tours {
     * **id** : BIGINT <<PK>>
     --
@@ -1851,6 +1863,9 @@ users ||--o{ assistant_dismissed
 resources |o--o{ relation_type_correction_reviews : "resource_id"
 related_identifiers |o--o{ relation_type_correction_reviews : "related_identifier_id"
 users |o--o{ relation_type_correction_reviews : "actor_id"
+
+' Content metadata import evidence relationships
+users |o--o{ content_metadata_import_rows : "upload evidence; cascade on user deletion"
 
 ' Guided tour relationships
 users ||--o{ guided_tours : "created_by"

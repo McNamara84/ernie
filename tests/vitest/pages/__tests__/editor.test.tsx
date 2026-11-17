@@ -96,6 +96,12 @@ describe('Editor page', () => {
         );
     });
 
+    it('passes server-derived format popularity to the live editor form', async () => {
+        const formatUsage = { 'text/csv': 12, 'application/json': 3 };
+        await render(<Editor googleMapsApiKey="test-api-key" formatUsage={formatUsage} />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ formatUsage })));
+    });
+
     it('shows loading state before types load', async () => {
         vi.mocked(fetch).mockImplementation(() => new Promise(() => {}));
         await render(<Editor googleMapsApiKey="test-api-key" />);

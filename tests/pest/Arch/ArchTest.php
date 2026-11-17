@@ -139,6 +139,7 @@ describe('Services', function () {
             'App\Services\Xml\DataCiteXmlImportParser',
             'App\Services\Xml\DataCiteXmlImportResult',
             'App\Services\Xml\Sections\AuthorSectionParser',
+            'App\Services\Xml\Sections\ContentMetadataSectionParser',
             'App\Services\Xml\Sections\ContributorSectionParser',
             'App\Services\Xml\Sections\CoverageSectionParser',
             'App\Services\Xml\Sections\DateSectionParser',
@@ -152,6 +153,8 @@ describe('Services', function () {
             'App\Services\Xml\Sections\SubjectSectionParser',
             'App\Services\Xml\Sections\TitleSectionParser',
             'App\Services\Spdx\SpdxLicenseData',
+            // Pure catalog lookup, following the existing vocabulary lookup classes.
+            'App\Services\SizeFormat\MimeTypeRegistry',
             'App\Services\Spdx\SpdxLicenseLookup',
             'App\Services\Spdx\SpdxRightsMatcher',
             'App\Services\Spdx\SpdxRightsMatchInput',

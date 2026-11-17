@@ -4,6 +4,10 @@
         "date": "2026-11-09",
         "features": [
             {
+                "title": "Format and Size Editing in the Data Editor",
+                "description": "Curators can add and edit resource formats and sizes in a dedicated Format & Size section, even before configuring a landing page. Formats use a searchable catalog of all registered IANA MIME types, displayed with familiar names and ordered by their use across ERNIE Resources. MIME types remain the stored values. Sizes combine an aligned decimal input and unit dropdown with decimal or binary units. Existing assistant values, size meanings and download assignments are preserved, while XML and JSON uploads include these fields. Format and size controls have been removed from landing-page setup. Concurrent metadata changes are detected before they can be overwritten."
+            },
+            {
                 "title": "DCAT-AP 3.0.1 Resource Metadata",
                 "description": "Eligible published resources offer the same DCAT-AP 3.0.1 RDF/XML on their landing pages and through the dcat_ap OAI-PMH format. Discovery links, distribution formats and sizes, controlled EU themes, contact details, geographic coverage and rights are included. IGSNs are excluded. A read-only audit reports missing required metadata and ambiguous licenses; persistent format-specific deletion history keeps incremental harvesting reliable. Withdrawn resources retain metadata without direct downloads. Offline RDF parser and SHACL checks cover real and synthetic datasets. The format has an independent feature flag and a documented audit and synchronization rollout.",
                 "references": [
@@ -85,6 +89,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Resource Format and Size Import Validation",
+                "description": "Import exceptions for legacy formats and size meanings now use server-side, user-bound evidence that expires after 24 hours and is consumed once when creating a resource. Tokens cannot authorize changes on existing resources or be replayed after a successful save. Failed saves roll back consumption so imports remain retryable. Format popularity caching now uses the central cache-key registry with consistent expiry and tagged or untagged invalidation."
+            },
             {
                 "title": "DCAT-AP Harvest Recovery for Missing Resources",
                 "description": "Synchronization and OAI-PMH requests recover from missing resource links in DCAT-AP history. Orphaned records return persistent deleted headers without crashing GetRecord or repeatedly blocking fresh harvests. Affected pagination tokens require a restart, while unrelated harvests remain valid. Eligible resources regain detached history links even when their metadata is unchanged."

@@ -1821,6 +1821,67 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'formats-sizes',
+                title: 'Format & Size',
+                icon: FileText,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Editing Resource Formats and Sizes</h3>
+                        <p>
+                            In the Data Editor (<code>/editor</code>), open <strong>Format &amp; Size</strong> to describe the resource&apos;s file
+                            formats and digital sizes. This optional section is available to Curators, Group Leaders and Admins, and to Beginners in
+                            the training workflow. You can save these values before creating a landing page or adding a download URL. Formats and
+                            sizes are independent lists; a format does not need a matching size entry.
+                        </p>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Choose formats">
+                                <p>
+                                    Choose <strong>Add format</strong> and search by a familiar name such as <strong>CSV</strong> or by its MIME type,
+                                    such as <code>text/csv</code>. The dropdown includes all registered IANA MIME types, with the most frequently used
+                                    formats across ERNIE Resources first. Each option shows a readable name and its MIME type; ERNIE saves the MIME
+                                    type. Add another row for each distinct format, or remove a row you no longer need.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Enter sizes and units">
+                                <p>
+                                    Choose <strong>Add size</strong>, enter a positive number in <strong>Size</strong>, and select its{' '}
+                                    <strong>Unit</strong>. Decimal commas and points are accepted, for example <strong>1,5 GiB</strong> or{' '}
+                                    <strong>1.5 GiB</strong>. Units include B, kB, MB, GB, TB and PB, plus the binary units KiB, MiB, GiB, TiB and
+                                    PiB. Decimal and binary units have different meanings; choose the unit reported for your data. Add or remove
+                                    digital size rows as needed.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Save and review">
+                                <p>
+                                    For an unpublished resource, use <strong>Save Draft</strong> to keep your changes while continuing curation. For a
+                                    published resource, use <strong>Update Metadata</strong> and review the confirmation. Reopen the same resource to
+                                    review its saved formats and sizes. If another editor or the assistance workflow changed these values, reload the
+                                    resource and review the changes before saving again.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+                        <h4>Legacy and Imported Values</h4>
+                        <p>
+                            Existing formats outside the IANA catalog remain visible and can be kept, removed, or replaced with a registered MIME
+                            type. XML, JSON and JSON-LD uploads preserve their original formats and size descriptions. The regular format dropdown
+                            accepts registered MIME types for new entries; keeping an imported legacy value does not make it a new dropdown option.
+                        </p>
+                        <p>
+                            Values already stored by the Format and Size Suggestion Assistant appear here too. Meaning labels such as{' '}
+                            <strong>Uncompressed Primary Data Size</strong> stay attached when you edit a digital size&apos;s number or unit. Physical
+                            measurements and unstructured imported sizes remain visible as read-only values and are preserved when saving.
+                        </p>
+                        <h4>Landing-Page Setup</h4>
+                        <p>
+                            The <strong>Set up landing page</strong> dialog configures URLs, button labels and layout. Edit resource formats and sizes
+                            in <strong>Format &amp; Size</strong> in the Data Editor. Existing download-file assignments are retained. A resource
+                            size, including an archive&apos;s uncompressed contents, is not automatically assigned as a download file&apos;s size.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'resource-types',
                 title: 'Resource Types',
                 icon: Layers,
@@ -3026,8 +3087,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             The optional <strong>Button label</strong> defaults to <strong>Download data and description</strong>. Imported files take
-                            precedence over the primary URL and retain their read-only URLs, editable labels, formats and sizes. Empty labels use the
-                            default label for a single file or numbered labels such as <strong>Download (1)</strong> for several files.
+                            precedence over the primary URL and retain their read-only URLs and existing format and size assignments. Their button
+                            labels remain editable. Edit resource formats and sizes in the Data Editor&apos;s <strong>Format &amp; Size</strong>
+                            section; landing-page setup no longer contains these fields. Empty labels use the default label for a single file or
+                            numbered labels such as <strong>Download (1)</strong> for several files.
                         </p>
                         <p>
                             Previously hidden downloads remain hidden. For these records, choose <strong>Activate downloads</strong> and save to make

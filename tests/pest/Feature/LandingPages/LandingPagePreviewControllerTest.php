@@ -48,7 +48,7 @@ describe('Session Preview Creation', function () {
             ->toHaveKey('resource_id', $this->resource->id);
     });
 
-    test('uses the existing primary URL when preview descriptors are submitted without ftp_url', function () {
+    test('preserves existing primary descriptors and ignores stale preview values', function () {
         LandingPage::factory()->draft()->create([
             'resource_id' => $this->resource->id,
             'template' => 'default_gfz',
@@ -57,10 +57,11 @@ describe('Session Preview Creation', function () {
         $format = $this->resource->formats()->create(['value' => 'application/zip']);
         $size = $this->resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MiB']);
 
+        $this->resource->landingPage()->update(['ftp_format_id' => $format->id, 'ftp_size_id' => $size->id]);
         $this->postJson('/resources/'.$this->resource->id.'/landing-page/preview', [
             'template' => 'default_gfz',
-            'ftp_format_id' => $format->id,
-            'ftp_size_id' => $size->id,
+            'ftp_format_id' => null,
+            'ftp_size_id' => 999999,
         ])->assertCreated();
 
         $sessionData = Session::get('landing_page_preview.'.$this->resource->id);

@@ -6,6 +6,12 @@ use App\Enums\CacheKey;
 
 covers(CacheKey::class);
 
+it('centralizes editor format usage with one minute retention and an independent tag', function () {
+    expect(CacheKey::EDITOR_FORMAT_USAGE->key())->toBe('editor:resource-format-usage:v1')
+        ->and(CacheKey::EDITOR_FORMAT_USAGE->ttl())->toBe(60)
+        ->and(CacheKey::EDITOR_FORMAT_USAGE->tags())->toBe(['editor_format_usage']);
+});
+
 it('retains editor date type usage for seven days independently of resource caches', function () {
     expect(CacheKey::EDITOR_DATE_TYPE_USAGE->key())->toBe('editor:date_type_usage:v1')
         ->and(CacheKey::EDITOR_DATE_TYPE_USAGE->ttl())->toBe(604800)

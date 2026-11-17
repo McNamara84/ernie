@@ -15,7 +15,6 @@ use App\Models\LandingPageTemplate;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\LandingPageContentDescriptorOptionsService;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\PortalCacheInvalidationService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -383,7 +382,6 @@ class LandingPageTemplateController extends Controller
     public function options(
         Resource $resource,
         LandingPageTemplateResolverService $resolver,
-        LandingPageContentDescriptorOptionsService $descriptorOptions,
     ): JsonResponse {
         $this->authorize('view', $resource);
 
@@ -426,7 +424,6 @@ class LandingPageTemplateController extends Controller
             'automatic_template' => $automatic['template']->only(['id', 'name', 'slug']),
             'automatic_source' => $automatic['source'],
             'supports_datacenter_inheritance' => $supportsDatacenterInheritance,
-            ...$descriptorOptions->for($resource),
         ]);
     }
 

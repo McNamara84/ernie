@@ -7,6 +7,7 @@ namespace App\Http\Requests;
 use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Concerns\AuthorizesResourceDoiChanges;
+use App\Http\Requests\Concerns\ValidatesContentMetadata;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Http\Requests\Concerns\ValidatesRelatedItems;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
@@ -37,6 +38,7 @@ use Illuminate\Validation\Validator;
 class StoreDraftResourceRequest extends FormRequest
 {
     use AuthorizesResourceDoiChanges;
+    use ValidatesContentMetadata;
     use ValidatesEditorDates;
     use ValidatesRelatedItems;
     use ValidatesTemporalCoverages;
@@ -64,6 +66,7 @@ class StoreDraftResourceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...$this->contentMetadataRules(),
             'intent' => ['required', Rule::enum(EditorDraftSaveIntent::class)],
             'resourceId' => ['nullable', 'integer', Rule::exists('resources', 'id')],
             'doi' => [
