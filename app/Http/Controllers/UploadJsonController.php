@@ -21,6 +21,8 @@ use App\Services\InstrumentNameResolutionService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
+use App\Services\SizeFormat\ContentMetadataImportEvidenceService;
+use App\Services\SizeFormat\ContentMetadataImportService;
 use App\Services\TemporalCoverageValueService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\DataCiteRelatedItemNormalizerService;
@@ -257,6 +259,8 @@ class UploadJsonController extends Controller
             'coverages' => $coverages,
             'relatedWorks' => $relatedWorks,
             'relatedItems' => $relatedItems,
+            'formats' => app(ContentMetadataImportService::class)->formats($attributes['formats'] ?? []),
+            'sizes' => app(ContentMetadataImportService::class)->sizes($attributes['sizes'] ?? []),
             'instruments' => $instruments,
             'controlledKeywords' => $subjects->controlledKeywords,
             'freeKeywords' => $subjects->freeKeywords,
@@ -266,6 +270,8 @@ class UploadJsonController extends Controller
         ];
 
         if ($request->routeIs('editor.upload-json.preview')) {
+            $sessionPayload = app(ContentMetadataImportEvidenceService::class)->issue($sessionPayload, $request->user()?->id);
+
             return response()->json([
                 'success' => true,
                 'metadata' => $sessionPayload,

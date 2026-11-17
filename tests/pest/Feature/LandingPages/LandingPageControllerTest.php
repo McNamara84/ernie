@@ -8,7 +8,6 @@ use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
-use App\Models\ResourceType;
 use App\Models\User;
 use App\Policies\LandingPagePolicy;
 use Illuminate\Contracts\Cache\Repository;
@@ -414,136 +413,62 @@ describe('Landing Page Updates', function () {
     });
 });
 
-describe('Landing Page content descriptors', function () {
-    test('persists exact primary format and size references and exposes selectable options', function () {
-        $format = $this->resource->formats()->create(['value' => '.ZIP']);
-        $size = $this->resource->sizes()->create(['numeric_value' => 1.5, 'unit' => 'MiB']);
-
-        $response = $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
-            'template' => 'default_gfz',
-            'ftp_url' => 'https://downloads.example.org/data.zip',
-            'ftp_format_id' => $format->id,
-            'ftp_size_id' => $size->id,
-            'status' => 'draft',
-        ])->assertCreated();
-
-        $response->assertJsonPath('landing_page.ftp_format_id', $format->id)
-            ->assertJsonPath('landing_page.ftp_size_id', $size->id)
-            ->assertJsonPath('landing_page.available_formats.0.value', 'application/zip')
-            ->assertJsonPath('landing_page.available_sizes.0.content_size', '1572864');
-    });
-
-    test('updates primary descriptors against the existing URL without allowing an explicit URL clear', function () {
-        $landingPage = LandingPage::factory()->draft()->create([
-            'resource_id' => $this->resource->id,
-            'template' => 'default_gfz',
-            'ftp_url' => 'https://downloads.example.org/existing.zip',
-        ]);
+describe('Editor-owned landing page content descriptors', function () {
+    test('ignores old modal descriptors and no longer exposes selector options', function () {
         $format = $this->resource->formats()->create(['value' => 'application/zip']);
         $size = $this->resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MiB']);
-
-        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
-            'ftp_format_id' => $format->id,
-            'ftp_size_id' => $size->id,
-        ])->assertOk();
-
-        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/existing.zip')
-            ->and($landingPage->fresh()->ftp_format_id)->toBe($format->id)
-            ->and($landingPage->fresh()->ftp_size_id)->toBe($size->id);
-
-        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
-            'ftp_url' => null,
-            'ftp_format_id' => $format->id,
-        ])->assertJsonValidationErrors(['ftp_format_id']);
-
-        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/existing.zip');
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz', 'ftp_url' => 'https://example.org/data.zip',
+            'ftp_format_id' => $format->id, 'ftp_size_id' => $size->id,
+        ])->assertCreated()->assertJsonPath('landing_page.ftp_format_id', null)
+            ->assertJsonPath('landing_page.ftp_size_id', null)
+            ->assertJsonMissingPath('landing_page.available_formats')->assertJsonMissingPath('landing_page.available_sizes');
     });
 
-    test('rejects foreign, invalid, and URL-less primary descriptors', function () {
-        $other = Resource::factory()->create();
-        $foreignFormat = $other->formats()->create(['value' => 'application/zip']);
-        $foreignSize = $other->sizes()->create(['numeric_value' => 2, 'unit' => 'MB']);
-
-        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
-            'template' => 'default_gfz',
-            'ftp_url' => 'https://downloads.example.org/data.zip',
-            'ftp_format_id' => $foreignFormat->id,
-            'ftp_size_id' => $foreignSize->id,
-        ])->assertJsonValidationErrors(['ftp_format_id', 'ftp_size_id']);
-
+    test('preserves primary and imported-file assignments across stale modal updates', function () {
         $format = $this->resource->formats()->create(['value' => 'application/zip']);
-        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
-            'template' => 'default_gfz',
-            'ftp_format_id' => $format->id,
-        ])->assertJsonValidationErrors(['ftp_format_id']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MiB']);
+        $page = LandingPage::factory()->for($this->resource)->draft()->create([
+            'template' => 'default_gfz', 'ftp_url' => 'https://example.org/data.zip',
+            'ftp_format_id' => $format->id, 'ftp_size_id' => $size->id,
+        ]);
+        $file = $page->files()->create(['url' => 'https://example.org/data.nc', 'position' => 0, 'format_id' => $format->id, 'size_id' => $size->id]);
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
+            'primary_download_label' => 'New primary label', 'ftp_format_id' => null, 'ftp_size_id' => 999999,
+            'files' => [['id' => $file->id, 'label' => 'New file label', 'format_id' => null, 'size_id' => null]],
+        ])->assertOk();
+        expect($page->fresh()->ftp_format_id)->toBe($format->id)->and($page->fresh()->ftp_size_id)->toBe($size->id)
+            ->and($file->fresh()->format_id)->toBe($format->id)->and($file->fresh()->size_id)->toBe($size->id)
+            ->and($file->fresh()->label)->toBe('New file label');
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', ['ftp_url' => null])->assertOk();
+        expect($page->fresh()->ftp_format_id)->toBeNull()->and($page->fresh()->ftp_size_id)->toBeNull();
     });
 
-    test('rejects descriptors on non-download links', function () {
+    test('retains stable link IDs and assignments when labels and order change', function () {
+        $page = LandingPage::factory()->for($this->resource)->draft()->create(['template' => 'default_gfz']);
         $format = $this->resource->formats()->create(['value' => 'text/csv']);
-        $size = $this->resource->sizes()->create(['numeric_value' => 12, 'unit' => 'kB']);
-
-        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
-            'template' => 'default_gfz',
-            'links' => [[
-                'url' => 'https://example.org/project',
-                'label' => 'Project',
-                'kind' => 'repository',
-                'position' => 0,
-                'format_id' => $format->id,
-                'size_id' => $size->id,
-            ]],
-        ])->assertJsonValidationErrors(['links.0.format_id', 'links.0.size_id']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 2, 'unit' => 'kB']);
+        $first = $page->links()->create(['url' => 'https://example.org/a.csv', 'label' => 'A', 'kind' => 'download', 'position' => 0, 'format_id' => $format->id, 'size_id' => $size->id]);
+        $second = $page->links()->create(['url' => 'https://example.org/b.csv', 'label' => 'B', 'kind' => 'download', 'position' => 1]);
+        $links = [
+            ['id' => $second->id, 'url' => $second->url, 'label' => 'B edited', 'kind' => 'download', 'position' => 0],
+            ['id' => $first->id, 'url' => $first->url, 'label' => 'A edited', 'kind' => 'download', 'position' => 1, 'format_id' => null, 'size_id' => null],
+        ];
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', ['links' => $links])->assertOk();
+        expect($first->fresh()->position)->toBe(1)->and($first->fresh()->format_id)->toBe($format->id)->and($first->fresh()->size_id)->toBe($size->id)
+            ->and($second->fresh()->position)->toBe(0)->and($page->links()->count())->toBe(2);
+        $links[1]['kind'] = 'related';
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', ['links' => $links])->assertOk();
+        expect($first->fresh()->format_id)->toBeNull()->and($first->fresh()->size_id)->toBeNull();
     });
 
-    test('rejects every digital size reference for IGSNs', function () {
-        $physicalObject = ResourceType::firstOrCreate(
-            ['slug' => 'physical-object'],
-            ['name' => 'Physical Object', 'is_active' => true],
-        );
-        $this->resource->update(['resource_type_id' => $physicalObject->id]);
-        $size = $this->resource->sizes()->create(['numeric_value' => 4, 'unit' => 'MB']);
-
-        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
-            'template' => 'default_gfz',
-            'ftp_url' => 'https://downloads.example.org/data.zip',
-            'ftp_size_id' => $size->id,
-        ])->assertJsonValidationErrors(['ftp_size_id']);
-    });
-
-    test('updates descriptors for an imported landing page file', function () {
-        $landingPage = LandingPage::factory()->draft()->create([
-            'resource_id' => $this->resource->id,
-            'template' => 'default_gfz',
-        ]);
-        $file = $landingPage->files()->create([
-            'url' => 'https://downloads.example.org/imported.nc',
-            'position' => 0,
-        ]);
-        $format = $this->resource->formats()->create(['value' => 'application/x-netcdf']);
-        $size = $this->resource->sizes()->create(['numeric_value' => 8, 'unit' => 'MiB']);
-
-        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
-            'template' => 'default_gfz',
-            'files' => [[
-                'id' => $file->id,
-                'label' => '  Download imported NetCDF data  ',
-                'format_id' => $format->id,
-                'size_id' => $size->id,
-            ]],
-        ])->assertOk();
-
-        expect($file->fresh()->label)->toBe('Download imported NetCDF data')
-            ->and($file->fresh()->url)->toBe('https://downloads.example.org/imported.nc')
-            ->and($file->fresh()->format_id)->toBe($format->id)
-            ->and($file->fresh()->size_id)->toBe($size->id);
-
-        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
-            'template' => 'default_gfz',
-            'files' => [['id' => $file->id]],
-        ])->assertOk();
-
-        expect($file->fresh()->label)->toBe('Download imported NetCDF data')
-            ->and($file->fresh()->url)->toBe('https://downloads.example.org/imported.nc');
+    test('rejects foreign and repeated link IDs', function () {
+        $page = LandingPage::factory()->for($this->resource)->draft()->create(['template' => 'default_gfz']);
+        $otherPage = LandingPage::factory()->draft()->create();
+        $other = $otherPage->links()->create(['url' => 'https://example.org/foreign', 'label' => 'Foreign', 'kind' => 'download', 'position' => 0]);
+        $row = ['id' => $other->id, 'url' => $other->url, 'label' => 'Foreign', 'kind' => 'download', 'position' => 0];
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', ['links' => [$row]])->assertUnprocessable()->assertJsonValidationErrors('links.0.id');
+        expect($page->links()->count())->toBe(0)->and($other->fresh())->not->toBeNull();
     });
 });
 

@@ -6,6 +6,7 @@ namespace App\Services\Xml;
 
 use App\Services\Imports\ContactPersonImportService;
 use App\Services\Xml\Sections\AuthorSectionParser;
+use App\Services\Xml\Sections\ContentMetadataSectionParser;
 use App\Services\Xml\Sections\ContributorSectionParser;
 use App\Services\Xml\Sections\CoverageSectionParser;
 use App\Services\Xml\Sections\DateSectionParser;
@@ -30,6 +31,7 @@ final readonly class DataCiteXmlImportParser
     public function __construct(
         private ContactPersonImportService $contactPersonResolver,
         private IdentifierSectionParser $identifierParser,
+        private ContentMetadataSectionParser $contentMetadataParser,
         private TitleSectionParser $titleParser,
         private RightsSectionParser $rightsParser,
         private AuthorSectionParser $authorParser,
@@ -87,6 +89,8 @@ final readonly class DataCiteXmlImportParser
         $fundingReferences = $this->fundingReferenceParser->parse($reader);
         $relatedItems = $this->relatedItemParser->parse($reader);
 
+        $contentMetadata = $this->contentMetadataParser->parse($reader);
+
         return new DataCiteXmlImportResult(
             doi: $identifierData['doi'],
             year: $identifierData['year'],
@@ -108,6 +112,8 @@ final readonly class DataCiteXmlImportParser
             fundingReferences: $fundingReferences,
             mslLaboratories: $mslLaboratories,
             relatedItems: $relatedItems,
+            formats: $contentMetadata['formats'],
+            sizes: $contentMetadata['sizes'],
         );
     }
 }

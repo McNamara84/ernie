@@ -404,6 +404,63 @@ bind-mount reads. PHPStan also inherits the 2 GB PHP configuration when its
 analyzer restarts or launches workers. Run these wrappers sequentially because
 they share that workspace.
 
+## Resource formats and sizes
+
+The Data Editor has an optional **Format & Size** section. Formats and sizes are
+independent resource metadata lists, using the same `formats` and `sizes` records
+as the Format and Size Suggestion Assistant. They can be saved before a landing
+page or download URL exists. Each format uses a searchable IANA MIME-type list;
+each digital size uses a decimal input and a separate decimal or binary unit.
+Decimal commas and points are accepted, with up to 16 integer digits and four
+decimal places. Values are transported as strings to preserve precision.
+
+The format picker shows familiar names such as **CSV**, **JSON** and **Excel (XLSX)**,
+with the MIME type underneath for disambiguation. Both names and MIME types are
+searchable; persistence still uses the MIME type. Options are ordered by the
+number of ERNIE Resources using that format, then alphabetically by display name
+and MIME type. Each resource contributes at most once per normalized format,
+including legacy aliases such as `CSV` and MIME values with parameters. IGSN
+Physical Objects are excluded, matching the Resources workspace. Counts are
+cached for one minute and supplied when an editor is loaded. Unused formats
+remain available in the same complete IANA catalog.
+
+Existing non-IANA formats remain visible and can be preserved or deliberately
+replaced. Assistant size meanings such as **Uncompressed Primary Data Size** are
+retained when their numeric value changes. Physical and unstructured size
+metadata remains visible and is preserved. XML, JSON and JSON-LD uploads carry
+these values into the editor. Import evidence is stored server-side, belongs to
+the uploading user, and expires after 24 hours. Each row can be consumed once,
+only while creating a resource. Consumption shares the resource transaction, so
+a failed save can be retried. Existing resources preserve their stored legacy
+rows by ID; upload tokens cannot authorize new exceptions on other resources.
+This permits imported free-text metadata without allowing arbitrary new format
+entries in the regular field. Deployments must run the migration that creates
+`content_metadata_import_rows` before accepting uploads.
+
+Landing-page setup edits URLs, button labels and layout. It no longer edits
+formats or sizes. Existing download assignments retain their record IDs across
+editor changes, label changes and link reordering. Resource sizes, including
+uncompressed archive contents, are not automatically assigned as download file
+sizes. A stale editor snapshot cannot overwrite newer assistant or editor
+metadata; reload the resource and review the changes if a conflict is reported.
+
+The complete local MIME catalog is `resources/data/iana-media-types.json`.
+Its source is the official [IANA Media Types registry](https://www.iana.org/assignments/media-types/).
+The initial snapshot was retrieved on 2026-11-16 from the registry dated
+2026-11-10. The JSON records the source URL, registry date and source SHA-256.
+Editing does not require an external registry request. To update the catalog:
+
+```sh
+npm run artisan -- mime-types:update
+# Alternatively, process a previously downloaded complete IANA XML snapshot:
+npm run artisan -- mime-types:update --source=/var/www/html/path/to/media-types.xml
+```
+
+In Windows PowerShell, use `npm.cmd` for commands with forwarded options.
+The updater validates the registry and atomically replaces the catalog only
+after a successful complete parse. Review and commit the resulting JSON.
+No database migration is required for the editor fields.
+
 ## Environment Files
 
 JSON-LD exports use `APP_URL` as their canonical public origin. The versioned context

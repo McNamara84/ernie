@@ -593,6 +593,27 @@ browser server constrained to two CPUs, then verify the complete CI shards.
 Preserve the real backdrop styling, actionability checks and existing
 timeouts/retries when checking the replacement version.
 
+### Firefox DCAT accessibility scans
+
+The pinned Linux Firefox can crash during an Axe scan of the responsive DataCite
+logo in the metadata-download panel. The DCAT browser spec therefore audits the
+complete DCAT label-and-download group in Firefox. Chromium and WebKit retain
+the whole metadata-panel scan. Every browser separately verifies the DataCite
+logo's accessible name, visibility, successful loading and positive intrinsic
+width. Both viewport widths and both color schemes remain covered, using the
+default Axe rule set for each scan target.
+
+Keep this scope difference explicit: the Firefox audit does not cover the other
+metadata-download groups. Do not broaden it again without verifying the pinned
+Linux browser, including video and repeated execution:
+
+```bash
+npm run test:e2e:devstack -- critical/landing-page-dcat-ap.spec.ts --project=firefox --workers=2 --repeat-each=5 --trace=on
+```
+
+Use production assets and the Linux browser-server setup described below when
+reproducing this CI failure from Windows.
+
 ### Curation rendering budget
 
 `workflows/curation-performance.spec.ts` checks the first 50 of 300 curations

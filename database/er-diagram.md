@@ -190,6 +190,17 @@ erDiagram
         timestamp updated_at
     }
 
+    content_metadata_import_rows {
+        uuid id PK "opaque single-use import key"
+        bigint_unsigned user_id FK "nullable; MySQL FK index; cascade on user deletion"
+        varchar kind "6 chars; format or size"
+        json payload "original imported row"
+        timestamp expires_at "indexed"
+    }
+    %% content_metadata_import_rows indexes: primary(id), MySQL FK index(user_id), index(expires_at).
+    %% Evidence expires after 24 hours and is consumed in the resource creation transaction.
+    %% No created_at/updated_at columns.
+
     guided_tours {
         bigint id PK
         varchar key
@@ -1709,6 +1720,9 @@ erDiagram
     resources |o--o{ relation_type_correction_reviews : "reviewed resource"
     related_identifiers |o--o{ relation_type_correction_reviews : "reviewed identifier"
     users |o--o{ relation_type_correction_reviews : "reviewed by"
+
+    %% Content metadata import evidence relationships
+    users |o--o{ content_metadata_import_rows : "upload evidence; cascade on user deletion"
 
     %% Guided tour relationships
     users ||--o{ guided_tours : "creates"
