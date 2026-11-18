@@ -8,6 +8,10 @@ This is the **Core only** development schema, pinned to upstream commit [`321df7
 
 The canonical public schema is **`https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd`**. Exported XML uses `xsi:schemaLocation="urn:FAIR-AIMS:Core:1 <APP_URL>/schemas/igsn/2.0/core.xsd"`; landing-page discovery uses the same profile URL. The namespace is unchanged.
 
+The DataCite JSON Schema and JSON-LD context use the same publication pattern;
+see [public schema URLs and validation instructions](../resources/data/scheme/datacite/4.7/v1/README.md). Cross-origin browser
+access is enabled for the IGSN entry point and its dependencies as well.
+
 The short URL follows the revision selected in `config/igsn_core.php`. The current fixed entry point is `/schemas/igsn/2.0/preview-1/core.xsd`. Both directories expose the same relative dependencies, `manifest.json` and `README.md`. GET/HEAD are anonymous, with SHA-256 ETags and no session cookies. Short URLs use `Cache-Control: public, no-cache` so updates are revalidated; fixed revision URLs use `public, max-age=31536000, immutable`. Unknown files/revisions return 404. The old `/schemas/igsn/2.0/core/<commit>/` URLs have been removed without redirects before the Production release.
 
 Portable files live at `resources/data/scheme/igsn-core/2.0/preview-1/`. The Core file is renamed to `core.xsd`, and its Windows-local DataCite import is replaced by `DataCite4.7/metadata.xsd`. These are the only changes: all declarations and constraints are preserved. The other twelve XSDs are the upstream **modified** DataCite4.7 schema and its eleven dependencies, copied byte for byte. ERNIE's ordinary DataCite schema is not substituted. The portable manifest records published checksums and sizes, upstream checksums, source URLs and the source commit. Original files and documentation remain in the local `<commit>/upstream/` archive with their original manifest. `.gitattributes` and formatter exclusions preserve both originals and portable revisions.
