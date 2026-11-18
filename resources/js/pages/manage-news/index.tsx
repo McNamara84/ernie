@@ -18,8 +18,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -76,8 +78,6 @@ function berlinTime(value: string | null): string {
           })
         : '—';
 }
-
-const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 function InputError({ message }: { message?: string }) {
     return message ? <p className="text-sm text-destructive">{message}</p> : null;
@@ -268,15 +268,13 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="news-kind">Type</Label>
-                                    <select
-                                        id="news-kind"
-                                        className={selectClass}
+                                    <Select
                                         value={draft.kind}
                                         disabled={busy || editing?.id === active_news_id || editing?.is_scheduled}
-                                        onChange={(event) =>
+                                        onValueChange={(value) =>
                                             setDraft({
                                                 ...draft,
-                                                kind: event.target.value as Draft['kind'],
+                                                kind: value as Draft['kind'],
                                                 starts_at: '',
                                                 ends_at: '',
                                                 starts_at_offset: '',
@@ -284,9 +282,14 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                             })
                                         }
                                     >
-                                        <option value="regular">Regular news</option>
-                                        <option value="temporary">Temporary announcement</option>
-                                    </select>
+                                        <SelectTrigger id="news-kind" aria-invalid={Boolean(errors.kind)}>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="regular">Regular news</SelectItem>
+                                            <SelectItem value="temporary">Temporary announcement</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <InputError message={errors.kind} />
                                 </div>
                                 <div className="space-y-2">
@@ -333,17 +336,22 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                                     <Label htmlFor={`news-${field}-offset`}>
                                                         {field === 'starts_at' ? 'Start' : 'End'} UTC offset
                                                     </Label>
-                                                    <select
-                                                        id={`news-${field}-offset`}
-                                                        className={selectClass}
-                                                        value={draft[`${field}_offset`]}
+                                                    <Select
+                                                        value={draft[`${field}_offset`] || 'automatic'}
                                                         disabled={busy}
-                                                        onChange={(event) => setDraft({ ...draft, [`${field}_offset`]: event.target.value })}
+                                                        onValueChange={(value) =>
+                                                            setDraft({ ...draft, [`${field}_offset`]: value === 'automatic' ? '' : value })
+                                                        }
                                                     >
-                                                        <option value="">Automatic (unambiguous times)</option>
-                                                        <option value="+02:00">+02:00 · Summer time (first occurrence)</option>
-                                                        <option value="+01:00">+01:00 · Standard time (second occurrence)</option>
-                                                    </select>
+                                                        <SelectTrigger id={`news-${field}-offset`} aria-invalid={Boolean(errors[`${field}_offset`])}>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="automatic">Automatic (unambiguous times)</SelectItem>
+                                                            <SelectItem value="+02:00">+02:00 · Summer time (first occurrence)</SelectItem>
+                                                            <SelectItem value="+01:00">+01:00 · Standard time (second occurrence)</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                     <InputError message={errors[`${field}_offset`]} />
                                                 </div>
                                             </div>
@@ -390,10 +398,10 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                 <section aria-label="Saved news" className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <h2 className="text-lg font-semibold">Saved news</h2>
-                        <label className="flex items-center gap-2 text-sm">
-                            <input type="checkbox" checked={showArchive} onChange={(event) => setShowArchive(event.target.checked)} />
-                            Show archived news
-                        </label>
+                        <div className="flex items-center gap-2">
+                            <Checkbox id="news-show-archive" checked={showArchive} onCheckedChange={(checked) => setShowArchive(checked === true)} />
+                            <Label htmlFor="news-show-archive">Show archived news</Label>
+                        </div>
                     </div>
                     <div className="overflow-x-auto rounded-md border">
                         <Table>

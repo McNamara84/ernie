@@ -24,6 +24,11 @@ vi.mock('axios', () => ({
 let serverProps: NewsManagementProps;
 const row = (title: string) => within(screen.getByRole('row', { name: new RegExp(title) }));
 
+async function chooseOption(user: ReturnType<typeof userEvent.setup>, label: string, option: string) {
+    await user.click(screen.getByRole('combobox', { name: label }));
+    await user.click(screen.getByRole('option', { name: option }));
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
     serverProps = structuredClone(newsManagementProps);
@@ -120,10 +125,10 @@ describe('News management', () => {
         render(<ManageNews {...serverProps} />);
         await user.click(row('Maintenance').getByRole('button', { name: 'Edit' }));
         expect(screen.getByLabelText('Start (Europe/Berlin)')).toHaveValue('2030-07-15T12:00');
-        expect(screen.getByLabelText('Start UTC offset')).toHaveValue('+02:00');
+        expect(screen.getByRole('combobox', { name: 'Start UTC offset' })).toHaveTextContent('+02:00');
         fireEvent.change(screen.getByLabelText('Start (Europe/Berlin)'), { target: { value: '2030-07-15T11:00' } });
-        expect(screen.getByLabelText('Start UTC offset')).toHaveValue('');
-        await user.selectOptions(screen.getByLabelText('Start UTC offset'), '+02:00');
+        expect(screen.getByRole('combobox', { name: 'Start UTC offset' })).toHaveTextContent('Automatic (unambiguous times)');
+        await chooseOption(user, 'Start UTC offset', '+02:00 · Summer time (first occurrence)');
         await user.click(screen.getByRole('button', { name: 'Save changes' }));
         await waitFor(() =>
             expect(mocks.request).toHaveBeenCalledWith(
@@ -137,6 +142,118 @@ describe('News management', () => {
                 }),
             ),
         );
+    });
+
+    it('creates temporary drafts through the shared type and UTC offset controls', async () => {
+        const user = userEvent.setup();
+        render(<ManageNews {...serverProps} />);
+        await user.type(screen.getByLabelText('Title'), 'Clock change maintenance');
+        await user.type(screen.getByLabelText('News text (Markdown)'), 'One hour of maintenance.');
+        await chooseOption(user, 'Type', 'Temporary announcement');
+        fireEvent.change(screen.getByLabelText('Start (Europe/Berlin)'), { target: { value: '2030-10-27T02:30' } });
+        fireEvent.change(screen.getByLabelText('End (Europe/Berlin)'), { target: { value: '2030-10-27T02:30' } });
+        await chooseOption(user, 'Start UTC offset', '+02:00 · Summer time (first occurrence)');
+        await chooseOption(user, 'End UTC offset', '+01:00 · Standard time (second occurrence)');
+        await user.click(screen.getByRole('button', { name: 'Save draft' }));
+
+        await waitFor(() =>
+            expect(mocks.request).toHaveBeenCalledWith({
+                url: '/manage-news',
+                method: 'post',
+                data: expect.objectContaining({
+                    kind: 'temporary',
+                    starts_at: '2030-10-27T02:30',
+                    ends_at: '2030-10-27T02:30',
+                    starts_at_offset: '+02:00',
+                    ends_at_offset: '+01:00',
+                }),
+            }),
+        );
+    });
+
+    it('sends empty offsets when automatic resolution is selected instead of the UI option value', async () => {
+        const user = userEvent.setup();
+        mocks.request.mockResolvedValue({ data: { id: 3 } });
+        render(<ManageNews {...serverProps} />);
+        await user.click(row('Maintenance').getByRole('button', { name: 'Edit' }));
+        await chooseOption(user, 'Start UTC offset', 'Automatic (unambiguous times)');
+        await chooseOption(user, 'End UTC offset', 'Automatic (unambiguous times)');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        await waitFor(() =>
+            expect(mocks.request).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ starts_at_offset: '', ends_at_offset: '' }),
+                }),
+            ),
+        );
+    });
+
+    it('clears the old period and UTC offsets when changing a temporary draft to regular news', async () => {
+        const user = userEvent.setup();
+        render(<ManageNews {...serverProps} />);
+        await user.click(row('Maintenance').getByRole('button', { name: 'Edit' }));
+        await chooseOption(user, 'Type', 'Regular news');
+        expect(screen.queryByLabelText('Start (Europe/Berlin)')).not.toBeInTheDocument();
+        expect(screen.queryByRole('combobox', { name: 'Start UTC offset' })).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        await waitFor(() =>
+            expect(mocks.request).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ kind: 'regular', starts_at: '', ends_at: '', starts_at_offset: '', ends_at_offset: '' }),
+                }),
+            ),
+        );
+    });
+
+    it('selects the news type with the keyboard and returns focus to the shared trigger', async () => {
+        const user = userEvent.setup();
+        render(<ManageNews {...serverProps} />);
+        const type = screen.getByRole('combobox', { name: 'Type' });
+        act(() => type.focus());
+        await user.keyboard('{Enter}');
+        await waitFor(() => expect(screen.getByRole('option', { name: 'Regular news' })).toHaveFocus());
+        await user.keyboard('{End}{Enter}');
+        expect(type).toHaveTextContent('Temporary announcement');
+        await waitFor(() => expect(type).toHaveFocus());
+        expect(screen.getByLabelText('Start (Europe/Berlin)')).toBeVisible();
+    });
+
+    it('disables all shared editor selects while saving and re-enables them afterward', async () => {
+        const user = userEvent.setup();
+        let finishSave!: (value: { data: { id: number } }) => void;
+        mocks.request.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finishSave = resolve;
+                }),
+        );
+        render(<ManageNews {...serverProps} />);
+        await user.click(row('Maintenance').getByRole('button', { name: 'Edit' }));
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        expect(screen.getAllByRole('combobox')).toHaveLength(3);
+        for (const select of screen.getAllByRole('combobox')) expect(select).toBeDisabled();
+
+        await act(async () => finishSave({ data: { id: 3 } }));
+        for (const select of screen.getAllByRole('combobox')) expect(select).toBeEnabled();
+    });
+
+    it('filters the archive with the shared checkbox using Space and its associated label', async () => {
+        const user = userEvent.setup();
+        render(<ManageNews {...serverProps} />);
+        const filter = screen.getByRole('checkbox', { name: 'Show archived news' });
+        expect(filter).not.toBeChecked();
+        act(() => filter.focus());
+        await user.keyboard('[Space]');
+        expect(filter).toBeChecked();
+        expect(row('Archived announcement').getByRole('button', { name: 'Restore' })).toBeVisible();
+        expect(screen.queryByRole('row', { name: /Regular announcement/ })).not.toBeInTheDocument();
+
+        await user.click(screen.getByText('Show archived news', { selector: 'label' }));
+        expect(filter).not.toBeChecked();
+        expect(row('Regular announcement').getByRole('button', { name: 'Edit' })).toBeVisible();
+        expect(screen.queryByRole('row', { name: /Archived announcement/ })).not.toBeInTheDocument();
     });
 
     it.each([
@@ -234,7 +351,7 @@ describe('News management', () => {
         fireEvent.change(periodEnd, { target: { value: '2030-07-15T14:00' } });
         expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeDisabled();
         fireEvent.change(periodEnd, { target: { value: '2030-07-15T13:00' } });
-        await user.selectOptions(screen.getByLabelText('End UTC offset'), '+02:00');
+        await chooseOption(user, 'End UTC offset', '+02:00 · Summer time (first occurrence)');
         expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeEnabled();
         expect(mocks.request).not.toHaveBeenCalled();
     });

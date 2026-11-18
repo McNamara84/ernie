@@ -72,7 +72,16 @@ for (const [role, email] of [
 
             await page.getByRole('button', { name: 'New news', exact: true }).click();
             await page.getByLabel('Title', { exact: true }).fill(temporaryTitle);
-            await page.getByLabel('Type', { exact: true }).selectOption('temporary');
+            const type = page.getByRole('combobox', { name: 'Type', exact: true });
+            await type.focus();
+            await page.keyboard.press('Enter');
+            await expect(page.getByRole('listbox')).toBeVisible();
+            await expect(page.getByRole('option', { name: 'Regular news', exact: true })).toBeFocused();
+            await page.keyboard.press('End');
+            await expect(page.getByRole('option', { name: 'Temporary announcement', exact: true })).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(type).toContainText('Temporary announcement');
+            await expect(type).toBeFocused();
             await page.getByLabel('News text (Markdown)').fill('Scheduled maintenance.');
             await page.getByLabel('Start (Europe/Berlin)', { exact: true }).fill(berlinInput(new Date(Date.now() - 60000)));
             await page.getByLabel('End (Europe/Berlin)', { exact: true }).fill(berlinInput(new Date(Date.now() + 3600000)));
@@ -102,10 +111,14 @@ for (const [role, email] of [
             await expect(publicPage.getByRole('article', { name: title, exact: true })).toBeVisible();
 
             await archive(page, temporaryTitle);
-            await page.getByLabel('Show archived news').check();
+            const archiveFilter = page.getByRole('checkbox', { name: 'Show archived news' });
+            await archiveFilter.focus();
+            await page.keyboard.press('Space');
+            await expect(archiveFilter).toBeChecked();
             await savedRow(page, temporaryTitle).getByRole('button', { name: 'Restore', exact: true }).click();
             await expect(savedRow(page, temporaryTitle)).toHaveCount(0);
-            await page.getByLabel('Show archived news').uncheck();
+            await page.getByText('Show archived news', { exact: true }).click();
+            await expect(archiveFilter).not.toBeChecked();
             await expect(savedRow(page, temporaryTitle)).toContainText('Draft');
             await page.setViewportSize({ width: 390, height: 844 });
             await expect(page.getByRole('heading', { level: 1, name: 'Manage News' })).toBeVisible();
