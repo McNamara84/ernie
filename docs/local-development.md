@@ -1494,9 +1494,9 @@ can pass this stage; the probe does not substitute unreviewed development code.
 The version inventory, upstream constraints, validation results and image findings
 for the 16 November 2026 update are recorded in
 [dependency-update-audit.json](dependency-update-audit.json). Composer and npm
-audits report no known vulnerabilities. Transitive packages that cannot use the
-latest major release remain within their upstream requirements; the inventory
-records those constraints.
+audits at that time reported no known package vulnerabilities. Transitive packages
+that cannot use the latest major release remain within their upstream requirements;
+the inventory records those constraints.
 
 Node 26.13.1 and Composer 2.11.2 include upstream security fixes. Node archives
 are verified for both supported architectures, and container images retain exact
@@ -1520,6 +1520,22 @@ Fixed component versions exist, but no newer supported official MySQL 9.7 image
 was available during this update. These findings are recorded individually and
 remain unresolved. The server stays on the required MySQL 9.7 line; no security
 rules or suppressions were weakened.
+
+The 18 November 2026 development dependency refresh is recorded separately in
+[dev-dependency-update-audit.json](dev-dependency-update-audit.json). All 36 direct
+npm development dependencies and all 14 direct Composer development dependencies
+were checked against their latest stable releases. Vitest and its browser and
+coverage packages move together to 5.1.1. React Query also moves to 5.108.0 to
+satisfy the updated React Query Devtools peer requirement. Both host and Docker
+npm installations were refreshed with `npm ci`.
+
+Composer's updated package audit reports no known advisories. npm reports six
+HIGH entries caused by one existing Picomatch advisory,
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf). As of
+18 November, the latest Picomatch release is still affected and no patched
+release is available. The suggested major downgrades of Vite, Vitest and the
+Laravel Vite plugin conflict with the current dependency requirements. The
+finding remains open; security gates and overrides retain their existing policy.
 
 ### DOI publication and metadata update safety
 
