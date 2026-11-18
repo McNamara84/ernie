@@ -19,6 +19,7 @@
         "laravel/framework": "^13.42.0",
         "laravel/tinker": "^3.1.0",
         "laravel/wayfinder": "^0.1.23",
+        "league/commonmark": "^2.10.7",
         "nitotm/efficient-language-detector": "^3.2.0",
         "opis/json-schema": "^2.6.2",
         "saloonphp/xml-wrangler": "^1.5.0",

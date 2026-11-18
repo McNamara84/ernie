@@ -105,6 +105,19 @@ const openDatasetsTab = async (user: ReturnType<typeof userEvent.setup>) => {
     expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
 };
 
+describe('Homepage news documentation', () => {
+    it.each(['admin', 'group_leader', 'curator', 'beginner'] as const)('shows management instructions for the appropriate role: %s', (role) => {
+        renderDocsPage(role);
+        const heading = screen.queryByRole('heading', { name: 'Homepage News' });
+        if (role === 'admin' || role === 'group_leader') {
+            expect(heading).toBeInTheDocument();
+            expect(screen.getByText(/Overlapping schedules are rejected/)).toBeInTheDocument();
+        } else {
+            expect(heading).not.toBeInTheDocument();
+        }
+    });
+});
+
 const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(screen.getByRole('tab', { name: /Physical Samples/i }));
 

@@ -4,6 +4,10 @@
         "date": "2026-11-09",
         "features": [
             {
+                "title": "Managed Homepage News",
+                "description": "Admins and Group Leaders can manage homepage news in Markdown with a preview and external images. One regular announcement stays active, while scheduled temporary news replace it in Europe/Berlin time. Overlapping schedules are prevented, archived news can be reused, and the existing ELMO announcement is preserved."
+            },
+            {
                 "title": "DataCite Instruments in PIDINST",
                 "description": "The PIDINST update in Settings now combines public instruments from B2INST and DataCite worldwide. Instruments with the same DOI appear once, using B2INST metadata. Source counts are checked separately, and a failed or incomplete fetch preserves the previous instrument list. DataCite DOI instruments can be selected in the editor, saved and exported, and recognized again when importing DataCite XML or JSON. Only untyped legacy DOI references use local vocabulary matching; explicit resource types take precedence. The combined list is also available to ELMO and ELMO-MSL."
             },

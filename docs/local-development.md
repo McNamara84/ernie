@@ -404,6 +404,52 @@ bind-mount reads. PHPStan also inherits the 2 GB PHP configuration when its
 analyzer restarts or launches workers. Run these wrappers sequentially because
 they share that workspace.
 
+## Homepage news
+
+Admins and Group Leaders open **Administration → Configuration → Manage News**
+at `/manage-news`. Create contributions with a separate title and Markdown text;
+the preview uses the same renderer as the public homepage. Formatting includes
+headings, emphasis, lists, links and external HTTPS images. HTML and unsafe URL
+schemes are removed. Images are not uploaded or fetched by the ERNIE server.
+
+Saving a new contribution creates a draft. **Set as active** selects the regular
+announcement, replacing the previous selection. The active regular contribution
+cannot be archived until another one is selected. **Schedule** explicitly
+publishes a temporary contribution for its saved start and end. All management
+times use Europe/Berlin; UTC is used for persistence and comparisons. The start is
+inclusive and the end exclusive. Adjacent intervals are allowed; overlapping
+planned intervals are rejected. Nonexistent spring-transition times are rejected;
+ambiguous autumn times require choosing +02:00 or +01:00 explicitly.
+
+Temporary announcements are selected when the homepage is requested and return
+to the then active regular news after their end. No scheduler or queue worker is
+needed. Open tabs update on the next visit or reload. **Cancel schedule** stops
+the override. **Archive** retains content and cancels its schedule; **Restore**
+returns it to a draft. Expired contributions stay stored. Concurrent changes are
+rejected rather than overwriting a newer version; copy edits before reloading the
+latest version if they need to be reapplied.
+
+Run the two `2026_11_18_*news*` migrations before using the feature. They create
+the tables and copy the original ELMO announcement into the active regular
+selection, including on fresh databases. No optional seeding step is needed and
+repeated deployments do not reset content. News are never initialized by public
+requests. The singleton selection also serializes publication changes, including
+the first temporary schedule. Its lock behavior is tested on the pinned MySQL
+9.7 server with `npm run test:php:mysql-sensitive -- --slice news`; focused
+business tests run with `npm run test:php -- tests/pest/Feature/News`, frontend
+tests with `npm run test:run -- tests/vitest/pages/manage-news`, and browser tests
+with `npm run test:e2e:devstack -- workflows/manage-news.spec.ts --workers=1`.
+The publishing browser workflow requires one worker because all browser projects
+share the same homepage selection; it restores that selection and archives its
+test contributions afterward. Parallel runs skip these global mutation cases.
+For validation with built assets and the Linux workspace, use:
+
+```powershell
+$env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
+$env:ERNIE_PLAYWRIGHT_BACKEND = 'native'
+npm.cmd run test:e2e:devstack -- workflows/manage-news.spec.ts --workers=1
+```
+
 ## Resource formats and sizes
 
 The Data Editor has an optional **Format & Size** section. Formats and sizes are

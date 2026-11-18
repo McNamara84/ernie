@@ -6,16 +6,18 @@ namespace App\Http\Controllers;
 
 use App\Enums\ScienceTopic;
 use App\Services\DataCentreCatalogService;
+use App\Services\News\HomepageNewsService;
 use Inertia\Inertia;
 use Inertia\Response;
 
 final class StaticPageController extends Controller
 {
-    public function home(): Response
+    public function home(HomepageNewsService $news): Response
     {
         abort_unless(config('public_pages.home_enabled'), 404);
 
         return Inertia::render('home', [
+            'news' => $news->publicData(),
             'topics' => array_map(static fn (ScienceTopic $topic): array => $topic->forHomepage(), ScienceTopic::cases()),
         ]);
     }

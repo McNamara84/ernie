@@ -64,6 +64,10 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const page = usePage<SharedData>();
     const { auth } = page.props;
     const getInitials = useInitials();
+    const navigationItems: NavItem[] = [
+        ...mainNavItems,
+        ...(auth.user?.can_manage_news ? [{ title: 'Manage News', href: '/manage-news', icon: FileText }] : []),
+    ];
     return (
         <>
             <div className="fixed top-0 z-50 w-full border-b border-sidebar-border/80 bg-[var(--header)] text-[var(--header-foreground)]">
@@ -88,7 +92,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                 <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                     <div className="flex h-full flex-col justify-between text-sm">
                                         <div className="flex flex-col space-y-4">
-                                            {mainNavItems.map((item) => {
+                                            {navigationItems.map((item) => {
                                                 const href = typeof item.href === 'string' ? item.href : item.href.url;
                                                 return (
                                                     <Link key={item.title} href={href} className="flex items-center space-x-2 font-medium">
@@ -124,7 +128,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                     <div className="ml-6 hidden h-full items-center space-x-6 lg:flex">
                         <NavigationMenu className="flex h-full items-stretch">
                             <NavigationMenuList className="flex h-full items-stretch space-x-2">
-                                {mainNavItems.map((item, index) => {
+                                {navigationItems.map((item, index) => {
                                     const href = typeof item.href === 'string' ? item.href : item.href.url;
                                     return (
                                         <NavigationMenuItem key={index} className="relative flex h-full items-center">

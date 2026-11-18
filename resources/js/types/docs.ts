@@ -79,6 +79,7 @@ export interface DocsCapabilities {
     updateDataCiteUrls: boolean;
     manageUsers: boolean;
     accessEditorSettings: boolean;
+    manageNews?: boolean;
 }
 
 /**

@@ -6,10 +6,11 @@ import { HomeNews } from '@/components/home/HomeNews';
 import { ScienceTopicGrid } from '@/components/home/ScienceTopicGrid';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { elmoUrl, homepageLinkGroups, homepageNews, type ScienceTopic } from '@/data/homepage';
+import { elmoUrl, homepageLinkGroups, type ScienceTopic } from '@/data/homepage';
 import HomeLayout from '@/layouts/home-layout';
+import type { PublicNews } from '@/types/news';
 
-export default function Home({ topics }: { topics: ScienceTopic[] }) {
+export default function Home({ topics, news }: { topics: ScienceTopic[]; news: PublicNews }) {
     function search(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         const query = String(new FormData(event.currentTarget).get('q') ?? '').trim();
@@ -54,7 +55,7 @@ export default function Home({ topics }: { topics: ScienceTopic[] }) {
                         </a>{' '}
                         portal.
                     </p>
-                    <HomeNews news={homepageNews} />
+                    <HomeNews news={news} />
                 </div>
             </section>
 
