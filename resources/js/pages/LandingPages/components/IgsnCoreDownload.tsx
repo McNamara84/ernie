@@ -54,16 +54,21 @@ export function IgsnCoreDownload({ link }: { link: LandingPageMetadataLink }) {
                 onClick={() => void download()}
                 disabled={busy}
                 aria-busy={busy}
-                title="Download as IGSN 2.0 Core XML (Preview)"
-                aria-label="Download IGSN 2.0 Core metadata as XML (Preview)"
+                title="Download as IGSN Core 2.0 XML"
+                aria-label="Download IGSN Core 2.0 metadata as XML"
             >
                 <FileCode className="h-5 w-5" aria-hidden="true" />
                 {busy ? 'Preparing XML…' : 'XML'}
             </Button>
             {link.profile && (
-                <a href={link.profile} className="text-sm underline">
-                    IGSN Core schema
-                </a>
+                <span className="inline-flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                    <a href={link.profile} className="underline">
+                        IGSN Core schema
+                    </a>
+                    <a href={link.profile.replace(/core\.xsd$/, 'docs')} className="underline">
+                        Schema guide
+                    </a>
+                </span>
             )}
             {error && (
                 <p role="alert" className="w-full text-sm text-red-700 dark:text-red-300">

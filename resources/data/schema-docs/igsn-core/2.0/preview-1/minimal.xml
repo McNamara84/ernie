@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<igsn:resource xmlns:igsn="urn:FAIR-AIMS:Core:1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:FAIR-AIMS:Core:1 https://dataservices.gfz.de/schemas/igsn/2.0/preview-1/core.xsd">
+  <igsn:identifier igsn:identifierType="DOI">10.60510/test-core</igsn:identifier>
+  <igsn:name igsn:lang="en">Core sample</igsn:name>
+  <igsn:agents>
+    <igsn:creator igsn:creatorType="collector">
+      <igsn:creatorName igsn:nameType="Personal">Doe, Jane</igsn:creatorName>
+    </igsn:creator>
+    <igsn:publisher igsn:publisherIdentifier="https://ror.org/04z8jg394" igsn:publisherIdentifierScheme="ROR" igsn:schemeURI="https://ror.org/">GFZ</igsn:publisher>
+  </igsn:agents>
+  <igsn:entityTypeClassifications>
+    <igsn:resourceType igsn:resourceTypeGeneral="PhysicalObject">Core</igsn:resourceType>
+  </igsn:entityTypeClassifications>
+  <igsn:dates>
+    <igsn:publicationYear>2026</igsn:publicationYear>
+  </igsn:dates>
+</igsn:resource>

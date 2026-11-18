@@ -3008,10 +3008,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             the landing-page preview used before publication.
                         </p>
                         <p>
-                            Published IGSNs and Physical Objects also offer <strong>IGSN 2.0 Core (Preview)</strong> as XML, with a link to the exact
-                            schema snapshot. This uses an unpublished Core development version without Geo or Bio extensions. ERNIE validates each
-                            file before download. Missing required metadata or validation failures show an error instead of downloading an invalid
-                            file.
+                            Published IGSNs and Physical Objects also offer <strong>IGSN Core 2.0</strong> as XML, with links to the published schema
+                            and the public{' '}
+                            <a href="/schemas/igsn/2.0/docs" className="underline">
+                                IGSN Core guide
+                            </a>
+                            . This uses the published Core schema without Geo or Bio extensions. ERNIE validates each file before download. Missing
+                            required metadata or validation failures show an error instead of downloading an invalid file.
                         </p>
                         <h4>DCAT-AP Resource Metadata</h4>
                         <p>

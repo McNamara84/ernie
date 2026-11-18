@@ -882,7 +882,7 @@ describe('Docs page', () => {
             expect(section).toHaveTextContent('Computational Notebook');
             expect(section).toHaveTextContent('IGSNs and Physical Objects do not offer ISO JSON');
             expect(section).toHaveTextContent('does not claim support for the entire ISO metadata model');
-            expect(section).toHaveTextContent('IGSN 2.0 Core (Preview)');
+            expect(section).toHaveTextContent('IGSN Core 2.0');
             expect(section).toHaveTextContent('without Geo or Bio extensions');
             expect(section).toHaveTextContent('validates each file before download');
 

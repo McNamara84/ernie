@@ -164,12 +164,12 @@ export function DownloadMetadataSection({
 
             {(igsnCoreLink !== undefined || (isPreview && supportsIgsnCore)) && (
                 <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
-                    <span className="text-sm font-semibold">IGSN 2.0 Core (Preview)</span>
+                    <span className="text-sm font-semibold">IGSN Core 2.0</span>
                     {isPreview ? (
                         <MetadataDownloadAction
                             icon={FileCode}
                             label="XML"
-                            title="Download as IGSN 2.0 Core XML (Preview)"
+                            title="Download as IGSN Core 2.0 XML"
                             isPreview
                             onPreviewClick={openPreviewDialog}
                         />
