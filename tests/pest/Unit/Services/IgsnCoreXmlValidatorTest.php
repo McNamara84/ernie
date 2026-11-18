@@ -28,7 +28,7 @@ test('validates the portable Core revision with local dependencies and restores 
     $reject = static fn () => null;
     libxml_set_external_entity_loader($reject);
     try {
-        $result = app(IgsnCoreXmlValidator::class)->validate(file_get_contents(base_path('tests/pest/Fixtures/igsn-core/minimal.xml')));
+        $result = app(IgsnCoreXmlValidator::class)->validate(file_get_contents(resource_path('data/schema-docs/igsn-core/2.0/v1/minimal.xml')));
         expect($result->errors)->toBe([])
             ->and($result->isValid())->toBeTrue()
             ->and(libxml_get_external_entity_loader())->toBe($reject);
@@ -38,13 +38,13 @@ test('validates the portable Core revision with local dependencies and restores 
 });
 
 test('rejects unqualified Core attributes', function () {
-    $xml = file_get_contents(base_path('tests/pest/Fixtures/igsn-core/minimal.xml'));
+    $xml = file_get_contents(resource_path('data/schema-docs/igsn-core/2.0/v1/minimal.xml'));
     $result = app(IgsnCoreXmlValidator::class)->validate(str_replace(' igsn:', ' ', $xml));
     expect($result->isValid())->toBeFalse()->and($result->errors)->not->toBeEmpty();
 });
 
 test('validates the complete Core fixture with mixed imported namespaces', function () {
-    $result = app(IgsnCoreXmlValidator::class)->validate(file_get_contents(base_path('tests/pest/Fixtures/igsn-core/full.xml')));
+    $result = app(IgsnCoreXmlValidator::class)->validate(file_get_contents(resource_path('data/schema-docs/igsn-core/2.0/v1/full.xml')));
     expect($result->errors)->toBe([]);
 });
 
@@ -82,7 +82,7 @@ test('rejects a changed portable artifact before loading it', function () {
     mkdir($directory, 0777, true);
     file_put_contents($directory.'/manifest.json', $manifest);
     file_put_contents($directory.'/'.IgsnCoreSchemaResolver::ENTRYPOINT, '<changed/>');
-    config(['igsn_core.revisions.preview-1' => $directory]);
+    config(['igsn_core.revisions.v1' => $directory]);
     try {
         expect(fn () => $schemas->publicFile(IgsnCoreSchemaResolver::ENTRYPOINT))->toThrow(RuntimeException::class, 'has changed');
     } finally {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Mapping reference: docs/igsn-2.0-core-export.md. Core snapshot 321df7287f8540960b99aeb55113cbf22274380c. -->
+<!-- Mapping reference: docs/igsn-2.0-core-export.md. Published Core snapshot e28072729362b9fe740b64e8313c9add4364f12a. -->
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
   xmlns:s="urn:ernie:igsn-core-source:1" xmlns:igsn="urn:FAIR-AIMS:Core:1"
   xmlns:daci="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -18,10 +18,11 @@
       </xsl:for-each>
       <igsn:agents>
         <xsl:for-each select="s:creators/s:party">
-          <igsn:creator igsn:creatorType="{@role}">
-            <igsn:creatorName igsn:nameType="{@type}"><xsl:value-of select="@name"/></igsn:creatorName>
+          <igsn:contributor>
+            <xsl:if test="@role = 'collector'"><xsl:attribute name="igsn:contributorType">DataCollector</xsl:attribute></xsl:if>
+            <igsn:contributorName igsn:nameType="{@type}"><xsl:value-of select="@name"/></igsn:contributorName>
             <xsl:call-template name="party-details"/>
-          </igsn:creator>
+          </igsn:contributor>
         </xsl:for-each>
         <xsl:for-each select="s:contributors/s:party">
           <igsn:contributor>
@@ -34,6 +35,7 @@
       </igsn:agents>
       <igsn:entityTypeClassifications>
         <igsn:resourceType igsn:resourceTypeGeneral="PhysicalObject"><xsl:value-of select="s:sample/s:type"/></igsn:resourceType>
+        <xsl:if test="s:sample/s:sampleType"><igsn:sampleType><xsl:value-of select="s:sample/s:sampleType"/></igsn:sampleType></xsl:if>
         <xsl:for-each select="s:sample/s:material">
           <igsn:material>
             <xsl:if test="@scheme"><xsl:attribute name="igsn:subjectScheme"><xsl:value-of select="@scheme"/></xsl:attribute></xsl:if>
@@ -56,9 +58,6 @@
         </xsl:for-each>
         <igsn:publicationYear><xsl:value-of select="s:publicationYear"/></igsn:publicationYear>
       </igsn:dates>
-      <xsl:if test="s:sample/s:archive">
-        <igsn:archives><igsn:archive><igsn:archiveName><xsl:value-of select="s:sample/s:archive"/></igsn:archiveName></igsn:archive></igsn:archives>
-      </xsl:if>
       <xsl:if test="s:identifiers/*">
         <igsn:relationshipIdentifiers>
           <xsl:for-each select="s:identifiers/s:alternate"><igsn:alternateIdentifier igsn:alternateIdentifierType="{@type}"><xsl:value-of select="."/></igsn:alternateIdentifier></xsl:for-each>

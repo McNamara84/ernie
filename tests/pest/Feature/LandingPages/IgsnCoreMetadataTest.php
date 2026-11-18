@@ -82,16 +82,26 @@ test('keeps published tombstone metadata available', function () {
 
 test('returns a safe metadata error without an attachment for incomplete samples', function () {
     $page = coreLandingPage();
-    $page->resource->creators()->delete();
+    $page->resource->titles()->delete();
     $this->get($page->getPublicPath().'/metadata/igsn-core-2.0.xml')
         ->assertUnprocessable()->assertHeaderMissing('Content-Disposition')
-        ->assertJsonPath('code', 'igsn_core_metadata_incomplete')->assertJsonPath('fields.0', 'creators');
+        ->assertJsonPath('code', 'igsn_core_metadata_incomplete')->assertJsonPath('fields.0', 'name');
+});
+
+test('allows a published sample without contributors because the released XSD makes them optional', function () {
+    $page = coreLandingPage();
+    $page->resource->creators()->delete();
+
+    $xml = $this->get($page->getPublicPath().'/metadata/igsn-core-2.0.xml')->assertOk()->getContent();
+
+    expect(app(IgsnCoreXmlValidator::class)->validate($xml)->errors)->toBe([])
+        ->and($xml)->not->toContain('contributorName');
 });
 
 test('fails closed if the stylesheet or schema is unavailable or produces invalid XML', function (string $failure) {
     $page = coreLandingPage();
     if ($failure === 'schema') {
-        config(['igsn_core.revisions.preview-1' => storage_path('does-not-exist')]);
+        config(['igsn_core.revisions.v1' => storage_path('does-not-exist')]);
     } elseif ($failure === 'stylesheet') {
         config(['igsn_core.stylesheet' => storage_path('does-not-exist.xsl')]);
     } else {
@@ -126,7 +136,7 @@ test('exposes Core in metadata discovery only for published physical objects', f
 
 test('serves portable schemas with revalidated aliases and immutable revision URLs', function (?string $revision) {
     $schemas = app(IgsnCoreSchemaResolver::class);
-    foreach ($schemas->files() as $file) {
+    foreach ($schemas->files($revision) as $file) {
         $response = $this->get($schemas->url($file['path'], $revision))->assertOk()
             ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')->assertHeaderMissing('Set-Cookie');
         ob_start();
@@ -148,7 +158,7 @@ test('serves portable schemas with revalidated aliases and immutable revision UR
     foreach (['manifest.json', 'README.md'] as $path) {
         $this->get($schemas->url($path, $revision))->assertOk();
     }
-})->with([null, 'preview-1']);
+})->with([null, 'v1', 'preview-1']);
 
 test('validates exported XML using only downloaded schemas and the standard XML loader', function (?string $revision) {
     $page = coreLandingPage();
@@ -192,7 +202,11 @@ test('validates exported XML using only downloaded schemas and the standard XML 
             }
         }
         expect($downloaded)->toHaveCount(13);
-        foreach ([$xml, file_get_contents(base_path('tests/pest/Fixtures/igsn-core/full.xml'))] as $documentXml) {
+        $documents = [file_get_contents(resource_path('data/schema-docs/igsn-core/2.0/'.($revision ?? 'v1').'/full.xml'))];
+        if ($revision !== 'preview-1') {
+            $documents[] = $xml;
+        }
+        foreach ($documents as $documentXml) {
             $document = new DOMDocument;
             expect($document->loadXML($documentXml, LIBXML_NONET))->toBeTrue();
             expect($document->schemaValidate($directory.'/core.xsd', LIBXML_NONET))->toBeTrue();
@@ -207,11 +221,11 @@ test('validates exported XML using only downloaded schemas and the standard XML 
         libxml_use_internal_errors($previousErrors);
         File::deleteDirectory($directory);
     }
-})->with([null, 'preview-1']);
+})->with([null, 'v1', 'preview-1']);
 
 test('updates the short alias without changing existing revision URLs or reusing stale ETags', function () {
     $alias = '/schemas/igsn/2.0/core.xsd';
-    $fixed = '/schemas/igsn/2.0/preview-1/core.xsd';
+    $fixed = '/schemas/igsn/2.0/v1/core.xsd';
     $etag = $this->head($alias)->assertOk()->headers->get('ETag');
     $directory = sys_get_temp_dir().'/core-revision-'.bin2hex(random_bytes(8));
     File::copyDirectory(app(IgsnCoreSchemaResolver::class)->directory(), $directory);

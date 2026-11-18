@@ -28,6 +28,7 @@ use App\Http\Controllers\EditorLoadProgressController;
 use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
+use App\Http\Controllers\IgsnCoreDocumentationController;
 use App\Http\Controllers\IgsnCoreSchemaController;
 use App\Http\Controllers\JsonLdContextController;
 use App\Http\Controllers\LandingPageController;
@@ -210,9 +211,20 @@ Route::get('landing-page-downloads/{landingPage}/links/{landingPageLink}', [Land
 // cannot contain slashes, so the slug is always unambiguous.
 
 // Canonical metadata downloads for published landing pages.
+Route::get('schemas/igsn/2.0/docs', [IgsnCoreDocumentationController::class, 'current'])->name('schemas.igsn-core.docs');
+Route::get('schemas/igsn/2.0/docs/examples/{example}.xml', [IgsnCoreDocumentationController::class, 'example'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.igsn-core.docs.example');
+Route::get('schemas/igsn/2.0/{revision}/docs', [IgsnCoreDocumentationController::class, 'revision'])
+    ->where('revision', '(?:preview-|v)[1-9][0-9]*')->name('schemas.igsn-core.docs.revision');
+Route::get('schemas/igsn/2.0/{revision}/docs/examples/{example}.xml', [IgsnCoreDocumentationController::class, 'revisionExample'])
+    ->where('revision', '(?:preview-|v)[1-9][0-9]*')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.igsn-core.docs.revision-example');
+
 Route::get('schemas/igsn/2.0/{revision}/{path}', [IgsnCoreSchemaController::class, 'revision'])
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
-    ->where('revision', 'preview-[1-9][0-9]*')
+    ->where('revision', '(?:preview-|v)[1-9][0-9]*')
     ->where('path', '.+')
     ->name('schemas.igsn-core.revision');
 
