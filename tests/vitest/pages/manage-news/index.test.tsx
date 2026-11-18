@@ -56,6 +56,25 @@ describe('News management', () => {
         expect(screen.getByRole('article', { name: 'Upcoming downtime' })).toBeVisible();
     });
 
+    it('distinguishes repeated Berlin times by their UTC offsets in periods, update dates and publication status', () => {
+        serverProps.news[2] = {
+            ...serverProps.news[2],
+            starts_at: '2030-10-27T02:30:00+02:00',
+            ends_at: '2030-10-27T02:30:00+01:00',
+            updated_at: '2030-10-27T01:30:00+00:00',
+            is_scheduled: true,
+            status: 'Currently displayed',
+        };
+        serverProps.currently_displayed = { id: 3, title: 'Maintenance', html: '<p>Maintenance text.</p>' };
+        render(<ManageNews {...serverProps} />);
+
+        const cells = row('Maintenance').getAllByRole('cell');
+        expect(cells[2]).toHaveTextContent('27 Oct 2030, 02:30 GMT+02:00');
+        expect(cells[2]).toHaveTextContent('to 27 Oct 2030, 02:30 GMT+01:00');
+        expect(cells[3]).toHaveTextContent('27 Oct 2030, 02:30 GMT+01:00');
+        expect(screen.getByText(/temporary announcement currently replaces it until/)).toHaveTextContent('27 Oct 2030, 02:30 GMT+01:00');
+    });
+
     it('creates a draft without publishing it and reloads the returned record', async () => {
         const user = userEvent.setup();
         render(<ManageNews {...serverProps} />);
@@ -129,6 +148,109 @@ describe('News management', () => {
         render(<ManageNews {...serverProps} />);
         await user.click(row(title).getByRole('button', { name: button }));
         await waitFor(() => expect(mocks.request).toHaveBeenCalledWith({ url, method: 'post', data: { revision, state_revision: 7 } }));
+    });
+
+    it.each([
+        ['Draft announcement', 'Set as active', 'activate'],
+        ['Maintenance', 'Schedule', 'schedule'],
+        ['Upcoming downtime', 'Cancel schedule', 'cancel-schedule'],
+    ])('requires saving edits before %s / %s and then uses the saved revision', async (title, button, operation) => {
+        const user = userEvent.setup();
+        const { rerender } = render(<ManageNews {...serverProps} />);
+        const item = serverProps.news.find((entry) => entry.title === title)!;
+        await user.click(row(title).getByRole('button', { name: 'Edit' }));
+        fireEvent.change(screen.getByLabelText('News text (Markdown)'), { target: { value: 'Unsaved editorial changes.' } });
+
+        expect(row(title).getByRole('button', { name: button })).toBeDisabled();
+        expect(row(title).getByRole('button', { name: 'Archive' })).toBeDisabled();
+        expect(screen.getByText('Save or reload your changes before changing this news status.')).toBeVisible();
+        await user.click(row(title).getByRole('button', { name: button }));
+        expect(mocks.request).not.toHaveBeenCalled();
+        expect(screen.getByLabelText('News text (Markdown)')).toHaveValue('Unsaved editorial changes.');
+
+        serverProps = {
+            ...serverProps,
+            state_revision: 8,
+            news: serverProps.news.map((entry) =>
+                entry.id === item.id ? { ...entry, body_markdown: 'Unsaved editorial changes.', revision: item.revision + 1 } : entry,
+            ),
+        };
+        mocks.request.mockResolvedValue({ data: { id: item.id } });
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        await waitFor(() => expect(mocks.reload).toHaveBeenCalled());
+        rerender(<ManageNews {...serverProps} />);
+
+        expect(mocks.request).toHaveBeenNthCalledWith(1, {
+            url: `/manage-news/${item.id}`,
+            method: 'patch',
+            data: expect.objectContaining({ body_markdown: 'Unsaved editorial changes.', revision: item.revision }),
+        });
+        expect(screen.queryByText('Save or reload your changes before changing this news status.')).not.toBeInTheDocument();
+        expect(row(title).getByRole('button', { name: button })).toBeEnabled();
+        await user.click(row(title).getByRole('button', { name: button }));
+        await waitFor(() =>
+            expect(mocks.request).toHaveBeenNthCalledWith(2, {
+                url: `/manage-news/${item.id}/${operation}`,
+                method: 'post',
+                data: { revision: item.revision + 1, state_revision: 8 },
+            }),
+        );
+    });
+
+    it('requires confirmation before reloading dirty edits and re-enables status actions with the latest revision', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<ManageNews {...serverProps} />);
+        await user.click(row('Maintenance').getByRole('button', { name: 'Edit' }));
+        fireEvent.change(screen.getByLabelText('News text (Markdown)'), { target: { value: 'Unsaved text.' } });
+        expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeDisabled();
+
+        vi.mocked(window.confirm).mockReturnValue(false);
+        await user.click(screen.getByRole('button', { name: 'Reload latest version' }));
+        expect(window.confirm).toHaveBeenCalledWith('Reload the latest news and discard the edits in this form?');
+        expect(mocks.reload).not.toHaveBeenCalled();
+        expect(screen.getByLabelText('News text (Markdown)')).toHaveValue('Unsaved text.');
+        expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeDisabled();
+
+        serverProps = {
+            ...serverProps,
+            news: serverProps.news.map((item) => (item.id === 3 ? { ...item, body_markdown: 'Latest saved text.', revision: 4 } : item)),
+        };
+        vi.mocked(window.confirm).mockReturnValue(true);
+        await user.click(screen.getByRole('button', { name: 'Reload latest version' }));
+        rerender(<ManageNews {...serverProps} />);
+        expect(screen.getByLabelText('News text (Markdown)')).toHaveValue('Latest saved text.');
+        expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeEnabled();
+        await user.click(row('Maintenance').getByRole('button', { name: 'Schedule' }));
+        await waitFor(() =>
+            expect(mocks.request).toHaveBeenCalledWith({ url: '/manage-news/3/schedule', method: 'post', data: { revision: 4, state_revision: 7 } }),
+        );
+    });
+
+    it('re-enables status actions when unsaved period changes are reverted', async () => {
+        const user = userEvent.setup();
+        render(<ManageNews {...serverProps} />);
+        await user.click(row('Maintenance').getByRole('button', { name: 'Edit' }));
+        const periodEnd = screen.getByLabelText('End (Europe/Berlin)');
+        fireEvent.change(periodEnd, { target: { value: '2030-07-15T14:00' } });
+        expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeDisabled();
+        fireEvent.change(periodEnd, { target: { value: '2030-07-15T13:00' } });
+        await user.selectOptions(screen.getByLabelText('End UTC offset'), '+02:00');
+        expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeEnabled();
+        expect(mocks.request).not.toHaveBeenCalled();
+    });
+
+    it('allows status actions on other records without discarding the dirty form', async () => {
+        const user = userEvent.setup();
+        render(<ManageNews {...serverProps} />);
+        await user.click(row('Draft announcement').getByRole('button', { name: 'Edit' }));
+        fireEvent.change(screen.getByLabelText('News text (Markdown)'), { target: { value: 'Keep my draft edits.' } });
+        expect(row('Maintenance').getByRole('button', { name: 'Schedule' })).toBeEnabled();
+        await user.click(row('Maintenance').getByRole('button', { name: 'Schedule' }));
+        await waitFor(() => expect(mocks.request).toHaveBeenCalledTimes(1));
+        expect(mocks.request).toHaveBeenCalledWith({ url: '/manage-news/3/schedule', method: 'post', data: { revision: 3, state_revision: 7 } });
+        expect(screen.getByLabelText('Title')).toHaveValue('Draft announcement');
+        expect(screen.getByLabelText('News text (Markdown)')).toHaveValue('Keep my draft edits.');
+        expect(row('Draft announcement').getByRole('button', { name: 'Set as active' })).toBeDisabled();
     });
 
     it('confirms archiving and restores news without publishing them', async () => {

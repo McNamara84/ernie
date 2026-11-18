@@ -64,7 +64,17 @@ function draftFrom(news: ManagedNews): Draft {
 }
 
 function berlinTime(value: string | null): string {
-    return value ? new Date(value).toLocaleString('en-GB', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }) : '—';
+    return value
+        ? new Date(value).toLocaleString('en-GB', {
+              timeZone: 'Europe/Berlin',
+              year: 'numeric',
+              month: 'short',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZoneName: 'longOffset',
+          })
+        : '—';
 }
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -160,7 +170,12 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
         void send(id === null ? '/manage-news' : `/manage-news/${id}`, data, id === null ? 'post' : 'patch', true);
     }
 
+    function statusActionDisabled(item: ManagedNews) {
+        return busy || (dirty && draft.id === item.id);
+    }
+
     function action(item: ManagedNews, operation: string) {
+        if (statusActionDisabled(item)) return;
         void send(`/manage-news/${item.id}/${operation}`, { revision: item.revision, state_revision });
     }
 
@@ -349,6 +364,9 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                         </Button>
                                     )}
                                 </div>
+                                {dirty && draft.id !== null && (
+                                    <p className="text-sm text-muted-foreground">Save or reload your changes before changing this news status.</p>
+                                )}
                                 <p className="text-xs text-muted-foreground">
                                     New news remain drafts until you activate or schedule them in the list below.
                                 </p>
@@ -421,7 +439,7 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                                             type="button"
                                                             size="sm"
                                                             variant="outline"
-                                                            disabled={busy}
+                                                            disabled={statusActionDisabled(item)}
                                                             onClick={() => action(item, 'restore')}
                                                         >
                                                             Restore
@@ -442,7 +460,7 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                                                     type="button"
                                                                     size="sm"
                                                                     variant="outline"
-                                                                    disabled={busy || item.id === active_news_id}
+                                                                    disabled={statusActionDisabled(item) || item.id === active_news_id}
                                                                     onClick={() => action(item, 'activate')}
                                                                 >
                                                                     Set as active
@@ -453,7 +471,7 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                                                     type="button"
                                                                     size="sm"
                                                                     variant="outline"
-                                                                    disabled={busy}
+                                                                    disabled={statusActionDisabled(item)}
                                                                     onClick={() => action(item, item.is_scheduled ? 'cancel-schedule' : 'schedule')}
                                                                 >
                                                                     {item.is_scheduled ? 'Cancel schedule' : 'Schedule'}
@@ -463,7 +481,7 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                                                                 type="button"
                                                                 size="sm"
                                                                 variant="outline"
-                                                                disabled={busy || item.id === active_news_id}
+                                                                disabled={statusActionDisabled(item) || item.id === active_news_id}
                                                                 title={
                                                                     item.id === active_news_id
                                                                         ? 'Select another regular news before archiving this one.'
@@ -506,6 +524,7 @@ export default function ManageNews({ news, active_news_id, state_revision, curre
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
+                            disabled={archiveTarget === null || statusActionDisabled(archiveTarget)}
                             onClick={() => {
                                 if (archiveTarget) action(archiveTarget, 'archive');
                                 setArchiveTarget(null);

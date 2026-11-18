@@ -10,8 +10,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Both supported engines enforce the same row-local publication rules.
-        $mysql = DB::connection()->getDriverName() === 'mysql';
+        // Both engine families enforce the same row-local publication rules.
+        $mysql = in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true);
         $id = $mysql ? 'BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
         $foreignId = $mysql ? 'BIGINT UNSIGNED' : 'INTEGER';
         $options = $mysql ? ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci' : '';
