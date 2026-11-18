@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Fixtures\B2instFixture as Fixture;
+use Tests\Fixtures\DataCiteInstrumentFixture;
 
 covers(GetPid4instInstruments::class);
 
@@ -28,6 +29,7 @@ beforeEach(function (): void {
     Storage::fake('local');
     Cache::flush();
     Http::preventStrayRequests();
+    DataCiteInstrumentFixture::fakeEmpty();
     config(['b2inst.host' => 'https://b2inst.example.test', 'b2inst.retry_delay' => 0]);
     $this->setting = PidSetting::updateOrCreate(['type' => 'pid4inst'], ['display_name' => 'PID4INST', 'is_active' => true, 'is_elmo_active' => false, 'is_elmo_msl_active' => false]);
     // The ID comes from the reported failure; the Handle and descriptive fields are synthetic.
@@ -51,7 +53,7 @@ it('publishes valid instruments while excluding unregistered new or existing rec
     $payload = json_decode(Storage::get(Pid4instVocabularyService::FILE), true);
     expect($payload['total'])->toBe(1)->and(array_column($payload['data'], 'id'))->toBe(['valid'])
         ->and($payload['_sync']['serverCount'])->toBe(2)->and($payload['_sync']['readCount'])->toBe(2)
-        ->and($payload['_sync']['excluded'][0])->toMatchArray(['id' => '44jr3-qtj89', 'reasonCode' => 'unregistered_handle']);
+        ->and($payload['_sync']['excluded'][0])->toMatchArray(['id' => '44jr3-qtj89', 'reasonCode' => 'unregistered_handle', 'source' => 'b2inst']);
     $service = app(Pid4instStatusService::class);
     expect($service->compareWithRemote($this->setting)['updateAvailable'])->toBeFalse()
         ->and($service->getLocalStatus($this->setting)['excludedCount'])->toBe(1);
@@ -136,7 +138,7 @@ it('reports actual published counts and exclusions through the job and reloaded 
     (new UpdatePidJob('pid4inst', $id))->handle();
     $status = Cache::get(UpdatePidJob::getCacheKey($id));
     expect($status)->toMatchArray(['status' => 'completed', 'itemCount' => 1, 'excludedCount' => 1, 'refreshPending' => false])
-        ->and($status['exclusions'])->toBe([['id' => '44jr3-qtj89', 'reasonCode' => 'unregistered_handle']]);
+        ->and($status['exclusions'])->toBe([['id' => '44jr3-qtj89', 'reasonCode' => 'unregistered_handle', 'source' => 'b2inst']]);
     $this->actingAs(User::factory()->admin()->create())->get('/settings')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('pidSettings', fn ($settings): bool => collect($settings)->contains(fn ($setting): bool => $setting['type'] === 'pid4inst' && $setting['excludedCount'] === 1 && $setting['itemCount'] === 1)));
 });
@@ -167,7 +169,7 @@ it('preserves stored instrument links and curated names when an instrument is ex
         ->and($resource->instruments[0]->instrument_name)->toBe($selection['name']);
     $json = app(DataCiteJsonExporter::class)->export($resource)['data']['attributes'];
     expect($json['relatedIdentifiers'])->toContain([
-        'relatedIdentifier' => $selection['pid'], 'relatedIdentifierType' => 'Handle', 'relationType' => 'IsCollectedBy',
+        'relatedIdentifier' => $selection['pid'], 'relatedIdentifierType' => 'Handle', 'relationType' => 'IsCollectedBy', 'resourceTypeGeneral' => 'Instrument',
     ])->and(app(DataCiteXmlExporter::class)->export($resource))->toContain($selection['pid']);
 });
 

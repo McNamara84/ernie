@@ -22,9 +22,9 @@ class B2instClient
         $this->startBudget();
     }
 
-    public function startBudget(): void
+    public function startBudget(?float $deadline = null): void
     {
-        $this->deadline = microtime(true) + min(1100, max(1, (int) config('b2inst.max_duration', 900)));
+        $this->deadline = $deadline ?? microtime(true) + min(1100, max(1, (int) config('b2inst.max_duration', 900)));
     }
 
     public function remainingSeconds(): float

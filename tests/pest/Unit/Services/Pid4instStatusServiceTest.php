@@ -7,6 +7,7 @@ use App\Services\Pid4instStatusService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Tests\Fixtures\DataCiteInstrumentFixture;
 
 covers(Pid4instStatusService::class);
 
@@ -19,6 +20,7 @@ describe('Pid4instStatusService', function () {
     beforeEach(function () {
         config(['b2inst.host' => 'https://b2inst.example.test', 'b2inst.retry_delay' => 0]);
         Http::preventStrayRequests();
+        DataCiteInstrumentFixture::fakeEmpty();
         $this->service = new Pid4instStatusService;
     });
 
@@ -106,7 +108,7 @@ describe('Pid4instStatusService', function () {
                 'lastUpdated' => '2026-10-29T05:57:58Z',
                 'total' => 812,
                 'data' => [],
-                '_sync' => ['serverCount' => 815],
+                '_sync' => ['serverCount' => 815, 'sources' => ['b2inst' => ['serverCount' => 815], 'datacite' => ['serverCount' => 0]]],
             ]));
             Http::fake(['*' => Http::response(['hits' => ['total' => $remoteCount, 'hits' => []]])]);
             $setting = new PidSetting(['type' => PidSetting::TYPE_PID4INST]);
@@ -117,17 +119,18 @@ describe('Pid4instStatusService', function () {
                 'updateAvailable' => $updateAvailable,
                 'lastUpdated' => '2026-10-29T05:57:58Z',
                 'comparisonBasis' => 'count',
+                'sources' => ['b2inst' => ['syncedCount' => 815, 'remoteCount' => $remoteCount], 'datacite' => ['syncedCount' => 0, 'remoteCount' => 0]],
             ]);
         })->with([[815, false], [816, true], [814, true], [812, true]]);
 
-        it('falls back to the offered count for legacy or invalid synchronization metadata', function (array $sync, int $remoteCount, bool $updateAvailable) {
+        it('requires a combined refresh for legacy or invalid synchronization metadata', function (array $sync, int $remoteCount) {
             Storage::fake('local');
             Storage::put('pid4inst-instruments.json', json_encode(['total' => 812, 'data' => [], ...$sync]));
             Http::fake(['*' => Http::response(['hits' => ['total' => $remoteCount, 'hits' => []]])]);
             $setting = new PidSetting(['type' => PidSetting::TYPE_PID4INST]);
 
             $result = $this->service->compareWithRemote($setting);
-            expect($result['localCount'])->toBe(812)->and($result['updateAvailable'])->toBe($updateAvailable);
+            expect($result['localCount'])->toBe(812)->and($result['updateAvailable'])->toBeTrue();
         })->with([
             [[], 812, false], [[], 815, true],
             [['_sync' => []], 812, false],
@@ -138,7 +141,7 @@ describe('Pid4instStatusService', function () {
 
         it('recognizes a zero server baseline for an empty synchronized snapshot', function () {
             Storage::fake('local');
-            Storage::put('pid4inst-instruments.json', json_encode(['data' => [], '_sync' => ['serverCount' => 0]]));
+            Storage::put('pid4inst-instruments.json', json_encode(['data' => [], '_sync' => ['serverCount' => 0, 'sources' => ['b2inst' => ['serverCount' => 0], 'datacite' => ['serverCount' => 0]]]]));
             Http::fake(['*' => Http::response(['hits' => ['total' => 0, 'hits' => []]])]);
             $setting = new PidSetting(['type' => PidSetting::TYPE_PID4INST]);
 
@@ -148,7 +151,7 @@ describe('Pid4instStatusService', function () {
     });
 
     describe('getRemoteCount', function () {
-        it('returns total hits from b2inst API', function () {
+        it('returns summed raw counts using lightweight requests to both sources', function () {
             Http::fake([
                 pid4instStatusHost().'/api/records*' => Http::response([
                     'hits' => ['total' => 500, 'hits' => []],
@@ -159,7 +162,7 @@ describe('Pid4instStatusService', function () {
 
             expect($result)->toBe(500);
 
-            Http::assertSentCount(1);
+            Http::assertSentCount(2);
 
             Http::assertSent(function (Request $request): bool {
                 parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);

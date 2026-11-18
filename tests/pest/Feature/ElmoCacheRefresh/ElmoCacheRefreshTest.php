@@ -7,10 +7,10 @@ use App\Exceptions\ElmoCacheRefreshException;
 use App\Jobs\RefreshElmoCacheJob;
 use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
-use App\Services\B2inst\B2instSnapshotStore;
-use App\Services\B2inst\B2instSyncService;
 use App\Services\ElmoCacheRefreshDispatcherService;
 use App\Services\ElmoCacheRefreshService;
+use App\Services\Pidinst\PidinstSnapshotStore;
+use App\Services\Pidinst\PidinstSyncService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Fixtures\B2instFixture;
+use Tests\Fixtures\DataCiteInstrumentFixture;
 
 require_once __DIR__.'/../../Helpers/ElmoCacheRefresh.php';
 
@@ -315,18 +316,19 @@ it('keeps B2INST refresh pending until invalid target configuration is corrected
     $setting->update(['is_elmo_active' => $editor === EditorContext::ELMO, 'is_elmo_msl_active' => $editor === EditorContext::ELMO_MSL]);
     Http::fake(['https://b2inst.example.test/*' => Http::response(B2instFixture::page([B2instFixture::record()]))]);
 
-    $result = app(B2instSyncService::class)->sync();
+    DataCiteInstrumentFixture::fakeEmpty();
+    $result = app(PidinstSyncService::class)->sync();
     expect($result['published'])->toBeTrue()->and($result['refreshPending'])->toBeTrue();
     expect(Artisan::call('get-pid4inst-instruments', ['--refresh-caches' => true]))->toBe(1)
-        ->and(app(B2instSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeTrue();
+        ->and(app(PidinstSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeTrue();
     Bus::assertNothingDispatched();
 
     config(['elmo.targets.'.$editor->value.'.api_key' => 'corrected-secret']);
     expect(Artisan::call('get-pid4inst-instruments', ['--refresh-caches' => true]))->toBe(0)
-        ->and(app(B2instSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeFalse();
+        ->and(app(PidinstSnapshotStore::class)->read()['_sync']['refreshPending'])->toBeFalse();
     Bus::assertDispatchedTimes(RefreshElmoCacheJob::class, 1);
     Bus::assertDispatched(RefreshElmoCacheJob::class, fn ($job): bool => $job->editor === $editor);
-    Http::assertSentCount(2);
+    Http::assertSentCount(4);
 })->with([EditorContext::ELMO, EditorContext::ELMO_MSL]);
 
 it('dispatches one refresh per active target for B2INST commands and background jobs', function (bool $background, bool $elmo, bool $msl): void {
@@ -336,6 +338,7 @@ it('dispatches one refresh per active target for B2INST commands and background 
     $setting = PidSetting::firstOrCreate(['type' => 'pid4inst'], ['display_name' => 'PIDINST']);
     $setting->update(['is_elmo_active' => $elmo, 'is_elmo_msl_active' => $msl]);
     Http::fake(['https://b2inst.example.test/*' => Http::response(B2instFixture::page([B2instFixture::record()]))]);
+    DataCiteInstrumentFixture::fakeEmpty();
     if ($background) {
         (new UpdatePidJob('pid4inst', (string) Str::uuid()))->handle();
     } else {

@@ -18,6 +18,7 @@ use App\Services\Imports\Subjects\ImportedSubjectData;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\Imports\Subjects\SubjectImportResult;
 use App\Services\InstrumentNameResolutionService;
+use App\Services\InstrumentReferenceClassifierService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
@@ -83,6 +84,7 @@ class UploadJsonController extends Controller
 
     public function __construct(
         private readonly InstrumentNameResolutionService $instrumentResolver,
+        private readonly InstrumentReferenceClassifierService $instrumentClassifier,
         private readonly ContactPersonImportService $contactPersonResolver,
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
@@ -877,6 +879,7 @@ class UploadJsonController extends Controller
         $instruments = [];
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
+        $instrumentReferences = $this->instrumentClassifier->classify($relatedIdentifiers);
         foreach ($relatedIdentifiers as $index => $ri) {
             $identifier = $ri['relatedIdentifier'] ?? '';
             $identifierTypeRaw = $ri['relatedIdentifierType'] ?? null;
@@ -903,7 +906,7 @@ class UploadJsonController extends Controller
             }
 
             // Separate instrument PIDs
-            if ($relationType === 'IsCollectedBy' && $identifierType === 'Handle') {
+            if ($instrumentReferences[$index]) {
                 $instruments[] = [
                     'pid' => $identifier,
                     'pidType' => $identifierType,

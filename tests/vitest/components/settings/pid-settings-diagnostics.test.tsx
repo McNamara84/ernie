@@ -30,6 +30,22 @@ afterEach(() => {
 });
 
 describe('PID4INST diagnostics', () => {
+    it('identifies DataCite exclusions separately from B2INST records', async () => {
+        render(
+            <PidSettingsCard
+                {...props}
+                pidSettings={[
+                    {
+                        ...setting,
+                        excludedCount: 1,
+                        exclusions: [{ id: 'datacite:10.1234/sensor', source: 'datacite', reasonCode: 'invalid_record' }],
+                    },
+                ]}
+            />,
+        );
+        await userEvent.click(screen.getByText('Excluded instruments'));
+        expect(screen.getByText(/DataCite datacite:10.1234\/sensor: Instrument metadata could not be validated/)).toBeVisible();
+    });
     it('shows persisted exclusions and pending cache refresh together after a fresh page load', async () => {
         render(<PidSettingsCard {...props} pidSettings={[{ ...setting, excludedCount: 12, exclusions: excluded, refreshPending: true }]} />);
         expect(screen.getByText(/last registry update excluded 12 instruments/)).toBeInTheDocument();
@@ -61,7 +77,7 @@ describe('PID4INST diagnostics', () => {
         );
         const { rerender } = render(<PidSettingsCard {...props} pidSettings={[setting]} />);
         await userEvent.click(screen.getByRole('button', { name: 'Check for Updates' }));
-        await screen.findByText(/Would you like to update the registry/);
+        await screen.findByText(/Use Update Now to refresh both sources/);
         await userEvent.click(screen.getByRole('button', { name: 'Update Now' }));
         await screen.findByText(/last registry update excluded 1 instrument\./);
         expect(screen.getByText(`${(3914).toLocaleString()} instruments`)).toBeInTheDocument();

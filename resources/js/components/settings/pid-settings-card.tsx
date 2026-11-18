@@ -24,7 +24,7 @@ const UPDATE_SUCCESS_RELOAD_DELAY_MS = 1500;
 
 interface PidUpdateDiagnostics {
     excludedCount?: number;
-    exclusions?: { id: string; reasonCode: string }[];
+    exclusions?: { id: string; reasonCode: string; source?: string }[];
     refreshPending?: boolean;
 }
 
@@ -45,6 +45,7 @@ interface UpdateCheckResult {
     updateAvailable: boolean;
     lastUpdated: string | null;
     comparisonBasis?: 'count';
+    sources?: Record<string, { syncedCount: number | null; remoteCount: number }>;
 }
 
 interface PidLocalStatusOverride {
@@ -94,7 +95,7 @@ export function getTypeLabels(type: string): { countLabel: string; sourceName: s
         return { countLabel: 'projects', sourceName: 'DataCite RAiD search' };
     }
 
-    return { countLabel: 'instruments', sourceName: 'b2inst' };
+    return { countLabel: 'instruments', sourceName: 'B2INST + DataCite' };
 }
 
 function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoMslActiveChange, onUpdateComplete }: PidSettingRowProps) {
@@ -391,15 +392,25 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                                 <>
                                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span>
-                                        ERNIE contains {updateInfo.localCount.toLocaleString()} {countLabel}, but {sourceName} contains{' '}
-                                        {updateInfo.remoteCount.toLocaleString()} {countLabel}. Would you like to update the registry?
+                                        {pidSetting.type === 'pid4inst' ? (
+                                            <>
+                                                Source record counts require a full import ({updateInfo.remoteCount.toLocaleString()} records across
+                                                B2INST and DataCite). ERNIE currently offers {updateInfo.localCount.toLocaleString()} instruments.
+                                                Overlapping and excluded records affect the final selection. Use Update Now to refresh both sources.
+                                            </>
+                                        ) : (
+                                            <>
+                                                ERNIE contains {updateInfo.localCount.toLocaleString()} {countLabel}, but {sourceName} contains{' '}
+                                                {updateInfo.remoteCount.toLocaleString()} {countLabel}. Would you like to update the registry?
+                                            </>
+                                        )}
                                     </span>
                                 </>
                             ) : pidSetting.type === 'pid4inst' ? (
                                 <>
                                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span>
-                                        Remote record count unchanged ({updateInfo.remoteCount.toLocaleString()} records); metadata freshness has not
+                                        Remote record counts unchanged ({updateInfo.remoteCount.toLocaleString()} records); metadata freshness has not
                                         been checked. Use Update Now to refresh all metadata.
                                     </span>
                                 </>
@@ -412,6 +423,13 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                                 </>
                             )}
                         </div>
+                    )}
+
+                    {pidSetting.type === 'pid4inst' && updateInfo?.sources && checkStatus === 'done' && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            B2INST: {(updateInfo.sources.b2inst?.remoteCount ?? 0).toLocaleString()} records; DataCite:{' '}
+                            {(updateInfo.sources.datacite?.remoteCount ?? 0).toLocaleString()} records. Source counts include overlaps and exclusions.
+                        </p>
                     )}
 
                     {pidSetting.type === 'pid4inst' && (diagnostics.excludedCount ?? 0) > 0 && (
@@ -429,7 +447,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onElmoM
                                     <ul className="mt-2 list-inside list-disc">
                                         {diagnostics.exclusions?.map((entry) => (
                                             <li key={entry.id}>
-                                                {entry.id}:{' '}
+                                                {entry.source === 'datacite' ? 'DataCite' : entry.source === 'b2inst' ? 'B2INST' : ''} {entry.id}:{' '}
                                                 {entry.reasonCode === 'unregistered_handle'
                                                     ? 'Handle is not registered and no provider PID is available.'
                                                     : 'Instrument metadata could not be validated.'}

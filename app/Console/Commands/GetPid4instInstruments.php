@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\B2inst\B2instSyncService;
+use App\Services\Pidinst\PidinstSyncService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Throwable;
 
 /** @see https://docs.eudat.eu/b2inst/v3-rest/records/ */
-#[Description('Synchronize public current B2INST v3 instruments')]
+#[Description('Synchronize public instruments from B2INST v3 and DataCite')]
 #[Signature('get-pid4inst-instruments {--dry-run : Validate and report without publishing} {--refresh-caches : Retry cache refresh for the published snapshot}')]
 class GetPid4instInstruments extends Command
 {
-    public function handle(B2instSyncService $service): int
+    public function handle(PidinstSyncService $service): int
     {
         try {
             if ($this->option('refresh-caches')) {
@@ -23,7 +23,7 @@ class GetPid4instInstruments extends Command
                     throw new \InvalidArgumentException('--dry-run and --refresh-caches cannot be combined.');
                 }
                 $service->retryCaches();
-                $this->info('Cache refresh requested for the published B2INST snapshot.');
+                $this->info('Cache refresh requested for the published PIDINST snapshot.');
 
                 return self::SUCCESS;
             }

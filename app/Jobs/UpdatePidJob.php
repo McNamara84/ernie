@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\PidSetting;
-use App\Services\B2inst\B2instSnapshotStore;
 use App\Services\ElmoCacheRefreshDispatcherService;
 use App\Services\Pid4instUpdateDiagnosticsService;
+use App\Services\Pidinst\PidinstSnapshotStore;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -87,7 +87,7 @@ class UpdatePidJob implements ShouldQueue
         ]);
 
         $progressMessage = match ($this->pidType) {
-            PidSetting::TYPE_PID4INST => 'Fetching instruments from b2inst API...',
+            PidSetting::TYPE_PID4INST => 'Fetching instruments from B2INST and DataCite...',
             PidSetting::TYPE_ROR => 'Fetching organizations from ROR data dump...',
             PidSetting::TYPE_RAID => 'Fetching RAiD projects from DataCite...',
             default => 'Fetching data...',
@@ -114,7 +114,7 @@ class UpdatePidJob implements ShouldQueue
             if ($exitCode === 0) {
                 $result = [];
                 if ($this->pidType === PidSetting::TYPE_PID4INST) {
-                    $snapshot = app(B2instSnapshotStore::class)->read();
+                    $snapshot = app(PidinstSnapshotStore::class)->read();
                     $result = [
                         'itemCount' => $snapshot['total'] ?? 0,
                         'lastUpdated' => $snapshot['lastUpdated'] ?? null,

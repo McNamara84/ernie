@@ -306,7 +306,7 @@ export interface MSLLaboratoriesResponse {
 }
 
 /**
- * Instrument selection from the PID4INST / b2inst registry.
+ * Instrument selection from the combined B2INST and DataCite PIDINST vocabulary.
  * Used in the "Used Instruments" editor section.
  */
 export interface InstrumentSelection {
