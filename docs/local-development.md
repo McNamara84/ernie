@@ -464,7 +464,12 @@ No database migration is required for the editor fields.
 ## Environment Files
 
 JSON-LD exports use `APP_URL` as their canonical public origin. The versioned context
-is served anonymously at `/metadata/contexts/datacite-4.7-v1.jsonld`. Leave
+is served anonymously at `/schemas/datacite/4.7/v1/context.jsonld`; the previous
+`/metadata/contexts/datacite-4.7-v1.jsonld` URL remains available. The DataCite JSON
+Schema is published at `/schemas/datacite/4.7/schema.json` and its fixed `v1/` URL,
+following the existing `/schemas/igsn/2.0/core.xsd` pattern. See
+[the public schema README](../resources/data/scheme/datacite/4.7/v1/README.md) for URLs and external validation.
+Leave
 `DATACITE_LINKED_DATA_CONTEXT_URL` unset unless an independently verified compatible
 mirror is required. Docker forwards this optional override from `.env.docker` to
 the app and workers; recreate them after changing it. See

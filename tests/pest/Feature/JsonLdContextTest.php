@@ -62,6 +62,8 @@ test('recognizes new exports, explicit overrides and known legacy profiles offli
     expect($document['creators']['creator'][0]['creatorName']['value'])->toBe('Lovelace, Ada');
 })->with([
     'local' => ['https://public.example.org'.DataCiteJsonLdContextService::PATH],
+    'short alias' => ['https://public.example.org'.DataCiteJsonLdContextService::ALIAS_PATH],
+    'previous local URL' => ['https://public.example.org'.DataCiteJsonLdContextService::LEGACY_PATH],
     'override' => ['https://contexts.example.org/datacite.jsonld'],
     'staging legacy' => [DataCiteJsonLdContextService::LEGACY_CONTEXTS[0]],
     'kernel legacy' => [DataCiteJsonLdContextService::LEGACY_CONTEXTS[1]],

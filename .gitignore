@@ -44,6 +44,7 @@ yarn-error.log
 !/.vscode/settings.json
 /.zed
 clover.xml
+docs/publications/pidinst
 
 # Docker development
 /docker/traefik/certs/*.crt
@@ -67,3 +68,4 @@ node_modules/
 .trivy-cache/db/metadata.json
 .trivy-cache/db/trivy.db
 .trivy-cache/fanal/fanal.db
+/.trivy-cache/

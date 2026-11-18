@@ -17,6 +17,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
+use App\Http\Controllers\DataCiteSchemaController;
 use App\Http\Controllers\DataCiteUrlUpdateController;
 use App\Http\Controllers\DataEmbargoReleaseController;
 use App\Http\Controllers\DebugController;
@@ -85,6 +86,17 @@ Route::get('/health', HealthController::class)->name('health');
 Route::get('/metadata/contexts/datacite-4.7-v1.jsonld', JsonLdContextController::class)
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->name('metadata.context.datacite');
+
+Route::get('/schemas/datacite/4.7/{revision}/{path}', [DataCiteSchemaController::class, 'revision'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->where('path', '.+')
+    ->name('schemas.datacite.revision');
+
+Route::get('/schemas/datacite/4.7/{path}', [DataCiteSchemaController::class, 'current'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('path', '.+')
+    ->name('schemas.datacite');
 
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
 // Sanctum itself is not installed – this lightweight route provides the

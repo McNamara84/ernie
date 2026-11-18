@@ -8,12 +8,21 @@ as a DataCite registration format. DOI registration continues to use DataCite JS
 
 ## Context and provenance
 
-The default context is `${APP_URL}/metadata/contexts/datacite-4.7-v1.jsonld`.
-Its exact contents are committed in `resources/data/contexts/datacite-4.7-v1.jsonld`.
+The default context is `${APP_URL}/schemas/datacite/4.7/v1/context.jsonld`.
+Its exact contents are committed in `resources/data/scheme/datacite/4.7/v1/context.jsonld`
+and match `resources/data/contexts/datacite-4.7-v1.jsonld` byte for byte.
 The anonymous GET/HEAD endpoint returns `application/ld+json`, an ETag, Last-Modified
 and a one-year public immutable cache policy. It supports conditional GET. Context
 URLs use the configured public origin, including an optional deployment path,
 independently of the request Host header.
+
+The short `/schemas/datacite/4.7/context.jsonld` URL selects the current published
+revision and requires cache revalidation. The previous
+`/metadata/contexts/datacite-4.7-v1.jsonld` URL retains the original immutable bytes.
+All three URLs support cross-origin browser requests. New exports use the fixed
+revision URL so their interpretation cannot change when the short alias advances.
+The same directory publishes the portable DataCite JSON Schema, manifest and
+validation instructions; see [the public schema README](../resources/data/scheme/datacite/4.7/v1/README.md).
 
 The static context route excludes session and CSRF middleware. Anonymous GET,
 HEAD and conditional 304 responses emit no cookies. Its response test explicitly
@@ -127,8 +136,9 @@ Linked-Data exporter; valid zero values are also retained by JSON/XML exports.
 
 ## Import compatibility and persistence
 
-The upload accepts the local v1 URL, its explicitly configured compatible override,
-and these historical ERNIE profile labels offline:
+The upload accepts the local fixed v1 URL, the short alias, the previous local
+`/metadata/contexts/datacite-4.7-v1.jsonld` URL, its explicitly configured compatible
+override, and these historical ERNIE profile labels offline:
 
 - `https://schema.stage.datacite.org/linked-data/context/fullcontext.jsonld`
 - `https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld`
