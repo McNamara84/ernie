@@ -57,7 +57,7 @@ jobs:
         if: steps.node.outcome == 'success'
         continue-on-error: true
         run: |
-          npm install --global npm@12.2.2
+          npm install --global npm@12.2.3
           npm ci
 
       - name: '0: PHP 8.6 runtime and extensions'

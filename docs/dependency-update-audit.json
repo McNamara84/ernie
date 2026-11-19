@@ -1,33 +1,45 @@
 {
-  "checkedOn": "2026-11-16",
-  "release": {
-    "version": "1.1.3",
-    "date": "2026-11-16",
-    "base": "a6849974b6d64ace053a0eee0a0ca636bd58f0b2"
-  },
+  "checkedOn": "2026-11-19",
+  "baseCommit": "37fa1de68e149f3783a1c31bb467c95b51891ac5",
   "policy": "Latest available stable releases compatible with upstream requirements; preserve the MySQL 9.7 server line, security overrides, the local deepmerge fix and existing CI security gates. No prerelease runtimes or forced incompatible transitive upgrades.",
   "sources": {
     "npm": "https://registry.npmjs.org",
     "composer": "https://repo.packagist.org",
     "python": "https://pypi.org",
     "images": "https://hub.docker.com",
-    "actions": "https://api.github.com/repos"
+    "actions": "https://api.github.com/repos",
+    "php": "https://www.php.net/releases/8_5_13.php"
   },
   "previousAudit": {
-    "checkedOn": "2026-11-05",
-    "sourceCommit": "a6849974b6d64ace053a0eee0a0ca636bd58f0b2",
-    "note": "Earlier validation and scan results remain in Git history and are not evidence for this update."
+    "checkedOn": "2026-11-16",
+    "note": "The previous inventory, validation and scan results remain in Git history and are not evidence for this update."
   },
   "toolchain": {
     "node": "26.13.1",
-    "npm": "12.2.2",
-    "php": "8.5.12",
+    "npm": "12.2.3",
+    "php": "8.5.13",
     "composer": "2.11.2",
     "shadcn": "4.23.0",
     "phpredis": "6.3.0",
     "xdebug": "3.5.3",
     "trivy": "0.76.2",
     "actionlint": "1.7.12"
+  },
+  "phpSecurityUpdate": {
+    "previous": "8.5.12",
+    "installed": "8.5.13",
+    "released": "2026-11-19",
+    "announcement": "https://www.php.net/releases/8_5_13.php",
+    "changelog": "https://www.php.net/ChangeLog-8.php#8.5.13",
+    "minimumRequirement": "^8.5.13",
+    "platform": {
+      "php": "8.5.13",
+      "ext-xsl": "8.5.13"
+    },
+    "imageArchitectures": [
+      "linux/amd64",
+      "linux/arm64"
+    ]
   },
   "npm": [
     {
@@ -72,11 +84,11 @@
     },
     {
       "name": "@hookform/resolvers",
-      "previousConstraint": "^7.0.3",
-      "constraint": "^7.0.6",
-      "previous": "7.0.3",
-      "installed": "7.0.6",
-      "latestStable": "7.0.6"
+      "previousConstraint": "^7.0.6",
+      "constraint": "^7.0.7",
+      "previous": "7.0.6",
+      "installed": "7.0.7",
+      "latestStable": "7.0.7"
     },
     {
       "name": "@inertiajs/react",
@@ -104,51 +116,51 @@
     },
     {
       "name": "@playwright/test",
-      "previousConstraint": "1.64.1",
+      "previousConstraint": "1.65.1",
       "constraint": "1.65.1",
-      "previous": "1.64.1",
+      "previous": "1.65.1",
       "installed": "1.65.1",
       "latestStable": "1.65.1"
     },
     {
       "name": "@redocly/cli",
-      "previousConstraint": "^2.76.0",
-      "constraint": "^2.78.0",
-      "previous": "2.76.0",
-      "installed": "2.78.0",
-      "latestStable": "2.78.0"
+      "previousConstraint": "^2.78.0",
+      "constraint": "^2.82.0",
+      "previous": "2.78.0",
+      "installed": "2.82.0",
+      "latestStable": "2.82.0"
     },
     {
       "name": "@tailwindcss/oxide-linux-x64-gnu",
-      "previousConstraint": "^4.3.4",
+      "previousConstraint": "^4.3.5",
       "constraint": "^4.3.5",
-      "previous": "4.3.4",
+      "previous": "4.3.5",
       "installed": "4.3.5",
       "latestStable": "4.3.5"
     },
     {
       "name": "@tailwindcss/vite",
-      "previousConstraint": "^4.3.4",
+      "previousConstraint": "^4.3.5",
       "constraint": "^4.3.5",
-      "previous": "4.3.4",
+      "previous": "4.3.5",
       "installed": "4.3.5",
       "latestStable": "4.3.5"
     },
     {
       "name": "@tanstack/react-query",
-      "previousConstraint": "^5.106.1",
-      "constraint": "^5.107.1",
-      "previous": "5.106.1",
-      "installed": "5.107.1",
-      "latestStable": "5.107.1"
+      "previousConstraint": "^5.107.1",
+      "constraint": "^5.108.1",
+      "previous": "5.107.1",
+      "installed": "5.108.1",
+      "latestStable": "5.108.1"
     },
     {
       "name": "@tanstack/react-query-devtools",
-      "previousConstraint": "^5.106.1",
-      "constraint": "^5.107.1",
-      "previous": "5.106.1",
-      "installed": "5.107.1",
-      "latestStable": "5.107.1"
+      "previousConstraint": "^5.107.1",
+      "constraint": "^5.108.1",
+      "previous": "5.107.1",
+      "installed": "5.108.1",
+      "latestStable": "5.108.1"
     },
     {
       "name": "@tanstack/react-table",
@@ -169,10 +181,10 @@
     {
       "name": "@testing-library/jest-dom",
       "previousConstraint": "^7.0.1",
-      "constraint": "^7.0.1",
+      "constraint": "^8.0.0",
       "previous": "7.0.1",
-      "installed": "7.0.1",
-      "latestStable": "7.0.1"
+      "installed": "8.0.0",
+      "latestStable": "8.0.0"
     },
     {
       "name": "@testing-library/react",
@@ -184,11 +196,11 @@
     },
     {
       "name": "@testing-library/user-event",
-      "previousConstraint": "^14.6.8",
-      "constraint": "^14.6.10",
-      "previous": "14.6.8",
-      "installed": "14.6.12",
-      "latestStable": "14.6.12"
+      "previousConstraint": "^14.6.10",
+      "constraint": "^14.6.13",
+      "previous": "14.6.12",
+      "installed": "14.6.13",
+      "latestStable": "14.6.13"
     },
     {
       "name": "@types/d3",
@@ -280,43 +292,43 @@
     },
     {
       "name": "@vitejs/devtools",
-      "previousConstraint": "^0.8.2",
+      "previousConstraint": "^0.8.3",
       "constraint": "^0.8.3",
-      "previous": "0.8.2",
+      "previous": "0.8.3",
       "installed": "0.8.3",
       "latestStable": "0.8.3"
     },
     {
       "name": "@vitejs/plugin-react",
-      "previousConstraint": "^6.2.1",
+      "previousConstraint": "^6.3.0",
       "constraint": "^6.3.0",
-      "previous": "6.2.1",
+      "previous": "6.3.0",
       "installed": "6.3.0",
       "latestStable": "6.3.0"
     },
     {
       "name": "@vitest/browser",
       "previousConstraint": "^5.1.0",
-      "constraint": "^5.1.0",
+      "constraint": "^5.1.1",
       "previous": "5.1.0",
-      "installed": "5.1.0",
-      "latestStable": "5.1.0"
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
     },
     {
       "name": "@vitest/browser-playwright",
       "previousConstraint": "^5.1.0",
-      "constraint": "^5.1.0",
+      "constraint": "^5.1.1",
       "previous": "5.1.0",
-      "installed": "5.1.0",
-      "latestStable": "5.1.0"
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
     },
     {
       "name": "@vitest/coverage-v8",
       "previousConstraint": "^5.1.0",
-      "constraint": "^5.1.0",
+      "constraint": "^5.1.1",
       "previous": "5.1.0",
-      "installed": "5.1.0",
-      "latestStable": "5.1.0"
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
     },
     {
       "name": "@yaireo/tagify",
@@ -336,9 +348,9 @@
     },
     {
       "name": "axios",
-      "previousConstraint": "^1.21.0",
+      "previousConstraint": "^1.21.1",
       "constraint": "^1.21.1",
-      "previous": "1.21.0",
+      "previous": "1.21.1",
       "installed": "1.21.1",
       "latestStable": "1.21.1"
     },
@@ -368,9 +380,9 @@
     },
     {
       "name": "concurrently",
-      "previousConstraint": "^10.0.6",
+      "previousConstraint": "^10.0.7",
       "constraint": "^10.0.7",
-      "previous": "10.0.6",
+      "previous": "10.0.7",
       "installed": "10.0.7",
       "latestStable": "10.0.7"
     },
@@ -392,25 +404,25 @@
     },
     {
       "name": "dotenv",
-      "previousConstraint": "^18.0.9",
+      "previousConstraint": "^18.0.10",
       "constraint": "^18.0.10",
-      "previous": "18.0.9",
+      "previous": "18.0.10",
       "installed": "18.0.10",
       "latestStable": "18.0.10"
     },
     {
       "name": "driver.js",
-      "previousConstraint": "^1.10.2",
+      "previousConstraint": "^1.14.0",
       "constraint": "^1.14.0",
-      "previous": "1.10.2",
+      "previous": "1.14.0",
       "installed": "1.14.0",
       "latestStable": "1.14.0"
     },
     {
       "name": "eslint",
-      "previousConstraint": "^10.14.0",
+      "previousConstraint": "^10.15.0",
       "constraint": "^10.15.0",
-      "previous": "10.14.0",
+      "previous": "10.15.0",
       "installed": "10.15.0",
       "latestStable": "10.15.0"
     },
@@ -424,17 +436,17 @@
     },
     {
       "name": "framer-motion",
-      "previousConstraint": "^14.9.1",
+      "previousConstraint": "^14.14.0",
       "constraint": "^14.14.0",
-      "previous": "14.9.1",
+      "previous": "14.14.0",
       "installed": "14.14.0",
       "latestStable": "14.14.0"
     },
     {
       "name": "jsdom",
-      "previousConstraint": "^30.1.3",
+      "previousConstraint": "^31.0.1",
       "constraint": "^31.0.1",
-      "previous": "30.1.3",
+      "previous": "31.0.1",
       "installed": "31.0.1",
       "latestStable": "31.0.1"
     },
@@ -480,27 +492,27 @@
     },
     {
       "name": "lucide-react",
-      "previousConstraint": "^1.69.0",
-      "constraint": "^1.73.0",
-      "previous": "1.69.0",
-      "installed": "1.73.0",
-      "latestStable": "1.73.0"
+      "previousConstraint": "^1.73.0",
+      "constraint": "^1.76.0",
+      "previous": "1.73.0",
+      "installed": "1.76.0",
+      "latestStable": "1.76.0"
     },
     {
       "name": "maplibre-gl",
-      "previousConstraint": "^6.16.0",
-      "constraint": "^6.18.0",
-      "previous": "6.16.0",
-      "installed": "6.18.0",
-      "latestStable": "6.18.0"
+      "previousConstraint": "^6.18.0",
+      "constraint": "^6.19.0",
+      "previous": "6.18.0",
+      "installed": "6.19.0",
+      "latestStable": "6.19.0"
     },
     {
       "name": "msw",
-      "previousConstraint": "^3.0.3",
-      "constraint": "^3.0.6",
-      "previous": "3.0.3",
-      "installed": "3.0.6",
-      "latestStable": "3.0.6"
+      "previousConstraint": "^3.0.6",
+      "constraint": "^3.0.7",
+      "previous": "3.0.6",
+      "installed": "3.0.7",
+      "latestStable": "3.0.7"
     },
     {
       "name": "nprogress",
@@ -512,33 +524,33 @@
     },
     {
       "name": "oxfmt",
-      "previousConstraint": "^0.75.0",
-      "constraint": "^0.78.0",
-      "previous": "0.75.0",
-      "installed": "0.78.0",
-      "latestStable": "0.78.0"
+      "previousConstraint": "^0.78.0",
+      "constraint": "^0.79.0",
+      "previous": "0.78.0",
+      "installed": "0.79.0",
+      "latestStable": "0.79.0"
     },
     {
       "name": "oxlint",
-      "previousConstraint": "^1.91.0",
-      "constraint": "^1.93.0",
-      "previous": "1.91.0",
-      "installed": "1.93.0",
-      "latestStable": "1.93.0"
+      "previousConstraint": "^1.93.0",
+      "constraint": "^1.94.0",
+      "previous": "1.93.0",
+      "installed": "1.94.0",
+      "latestStable": "1.94.0"
     },
     {
       "name": "papaparse",
-      "previousConstraint": "^5.7.0",
+      "previousConstraint": "^5.7.1",
       "constraint": "^5.7.1",
-      "previous": "5.7.0",
+      "previous": "5.7.1",
       "installed": "5.7.1",
       "latestStable": "5.7.1"
     },
     {
       "name": "playwright",
-      "previousConstraint": "1.64.1",
+      "previousConstraint": "1.65.1",
       "constraint": "1.65.1",
-      "previous": "1.64.1",
+      "previous": "1.65.1",
       "installed": "1.65.1",
       "latestStable": "1.65.1"
     },
@@ -584,9 +596,9 @@
     },
     {
       "name": "react-hook-form",
-      "previousConstraint": "^7.91.0",
+      "previousConstraint": "^7.92.0",
       "constraint": "^7.92.0",
-      "previous": "7.91.0",
+      "previous": "7.92.0",
       "installed": "7.92.0",
       "latestStable": "7.92.0"
     },
@@ -600,19 +612,19 @@
     },
     {
       "name": "react-resizable-panels",
-      "previousConstraint": "^4.18.1",
-      "constraint": "^4.23.0",
-      "previous": "4.18.1",
-      "installed": "4.24.0",
-      "latestStable": "4.24.0"
+      "previousConstraint": "^4.23.0",
+      "constraint": "^4.24.1",
+      "previous": "4.24.0",
+      "installed": "4.24.1",
+      "latestStable": "4.24.1"
     },
     {
       "name": "recharts",
       "previousConstraint": "^3.10.1",
-      "constraint": "^3.10.1",
+      "constraint": "^3.11.0",
       "previous": "3.10.1",
-      "installed": "3.10.1",
-      "latestStable": "3.10.1"
+      "installed": "3.11.0",
+      "latestStable": "3.11.0"
     },
     {
       "name": "sonner",
@@ -632,11 +644,11 @@
     },
     {
       "name": "swagger-ui-react",
-      "previousConstraint": "^5.34.1",
-      "constraint": "^5.35.0",
-      "previous": "5.34.1",
-      "installed": "5.35.0",
-      "latestStable": "5.35.0"
+      "previousConstraint": "^5.35.0",
+      "constraint": "^5.35.1",
+      "previous": "5.35.0",
+      "installed": "5.35.1",
+      "latestStable": "5.35.1"
     },
     {
       "name": "tailwind-merge",
@@ -648,9 +660,9 @@
     },
     {
       "name": "tailwindcss",
-      "previousConstraint": "^4.3.4",
+      "previousConstraint": "^4.3.5",
       "constraint": "^4.3.5",
-      "previous": "4.3.4",
+      "previous": "4.3.5",
       "installed": "4.3.5",
       "latestStable": "4.3.5"
     },
@@ -680,19 +692,19 @@
     },
     {
       "name": "vite",
-      "previousConstraint": "^8.3.6",
+      "previousConstraint": "^8.3.8",
       "constraint": "^8.3.8",
-      "previous": "8.3.6",
+      "previous": "8.3.8",
       "installed": "8.3.8",
       "latestStable": "8.3.8"
     },
     {
       "name": "vitest",
       "previousConstraint": "^5.1.0",
-      "constraint": "^5.1.0",
+      "constraint": "^5.1.1",
       "previous": "5.1.0",
-      "installed": "5.1.0",
-      "latestStable": "5.1.0"
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
     },
     {
       "name": "zod",
@@ -712,3792 +724,1680 @@
     }
   ],
   "npmLockfileChanges": {
-    "updated": 158,
-    "added": 9,
-    "removed": 11,
-    "note": "Counts include optional packages for other architectures; npm ci installs only packages applicable to the host."
+    "updated": [
+      {
+        "path": "node_modules/@devframes/agentic",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/hub",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/hub-ui",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/json-render",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/json-render-ui",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/plugin-inspect",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/plugin-messages",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/plugin-terminals",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/service-open",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@devframes/vite",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/@hookform/resolvers",
+        "previous": "7.0.6",
+        "version": "7.0.7"
+      },
+      {
+        "path": "node_modules/@json-render/core",
+        "previous": "0.22.0",
+        "version": "0.23.2"
+      },
+      {
+        "path": "node_modules/@maplibre/geojson-vt",
+        "previous": "6.3.1",
+        "version": "6.3.3"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-android-arm-eabi",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-android-arm64",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-darwin-arm64",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-darwin-x64",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-freebsd-x64",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-arm-gnueabihf",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-arm-musleabihf",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-arm64-gnu",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-arm64-musl",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-ppc64-gnu",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-riscv64-gnu",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-riscv64-musl",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-s390x-gnu",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-x64-gnu",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-linux-x64-musl",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-openharmony-arm64",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-win32-arm64-msvc",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-win32-ia32-msvc",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxfmt/binding-win32-x64-msvc",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-android-arm-eabi",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-android-arm64",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-darwin-arm64",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-darwin-x64",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-freebsd-x64",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-arm-gnueabihf",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-arm-musleabihf",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-arm64-gnu",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-arm64-musl",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-ppc64-gnu",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-riscv64-gnu",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-riscv64-musl",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-s390x-gnu",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-x64-gnu",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-linux-x64-musl",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-openharmony-arm64",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-win32-arm64-msvc",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-win32-ia32-msvc",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@oxlint/binding-win32-x64-msvc",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/@redocly/cli",
+        "previous": "2.78.0",
+        "version": "2.82.0"
+      },
+      {
+        "path": "node_modules/@reduxjs/toolkit",
+        "previous": "2.14.0",
+        "version": "2.15.0"
+      },
+      {
+        "path": "node_modules/@tanstack/query-core",
+        "previous": "5.107.1",
+        "version": "5.108.1"
+      },
+      {
+        "path": "node_modules/@tanstack/query-devtools",
+        "previous": "5.107.1",
+        "version": "5.108.1"
+      },
+      {
+        "path": "node_modules/@tanstack/react-query",
+        "previous": "5.107.1",
+        "version": "5.108.1"
+      },
+      {
+        "path": "node_modules/@tanstack/react-query-devtools",
+        "previous": "5.107.1",
+        "version": "5.108.1"
+      },
+      {
+        "path": "node_modules/@testing-library/jest-dom",
+        "previous": "7.0.1",
+        "version": "8.0.0"
+      },
+      {
+        "path": "node_modules/@testing-library/user-event",
+        "previous": "14.6.12",
+        "version": "14.6.13"
+      },
+      {
+        "path": "node_modules/@tybys/wasm-util",
+        "previous": "0.10.4",
+        "version": "0.10.5"
+      },
+      {
+        "path": "node_modules/@vitest/browser",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/browser-playwright",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/coverage-v8",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/istanbul-lib-coverage",
+        "previous": "2.1.0",
+        "version": "2.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/istanbul-lib-report",
+        "previous": "2.1.0",
+        "version": "2.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/mocker",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/pretty-format",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/spy",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/ui",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/@vitest/utils",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      },
+      {
+        "path": "node_modules/axe-core",
+        "previous": "4.14.0",
+        "version": "4.14.1"
+      },
+      {
+        "path": "node_modules/csstype",
+        "previous": "3.2.3",
+        "version": "3.2.4"
+      },
+      {
+        "path": "node_modules/devframe",
+        "previous": "1.3.5",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/fast-equals",
+        "previous": "6.2.2",
+        "version": "6.3.0"
+      },
+      {
+        "path": "node_modules/jose",
+        "previous": "6.2.17",
+        "version": "6.2.18"
+      },
+      {
+        "path": "node_modules/lucide-react",
+        "previous": "1.73.0",
+        "version": "1.76.0"
+      },
+      {
+        "path": "node_modules/maplibre-gl",
+        "previous": "6.18.0",
+        "version": "6.19.0"
+      },
+      {
+        "path": "node_modules/minimatch",
+        "previous": "11.0.8",
+        "version": "11.0.9"
+      },
+      {
+        "path": "node_modules/msw",
+        "previous": "3.0.6",
+        "version": "3.0.7"
+      },
+      {
+        "path": "node_modules/nostics",
+        "previous": "1.3.0",
+        "version": "1.4.0"
+      },
+      {
+        "path": "node_modules/oxfmt",
+        "previous": "0.78.0",
+        "version": "0.79.0"
+      },
+      {
+        "path": "node_modules/oxlint",
+        "previous": "1.93.0",
+        "version": "1.94.0"
+      },
+      {
+        "path": "node_modules/pbf",
+        "previous": "5.1.2",
+        "version": "5.2.0"
+      },
+      {
+        "path": "node_modules/react-resizable-panels",
+        "previous": "4.24.0",
+        "version": "4.24.1"
+      },
+      {
+        "path": "node_modules/recharts",
+        "previous": "3.10.1",
+        "version": "3.11.0"
+      },
+      {
+        "path": "node_modules/seroval",
+        "previous": "1.8.1",
+        "version": "1.8.2"
+      },
+      {
+        "path": "node_modules/set-cookie-parser",
+        "previous": "3.2.2",
+        "version": "3.2.3"
+      },
+      {
+        "path": "node_modules/source-map-js",
+        "previous": "1.2.2",
+        "version": "1.2.4"
+      },
+      {
+        "path": "node_modules/swagger-ui-react",
+        "previous": "5.35.0",
+        "version": "5.35.1"
+      },
+      {
+        "path": "node_modules/tinybench",
+        "previous": "6.2.3",
+        "version": "6.2.4"
+      },
+      {
+        "path": "node_modules/vitest",
+        "previous": "5.1.0",
+        "version": "5.1.1"
+      }
+    ],
+    "added": [
+      {
+        "path": "node_modules/zustand",
+        "version": "5.1.0"
+      }
+    ],
+    "removed": [
+      {
+        "path": "node_modules/resolve-protobuf-schema",
+        "version": "2.1.0"
+      }
+    ]
   },
-  "npmTransitiveConstraints": [
-    {
-      "package": "@adobe/css-tools",
-      "installed": "4.5.0",
-      "latestStable": "5.0.0",
-      "requiredBy": [
-        {
-          "package": "@testing-library/jest-dom",
-          "constraint": "^4.4.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@adobe/css-tools"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@babel/code-frame",
-      "installed": "7.29.7",
-      "latestStable": "8.0.6",
-      "requiredBy": [
-        {
-          "package": "@testing-library/dom",
-          "constraint": "^7.10.4"
-        }
-      ],
-      "locations": [
-        "node_modules/@babel/code-frame"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@babel/helper-string-parser",
-      "installed": "7.29.14",
-      "latestStable": "8.1.2",
-      "requiredBy": [
-        {
-          "package": "@babel/types",
-          "constraint": "^7.29.14"
-        }
-      ],
-      "locations": [
-        "node_modules/@babel/helper-string-parser"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@babel/helper-validator-identifier",
-      "installed": "7.29.7",
-      "latestStable": "8.0.6",
-      "requiredBy": [
-        {
-          "package": "@babel/code-frame",
-          "constraint": "^7.29.7"
-        },
-        {
-          "package": "@babel/types",
-          "constraint": "^7.29.7"
-        }
-      ],
-      "locations": [
-        "node_modules/@babel/helper-validator-identifier"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@babel/parser",
-      "installed": "7.29.14",
-      "latestStable": "8.1.2",
-      "requiredBy": [
-        {
-          "package": "magicast",
-          "constraint": "^7.29.7"
-        }
-      ],
-      "locations": [
-        "node_modules/@babel/parser"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@babel/runtime",
-      "installed": "7.29.14",
-      "latestStable": "8.1.2",
-      "requiredBy": [
-        {
-          "package": "@testing-library/dom",
-          "constraint": "^7.12.5"
-        },
-        {
-          "package": "@testing-library/react",
-          "constraint": "^7.12.5"
-        },
-        {
-          "package": "react-syntax-highlighter",
-          "constraint": "^7.28.4"
-        }
-      ],
-      "locations": [
-        "node_modules/@babel/runtime"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@babel/runtime-corejs3",
-      "installed": "7.29.14",
-      "latestStable": "8.1.2",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-ast",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-core",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-error",
-          "constraint": "^7.20.7"
-        },
-        {
-          "package": "@swagger-api/apidom-json-pointer",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-a2a-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-api-design-systems",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-arazzo-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-3",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2019-09",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2020-12",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-4",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-6",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-7",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-0",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-json-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-yaml-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-json",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-yaml",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-json-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-yaml-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-3",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-3",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-json-2020-12",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-0",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-0",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-1",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "@swagger-api/apidom-reference",
-          "constraint": "^7.26.10"
-        },
-        {
-          "package": "swagger-client",
-          "constraint": "^7.22.15"
-        },
-        {
-          "package": "swagger-ui-react",
-          "constraint": "^7.27.1"
-        }
-      ],
-      "locations": [
-        "node_modules/@babel/runtime-corejs3"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@babel/types",
-      "installed": "7.29.14",
-      "latestStable": "8.1.2",
-      "requiredBy": [
-        {
-          "package": "@babel/parser",
-          "constraint": "^7.29.14"
-        },
-        {
-          "package": "magicast",
-          "constraint": "^7.29.7"
-        }
-      ],
-      "locations": [
-        "node_modules/@babel/types"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@blazediff/core",
-      "installed": "1.10.0",
-      "latestStable": "2.0.1",
-      "requiredBy": [
-        {
-          "package": "@vitest/browser",
-          "constraint": "1.10.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@blazediff/core"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@emnapi/wasi-threads",
-      "installed": "1.2.3",
-      "latestStable": "2.2.0",
-      "requiredBy": [
-        {
-          "package": "@emnapi/core",
-          "constraint": "1.2.3"
-        },
-        {
-          "package": "@tailwindcss/oxide-wasm32-wasi",
-          "constraint": "^1.2.3"
-        }
-      ],
-      "locations": [
-        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/wasi-threads"
-      ],
-      "reason": "Bundled inside an upstream package; npm cannot update this embedded copy independently."
-    },
-    {
-      "package": "@hapi/formula",
-      "installed": "3.0.2",
-      "latestStable": "4.0.0",
-      "requiredBy": [
-        {
-          "package": "joi",
-          "constraint": "^3.0.2"
-        }
-      ],
-      "locations": [
-        "node_modules/@hapi/formula"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@hapi/pinpoint",
-      "installed": "2.0.1",
-      "latestStable": "3.0.0",
-      "requiredBy": [
-        {
-          "package": "joi",
-          "constraint": "^2.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/@hapi/pinpoint"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@hapi/tlds",
-      "installed": "1.1.7",
-      "latestStable": "2.0.3",
-      "requiredBy": [
-        {
-          "package": "joi",
-          "constraint": "^1.1.1"
-        }
-      ],
-      "locations": [
-        "node_modules/@hapi/tlds"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@humanfs/core",
-      "installed": "0.19.2",
-      "latestStable": "0.20.0",
-      "requiredBy": [
-        {
-          "package": "@humanfs/node",
-          "constraint": "^0.19.2"
-        }
-      ],
-      "locations": [
-        "node_modules/@humanfs/core"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@humanfs/node",
-      "installed": "0.16.8",
-      "latestStable": "0.17.0",
-      "requiredBy": [
-        {
-          "package": "eslint",
-          "constraint": "^0.16.8"
-        }
-      ],
-      "locations": [
-        "node_modules/@humanfs/node"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@humanfs/types",
-      "installed": "0.15.0",
-      "latestStable": "0.16.0",
-      "requiredBy": [
-        {
-          "package": "@humanfs/core",
-          "constraint": "^0.15.0"
-        },
-        {
-          "package": "@humanfs/node",
-          "constraint": "^0.15.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@humanfs/types"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@json-render/core",
-      "installed": "0.22.0",
-      "latestStable": "0.23.1",
-      "requiredBy": [
-        {
-          "package": "@devframes/json-render",
-          "constraint": "^0.22.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@json-render/core"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@keyv/bigmap",
-      "installed": "1.3.1",
-      "latestStable": "6.1.0",
-      "requiredBy": [
-        {
-          "package": "@cacheable/memory",
-          "constraint": "^1.3.1"
-        }
-      ],
-      "locations": [
-        "node_modules/@keyv/bigmap"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@napi-rs/wasm-runtime",
-      "installed": "1.2.2",
-      "latestStable": "1.2.7",
-      "requiredBy": [
-        {
-          "package": "@tailwindcss/oxide-wasm32-wasi",
-          "constraint": "^1.2.2"
-        }
-      ],
-      "locations": [
-        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@napi-rs/wasm-runtime"
-      ],
-      "reason": "Bundled inside an upstream package; npm cannot update this embedded copy independently."
-    },
-    {
-      "package": "@oxc-project/types",
-      "installed": "0.156.0",
-      "latestStable": "0.158.0",
-      "requiredBy": [
-        {
-          "package": "rolldown",
-          "constraint": "=0.156.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@oxc-project/types"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@polka/url",
-      "installed": "1.0.0-next.29",
-      "latestStable": "0.5.0",
-      "requiredBy": [
-        {
-          "package": "sirv",
-          "constraint": "^1.0.0-next.24"
-        }
-      ],
-      "locations": [
-        "node_modules/@polka/url"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@rolldown/binding-linux-x64-gnu",
-      "installed": "1.2.19",
-      "latestStable": "1.3.2",
-      "requiredBy": [
-        {
-          "package": "rolldown",
-          "constraint": "1.2.19"
-        }
-      ],
-      "locations": [
-        "node_modules/@rolldown/binding-linux-x64-gnu"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@solid-primitives/map",
-      "installed": "0.4.13",
-      "latestStable": "0.7.4",
-      "requiredBy": [
-        {
-          "package": "@kobalte/utils",
-          "constraint": "^0.4.7"
-        }
-      ],
-      "locations": [
-        "node_modules/@solid-primitives/map"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@solid-primitives/storage",
-      "installed": "1.3.11",
-      "latestStable": "4.4.0",
-      "requiredBy": [
-        {
-          "package": "@tanstack/query-devtools",
-          "constraint": "^1.3.11"
-        }
-      ],
-      "locations": [
-        "node_modules/@solid-primitives/storage"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@swaggerexpert/json-pointer",
-      "installed": "2.10.2",
-      "latestStable": "3.0.2",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-json-pointer",
-          "constraint": "^2.10.1"
-        }
-      ],
-      "locations": [
-        "node_modules/@swaggerexpert/json-pointer"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@tanstack/react-virtual",
-      "installed": "3.14.10",
-      "latestStable": "3.14.26",
-      "requiredBy": [
-        {
-          "package": "swagger-ui-react",
-          "constraint": "=3.14.10"
-        }
-      ],
-      "locations": [
-        "node_modules/@tanstack/react-virtual"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@tanstack/virtual-core",
-      "installed": "3.17.8",
-      "latestStable": "3.19.11",
-      "requiredBy": [
-        {
-          "package": "@tanstack/react-virtual",
-          "constraint": "3.17.8"
-        }
-      ],
-      "locations": [
-        "node_modules/@tanstack/react-virtual/node_modules/@tanstack/virtual-core"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@tybys/wasm-util",
-      "installed": "0.10.3",
-      "latestStable": "0.10.4",
-      "requiredBy": [
-        {
-          "package": "@napi-rs/wasm-runtime",
-          "constraint": "^0.10.3"
-        },
-        {
-          "package": "@tailwindcss/oxide-wasm32-wasi",
-          "constraint": "^0.10.3"
-        }
-      ],
-      "locations": [
-        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@tybys/wasm-util"
-      ],
-      "reason": "Bundled inside an upstream package; npm cannot update this embedded copy independently."
-    },
-    {
-      "package": "@types/ramda",
-      "installed": "0.30.2",
-      "latestStable": "0.32.0",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-ast",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-core",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-a2a-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-api-design-systems",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-arazzo-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-3",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2019-09",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2020-12",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-4",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-6",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-7",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-0",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-json-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-yaml-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-json",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-yaml",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-json-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-yaml-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-3",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-3",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-json-2020-12",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-0",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-0",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-reference",
-          "constraint": "~0.30.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@types/ramda"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@types/unist",
-      "installed": "2.0.11",
-      "latestStable": "3.0.3",
-      "requiredBy": [
-        {
-          "package": "parse-entities",
-          "constraint": "^2.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/parse-entities/node_modules/@types/unist"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@types/use-sync-external-store",
-      "installed": "0.0.6",
-      "latestStable": "1.7.0",
-      "requiredBy": [
-        {
-          "package": "react-redux",
-          "constraint": "^0.0.6"
-        }
-      ],
-      "locations": [
-        "node_modules/@types/use-sync-external-store"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "@typescript/old",
-      "installed": "6.0.3",
-      "latestStable": "7.0.2",
-      "requiredBy": [
-        {
-          "package": "typescript",
-          "constraint": "npm:typescript@^6"
-        }
-      ],
-      "locations": [
-        "node_modules/@typescript/old"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "agent-base",
-      "installed": "6.0.2",
-      "latestStable": "9.0.0",
-      "requiredBy": [
-        {
-          "package": "https-proxy-agent",
-          "constraint": "6"
-        }
-      ],
-      "locations": [
-        "node_modules/agent-base"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ajv",
-      "installed": "6.15.0",
-      "latestStable": "8.20.0",
-      "requiredBy": [
-        {
-          "package": "eslint",
-          "constraint": "^6.14.0"
-        }
-      ],
-      "locations": [
-        "node_modules/eslint/node_modules/ajv"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ansi-regex",
-      "installed": "5.0.1",
-      "latestStable": "6.6.0",
-      "requiredBy": [
-        {
-          "package": "pretty-format",
-          "constraint": "^5.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/ansi-regex"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ansi-styles",
-      "installed": "5.2.0",
-      "latestStable": "7.0.0",
-      "requiredBy": [
-        {
-          "package": "pretty-format",
-          "constraint": "^5.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/ansi-styles"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ansi-styles",
-      "installed": "6.2.3",
-      "latestStable": "7.0.0",
-      "requiredBy": [
-        {
-          "package": "wrap-ansi",
-          "constraint": "^6.2.1"
-        }
-      ],
-      "locations": [
-        "node_modules/wrap-ansi/node_modules/ansi-styles"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "argparse",
-      "installed": "2.0.1",
-      "latestStable": "3.0.4",
-      "requiredBy": [
-        {
-          "package": "js-yaml",
-          "constraint": "^2.0.1"
-        },
-        {
-          "package": "remarkable",
-          "constraint": "^1.0.10"
-        }
-      ],
-      "locations": [
-        "node_modules/argparse"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "aria-query",
-      "installed": "5.3.0",
-      "latestStable": "5.3.2",
-      "requiredBy": [
-        {
-          "package": "@testing-library/dom",
-          "constraint": "5.3.0"
-        },
-        {
-          "package": "@testing-library/jest-dom",
-          "constraint": "^5.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/aria-query"
-      ],
-      "reason": "A shared dependency is pinned exactly by another upstream package; retain the supported deduplicated resolution."
-    },
-    {
-      "package": "asynckit",
-      "installed": "0.4.0",
-      "latestStable": "0.5.0",
-      "requiredBy": [
-        {
-          "package": "form-data",
-          "constraint": "^0.4.0"
-        }
-      ],
-      "locations": [
-        "node_modules/asynckit"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "autolinker",
-      "installed": "3.16.2",
-      "latestStable": "4.1.5",
-      "requiredBy": [
-        {
-          "package": "remarkable",
-          "constraint": "^3.11.0"
-        }
-      ],
-      "locations": [
-        "node_modules/autolinker"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "balanced-match",
-      "installed": "4.0.4",
-      "latestStable": "5.0.0",
-      "requiredBy": [
-        {
-          "package": "brace-expansion",
-          "constraint": "^4.0.2"
-        }
-      ],
-      "locations": [
-        "node_modules/balanced-match"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "canonicalize",
-      "installed": "2.1.0",
-      "latestStable": "5.1.0",
-      "requiredBy": [
-        {
-          "package": "jsonld",
-          "constraint": "^2.1.0"
-        }
-      ],
-      "locations": [
-        "node_modules/canonicalize"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "chalk",
-      "installed": "5.6.2",
-      "latestStable": "6.0.1",
-      "requiredBy": [
-        {
-          "package": "concurrently",
-          "constraint": "5.6.2"
-        }
-      ],
-      "locations": [
-        "node_modules/chalk"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "commander",
-      "installed": "7.2.0",
-      "latestStable": "15.1.0",
-      "requiredBy": [
-        {
-          "package": "d3-dsv",
-          "constraint": "7"
-        }
-      ],
-      "locations": [
-        "node_modules/commander"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "confbox",
-      "installed": "0.1.8",
-      "latestStable": "0.3.2",
-      "requiredBy": [
-        {
-          "package": "pkg-types",
-          "constraint": "^0.1.8"
-        }
-      ],
-      "locations": [
-        "node_modules/mlly/node_modules/confbox"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "copy-to-clipboard",
-      "installed": "3.3.3",
-      "latestStable": "4.0.2",
-      "requiredBy": [
-        {
-          "package": "react-copy-to-clipboard",
-          "constraint": "^3.3.3"
-        }
-      ],
-      "locations": [
-        "node_modules/copy-to-clipboard"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "dom-accessibility-api",
-      "installed": "0.5.16",
-      "latestStable": "0.7.1",
-      "requiredBy": [
-        {
-          "package": "@testing-library/dom",
-          "constraint": "^0.5.9"
-        }
-      ],
-      "locations": [
-        "node_modules/dom-accessibility-api"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "dom-accessibility-api",
-      "installed": "0.6.3",
-      "latestStable": "0.7.1",
-      "requiredBy": [
-        {
-          "package": "@testing-library/jest-dom",
-          "constraint": "^0.6.3"
-        }
-      ],
-      "locations": [
-        "node_modules/@testing-library/jest-dom/node_modules/dom-accessibility-api"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "drange",
-      "installed": "1.1.1",
-      "latestStable": "2.1.0",
-      "requiredBy": [
-        {
-          "package": "randexp",
-          "constraint": "^1.0.2"
-        }
-      ],
-      "locations": [
-        "node_modules/drange"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "emoji-regex",
-      "installed": "10.6.0",
-      "latestStable": "11.0.0",
-      "requiredBy": [
-        {
-          "package": "string-width",
-          "constraint": "^10.3.0"
-        }
-      ],
-      "locations": [
-        "node_modules/emoji-regex"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "es-module-lexer",
-      "installed": "2.3.2",
-      "latestStable": "3.0.4",
-      "requiredBy": [
-        {
-          "package": "vitest",
-          "constraint": "^2.3.2"
-        }
-      ],
-      "locations": [
-        "node_modules/es-module-lexer"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "escape-string-regexp",
-      "installed": "4.0.0",
-      "latestStable": "5.0.0",
-      "requiredBy": [
-        {
-          "package": "eslint",
-          "constraint": "^4.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/escape-string-regexp"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "eslint-visitor-keys",
-      "installed": "3.4.3",
-      "latestStable": "5.0.1",
-      "requiredBy": [
-        {
-          "package": "@eslint-community/eslint-utils",
-          "constraint": "^3.4.3"
-        }
-      ],
-      "locations": [
-        "node_modules/@eslint-community/eslint-utils/node_modules/eslint-visitor-keys"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "eventsource",
-      "installed": "3.0.7",
-      "latestStable": "5.1.5",
-      "requiredBy": [
-        {
-          "package": "@modelcontextprotocol/client",
-          "constraint": "^3.0.2"
-        }
-      ],
-      "locations": [
-        "node_modules/eventsource"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "eventsource-parser",
-      "installed": "3.1.1",
-      "latestStable": "4.1.3",
-      "requiredBy": [
-        {
-          "package": "@modelcontextprotocol/client",
-          "constraint": "^3.0.8"
-        },
-        {
-          "package": "eventsource",
-          "constraint": "^3.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/eventsource-parser"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "execa",
-      "installed": "5.1.1",
-      "latestStable": "10.2.1",
-      "requiredBy": [
-        {
-          "package": "start-server-and-test",
-          "constraint": "5.1.1"
-        }
-      ],
-      "locations": [
-        "node_modules/execa"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "fast-levenshtein",
-      "installed": "2.0.6",
-      "latestStable": "3.0.0",
-      "requiredBy": [
-        {
-          "package": "optionator",
-          "constraint": "^2.0.6"
-        }
-      ],
-      "locations": [
-        "node_modules/fast-levenshtein"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "fast-uri",
-      "installed": "3.1.9",
-      "latestStable": "4.2.3",
-      "requiredBy": [
-        {
-          "package": "ajv",
-          "constraint": "^3.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/fast-uri"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "fault",
-      "installed": "1.0.4",
-      "latestStable": "2.0.1",
-      "requiredBy": [
-        {
-          "package": "lowlight",
-          "constraint": "^1.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/fault"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "find-up",
-      "installed": "5.0.0",
-      "latestStable": "8.0.0",
-      "requiredBy": [
-        {
-          "package": "eslint",
-          "constraint": "^5.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/find-up"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "format",
-      "installed": "0.2.2",
-      "latestStable": "1.0.1",
-      "requiredBy": [
-        {
-          "package": "fault",
-          "constraint": "^0.2.0"
-        }
-      ],
-      "locations": [
-        "node_modules/format"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "get-stream",
-      "installed": "6.0.1",
-      "latestStable": "9.0.1",
-      "requiredBy": [
-        {
-          "package": "execa",
-          "constraint": "^6.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/get-stream"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "hashery",
-      "installed": "1.5.1",
-      "latestStable": "3.0.6",
-      "requiredBy": [
-        {
-          "package": "@cacheable/utils",
-          "constraint": "^1.5.1"
-        },
-        {
-          "package": "@keyv/bigmap",
-          "constraint": "^1.4.0"
-        }
-      ],
-      "locations": [
-        "node_modules/hashery"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "highlight.js",
-      "installed": "10.7.3",
-      "latestStable": "11.12.0",
-      "requiredBy": [
-        {
-          "package": "lowlight",
-          "constraint": "~10.7.0"
-        },
-        {
-          "package": "react-syntax-highlighter",
-          "constraint": "^10.4.1"
-        }
-      ],
-      "locations": [
-        "node_modules/highlight.js"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "hookified",
-      "installed": "1.15.1",
-      "latestStable": "3.1.0",
-      "requiredBy": [
-        {
-          "package": "@cacheable/memory",
-          "constraint": "^1.15.1"
-        },
-        {
-          "package": "@keyv/bigmap",
-          "constraint": "^1.15.0"
-        },
-        {
-          "package": "cacheable",
-          "constraint": "^1.15.0"
-        },
-        {
-          "package": "flat-cache",
-          "constraint": "^1.15.0"
-        },
-        {
-          "package": "hashery",
-          "constraint": "^1.15.0"
-        }
-      ],
-      "locations": [
-        "node_modules/hookified"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "hookified",
-      "installed": "2.2.0",
-      "latestStable": "3.1.0",
-      "requiredBy": [
-        {
-          "package": "qified",
-          "constraint": "^2.1.1"
-        }
-      ],
-      "locations": [
-        "node_modules/qified/node_modules/hookified"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "https-proxy-agent",
-      "installed": "5.0.1",
-      "latestStable": "9.1.0",
-      "requiredBy": [
-        {
-          "package": "axios",
-          "constraint": "^5.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/https-proxy-agent"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "human-signals",
-      "installed": "2.1.0",
-      "latestStable": "8.0.1",
-      "requiredBy": [
-        {
-          "package": "execa",
-          "constraint": "^2.1.0"
-        }
-      ],
-      "locations": [
-        "node_modules/human-signals"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "iconv-lite",
-      "installed": "0.6.3",
-      "latestStable": "0.7.3",
-      "requiredBy": [
-        {
-          "package": "d3-dsv",
-          "constraint": "0.6"
-        }
-      ],
-      "locations": [
-        "node_modules/iconv-lite"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ignore",
-      "installed": "5.3.2",
-      "latestStable": "7.0.14",
-      "requiredBy": [
-        {
-          "package": "eslint",
-          "constraint": "^5.2.0"
-        }
-      ],
-      "locations": [
-        "node_modules/ignore"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "indent-string",
-      "installed": "4.0.0",
-      "latestStable": "6.0.0",
-      "requiredBy": [
-        {
-          "package": "redent",
-          "constraint": "^4.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/indent-string"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "is-stream",
-      "installed": "2.0.1",
-      "latestStable": "4.0.1",
-      "requiredBy": [
-        {
-          "package": "execa",
-          "constraint": "^2.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/is-stream"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "isexe",
-      "installed": "2.0.0",
-      "latestStable": "4.0.0",
-      "requiredBy": [
-        {
-          "package": "which",
-          "constraint": "^2.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/isexe"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "js-tokens",
-      "installed": "4.0.0",
-      "latestStable": "10.0.0",
-      "requiredBy": [
-        {
-          "package": "@babel/code-frame",
-          "constraint": "^4.0.0"
-        },
-        {
-          "package": "loose-envify",
-          "constraint": "^3.0.0 || ^4.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/js-tokens"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "js-yaml",
-      "installed": "4.3.2",
-      "latestStable": "5.5.0",
-      "requiredBy": [
-        {
-          "package": "swagger-client",
-          "constraint": "^4.3.2"
-        },
-        {
-          "package": "swagger-ui-react",
-          "constraint": "=4.3.2"
-        }
-      ],
-      "locations": [
-        "node_modules/js-yaml"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "json-schema-traverse",
-      "installed": "0.4.1",
-      "latestStable": "1.0.0",
-      "requiredBy": [
-        {
-          "package": "ajv",
-          "constraint": "^0.4.1"
-        }
-      ],
-      "locations": [
-        "node_modules/eslint/node_modules/json-schema-traverse"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "keyv",
-      "installed": "5.6.0",
-      "latestStable": "6.1.0",
-      "requiredBy": [
-        {
-          "package": "@cacheable/memory",
-          "constraint": "^5.6.0"
-        },
-        {
-          "package": "@cacheable/utils",
-          "constraint": "^5.6.0"
-        },
-        {
-          "package": "cacheable",
-          "constraint": "^5.6.0"
-        }
-      ],
-      "locations": [
-        "node_modules/keyv"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ky",
-      "installed": "1.14.3",
-      "latestStable": "2.2.0",
-      "requiredBy": [
-        {
-          "package": "@digitalbazaar/http-client",
-          "constraint": "^1.14.3"
-        }
-      ],
-      "locations": [
-        "node_modules/ky"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "locate-path",
-      "installed": "6.0.0",
-      "latestStable": "8.0.0",
-      "requiredBy": [
-        {
-          "package": "find-up",
-          "constraint": "^6.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/locate-path"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "lowlight",
-      "installed": "1.20.0",
-      "latestStable": "3.3.0",
-      "requiredBy": [
-        {
-          "package": "react-syntax-highlighter",
-          "constraint": "^1.17.0"
-        }
-      ],
-      "locations": [
-        "node_modules/lowlight"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "lru-cache",
-      "installed": "6.0.0",
-      "latestStable": "11.5.3",
-      "requiredBy": [
-        {
-          "package": "jsonld",
-          "constraint": "^6.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/jsonld/node_modules/lru-cache"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "mime-db",
-      "installed": "1.52.0",
-      "latestStable": "1.54.0",
-      "requiredBy": [
-        {
-          "package": "mime-types",
-          "constraint": "1.52.0"
-        }
-      ],
-      "locations": [
-        "node_modules/mime-db"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "mime-types",
-      "installed": "2.1.35",
-      "latestStable": "3.0.2",
-      "requiredBy": [
-        {
-          "package": "form-data",
-          "constraint": "^2.1.35"
-        }
-      ],
-      "locations": [
-        "node_modules/mime-types"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "mimic-fn",
-      "installed": "2.1.0",
-      "latestStable": "4.0.0",
-      "requiredBy": [
-        {
-          "package": "onetime",
-          "constraint": "^2.1.0"
-        }
-      ],
-      "locations": [
-        "node_modules/mimic-fn"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "nanoid",
-      "installed": "3.3.20",
-      "latestStable": "6.0.2",
-      "requiredBy": [
-        {
-          "package": "postcss",
-          "constraint": "^3.3.20"
-        }
-      ],
-      "locations": [
-        "node_modules/nanoid"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "neotraverse",
-      "installed": "1.0.1",
-      "latestStable": "1.0.2",
-      "requiredBy": [
-        {
-          "package": "swagger-client",
-          "constraint": "=1.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/neotraverse"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "npm-run-path",
-      "installed": "4.0.1",
-      "latestStable": "6.0.0",
-      "requiredBy": [
-        {
-          "package": "execa",
-          "constraint": "^4.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/npm-run-path"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "onetime",
-      "installed": "5.1.2",
-      "latestStable": "8.0.0",
-      "requiredBy": [
-        {
-          "package": "execa",
-          "constraint": "^5.1.2"
-        }
-      ],
-      "locations": [
-        "node_modules/onetime"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "p-limit",
-      "installed": "3.1.0",
-      "latestStable": "7.3.3",
-      "requiredBy": [
-        {
-          "package": "p-locate",
-          "constraint": "^3.0.2"
-        }
-      ],
-      "locations": [
-        "node_modules/p-limit"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "p-locate",
-      "installed": "5.0.0",
-      "latestStable": "7.0.0",
-      "requiredBy": [
-        {
-          "package": "locate-path",
-          "constraint": "^5.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/p-locate"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "path-exists",
-      "installed": "4.0.0",
-      "latestStable": "5.0.0",
-      "requiredBy": [
-        {
-          "package": "find-up",
-          "constraint": "^4.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/path-exists"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "path-key",
-      "installed": "3.1.1",
-      "latestStable": "4.0.0",
-      "requiredBy": [
-        {
-          "package": "cross-spawn",
-          "constraint": "^3.1.0"
-        },
-        {
-          "package": "npm-run-path",
-          "constraint": "^3.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/path-key"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "picomatch",
-      "installed": "2.3.2",
-      "latestStable": "4.0.7",
-      "requiredBy": [
-        {
-          "package": "vite-plugin-full-reload",
-          "constraint": "^2.3.1"
-        }
-      ],
-      "locations": [
-        "node_modules/vite-plugin-full-reload/node_modules/picomatch"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "pkce-challenge",
-      "installed": "5.0.1",
-      "latestStable": "6.0.0",
-      "requiredBy": [
-        {
-          "package": "@modelcontextprotocol/client",
-          "constraint": "^5.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/pkce-challenge"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "pkg-types",
-      "installed": "1.3.1",
-      "latestStable": "2.4.0",
-      "requiredBy": [
-        {
-          "package": "mlly",
-          "constraint": "^1.3.1"
-        }
-      ],
-      "locations": [
-        "node_modules/mlly/node_modules/pkg-types"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "pretty-format",
-      "installed": "27.5.1",
-      "latestStable": "30.5.1",
-      "requiredBy": [
-        {
-          "package": "@testing-library/dom",
-          "constraint": "^27.0.2"
-        }
-      ],
-      "locations": [
-        "node_modules/pretty-format"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "qified",
-      "installed": "0.10.1",
-      "latestStable": "0.13.2",
-      "requiredBy": [
-        {
-          "package": "cacheable",
-          "constraint": "^0.10.1"
-        }
-      ],
-      "locations": [
-        "node_modules/qified"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ramda",
-      "installed": "0.30.1",
-      "latestStable": "0.32.0",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-ast",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-core",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-a2a-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-api-design-systems",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-arazzo-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-3",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2019-09",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2020-12",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-4",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-6",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-7",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-0",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-json-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-yaml-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-json",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-yaml",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-json-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-yaml-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-3",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-3",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-json-2020-12",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-0",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-0",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-1",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "@swagger-api/apidom-reference",
-          "constraint": "~0.30.0"
-        },
-        {
-          "package": "swagger-client",
-          "constraint": "^0.30.1"
-        }
-      ],
-      "locations": [
-        "node_modules/ramda"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "ramda-adjunct",
-      "installed": "5.1.0",
-      "latestStable": "6.1.0",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-ast",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-core",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-a2a-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-api-design-systems",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-arazzo-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-asyncapi-3",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2019-09",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-2020-12",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-4",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-6",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-json-schema-draft-7",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-0",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-ns-openapi-3-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-json-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-a2a-yaml-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-json",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-api-design-systems-yaml",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-json-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-arazzo-yaml-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-json-3",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-asyncapi-yaml-3",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-json-2020-12",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json-schema-yaml-2020-12",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-0",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-json-3-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-0",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-1",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-openapi-yaml-3-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "@swagger-api/apidom-reference",
-          "constraint": "^5.0.0"
-        },
-        {
-          "package": "swagger-client",
-          "constraint": "^5.1.0"
-        }
-      ],
-      "locations": [
-        "node_modules/ramda-adjunct"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "randexp",
-      "installed": "0.5.3",
-      "latestStable": "0.6.1",
-      "requiredBy": [
-        {
-          "package": "swagger-ui-react",
-          "constraint": "^0.5.3"
-        }
-      ],
-      "locations": [
-        "node_modules/randexp"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "react-inspector",
-      "installed": "6.0.2",
-      "latestStable": "9.0.0",
-      "requiredBy": [
-        {
-          "package": "swagger-ui-react",
-          "constraint": "^6.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/react-inspector"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "react-is",
-      "installed": "17.0.2",
-      "latestStable": "19.3.1",
-      "requiredBy": [
-        {
-          "package": "pretty-format",
-          "constraint": "^17.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/react-is"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "react-is",
-      "installed": "16.13.1",
-      "latestStable": "19.3.1",
-      "requiredBy": [
-        {
-          "package": "prop-types",
-          "constraint": "^16.13.1"
-        }
-      ],
-      "locations": [
-        "node_modules/prop-types/node_modules/react-is"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "redent",
-      "installed": "3.0.0",
-      "latestStable": "4.0.0",
-      "requiredBy": [
-        {
-          "package": "@testing-library/jest-dom",
-          "constraint": "^3.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/redent"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "reselect",
-      "installed": "5.2.0",
-      "latestStable": "5.3.0",
-      "requiredBy": [
-        {
-          "package": "@reduxjs/toolkit",
-          "constraint": "^5.1.0"
-        },
-        {
-          "package": "recharts",
-          "constraint": "5.2.0"
-        },
-        {
-          "package": "swagger-ui-react",
-          "constraint": "^5.1.1"
-        }
-      ],
-      "locations": [
-        "node_modules/reselect"
-      ],
-      "reason": "A shared dependency is pinned exactly by another upstream package; retain the supported deduplicated resolution."
-    },
-    {
-      "package": "ret",
-      "installed": "0.2.2",
-      "latestStable": "0.6.1",
-      "requiredBy": [
-        {
-          "package": "randexp",
-          "constraint": "^0.2.0"
-        }
-      ],
-      "locations": [
-        "node_modules/ret"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "rolldown",
-      "installed": "1.2.19",
-      "latestStable": "1.3.2",
-      "requiredBy": [
-        {
-          "package": "vite",
-          "constraint": "~1.2.18"
-        }
-      ],
-      "locations": [
-        "node_modules/rolldown"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "serialize-error",
-      "installed": "8.1.0",
-      "latestStable": "13.1.0",
-      "requiredBy": [
-        {
-          "package": "swagger-ui-react",
-          "constraint": "^8.1.0"
-        }
-      ],
-      "locations": [
-        "node_modules/serialize-error"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "shebang-regex",
-      "installed": "3.0.0",
-      "latestStable": "4.0.0",
-      "requiredBy": [
-        {
-          "package": "shebang-command",
-          "constraint": "^3.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/shebang-regex"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "signal-exit",
-      "installed": "3.0.7",
-      "latestStable": "4.1.0",
-      "requiredBy": [
-        {
-          "package": "execa",
-          "constraint": "^3.0.3"
-        }
-      ],
-      "locations": [
-        "node_modules/execa/node_modules/signal-exit"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "solid-transition-group",
-      "installed": "0.2.3",
-      "latestStable": "0.3.0",
-      "requiredBy": [
-        {
-          "package": "@tanstack/query-devtools",
-          "constraint": "^0.2.3"
-        }
-      ],
-      "locations": [
-        "node_modules/solid-transition-group"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "string-width",
-      "installed": "7.2.0",
-      "latestStable": "9.0.0",
-      "requiredBy": [
-        {
-          "package": "cliui",
-          "constraint": "^7.2.0"
-        },
-        {
-          "package": "wrap-ansi",
-          "constraint": "^7.0.0"
-        },
-        {
-          "package": "yargs",
-          "constraint": "^7.2.0"
-        }
-      ],
-      "locations": [
-        "node_modules/string-width"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "string-width",
-      "installed": "8.3.0",
-      "latestStable": "9.0.0",
-      "requiredBy": [
-        {
-          "package": "yargs",
-          "constraint": "^8.2.1"
-        }
-      ],
-      "locations": [
-        "node_modules/msw/node_modules/string-width"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "strip-final-newline",
-      "installed": "2.0.0",
-      "latestStable": "4.0.0",
-      "requiredBy": [
-        {
-          "package": "execa",
-          "constraint": "^2.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/strip-final-newline"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "strip-indent",
-      "installed": "3.0.0",
-      "latestStable": "4.1.1",
-      "requiredBy": [
-        {
-          "package": "redent",
-          "constraint": "^3.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/strip-indent"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "supports-color",
-      "installed": "10.2.2",
-      "latestStable": "11.0.0",
-      "requiredBy": [
-        {
-          "package": "concurrently",
-          "constraint": "10.2.2"
-        }
-      ],
-      "locations": [
-        "node_modules/supports-color"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "toggle-selection",
-      "installed": "1.0.6",
-      "latestStable": "2.1.0",
-      "requiredBy": [
-        {
-          "package": "copy-to-clipboard",
-          "constraint": "^1.0.6"
-        }
-      ],
-      "locations": [
-        "node_modules/toggle-selection"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "tree-sitter",
-      "installed": "0.21.1",
-      "latestStable": "0.25.1",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json",
-          "constraint": "=0.21.1"
-        }
-      ],
-      "locations": [
-        "node_modules/tree-sitter"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "tree-sitter",
-      "installed": "0.22.4",
-      "latestStable": "0.25.1",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
-          "constraint": "=0.22.4"
-        }
-      ],
-      "locations": [
-        "node_modules/@swagger-api/apidom-parser-adapter-yaml-1-2/node_modules/tree-sitter"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "tslib",
-      "installed": "2.8.1",
-      "latestStable": "2.9.1",
-      "requiredBy": [
-        {
-          "package": "@emnapi/core",
-          "constraint": "^2.4.0"
-        },
-        {
-          "package": "@emnapi/runtime",
-          "constraint": "^2.4.0"
-        },
-        {
-          "package": "@emnapi/wasi-threads",
-          "constraint": "^2.4.0"
-        },
-        {
-          "package": "@tailwindcss/oxide-wasm32-wasi",
-          "constraint": "^2.8.1"
-        },
-        {
-          "package": "@tybys/wasm-util",
-          "constraint": "^2.4.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/tslib"
-      ],
-      "reason": "Bundled inside an upstream package; npm cannot update this embedded copy independently."
-    },
-    {
-      "package": "type-fest",
-      "installed": "0.20.2",
-      "latestStable": "5.10.0",
-      "requiredBy": [
-        {
-          "package": "serialize-error",
-          "constraint": "^0.20.2"
-        }
-      ],
-      "locations": [
-        "node_modules/serialize-error/node_modules/type-fest"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "types-ramda",
-      "installed": "0.30.1",
-      "latestStable": "0.32.0",
-      "requiredBy": [
-        {
-          "package": "@types/ramda",
-          "constraint": "^0.30.1"
-        }
-      ],
-      "locations": [
-        "node_modules/types-ramda"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "undici",
-      "installed": "6.29.1",
-      "latestStable": "8.12.4",
-      "requiredBy": [
-        {
-          "package": "@digitalbazaar/http-client",
-          "constraint": "^6.28.0"
-        }
-      ],
-      "locations": [
-        "node_modules/@digitalbazaar/http-client/node_modules/undici"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "undici-types",
-      "installed": "8.9.0",
-      "latestStable": "8.12.4",
-      "requiredBy": [
-        {
-          "package": "@types/node",
-          "constraint": "~8.9.0"
-        }
-      ],
-      "locations": [
-        "node_modules/undici-types"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "victory-vendor",
-      "installed": "37.4.1",
-      "latestStable": "38.1.0",
-      "requiredBy": [
-        {
-          "package": "recharts",
-          "constraint": "^37.0.2"
-        }
-      ],
-      "locations": [
-        "node_modules/victory-vendor"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "web-tree-sitter",
-      "installed": "0.24.5",
-      "latestStable": "0.27.2",
-      "requiredBy": [
-        {
-          "package": "@swagger-api/apidom-parser-adapter-json",
-          "constraint": "=0.24.5"
-        },
-        {
-          "package": "@swagger-api/apidom-parser-adapter-yaml-1-2",
-          "constraint": "=0.24.5"
-        }
-      ],
-      "locations": [
-        "node_modules/web-tree-sitter"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "which",
-      "installed": "2.0.2",
-      "latestStable": "7.0.0",
-      "requiredBy": [
-        {
-          "package": "cross-spawn",
-          "constraint": "^2.0.1"
-        }
-      ],
-      "locations": [
-        "node_modules/which"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "why-is-node-running",
-      "installed": "3.2.1",
-      "latestStable": "3.2.3",
-      "requiredBy": [
-        {
-          "package": "vitest",
-          "constraint": "3.2.1"
-        }
-      ],
-      "locations": [
-        "node_modules/why-is-node-running"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "wrap-ansi",
-      "installed": "9.0.2",
-      "latestStable": "10.0.2",
-      "requiredBy": [
-        {
-          "package": "cliui",
-          "constraint": "^9.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/wrap-ansi"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "yallist",
-      "installed": "4.0.0",
-      "latestStable": "5.0.0",
-      "requiredBy": [
-        {
-          "package": "lru-cache",
-          "constraint": "^4.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/yallist"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "yargs",
-      "installed": "18.0.0",
-      "latestStable": "18.2.0",
-      "requiredBy": [
-        {
-          "package": "concurrently",
-          "constraint": "18.0.0"
-        }
-      ],
-      "locations": [
-        "node_modules/yargs"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    },
-    {
-      "package": "yocto-queue",
-      "installed": "0.1.0",
-      "latestStable": "1.2.2",
-      "requiredBy": [
-        {
-          "package": "p-limit",
-          "constraint": "^0.1.0"
-        }
-      ],
-      "locations": [
-        "node_modules/yocto-queue"
-      ],
-      "reason": "The installed upstream packages constrain this dependency to the listed version ranges."
-    }
-  ],
   "composer": [
-    {
-      "name": "amphp/amp",
-      "previous": "v3.1.3",
-      "installed": "v3.1.3",
-      "latestStable": "v3.1.3"
-    },
-    {
-      "name": "amphp/byte-stream",
-      "previous": "v2.1.3",
-      "installed": "v2.1.3",
-      "latestStable": "v2.1.3"
-    },
-    {
-      "name": "amphp/cache",
-      "previous": "v2.0.1",
-      "installed": "v2.0.1",
-      "latestStable": "v2.0.1"
-    },
-    {
-      "name": "amphp/dns",
-      "previous": "v2.4.2",
-      "installed": "v2.4.2",
-      "latestStable": "v2.4.2"
-    },
-    {
-      "name": "amphp/hpack",
-      "previous": "v3.2.2",
-      "installed": "v3.2.2",
-      "latestStable": "v3.2.2"
-    },
-    {
-      "name": "amphp/http",
-      "previous": "v2.1.2",
-      "installed": "v2.1.2",
-      "latestStable": "v2.1.2"
-    },
-    {
-      "name": "amphp/http-client",
-      "previous": "v5.3.7",
-      "installed": "v5.3.8",
-      "latestStable": "v5.3.8"
-    },
-    {
-      "name": "amphp/http-server",
-      "previous": "v3.4.8",
-      "installed": "v3.4.8",
-      "latestStable": "v3.4.8"
-    },
-    {
-      "name": "amphp/parser",
-      "previous": "v1.1.1",
-      "installed": "v1.1.1",
-      "latestStable": "v1.1.1"
-    },
-    {
-      "name": "amphp/pipeline",
-      "previous": "v1.2.7",
-      "installed": "v1.2.7",
-      "latestStable": "v1.2.7"
-    },
-    {
-      "name": "amphp/process",
-      "previous": "v2.1.1",
-      "installed": "v2.1.2",
-      "latestStable": "v2.1.2"
-    },
-    {
-      "name": "amphp/serialization",
-      "previous": "v1.1.0",
-      "installed": "v1.1.0",
-      "latestStable": "v1.1.0"
-    },
-    {
-      "name": "amphp/socket",
-      "previous": "v2.4.1",
-      "installed": "v2.4.2",
-      "latestStable": "v2.4.2"
-    },
-    {
-      "name": "amphp/sync",
-      "previous": "v2.3.1",
-      "installed": "v2.3.1",
-      "latestStable": "v2.3.1"
-    },
-    {
-      "name": "amphp/websocket",
-      "previous": "v2.0.5",
-      "installed": "v2.0.5",
-      "latestStable": "v2.0.5"
-    },
-    {
-      "name": "amphp/websocket-client",
-      "previous": "v2.0.2",
-      "installed": "v2.0.2",
-      "latestStable": "v2.0.2"
-    },
-    {
-      "name": "brianium/paratest",
-      "previous": "v7.27.5",
-      "installed": "v7.29.0",
-      "latestStable": "v7.29.0"
-    },
     {
       "name": "brick/math",
       "previous": "1.0.0",
       "installed": "1.0.0",
-      "latestStable": "1.0.0"
+      "latestStable": "1.0.0",
+      "direct": false
     },
     {
       "name": "carbonphp/carbon-doctrine-types",
       "previous": "3.2.1",
       "installed": "3.2.1",
-      "latestStable": "3.2.1"
+      "latestStable": "3.2.1",
+      "direct": false
     },
     {
       "name": "citation-style-language/locales",
       "previous": "v0.0.106",
       "installed": "v0.0.106",
-      "latestStable": "v0.0.106"
+      "latestStable": "v0.0.106",
+      "direct": false
     },
     {
       "name": "citation-style-language/styles",
       "previous": "v0.0.772",
       "installed": "v0.0.772",
-      "latestStable": "v1.0.22"
-    },
-    {
-      "name": "daverandom/libdns",
-      "previous": "v2.1.0",
-      "installed": "v2.1.0",
-      "latestStable": "v2.1.0"
+      "latestStable": "v1.0.22",
+      "direct": false
     },
     {
       "name": "dflydev/dot-access-data",
       "previous": "v3.0.3",
       "installed": "v3.0.3",
-      "latestStable": "v3.0.3"
-    },
-    {
-      "name": "doctrine/deprecations",
-      "previous": "1.1.6",
-      "installed": "1.2.0",
-      "latestStable": "1.2.0"
+      "latestStable": "v3.0.3",
+      "direct": false
     },
     {
       "name": "doctrine/inflector",
       "previous": "2.1.1",
       "installed": "2.1.1",
-      "latestStable": "2.1.1"
+      "latestStable": "2.1.1",
+      "direct": false
     },
     {
       "name": "doctrine/lexer",
       "previous": "3.0.3",
       "installed": "3.0.3",
-      "latestStable": "3.0.3"
+      "latestStable": "3.0.3",
+      "direct": false
     },
     {
       "name": "dragonmantank/cron-expression",
       "previous": "v3.6.1",
       "installed": "v3.6.1",
-      "latestStable": "v3.6.1"
+      "latestStable": "v3.6.1",
+      "direct": false
     },
     {
       "name": "egulias/email-validator",
       "previous": "4.0.4",
       "installed": "4.0.4",
-      "latestStable": "4.0.4"
-    },
-    {
-      "name": "entropy/entropy",
-      "previous": "0.4.36",
-      "installed": "0.4.37",
-      "latestStable": "0.4.37"
-    },
-    {
-      "name": "fakerphp/faker",
-      "previous": "v1.24.1",
-      "installed": "v1.24.1",
-      "latestStable": "v1.24.1"
-    },
-    {
-      "name": "fidry/cpu-core-counter",
-      "previous": "1.4.1",
-      "installed": "1.4.1",
-      "latestStable": "1.4.1"
-    },
-    {
-      "name": "filp/whoops",
-      "previous": "2.19.2",
-      "installed": "2.19.3",
-      "latestStable": "2.19.3"
+      "latestStable": "4.0.4",
+      "direct": false
     },
     {
       "name": "fruitcake/php-cors",
       "previous": "v1.4.0",
       "installed": "v1.4.0",
-      "latestStable": "v1.4.0"
+      "latestStable": "v1.4.0",
+      "direct": false
     },
     {
       "name": "graham-campbell/result-type",
       "previous": "v1.2.0",
       "installed": "v1.2.0",
-      "latestStable": "v1.2.0"
+      "latestStable": "v1.2.0",
+      "direct": false
     },
     {
       "name": "guzzlehttp/guzzle",
-      "previous": "8.3.1",
-      "installed": "8.5.0",
-      "latestStable": "8.5.0"
+      "previous": "8.5.0",
+      "installed": "8.5.2",
+      "latestStable": "8.5.2",
+      "direct": false
     },
     {
       "name": "guzzlehttp/promises",
       "previous": "3.1.0",
       "installed": "3.1.0",
-      "latestStable": "3.1.0"
+      "latestStable": "3.1.0",
+      "direct": false
     },
     {
       "name": "guzzlehttp/psr7",
-      "previous": "3.2.0",
-      "installed": "3.4.0",
-      "latestStable": "3.4.0"
+      "previous": "3.4.0",
+      "installed": "3.5.0",
+      "latestStable": "3.5.0",
+      "direct": false
     },
     {
       "name": "guzzlehttp/uri-template",
       "previous": "v2.0.1",
       "installed": "v2.0.1",
-      "latestStable": "v2.0.1"
-    },
-    {
-      "name": "hamcrest/hamcrest-php",
-      "previous": "v3.0.0",
-      "installed": "v3.0.0",
-      "latestStable": "v3.0.0"
-    },
-    {
-      "name": "iamcal/sql-parser",
-      "previous": "v0.7",
-      "installed": "v0.7",
-      "latestStable": "v0.7"
+      "latestStable": "v2.0.1",
+      "direct": false
     },
     {
       "name": "inertiajs/inertia-laravel",
       "previous": "v3.7.0",
       "installed": "v3.7.0",
-      "latestStable": "v3.7.0"
-    },
-    {
-      "name": "jean85/pretty-package-versions",
-      "previous": "2.1.1",
-      "installed": "2.1.1",
-      "latestStable": "2.1.1"
-    },
-    {
-      "name": "kelunik/certificate",
-      "previous": "v1.1.3",
-      "installed": "v1.1.3",
-      "latestStable": "v1.1.3"
-    },
-    {
-      "name": "larastan/larastan",
-      "previous": "v3.14.0",
-      "installed": "v3.15.0",
-      "latestStable": "v3.15.0"
+      "latestStable": "v3.7.0",
+      "direct": true
     },
     {
       "name": "laravel/framework",
-      "previous": "v13.40.0",
-      "installed": "v13.42.0",
-      "latestStable": "v13.42.0"
-    },
-    {
-      "name": "laravel/pail",
-      "previous": "v1.2.7",
-      "installed": "v1.3.0",
-      "latestStable": "v1.3.0"
-    },
-    {
-      "name": "laravel/pint",
-      "previous": "v1.32.1",
-      "installed": "v1.32.3",
-      "latestStable": "v1.32.3"
+      "previous": "v13.42.0",
+      "installed": "v13.43.0",
+      "latestStable": "v13.43.0",
+      "direct": true
     },
     {
       "name": "laravel/prompts",
-      "previous": "v0.3.26",
+      "previous": "v0.3.27",
       "installed": "v0.3.27",
-      "latestStable": "v0.3.27"
-    },
-    {
-      "name": "laravel/sail",
-      "previous": "v1.69.0",
-      "installed": "v1.70.0",
-      "latestStable": "v1.70.0"
+      "latestStable": "v0.3.27",
+      "direct": false
     },
     {
       "name": "laravel/serializable-closure",
-      "previous": "v2.1.0",
+      "previous": "v2.2.0",
       "installed": "v2.2.0",
-      "latestStable": "v2.2.0"
+      "latestStable": "v2.2.0",
+      "direct": false
     },
     {
       "name": "laravel/tinker",
-      "previous": "v3.0.2",
-      "installed": "v3.1.0",
-      "latestStable": "v3.1.0"
+      "previous": "v3.1.0",
+      "installed": "v3.2.0",
+      "latestStable": "v3.2.0",
+      "direct": true
     },
     {
       "name": "laravel/wayfinder",
       "previous": "v0.1.23",
       "installed": "v0.1.23",
-      "latestStable": "v0.1.23"
+      "latestStable": "v0.1.23",
+      "direct": true
     },
     {
       "name": "league/commonmark",
       "previous": "2.10.7",
       "installed": "2.10.7",
-      "latestStable": "2.10.7"
+      "latestStable": "2.10.7",
+      "direct": false
     },
     {
       "name": "league/config",
       "previous": "v1.2.0",
       "installed": "v1.2.0",
-      "latestStable": "v1.2.0"
+      "latestStable": "v1.2.0",
+      "direct": false
     },
     {
       "name": "league/flysystem",
       "previous": "3.36.0",
       "installed": "3.36.0",
-      "latestStable": "3.36.0"
+      "latestStable": "3.36.0",
+      "direct": false
     },
     {
       "name": "league/flysystem-local",
       "previous": "3.35.3",
       "installed": "3.35.3",
-      "latestStable": "3.35.3"
+      "latestStable": "3.35.3",
+      "direct": false
     },
     {
       "name": "league/mime-type-detection",
       "previous": "1.17.0",
       "installed": "1.17.0",
-      "latestStable": "1.17.0"
+      "latestStable": "1.17.0",
+      "direct": false
     },
     {
       "name": "league/uri",
       "previous": "7.10.0",
       "installed": "7.10.0",
-      "latestStable": "7.10.0"
-    },
-    {
-      "name": "league/uri-components",
-      "previous": "7.10.0",
-      "installed": "7.10.0",
-      "latestStable": "7.10.0"
+      "latestStable": "7.10.0",
+      "direct": false
     },
     {
       "name": "league/uri-interfaces",
       "previous": "7.10.0",
       "installed": "7.10.0",
-      "latestStable": "7.10.0"
-    },
-    {
-      "name": "mockery/mockery",
-      "previous": "1.6.15",
-      "installed": "1.6.15",
-      "latestStable": "1.6.15"
+      "latestStable": "7.10.0",
+      "direct": false
     },
     {
       "name": "monolog/monolog",
       "previous": "3.12.1",
-      "installed": "3.12.1",
-      "latestStable": "3.12.1"
-    },
-    {
-      "name": "myclabs/deep-copy",
-      "previous": "1.14.0",
-      "installed": "1.14.0",
-      "latestStable": "1.14.0"
+      "installed": "3.13.0",
+      "latestStable": "3.13.0",
+      "direct": false
     },
     {
       "name": "myclabs/php-enum",
       "previous": "1.8.5",
       "installed": "1.8.5",
-      "latestStable": "1.8.5"
+      "latestStable": "1.8.5",
+      "direct": false
     },
     {
       "name": "nesbot/carbon",
       "previous": "3.15.1",
       "installed": "3.15.1",
-      "latestStable": "3.15.1"
+      "latestStable": "3.15.1",
+      "direct": false
     },
     {
       "name": "nette/schema",
       "previous": "v1.4.0",
       "installed": "v1.4.0",
-      "latestStable": "v1.4.0"
+      "latestStable": "v1.4.0",
+      "direct": false
     },
     {
       "name": "nette/utils",
       "previous": "v4.1.6",
       "installed": "v4.1.6",
-      "latestStable": "v4.1.6"
+      "latestStable": "v4.1.6",
+      "direct": false
     },
     {
       "name": "nikic/php-parser",
       "previous": "v5.9.0",
       "installed": "v5.9.0",
-      "latestStable": "v5.9.0"
+      "latestStable": "v5.9.0",
+      "direct": false
     },
     {
       "name": "nitotm/efficient-language-detector",
       "previous": "v3.2.0",
       "installed": "v3.2.0",
-      "latestStable": "v3.2.0"
-    },
-    {
-      "name": "nunomaduro/collision",
-      "previous": "v8.9.5",
-      "installed": "v8.9.6",
-      "latestStable": "v8.9.6"
-    },
-    {
-      "name": "nunomaduro/pokio",
-      "previous": "v1.0.1",
-      "installed": "v1.0.1",
-      "latestStable": "v1.0.1"
+      "latestStable": "v3.2.0",
+      "direct": true
     },
     {
       "name": "nunomaduro/termwind",
-      "previous": "v2.4.0",
+      "previous": "v2.4.1",
       "installed": "v2.4.1",
-      "latestStable": "v2.4.1"
+      "latestStable": "v2.4.1",
+      "direct": false
     },
     {
       "name": "opis/json-schema",
-      "previous": "2.6.0",
+      "previous": "2.6.2",
       "installed": "2.6.2",
-      "latestStable": "2.6.2"
+      "latestStable": "2.6.2",
+      "direct": true
     },
     {
       "name": "opis/string",
       "previous": "2.1.0",
       "installed": "2.1.0",
-      "latestStable": "2.1.0"
+      "latestStable": "2.1.0",
+      "direct": false
     },
     {
       "name": "opis/uri",
       "previous": "1.1.0",
       "installed": "1.1.0",
-      "latestStable": "1.1.0"
-    },
-    {
-      "name": "pestphp/pest",
-      "previous": "v5.3.5",
-      "installed": "v5.3.6",
-      "latestStable": "v5.3.6"
-    },
-    {
-      "name": "pestphp/pest-plugin",
-      "previous": "v5.0.0",
-      "installed": "v5.0.0",
-      "latestStable": "v5.0.0"
-    },
-    {
-      "name": "pestphp/pest-plugin-agent",
-      "previous": "v5.0.0",
-      "installed": "v5.0.0",
-      "latestStable": "v5.0.0"
-    },
-    {
-      "name": "pestphp/pest-plugin-arch",
-      "previous": "v5.0.0",
-      "installed": "v5.0.0",
-      "latestStable": "v5.0.0"
-    },
-    {
-      "name": "pestphp/pest-plugin-browser",
-      "previous": "v5.2.0",
-      "installed": "v5.2.0",
-      "latestStable": "v5.2.0"
-    },
-    {
-      "name": "pestphp/pest-plugin-laravel",
-      "previous": "v5.0.1",
-      "installed": "v5.0.1",
-      "latestStable": "v5.0.1"
-    },
-    {
-      "name": "pestphp/pest-plugin-mutate",
-      "previous": "v5.0.2",
-      "installed": "v5.0.2",
-      "latestStable": "v5.0.2"
-    },
-    {
-      "name": "pestphp/pest-plugin-phpstan",
-      "previous": "v5.3.1",
-      "installed": "v5.3.1",
-      "latestStable": "v5.3.1"
-    },
-    {
-      "name": "pestphp/pest-plugin-profanity",
-      "previous": "v5.0.1",
-      "installed": "v5.0.1",
-      "latestStable": "v5.0.1"
-    },
-    {
-      "name": "pestphp/pest-plugin-type-coverage",
-      "previous": "v5.1.0",
-      "installed": "v5.1.0",
-      "latestStable": "v5.1.0"
-    },
-    {
-      "name": "phar-io/manifest",
-      "previous": "2.0.4",
-      "installed": "2.0.4",
-      "latestStable": "2.0.4"
-    },
-    {
-      "name": "phar-io/version",
-      "previous": "3.2.1",
-      "installed": "3.2.1",
-      "latestStable": "3.2.1"
+      "latestStable": "1.1.0",
+      "direct": false
     },
     {
       "name": "php-standard-library/php-standard-library",
       "previous": "6.4.2",
       "installed": "6.4.2",
-      "latestStable": "6.4.2"
-    },
-    {
-      "name": "phpdocumentor/reflection-common",
-      "previous": "2.2.1",
-      "installed": "2.2.1",
-      "latestStable": "2.2.1"
-    },
-    {
-      "name": "phpdocumentor/reflection-docblock",
-      "previous": "6.0.3",
-      "installed": "6.0.3",
-      "latestStable": "6.0.3"
-    },
-    {
-      "name": "phpdocumentor/type-resolver",
-      "previous": "2.1.0",
-      "installed": "2.1.0",
-      "latestStable": "2.1.0"
+      "latestStable": "6.4.2",
+      "direct": false
     },
     {
       "name": "phpoption/phpoption",
       "previous": "1.10.0",
       "installed": "1.10.0",
-      "latestStable": "1.10.0"
+      "latestStable": "1.10.0",
+      "direct": false
     },
     {
       "name": "phpstan/phpdoc-parser",
       "previous": "2.4.1",
       "installed": "2.4.1",
-      "latestStable": "2.4.1"
-    },
-    {
-      "name": "phpstan/phpstan",
-      "previous": "2.3.5",
-      "installed": "2.3.6",
-      "latestStable": "2.3.6"
-    },
-    {
-      "name": "phpunit/php-code-coverage",
-      "previous": "14.5.1",
-      "installed": "14.5.2",
-      "latestStable": "14.5.2"
-    },
-    {
-      "name": "phpunit/php-file-iterator",
-      "previous": "7.0.2",
-      "installed": "7.0.2",
-      "latestStable": "7.0.2"
-    },
-    {
-      "name": "phpunit/php-invoker",
-      "previous": "7.0.0",
-      "installed": "7.0.0",
-      "latestStable": "7.0.0"
-    },
-    {
-      "name": "phpunit/php-text-template",
-      "previous": "6.0.1",
-      "installed": "6.0.1",
-      "latestStable": "6.0.1"
-    },
-    {
-      "name": "phpunit/php-timer",
-      "previous": "9.0.0",
-      "installed": "9.0.0",
-      "latestStable": "9.0.0"
-    },
-    {
-      "name": "phpunit/phpunit",
-      "previous": "13.4.5",
-      "installed": "13.4.7",
-      "latestStable": "13.4.7"
+      "latestStable": "2.4.1",
+      "direct": false
     },
     {
       "name": "psr/clock",
       "previous": "1.0.0",
       "installed": "1.0.0",
-      "latestStable": "1.0.0"
+      "latestStable": "1.0.0",
+      "direct": false
     },
     {
       "name": "psr/container",
       "previous": "2.0.2",
       "installed": "2.0.2",
-      "latestStable": "2.0.2"
+      "latestStable": "2.0.2",
+      "direct": false
     },
     {
       "name": "psr/event-dispatcher",
       "previous": "1.0.0",
       "installed": "1.0.0",
-      "latestStable": "1.0.0"
+      "latestStable": "1.0.0",
+      "direct": false
     },
     {
       "name": "psr/http-client",
       "previous": "1.0.3",
       "installed": "1.0.3",
-      "latestStable": "1.0.3"
+      "latestStable": "1.0.3",
+      "direct": false
     },
     {
       "name": "psr/http-factory",
       "previous": "1.1.0",
       "installed": "1.1.0",
-      "latestStable": "1.1.0"
+      "latestStable": "1.1.0",
+      "direct": false
     },
     {
       "name": "psr/http-message",
       "previous": "2.0",
       "installed": "2.0",
-      "latestStable": "2.0"
+      "latestStable": "2.0",
+      "direct": false
     },
     {
       "name": "psr/log",
       "previous": "3.0.2",
       "installed": "3.0.2",
-      "latestStable": "3.0.2"
+      "latestStable": "3.0.2",
+      "direct": false
     },
     {
       "name": "psr/simple-cache",
       "previous": "3.0.0",
       "installed": "3.0.0",
-      "latestStable": "3.0.0"
+      "latestStable": "3.0.0",
+      "direct": false
     },
     {
       "name": "psy/psysh",
       "previous": "v0.12.24",
       "installed": "v0.12.24",
-      "latestStable": "v0.12.24"
+      "latestStable": "v0.12.24",
+      "direct": false
     },
     {
       "name": "ramsey/collection",
       "previous": "2.1.1",
       "installed": "2.1.1",
-      "latestStable": "2.1.1"
+      "latestStable": "2.1.1",
+      "direct": false
     },
     {
       "name": "ramsey/uuid",
-      "previous": "4.9.4",
+      "previous": "4.10.0",
       "installed": "4.10.0",
-      "latestStable": "4.10.0"
+      "latestStable": "4.10.0",
+      "direct": false
     },
     {
       "name": "revolt/event-loop",
       "previous": "v1.0.9",
       "installed": "v1.0.9",
-      "latestStable": "v1.0.9"
+      "latestStable": "v1.0.9",
+      "direct": false
     },
     {
       "name": "saloonphp/xml-wrangler",
       "previous": "v1.5.0",
       "installed": "v1.5.0",
-      "latestStable": "v1.5.0"
-    },
-    {
-      "name": "sebastian/cli-parser",
-      "previous": "5.0.1",
-      "installed": "5.0.1",
-      "latestStable": "5.0.1"
-    },
-    {
-      "name": "sebastian/comparator",
-      "previous": "8.4.0",
-      "installed": "8.4.0",
-      "latestStable": "8.4.0"
-    },
-    {
-      "name": "sebastian/complexity",
-      "previous": "6.0.0",
-      "installed": "6.0.0",
-      "latestStable": "6.0.0"
-    },
-    {
-      "name": "sebastian/diff",
-      "previous": "9.0.1",
-      "installed": "9.0.1",
-      "latestStable": "9.0.1"
-    },
-    {
-      "name": "sebastian/environment",
-      "previous": "9.3.3",
-      "installed": "9.3.3",
-      "latestStable": "9.3.3"
-    },
-    {
-      "name": "sebastian/exporter",
-      "previous": "8.2.1",
-      "installed": "8.2.1",
-      "latestStable": "8.2.1"
-    },
-    {
-      "name": "sebastian/file-filter",
-      "previous": "1.0.0",
-      "installed": "1.0.0",
-      "latestStable": "1.0.0"
-    },
-    {
-      "name": "sebastian/git-state",
-      "previous": "1.1.0",
-      "installed": "1.1.0",
-      "latestStable": "1.1.0"
-    },
-    {
-      "name": "sebastian/global-state",
-      "previous": "9.0.1",
-      "installed": "9.0.1",
-      "latestStable": "9.0.1"
-    },
-    {
-      "name": "sebastian/lines-of-code",
-      "previous": "5.0.2",
-      "installed": "5.0.2",
-      "latestStable": "5.0.2"
-    },
-    {
-      "name": "sebastian/object-enumerator",
-      "previous": "8.1.0",
-      "installed": "8.1.0",
-      "latestStable": "8.1.0"
-    },
-    {
-      "name": "sebastian/object-reflector",
-      "previous": "6.1.0",
-      "installed": "6.1.0",
-      "latestStable": "6.1.0"
-    },
-    {
-      "name": "sebastian/recursion-context",
-      "previous": "8.0.1",
-      "installed": "8.0.1",
-      "latestStable": "8.0.1"
-    },
-    {
-      "name": "sebastian/type",
-      "previous": "7.0.2",
-      "installed": "7.0.2",
-      "latestStable": "7.0.2"
-    },
-    {
-      "name": "sebastian/version",
-      "previous": "7.0.1",
-      "installed": "7.1.0",
-      "latestStable": "7.1.0"
+      "latestStable": "v1.5.0",
+      "direct": true
     },
     {
       "name": "seboettg/citeproc-php",
       "previous": "v2.7.1",
       "installed": "v2.7.1",
-      "latestStable": "v2.7.1"
+      "latestStable": "v2.7.1",
+      "direct": true
     },
     {
       "name": "seboettg/collection",
       "previous": "v3.1.0",
       "installed": "v3.1.0",
-      "latestStable": "v4.0.0"
+      "latestStable": "v4.0.0",
+      "direct": false
     },
     {
       "name": "spatie/array-to-xml",
       "previous": "3.4.4",
       "installed": "3.4.4",
-      "latestStable": "3.4.4"
-    },
-    {
-      "name": "staabm/side-effects-detector",
-      "previous": "1.0.5",
-      "installed": "1.0.5",
-      "latestStable": "1.0.5"
+      "latestStable": "3.4.4",
+      "direct": false
     },
     {
       "name": "symfony/clock",
       "previous": "v8.1.9",
       "installed": "v8.1.9",
-      "latestStable": "v8.1.9"
+      "latestStable": "v8.1.9",
+      "direct": false
     },
     {
       "name": "symfony/console",
       "previous": "v8.1.11",
       "installed": "v8.1.11",
-      "latestStable": "v8.1.11"
+      "latestStable": "v8.1.11",
+      "direct": false
     },
     {
       "name": "symfony/css-selector",
       "previous": "v8.1.10",
       "installed": "v8.1.10",
-      "latestStable": "v8.1.10"
+      "latestStable": "v8.1.10",
+      "direct": false
     },
     {
       "name": "symfony/deprecation-contracts",
       "previous": "v3.8.1",
       "installed": "v3.8.1",
-      "latestStable": "v3.8.1"
+      "latestStable": "v3.8.1",
+      "direct": false
     },
     {
       "name": "symfony/error-handler",
       "previous": "v8.1.10",
       "installed": "v8.1.10",
-      "latestStable": "v8.1.10"
+      "latestStable": "v8.1.10",
+      "direct": false
     },
     {
       "name": "symfony/event-dispatcher",
       "previous": "v8.1.5",
       "installed": "v8.1.5",
-      "latestStable": "v8.1.5"
+      "latestStable": "v8.1.5",
+      "direct": false
     },
     {
       "name": "symfony/event-dispatcher-contracts",
       "previous": "v3.8.1",
       "installed": "v3.8.1",
-      "latestStable": "v3.8.1"
+      "latestStable": "v3.8.1",
+      "direct": false
     },
     {
       "name": "symfony/finder",
       "previous": "v8.1.11",
       "installed": "v8.1.11",
-      "latestStable": "v8.1.11"
+      "latestStable": "v8.1.11",
+      "direct": false
     },
     {
       "name": "symfony/http-foundation",
       "previous": "v8.1.11",
       "installed": "v8.1.11",
-      "latestStable": "v8.1.11"
+      "latestStable": "v8.1.11",
+      "direct": false
     },
     {
       "name": "symfony/http-kernel",
       "previous": "v8.1.11",
       "installed": "v8.1.11",
-      "latestStable": "v8.1.11"
+      "latestStable": "v8.1.11",
+      "direct": false
     },
     {
       "name": "symfony/mailer",
       "previous": "v8.1.10",
       "installed": "v8.1.10",
-      "latestStable": "v8.1.10"
+      "latestStable": "v8.1.10",
+      "direct": false
     },
     {
       "name": "symfony/mime",
       "previous": "v8.1.10",
       "installed": "v8.1.10",
-      "latestStable": "v8.1.10"
+      "latestStable": "v8.1.10",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-ctype",
       "previous": "v1.37.0",
       "installed": "v1.37.0",
-      "latestStable": "v1.37.0"
+      "latestStable": "v1.37.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-intl-grapheme",
       "previous": "v1.43.3",
       "installed": "v1.43.3",
-      "latestStable": "v1.43.3"
+      "latestStable": "v1.43.3",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-intl-idn",
       "previous": "v1.43.0",
       "installed": "v1.43.0",
-      "latestStable": "v1.43.0"
+      "latestStable": "v1.43.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-intl-normalizer",
       "previous": "v1.43.0",
       "installed": "v1.43.0",
-      "latestStable": "v1.43.0"
+      "latestStable": "v1.43.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-mbstring",
       "previous": "v1.43.3",
       "installed": "v1.43.3",
-      "latestStable": "v1.43.3"
+      "latestStable": "v1.43.3",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-php80",
       "previous": "v1.43.0",
       "installed": "v1.43.0",
-      "latestStable": "v1.43.0"
+      "latestStable": "v1.43.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-php82",
       "previous": "v1.43.0",
       "installed": "v1.43.0",
-      "latestStable": "v1.43.0"
+      "latestStable": "v1.43.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-php84",
       "previous": "v1.43.0",
       "installed": "v1.43.0",
-      "latestStable": "v1.43.0"
+      "latestStable": "v1.43.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-php85",
-      "previous": "v1.43.0",
+      "previous": "v1.44.0",
       "installed": "v1.44.0",
-      "latestStable": "v1.44.0"
+      "latestStable": "v1.44.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-php86",
       "previous": "v1.43.0",
       "installed": "v1.43.0",
-      "latestStable": "v1.43.0"
+      "latestStable": "v1.43.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-time",
       "previous": "v1.42.0",
       "installed": "v1.42.0",
-      "latestStable": "v1.42.0"
+      "latestStable": "v1.42.0",
+      "direct": false
     },
     {
       "name": "symfony/polyfill-uuid",
       "previous": "v1.43.0",
       "installed": "v1.43.0",
-      "latestStable": "v1.43.0"
+      "latestStable": "v1.43.0",
+      "direct": false
     },
     {
       "name": "symfony/process",
       "previous": "v8.1.10",
       "installed": "v8.1.10",
-      "latestStable": "v8.1.10"
+      "latestStable": "v8.1.10",
+      "direct": false
     },
     {
       "name": "symfony/routing",
       "previous": "v8.1.11",
       "installed": "v8.1.11",
-      "latestStable": "v8.1.11"
+      "latestStable": "v8.1.11",
+      "direct": false
     },
     {
       "name": "symfony/service-contracts",
       "previous": "v3.8.1",
       "installed": "v3.8.1",
-      "latestStable": "v3.8.1"
+      "latestStable": "v3.8.1",
+      "direct": false
     },
     {
       "name": "symfony/string",
       "previous": "v8.1.10",
       "installed": "v8.1.10",
-      "latestStable": "v8.1.10"
+      "latestStable": "v8.1.10",
+      "direct": false
     },
     {
       "name": "symfony/translation",
       "previous": "v8.1.11",
       "installed": "v8.1.11",
-      "latestStable": "v8.1.11"
+      "latestStable": "v8.1.11",
+      "direct": false
     },
     {
       "name": "symfony/translation-contracts",
       "previous": "v3.8.1",
       "installed": "v3.8.1",
-      "latestStable": "v3.8.1"
+      "latestStable": "v3.8.1",
+      "direct": false
     },
     {
       "name": "symfony/uid",
       "previous": "v8.1.9",
       "installed": "v8.1.9",
-      "latestStable": "v8.1.9"
+      "latestStable": "v8.1.9",
+      "direct": false
     },
     {
       "name": "symfony/var-dumper",
       "previous": "v8.1.10",
       "installed": "v8.1.10",
-      "latestStable": "v8.1.10"
-    },
-    {
-      "name": "symfony/yaml",
-      "previous": "v8.1.11",
-      "installed": "v8.1.11",
-      "latestStable": "v8.1.11"
-    },
-    {
-      "name": "ta-tikoma/phpunit-architecture-test",
-      "previous": "0.8.7",
-      "installed": "0.8.7",
-      "latestStable": "0.8.7"
+      "latestStable": "v8.1.10",
+      "direct": false
     },
     {
       "name": "tijsverkoyen/css-to-inline-styles",
       "previous": "v2.4.0",
       "installed": "v2.4.0",
-      "latestStable": "v2.4.0"
-    },
-    {
-      "name": "tomasvotruba/type-coverage",
-      "previous": "2.5.1",
-      "installed": "2.5.1",
-      "latestStable": "2.5.1"
+      "latestStable": "v2.4.0",
+      "direct": false
     },
     {
       "name": "veewee/xml",
       "previous": "3.8.0",
-      "installed": "3.8.0",
-      "latestStable": "4.14.0"
+      "installed": "3.9.0",
+      "latestStable": "4.15.0",
+      "direct": false
     },
     {
       "name": "vlucas/phpdotenv",
       "previous": "v5.8.0",
       "installed": "v5.8.0",
-      "latestStable": "v5.8.0"
+      "latestStable": "v5.8.0",
+      "direct": false
     },
     {
       "name": "voku/portable-ascii",
       "previous": "2.1.1",
       "installed": "2.1.1",
-      "latestStable": "2.1.1"
+      "latestStable": "2.1.1",
+      "direct": false
     },
     {
       "name": "webmozart/assert",
       "previous": "1.12.1",
       "installed": "1.12.1",
-      "latestStable": "2.5.1"
+      "latestStable": "2.5.1",
+      "direct": false
+    },
+    {
+      "name": "amphp/amp",
+      "previous": "v3.1.3",
+      "installed": "v3.1.3",
+      "latestStable": "v3.1.3",
+      "direct": false
+    },
+    {
+      "name": "amphp/byte-stream",
+      "previous": "v2.1.3",
+      "installed": "v2.1.3",
+      "latestStable": "v2.1.3",
+      "direct": false
+    },
+    {
+      "name": "amphp/cache",
+      "previous": "v2.0.1",
+      "installed": "v2.0.1",
+      "latestStable": "v2.0.1",
+      "direct": false
+    },
+    {
+      "name": "amphp/dns",
+      "previous": "v2.4.2",
+      "installed": "v2.4.2",
+      "latestStable": "v2.4.2",
+      "direct": false
+    },
+    {
+      "name": "amphp/hpack",
+      "previous": "v3.2.2",
+      "installed": "v3.2.2",
+      "latestStable": "v3.2.2",
+      "direct": false
+    },
+    {
+      "name": "amphp/http",
+      "previous": "v2.1.2",
+      "installed": "v2.1.2",
+      "latestStable": "v2.1.2",
+      "direct": false
+    },
+    {
+      "name": "amphp/http-client",
+      "previous": "v5.3.8",
+      "installed": "v5.3.8",
+      "latestStable": "v5.3.8",
+      "direct": false
+    },
+    {
+      "name": "amphp/http-server",
+      "previous": "v3.4.8",
+      "installed": "v3.4.9",
+      "latestStable": "v3.4.9",
+      "direct": false
+    },
+    {
+      "name": "amphp/parser",
+      "previous": "v1.1.1",
+      "installed": "v1.1.1",
+      "latestStable": "v1.1.1",
+      "direct": false
+    },
+    {
+      "name": "amphp/pipeline",
+      "previous": "v1.2.7",
+      "installed": "v1.2.7",
+      "latestStable": "v1.2.7",
+      "direct": false
+    },
+    {
+      "name": "amphp/process",
+      "previous": "v2.1.2",
+      "installed": "v2.1.2",
+      "latestStable": "v2.1.2",
+      "direct": false
+    },
+    {
+      "name": "amphp/serialization",
+      "previous": "v1.1.0",
+      "installed": "v1.1.0",
+      "latestStable": "v1.1.0",
+      "direct": false
+    },
+    {
+      "name": "amphp/socket",
+      "previous": "v2.4.2",
+      "installed": "v2.4.2",
+      "latestStable": "v2.4.2",
+      "direct": false
+    },
+    {
+      "name": "amphp/sync",
+      "previous": "v2.3.1",
+      "installed": "v2.3.1",
+      "latestStable": "v2.3.1",
+      "direct": false
+    },
+    {
+      "name": "amphp/websocket",
+      "previous": "v2.0.5",
+      "installed": "v2.0.5",
+      "latestStable": "v2.0.5",
+      "direct": false
+    },
+    {
+      "name": "amphp/websocket-client",
+      "previous": "v2.0.2",
+      "installed": "v2.0.2",
+      "latestStable": "v2.0.2",
+      "direct": false
+    },
+    {
+      "name": "brianium/paratest",
+      "previous": "v7.29.0",
+      "installed": "v7.29.0",
+      "latestStable": "v7.29.0",
+      "direct": true
+    },
+    {
+      "name": "daverandom/libdns",
+      "previous": "v2.1.0",
+      "installed": "v2.1.0",
+      "latestStable": "v2.1.0",
+      "direct": false
+    },
+    {
+      "name": "doctrine/deprecations",
+      "previous": "1.2.0",
+      "installed": "1.2.0",
+      "latestStable": "1.2.0",
+      "direct": false
+    },
+    {
+      "name": "entropy/entropy",
+      "previous": "0.4.37",
+      "installed": "0.4.37",
+      "latestStable": "0.4.37",
+      "direct": false
+    },
+    {
+      "name": "fakerphp/faker",
+      "previous": "v1.24.1",
+      "installed": "v1.24.1",
+      "latestStable": "v1.24.1",
+      "direct": true
+    },
+    {
+      "name": "fidry/cpu-core-counter",
+      "previous": "1.4.1",
+      "installed": "1.4.1",
+      "latestStable": "1.4.1",
+      "direct": false
+    },
+    {
+      "name": "filp/whoops",
+      "previous": "2.19.3",
+      "installed": "2.19.3",
+      "latestStable": "2.19.3",
+      "direct": false
+    },
+    {
+      "name": "hamcrest/hamcrest-php",
+      "previous": "v3.0.0",
+      "installed": "v3.0.0",
+      "latestStable": "v3.0.0",
+      "direct": false
+    },
+    {
+      "name": "iamcal/sql-parser",
+      "previous": "v0.7",
+      "installed": "v0.7",
+      "latestStable": "v0.7",
+      "direct": false
+    },
+    {
+      "name": "jean85/pretty-package-versions",
+      "previous": "2.1.1",
+      "installed": "2.1.1",
+      "latestStable": "2.1.1",
+      "direct": false
+    },
+    {
+      "name": "kelunik/certificate",
+      "previous": "v1.1.3",
+      "installed": "v1.1.3",
+      "latestStable": "v1.1.3",
+      "direct": false
+    },
+    {
+      "name": "larastan/larastan",
+      "previous": "v3.15.0",
+      "installed": "v3.15.0",
+      "latestStable": "v3.15.0",
+      "direct": true
+    },
+    {
+      "name": "laravel/pail",
+      "previous": "v1.3.0",
+      "installed": "v1.3.0",
+      "latestStable": "v1.3.0",
+      "direct": true
+    },
+    {
+      "name": "laravel/pint",
+      "previous": "v1.32.3",
+      "installed": "v1.32.3",
+      "latestStable": "v1.32.3",
+      "direct": true
+    },
+    {
+      "name": "laravel/sail",
+      "previous": "v1.70.0",
+      "installed": "v1.71.0",
+      "latestStable": "v1.71.0",
+      "direct": true
+    },
+    {
+      "name": "league/uri-components",
+      "previous": "7.10.0",
+      "installed": "7.10.0",
+      "latestStable": "7.10.0",
+      "direct": false
+    },
+    {
+      "name": "mockery/mockery",
+      "previous": "1.6.15",
+      "installed": "1.6.15",
+      "latestStable": "1.6.15",
+      "direct": true
+    },
+    {
+      "name": "myclabs/deep-copy",
+      "previous": "1.14.0",
+      "installed": "1.14.0",
+      "latestStable": "1.14.0",
+      "direct": false
+    },
+    {
+      "name": "nunomaduro/collision",
+      "previous": "v8.9.6",
+      "installed": "v8.9.6",
+      "latestStable": "v8.9.6",
+      "direct": true
+    },
+    {
+      "name": "nunomaduro/pokio",
+      "previous": "v1.0.1",
+      "installed": "v1.0.1",
+      "latestStable": "v1.0.1",
+      "direct": false
+    },
+    {
+      "name": "pestphp/pest",
+      "previous": "v5.3.6",
+      "installed": "v5.3.7",
+      "latestStable": "v5.3.7",
+      "direct": true
+    },
+    {
+      "name": "pestphp/pest-plugin",
+      "previous": "v5.0.0",
+      "installed": "v5.0.0",
+      "latestStable": "v5.0.0",
+      "direct": false
+    },
+    {
+      "name": "pestphp/pest-plugin-agent",
+      "previous": "v5.0.0",
+      "installed": "v5.0.0",
+      "latestStable": "v5.0.0",
+      "direct": true
+    },
+    {
+      "name": "pestphp/pest-plugin-arch",
+      "previous": "v5.0.0",
+      "installed": "v5.0.0",
+      "latestStable": "v5.0.0",
+      "direct": false
+    },
+    {
+      "name": "pestphp/pest-plugin-browser",
+      "previous": "v5.2.0",
+      "installed": "v5.2.0",
+      "latestStable": "v5.2.0",
+      "direct": true
+    },
+    {
+      "name": "pestphp/pest-plugin-laravel",
+      "previous": "v5.0.1",
+      "installed": "v5.0.1",
+      "latestStable": "v5.0.1",
+      "direct": true
+    },
+    {
+      "name": "pestphp/pest-plugin-mutate",
+      "previous": "v5.0.2",
+      "installed": "v5.0.2",
+      "latestStable": "v5.0.2",
+      "direct": false
+    },
+    {
+      "name": "pestphp/pest-plugin-phpstan",
+      "previous": "v5.3.1",
+      "installed": "v5.3.1",
+      "latestStable": "v5.3.1",
+      "direct": true
+    },
+    {
+      "name": "pestphp/pest-plugin-profanity",
+      "previous": "v5.0.1",
+      "installed": "v5.0.1",
+      "latestStable": "v5.0.1",
+      "direct": false
+    },
+    {
+      "name": "pestphp/pest-plugin-type-coverage",
+      "previous": "v5.1.0",
+      "installed": "v5.1.1",
+      "latestStable": "v5.1.1",
+      "direct": true
+    },
+    {
+      "name": "phar-io/manifest",
+      "previous": "2.0.4",
+      "installed": "2.0.4",
+      "latestStable": "2.0.4",
+      "direct": false
+    },
+    {
+      "name": "phar-io/version",
+      "previous": "3.2.1",
+      "installed": "3.2.1",
+      "latestStable": "3.2.1",
+      "direct": false
+    },
+    {
+      "name": "phpdocumentor/reflection-common",
+      "previous": "2.2.1",
+      "installed": "2.2.1",
+      "latestStable": "2.2.1",
+      "direct": false
+    },
+    {
+      "name": "phpdocumentor/reflection-docblock",
+      "previous": "6.0.3",
+      "installed": "6.0.3",
+      "latestStable": "6.0.3",
+      "direct": false
+    },
+    {
+      "name": "phpdocumentor/type-resolver",
+      "previous": "2.1.0",
+      "installed": "2.1.0",
+      "latestStable": "2.1.0",
+      "direct": false
+    },
+    {
+      "name": "phpstan/phpstan",
+      "previous": "2.3.6",
+      "installed": "2.3.7",
+      "latestStable": "2.3.7",
+      "direct": false
+    },
+    {
+      "name": "phpunit/php-code-coverage",
+      "previous": "14.5.2",
+      "installed": "14.5.2",
+      "latestStable": "14.5.2",
+      "direct": false
+    },
+    {
+      "name": "phpunit/php-file-iterator",
+      "previous": "7.0.2",
+      "installed": "7.0.2",
+      "latestStable": "7.0.2",
+      "direct": false
+    },
+    {
+      "name": "phpunit/php-invoker",
+      "previous": "7.0.0",
+      "installed": "7.0.0",
+      "latestStable": "7.0.0",
+      "direct": false
+    },
+    {
+      "name": "phpunit/php-text-template",
+      "previous": "6.0.1",
+      "installed": "6.0.1",
+      "latestStable": "6.0.1",
+      "direct": false
+    },
+    {
+      "name": "phpunit/php-timer",
+      "previous": "9.0.0",
+      "installed": "9.0.0",
+      "latestStable": "9.0.0",
+      "direct": false
+    },
+    {
+      "name": "phpunit/phpunit",
+      "previous": "13.4.7",
+      "installed": "13.4.7",
+      "latestStable": "13.4.8",
+      "direct": false
+    },
+    {
+      "name": "sebastian/cli-parser",
+      "previous": "5.0.1",
+      "installed": "5.0.1",
+      "latestStable": "5.0.1",
+      "direct": false
+    },
+    {
+      "name": "sebastian/comparator",
+      "previous": "8.4.0",
+      "installed": "8.4.0",
+      "latestStable": "8.4.0",
+      "direct": false
+    },
+    {
+      "name": "sebastian/complexity",
+      "previous": "6.0.0",
+      "installed": "6.0.0",
+      "latestStable": "6.0.0",
+      "direct": false
+    },
+    {
+      "name": "sebastian/diff",
+      "previous": "9.0.1",
+      "installed": "9.0.1",
+      "latestStable": "9.0.1",
+      "direct": false
+    },
+    {
+      "name": "sebastian/environment",
+      "previous": "9.3.3",
+      "installed": "9.3.3",
+      "latestStable": "9.3.3",
+      "direct": false
+    },
+    {
+      "name": "sebastian/exporter",
+      "previous": "8.2.1",
+      "installed": "8.2.1",
+      "latestStable": "8.2.1",
+      "direct": false
+    },
+    {
+      "name": "sebastian/file-filter",
+      "previous": "1.0.0",
+      "installed": "1.0.0",
+      "latestStable": "1.0.0",
+      "direct": false
+    },
+    {
+      "name": "sebastian/git-state",
+      "previous": "1.1.0",
+      "installed": "1.1.0",
+      "latestStable": "1.1.0",
+      "direct": false
+    },
+    {
+      "name": "sebastian/global-state",
+      "previous": "9.0.1",
+      "installed": "9.0.1",
+      "latestStable": "9.0.1",
+      "direct": false
+    },
+    {
+      "name": "sebastian/lines-of-code",
+      "previous": "5.0.2",
+      "installed": "5.0.2",
+      "latestStable": "5.0.2",
+      "direct": false
+    },
+    {
+      "name": "sebastian/object-enumerator",
+      "previous": "8.1.0",
+      "installed": "8.1.0",
+      "latestStable": "8.1.0",
+      "direct": false
+    },
+    {
+      "name": "sebastian/object-reflector",
+      "previous": "6.1.0",
+      "installed": "6.1.0",
+      "latestStable": "6.1.0",
+      "direct": false
+    },
+    {
+      "name": "sebastian/recursion-context",
+      "previous": "8.0.1",
+      "installed": "8.0.1",
+      "latestStable": "8.0.1",
+      "direct": false
+    },
+    {
+      "name": "sebastian/type",
+      "previous": "7.0.2",
+      "installed": "7.0.2",
+      "latestStable": "7.0.2",
+      "direct": false
+    },
+    {
+      "name": "sebastian/version",
+      "previous": "7.1.0",
+      "installed": "7.1.0",
+      "latestStable": "7.1.0",
+      "direct": false
+    },
+    {
+      "name": "staabm/side-effects-detector",
+      "previous": "1.0.5",
+      "installed": "1.0.5",
+      "latestStable": "1.0.5",
+      "direct": false
+    },
+    {
+      "name": "symfony/yaml",
+      "previous": "v8.1.11",
+      "installed": "v8.1.11",
+      "latestStable": "v8.1.11",
+      "direct": false
+    },
+    {
+      "name": "ta-tikoma/phpunit-architecture-test",
+      "previous": "0.8.7",
+      "installed": "0.8.7",
+      "latestStable": "0.8.7",
+      "direct": false
+    },
+    {
+      "name": "tomasvotruba/type-coverage",
+      "previous": "2.5.1",
+      "installed": "2.5.1",
+      "latestStable": "2.5.1",
+      "direct": false
     }
   ],
   "actions": [
@@ -4545,10 +2445,10 @@
     },
     {
       "repo": "actions/create-github-app-token",
-      "tag": "v3.3.0",
-      "published": "2026-10-12T23:42:23Z",
-      "url": "https://github.com/actions/create-github-app-token/releases/tag/v3.3.0",
-      "sha": "64ab729a6294000f5aa4a4bc0b73d1f32bc45510"
+      "tag": "v3.4.0",
+      "published": "2026-11-18T15:09:15Z",
+      "url": "https://github.com/actions/create-github-app-token/releases/tag/v3.4.0",
+      "sha": "f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc"
     },
     {
       "repo": "shivammathur/setup-php",
@@ -4594,13 +2494,13 @@
     }
   ],
   "actionsReview": {
-    "checkedOn": "2026-11-16",
-    "result": "All 13 used actions already match the newest stable action release and its verified commit SHA. Annotated tags were resolved to their target commits; CodeQL bundle releases and prereleases were excluded."
+    "checkedOn": "2026-11-19",
+    "result": "All 13 latest stable action releases and tag commits verified. Updated actions/create-github-app-token to v3.4.0; CodeQL bundle tags are not action releases."
   },
   "images": [
     {
-      "image": "php:8.5.12-fpm-trixie",
-      "digest": "sha256:baf3ea13a8207fa18e1011bad1016e8b5e59fc974c6966d0efa6f36a16f875f0"
+      "image": "php:8.5.13-fpm-trixie",
+      "digest": "sha256:52ba6f178d0a08f348578b03595661b7ff13defafacf4c823d045f2ecba8db8f"
     },
     {
       "image": "mysql:9.7.4",
@@ -4611,8 +2511,8 @@
       "digest": "sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902"
     },
     {
-      "image": "nginx:1.31.8-alpine",
-      "digest": "sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72"
+      "image": "nginx:1.31.9-alpine",
+      "digest": "sha256:90b6bd2aec278b16b98221d64deb1d6d35d164567f507ab0716e6053878315aa"
     },
     {
       "image": "redis:8.10.3-alpine",
@@ -4620,11 +2520,11 @@
     },
     {
       "image": "traefik:v3.7.19",
-      "digest": "sha256:aa942a00bce033c909bf1f7e861d93761be4b31a035f10d2410d33e38a8f41cf"
+      "digest": "sha256:a6c0194dda77bcb804824580f36fa7edc56e315b1acfe933366c8b52844a78a4"
     },
     {
       "image": "composer:2.11.2",
-      "digest": "sha256:5bcb28b8d0edc4091125f8218f9d088f998bdfc843f8fbb9a4beb4dcd8625684"
+      "digest": "sha256:0c8e663f14c94d07b3c45b175c51f5a14718508f21fe4dd7e54f09488dd0ed71"
     },
     {
       "image": "aquasec/trivy:0.76.2",
@@ -4696,7 +2596,7 @@
     },
     {
       "name": "click",
-      "previous": "8.5.0",
+      "previous": "8.5.1",
       "installed": "8.5.1",
       "latestStable": "8.5.1"
     },
@@ -4732,9 +2632,9 @@
     },
     {
       "name": "filelock",
-      "previous": "4.2.9",
-      "installed": "4.2.10",
-      "latestStable": "4.2.10"
+      "previous": "4.2.10",
+      "installed": "4.2.12",
+      "latestStable": "4.2.12"
     },
     {
       "name": "Flask",
@@ -4746,17 +2646,13 @@
       "name": "frostwork",
       "previous": "0.2.2",
       "installed": "0.2.2",
-      "latestStable": "0.2.2",
-      "source": "https://pypi.org/project/frostwork/",
-      "note": "Resolved from the F-UJI dependency tree; already present before this update."
+      "latestStable": "0.2.2"
     },
     {
       "name": "fuji",
       "previous": "4.0.1",
       "installed": "4.0.1",
-      "latestStable": "4.0.1",
-      "source": "https://github.com/pangaea-data-publisher/fuji/releases/tag/v4.0.1",
-      "note": "The PyPI package named fuji is unrelated and is not used."
+      "latestStable": "4.0.1"
     },
     {
       "name": "greenlet",
@@ -4814,7 +2710,7 @@
     },
     {
       "name": "idutils",
-      "previous": "1.7.1",
+      "previous": "1.7.2",
       "installed": "1.7.2",
       "latestStable": "1.7.2"
     },
@@ -4832,7 +2728,7 @@
     },
     {
       "name": "isbnlib2",
-      "previous": "3.11.24",
+      "previous": "3.11.26",
       "installed": "3.11.26",
       "latestStable": "3.11.26"
     },
@@ -4904,7 +2800,7 @@
     },
     {
       "name": "numpy",
-      "previous": "2.5.4",
+      "previous": "2.5.5",
       "installed": "2.5.5",
       "latestStable": "2.5.5"
     },
@@ -4917,12 +2813,12 @@
     {
       "name": "platformdirs",
       "previous": "4.14.5",
-      "installed": "4.14.5",
-      "latestStable": "4.14.5"
+      "installed": "4.14.7",
+      "latestStable": "4.14.7"
     },
     {
       "name": "playwright",
-      "previous": "1.64.1",
+      "previous": "1.65.2",
       "installed": "1.65.2",
       "latestStable": "1.65.2"
     },
@@ -4934,7 +2830,7 @@
     },
     {
       "name": "pyee",
-      "previous": "14.0.0",
+      "previous": "16.1.0",
       "installed": "16.1.0",
       "latestStable": "16.1.0"
     },
@@ -4983,8 +2879,8 @@
     {
       "name": "python-multipart",
       "previous": "0.0.33",
-      "installed": "0.0.33",
-      "latestStable": "0.0.33"
+      "installed": "0.0.34",
+      "latestStable": "0.0.34"
     },
     {
       "name": "pytz",
@@ -5048,9 +2944,9 @@
     },
     {
       "name": "soupsieve",
-      "previous": "3.0.4",
-      "installed": "4.1.1",
-      "latestStable": "4.1.1"
+      "previous": "4.1.1",
+      "installed": "4.1.2",
+      "latestStable": "4.1.2"
     },
     {
       "name": "SPARQLWrapper",
@@ -5096,7 +2992,7 @@
     },
     {
       "name": "uritools",
-      "previous": "6.1.4",
+      "previous": "7.0.0",
       "installed": "7.0.0",
       "latestStable": "7.0.0"
     },
@@ -5170,15 +3066,15 @@
     },
     {
       "package": "veewee/xml",
-      "selected": "3.8.0",
-      "latest": "4.14.0",
+      "selected": "3.9.0",
+      "latest": "4.15.0",
       "reason": "saloonphp/xml-wrangler 1.5.0 requires ^3.1.0"
     },
     {
       "package": "webmozart/assert",
       "selected": "1.12.1",
       "latest": "2.5.1",
-      "reason": "veewee/xml 3.8.0 requires ^1.10"
+      "reason": "veewee/xml 3.9.0 requires ^1.10"
     },
     {
       "package": "Levenshtein",
@@ -5209,21 +3105,24 @@
       "selected": "0.52.4",
       "latest": "0.54.0",
       "reason": "F-UJI 4.0.1 requires uvicorn~=0.52.4"
+    },
+    {
+      "package": "phpunit/phpunit",
+      "selected": "13.4.7",
+      "latest": "13.4.8",
+      "reason": "pestphp/pest 5.3.7 explicitly conflicts with phpunit/phpunit >13.4.7; verified with Composer prohibits."
     }
   ],
   "compatibilityChanges": [
-    "jsdom 31.0.1, Oxfmt 0.78.0 and SoupSieve 4.1.1 are now included instead of being deferred; frontend tests, formatting and offline HTML extraction verify their compatibility.",
-    "The npm Playwright 1.65.1 package and its matching Microsoft image are both available; F-UJI independently uses Python Playwright 1.65.2 with its matching Chromium build.",
-    "F-UJI installs libatomic1 before invoking the Node runtime bundled with Playwright.",
-    "The Minimatch regression expects bounded rejection of excessive glob expansion instead of truncated expansion; normal Swagger file allowlists remain covered.",
-    "The local deepmerge security patch remains because upstream deepmerge 4.3.1 does not replace it.",
-    "The temporary browser backend uses an unavailable loopback endpoint for the optional legacy citation cache, avoiding delays from unreachable internal DNS; the normal development connection is restored after each run.",
-    "Playwright 1.65.1 reproduced ERR_TOO_MANY_RETRIES on the first stylesheet request in remote Linux Chromium; the existing native TLS preflight for fulfilled HTML now applies to Chromium and WebKit on all host platforms, without relaxing stylesheet assertions or certificate handling.",
-    "PHPStan 2.3.6 infers the FAIR score array shapes and bounded ZIP float sums precisely; obsolete type assertions and an unreachable float-infinity check were removed, with 106 existing service tests verifying the behavior."
+    "Composer requires PHP ^8.5.13 and resolves against PHP/ext-xsl 8.5.13. Both application Dockerfiles pin the same official multiarchitecture PHP 8.5.13 image.",
+    "@testing-library/jest-dom 8.0.0 supports Vitest 5 and removes support for earlier Vitest majors; this project uses Vitest 5.1.1.",
+    "Preserved npm security overrides, the local deepmerge package, and the opt-out for @scarf/scarf. The existing msw script allowance now names 3.0.7.",
+    "Node 26.13.1, Composer 2.11.2, phpredis 6.3.0, Xdebug 3.5.3, Playwright 1.65.1, MySQL 9.7.4 and Redis 8.10.3 remain the latest stable releases within the supported lines.",
+    "Refreshed Composer and Traefik image digests at the same version. Nginx updates to 1.31.9. F-UJI retains its verified 4.0.1 base with four compatible Python updates."
   ],
   "security": {
-    "npmAuditCheckedOn": "2026-11-16",
-    "composerAuditCheckedOn": "2026-11-16",
+    "npmAuditCheckedOn": "2026-11-19",
+    "composerAuditCheckedOn": "2026-11-19",
     "npmAudit": {
       "info": 0,
       "low": 0,
@@ -5238,564 +3137,24 @@
       "filter": [],
       "cooldown": []
     },
-    "toolchainSecuritySources": [
-      "https://nodejs.org/en/blog/release/v26.13.1",
-      "https://getcomposer.org/changelog/2.11.2"
-    ],
     "imageScan": {
-      "checkedOn": "2026-11-16",
-      "scanner": "aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb",
-      "scope": "Local linux/amd64 images; OS and language packages; HIGH and CRITICAL findings, including those without available fixes; no new suppressions.",
-      "images": [
-        {
-          "name": "app",
-          "image": "ernie-app-release113:validation",
-          "imageId": "sha256:747520ac6fa7d48479ba4d4b5ec43ad3b9db8796661ebb4cd258993c3407a729",
-          "highCritical": 229,
-          "fixable": 0,
-          "withoutAvailableFix": 229,
-          "report": "storage/logs/dependency-update-113/app.json"
-        },
-        {
-          "name": "nginx",
-          "image": "ernie-nginx-release113:validation",
-          "imageId": "sha256:d1411d8601114b0f8b315d99632831ec2181dbcd604ba335c5f91ac3262ec2c2",
-          "highCritical": 0,
-          "fixable": 0,
-          "withoutAvailableFix": 0,
-          "report": "storage/logs/dependency-update-113/nginx.json"
-        },
-        {
-          "name": "fuji",
-          "image": "ernie-fuji-dev:4.0.1",
-          "imageId": "sha256:ccb92a9d487d8597fd1171dd2f3a2fb5c8839fe762c6242b3501406f64872ff9",
-          "highCritical": 146,
-          "fixable": 0,
-          "withoutAvailableFix": 146,
-          "report": "storage/logs/dependency-update-113/fuji.json"
-        },
-        {
-          "name": "development",
-          "image": "ernie-app:latest",
-          "imageId": "sha256:4615210c590132f7b2a2160d74855c98e16615d93e091dcc8d6c322143057102",
-          "highCritical": 303,
-          "fixable": 0,
-          "withoutAvailableFix": 303,
-          "report": "storage/logs/dependency-update-113/development.json"
-        },
-        {
-          "name": "mysql",
-          "image": "mysql:9.7.4@sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8",
-          "imageId": "sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8",
-          "highCritical": 35,
-          "fixable": 35,
-          "withoutAvailableFix": 0,
-          "report": "storage/logs/dependency-update-113/mysql.json",
-          "limitation": "The latest official MySQL 9.7.4 image still bundles vulnerable mysqlsh Python libraries and a gosu binary built with an older Go toolchain. Fix versions exist for those components, but no newer supported official 9.7 image was available. The server pin is retained; these findings are not described as fixed or suppressed.",
-          "findings": [
-            {
-              "id": "GHSA-6q48-6c7w-9gw2",
-              "severity": "CRITICAL",
-              "component": "certifi",
-              "installed": "2026.2.25",
-              "fixedVersion": "2026.10.18",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2026-69247",
-              "severity": "HIGH",
-              "component": "cryptography",
-              "installed": "46.0.5",
-              "fixedVersion": "50.0.0",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2026-69249",
-              "severity": "HIGH",
-              "component": "cryptography",
-              "installed": "46.0.5",
-              "fixedVersion": "49.0.0",
-              "target": "Python"
-            },
-            {
-              "id": "GHSA-537c-gmf6-5ccf",
-              "severity": "HIGH",
-              "component": "cryptography",
-              "installed": "46.0.5",
-              "fixedVersion": "48.0.1",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2026-27459",
-              "severity": "HIGH",
-              "component": "pyOpenSSL",
-              "installed": "25.3.0",
-              "fixedVersion": "26.0.0",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2026-44431",
-              "severity": "HIGH",
-              "component": "urllib3",
-              "installed": "2.6.3",
-              "fixedVersion": "2.7.0",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2026-44432",
-              "severity": "HIGH",
-              "component": "urllib3",
-              "installed": "2.6.3",
-              "fixedVersion": "2.7.0",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2026-97687",
-              "severity": "HIGH",
-              "component": "urllib3",
-              "installed": "2.6.3",
-              "fixedVersion": "2.8.0",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2026-97689",
-              "severity": "HIGH",
-              "component": "urllib3",
-              "installed": "2.6.3",
-              "fixedVersion": "2.8.0",
-              "target": "Python"
-            },
-            {
-              "id": "CVE-2025-68121",
-              "severity": "CRITICAL",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.24.13, 1.25.7, 1.26.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2025-61726",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.24.12, 1.25.6",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2025-61729",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.24.11, 1.25.5",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-111943",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.26.10, 1.27.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-25679",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.8, 1.26.1",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-27145",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.11, 1.26.4",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-32280",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.9, 1.26.2",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-32281",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.9, 1.26.2",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-32283",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.9, 1.26.2",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-33811",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.10, 1.26.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-33814",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.10, 1.26.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-33818",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-39820",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.10, 1.26.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-39821",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-39822",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.12, 1.26.5, 1.27.0-rc.2",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-39836",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.10, 1.26.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-42499",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.10, 1.26.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-42504",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.11, 1.26.4",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-56853",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-56858",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-56859",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-56860",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-56862",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.25.13, 1.26.6, 1.27.0-rc.3",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-78667",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.26.9, 1.27.2",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-78669",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.26.9, 1.27.2",
-              "target": "usr/local/bin/gosu"
-            },
-            {
-              "id": "CVE-2026-97031",
-              "severity": "HIGH",
-              "component": "stdlib",
-              "installed": "v1.24.6",
-              "fixedVersion": "1.26.9, 1.27.2",
-              "target": "usr/local/bin/gosu"
-            }
-          ]
-        },
-        {
-          "name": "redis",
-          "image": "redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
-          "imageId": "sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
-          "highCritical": 0,
-          "fixable": 0,
-          "withoutAvailableFix": 0,
-          "report": "storage/logs/dependency-update-113/redis.json"
-        },
-        {
-          "name": "traefik",
-          "image": "traefik:v3.7.19@sha256:aa942a00bce033c909bf1f7e861d93761be4b31a035f10d2410d33e38a8f41cf",
-          "imageId": "sha256:8944b2f2cff92fb467db5d2abe00ede4d3582a8fb1f7b7e468cd076e80ddff8a",
-          "highCritical": 0,
-          "fixable": 0,
-          "withoutAvailableFix": 0,
-          "report": "storage/logs/dependency-update-113/traefik.json"
-        }
-      ],
-      "releaseGate": {
-        "result": "passed",
-        "images": [
-          "app",
-          "nginx",
-          "fuji"
-        ],
-        "policy": "No fixable HIGH/CRITICAL findings",
-        "evidence": "Evaluated from the complete local scan reports without suppressions; this does not assert a CI run or the absence of unfixed vulnerabilities."
-      }
+      "status": "pending"
     }
   },
   "validation": {
-    "status": "passed",
-    "checkedOn": "2026-11-16",
+    "status": "in-progress",
+    "checkedOn": "2026-11-19",
     "environment": {
-      "platform": "linux/amd64",
+      "host": "Windows",
       "node": "26.13.1",
-      "npm": "12.2.2",
+      "npm": "12.2.3",
+      "php": "8.5.13",
+      "mysql": "9.7.4",
       "phpMemoryLimit": "2G",
-      "pestWorkers": 3,
-      "vitestWorkers": 3,
-      "workers": "Repository wrappers selected defaults from available CPUs; no parallelism override.",
-      "mysql": "9.7.4"
+      "pestWorkers": 8,
+      "vitestWorkers": 8
     },
-    "checks": {
-      "cleanNpmInstall": {
-        "status": "passed",
-        "command": "npm ci",
-        "log": "storage/logs/dependency-update-113/ernie-npm-ci.log"
-      },
-      "frontend": {
-        "status": "passed",
-        "command": "npm run check:frontend",
-        "log": "storage/logs/dependency-update-113/ernie-check-frontend.log",
-        "vitestFiles": 524,
-        "vitestPassed": 8951,
-        "vitestSkipped": 1,
-        "toolingPassed": 114
-      },
-      "mysql": {
-        "status": "passed",
-        "command": "npm run test:php:mysql-sensitive",
-        "log": "storage/logs/dependency-update-113/ernie-mysql-sensitive.log",
-        "slices": 29,
-        "passed": 464,
-        "assertions": 3076
-      },
-      "clientAndSsrBuild": {
-        "status": "passed",
-        "command": "npm run build:ssr (Wayfinder executed through the Docker app with memory_limit=2G)",
-        "log": "storage/logs/dependency-update-113/ernie-build-ssr.log"
-      },
-      "focusedPhpstan": {
-        "status": "passed",
-        "command": "npm run phpstan:check -- app/Services/Assessment/FairImprovementOpportunityResolver.php app/Services/SizeFormatFileProbeService.php",
-        "log": "storage/logs/dependency-update-113/ernie-phpstan-focused.log"
-      },
-      "focusedPhpTests": {
-        "status": "passed",
-        "command": "npm run test:php -- tests/pest/Unit/Services/Assessment/FairImprovementOpportunityResolverTest.php tests/pest/Unit/SizeFormatFileProbeServiceTest.php",
-        "log": "storage/logs/dependency-update-113/ernie-dependency-php-focused.log",
-        "passed": 106,
-        "assertions": 431
-      },
-      "productionAppBuild": {
-        "status": "passed",
-        "command": "docker build --target app --build-arg SYSTEM_PACKAGES_REFRESH=2026-11-16 -t ernie-app-release113:validation .",
-        "log": "storage/logs/dependency-update-113/ernie-production-app-build.log"
-      },
-      "productionNginxBuild": {
-        "status": "passed",
-        "command": "docker build --target nginx --build-arg SYSTEM_PACKAGES_REFRESH=2026-11-16 -t ernie-nginx-release113:validation .",
-        "log": "storage/logs/dependency-update-113/ernie-production-nginx-build.log"
-      },
-      "fujiBuild": {
-        "status": "passed",
-        "command": "docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assessment build fuji",
-        "log": "storage/logs/dependency-update-113/ernie-fuji-image-build.log"
-      },
-      "fujiRuntime": {
-        "status": "passed",
-        "command": "python scripts/check-fuji-runtime.py inside the rebuilt F-UJI image",
-        "log": "storage/logs/dependency-update-113/ernie-fuji-runtime.log"
-      },
-      "actionlint": {
-        "status": "passed",
-        "command": "actionlint -shellcheck= -pyflakes=",
-        "log": "storage/logs/dependency-update-113/ernie-actionlint.log"
-      },
-      "backend": {
-        "status": "passed",
-        "command": "npm run check:backend",
-        "log": "storage/logs/dependency-update-113/ernie-check-backend-final.log",
-        "includes": [
-          "Pint",
-          "Complete Pest suite: serial, architecture, parallel Unit/Feature",
-          "JSON-LD",
-          "PHPStan"
-        ],
-        "phpstanFiles": 1114
-      },
-      "playwright": {
-        "status": "passed",
-        "scope": "Critical suite in Chromium, Firefox and WebKit",
-        "fullRun": {
-          "passed": 435,
-          "failed": 3,
-          "interrupted": 1,
-          "notRun": 2,
-          "skipped": 9,
-          "log": "storage/logs/dependency-update-113/playwright-critical-before-legacy-isolation.log",
-          "command": "PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:39333/ PW_TEST_CONNECT_EXPOSE_NETWORK='<loopback>' ERNIE_PLAYWRIGHT_ASSETS=build npm run test:e2e:devstack -- critical --reporter=line --max-failures=3"
-        },
-        "method": "Complete critical run followed by focused verification of the corrected import environment and all interrupted/unrun tombstone cases; unaffected passing cases were not repeated.",
-        "configuredCases": 450,
-        "distinctActiveCasesPassed": 441,
-        "skipped": 9,
-        "skipReason": "Two pre-existing disabled contributor cases and the opt-in destructive delete-all case in each browser.",
-        "focusedRerun": {
-          "passed": 15,
-          "failed": 0,
-          "command": "PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:39333/ PW_TEST_CONNECT_EXPOSE_NETWORK='<loopback>' ERNIE_PLAYWRIGHT_ASSETS=build npm run test:e2e:devstack -- critical/smoke.spec.ts critical/tombstone-pages.spec.ts --trace=on --reporter=line --max-failures=1",
-          "log": "storage/logs/dependency-update-113/ernie-playwright-import-final.log",
-          "uploadResponses": [
-            {
-              "browser": "webkit",
-              "status": 200,
-              "durationMs": 1057.8
-            },
-            {
-              "browser": "firefox",
-              "status": 200,
-              "durationMs": 745.5
-            },
-            {
-              "browser": "chromium",
-              "status": 200,
-              "durationMs": 980.9
-            }
-          ]
-        },
-        "browserRuntime": "Official Microsoft Playwright 1.65.1 Linux image, connected from the host; local Fedora lacks some native WebKit libraries."
-      },
-      "playwrightFocused": {
-        "status": "passed",
-        "command": "Critical embargo and landing-page regressions: Chromium, five repetitions each",
-        "log": "storage/logs/dependency-update-113/ernie-playwright-focused-fixed.log",
-        "passed": 20
-      },
-      "finalLint": {
-        "status": "passed",
-        "command": "npm run lint:check",
-        "log": "storage/logs/dependency-update-113/ernie-final-lint.log"
-      },
-      "finalTestTypes": {
-        "status": "passed",
-        "command": "npm run types:test",
-        "log": "storage/logs/dependency-update-113/ernie-final-test-types.log"
-      },
-      "composerValidate": {
-        "status": "passed",
-        "command": "npm run composer:app -- validate",
-        "log": "storage/logs/dependency-update-113/ernie-composer-validate.log",
-        "notes": "Existing warnings about the root version field and exact citeproc-php constraint remain."
-      },
-      "composerPlatform": {
-        "status": "passed",
-        "command": "npm run composer:app -- check-platform-reqs",
-        "log": "storage/logs/dependency-update-113/ernie-composer-platform.log"
-      },
-      "format": {
-        "status": "passed",
-        "command": "npm run format:check",
-        "log": "storage/logs/dependency-update-113/ernie-format-check.log"
-      },
-      "developmentBuild": {
-        "status": "passed",
-        "command": "docker compose --env-file .env.docker -f docker-compose.dev.yml build app webserver",
-        "log": "storage/logs/dependency-update-113/ernie-dev-image-build.log"
-      },
-      "finalTooling": {
-        "status": "passed",
-        "command": "npm run test:tooling",
-        "passed": 114,
-        "log": "storage/logs/dependency-update-113/ernie-final-tooling.log"
-      },
-      "developmentRestored": {
-        "status": "passed",
-        "command": "node scripts/wait-for-playwright-backend.mjs https://ernie.localhost:3333",
-        "log": "storage/logs/dependency-update-113/ernie-dev-stack-final.log",
-        "notes": "HTTP 200 with the documented localhost certificate verification and ERNIE Host routing; normal Compose app/webserver restored, Vite hot file restored, two assessment workers running, and the temporary browser server removed.",
-        "traefikDashboardPort": 8084
-      }
-    },
-    "artifacts": "Raw logs and image scan reports are local ignored artifacts under storage/logs/dependency-update-113; this tracked inventory preserves their results.",
-    "validationCorrections": [
-      "After an initial shared-workspace collision between the backend and MySQL wrappers, the affected PHP test path passed in isolation and the complete backend suite was rerun sequentially.",
-      "PHPStan 2.3.6 reported obsolete type assertions and an unreachable float-infinity check; the focused service tests and final complete backend check passed after removing them.",
-      "The first browser run found two stale local TEST fixtures and a stylesheet TLS failure. Only the two guarded TEST records were refreshed against the existing seeder, with original values saved in browser-fixtures-before.json.",
-      "Repeated browser tests captured ERR_TOO_MANY_RETRIES on the first stylesheet request in remote Linux Chromium. After extending the existing native TLS preflight to all host platforms, all 20 focused repetitions passed.",
-      "The complete browser run subsequently passed 435 cases and found the same XML-import timeout in each browser because the local legacy citation database hostname was unreachable. The temporary backend now exercises its immediate loopback fallback; the import and remaining tombstone cases passed all 15 focused checks across the three browsers; each XML import returned HTTP 200 within the existing timeout."
-    ]
+    "checks": {},
+    "artifacts": ".tmp/dependency-update-20261119"
   }
 }
