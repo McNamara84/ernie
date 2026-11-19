@@ -38,7 +38,7 @@ describe('IgsnChildDiscoveryService', function () {
             ], 200),
         ]);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andThrow(new RuntimeException('Legacy DB unavailable'));
 
@@ -65,7 +65,7 @@ describe('IgsnChildDiscoveryService', function () {
                 ->push(['response' => ['docs' => 'not-an-array']], 200),
         ]);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->twice()
             ->with('igsn_legacy')
             ->andThrow(new RuntimeException('Legacy DB unavailable'));
@@ -99,7 +99,7 @@ describe('IgsnChildDiscoveryService', function () {
             ], 200),
         ]);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andThrow(new RuntimeException('Legacy DB unavailable'));
 
@@ -117,7 +117,7 @@ describe('IgsnChildDiscoveryService', function () {
         $otherDif = '<DIF><supplementalMetadata><record><sample><parent_igsn>OTHERPARENT</parent_igsn></sample></record></supplementalMetadata></DIF>';
 
         $builder = Mockery::mock();
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andReturn($builder);
 
@@ -146,7 +146,7 @@ describe('IgsnChildDiscoveryService', function () {
         $matchingDif = '<DIF><sample><parent_igsn>ICDPPARENT_LEGACYGZIP</parent_igsn></sample></DIF>';
 
         $builder = Mockery::mock();
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andReturn($builder);
 
@@ -188,7 +188,7 @@ describe('IgsnChildDiscoveryService', function () {
             ], 200),
         ]);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andThrow(new RuntimeException('Legacy DB unavailable'));
 

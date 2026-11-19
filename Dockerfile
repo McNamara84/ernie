@@ -6,7 +6,7 @@ WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
 ARG PHP_REDIS_SHA256=cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad
-ARG SYSTEM_PACKAGES_REFRESH=2026-11-19
+ARG SYSTEM_PACKAGES_REFRESH=manual
 
 # Install system dependencies needed for the PHP runtime and extension builds.
 # LEGACY_DATABASE_DUMP_SUPPORT:
