@@ -170,6 +170,7 @@ return [
     // Published revisions are immutable; retain old entries when adding a new one.
     'schemas' => [
         'revision' => 'v1',
+        'documentation_locale' => 'en',
         'revisions' => [
             'v1' => resource_path('data/scheme/datacite/4.7/v1'),
         ],

@@ -123,6 +123,9 @@ export function DownloadMetadataSection({
                     isPreview={isPreview}
                     onPreviewClick={openPreviewDialog}
                 />
+                <a href="/schemas/datacite/4.7/docs" className="text-sm underline" title="DataCite JSON and JSON-LD documentation">
+                    Format guides
+                </a>
             </div>
 
             {(showIsoMetadata || showIsoJson) && (
