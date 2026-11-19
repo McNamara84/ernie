@@ -17,6 +17,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
+use App\Http\Controllers\DataCiteDocumentationController;
 use App\Http\Controllers\DataCiteSchemaController;
 use App\Http\Controllers\DataCiteUrlUpdateController;
 use App\Http\Controllers\DataEmbargoReleaseController;
@@ -87,6 +88,21 @@ Route::get('/health', HealthController::class)->name('health');
 Route::get('/metadata/contexts/datacite-4.7-v1.jsonld', JsonLdContextController::class)
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->name('metadata.context.datacite');
+
+Route::get('/schemas/datacite/docs', [DataCiteDocumentationController::class, 'latest'])->name('schemas.datacite.docs.latest');
+Route::get('/schemas/datacite/4.7/docs', [DataCiteDocumentationController::class, 'overview'])->name('schemas.datacite.docs');
+Route::get('/schemas/datacite/4.7/docs/{format}/examples/{example}.{extension}', [DataCiteDocumentationController::class, 'example'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.datacite.docs.example');
+Route::get('/schemas/datacite/4.7/docs/{format}', [DataCiteDocumentationController::class, 'format'])->name('schemas.datacite.docs.format');
+Route::get('/schemas/datacite/4.7/{revision}/docs', [DataCiteDocumentationController::class, 'overview'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.datacite.docs.revision');
+Route::get('/schemas/datacite/4.7/{revision}/docs/{format}/examples/{example}.{extension}', [DataCiteDocumentationController::class, 'revisionExample'])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.datacite.docs.revision-example');
+Route::get('/schemas/datacite/4.7/{revision}/docs/{format}', [DataCiteDocumentationController::class, 'revisionFormat'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.datacite.docs.revision-format');
 
 Route::get('/schemas/datacite/4.7/{revision}/{path}', [DataCiteSchemaController::class, 'revision'])
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])

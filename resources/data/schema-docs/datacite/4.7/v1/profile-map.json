@@ -1,0 +1,887 @@
+{
+    "schemaSha256": "efa7c9a26eeb92c3447eea0d0854b98ba5dd7863cf7fba44648e68a0b66e2589",
+    "contextSha256": "5ae5469498eb7599f05240c41ef21b5f7dbd91cfd8ad84ea4228a231c52f19e3",
+    "method": "Paths verified against DataCiteLinkedDataExporter::exportAttributes; [] accepts the compact singleton or array form. Field rules refer to the DataCite attributes after conversion.",
+    "mappings": {
+        "$": {
+            "paths": ["$"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.doi": {
+            "paths": ["$.@id", "$.identifier.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.types": {
+            "paths": ["$.resourceType"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.types.resourceType": {
+            "paths": ["$.resourceType.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.types.resourceTypeGeneral": {
+            "paths": ["$.resourceType.attrs.resourceTypeGeneral"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.identifiers": {
+            "paths": [],
+            "supported": false,
+            "scalar": false
+        },
+        "$.identifiers[]": {
+            "paths": [],
+            "supported": false,
+            "scalar": false
+        },
+        "$.identifiers[].identifier": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.identifiers[].identifierType": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.creators": {
+            "paths": ["$.creators.creator[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.creators[]": {
+            "paths": ["$.creators.creator[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.creators[].name": {
+            "paths": ["$.creators.creator[].creatorName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].nameType": {
+            "paths": ["$.creators.creator[].creatorName.attrs.nameType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].givenName": {
+            "paths": ["$.creators.creator[].givenName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].familyName": {
+            "paths": ["$.creators.creator[].familyName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].nameIdentifiers": {
+            "paths": ["$.creators.creator[].nameIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.creators[].nameIdentifiers[]": {
+            "paths": ["$.creators.creator[].nameIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.creators[].nameIdentifiers[].nameIdentifier": {
+            "paths": ["$.creators.creator[].nameIdentifier[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].nameIdentifiers[].nameIdentifierScheme": {
+            "paths": ["$.creators.creator[].nameIdentifier[].attrs.nameIdentifierScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].nameIdentifiers[].schemeUri": {
+            "paths": ["$.creators.creator[].nameIdentifier[].attrs.schemeUri"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].affiliation": {
+            "paths": ["$.creators.creator[].affiliation[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.creators[].affiliation[]": {
+            "paths": ["$.creators.creator[].affiliation[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.creators[].affiliation[].name": {
+            "paths": ["$.creators.creator[].affiliation[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].affiliation[].affiliationIdentifier": {
+            "paths": ["$.creators.creator[].affiliation[].attrs.affiliationIdentifier"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].affiliation[].affiliationIdentifierScheme": {
+            "paths": ["$.creators.creator[].affiliation[].attrs.affiliationIdentifierScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].affiliation[].schemeUri": {
+            "paths": ["$.creators.creator[].affiliation[].attrs.schemeURI"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.creators[].lang": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.titles": {
+            "paths": ["$.titles.title[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.titles[]": {
+            "paths": ["$.titles.title[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.titles[].title": {
+            "paths": ["$.titles.title[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.titles[].titleType": {
+            "paths": ["$.titles.title[].attrs.titleType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.titles[].lang": {
+            "paths": ["$.titles.title[].attrs.lang"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.publisher": {
+            "paths": ["$.publisher"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.publisher.name": {
+            "paths": ["$.publisher.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.publisher.publisherIdentifier": {
+            "paths": ["$.publisher.attrs.publisherIdentifier"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.publisher.publisherIdentifierScheme": {
+            "paths": ["$.publisher.attrs.publisherIdentifierScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.publisher.schemeUri": {
+            "paths": ["$.publisher.attrs.schemeUri"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.publisher.lang": {
+            "paths": ["$.publisher.attrs.lang"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.publicationYear": {
+            "paths": ["$.publicationYear.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.subjects": {
+            "paths": ["$.subjects.subject[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.subjects[]": {
+            "paths": ["$.subjects.subject[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.subjects[].subject": {
+            "paths": ["$.subjects.subject[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.subjects[].subjectScheme": {
+            "paths": ["$.subjects.subject[].attrs.subjectScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.subjects[].schemeUri": {
+            "paths": ["$.subjects.subject[].attrs.schemeUri"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.subjects[].valueUri": {
+            "paths": ["$.subjects.subject[].attrs.valueUri"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.subjects[].classificationCode": {
+            "paths": ["$.subjects.subject[].attrs.classificationCode"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.subjects[].lang": {
+            "paths": ["$.subjects.subject[].attrs.lang"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors": {
+            "paths": ["$.contributors.contributor[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.contributors[]": {
+            "paths": ["$.contributors.contributor[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.contributors[].contributorType": {
+            "paths": ["$.contributors.contributor[].attrs.contributorType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].name": {
+            "paths": ["$.contributors.contributor[].contributorName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].nameType": {
+            "paths": ["$.contributors.contributor[].contributorName.attrs.nameType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].givenName": {
+            "paths": ["$.contributors.contributor[].givenName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].familyName": {
+            "paths": ["$.contributors.contributor[].familyName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].nameIdentifiers": {
+            "paths": ["$.contributors.contributor[].nameIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.contributors[].nameIdentifiers[]": {
+            "paths": ["$.contributors.contributor[].nameIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.contributors[].nameIdentifiers[].nameIdentifier": {
+            "paths": ["$.contributors.contributor[].nameIdentifier[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].nameIdentifiers[].nameIdentifierScheme": {
+            "paths": ["$.contributors.contributor[].nameIdentifier[].attrs.nameIdentifierScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].nameIdentifiers[].schemeUri": {
+            "paths": ["$.contributors.contributor[].nameIdentifier[].attrs.schemeUri"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].affiliation": {
+            "paths": ["$.contributors.contributor[].affiliation[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.contributors[].affiliation[]": {
+            "paths": ["$.contributors.contributor[].affiliation[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.contributors[].affiliation[].name": {
+            "paths": ["$.contributors.contributor[].affiliation[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].affiliation[].affiliationIdentifier": {
+            "paths": ["$.contributors.contributor[].affiliation[].attrs.affiliationIdentifier"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].affiliation[].affiliationIdentifierScheme": {
+            "paths": ["$.contributors.contributor[].affiliation[].attrs.affiliationIdentifierScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].affiliation[].schemeUri": {
+            "paths": ["$.contributors.contributor[].affiliation[].attrs.schemeURI"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.contributors[].lang": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.dates": {
+            "paths": ["$.dates.date[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.dates[]": {
+            "paths": ["$.dates.date[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.dates[].date": {
+            "paths": ["$.dates.date[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.dates[].dateType": {
+            "paths": ["$.dates.date[].attrs.dateType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.dates[].dateInformation": {
+            "paths": ["$.dates.date[].attrs.dateInformation"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.language": {
+            "paths": ["$.language.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.alternateIdentifiers": {
+            "paths": ["$.alternateIdentifiers.alternateIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.alternateIdentifiers[]": {
+            "paths": ["$.alternateIdentifiers.alternateIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.alternateIdentifiers[].alternateIdentifier": {
+            "paths": ["$.alternateIdentifiers.alternateIdentifier[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.alternateIdentifiers[].alternateIdentifierType": {
+            "paths": ["$.alternateIdentifiers.alternateIdentifier[].attrs.alternateIdentifierType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedIdentifiers[]": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedIdentifiers[].relatedIdentifier": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers[].relatedIdentifierType": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].attrs.relatedIdentifierType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers[].relationType": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].attrs.relationType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers[].relatedMetadataScheme": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].attrs.relatedMetadataScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers[].schemeUri": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].attrs.schemeURI"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers[].schemeType": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].attrs.schemeType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers[].resourceTypeGeneral": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].attrs.resourceTypeGeneral"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedIdentifiers[].relationTypeInformation": {
+            "paths": ["$.relatedIdentifiers.relatedIdentifier[].attrs.relationTypeInformation"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.sizes": {
+            "paths": ["$.sizes.size[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.sizes[]": {
+            "paths": ["$.sizes.size[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.formats": {
+            "paths": ["$.formats.format[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.formats[]": {
+            "paths": ["$.formats.format[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.version": {
+            "paths": ["$.version.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.rightsList": {
+            "paths": ["$.rightsList.rights[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.rightsList[]": {
+            "paths": ["$.rightsList.rights[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.rightsList[].rights": {
+            "paths": ["$.rightsList.rights[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.rightsList[].rightsUri": {
+            "paths": ["$.rightsList.rights[].attrs.rightsURI"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.rightsList[].rightsIdentifier": {
+            "paths": ["$.rightsList.rights[].attrs.rightsIdentifier"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.rightsList[].rightsIdentifierScheme": {
+            "paths": ["$.rightsList.rights[].attrs.rightsIdentifierScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.rightsList[].schemeUri": {
+            "paths": ["$.rightsList.rights[].attrs.schemeURI"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.rightsList[].lang": {
+            "paths": ["$.rightsList.rights[].attrs.lang"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.descriptions": {
+            "paths": ["$.descriptions.description[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.descriptions[]": {
+            "paths": ["$.descriptions.description[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.descriptions[].description": {
+            "paths": ["$.descriptions.description[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.descriptions[].descriptionType": {
+            "paths": ["$.descriptions.description[].attrs.descriptionType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.descriptions[].lang": {
+            "paths": ["$.descriptions.description[].attrs.lang"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations": {
+            "paths": ["$.geoLocations.geoLocation[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[]": {
+            "paths": ["$.geoLocations.geoLocation[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[].geoLocationPlace": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPlace.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationPoint": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPoint"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[].geoLocationPoint.pointLongitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPoint.pointLongitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationPoint.pointLatitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPoint.pointLatitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationBox": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationBox"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[].geoLocationBox.westBoundLongitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationBox.westBoundLongitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationBox.eastBoundLongitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationBox.eastBoundLongitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationBox.southBoundLatitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationBox.southBoundLatitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationBox.northBoundLatitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationBox.northBoundLatitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationPolygon": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[].geoLocationPolygon[]": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[].geoLocationPolygon[].polygonPoint": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon.polygonPoint[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[].geoLocationPolygon[].polygonPoint.pointLongitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon.polygonPoint[].pointLongitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationPolygon[].polygonPoint.pointLatitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon.polygonPoint[].pointLatitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationPolygon[].inPolygonPoint": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon.inPolygonPoint"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.geoLocations[].geoLocationPolygon[].inPolygonPoint.pointLongitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon.inPolygonPoint.pointLongitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.geoLocations[].geoLocationPolygon[].inPolygonPoint.pointLatitude": {
+            "paths": ["$.geoLocations.geoLocation[].geoLocationPolygon.inPolygonPoint.pointLatitude.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.fundingReferences": {
+            "paths": ["$.fundingReferences.fundingReference[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.fundingReferences[]": {
+            "paths": ["$.fundingReferences.fundingReference[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.fundingReferences[].funderName": {
+            "paths": ["$.fundingReferences.fundingReference[].funderName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.fundingReferences[].funderIdentifier": {
+            "paths": ["$.fundingReferences.fundingReference[].funderIdentifier.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.fundingReferences[].funderIdentifierType": {
+            "paths": ["$.fundingReferences.fundingReference[].funderIdentifier.attrs.funderIdentifierType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.fundingReferences[].schemeUri": {
+            "paths": ["$.fundingReferences.fundingReference[].funderIdentifier.attrs.schemeUri"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.fundingReferences[].awardNumber": {
+            "paths": ["$.fundingReferences.fundingReference[].awardNumber.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.fundingReferences[].awardUri": {
+            "paths": ["$.fundingReferences.fundingReference[].awardNumber.attrs.awardUri"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.fundingReferences[].awardTitle": {
+            "paths": ["$.fundingReferences.fundingReference[].awardTitle.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems": {
+            "paths": ["$.relatedItems.relatedItem[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[]": {
+            "paths": ["$.relatedItems.relatedItem[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].relatedItemType": {
+            "paths": ["$.relatedItems.relatedItem[].attrs.relatedItemType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].relationType": {
+            "paths": ["$.relatedItems.relatedItem[].attrs.relationType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].relationTypeInformation": {
+            "paths": ["$.relatedItems.relatedItem[].attrs.relationTypeInformation"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].relatedItemIdentifier": {
+            "paths": ["$.relatedItems.relatedItem[].value.relatedItemIdentifier"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].relatedItemIdentifier.relatedItemIdentifier": {
+            "paths": ["$.relatedItems.relatedItem[].value.relatedItemIdentifier.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].relatedItemIdentifier.relatedItemIdentifierType": {
+            "paths": ["$.relatedItems.relatedItem[].value.relatedItemIdentifier.attrs.relatedItemIdentifierType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].relatedItemIdentifier.relatedMetadataScheme": {
+            "paths": ["$.relatedItems.relatedItem[].value.relatedItemIdentifier.attrs.relatedMetadataScheme"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].relatedItemIdentifier.schemeUri": {
+            "paths": ["$.relatedItems.relatedItem[].value.relatedItemIdentifier.attrs.schemeURI"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].relatedItemIdentifier.schemeType": {
+            "paths": ["$.relatedItems.relatedItem[].value.relatedItemIdentifier.attrs.schemeType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].creators": {
+            "paths": ["$.relatedItems.relatedItem[].value.creators.creator[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].creators[]": {
+            "paths": ["$.relatedItems.relatedItem[].value.creators.creator[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].creators[].name": {
+            "paths": ["$.relatedItems.relatedItem[].value.creators.creator[].creatorName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].creators[].nameType": {
+            "paths": ["$.relatedItems.relatedItem[].value.creators.creator[].creatorName.attrs.nameType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].creators[].givenName": {
+            "paths": ["$.relatedItems.relatedItem[].value.creators.creator[].givenName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].creators[].familyName": {
+            "paths": ["$.relatedItems.relatedItem[].value.creators.creator[].familyName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].creators[].lang": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.relatedItems[].titles": {
+            "paths": ["$.relatedItems.relatedItem[].value.titles.title[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].titles[]": {
+            "paths": ["$.relatedItems.relatedItem[].value.titles.title[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].titles[].title": {
+            "paths": ["$.relatedItems.relatedItem[].value.titles.title[].value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].titles[].titleType": {
+            "paths": ["$.relatedItems.relatedItem[].value.titles.title[].attrs.titleType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].titles[].lang": {
+            "paths": ["$.relatedItems.relatedItem[].value.titles.title[].attrs.lang"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].publicationYear": {
+            "paths": ["$.relatedItems.relatedItem[].value.publicationYear.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].volume": {
+            "paths": ["$.relatedItems.relatedItem[].value.volume.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].issue": {
+            "paths": ["$.relatedItems.relatedItem[].value.issue.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].number": {
+            "paths": ["$.relatedItems.relatedItem[].value.number.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].numberType": {
+            "paths": ["$.relatedItems.relatedItem[].value.number.attrs.numberType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].firstPage": {
+            "paths": ["$.relatedItems.relatedItem[].value.firstPage.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].lastPage": {
+            "paths": ["$.relatedItems.relatedItem[].value.lastPage.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].publisher": {
+            "paths": ["$.relatedItems.relatedItem[].value.publisher.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].edition": {
+            "paths": ["$.relatedItems.relatedItem[].value.edition.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].contributors": {
+            "paths": ["$.relatedItems.relatedItem[].value.contributors.contributor[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].contributors[]": {
+            "paths": ["$.relatedItems.relatedItem[].value.contributors.contributor[]"],
+            "supported": true,
+            "scalar": false
+        },
+        "$.relatedItems[].contributors[].contributorType": {
+            "paths": ["$.relatedItems.relatedItem[].value.contributors.contributor[].attrs.contributorType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].contributors[].name": {
+            "paths": ["$.relatedItems.relatedItem[].value.contributors.contributor[].contributorName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].contributors[].nameType": {
+            "paths": ["$.relatedItems.relatedItem[].value.contributors.contributor[].contributorName.attrs.nameType"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].contributors[].givenName": {
+            "paths": ["$.relatedItems.relatedItem[].value.contributors.contributor[].givenName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].contributors[].familyName": {
+            "paths": ["$.relatedItems.relatedItem[].value.contributors.contributor[].familyName.value"],
+            "supported": true,
+            "scalar": true
+        },
+        "$.relatedItems[].contributors[].lang": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.container": {
+            "paths": [],
+            "supported": false,
+            "scalar": false
+        },
+        "$.container.type": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.container.title": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        },
+        "$.container.firstPage": {
+            "paths": [],
+            "supported": false,
+            "scalar": true
+        }
+    }
+}
