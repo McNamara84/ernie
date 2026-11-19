@@ -31,6 +31,8 @@ Its original bytes are retained under that commit's `upstream/` directory.
 The short alias follows the published `v1` in `config/igsn_core.php`. The package
 contains all thirteen required XSDs, a manifest and a README. Only published
 revisions are offered through the public schema and documentation routes.
+Development previews and their source archives are removed rather than retained
+as validation or documentation revisions.
 
 The new upstream Core file has an invalid DataCite `schemaLocation` containing a
 namespace and the Core schema URL. The portable copy changes only that import to
@@ -70,8 +72,8 @@ same keys; `igsn_core.documentation_locale` selects a content file with an Engli
 fallback. Technical XML names, identifiers and enum values remain unchanged.
 
 Minimal and extended examples are public under
-`/schemas/igsn/2.0/v1/docs/examples/{minimal|full}.xml`, with matching aliases and
-older-snapshot examples. They are independently authored fixtures checked against
+`/schemas/igsn/2.0/v1/docs/examples/{minimal|full}.xml`, with matching current aliases.
+They are independently authored fixtures checked against
 the exact schema revision. The upstream full example is obsolete and is not used.
 The guide is a reference, not a public XML-upload or validation service.
 

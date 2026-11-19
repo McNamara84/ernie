@@ -46,10 +46,15 @@ final class JsonSchemaDocumentationReaderService
         $variants = $this->variants($members);
         $properties = $members['properties'] ?? [];
         $requiredChildren = $members['required'] ?? [];
+        $commonRequired = null;
+        $variantRequired = [];
         foreach ($variants as $variant) {
             $properties = array_replace($properties, $variant['properties'] ?? []);
-            $requiredChildren = array_values(array_unique([...$requiredChildren, ...($variant['required'] ?? [])]));
+            $requirements = $variant['required'] ?? [];
+            $commonRequired = $commonRequired === null ? $requirements : array_values(array_intersect($commonRequired, $requirements));
+            $variantRequired = array_values(array_unique([...$variantRequired, ...$requirements]));
         }
+        $requiredChildren = array_values(array_unique([...$requiredChildren, ...($commonRequired ?? [])]));
         $copy = $this->text['paths'][$path] ?? $this->text['fields'][$name] ?? [];
         $notes = $copy['notes'] ?? [];
         if (isset($definition['anyOf']) || isset($definition['oneOf'])) {
@@ -63,21 +68,37 @@ final class JsonSchemaDocumentationReaderService
             'name' => $name, 'qname' => $name, 'path' => $path,
             'label' => $copy['label'] ?? $name,
             'description' => $copy['description'] ?? $definition['description'] ?? str_replace('{field}', $name, $this->text['rules']['fieldDescription']),
-            'notes' => $notes, 'required' => $required, 'conditional' => $required && $conditional,
+            'notes' => $notes, 'required' => $required, 'conditional' => $conditional,
             'min' => $required ? (string) ($array ? ($definition['minItems'] ?? 0) : 1) : '0',
             'max' => $array ? (string) ($definition['maxItems'] ?? 'unbounded') : '1',
             'type' => implode(' or ', $types).($array ? '<'.implode(' or ', $this->types($members)).'>' : ''),
             'values' => $this->values($array ? $members : $definition),
-            'constraints' => [...$this->constraints($definition), ...($array ? array_values(array_filter($this->constraints($members), fn (array $constraint): bool => $constraint['name'] === 'conditionalRules')) : [])], 'attributes' => [],
+            'constraints' => [...$this->constraints($definition), ...($array ? array_values(array_filter($this->constraints($members), fn (array $constraint): bool => in_array($constraint['name'], ['conditionalRules', 'oneOf', 'anyOf'], true))) : [])], 'attributes' => [],
             'children' => array_map(fn (string|int $key): string => self::id($path.($array ? '[]' : '').'.'.$key), array_keys($properties)),
             'example' => null,
         ];
+        if ($variants !== []) {
+            $field['alternatives'] = [
+                'keyword' => isset($members['oneOf']) ? 'oneOf' : 'anyOf',
+                'scope' => $array ? 'items' : 'value',
+                'branches' => array_map(fn (array $variant): array => [
+                    'types' => $this->types($variant),
+                    'required' => array_map(fn (string $key): array => [
+                        'name' => $key, 'fieldId' => self::id($path.($array ? '[]' : '').'.'.$key),
+                    ], $variant['required'] ?? []),
+                ], $variants),
+            ];
+        }
         $fields[] = $field;
         foreach ($properties as $key => $child) {
             if (! is_array($child)) {
                 continue;
             }
-            $this->describe($child, $path.($array ? '[]' : '').'.'.$key, $key, $id, $field['groupId'], in_array($key, $requiredChildren, true), $conditional || ! $required || count($types) > 1, $fields);
+            $childRequired = in_array($key, $requiredChildren, true);
+            $childConditional = $childRequired
+                ? $conditional || ! $required || count($types) > 1
+                : in_array($key, $variantRequired, true);
+            $this->describe($child, $path.($array ? '[]' : '').'.'.$key, $key, $id, $field['groupId'], $childRequired, $childConditional, $fields);
         }
     }
 
@@ -166,6 +187,11 @@ final class JsonSchemaDocumentationReaderService
         $conditional = array_intersect_key($definition, array_fill_keys(['if', 'then', 'else', 'allOf', 'dependentRequired'], true));
         if ($conditional !== []) {
             $constraints[] = ['name' => 'conditionalRules', 'value' => json_encode($conditional, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)];
+        }
+        foreach (['oneOf', 'anyOf'] as $keyword) {
+            if (isset($definition[$keyword])) {
+                $constraints[] = ['name' => $keyword, 'value' => json_encode($definition[$keyword], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)];
+            }
         }
 
         return $constraints;

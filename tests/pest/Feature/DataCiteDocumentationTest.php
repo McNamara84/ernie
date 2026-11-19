@@ -82,6 +82,93 @@ test('documents actual compact-profile paths and context meaning without inventi
     }
 });
 
+test('keeps polygon item requirements within their exclusive alternatives', function (string $format) {
+    $fields = collect(app(DataCiteDocumentationService::class)->document($format)['fields'])->keyBy('id');
+    $id = 'datacite-geoLocations-geoLocationPolygon';
+    $polygon = $fields[$id];
+
+    expect($polygon['alternatives'] ?? null)->toBe([
+        'keyword' => 'oneOf',
+        'scope' => 'items',
+        'branches' => [
+            ['types' => ['object'], 'required' => [['name' => 'polygonPoint', 'fieldId' => $id.'-polygonPoint']]],
+            ['types' => ['object'], 'required' => [['name' => 'inPolygonPoint', 'fieldId' => $id.'-inPolygonPoint']]],
+        ],
+    ]);
+    foreach (['polygonPoint', 'inPolygonPoint'] as $name) {
+        $field = $fields[$id.'-'.$name];
+        expect($field['required'])->toBeFalse()
+            ->and($field['conditional'])->toBeTrue()
+            ->and($field['min'])->toBe('0')
+            ->and($fields[$id.'-'.$name.'-pointLatitude']['required'])->toBeTrue()
+            ->and($fields[$id.'-'.$name.'-pointLatitude']['conditional'])->toBeTrue();
+    }
+    $rule = json_decode(collect($polygon['constraints'])->firstWhere('name', 'oneOf')['value'], true);
+    expect(array_column($rule, 'required'))->toBe([['polygonPoint'], ['inPolygonPoint']]);
+})->with(['json', 'jsonld']);
+
+test('documents publisher name as required only in the object alternative', function () {
+    $fields = collect(app(DataCiteDocumentationService::class)->document('json')['fields'])->keyBy('path');
+
+    expect($fields['$.publisher.name']['required'])->toBeFalse()
+        ->and($fields['$.publisher.name']['conditional'])->toBeTrue()
+        ->and($fields['$.publisher.name']['min'])->toBe('0')
+        ->and($fields['$.publisher']['alternatives']['keyword'] ?? null)->toBe('oneOf')
+        ->and($fields['$.publisher']['alternatives']['branches'][0]['required'] ?? null)->toBe([])
+        ->and($fields['$.publisher']['alternatives']['branches'][1]['required'] ?? null)
+        ->toBe([['name' => 'name', 'fieldId' => 'datacite-publisher-name']]);
+});
+
+test('keeps base and shared obligations required across alternatives', function (string $keyword) {
+    $text = json_decode(file_get_contents(resource_path('data/schema-docs/datacite/4.7/en.json')), true, flags: JSON_THROW_ON_ERROR);
+    $schema = [
+        'type' => 'object',
+        'properties' => ['identifier' => ['type' => 'string']],
+        'required' => ['identifier'],
+        $keyword => array_map(fn (string $name): array => [
+            'type' => 'object',
+            'properties' => ['shared' => ['type' => 'string'], $name => ['type' => 'string']],
+            'required' => ['shared', $name],
+        ], ['left', 'right']),
+    ];
+    $fields = collect(app(JsonSchemaDocumentationReaderService::class)->fields($schema, $text))->keyBy('path');
+
+    foreach (['identifier', 'shared'] as $name) {
+        expect($fields['$.'.$name]['required'])->toBeTrue()->and($fields['$.'.$name]['min'])->toBe('1');
+    }
+    foreach (['left', 'right'] as $name) {
+        expect($fields['$.'.$name]['required'])->toBeFalse()
+            ->and($fields['$.'.$name]['conditional'])->toBeTrue()
+            ->and($fields['$.'.$name]['min'])->toBe('0');
+    }
+})->with(['oneOf', 'anyOf']);
+
+test('accepts separate polygon alternatives but rejects combined or missing alternatives', function () {
+    $publication = app(DataCiteSchemaPublicationService::class)->publicFile('schema.json', 'v1');
+    $schema = json_decode(file_get_contents($publication['path']));
+    $record = json_decode(app(DataCiteDocumentationService::class)->example('json', 'minimal'), true);
+    $point = ['pointLatitude' => 52.0, 'pointLongitude' => 13.0];
+    $polygon = array_map(fn (array $coordinates): array => ['polygonPoint' => $coordinates], [
+        $point,
+        ['pointLatitude' => 53.0, 'pointLongitude' => 13.0],
+        ['pointLatitude' => 52.0, 'pointLongitude' => 14.0],
+        $point,
+    ]);
+    $valid = function (array $items) use ($record, $schema): bool {
+        $record['geoLocations'] = [['geoLocationPolygon' => $items]];
+
+        return (new Validator)->validate(json_decode(json_encode($record, JSON_THROW_ON_ERROR)), $schema)->isValid();
+    };
+
+    $interior = ['inPolygonPoint' => ['pointLatitude' => 52.25, 'pointLongitude' => 13.25]];
+    expect($valid($polygon))->toBeTrue()
+        ->and($valid([...$polygon, $interior]))->toBeTrue()
+        ->and($valid([...$polygon, $interior, $interior]))->toBeFalse()
+        ->and($valid([...array_slice($polygon, 1), $interior]))->toBeFalse()
+        ->and($valid([['polygonPoint' => $point, 'inPolygonPoint' => $point], ...array_slice($polygon, 1)]))->toBeFalse()
+        ->and($valid([new stdClass, ...array_slice($polygon, 1)]))->toBeFalse();
+});
+
 test('downloads schema-valid examples and JSON-LD that passes profile conversion and validation', function (string $format, string $name) {
     $schemaFile = app(DataCiteSchemaPublicationService::class)->publicFile('schema.json', 'v1');
     $schema = json_decode(file_get_contents($schemaFile['path']));

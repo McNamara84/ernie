@@ -31,6 +31,11 @@ export interface SchemaField {
     constraints: { name: string; value: string }[];
     attributes: SchemaAttribute[];
     children: string[];
+    alternatives?: {
+        keyword: 'oneOf' | 'anyOf';
+        scope: 'value' | 'items';
+        branches: { types: string[]; required: { name: string; fieldId: string }[] }[];
+    };
     example: string | null;
     sourcePath?: string;
     semantic?: { iri?: string; valueType?: string; container?: string; vocabulary?: string };

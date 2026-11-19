@@ -74,5 +74,5 @@ your validator/processor. The schema's `$id` remains its immutable Production UR
 Never overwrite a published revision. Publish semantic changes in a new revision
 directory and retain old files and URLs. The short alias may then select the new
 revision. IGSN Core is separately available at
-https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd and its fixed `preview-1/`
+https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd and its fixed `v1/`
 revision, including all required relative XSD dependencies.

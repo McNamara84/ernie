@@ -43,6 +43,17 @@
 .schema-doc-rule-source code {
     overflow-wrap: anywhere;
 }
+.schema-doc-alternatives ol {
+    margin-top: 10px;
+    font-size: 14px;
+}
+.schema-doc-alternatives li + li {
+    margin-top: 8px;
+}
+.schema-doc-alternatives a {
+    color: var(--igsn-blue);
+    text-decoration: underline;
+}
 .schema-doc-semantics,
 .schema-doc-validation {
     margin-top: 30px;

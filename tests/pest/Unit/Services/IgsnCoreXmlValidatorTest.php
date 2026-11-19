@@ -12,10 +12,8 @@ test('changes only the Core import location and retains exact upstream dependenc
     $directory = app(IgsnCoreSchemaResolver::class)->directory('v1');
     $manifest = json_decode(file_get_contents($directory.'/manifest.json'), true, flags: JSON_THROW_ON_ERROR);
     $originalDirectory = resource_path('data/scheme/igsn-core/2.0/'.$manifest['commit'].'/upstream');
-    // The unchanged DataCite dependencies are archived with their original source commit.
-    $dependencyDirectory = resource_path('data/scheme/igsn-core/2.0/321df7287f8540960b99aeb55113cbf22274380c/upstream');
     foreach ($manifest['files'] as $file) {
-        $original = file_get_contents(($file['path'] === 'core.xsd' ? $originalDirectory : $dependencyDirectory).'/'.$file['upstream_path']);
+        $original = file_get_contents($originalDirectory.'/'.$file['upstream_path']);
         expect(hash('sha256', $original))->toBe($file['upstream_sha256']);
         if ($file['path'] === 'core.xsd') {
             $original = str_replace('schemaLocation="urn:FAIR-AIMS:Core:1 https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd"', 'schemaLocation="DataCite4.7/metadata.xsd"', $original, $count);
@@ -23,6 +21,14 @@ test('changes only the Core import location and retains exact upstream dependenc
         }
         expect(file_get_contents($directory.'/'.$file['path']))->toBe($original);
     }
+});
+
+test('uses the published Core release for validation by default', function () {
+    $schemas = app(IgsnCoreSchemaResolver::class);
+
+    expect($schemas->directory())->toBe(resource_path('data/scheme/igsn-core/2.0/v1'))
+        ->and($schemas->publicFile('core.xsd')['hash'])->toBe('d034bd2ce5d4f0813fbe69295daf328cd2403f731813660efa992dcbb273af4d')
+        ->and(array_keys(config('igsn_core.revisions')))->toBe(['v1']);
 });
 
 test('validates the portable Core revision with local dependencies and restores the loader', function () {

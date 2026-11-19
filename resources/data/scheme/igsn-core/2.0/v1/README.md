@@ -14,9 +14,8 @@ at commit `e28072729362b9fe740b64e8313c9add4364f12a` (2 November 2026).
 The accompanying FAIR AIMS D2 documentation is dated 31 October 2026:
 https://doi.org/10.5281/zenodo.23831602.
 
-The older, separately named `IGSN-Schema-by-GFZ-Data-Services` repository contains
-an earlier schema. Its previously published `preview-1/` package remains available
-with its original bytes. The short schema URL now selects v1.
+This is the only bundled IGSN Core revision. Validation, export and the short
+schema URL use this published package.
 
 The Core entry point is renamed to `core.xsd`. Its invalid upstream DataCite
 import location is replaced with the relative `DataCite4.7/metadata.xsd`. These are

@@ -142,12 +142,17 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
     const sections = root.children.map((id) => fields.get(id)).filter((field): field is SchemaField => Boolean(field));
     const field = fields.get(selected) ?? root;
     const parent = field.parentId ? fields.get(field.parentId) : null;
+    const requiredAlternatives = field.required
+        ? []
+        : (parent?.alternatives?.branches.flatMap((branch, index) =>
+              branch.required.some((requirement) => requirement.fieldId === field.id) ? [index + 1] : [],
+          ) ?? []);
     const filtered = useMemo(() => {
         const words = query.toLocaleLowerCase(doc.locale).trim().split(/\s+/).filter(Boolean);
         return doc.fields.filter(
             (item) =>
                 item.parentId !== null &&
-                (filter === 'all' || item.required === (filter === 'required')) &&
+                (filter === 'all' || (item.required || item.conditional) === (filter === 'required')) &&
                 words.every((word) =>
                     `${item.name} ${item.label} ${item.description} ${item.path} ${item.sourcePath ?? ''} ${Object.values(item.semantic ?? {}).join(' ')} ${item.values.join(' ')} ${item.notes.join(' ')} ${item.attributes.map((attribute) => `${attribute.qname} ${attribute.label} ${attribute.description} ${attribute.notes.join(' ')} ${attribute.values.join(' ')}`).join(' ')}`
                         .toLocaleLowerCase(doc.locale)
@@ -487,7 +492,7 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
                                 <section className="schema-doc-validation">
                                     <h3>{doc.validation.title}</h3>
                                     <p>{doc.validation.description}</p>
-                                    <ol>
+                                    <ol role="list">
                                         {doc.validation.steps.map((step) => (
                                             <li key={step.title}>
                                                 <strong>{step.title}</strong>
@@ -532,7 +537,7 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
                             <p className="igsn-doc-field-description">{field.description}</p>
                             <div className="igsn-doc-facts">
                                 <span className={`igsn-obligation ${field.required ? 'is-required' : ''}`}>
-                                    {field.required ? c.required : c.optional}
+                                    {field.required ? c.required : field.conditional ? (c.conditionallyRequired ?? c.required) : c.optional}
                                 </span>
                                 <span>
                                     {c.occurs}
@@ -543,7 +548,15 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
                                     <code>{field.type}</code>
                                 </span>
                             </div>
-                            {field.conditional && <p className="igsn-doc-conditional">{c.conditional}</p>}
+                            {field.conditional && (
+                                <p className="igsn-doc-conditional">
+                                    {requiredAlternatives.length > 0 && parent
+                                        ? c.requiredInAlternative
+                                              .replace('{alternatives}', requiredAlternatives.join(', '))
+                                              .replace('{field}', parent.label)
+                                        : c.conditional}
+                                </p>
+                            )}
                             {field.sourcePath && (
                                 <p className="schema-doc-rule-source">
                                     {c.sourceField}: <code>{field.sourcePath}</code>
@@ -572,6 +585,44 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
                                                 </div>
                                             ))}
                                     </dl>
+                                </section>
+                            )}
+                            {field.alternatives && (
+                                <section className="igsn-doc-field-notes schema-doc-alternatives" aria-labelledby={`${field.id}-alternatives`}>
+                                    <h3 id={`${field.id}-alternatives`}>{c.alternatives}</h3>
+                                    <p>{c[`${field.alternatives.scope}${field.alternatives.keyword === 'oneOf' ? 'OneOf' : 'AnyOf'}`]}</p>
+                                    <ol>
+                                        {field.alternatives.branches.map((branch, index) => (
+                                            <li key={index}>
+                                                <span>{c.alternative.replace('{number}', String(index + 1))}</span>:{' '}
+                                                <code>{branch.types.join(' or ')}</code>
+                                                {branch.required.length > 0 && (
+                                                    <>
+                                                        {' · '}
+                                                        {c.alternativeRequiredFields}:{' '}
+                                                        {branch.required.map((requirement, position) => (
+                                                            <span key={requirement.name}>
+                                                                {position > 0 && ', '}
+                                                                {fields.has(requirement.fieldId) ? (
+                                                                    <a
+                                                                        href={`#${requirement.fieldId}`}
+                                                                        onClick={(event) => {
+                                                                            event.preventDefault();
+                                                                            select(requirement.fieldId);
+                                                                        }}
+                                                                    >
+                                                                        <code>{requirement.name}</code>
+                                                                    </a>
+                                                                ) : (
+                                                                    <code>{requirement.name}</code>
+                                                                )}
+                                                            </span>
+                                                        ))}
+                                                    </>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ol>
                                 </section>
                             )}
                             {field.notes.length > 0 && (

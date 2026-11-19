@@ -87,6 +87,42 @@ const overview: DataCiteDocsOverview = {
     igsnUrl: '/schemas/igsn/2.0/docs',
     citation: english.citation,
 };
+const polygonId = 'datacite-geoLocations-geoLocationPolygon';
+const polygonDoc: SchemaDocumentation = {
+    ...doc,
+    fields: [
+        { ...doc.fields[0], children: [polygonId] },
+        field(polygonId, 'geoLocationPolygon', {
+            label: 'Polygon',
+            path: '$.geoLocations[].geoLocationPolygon',
+            required: false,
+            min: '0',
+            max: 'unbounded',
+            type: 'array<object>',
+            children: [`${polygonId}-polygonPoint`, `${polygonId}-inPolygonPoint`],
+            alternatives: {
+                keyword: 'oneOf',
+                scope: 'items',
+                branches: ['polygonPoint', 'inPolygonPoint'].map((name) => ({
+                    types: ['object'],
+                    required: [{ name, fieldId: `${polygonId}-${name}` }],
+                })),
+            },
+        }),
+        ...['polygonPoint', 'inPolygonPoint'].map((name) =>
+            field(`${polygonId}-${name}`, name, {
+                parentId: polygonId,
+                groupId: polygonId,
+                label: name === 'polygonPoint' ? 'Polygon point' : 'Interior point',
+                path: `$.geoLocations[].geoLocationPolygon[].${name}`,
+                required: false,
+                conditional: true,
+                min: '0',
+                type: 'object',
+            }),
+        ),
+    ],
+};
 
 beforeEach(() => {
     window.history.replaceState({}, '', '/schemas/datacite/4.7/docs/json');
@@ -94,6 +130,54 @@ beforeEach(() => {
 });
 
 describe('DataCite documentation', () => {
+    it('shows the exclusive polygon choice and the requirement for each alternative', async () => {
+        const user = userEvent.setup();
+        window.history.replaceState({}, '', `#${polygonId}`);
+        render(<DataCiteDocs documentation={polygonDoc} />);
+        const choices = screen.getByRole('region', { name: english.interface.alternatives });
+        expect(choices).toHaveTextContent(english.interface.itemsOneOf);
+        await user.click(within(choices).getByRole('link', { name: 'polygonPoint' }));
+        expect(screen.getByRole('heading', { name: 'Polygon point', level: 2 })).toBeVisible();
+        expect(screen.getByText(english.interface.conditionallyRequired)).toBeVisible();
+        expect(screen.getByText(english.interface.requiredInAlternative.replace('{alternatives}', '1').replace('{field}', 'Polygon'))).toBeVisible();
+        expect(screen.getByText('0..1', { exact: true })).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: english.interface.requiredFields }));
+        const navigation = screen.getByRole('navigation', { name: english.interface.contents });
+        await user.click(within(navigation).getByRole('link', { name: /Interior point/ }));
+        expect(screen.getByText(english.interface.requiredInAlternative.replace('{alternatives}', '2').replace('{field}', 'Polygon'))).toBeVisible();
+    });
+
+    it('scopes JSON-LD polygon alternatives to the converted DataCite JSON', () => {
+        window.history.replaceState({}, '', `#${polygonId}`);
+        render(
+            <DataCiteDocs
+                documentation={{
+                    ...polygonDoc,
+                    format: 'jsonld',
+                    fileLabel: 'JSON-LD',
+                    fileExtension: 'jsonld',
+                    copy: { ...doc.copy, ...english.jsonldInterface },
+                    fields: polygonDoc.fields.map((entry) =>
+                        entry.id === polygonId
+                            ? {
+                                  ...entry,
+                                  type: 'object',
+                                  sourcePath: entry.path,
+                                  path: '$.geoLocations.geoLocation[].geoLocationPolygon',
+                              }
+                            : entry,
+                    ),
+                }}
+            />,
+        );
+        const choices = screen.getByRole('region', { name: english.interface.alternatives });
+        expect(choices).toHaveTextContent(english.jsonldInterface.itemsOneOf);
+        expect(screen.getByText('$.geoLocations[].geoLocationPolygon', { exact: true }).closest('p')).toHaveTextContent(
+            english.interface.semanticRuleExplanation,
+        );
+    });
+
     it('keeps the full DataCite citation available when a field is selected', () => {
         window.history.replaceState({}, '', '#datacite-creators-name');
         render(<DataCiteDocs documentation={doc} />);

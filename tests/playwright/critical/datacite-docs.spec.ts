@@ -1,6 +1,29 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+for (const format of ['json', 'jsonld']) {
+    test(`the ${format} guide explains the exclusive polygon alternatives`, async ({ page }, testInfo) => {
+        const id = 'datacite-geoLocations-geoLocationPolygon';
+        const url = `/schemas/datacite/4.7/docs/${format}#${id}`;
+
+        for (const [index, name] of ['polygonPoint', 'inPolygonPoint'].entries()) {
+            await page.goto(url);
+            const choices = page.getByRole('region', { name: 'Alternatives', exact: true });
+            await expect(choices).toContainText('each array item must match exactly one', { ignoreCase: true });
+            await expect(choices.getByRole('listitem')).toHaveCount(2);
+            if (format === 'jsonld') await expect(choices).toContainText('After conversion to DataCite JSON');
+            if (testInfo.project.name === 'chromium' && index === 0) {
+                expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+            }
+
+            await choices.getByRole('link', { name, exact: true }).click();
+            await expect(page.locator('.igsn-doc-facts .igsn-obligation')).toHaveText('Required in some cases');
+            await expect(page.locator('.igsn-doc-facts')).toContainText('0..1');
+            await expect(page.locator('.igsn-doc-conditional')).toContainText(`Required in alternative ${index + 1}`);
+        }
+    });
+}
+
 test('the public guide connects the JSON and JSON-LD references for the same field', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 1050 });
     await page.goto('/schemas/datacite/docs');
