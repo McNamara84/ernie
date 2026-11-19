@@ -1304,9 +1304,8 @@ can pass this stage; the probe does not substitute unreviewed development code.
 The version inventory, upstream constraints, validation results and image findings
 for the 19 November 2026 update are recorded in
 [dependency-update-audit.json](dependency-update-audit.json). Composer and npm
-audits report no known vulnerabilities. Transitive packages that cannot use the
-latest major release remain within their upstream requirements; the inventory
-records those constraints.
+audits report no known vulnerabilities. The inventory records version changes
+and upstream requirements that prevent selected upgrades.
 
 PHP [8.5.13](https://www.php.net/releases/8_5_13.php) is the 19 November security
 release. Both Dockerfiles pin the same verified image digest for Linux amd64 and
@@ -1321,9 +1320,13 @@ paired Playwright 1.65.1 packages/browser image remain current. All 13 GitHub
 Actions were checked against stable release tags and verified commit hashes;
 `actions/create-github-app-token` updates to 3.4.0.
 
-The audit records image scan results and remaining findings separately from the
-Composer and npm audits. MySQL stays on the required 9.7 server line. Existing
-security overrides, the local deepmerge fix and CI security gates are preserved.
+Application, Nginx and F-UJI images pass the existing gate for fixable
+HIGH/CRITICAL findings. The audit lists findings without available fixes
+separately. The current official MySQL 9.7.4 image still contains 63
+HIGH/CRITICAL findings with component fixes, but no newer official MySQL 9.7
+image is available. These remain unresolved. MySQL stays on the required 9.7
+server line. Existing security overrides, the local deepmerge fix and CI
+security gates are preserved.
 
 ### DOI publication and metadata update safety
 
