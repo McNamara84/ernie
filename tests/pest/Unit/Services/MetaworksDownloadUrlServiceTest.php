@@ -23,7 +23,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('resource')
             ->andReturn($resourceQuery);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('metaworks')
             ->andReturn($connection);
 
@@ -67,7 +67,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('file')
             ->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('metaworks')
             ->andReturn($connection);
 
@@ -113,7 +113,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('file')
             ->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('metaworks')
             ->andReturn($connection);
 
@@ -158,7 +158,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('file')
             ->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('metaworks')
             ->andReturn($connection);
 
@@ -214,7 +214,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('file')
             ->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('metaworks')
             ->andReturn($connection);
 
@@ -251,7 +251,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->with('metaworks')->andReturn($connection);
         Log::shouldReceive('warning')->times(3); // 3 invalid URLs skipped
 
         $service = new MetaworksDownloadUrlService;
@@ -278,7 +278,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->with('metaworks')->andReturn($connection);
 
         $service = new MetaworksDownloadUrlService;
         $result = $service->lookupFileEntries('10.5880/GFZ.no.rows');
@@ -306,7 +306,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->with('metaworks')->andReturn($connection);
         Log::shouldReceive('warning')->once();
 
         $service = new MetaworksDownloadUrlService;
@@ -338,7 +338,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->with('metaworks')->andReturn($connection);
         Log::shouldReceive('warning')->once(); // 1 long URL skipped
 
         $service = new MetaworksDownloadUrlService;
@@ -367,7 +367,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->with('metaworks')->andReturn($connection);
 
         $service = new MetaworksDownloadUrlService;
         $result = $service->lookupFileUrls('10.5880/GFZ.mixed.vis');
@@ -393,7 +393,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->with('metaworks')->andReturn($connection);
 
         $service = new MetaworksDownloadUrlService;
         $result = $service->lookupFileUrls('10.5880/GFZ.all.priv');
@@ -422,7 +422,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
-        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->with('metaworks')->andReturn($connection);
         Log::shouldReceive('warning')->times(2); // 2 hostless URLs skipped
 
         $service = new MetaworksDownloadUrlService;
