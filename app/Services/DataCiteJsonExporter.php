@@ -981,6 +981,7 @@ class DataCiteJsonExporter
                 'relatedIdentifier' => $instrument->instrument_pid,
                 'relatedIdentifierType' => $instrument->instrument_pid_type,
                 'relationType' => 'IsCollectedBy',
+                'resourceTypeGeneral' => 'Instrument',
             ];
         }
 

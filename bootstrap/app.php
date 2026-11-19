@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->trimStrings(except: ['body_markdown']);
 
         $middleware->alias([
             'ernie.api-key' => EnsureValidErnieApiKey::class,

@@ -78,6 +78,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 updateDataCiteUrls: userRole === 'admin',
                 manageUsers: userRole === 'admin' || userRole === 'group_leader',
                 accessEditorSettings: userRole === 'admin' || userRole === 'group_leader',
+                manageNews: userRole === 'admin' || userRole === 'group_leader',
             },
         [capabilities, userRole],
     );
@@ -524,6 +525,48 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 ),
             },
             {
+                id: 'manage-news',
+                capability: 'manageNews',
+                title: 'Manage News',
+                icon: FileText,
+                minRole: 'group_leader',
+                content: (
+                    <>
+                        <h3>Homepage News</h3>
+                        <p>
+                            Admins and Group Leaders open <strong>Administration → Configuration → Manage News</strong> at <code>/manage-news</code>{' '}
+                            to edit the public homepage announcement.
+                        </p>
+                        <p>
+                            Enter a separate title and Markdown text, then check the preview. Headings, bold and italic text, lists, links and
+                            external HTTPS images are supported. Image syntax is <code>![description](https://example.org/image.jpg)</code>; HTML is
+                            removed.
+                        </p>
+                        <p>
+                            <strong>Save draft</strong> stores a new contribution without publishing it. For regular news, choose{' '}
+                            <strong>Set as active</strong> in the saved list. Exactly one regular announcement remains active; select another before
+                            archiving the current one. Saving changes to published or scheduled news affects their public display.
+                        </p>
+                        <p>
+                            For a temporary announcement, set a start and end in <strong>Europe/Berlin</strong>, save it and choose{' '}
+                            <strong>Schedule</strong>. It replaces the regular news from the start until the end, when the then active regular news
+                            returns. Overlapping schedules are rejected; adjacent periods are allowed. During the autumn clock change, explicitly
+                            choose +02:00 for the first occurrence of a repeated time or +01:00 for the second.
+                        </p>
+                        <p>
+                            <strong>Cancel schedule</strong> stops a temporary replacement. <strong>Archive</strong> preserves a contribution and
+                            cancels its schedule. Use <strong>Show archived news</strong> and <strong>Restore</strong> to reuse it as an unpublished
+                            draft. Expired announcements stay stored. The public homepage selects its news on each request; already open pages update
+                            on their next visit or reload.
+                        </p>
+                        <p>
+                            If another session has changed the news, your edits remain in the form. Review or copy them before using{' '}
+                            <strong>Reload latest version</strong>, which replaces the form with the current saved content.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'editor-settings',
                 capability: 'accessEditorSettings',
                 title: 'Editor Settings',
@@ -585,7 +628,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                                 (EuroSciVoc), and Multi-Scale Laboratories
                             </li>
                             <li>
-                                <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for linking research
+                                <strong>Persistent Identifiers:</strong> Manage PID registries like PIDINST (B2INST + DataCite) for linking research
                                 instruments, ROR for research organizations, and RAiD for research activities
                             </li>
                             <li>
@@ -634,8 +677,8 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         <p>The Persistent Identifiers section allows you to manage PID registries:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>PID4INST (b2inst):</strong> Instruments from the EUDAT b2inst registry can be linked to datasets as DataCite
-                                relatedIdentifiers with relationType &quot;IsCollectedBy&quot;
+                                <strong>PIDINST (B2INST + DataCite):</strong> Instruments from B2INST and public DataCite Instrument records can be
+                                linked to datasets as DataCite relatedIdentifiers with relationType &quot;IsCollectedBy&quot;
                             </li>
                             <li>
                                 <strong>ROR (Research Organization Registry):</strong> Organization data used for affiliation lookups. The ROR dataset
@@ -652,10 +695,10 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
 
                         <h4>Refresh the Instrument Registry</h4>
                         <p>
-                            In <strong>Editor Settings → Persistent Identifiers → PID4INST</strong>, use <strong>Check for Updates</strong> to compare
-                            the source record count with the last successful synchronization. Records excluded from the instrument list are included
-                            in that comparison; the local instrument count shows only accepted instruments. Older local files without a recorded
-                            source count use their local instrument count instead.
+                            In <strong>Editor Settings → Persistent Identifiers → PIDINST</strong>, use <strong>Check for Updates</strong> to compare
+                            B2INST and DataCite record counts separately with the last successful synchronization. Source counts include excluded and
+                            overlapping records; the local count shows the instruments offered after merging. Equal DOIs appear once with B2INST
+                            metadata. Older lists require one full refresh to include DataCite.
                         </p>
                         <p>
                             An unchanged count does not prove that instrument metadata is current. Admins and Group Leaders can select{' '}
@@ -669,15 +712,14 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             recovery command in System Administration.
                         </p>
                         <p>
-                            Wait for the update to finish successfully. If a download fails or is incomplete, ERNIE keeps the previous registry. After
-                            a successful update, users with an open editor can click <strong>Resolve names again</strong> in{' '}
+                            Wait for the update to finish successfully. If either source fails or is incomplete, ERNIE keeps the entire previous
+                            registry. After a successful update, users with an open editor can click <strong>Resolve names again</strong> in{' '}
                             <strong>Used Instruments</strong> without discarding their unsaved work. Save the resource normally to retain newly
                             resolved names.
                         </p>
                         <p>
-                            After installing the instrument-name update, refresh PID4INST once so ERNIE also has the identifier information needed to
-                            detect conflicts. If PID4INST is disabled for ERNIE, enable it and save the activation change before retrying name
-                            resolution.
+                            After installing the combined registry update, refresh PIDINST once to include DataCite instruments and identifier
+                            information. If PIDINST is disabled for ERNIE, enable it and save the activation change before retrying name resolution.
                         </p>
                     </>
                 ),
@@ -740,17 +782,18 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             available if a download or validation fails. Can also be triggered from Editor Settings.
                         </p>
 
-                        <h4>Update PID4INST Instruments (CLI)</h4>
+                        <h4>Update PIDINST Instruments (CLI)</h4>
                         <p>
-                            Synchronizes public, published, current instrument records from B2INST v3 and validates their identifiers. A full refresh
-                            also checks metadata changes when the record count is unchanged. Run these commands in the application container.
+                            Synchronizes public, published, current B2INST v3 instruments and worldwide public DataCite records of type Instrument. A
+                            full refresh also checks metadata changes when the record count is unchanged. Run these commands in the application
+                            container.
                         </p>
                         <p>Preview the synchronization and review the report before publishing:</p>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments --dry-run" />
                         <p>
-                            The report includes source and accepted counts, exclusions, additions, removals, metadata changes and PID changes. A dry
-                            run leaves the published list unchanged and sends no ELMO refresh requests; it may populate short-lived Handle lookup
-                            caches.
+                            The report includes counts per source, duplicate DOIs, exclusions, additions, removals, metadata changes and PID changes.
+                            A dry run leaves the published list unchanged and sends no ELMO refresh requests; it may populate short-lived Handle
+                            lookup caches.
                         </p>
                         <p>Publish the validated list and request refreshes for enabled ELMO targets:</p>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
@@ -2540,7 +2583,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Instrument Names and Diagnostics</h3>
                         <p>
                             In <strong>Used Instruments</strong>, select the instruments used to collect your dataset. XML and JSON imports and
-                            existing resources opened in the editor use ERNIE&apos;s local PID4INST registry to fill in missing instrument names.
+                            existing resources opened in the editor use ERNIE&apos;s local PIDINST registry to fill in missing instrument names.
                             Existing curated names and the original persistent identifiers (PIDs) are preserved.
                         </p>
                         <h4>Understanding Instrument Messages</h4>
@@ -2552,7 +2595,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Name not found:</strong> The local registry has no matching name. The PID remains visible. Ask a Group Leader
-                                or Admin to refresh PID4INST, then retry name resolution.
+                                or Admin to refresh PIDINST, then retry name resolution.
                             </li>
                             <li>
                                 <strong>Multiple records:</strong> More than one registry record matches the identifier. ERNIE does not choose a name;
@@ -2560,15 +2603,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Registry unavailable or disabled:</strong> Your selected instruments are retained. Ask a Group Leader or Admin
-                                to check PID4INST availability and activation. Adding instruments is disabled while the registry is unavailable.
+                                to check PIDINST availability and activation. Adding instruments is disabled while the registry is unavailable.
                             </li>
                         </ul>
                         <h4>Retry and Save Resolved Names</h4>
                         <p>
                             Click <strong>Resolve names again</strong> in <strong>Used Instruments</strong> to retry against the current local
-                            registry. This preserves your other unsaved form changes and does not download data from B2INST. If a registry update is
-                            needed, wait for a Group Leader or Admin to complete it before retrying. You can also retry after a temporary resolution
-                            error.
+                            registry. This preserves your other unsaved form changes and does not download data from B2INST or DataCite. If a registry
+                            update is needed, wait for a Group Leader or Admin to complete it before retrying. You can also retry after a temporary
+                            resolution error.
                         </p>
                         <p>
                             Opening an existing resource only adds resolved names to the editor; it does not change the saved record. Use the normal

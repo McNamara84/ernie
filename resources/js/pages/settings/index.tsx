@@ -1804,7 +1804,7 @@ export default function EditorSettings({
                     <EditorSettingsSection
                         value="persistent-identifiers"
                         title="Persistent Identifiers"
-                        description="Manage persistent identifier registries: PID4INST (b2inst) for research instruments and ROR for research organizations."
+                        description="Manage persistent identifier registries: PIDINST (B2INST + DataCite) for research instruments and ROR for research organizations."
                         forceMount
                         summary={
                             <SettingsSectionSummary

@@ -4,7 +4,7 @@ import { ApiError, apiRequest } from '@/lib/api-client';
 import { apiEndpoints, queryKeys } from '@/lib/query-keys';
 
 /**
- * Instrument record from the PID4INST / b2inst registry.
+ * Instrument record from the combined B2INST and DataCite PIDINST vocabulary.
  */
 export interface Pid4instInstrument {
     id: string;
@@ -60,7 +60,7 @@ export async function fetchPid4instInstruments(signal?: AbortSignal): Promise<Pi
 }
 
 /**
- * Custom hook to fetch PID4INST instruments from the locally cached b2inst data.
+ * Custom hook to fetch PIDINST instruments from the locally cached combined vocabulary.
  *
  * The data is fetched from the backend vocabulary endpoint which reads from a
  * local JSON file (downloaded via `php artisan get-pid4inst-instruments`).

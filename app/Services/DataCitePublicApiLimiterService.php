@@ -58,4 +58,9 @@ final class DataCitePublicApiLimiterService
 
         return 'ERNIE ('.config('app.url').($email === '' ? '' : '; mailto:'.$email).')';
     }
+
+    public function retryAfterSeconds(): int
+    {
+        return max(0, (int) Cache::get(self::KEY.':unavailable', 0) - now()->getTimestamp());
+    }
 }

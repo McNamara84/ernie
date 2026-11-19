@@ -1,5 +1,7 @@
 # B2INST v3 instrument synchronization
 
+The PIDINST refresh now combines this B2INST contract with public DataCite instruments. See [the combined synchronization guide](pidinst-synchronization.md) for source counts, DOI deduplication, configuration and recovery. The following sections describe B2INST-specific harvesting and identity rules; the snapshot is published only after both sources pass validation.
+
 Contract reviewed on 29 October 2026 against the [B2INST v3 records API](https://docs.eudat.eu/b2inst/v3-rest/records/), [v2/v3 comparison](https://docs.eudat.eu/b2inst/v3-rest/json_diff_v2_v3/) and [PIDINST metadata specification](https://docs.pidinst.org/en/latest/white-paper/metadata-schema.html). [B2FIND](https://docs.eudat.eu/b2find/) is EUDAT's separate metadata discovery/indexing service, not the instrument registry used here.
 
 ## API contract
@@ -56,7 +58,7 @@ After publication, the shared sync service invalidates ERNIE's instrument cache 
 
 An enabled ELMO target with missing or invalid configuration leaves `refreshPending` set, just like a queue insertion failure. Correct the configuration before retrying `--refresh-caches`; ordinary non-strict dispatcher callers retain their skip behavior.
 
-The quick status endpoint returns `comparisonBasis: "count"`. It compares the remote total with the last successful snapshot's `_sync.serverCount`, including excluded records; legacy snapshots fall back to their offered count. The displayed local count remains the number of accepted instruments. Equal server counts do not prove fresh metadata; administrators and group leaders can always run a full PIDINST refresh. Job results provide the actual published count and timestamp.
+The quick status endpoint returns `comparisonBasis: "count"`. It compares each remote total with that source's last successfully imported `_sync.sources` count, including excluded records. Legacy snapshots require one combined refresh. The displayed local count is the number of offered instruments after deduplication. Equal source counts do not prove fresh metadata; administrators and group leaders can always run a full PIDINST refresh. Job results provide the actual published count and timestamp.
 
 ## Configuration
 
@@ -77,7 +79,7 @@ Connection failures and HTTP 429/500/502/503/504 permit at most three attempts. 
 
 ## Verification and deployment boundaries
 
-Focused Pest suites cover the v3 client, normalization/identity resolution, command publication, status, jobs and editor API isolation. Vitest covers equal-count refresh and actual job results, alongside the existing selection/hook tests. The complete backend suite also exercises DataCite instrument export/import (`IsCollectedBy` plus Handle). DOI/URL selection support does not broaden the existing DataCite import classification of arbitrary identifiers.
+Focused Pest suites cover the v3 client, normalization/identity resolution, combined publication, status, jobs and editor API isolation. Vitest covers equal-count refresh and actual job results, alongside the selection/hook tests. DataCite export/import covers `IsCollectedBy` with legacy Handles and instrument DOIs identified by `resourceTypeGeneral=Instrument` or a unique match in the local vocabulary. Arbitrary DOI relationships are not automatically classified as instruments.
 
 Final local checks use `npm run check:backend` and `npm run check:frontend`, Node from `.node-version`, 2 GB PHP limits, and MySQL 9.7 from `docker-compose.dev.yml`. Complete line coverage remains a CI check.
 

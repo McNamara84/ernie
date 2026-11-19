@@ -896,6 +896,7 @@ class DataCiteXmlExporter
             );
             $instrumentElement->setAttribute('relatedIdentifierType', $instrument->instrument_pid_type);
             $instrumentElement->setAttribute('relationType', 'IsCollectedBy');
+            $instrumentElement->setAttribute('resourceTypeGeneral', 'Instrument');
 
             $relatedIdentifiers->appendChild($instrumentElement);
         }

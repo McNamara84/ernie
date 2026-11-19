@@ -1216,6 +1216,35 @@ entity "landing_page_domains" as landing_page_domains {
     updated_at : TIMESTAMP
 }
 
+' Homepage news: dates are stored in UTC and edited in Europe/Berlin.
+entity "news" as news {
+    * **id** : BIGINT UNSIGNED <<PK>> //auto-increment//
+    --
+    * title : VARCHAR(255)
+    * body_markdown : LONGTEXT //Markdown//
+    * kind : VARCHAR(20) //regular or temporary//
+    starts_at : DATETIME //nullable, UTC//
+    ends_at : DATETIME //nullable, UTC, exclusive end//
+    * is_scheduled : BOOLEAN = false
+    archived_at : DATETIME //nullable, UTC//
+    created_by_user_id : BIGINT UNSIGNED <<FK>> //nullable, ON DELETE SET NULL//
+    updated_by_user_id : BIGINT UNSIGNED <<FK>> //nullable, ON DELETE SET NULL//
+    * revision : INT = 1 //positive//
+    created_at : DATETIME //nullable, UTC//
+    updated_at : DATETIME //nullable, UTC//
+}
+' CHECK news_publication_shape and news_schedule_lookup are detailed below.
+
+entity "homepage_news_state" as homepage_news_state {
+    * **id** : INT <<PK>> //CHECK id = 1, no auto-increment//
+    --
+    * active_news_id : BIGINT UNSIGNED <<FK>> //ON DELETE RESTRICT//
+    * revision : INT = 1 //positive//
+    created_at : DATETIME //nullable, UTC//
+    updated_at : DATETIME //nullable, UTC//
+}
+' CHECK homepage_news_singleton: id = 1 AND revision > 0.
+
 entity "settings" as settings {
     * **id** : BIGINT <<PK>>
     --
@@ -1857,6 +1886,11 @@ entity relation_type_correction_reviews {
 ' RELATIONSHIPS
 ' ==========================================================================
 
+' Homepage news relationships
+news }o--o| users : "created_by_user_id; ON DELETE SET NULL"
+news }o--o| users : "updated_by_user_id; ON DELETE SET NULL"
+news ||--o| homepage_news_state : "active_news_id; ON DELETE RESTRICT"
+
 ' Assistant module relationships
 resources ||--o{ assistant_suggestions
 users ||--o{ assistant_dismissed
@@ -2059,3 +2093,11 @@ dismissed_rors }o--o| users
 
 @enduml
 ```
+
+## Homepage news constraints
+
+- `news_publication_shape` (CHECK): regular news have no start or end and cannot be scheduled; temporary news require both dates with `ends_at > starts_at`. All rows require `is_scheduled IN (0, 1)` and `revision > 0`; an archived row cannot remain scheduled.
+- `news_schedule_lookup` is a non-unique index on `(kind, is_scheduled, archived_at, starts_at, ends_at)`.
+- `homepage_news_singleton` (CHECK) requires `id = 1 AND revision > 0`. Together with the primary key, this permits at most one selection row. The data migration initializes that row with a non-null reference to the original announcement.
+- Both nullable user references use `ON DELETE SET NULL`. The required active-news reference uses `ON DELETE RESTRICT`; deleting the selected news is prohibited.
+- The application enforces the selection of non-archived regular news and prevents overlapping scheduled intervals while holding the selection-row lock. These are application rules, not additional database constraints. Display intervals use an inclusive start and exclusive end.

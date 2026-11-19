@@ -102,6 +102,71 @@ describe('PidSettingsCard update flow', () => {
         expect(screen.queryByRole('button', { name: /update now/i })).not.toBeInTheDocument();
     });
 
+    it('distinguishes source records from offered instruments and reports each source count', async () => {
+        const user = userEvent.setup();
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                localCount: 11,
+                remoteCount: 15,
+                updateAvailable: true,
+                comparisonBasis: 'count',
+                sources: { b2inst: { syncedCount: 9, remoteCount: 10 }, datacite: { syncedCount: 6, remoteCount: 5 } },
+            }),
+        });
+        render(
+            <PidSettingsCard
+                pidSettings={[{ ...raidSetting, type: 'pid4inst', displayName: 'PIDINST' }]}
+                onActiveChange={vi.fn()}
+                onElmoActiveChange={vi.fn()}
+            />,
+        );
+        await user.click(screen.getByRole('button', { name: /check for updates/i }));
+        expect(await screen.findByText(/B2INST: 10 records; DataCite: 5 records/i)).toBeInTheDocument();
+        expect(screen.getByText(/ERNIE currently offers 11 instruments/i)).toBeInTheDocument();
+        expect(screen.queryByText(/15 instruments/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /update now/i })).toBeEnabled();
+    });
+
+    it('allows a full refresh after a failed source count check', async () => {
+        const user = userEvent.setup();
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'DataCite unavailable' }) });
+        render(
+            <PidSettingsCard
+                pidSettings={[{ ...raidSetting, type: 'pid4inst', displayName: 'PIDINST', exists: true, itemCount: 11 }]}
+                onActiveChange={vi.fn()}
+                onElmoActiveChange={vi.fn()}
+            />,
+        );
+        await user.click(screen.getByRole('button', { name: /check for updates/i }));
+        expect(await screen.findByText(/DataCite unavailable/i)).toBeInTheDocument();
+        expect(screen.getByText(/11 instruments/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /update now/i })).toBeEnabled();
+    });
+
+    it('retains the offered instrument count when a combined update fails', async () => {
+        const user = userEvent.setup();
+        globalThis.fetch = vi
+            .fn()
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ jobId: 'failed-job' }) })
+            .mockResolvedValue({
+                ok: true,
+                json: async () => ({ status: 'failed', pidType: 'pid4inst', progress: 'Update failed', error: 'DataCite page incomplete' }),
+            });
+        const { client } = render(
+            <PidSettingsCard
+                pidSettings={[{ ...raidSetting, type: 'pid4inst', displayName: 'PIDINST', exists: true, itemCount: 11 }]}
+                onActiveChange={vi.fn()}
+                onElmoActiveChange={vi.fn()}
+            />,
+        );
+        const invalidate = vi.spyOn(client, 'invalidateQueries');
+        await user.click(screen.getByRole('button', { name: /update now/i }));
+        expect(await screen.findByText(/DataCite page incomplete/i)).toBeInTheDocument();
+        expect(screen.getByText(/11 instruments/i)).toBeInTheDocument();
+        expect(invalidate).not.toHaveBeenCalled();
+    });
+
     it('shows downloaded RAiD projects immediately after the update job completes', async () => {
         const user = userEvent.setup();
         const fetchMock = vi

@@ -1,14 +1,5 @@
 export const elmoUrl = 'https://dataservices.gfz.de/elmo';
 
-// Kept separate from presentation so a future managed news source can replace it.
-export const homepageNews = {
-    title: 'Welcome ELMO - our new Metadata Editor!',
-    introduction: 'In November 2025, the GFZ Data Services team proudly launched the new, fully revised and modernised version of our ',
-    linkLabel: 'new metadata editor ELMO',
-    href: elmoUrl,
-    body: '. ELMO is not only a new web interface, but also contains many revised functionalities that increase the quality of metadata and the FAIRness of the data describing it, while at the same time simplifying the entry of information for researchers.',
-};
-
 export const homepageLinkGroups = [
     {
         title: 'Services',

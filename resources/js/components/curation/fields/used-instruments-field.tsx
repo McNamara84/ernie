@@ -42,7 +42,7 @@ interface UsedInstrumentsFieldProps {
  * Used Instruments Field Component
  *
  * Provides a searchable interface for selecting research instruments
- * from the PID4INST / b2inst registry. Instruments are identified by
+ * from the combined B2INST and DataCite PIDINST vocabulary. Instruments are identified by
  * persistent identifiers (PIDs) and will be exported as DataCite
  * relatedIdentifiers with relationType="IsCollectedBy".
  *
@@ -137,9 +137,13 @@ export default function UsedInstrumentsField({
                             rel="noopener noreferrer"
                             className="font-medium underline hover:text-blue-700 dark:hover:text-blue-200"
                         >
-                            b2inst Registry (PID4INST)
+                            B2INST registry
                         </a>
-                        . Each instrument will be linked via its persistent identifier (Handle PID).
+                        {' and '}
+                        <a href="https://commons.datacite.org" target="_blank" rel="noopener noreferrer" className="font-medium underline">
+                            DataCite
+                        </a>
+                        . Each instrument will be linked via its persistent identifier, including Handles and DOIs (PIDINST).
                     </p>
                 </div>
             </div>

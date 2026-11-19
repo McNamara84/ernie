@@ -534,7 +534,7 @@ class EditorSettingsController extends Controller
     /**
      * Get local status for a PID setting using the appropriate status service.
      *
-     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, excludedCount?: int, exclusions?: list<array{id: string, reasonCode: string}>, refreshPending?: bool}
+     * @return array{exists: bool, itemCount: int, lastUpdated: string|null, excludedCount?: int, exclusions?: list<array{id: string, reasonCode: string, source?: string}>, refreshPending?: bool}
      */
     private function getPidLocalStatus(PidSetting $pidSetting): array
     {

@@ -237,6 +237,12 @@ export function AppSidebar() {
         configurationItems.push(editorSettingsItem);
     }
 
+    if (auth.user?.can_manage_news) {
+        const newsItem: NavItem = { title: 'Manage News', href: '/manage-news', icon: FileText };
+        administrationItems.push(newsItem);
+        configurationItems.push(newsItem);
+    }
+
     if (auth.user?.can_manage_landing_page_templates) {
         const landingPagesItem: NavItem = {
             title: 'Landing Pages',

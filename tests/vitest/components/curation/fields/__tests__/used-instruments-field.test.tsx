@@ -63,12 +63,12 @@ describe('UsedInstrumentsField', () => {
         onChange: mockOnChange,
     };
 
-
     it('renders the component with info banner', () => {
         render(<UsedInstrumentsField {...defaultProps} />);
 
         expect(screen.getByText(/Select the research instruments/)).toBeInTheDocument();
-        expect(screen.getByText('b2inst Registry (PID4INST)')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'B2INST registry' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'DataCite' })).toBeInTheDocument();
     });
 
     it('renders combobox trigger', () => {

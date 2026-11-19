@@ -93,6 +93,7 @@ export interface User {
     can_access_statistics?: boolean;
     can_access_users?: boolean;
     can_access_editor_settings?: boolean;
+    can_manage_news?: boolean;
     can_access_database_dumps?: boolean;
     // Landing page management permission (Issue #375)
     can_manage_landing_pages?: boolean;
@@ -306,7 +307,7 @@ export interface MSLLaboratoriesResponse {
 }
 
 /**
- * Instrument selection from the PID4INST / b2inst registry.
+ * Instrument selection from the combined B2INST and DataCite PIDINST vocabulary.
  * Used in the "Used Instruments" editor section.
  */
 export interface InstrumentSelection {
