@@ -6,7 +6,7 @@ WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
 ARG PHP_REDIS_SHA256=cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad
-ARG SYSTEM_PACKAGES_REFRESH=manual
+ARG SYSTEM_PACKAGES_REFRESH=2026-11-19
 
 # Install system dependencies needed for the PHP runtime and extension builds.
 # LEGACY_DATABASE_DUMP_SUPPORT:
@@ -55,7 +55,7 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.11.2@sha256:5bcb28b8d0edc4091125f8218f9d088f998bdfc843f8fbb9a4beb4dcd8625684 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.11.2@sha256:0c8e663f14c94d07b3c45b175c51f5a14718508f21fe4dd7e54f09488dd0ed71 /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh docker/laravel-runtime.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
@@ -74,7 +74,7 @@ RUN update-ca-certificates
 
 FROM app-base AS app-build
 
-ARG NPM_VERSION=12.2.2
+ARG NPM_VERSION=12.2.3
 ARG NODE_CHECKSUM_ARM64=89e1853138db51e8b82d3e98ba9c0d3f2956a28e5e55ea1b7e12d25aae92d5dd
 ARG NODE_CHECKSUM_X64=5c063e46bab0fbc1c17cc445d7ff129cbdcd0471be6ed83b6ab864f8143bc864
 
@@ -163,7 +163,7 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
-FROM nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72 AS nginx
+FROM nginx:1.31.9-alpine@sha256:90b6bd2aec278b16b98221d64deb1d6d35d164567f507ab0716e6053878315aa AS nginx
 
 ARG SYSTEM_PACKAGES_REFRESH=manual
 

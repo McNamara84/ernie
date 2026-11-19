@@ -34,7 +34,7 @@ jobs:
 
       - name: Setup npm
         run: |
-          npm install --global npm@12.2.2
+          npm install --global npm@12.2.3
 
       - name: Composer audit
         run: composer audit --locked

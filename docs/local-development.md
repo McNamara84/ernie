@@ -75,11 +75,11 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.13.1** from `.node-version` and npm **12.2.2** from
+    Use Node **26.13.1** from `.node-version` and npm **12.2.3** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
-    npm install --global npm@12.2.2
+    npm install --global npm@12.2.3
     npm ci
     ```
 
@@ -97,7 +97,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
 
-    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.1** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.1** and npm **12.2.3** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
@@ -1313,7 +1313,7 @@ are verified for both supported architectures, and container images retain exact
 digests. All 13 GitHub Actions were checked against their latest stable releases
 and verified commit hashes; their existing pins were already current.
 
-npm 12.2.2 includes Undici 6.29.1, so no manual npm dependency patch is needed.
+npm 12.2.3 includes Undici 6.29.1, so no manual npm dependency patch is needed.
 Install the pinned npm version on the host as shown above. Playwright 1.65.1 and
 its matching Microsoft browser image are available together. F-UJI independently
 uses Python Playwright 1.65.2 and installs the Chromium revision supplied by that
