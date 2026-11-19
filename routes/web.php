@@ -234,15 +234,15 @@ Route::get('schemas/igsn/2.0/docs/examples/{example}.xml', [IgsnCoreDocumentatio
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->name('schemas.igsn-core.docs.example');
 Route::get('schemas/igsn/2.0/{revision}/docs', [IgsnCoreDocumentationController::class, 'revision'])
-    ->where('revision', '(?:preview-|v)[1-9][0-9]*')->name('schemas.igsn-core.docs.revision');
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.igsn-core.docs.revision');
 Route::get('schemas/igsn/2.0/{revision}/docs/examples/{example}.xml', [IgsnCoreDocumentationController::class, 'revisionExample'])
-    ->where('revision', '(?:preview-|v)[1-9][0-9]*')
+    ->where('revision', 'v[1-9][0-9]*')
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->name('schemas.igsn-core.docs.revision-example');
 
 Route::get('schemas/igsn/2.0/{revision}/{path}', [IgsnCoreSchemaController::class, 'revision'])
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
-    ->where('revision', '(?:preview-|v)[1-9][0-9]*')
+    ->where('revision', 'v[1-9][0-9]*')
     ->where('path', '.+')
     ->name('schemas.igsn-core.revision');
 

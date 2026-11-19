@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@tests/vitest/utils/render';
+import type { AnchorHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import IgsnCoreDocs from '@/pages/schemas/igsn-core-docs';
@@ -7,7 +8,10 @@ import type { IgsnSchemaDocumentation, IgsnSchemaField } from '@/types/igsn-core
 
 import english from '../../../../resources/data/schema-docs/igsn-core/2.0/en.json';
 
-vi.mock('@inertiajs/react', () => ({ Head: () => null }));
+vi.mock('@inertiajs/react', () => ({
+    Head: () => null,
+    Link: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
+}));
 vi.mock('@/components/app-footer', () => ({ AppFooter: () => <footer>GFZ Data Services</footer> }));
 
 const rootId = 'igsn-resource';
@@ -44,7 +48,8 @@ const props: IgsnSchemaDocumentation = {
     manifestUrl: 'https://example.org/schemas/igsn/2.0/v1/manifest.json',
     sourceUrl: 'https://github.com/example/schema',
     publicationUrl: 'https://doi.org/example',
-    versions: [{ revision: 'v1', label: '2.0 · Published schema', url: '/schemas/igsn/2.0/v1/docs' }],
+    citation: english.citation,
+    versions: [{ revision: 'v1', label: english.revisions.v1, url: '/schemas/igsn/2.0/v1/docs' }],
     copy: english.interface,
     introduction: english.introduction,
     notes: english.compatibility.v1,
@@ -85,11 +90,21 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('public IGSN Core documentation', () => {
-    it('starts with a plain English guide and a real schema download', () => {
+    it('offers the complete recommended citation and copies it with its DOI', async () => {
+        const user = userEvent.setup();
+        const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+        render(<IgsnCoreDocs documentation={props} />);
+        expect(screen.getByRole('link', { name: english.interface.citationLink })).toHaveAttribute('href', '#schema-citation');
+        expect(screen.getByRole('region', { name: english.interface.citationTitle })).toHaveTextContent(english.citation.text);
+        expect(screen.getByRole('link', { name: english.citation.url })).toHaveAttribute('href', english.citation.url);
+        await user.click(screen.getByRole('button', { name: 'Copy citation' }));
+        expect(write).toHaveBeenCalledWith(`${english.citation.text} ${english.citation.url}`);
+    });
+
+    it('starts with a plain English guide and the published documentation version', () => {
         render(<IgsnCoreDocs documentation={props} />);
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('IGSN Core XML');
         expect(screen.getByRole('heading', { name: english.introduction.title })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Download XSD' })).toHaveAttribute('href', props.schemaUrl);
         expect(screen.getByLabelText('Documentation version')).toHaveValue('v1');
     });
 
@@ -105,6 +120,32 @@ describe('public IGSN Core documentation', () => {
         expect(window.location.hash).toBe(`#${sampleId}`);
         await user.click(screen.getByText('Allowed values (1)'));
         expect(screen.getByText('ExampleVocabulary')).toBeVisible();
+    });
+
+    it.each(['igsn:sampletScheme', 'sampleTypeScheme'])(
+        'opens the element for attribute %s when the search is submitted with Enter',
+        async (query) => {
+            const user = userEvent.setup();
+            render(<IgsnCoreDocs documentation={props} />);
+            await user.type(screen.getByRole('searchbox'), query);
+            await user.keyboard('{Enter}');
+            expect(screen.getByRole('heading', { name: 'Sample type', level: 2 })).toBeVisible();
+            expect(window.location.hash).toBe(`#${sampleId}`);
+            expect(screen.getByRole('main')).toHaveFocus();
+            expect(screen.getByRole('button', { name: 'Open schema navigation' })).toHaveAttribute('aria-expanded', 'false');
+        },
+    );
+
+    it.each(['', '   ', 'does-not-exist'])('keeps the current view when submitting the search %j without matches', async (query) => {
+        const user = userEvent.setup();
+        render(<IgsnCoreDocs documentation={props} />);
+        const search = screen.getByRole('searchbox');
+        await user.click(search);
+        if (query) await user.type(search, query);
+        await user.keyboard('{Enter}');
+        expect(screen.getByRole('heading', { name: english.introduction.title })).toBeVisible();
+        expect(window.location.hash).toBe('');
+        expect(search).toHaveFocus();
     });
 
     it('filters optional elements, reports no results and can reset the search', async () => {

@@ -18,17 +18,15 @@ test('offers an anonymous catalogue whose metadata documentation and revision fi
         $this->get($entry['manifestUrl'])->assertOk();
     }
 
-    expect($response->inertiaProps('catalog.supporting.artifactUrl'))->toBe(url('/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd'));
-    expect(is_file(public_path('schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd')))->toBeTrue();
-    $this->get($response->inertiaProps('catalog.supporting.documentationUrl'))->assertOk();
+    expect($response->inertiaProps('catalog'))->not->toHaveKey('guidance')->not->toHaveKey('supporting');
 });
 
 test('follows the configured published revision and falls back to English for the catalogue', function () {
-    config(['app.locale' => 'de', 'igsn_core.revision' => 'preview-1']);
+    config(['app.locale' => 'de', 'igsn_core.revision' => 'v2']);
 
     $this->get('/schemas/docs')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('catalog.locale', 'en')
-        ->where('catalog.entries.0.revision', 'preview-1')
-        ->where('catalog.entries.0.fixedArtifactUrl', url('/schemas/igsn/2.0/preview-1/core.xsd'))
+        ->where('catalog.entries.0.revision', 'v2')
+        ->where('catalog.entries.0.fixedArtifactUrl', url('/schemas/igsn/2.0/v2/core.xsd'))
         ->where('catalog.entries.1.revision', config('datacite.schemas.revision')));
 });

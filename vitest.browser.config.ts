@@ -27,6 +27,8 @@ export default defineProject({
     },
     test: {
         ...testPolicy,
+        // Use IPv4 explicitly so browser clients reach the same loopback listener on Windows.
+        api: { host: '127.0.0.1' },
         name: 'browser',
         sequence: { groupOrder: 1 },
         include: ['tests/vitest-browser/**/*.{test,spec}.{js,ts,jsx,tsx}'],

@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@tests/vitest/utils/render';
+import type { AnchorHTMLAttributes } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DataCiteDocs from '@/pages/schemas/datacite-docs';
@@ -9,7 +10,10 @@ import type { SchemaDocumentation, SchemaField } from '@/types/schema-documentat
 
 import english from '../../../../resources/data/schema-docs/datacite/4.7/en.json';
 
-vi.mock('@inertiajs/react', () => ({ Head: () => null }));
+vi.mock('@inertiajs/react', () => ({
+    Head: () => null,
+    Link: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
+}));
 vi.mock('@/components/app-footer', () => ({ AppFooter: () => <footer>GFZ Data Services</footer> }));
 
 const field = (id: string, name: string, extra: Partial<SchemaField> = {}): SchemaField => ({
@@ -56,7 +60,8 @@ const doc: SchemaDocumentation = {
     manifestUrl: '/schemas/datacite/4.7/v1/manifest.json',
     sourceUrl: 'https://schema.datacite.org/meta/kernel-4.7/',
     publicationUrl: 'https://doi.org/10.14454/qdd3-ps68',
-    versions: [{ revision: 'v1', label: '4.7 · Profile v1', url: '/schemas/datacite/4.7/v1/docs/json' }],
+    citation: english.citation,
+    versions: [{ revision: 'v1', label: english.revisions.v1, url: '/schemas/datacite/4.7/v1/docs/json' }],
     copy: english.interface,
     introduction: english.introduction.json,
     notes: english.notes,
@@ -80,6 +85,7 @@ const overview: DataCiteDocsOverview = {
     manifestUrl: doc.manifestUrl,
     sourceUrl: doc.sourceUrl,
     igsnUrl: '/schemas/igsn/2.0/docs',
+    citation: english.citation,
 };
 
 beforeEach(() => {
@@ -88,12 +94,31 @@ beforeEach(() => {
 });
 
 describe('DataCite documentation', () => {
+    it('keeps the full DataCite citation available when a field is selected', () => {
+        window.history.replaceState({}, '', '#datacite-creators-name');
+        render(<DataCiteDocs documentation={doc} />);
+        expect(screen.getByRole('region', { name: english.interface.citationTitle })).toHaveTextContent(english.citation.text);
+        expect(screen.getByRole('link', { name: english.citation.url })).toHaveAttribute('href', english.citation.url);
+        expect(screen.getByRole('link', { name: english.interface.citationLink })).toHaveAttribute('href', '#schema-citation');
+    });
+
     it('offers both format guides and explains their different validation roles', () => {
         render(<DataCiteOverview documentation={overview} />);
         expect(screen.getByRole('link', { name: 'Explore JSON' })).toHaveAttribute('href', '/schemas/datacite/4.7/docs/json');
         expect(screen.getByRole('link', { name: 'Explore JSON-LD' })).toHaveAttribute('href', '/schemas/datacite/4.7/docs/jsonld');
         expect(screen.getByText(/does not check DataCite required fields/)).toBeVisible();
         expect(screen.getByRole('link', { name: 'IGSN Core XML guide' })).toHaveAttribute('href', '/schemas/igsn/2.0/docs');
+        expect(screen.getByRole('region', { name: english.interface.citationTitle })).toHaveTextContent(english.citation.text);
+    });
+
+    it.each(['json', 'jsonld'] as const)('opens the first matching %s field with Enter', async (format) => {
+        const user = userEvent.setup();
+        render(<DataCiteDocs documentation={{ ...doc, format }} />);
+        await user.type(screen.getByRole('searchbox'), 'name');
+        await user.keyboard('{Enter}');
+        expect(screen.getByRole('heading', { name: 'Creator name', level: 2 })).toBeVisible();
+        expect(window.location.hash).toBe('#datacite-creators-name');
+        expect(screen.getByRole('main')).toHaveFocus();
     });
 
     it('keeps the selected DataCite field in the format-switch link', async () => {
@@ -183,6 +208,8 @@ describe('DataCite documentation', () => {
             />,
         );
         await user.type(screen.getByRole('searchbox'), 'poster');
-        expect(within(screen.getByRole('navigation', { name: 'In this profile' })).getByRole('link', { name: /General resource type/ })).toBeVisible();
+        expect(
+            within(screen.getByRole('navigation', { name: 'In this profile' })).getByRole('link', { name: /General resource type/ }),
+        ).toBeVisible();
     });
 });

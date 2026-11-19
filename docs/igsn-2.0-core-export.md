@@ -21,22 +21,16 @@ The original Core XSD has SHA-256
 `29e3cd836ae3ec2779599d85bb083a7118d44bb739c519dce7adb139c0d2c90b`.
 Its original bytes are retained under that commit's `upstream/` directory.
 
-The separately named older repository, `IGSN-Schema-by-GFZ-Data-Services`, still
-points to the earlier October snapshot. Our former copy accurately represented
-that snapshot, but it differs from the released schema linked by the PDF.
-
 ## Publication and portability
 
 - Current schema: `https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd`
 - Fixed release: `https://dataservices.gfz.de/schemas/igsn/2.0/v1/core.xsd`
 - Public guide: `https://dataservices.gfz.de/schemas/igsn/2.0/docs`
 - Fixed guide: `https://dataservices.gfz.de/schemas/igsn/2.0/v1/docs`
-- Earlier schema and guide: the same paths under `preview-1/`.
 
-The existing `preview-1/` schema files and their checksums are unchanged. The short
-alias now follows `v1` in `config/igsn_core.php`. Both packages contain all thirteen
-required XSDs, a manifest and a README. The twelve adapted DataCite dependencies
-are byte-identical between these source snapshots.
+The short alias follows the published `v1` in `config/igsn_core.php`. The package
+contains all thirteen required XSDs, a manifest and a README. Only published
+revisions are offered through the public schema and documentation routes.
 
 The new upstream Core file has an invalid DataCite `schemaLocation` containing a
 namespace and the Core schema URL. The portable copy changes only that import to

@@ -9,14 +9,16 @@ use App\Services\Igsn\Export\IgsnCoreXmlValidator;
 covers(IgsnCoreXmlValidator::class, IgsnCoreSchemaResolver::class, IgsnCoreValidationResult::class);
 
 test('changes only the Core import location and retains exact upstream dependency bytes', function () {
-    $directory = app(IgsnCoreSchemaResolver::class)->directory('preview-1');
+    $directory = app(IgsnCoreSchemaResolver::class)->directory('v1');
     $manifest = json_decode(file_get_contents($directory.'/manifest.json'), true, flags: JSON_THROW_ON_ERROR);
     $originalDirectory = resource_path('data/scheme/igsn-core/2.0/'.$manifest['commit'].'/upstream');
+    // The unchanged DataCite dependencies are archived with their original source commit.
+    $dependencyDirectory = resource_path('data/scheme/igsn-core/2.0/321df7287f8540960b99aeb55113cbf22274380c/upstream');
     foreach ($manifest['files'] as $file) {
-        $original = file_get_contents($originalDirectory.'/'.$file['upstream_path']);
+        $original = file_get_contents(($file['path'] === 'core.xsd' ? $originalDirectory : $dependencyDirectory).'/'.$file['upstream_path']);
         expect(hash('sha256', $original))->toBe($file['upstream_sha256']);
         if ($file['path'] === 'core.xsd') {
-            $original = str_replace('X:\\IGSN\\DataCiteSchema4-7\\kernel-4.7\\metadata.xsd', 'DataCite4.7/metadata.xsd', $original, $count);
+            $original = str_replace('schemaLocation="urn:FAIR-AIMS:Core:1 https://dataservices.gfz.de/schemas/igsn/2.0/core.xsd"', 'schemaLocation="DataCite4.7/metadata.xsd"', $original, $count);
             expect($count)->toBe(1);
         }
         expect(file_get_contents($directory.'/'.$file['path']))->toBe($original);

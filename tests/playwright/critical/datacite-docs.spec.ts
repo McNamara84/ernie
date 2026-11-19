@@ -12,7 +12,7 @@ test('the public guide connects the JSON and JSON-LD references for the same fie
     }
     await page.getByRole('link', { name: 'Explore JSON', exact: true }).click();
     await page.getByRole('searchbox', { name: 'Search the fields' }).fill('resourceTypeGeneral');
-    await page.getByRole('navigation', { name: 'In this profile' }).locator('a[href="#datacite-types-resourceTypeGeneral"]').click();
+    await page.getByRole('searchbox', { name: 'Search the fields' }).press('Enter');
     await expect(page.getByRole('heading', { name: 'General resource type', level: 2 })).toBeVisible();
     await expect(page.getByText('Poster', { exact: true })).toBeVisible();
     const switcher = page.getByRole('link', { name: 'JSON-LD', exact: true });
@@ -20,8 +20,15 @@ test('the public guide connects the JSON and JSON-LD references for the same fie
     await switcher.click();
     await expect(page.getByText('$.resourceType.attrs.resourceTypeGeneral', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Linked Data meaning' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Cite the DataCite metadata standard' })).toContainText('DataCite Metadata Working Group. (2026).');
     await page.reload();
     await expect(page.getByRole('heading', { name: 'General resource type', level: 2 })).toBeVisible();
+    await page.getByRole('button', { name: 'Start here', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'General resource type', level: 2 })).toHaveCount(0);
+    await page.getByRole('searchbox', { name: 'Search the fields' }).fill('resourceTypeGeneral');
+    await page.getByRole('searchbox', { name: 'Search the fields' }).press('Enter');
+    await expect(page.getByRole('heading', { name: 'General resource type', level: 2 })).toBeVisible();
+    await expect(page.getByRole('main')).toBeFocused();
     if (testInfo.project.name === 'chromium') {
         expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
         await page.screenshot({ path: testInfo.outputPath('datacite-jsonld-reference.png'), fullPage: true });

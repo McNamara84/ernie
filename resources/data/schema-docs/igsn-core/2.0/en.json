@@ -1,16 +1,23 @@
 {
     "revisions": {
-        "v1": "2.0 · Published schema",
-        "preview-1": "Earlier schema snapshot"
+        "v1": "2.0 (current)"
+    },
+    "citation": {
+        "text": "Antipanova, T., Wieczorek, M., Heim, B., Krahl, R., Rial, K., Brauser, A., Sedeqi, M. R., Elger, K. (2026). FAIR AIMS- Automated IGSN Management System D2- IGSN Metadata Schema 2.0 by GFZ Data Services: xsd and documentation of the Core Schema (GFZ, AWI, HZB). Zenodo.",
+        "url": "https://doi.org/10.5281/zenodo.23831602"
     },
     "interface": {
+        "breadcrumb": "IGSN / Core / Schema",
+        "schemaActions": "Schema tools",
+        "citationTitle": "Recommended citation",
+        "citationLink": "How to cite this schema",
+        "copyCitation": "Copy citation",
         "allSchemas": "All schemas",
         "brand": "GFZ Data Services",
         "standards": "Schema documentation",
         "title": "IGSN Core XML",
-        "tagline": "A common language for physical samples.",
+        "tagline": "An extensible schema for physical samples.",
         "lead": "Explore the IGSN Core 2.0 schema. Find a field, understand its rules, and start with a working XML example.",
-        "downloadSchema": "Download XSD",
         "schemaSource": "Schema source",
         "publication": "Original publication",
         "search": "Search the schema",
@@ -136,12 +143,6 @@
             {
                 "title": "Polygon coordinates",
                 "description": "Put coordinateSystem on each polygonPoint. Follow the exact attribute and namespace placement in the XML example."
-            }
-        ],
-        "preview-1": [
-            {
-                "title": "An earlier snapshot",
-                "description": "This fixed reference describes the earlier schema. It includes separate creators and archives, and has no sampleType element. Open the published 2.0 reference to work with the newer schema."
             }
         ]
     },
@@ -324,26 +325,6 @@
         "language": {
             "label": "Metadata language",
             "description": "The main language of the sample metadata."
-        },
-        "creator": {
-            "label": "Creator",
-            "description": "A main person or organisation responsible for the sample in this earlier schema."
-        },
-        "creatorName": {
-            "label": "Creator name",
-            "description": "The full name of the person or organisation."
-        },
-        "archives": {
-            "label": "Sample archive",
-            "description": "The archive that currently holds the sample in this earlier schema."
-        },
-        "archive": {
-            "label": "Archive",
-            "description": "A place or organisation that holds the sample."
-        },
-        "archiveName": {
-            "label": "Archive name",
-            "description": "The name of the archive."
         }
     },
     "attributes": {

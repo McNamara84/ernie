@@ -89,6 +89,7 @@ final class IgsnCoreDocumentationService
             'manifestUrl' => $this->schemas->url('manifest.json', $revision),
             'sourceUrl' => 'https://github.com/'.$manifest['repository'].'/blob/'.$manifest['commit'].'/IGSN_Core_by_GFZ_DataServices.xsd',
             'publicationUrl' => 'https://doi.org/10.5281/zenodo.23831602',
+            'citation' => $this->content['citation'],
             'versions' => array_map(fn (string $key): array => [
                 'revision' => $key,
                 'label' => $this->content['revisions'][$key] ?? $key,

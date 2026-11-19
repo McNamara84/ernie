@@ -1,3 +1,5 @@
+import type { SchemaCitation } from './schema-documentation';
+
 export interface DataCiteDocsOverview {
     locale: string;
     revision: string;
@@ -23,4 +25,5 @@ export interface DataCiteDocsOverview {
     manifestUrl: string;
     sourceUrl: string;
     igsnUrl: string;
+    citation?: SchemaCitation;
 }

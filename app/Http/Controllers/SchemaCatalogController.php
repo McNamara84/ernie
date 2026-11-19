@@ -38,12 +38,6 @@ final class SchemaCatalogController extends Controller
         return Inertia::render('schemas/catalog', [
             'catalog' => [
                 'locale' => $locale, 'copy' => $content['interface'], 'entries' => $entries,
-                'guidance' => $content['guidance'],
-                'supporting' => [
-                    ...$content['supporting'],
-                    'artifactUrl' => url('/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd'),
-                    'documentationUrl' => route('oaipmh.docs'),
-                ],
             ],
         ]);
     }

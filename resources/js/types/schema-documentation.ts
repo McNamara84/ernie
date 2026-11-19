@@ -36,6 +36,11 @@ export interface SchemaField {
     semantic?: { iri?: string; valueType?: string; container?: string; vocabulary?: string };
 }
 
+export interface SchemaCitation {
+    text: string;
+    url: string;
+}
+
 export interface SchemaDocumentation {
     syntax: 'xml' | 'json';
     fileExtension: 'xml' | 'json' | 'jsonld';
@@ -57,6 +62,7 @@ export interface SchemaDocumentation {
     manifestUrl: string;
     sourceUrl: string;
     publicationUrl: string;
+    citation?: SchemaCitation;
     versions: { revision: string; label: string; url: string }[];
     copy: Record<string, string>;
     introduction: {

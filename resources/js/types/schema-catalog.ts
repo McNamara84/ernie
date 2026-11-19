@@ -15,12 +15,4 @@ export interface SchemaCatalog {
         fixedArtifactUrl: string;
         manifestUrl: string;
     }[];
-    guidance: { title: string; description: string }[];
-    supporting: {
-        title: string;
-        kind: string;
-        description: string;
-        artifactUrl: string;
-        documentationUrl: string;
-    };
 }

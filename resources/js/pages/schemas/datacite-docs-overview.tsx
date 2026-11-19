@@ -5,6 +5,8 @@ import { Head } from '@inertiajs/react';
 import { ArrowRight, Braces, ExternalLink, FileJson } from 'lucide-react';
 
 import { AppFooter } from '@/components/app-footer';
+import { PortalHeader } from '@/components/portal/PortalHeader';
+import SchemaCitationBlock from '@/components/schema-documentation/SchemaCitationBlock';
 import type { DataCiteDocsOverview } from '@/types/datacite-docs';
 
 export default function DataCiteDocsOverviewPage({ documentation: doc }: { documentation: DataCiteDocsOverview }) {
@@ -14,55 +16,51 @@ export default function DataCiteDocsOverviewPage({ documentation: doc }: { docum
             <Head title={`${home.title} ${doc.version} — ${c.standards}`}>
                 <meta name="description" content={home.lead} />
             </Head>
-            <header className="igsn-doc-header">
-                <div className="igsn-doc-header-inner">
-                    <a href="/" className="igsn-doc-brand">
-                        <span className="igsn-gfz-mark">GFZ</span>
-                        <span>
-                            <strong>{c.brand}</strong>
-                            <small>{c.standards}</small>
-                        </span>
-                    </a>
-                    <div className="igsn-doc-header-links schema-doc-with-catalog">
-                        <a href={doc.sourceUrl} target="_blank" rel="noreferrer">
-                            {c.schemaSource}
-                            <ExternalLink size={13} />
-                        </a>
-                        <a href="/schemas/docs">{c.allSchemas}</a>
-                    </div>
-                </div>
-            </header>
+            <PortalHeader portalKind="schemas" />
             <div className="igsn-doc-hero">
                 <div className="igsn-doc-hero-inner">
-                    <div className="igsn-doc-eyebrow">
-                        <span className="igsn-status-dot" />
-                        {c.eyebrow} <span>/</span>
-                        {c.standards}
-                        <span className="igsn-version-pill">{doc.version}</span>
+                    <div className="schema-doc-hero-top">
+                        <div className="igsn-doc-eyebrow">
+                            <span className="igsn-status-dot" />
+                            {c.eyebrow} <span>/</span>
+                            {c.standards}
+                            <span className="igsn-version-pill">{doc.version}</span>
+                        </div>
+                        <nav className="schema-doc-actions" aria-label={c.schemaActions}>
+                            <a href={doc.sourceUrl} target="_blank" rel="noreferrer">
+                                {c.schemaSource}
+                                <ExternalLink size={13} aria-hidden="true" />
+                            </a>
+                            <a href="/schemas/docs">{c.allSchemas}</a>
+                        </nav>
                     </div>
-                    <h1>
-                        {home.title}
-                        <span>{home.tagline}</span>
-                    </h1>
-                    <p>{home.lead}</p>
-                    <div className="igsn-doc-controls">
-                        <label className="igsn-doc-version">
-                            <span className="sr-only">{c.selectVersion}</span>
-                            <select
-                                aria-label={c.selectVersion}
-                                value={doc.revision}
-                                onChange={(event) => {
-                                    const next = doc.versions.find((version) => version.revision === event.target.value);
-                                    if (next) window.location.assign(next.url);
-                                }}
-                            >
-                                {doc.versions.map((version) => (
-                                    <option key={version.revision} value={version.revision}>
-                                        {version.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                    <div className="schema-doc-hero-content">
+                        <div className="schema-doc-heading">
+                            <h1>
+                                {home.title}
+                                <span>{home.tagline}</span>
+                            </h1>
+                            <div className="igsn-doc-controls">
+                                <label className="igsn-doc-version">
+                                    <span className="sr-only">{c.selectVersion}</span>
+                                    <select
+                                        aria-label={c.selectVersion}
+                                        value={doc.revision}
+                                        onChange={(event) => {
+                                            const next = doc.versions.find((version) => version.revision === event.target.value);
+                                            if (next) window.location.assign(next.url);
+                                        }}
+                                    >
+                                        {doc.versions.map((version) => (
+                                            <option key={version.revision} value={version.revision}>
+                                                {version.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+                        {doc.citation && <SchemaCitationBlock citation={doc.citation} copy={c} />}
                     </div>
                 </div>
             </div>
@@ -95,8 +93,6 @@ export default function DataCiteDocsOverviewPage({ documentation: doc }: { docum
                     ))}
                 </section>
                 <div className="schema-doc-home-links">
-                    <a href={doc.schemaUrl}>{c.downloadSchema}</a>
-                    <a href={doc.contextUrl}>{c.contextDownload}</a>
                     <a href={doc.sourceUrl} target="_blank" rel="noreferrer">
                         {home.source}
                     </a>

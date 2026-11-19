@@ -40,66 +40,11 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.83em;
 }
-.igsn-doc-header {
-    border-bottom: 1px solid var(--igsn-line);
-}
-.igsn-doc-header-inner {
-    max-width: 1490px;
-    min-height: 76px;
-    padding: 12px 40px;
-    margin: auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-}
-.igsn-doc-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    text-decoration: none;
-}
-.igsn-gfz-mark {
-    font-size: 30px;
-    font-weight: 800;
-    letter-spacing: -0.07em;
-    color: var(--igsn-blue);
-    padding-right: 14px;
-    border-right: 1px solid var(--igsn-line);
-}
-.igsn-doc-brand strong,
-.igsn-doc-brand small {
-    display: block;
-    line-height: 1.45;
-}
-.igsn-doc-brand strong {
-    font-size: 15px;
-    font-weight: 650;
-}
-.igsn-doc-brand small {
-    color: var(--igsn-muted);
-    font-size: 13px;
-}
-.igsn-doc-header-links {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    font-size: 14px;
-}
-.igsn-doc-header-links a,
-.igsn-doc-download,
 .igsn-doc-primary-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-}
-.igsn-doc-download {
-    border: 1px solid var(--igsn-line);
-    border-radius: 6px;
-    padding: 8px 12px;
-    background: var(--igsn-wash);
-    font-weight: 600;
 }
 .igsn-doc-hero {
     border-bottom: 1px solid var(--igsn-line);
@@ -108,7 +53,7 @@
 .igsn-doc-hero-inner {
     max-width: 1490px;
     margin: auto;
-    padding: 37px 40px 31px;
+    padding: 24px 40px 22px;
 }
 .igsn-doc-eyebrow {
     display: flex;
@@ -134,8 +79,8 @@
     letter-spacing: 0;
 }
 .igsn-doc-hero h1 {
-    margin-top: 17px;
-    font-size: clamp(28px, 3.2vw, 42px);
+    margin-top: 12px;
+    font-size: clamp(28px, 2.6vw, 36px);
     line-height: 1.14;
     letter-spacing: -0.04em;
     font-weight: 750;
@@ -144,21 +89,15 @@
     display: block;
     color: var(--igsn-muted);
     font-weight: 450;
-    font-size: clamp(21px, 2.1vw, 29px);
+    font-size: clamp(18px, 1.6vw, 22px);
     letter-spacing: -0.025em;
-    margin-top: 7px;
-}
-.igsn-doc-hero p {
-    color: var(--igsn-muted);
-    max-width: 680px;
-    font-size: 16px;
-    margin-top: 15px;
+    margin-top: 6px;
 }
 .igsn-doc-controls {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-top: 24px;
+    margin-top: 18px;
 }
 .igsn-doc-search {
     display: flex;
@@ -201,11 +140,11 @@
     max-width: 225px;
 }
 .igsn-doc-shell {
-    max-width: 1490px;
+    max-width: 1920px;
     margin: auto;
     padding: 34px 40px 72px;
     display: grid;
-    grid-template-columns: 222px minmax(0, 1fr) 340px;
+    grid-template-columns: 222px minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
     gap: 36px;
 }
@@ -932,7 +871,7 @@
 }
 @media (min-width: 1700px) {
     .igsn-doc-shell {
-        grid-template-columns: 235px minmax(0, 1fr) 370px;
+        grid-template-columns: 235px minmax(0, 1fr) minmax(0, 1fr);
         gap: 45px;
     }
 }
@@ -953,45 +892,15 @@
     }
 }
 @media (max-width: 700px) {
-    .igsn-doc-header-inner {
-        padding: 12px 20px;
-        min-height: 66px;
-    }
-    .igsn-doc-header-links > a:first-child {
-        display: none;
-    }
-    .igsn-doc-header-links {
-        gap: 5px;
-    }
-    .igsn-doc-download {
-        font-size: 12px;
-        padding: 7px 9px;
-    }
-    .igsn-gfz-mark {
-        font-size: 26px;
-        padding-right: 10px;
-    }
-    .igsn-doc-brand {
-        gap: 10px;
-    }
-    .igsn-doc-brand strong {
-        font-size: 13px;
-    }
-    .igsn-doc-brand small {
-        font-size: 11px;
-    }
     .igsn-doc-hero-inner {
-        padding: 27px 20px;
+        padding: 20px;
     }
     .igsn-doc-hero h1 {
-        font-size: 33px;
+        font-size: 30px;
     }
     .igsn-doc-hero h1 span {
-        font-size: 23px;
+        font-size: 20px;
         line-height: 1.3;
-    }
-    .igsn-doc-hero p {
-        font-size: 14px;
     }
     .igsn-doc-controls {
         flex-direction: column;
@@ -1074,7 +983,8 @@
         background: #fff;
     }
     .igsn-doc-sidebar,
-    .igsn-doc-header-links,
+    .igsn-docs [data-slot='portal-header'],
+    .schema-doc-actions,
     .igsn-doc-controls,
     .igsn-mobile-menu,
     .igsn-copy-control,

@@ -158,7 +158,7 @@ test('serves portable schemas with revalidated aliases and immutable revision UR
     foreach (['manifest.json', 'README.md'] as $path) {
         $this->get($schemas->url($path, $revision))->assertOk();
     }
-})->with([null, 'v1', 'preview-1']);
+})->with([null, 'v1']);
 
 test('validates exported XML using only downloaded schemas and the standard XML loader', function (?string $revision) {
     $page = coreLandingPage();
@@ -202,10 +202,7 @@ test('validates exported XML using only downloaded schemas and the standard XML 
             }
         }
         expect($downloaded)->toHaveCount(13);
-        $documents = [file_get_contents(resource_path('data/schema-docs/igsn-core/2.0/'.($revision ?? 'v1').'/full.xml'))];
-        if ($revision !== 'preview-1') {
-            $documents[] = $xml;
-        }
+        $documents = [file_get_contents(resource_path('data/schema-docs/igsn-core/2.0/'.($revision ?? 'v1').'/full.xml')), $xml];
         foreach ($documents as $documentXml) {
             $document = new DOMDocument;
             expect($document->loadXML($documentXml, LIBXML_NONET))->toBeTrue();
@@ -221,7 +218,7 @@ test('validates exported XML using only downloaded schemas and the standard XML 
         libxml_use_internal_errors($previousErrors);
         File::deleteDirectory($directory);
     }
-})->with([null, 'v1', 'preview-1']);
+})->with([null, 'v1']);
 
 test('updates the short alias without changing existing revision URLs or reusing stale ETags', function () {
     $alias = '/schemas/igsn/2.0/core.xsd';
@@ -231,7 +228,7 @@ test('updates the short alias without changing existing revision URLs or reusing
     File::copyDirectory(app(IgsnCoreSchemaResolver::class)->directory(), $directory);
     try {
         $manifest = json_decode(file_get_contents($directory.'/manifest.json'), true, flags: JSON_THROW_ON_ERROR);
-        $manifest['revision'] = 'preview-2';
+        $manifest['revision'] = 'v2';
         $bytes = file_get_contents($directory.'/core.xsd')."\n<!-- Next revision fixture. -->\n";
         file_put_contents($directory.'/core.xsd', $bytes);
         foreach ($manifest['files'] as &$file) {
@@ -242,11 +239,11 @@ test('updates the short alias without changing existing revision URLs or reusing
         }
         unset($file);
         file_put_contents($directory.'/manifest.json', json_encode($manifest, JSON_THROW_ON_ERROR));
-        config(['igsn_core.revision' => 'preview-2', 'igsn_core.revisions.preview-2' => $directory]);
+        config(['igsn_core.revision' => 'v2', 'igsn_core.revisions.v2' => $directory]);
         $updated = $this->get($alias, ['If-None-Match' => $etag])->assertOk();
         expect($updated->headers->get('ETag'))->not->toBe($etag);
         $this->get($fixed, ['If-None-Match' => $etag])->assertStatus(304);
-        $this->head('/schemas/igsn/2.0/preview-2/core.xsd')->assertOk()
+        $this->head('/schemas/igsn/2.0/v2/core.xsd')->assertOk()
             ->assertHeader('ETag', $updated->headers->get('ETag'));
     } finally {
         File::deleteDirectory($directory);
@@ -254,7 +251,7 @@ test('updates the short alias without changing existing revision URLs or reusing
 });
 
 test('does not expose unlisted files or retired validation helpers', function (string $path) {
-    foreach ([null, 'preview-1'] as $revision) {
+    foreach ([null, 'v1'] as $revision) {
         $this->get(app(IgsnCoreSchemaResolver::class)->url($path, $revision))->assertNotFound();
     }
 })->with(['.env', 'upstream/IGSN_Core_by_GFZ_DataServices.xsd', 'DataCite4.7/include/../../../../.env', 'IGSN_Geo_by_GFZ_DataServices.xsd', 'igsn/1.3/metadata.xsd', 'IGSN_Core_by_GFZ_DataServices.xsd', 'validation.xsd', 'catalog.xml']);
@@ -263,6 +260,13 @@ test('removed snapshot URLs and unknown revisions return 404 without redirects',
     $this->get('/schemas/igsn/2.0/'.$path)->assertNotFound()->assertHeaderMissing('Location');
     $this->head('/schemas/igsn/2.0/'.$path)->assertNotFound()->assertHeaderMissing('Location');
 })->with([
+    'preview-1/core.xsd',
+    'preview-1/manifest.json',
+    'preview-1/README.md',
+    'preview-1/DataCite4.7/metadata.xsd',
+    'preview-1/docs',
+    'preview-1/docs/examples/minimal.xml',
+    'preview-1/docs/examples/full.xml',
     'core/321df7287f8540960b99aeb55113cbf22274380c/IGSN_Core_by_GFZ_DataServices.xsd',
     'core/321df7287f8540960b99aeb55113cbf22274380c/DataCite4.7/metadata.xsd',
     'core/321df7287f8540960b99aeb55113cbf22274380c/validation.xsd',

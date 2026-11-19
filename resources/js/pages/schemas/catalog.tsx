@@ -5,6 +5,7 @@ import { Head } from '@inertiajs/react';
 import { BookOpen, Braces, CodeXml, Network } from 'lucide-react';
 
 import { AppFooter } from '@/components/app-footer';
+import { PortalHeader } from '@/components/portal/PortalHeader';
 import type { SchemaCatalog } from '@/types/schema-catalog';
 
 export default function SchemaCatalogPage({ catalog }: { catalog: SchemaCatalog }) {
@@ -14,30 +15,9 @@ export default function SchemaCatalogPage({ catalog }: { catalog: SchemaCatalog 
             <Head title={`${c.title} — ${c.brand}`}>
                 <meta name="description" content={c.lead} />
             </Head>
-            <header className="igsn-doc-header">
-                <div className="igsn-doc-header-inner">
-                    <a href="/" className="igsn-doc-brand">
-                        <span className="igsn-gfz-mark">GFZ</span>
-                        <span>
-                            <strong>{c.brand}</strong>
-                            <small>{c.standards}</small>
-                        </span>
-                    </a>
-                </div>
-            </header>
-            <div className="igsn-doc-hero">
-                <div className="igsn-doc-hero-inner">
-                    <div className="igsn-doc-eyebrow">{c.eyebrow}</div>
-                    <h1>
-                        {c.title}
-                        <span>{c.tagline}</span>
-                    </h1>
-                    <p>{c.lead}</p>
-                </div>
-            </div>
+            <PortalHeader portalKind="schemas" />
             <main className="schema-doc-home">
-                <h2>{c.heading}</h2>
-                <p>{c.description}</p>
+                <h1 className="sr-only">{c.title}</h1>
                 <div className="schema-catalog-cards">
                     {catalog.entries.map((entry) => {
                         const Icon = entry.format === 'XML' ? CodeXml : entry.format === 'JSON' ? Braces : Network;
@@ -47,7 +27,7 @@ export default function SchemaCatalogPage({ catalog }: { catalog: SchemaCatalog 
                                     <Icon size={28} aria-hidden="true" />
                                     <span className="igsn-version-pill">{entry.version}</span>
                                 </div>
-                                <h3 id={`catalog-${entry.id}`}>{entry.title}</h3>
+                                <h2 id={`catalog-${entry.id}`}>{entry.title}</h2>
                                 <p className="schema-catalog-kind">{entry.kind}</p>
                                 <p className="schema-catalog-description">{entry.description}</p>
                                 <a
@@ -81,24 +61,6 @@ export default function SchemaCatalogPage({ catalog }: { catalog: SchemaCatalog 
                         );
                     })}
                 </div>
-                <section className="igsn-doc-guidance" aria-label={c.standards}>
-                    {catalog.guidance.map((item) => (
-                        <div key={item.title}>
-                            <h2>{item.title}</h2>
-                            <p>{item.description}</p>
-                        </div>
-                    ))}
-                </section>
-                <section className="schema-catalog-supporting" aria-labelledby="supporting-schemas">
-                    <h2 id="supporting-schemas">{c.supportingHeading}</h2>
-                    <h3>{catalog.supporting.title}</h3>
-                    <p className="schema-catalog-kind">{catalog.supporting.kind}</p>
-                    <p>{catalog.supporting.description}</p>
-                    <div className="schema-doc-home-links">
-                        <a href={catalog.supporting.artifactUrl}>{c.supportingFile}</a>
-                        <a href={catalog.supporting.documentationUrl}>{c.supportingDocs}</a>
-                    </div>
-                </section>
             </main>
             <AppFooter />
         </div>

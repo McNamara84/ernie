@@ -22,7 +22,9 @@ test('offers both DataCite guides publicly from current and fixed overviews', fu
     $this->get('/schemas/datacite/4.7/'.($revision === null ? '' : $revision.'/').'docs')->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('schemas/datacite-docs-overview')
             ->where('auth.user', null)->where('documentation.locale', 'en')
-            ->where('documentation.revision', 'v1')->has('documentation.formats', 2));
+            ->where('documentation.revision', 'v1')->has('documentation.formats', 2)
+            ->where('documentation.citation.url', 'https://doi.org/10.14454/qdd3-ps68')
+            ->where('documentation.citation.text', fn (string $text): bool => str_contains($text, 'DataCite Metadata Working Group. (2026).')));
 })->with([null, 'v1']);
 
 test('serves directly addressable public JSON and JSON-LD references for the selected revision', function (?string $revision, string $format) {
@@ -31,7 +33,8 @@ test('serves directly addressable public JSON and JSON-LD references for the sel
             ->where('auth.user', null)->where('documentation.format', $format)
             ->where('documentation.revision', 'v1')->where('documentation.syntax', 'json')
             ->where('documentation.referenceUrl', url('/schemas/datacite/4.7/v1/docs/'.$format))
-            ->has('documentation.fields')->has('documentation.validation.steps'));
+            ->has('documentation.fields')->has('documentation.validation.steps')
+            ->where('documentation.citation.url', 'https://doi.org/10.14454/qdd3-ps68'));
 })->with([null, 'v1'])->with(['json', 'jsonld']);
 
 test('derives JSON rules including references, alternatives and conditional rules from the published schema', function () {

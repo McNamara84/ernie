@@ -1,15 +1,22 @@
 {
     "revisions": {
-        "v1": "4.7 · Profile v1"
+        "v1": "4.7 (current)"
+    },
+    "citation": {
+        "text": "DataCite Metadata Working Group. (2026). DataCite Metadata Schema for the Publication and Citation of Research Data and Other Research Outputs. Version 4.7. DataCite e.V.",
+        "url": "https://doi.org/10.14454/qdd3-ps68"
     },
     "interface": {
+        "schemaActions": "Schema tools",
+        "citationTitle": "Cite the DataCite metadata standard",
+        "citationLink": "How to cite the standard",
+        "copyCitation": "Copy citation",
         "allSchemas": "All schemas",
         "brand": "GFZ Data Services",
         "standards": "Schema documentation",
         "title": "DataCite JSON",
-        "tagline": "Clear metadata, ready to share.",
+        "tagline": "A schema for research metadata.",
         "lead": "Explore the GFZ / ERNIE DataCite 4.7 attributes profile. Find a field, understand its rules, and start with a working example.",
-        "downloadSchema": "Download JSON Schema",
         "schemaSource": "DataCite 4.7",
         "publication": "Original publication",
         "search": "Search the fields",
@@ -111,12 +118,11 @@
         "maxProperties": "Maximum properties",
         "eyebrow": "GFZ / ERNIE PROFILE",
         "conditionalRules": "Conditional rules",
-        "showRule": "Show the schema rule",
-        "contextDownload": "JSON-LD context"
+        "showRule": "Show the schema rule"
     },
     "home": {
         "title": "DataCite JSON and JSON-LD",
-        "tagline": "One metadata standard. Two ways to share it.",
+        "tagline": "Research metadata in JSON and JSON-LD.",
         "lead": "Explore the GFZ / ERNIE profiles for DataCite 4.7. Choose JSON to work with metadata attributes, or JSON-LD to work with Linked Data.",
         "heading": "Choose the format you work with",
         "description": "Both views explain the same DataCite concepts. Their field paths, examples, and validation instructions follow the selected format.",
@@ -770,7 +776,7 @@
     "jsonldInterface": {
         "lead": "Explore the compact GFZ / ERNIE DataCite 4.7 profile. Find a field, follow its context meaning, and start with a working JSON-LD example.",
         "title": "DataCite JSON-LD",
-        "downloadSchema": "Download context",
+        "tagline": "Linked Data for research metadata.",
         "examples": "JSON-LD examples",
         "example": "JSON-LD example",
         "copy": "Copy JSON-LD",

@@ -2,58 +2,18 @@ import '../../../css/igsn-core-docs.css';
 import '../../../css/schema-documentation.css';
 
 import { Head } from '@inertiajs/react';
-import {
-    ArrowDownToLine,
-    ArrowRight,
-    BookOpen,
-    Check,
-    ChevronDown,
-    ChevronRight,
-    CodeXml,
-    Copy,
-    ExternalLink,
-    Link2,
-    Menu,
-    Search,
-    X,
-} from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, BookOpen, ChevronDown, ChevronRight, CodeXml, Copy, ExternalLink, Menu, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppFooter } from '@/components/app-footer';
+import { PortalHeader } from '@/components/portal/PortalHeader';
 import type { SchemaDocumentation, SchemaField } from '@/types/schema-documentation';
+
+import CopyButton from './CopyButton';
+import SchemaCitationBlock from './SchemaCitationBlock';
 
 type View = 'overview' | 'reference' | 'examples';
 type Filter = 'all' | 'required' | 'optional';
-
-function CopyButton({ text, copy, link = false }: { text: string; copy: Record<string, string>; link?: boolean }) {
-    const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
-    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    useEffect(() => () => clearTimeout(timer.current), []);
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(text);
-            setStatus('copied');
-            clearTimeout(timer.current);
-            timer.current = setTimeout(() => setStatus('idle'), 2200);
-        } catch {
-            setStatus('failed');
-        }
-    };
-    const Icon = status === 'copied' ? Check : link ? Link2 : Copy;
-    return (
-        <span className="igsn-copy-control">
-            <button type="button" onClick={() => void handleCopy()} aria-label={status === 'copied' ? copy.copied : link ? copy.copyLink : copy.copy}>
-                <Icon size={15} aria-hidden="true" />
-                {!link && <span>{status === 'copied' ? copy.copied : copy.copy}</span>}
-            </button>
-            {status === 'failed' && (
-                <span role="status" className="igsn-copy-error">
-                    {copy.copyFailed}
-                </span>
-            )}
-        </span>
-    );
-}
 
 function CodeBlock({ code, syntax }: { code: string; syntax: 'xml' | 'json' }) {
     if (syntax === 'json') {
@@ -208,6 +168,7 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
                 setSelected(hash);
                 setView('reference');
             } else if (hash === 'examples') setView('examples');
+            else if (hash === 'schema-citation') document.getElementById('schema-citation')?.scrollIntoView({ block: 'start', behavior: 'instant' });
             else if (doc.formats && hash.startsWith('datacite-')) {
                 setUnavailableField(true);
                 setView('overview');
@@ -248,97 +209,109 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
     const referenceUrl = doc.referenceUrl;
     const currentCode = view === 'reference' && field.example ? field.example : doc.examples.minimal.code;
     return (
-        <div className="igsn-docs" lang={doc.locale}>
+        <div className="igsn-docs schema-doc-explorer" lang={doc.locale}>
             <Head title={`${c.title} ${doc.version} — ${c.standards}`}>
                 <meta name="description" content={c.lead} />
             </Head>
-            <header className="igsn-doc-header">
-                <div className="igsn-doc-header-inner">
-                    <a href={doc.brandUrl ?? '/'} className="igsn-doc-brand">
-                        <span className="igsn-gfz-mark">GFZ</span>
-                        <span>
-                            <strong>{c.brand}</strong>
-                            <small>{c.standards}</small>
-                        </span>
-                    </a>
-                    <div className="igsn-doc-header-links schema-doc-with-catalog">
-                        <a href={doc.sourceUrl} target="_blank" rel="noreferrer">
-                            {c.schemaSource}
-                            <ExternalLink size={13} />
-                        </a>
-                        <a href="/schemas/docs">{c.allSchemas}</a>
-                        <a href={doc.schemaUrl} className="igsn-doc-download">
-                            <ArrowDownToLine size={15} />
-                            {c.downloadSchema}
-                        </a>
-                    </div>
-                </div>
-            </header>
+            <PortalHeader portalKind="schemas" />
             <div className="igsn-doc-hero">
                 <div className="igsn-doc-hero-inner">
-                    <div className="igsn-doc-eyebrow">
-                        <span className="igsn-status-dot" />
-                        {doc.eyebrow} <span>/</span> {c.standards} <span className="igsn-version-pill">{doc.version}</span>
-                    </div>
-                    <h1>
-                        {c.title}
-                        <span>{c.tagline}</span>
-                    </h1>
-                    <p>{c.lead}</p>
-                    {doc.formats && (
-                        <nav className="schema-doc-formats" aria-label={c.formatSwitcher}>
-                            {doc.overviewUrl && <a href={doc.overviewUrl}>{c.compareFormats}</a>}
-                            {doc.formats.map((format) => (
-                                <a
-                                    key={format.key}
-                                    href={format.url + (view === 'reference' ? `#${selected}` : view === 'examples' ? '#examples' : '')}
-                                    aria-current={format.key === doc.format ? 'page' : undefined}
-                                >
-                                    {format.label}
-                                </a>
-                            ))}
-                        </nav>
-                    )}
-                    <div className="igsn-doc-controls">
-                        <label className="igsn-doc-search">
-                            <Search size={19} aria-hidden="true" />
-                            <span className="sr-only">{c.search}</span>
-                            <input
-                                ref={input}
-                                type="search"
-                                aria-label={c.search}
-                                value={query}
-                                placeholder={c.searchPlaceholder}
-                                onChange={(event) => {
-                                    setQuery(event.target.value);
-                                    setMenuOpen(true);
-                                }}
-                            />
-                            {query ? (
-                                <button type="button" onClick={() => setQuery('')} aria-label={c.clearSearch}>
-                                    <X size={16} />
-                                </button>
+                    <div className="schema-doc-hero-top">
+                        <div className="igsn-doc-eyebrow">
+                            <span className="igsn-status-dot" />
+                            {c.breadcrumb ? (
+                                <span>{c.breadcrumb}</span>
                             ) : (
-                                <kbd>Ctrl K</kbd>
+                                <>
+                                    {doc.eyebrow} <span>/</span> {c.standards}
+                                </>
                             )}
-                        </label>
-                        <label className="igsn-doc-version">
-                            <span className="sr-only">{c.selectVersion}</span>
-                            <select
-                                aria-label={c.selectVersion}
-                                value={doc.revision}
-                                onChange={(event) => {
-                                    const next = doc.versions.find((version) => version.revision === event.target.value);
-                                    if (next) window.location.assign(next.url);
-                                }}
-                            >
-                                {doc.versions.map((version) => (
-                                    <option key={version.revision} value={version.revision}>
-                                        {version.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                            <span className="igsn-version-pill">{doc.version}</span>
+                        </div>
+                        <nav className="schema-doc-actions" aria-label={c.schemaActions}>
+                            <a href={doc.sourceUrl} target="_blank" rel="noreferrer">
+                                {c.schemaSource}
+                                <ExternalLink size={13} aria-hidden="true" />
+                            </a>
+                            <a href="/schemas/docs">{c.allSchemas}</a>
+                        </nav>
+                    </div>
+                    <div className="schema-doc-hero-content">
+                        <div className="schema-doc-heading">
+                            <h1>
+                                {c.title}
+                                <span>{c.tagline}</span>
+                            </h1>
+                            {doc.formats && (
+                                <nav className="schema-doc-formats" aria-label={c.formatSwitcher}>
+                                    {doc.overviewUrl && <a href={doc.overviewUrl}>{c.compareFormats}</a>}
+                                    {doc.formats.map((format) => (
+                                        <a
+                                            key={format.key}
+                                            href={format.url + (view === 'reference' ? `#${selected}` : view === 'examples' ? '#examples' : '')}
+                                            aria-current={format.key === doc.format ? 'page' : undefined}
+                                        >
+                                            {format.label}
+                                        </a>
+                                    ))}
+                                </nav>
+                            )}
+                            <div className="igsn-doc-controls">
+                                <form
+                                    role="search"
+                                    aria-label={c.search}
+                                    className="igsn-doc-search"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        const firstMatch = filtered[0];
+                                        if (query.trim() && firstMatch) {
+                                            select(firstMatch.id);
+                                            document.getElementById('igsn-doc-main')?.focus({ preventScroll: true });
+                                        }
+                                    }}
+                                >
+                                    <Search size={19} aria-hidden="true" />
+                                    <span className="sr-only">{c.search}</span>
+                                    <input
+                                        ref={input}
+                                        type="search"
+                                        enterKeyHint="search"
+                                        aria-label={c.search}
+                                        value={query}
+                                        placeholder={c.searchPlaceholder}
+                                        onChange={(event) => {
+                                            setQuery(event.target.value);
+                                            setMenuOpen(true);
+                                        }}
+                                    />
+                                    {query ? (
+                                        <button type="button" onClick={() => setQuery('')} aria-label={c.clearSearch}>
+                                            <X size={16} />
+                                        </button>
+                                    ) : (
+                                        <kbd>Ctrl K</kbd>
+                                    )}
+                                </form>
+                                <label className="igsn-doc-version">
+                                    <span className="sr-only">{c.selectVersion}</span>
+                                    <select
+                                        aria-label={c.selectVersion}
+                                        value={doc.revision}
+                                        onChange={(event) => {
+                                            const next = doc.versions.find((version) => version.revision === event.target.value);
+                                            if (next) window.location.assign(next.url);
+                                        }}
+                                    >
+                                        {doc.versions.map((version) => (
+                                            <option key={version.revision} value={version.revision}>
+                                                {version.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+                        {doc.citation && <SchemaCitationBlock citation={doc.citation} copy={c} />}
                     </div>
                 </div>
             </div>
@@ -438,12 +411,19 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
                             </ul>
                         )}
                     </nav>
-                    <a className="igsn-doc-sidebar-source" href={doc.publicationUrl} target="_blank" rel="noreferrer">
-                        {c.publication}
-                        <ExternalLink size={13} />
-                    </a>
+                    {doc.citation ? (
+                        <a className="igsn-doc-sidebar-source" href="#schema-citation" onClick={() => setMenuOpen(false)}>
+                            {c.citationLink}
+                            <BookOpen size={13} aria-hidden="true" />
+                        </a>
+                    ) : (
+                        <a className="igsn-doc-sidebar-source" href={doc.publicationUrl} target="_blank" rel="noreferrer">
+                            {c.publication}
+                            <ExternalLink size={13} />
+                        </a>
+                    )}
                 </aside>
-                <main id="igsn-doc-main" className="igsn-doc-main">
+                <main id="igsn-doc-main" className="igsn-doc-main" tabIndex={-1}>
                     {unavailableField && (
                         <p role="status" className="schema-doc-notice">
                             {c.fieldNotInFormat}
@@ -827,10 +807,12 @@ function SourceNotes({ doc }: { doc: SchemaDocumentation }) {
                     {c.schemaSource}
                     <ExternalLink size={12} />
                 </a>
-                <a href={doc.publicationUrl} target="_blank" rel="noreferrer">
-                    {c.publication}
-                    <ExternalLink size={12} />
-                </a>
+                {!doc.citation && (
+                    <a href={doc.publicationUrl} target="_blank" rel="noreferrer">
+                        {c.publication}
+                        <ExternalLink size={12} />
+                    </a>
+                )}
                 <a href={doc.manifestUrl}>
                     {c.manifest}
                     <ArrowDownToLine size={12} />

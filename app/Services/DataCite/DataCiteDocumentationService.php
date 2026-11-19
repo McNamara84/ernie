@@ -46,6 +46,7 @@ final class DataCiteDocumentationService
             'manifestUrl' => $this->artifactUrl('manifest.json'),
             'sourceUrl' => 'https://datacite-metadata-schema.readthedocs.io/en/4.7/',
             'igsnUrl' => url('/schemas/igsn/2.0/docs'),
+            'citation' => $this->content['citation'],
         ];
     }
 
@@ -123,6 +124,7 @@ final class DataCiteDocumentationService
             'manifestUrl' => $this->artifactUrl('manifest.json'),
             'sourceUrl' => 'https://datacite-metadata-schema.readthedocs.io/en/4.7/',
             'publicationUrl' => 'https://doi.org/10.14454/qdd3-ps68',
+            'citation' => $this->content['citation'],
             'versions' => $this->versions($format), 'copy' => $copy,
             'introduction' => $this->content['introduction'][$format],
             'notes' => [...$this->content['notes'], ...($jsonld ? $this->content['jsonldNotes'] : [])],

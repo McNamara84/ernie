@@ -52,7 +52,7 @@ test('supports browser validators across origins for all three formats and the o
     expect($preflight->headers->getCookies())->toBeEmpty();
 })->with([
     '/schemas/igsn/2.0/core.xsd',
-    '/schemas/igsn/2.0/preview-1/core.xsd',
+    '/schemas/igsn/2.0/v1/core.xsd',
     '/schemas/datacite/4.7/schema.json',
     '/schemas/datacite/4.7/v1/schema.json',
     '/schemas/datacite/4.7/context.jsonld',

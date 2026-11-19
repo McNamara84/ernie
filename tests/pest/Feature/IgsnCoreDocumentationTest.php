@@ -20,9 +20,12 @@ test('serves the English schema explorer publicly for the current and fixed revi
         ->where('documentation.revision', $expected)
         ->where('documentation.version', '2.0')
         ->where('documentation.namespace', 'urn:FAIR-AIMS:Core:1')
+        ->has('documentation.versions', 1)
+        ->where('documentation.citation.url', 'https://doi.org/10.5281/zenodo.23831602')
+        ->where('documentation.citation.text', fn (string $text): bool => str_contains($text, 'Antipanova, T., Wieczorek, M., Heim, B.'))
         ->has('documentation.fields')
         ->where('documentation.schemaUrl', url('/schemas/igsn/2.0/'.$expected.'/core.xsd')));
-})->with([null, 'v1', 'preview-1']);
+})->with([null, 'v1']);
 
 test('derives actual XSD requirements and namespaces instead of copying incompatible PDF examples', function () {
     $doc = app(IgsnCoreDocumentationService::class)->document('v1');
@@ -51,11 +54,6 @@ test('derives actual XSD requirements and namespaces instead of copying incompat
     expect(collect($doc['fields'])->pluck('id')->unique()->count())->toBe(count($doc['fields']));
 });
 
-test('keeps the earlier schema reference available with its own structure', function () {
-    $doc = app(IgsnCoreDocumentationService::class)->document('preview-1');
-    expect(collect($doc['fields'])->pluck('name')->all())->toContain('creator', 'archives')->not->toContain('sampleType');
-});
-
 test('falls back to English when a translation is not available', function () {
     config(['igsn_core.documentation_locale' => 'de']);
 
@@ -72,7 +70,7 @@ test('downloads examples that validate against exactly their documented schema r
     config(['igsn_core.revision' => $revision]);
     expect(app(IgsnCoreXmlValidator::class)->validate($xml)->errors)->toBe([])
         ->and($xml)->toContain('/'.$revision.'/core.xsd');
-})->with(['v1', 'preview-1'])->with(['minimal', 'full']);
+})->with(['v1'])->with(['minimal', 'full']);
 
 test('only changes the upstream import location in the published Core XSD', function () {
     $original = file_get_contents(resource_path('data/scheme/igsn-core/2.0/e28072729362b9fe740b64e8313c9add4364f12a/upstream/IGSN_Core_by_GFZ_DataServices.xsd'));
@@ -82,9 +80,7 @@ test('only changes the upstream import location in the published Core XSD', func
         'schemaLocation="DataCite4.7/metadata.xsd"',
         $original,
     );
-    expect(file_get_contents(app(IgsnCoreSchemaResolver::class)->publicFile('core.xsd', 'v1')['path']))->toBe($expected)
-        ->and(hash_file('sha256', app(IgsnCoreSchemaResolver::class)->publicFile('core.xsd', 'preview-1')['path']))
-        ->toBe('e8f3fd681dd1af577306fe85cdf24a8cc9c10444795ae672d8952f3579f210cf');
+    expect(file_get_contents(app(IgsnCoreSchemaResolver::class)->publicFile('core.xsd', 'v1')['path']))->toBe($expected);
 });
 
 test('rejects unknown documentation revisions and example names', function (string $path) {
