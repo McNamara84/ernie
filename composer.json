@@ -14,10 +14,10 @@
     "license": "GPL-3.0-or-later",
     "require": {
         "ext-xsl": "*",
-        "php": "^8.5",
+        "php": "^8.5.13",
         "inertiajs/inertia-laravel": "^3.7.0",
-        "laravel/framework": "^13.42.0",
-        "laravel/tinker": "^3.1.0",
+        "laravel/framework": "^13.43.0",
+        "laravel/tinker": "^3.2.0",
         "laravel/wayfinder": "^0.1.23",
         "league/commonmark": "^2.10.7",
         "nitotm/efficient-language-detector": "^3.2.0",
@@ -98,8 +98,8 @@
             "php-http/discovery": true
         },
         "platform": {
-            "php": "8.5.0",
-            "ext-xsl": "8.5.0"
+            "php": "8.5.13",
+            "ext-xsl": "8.5.13"
         }
     },
     "prefer-stable": true

@@ -88,11 +88,11 @@ If the repository stays under `D:\` or another NTFS path:
 
 3. Install host-side Node dependencies for frontend validation.
 
-    Use Node **26.13.1** from `.node-version` and npm **12.2.2** from
+    Use Node **26.13.1** from `.node-version` and npm **12.2.3** from
     `package.json`. After switching Node, install the pinned npm version:
 
     ```bash
-    npm install --global npm@12.2.2
+    npm install --global npm@12.2.3
     npm ci
     ```
 
@@ -110,7 +110,7 @@ If the repository stays under `D:\` or another NTFS path:
 
     Flatpak Git clients run the hook on the host through `flatpak-spawn --host`, where Docker, Node, and npm are installed. Git's repository and index environment is forwarded so the checks also respect an alternate staging index. The GitHub Desktop Flatpak already permits host execution; no additional Flatpak override is needed.
 
-    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.1** and npm **12.2.2** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
+    On Linux and macOS, the hook also checks `$VOLTA_HOME/bin` (or `~/.volta/bin`) when Node or npm is missing from the Git client's `PATH`, so a desktop Git client can use an existing Volta installation without loading shell startup files. The `volta` pins in `package.json` select Node **26.13.1** and npm **12.2.3** automatically for this checkout. Keep those pins aligned with `.node-version` and `packageManager` when updating the toolchain. Other installations must make both Node and npm available on the Git client's `PATH`. Use the Node version pinned in `.node-version` and restart the Git client after changing your Node installation or `PATH`.
 
 5. Start Fast Mode.
 
@@ -1492,34 +1492,31 @@ can pass this stage; the probe does not substitute unreviewed development code.
 ### Dependency update evidence
 
 The version inventory, upstream constraints, validation results and image findings
-for the 16 November 2026 update are recorded in
+for the 19 November 2026 update are recorded in
 [dependency-update-audit.json](dependency-update-audit.json). Composer and npm
-audits at that time reported no known package vulnerabilities. Transitive packages
-that cannot use the latest major release remain within their upstream requirements;
-the inventory records those constraints.
+audits for that update reported no known package vulnerabilities. The inventory
+records version changes and upstream requirements that prevent selected upgrades.
 
-Node 26.13.1 and Composer 2.11.2 include upstream security fixes. Node archives
-are verified for both supported architectures, and container images retain exact
-digests. All 13 GitHub Actions were checked against their latest stable releases
-and verified commit hashes; their existing pins were already current.
+PHP [8.5.13](https://www.php.net/releases/8_5_13.php) is the 19 November security
+release. Both Dockerfiles pin the same verified image digest for Linux amd64 and
+arm64. Composer requires at least PHP 8.5.13 and resolves against PHP/ext-xsl
+8.5.13. Rebuild the application and worker images before installing the updated
+Composer lockfile and running the backend checks.
 
-npm 12.2.2 includes Undici 6.29.1, so no manual npm dependency patch is needed.
-Install the pinned npm version on the host as shown above. Playwright 1.65.1 and
-its matching Microsoft browser image are available together. F-UJI independently
-uses Python Playwright 1.65.2 and installs the Chromium revision supplied by that
-package. The jsdom 31, Oxfmt and SoupSieve upgrades are included and validated.
+The update includes Laravel 13.43.0, npm 12.2.3, Vitest 5.1.1, Jest DOM 8,
+Oxfmt 0.79.0, Nginx 1.31.9 and four compatible F-UJI Python updates. Jest DOM 8
+supports the project's Vitest 5 runtime. Node 26.13.1, Composer 2.11.2 and the
+paired Playwright 1.65.1 packages/browser image remain current. All 13 GitHub
+Actions were checked against stable release tags and verified commit hashes;
+`actions/create-github-app-token` updates to 3.4.0.
 
-Local Trivy scans of the application, Nginx and F-UJI images pass the existing
-gate for fixable HIGH/CRITICAL findings. The application and F-UJI images retain
-findings without available fixes. A passing gate does not mean that an image has
-no known vulnerabilities; the audit records the remaining findings separately.
-
-The latest official MySQL 9.7.4 image still has 35 HIGH/CRITICAL findings in its
-bundled `mysqlsh` Python dependencies and the Go library embedded in `gosu`.
-Fixed component versions exist, but no newer supported official MySQL 9.7 image
-was available during this update. These findings are recorded individually and
-remain unresolved. The server stays on the required MySQL 9.7 line; no security
-rules or suppressions were weakened.
+Application, Nginx and F-UJI images pass the existing gate for fixable
+HIGH/CRITICAL findings. The audit lists findings without available fixes
+separately. The current official MySQL 9.7.4 image still contains 63
+HIGH/CRITICAL findings with component fixes, but no newer official MySQL 9.7
+image is available. These remain unresolved. MySQL stays on the required 9.7
+server line. Existing security overrides, the local deepmerge fix and CI
+security gates are preserved.
 
 The 18 November 2026 development dependency refresh is recorded separately in
 [dev-dependency-update-audit.json](dev-dependency-update-audit.json). All 36 direct
