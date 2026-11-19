@@ -403,6 +403,20 @@ even if `main` has since advanced. Then rerun promotion after testing and
 verifying those recorded images. Do not move an existing tag. There is no
 fallback to Stage images or mutable image tags.
 
+### Artifact version does not match the candidate
+
+The release tag and the immutable `artifacts/main/<source-sha>.json` record must
+declare the same version. Image publication reads the version from the first
+entry in `resources/data/changelog.json` at that source commit. A tag named
+`v1.1.4` cannot promote a record whose version is still `1.1.3`.
+
+Prepare the release version and notes on `main` before building its images. Wait
+for the corrected commit's CI and image publication, then validate that exact
+candidate through the release process. Moving a tag alone does not update the
+application version or an existing artifact record. Do not edit the immutable
+record or bypass version validation; retry promotion only after the release
+points to a validated commit with matching images and version.
+
 ### Image inspection or the digest scan fails
 
 Confirm that all three GHCR packages (`ernie-app`, `ernie-nginx`, and

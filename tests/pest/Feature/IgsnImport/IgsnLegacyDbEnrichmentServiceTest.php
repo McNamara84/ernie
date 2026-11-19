@@ -38,7 +38,7 @@ describe('IgsnLegacyDbEnrichmentService', function () {
     });
 
     it('returns false when legacy DB query throws connection error', function () {
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andThrow(new Exception('Connection refused'));
 
@@ -53,7 +53,7 @@ describe('IgsnLegacyDbEnrichmentService', function () {
     });
 
     it('records failures and disables after MAX_CONSECUTIVE_FAILURES', function () {
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andThrow(new Exception('Connection refused'));
 
@@ -72,7 +72,7 @@ describe('IgsnLegacyDbEnrichmentService', function () {
     });
 
     it('returns false when not available', function () {
-        DB::shouldReceive('connection')
+        DB::partialMock()->shouldReceive('connection')
             ->with('igsn_legacy')
             ->andThrow(new Exception('Connection refused'));
 
