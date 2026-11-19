@@ -6,8 +6,12 @@ import { defineProject } from 'vitest/config';
 import { assertApiHandled, dragBy, mockApi } from './tests/vitest-browser/helpers/commands.ts';
 import { testPolicy, testViteConfig } from './vitest.shared.ts';
 
+const sharedViteConfig = testViteConfig();
+
 export default defineProject({
-    ...testViteConfig(),
+    ...sharedViteConfig,
+    // Bind Node and Chromium to the same loopback address on Windows.
+    server: { ...sharedViteConfig.server, host: '127.0.0.1' },
     // No Laravel/Wayfinder hooks: source generation completes in the wrapper.
     plugins: [react({ refreshExclude: /./ }), tailwindcss()],
     optimizeDeps: {

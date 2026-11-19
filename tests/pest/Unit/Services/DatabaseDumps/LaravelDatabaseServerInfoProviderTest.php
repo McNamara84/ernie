@@ -19,7 +19,7 @@ it('reads authenticated database server information when the connection works', 
             'compile_machine' => 'x86_64',
         ]);
 
-    DB::shouldReceive('connection')
+    DB::partialMock()->shouldReceive('connection')
         ->once()
         ->with('dump_test')
         ->andReturn($connection);
@@ -34,7 +34,7 @@ it('reads authenticated database server information when the connection works', 
 });
 
 it('returns unavailable without opening another connection when the authenticated query fails', function (): void {
-    DB::shouldReceive('connection')
+    DB::partialMock()->shouldReceive('connection')
         ->once()
         ->with('legacy_unavailable')
         ->andThrow(new RuntimeException('authentication failed'));
