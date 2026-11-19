@@ -1,0 +1,56 @@
+{
+    "interface": {
+        "brand": "GFZ Data Services",
+        "standards": "Schema documentation",
+        "eyebrow": "PUBLIC SCHEMAS AND CONTEXTS",
+        "title": "Metadata schemas",
+        "tagline": "Find the right format. Start with a guide.",
+        "lead": "Public validation schemas, a JSON-LD context, and practical guides for metadata curators and developers.",
+        "heading": "Explore our metadata profiles",
+        "description": "Choose the format of your metadata file. Each guide explains the fields and shows how to process or validate a record.",
+        "documentation": "Read documentation",
+        "documentationLabel": "Read documentation: {name}",
+        "currentFile": "Current file",
+        "fixedFile": "Fixed revision file",
+        "checksums": "Files and checksums",
+        "revision": "Revision",
+        "supportingHeading": "Supporting schema",
+        "supportingFile": "Open envelope XSD",
+        "supportingDocs": "OAI-PMH documentation"
+    },
+    "entries": {
+        "igsn-core": {
+            "title": "IGSN Core XML",
+            "format": "XML",
+            "kind": "XML Schema (XSD)",
+            "description": "Describe physical samples with IGSN Core 2.0. Validate the XML metadata with the published XSD and its bundled dependencies."
+        },
+        "datacite-json": {
+            "title": "DataCite JSON",
+            "format": "JSON",
+            "kind": "JSON Schema · Draft 2020-12",
+            "description": "Check DataCite 4.7 metadata attributes, required fields, and allowed values. For a JSON API document, select data.attributes before validation."
+        },
+        "datacite-jsonld": {
+            "title": "DataCite JSON-LD",
+            "format": "JSON-LD",
+            "kind": "JSON-LD 1.1 context",
+            "description": "Share DataCite metadata as Linked Data with the compact attrs/value profile. The context defines terms and their meaning. The guide explains the full validation workflow."
+        }
+    },
+    "guidance": [
+        {
+            "title": "Choose a fixed revision for repeatable results",
+            "description": "The current file URL follows the published revision. Use the fixed revision file to repeat the same validation or Linked Data processing. Each package includes a list of files and their checksums. Earlier revisions are available in the guides."
+        },
+        {
+            "title": "A context gives meaning to Linked Data",
+            "description": "Processing a JSON-LD context maps terms to IRIs and defines value types and collections. It does not check required DataCite fields or cardinalities. Follow the JSON-LD guide to check the supported profile and converted attributes."
+        }
+    ],
+    "supporting": {
+        "title": "OAI-PMH / DCAT-AP RDF/XML envelope",
+        "kind": "XML Schema (XSD) · DCAT-AP 3.0.1 transport",
+        "description": "This small XSD checks the RDF/XML envelope used to carry DCAT-AP records through OAI-PMH. It does not validate the DCAT-AP metadata model. RDF semantics and DCAT-AP constraints require separate SHACL validation."
+    }
+}

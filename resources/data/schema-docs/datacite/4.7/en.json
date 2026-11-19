@@ -3,6 +3,7 @@
         "v1": "4.7 · Profile v1"
     },
     "interface": {
+        "allSchemas": "All schemas",
         "brand": "GFZ Data Services",
         "standards": "Schema documentation",
         "title": "DataCite JSON",
