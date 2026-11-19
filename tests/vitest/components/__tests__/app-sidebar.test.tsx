@@ -43,6 +43,7 @@ let mockUser = {
     can_access_statistics: true,
     can_access_users: true,
     can_access_editor_settings: true,
+    can_manage_news: false,
     can_access_database_dumps: true,
     can_manage_landing_page_templates: false,
     can_access_assistance: false,
@@ -72,6 +73,7 @@ const setMockUser = (
         can_access_statistics: boolean;
         can_access_users: boolean;
         can_access_editor_settings: boolean;
+        can_manage_news: boolean;
         can_access_database_dumps: boolean;
         can_manage_landing_page_templates: boolean;
         can_access_assistance: boolean;
@@ -91,6 +93,7 @@ const setMockUser = (
         can_access_statistics: true,
         can_access_users: true,
         can_access_editor_settings: true,
+        can_manage_news: false,
         can_access_database_dumps: true,
         can_manage_landing_page_templates: false,
         can_access_assistance: false,
@@ -216,6 +219,23 @@ describe('AppSidebar', () => {
         setMockUser();
         setMockSharedProps();
         axiosGetMock.mockResolvedValue({ data: { dataResourceCount: 12, igsnCount: 5 } });
+    });
+
+    it.each(['admin', 'group_leader'])('opens News in the Administration configuration for %s', async (role) => {
+        setMockUser({ role, can_manage_news: true });
+        mockUrl = '/manage-news';
+        await render(<AppSidebar />);
+        expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
+        expect(screen.getByRole('link', { name: 'Manage News' })).toHaveAttribute('href', '/manage-news');
+        expect(NavSectionMock.mock.calls.find((call) => call[0].label === 'Configuration')?.[0].items.map((item) => item.title)).toContain(
+            'Manage News',
+        );
+    });
+
+    it('hides News when its capability is absent', async () => {
+        mockUrl = '/settings';
+        await render(<AppSidebar />);
+        expect(screen.queryByRole('link', { name: 'Manage News' })).not.toBeInTheDocument();
     });
 
     it.each(['admin', 'group_leader', 'curator'])('shows Contact Persons once under Tools for %s', async (role) => {

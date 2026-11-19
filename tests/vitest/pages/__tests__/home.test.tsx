@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
+import { initialNews } from '@tests/vitest/fixtures/news';
 import { render, screen, within } from '@tests/vitest/utils/render';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,8 +35,28 @@ const topics = [
 describe('GFZ Data Services homepage', () => {
     beforeEach(() => vi.clearAllMocks());
 
+    it('replaces the initial news with the content supplied by the server', () => {
+        const { rerender } = render(<Home topics={topics} news={initialNews} />);
+        rerender(
+            <Home
+                topics={topics}
+                news={{
+                    id: 2,
+                    title: 'Maintenance <script>',
+                    html: '<p><strong>Temporary notice</strong></p><ul><li>Service unavailable</li></ul><img src="https://example.org/image.png" alt="Maintenance" />',
+                }}
+            />,
+        );
+        expect(screen.queryByRole('article', { name: initialNews.title })).not.toBeInTheDocument();
+        const article = screen.getByRole('article', { name: 'Maintenance <script>' });
+        expect(within(article).getByText('Temporary notice').tagName).toBe('STRONG');
+        expect(within(article).getByRole('listitem')).toHaveTextContent('Service unavailable');
+        expect(within(article).getByRole('img', { name: 'Maintenance' })).toHaveAttribute('src', 'https://example.org/image.png');
+        expect(article.querySelector('script')).toBeNull();
+    });
+
     it('preserves the welcome references and the complete ELMO announcement', () => {
-        render(<Home topics={topics} />);
+        render(<Home topics={topics} news={initialNews} />);
         expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('GFZ Data Services');
         expect(screen.getByRole('heading', { name: 'Welcome to GFZ Data Services' })).toBeVisible();
         expect(screen.getByRole('link', { name: /research data repository/ })).toHaveAttribute('href', 'https://dataservices.gfz.de/portal');
@@ -52,7 +73,7 @@ describe('GFZ Data Services homepage', () => {
     });
 
     it('opens ELMO in a new tab and exposes all supplied topics as accessible internal links', () => {
-        render(<Home topics={topics} />);
+        render(<Home topics={topics} news={initialNews} />);
         const submit = screen.getByRole('link', { name: /SUBMIT METADATA/ });
         expect(submit).toHaveAttribute('href', 'https://dataservices.gfz.de/elmo');
         expect(submit).toHaveAttribute('target', '_blank');
@@ -70,7 +91,7 @@ describe('GFZ Data Services homepage', () => {
 
     it.each(['enter', 'button'])('submits trimmed text and special characters using %s', async (submit) => {
         const user = userEvent.setup();
-        render(<Home topics={topics} />);
+        render(<Home topics={topics} news={initialNews} />);
         await user.type(screen.getByRole('searchbox'), '  Höhle & CO2 + ice  ');
         if (submit === 'enter') await user.keyboard('{Enter}');
         else await user.click(screen.getByRole('button', { name: 'Search' }));
@@ -79,15 +100,18 @@ describe('GFZ Data Services homepage', () => {
 
     it('opens the DOI search without a query for blank input', async () => {
         const user = userEvent.setup();
-        render(<Home topics={topics} />);
+        render(<Home topics={topics} news={initialNews} />);
         await user.type(screen.getByRole('searchbox'), '   {Enter}');
         expect(router.get).toHaveBeenCalledWith('/doi-search', {});
     });
 
     it('includes all three legacy link groups and the public footer', () => {
-        render(<Home topics={topics} />);
+        render(<Home topics={topics} news={initialNews} />);
         expect(within(screen.getByRole('region', { name: 'Services' })).getAllByRole('link')).toHaveLength(5);
-        expect(within(screen.getByRole('region', { name: 'Services' })).getByRole('link', { name: 'Data Centres' })).toHaveAttribute('href', '/data-centres');
+        expect(within(screen.getByRole('region', { name: 'Services' })).getByRole('link', { name: 'Data Centres' })).toHaveAttribute(
+            'href',
+            '/data-centres',
+        );
         expect(within(screen.getByRole('region', { name: 'Guides' })).getAllByRole('link')).toHaveLength(6);
         expect(within(screen.getByRole('region', { name: 'External Links to our data' })).getAllByRole('link')).toHaveLength(5);
         expect(screen.getByRole('link', { name: 'Publication Instructions' })).toHaveAttribute(

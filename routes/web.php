@@ -39,6 +39,7 @@ use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\LandingPageTemplateController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\OaiPmh\OaiPmhController;
 use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\PortalController;
@@ -132,7 +133,7 @@ if (app()->environment('local', 'testing')) {
     Route::get('/debug', DebugController::class)->name('debug');
 }
 
-Route::get('/', [StaticPageController::class, 'home'])->name('home');
+Route::get('/', [StaticPageController::class, 'home'])->middleware('cache.headers:no_store;private')->name('home');
 
 Route::get('/find', [StaticPageController::class, 'find'])->name('find');
 
@@ -355,6 +356,17 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])->group(function () {
+    Route::middleware(['can:manage-news', 'cache.headers:no_store;private'])->prefix('manage-news')->name('news.')->group(function () {
+        Route::get('/', [NewsController::class, 'index'])->name('index');
+        Route::post('/', [NewsController::class, 'store'])->name('store');
+        Route::post('preview', [NewsController::class, 'preview'])->middleware('throttle:120,1')->name('preview');
+        Route::patch('{news}', [NewsController::class, 'update'])->whereNumber('news')->name('update');
+        foreach (['activate', 'schedule', 'cancel-schedule', 'archive', 'restore'] as $operation) {
+            Route::post('{news}/'.$operation, [NewsController::class, 'action'])->whereNumber('news')
+                ->defaults('operation', $operation)->name($operation);
+        }
+    });
+
     Route::get('contact-persons', ContactPersonController::class)
         ->middleware('can:access-contact-persons')->name('contact-persons.index');
 

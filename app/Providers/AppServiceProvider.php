@@ -356,6 +356,10 @@ class AppServiceProvider extends ServiceProvider
      */
     private function defineGates(): void
     {
+        Gate::define('manage-news', fn (User $user): bool => $user->is_active && in_array($user->role, [
+            UserRole::ADMIN, UserRole::GROUP_LEADER,
+        ], true));
+
         Gate::define('access-contact-persons', fn (User $user): bool => in_array($user->role, [
             UserRole::ADMIN, UserRole::GROUP_LEADER, UserRole::CURATOR,
         ], true));

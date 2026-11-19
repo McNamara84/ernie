@@ -16,24 +16,16 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/breadcrumbs', () => ({
-    Breadcrumbs: ({ breadcrumbs }: { breadcrumbs: Array<BreadcrumbItem> }) => (
-        <nav data-testid="breadcrumbs">{breadcrumbs.length}</nav>
-    ),
+    Breadcrumbs: ({ breadcrumbs }: { breadcrumbs: Array<BreadcrumbItem> }) => <nav data-testid="breadcrumbs">{breadcrumbs.length}</nav>,
 }));
 vi.mock('@/components/icon', () => ({ Icon: () => <span data-testid="icon" /> }));
 vi.mock('@/components/ui/avatar', () => ({
     Avatar: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    AvatarImage: (props: ComponentProps<'img'>) => (
-        <img data-testid="avatar-image" {...props} />
-    ),
-    AvatarFallback: ({ children }: { children?: React.ReactNode }) => (
-        <div data-testid="avatar-fallback">{children}</div>
-    ),
+    AvatarImage: (props: ComponentProps<'img'>) => <img data-testid="avatar-image" {...props} />,
+    AvatarFallback: ({ children }: { children?: React.ReactNode }) => <div data-testid="avatar-fallback">{children}</div>,
 }));
 vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
-        <button className={className}>{children}</button>
-    ),
+    Button: ({ children, className }: { children?: React.ReactNode; className?: string }) => <button className={className}>{children}</button>,
 }));
 vi.mock('@/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -95,6 +87,15 @@ describe('AppHeader', () => {
         });
     });
 
+    it.each([true, false])('shows Manage News in desktop and mobile navigation only with permission (%s)', async (allowed) => {
+        usePageMock.mockReturnValue({ props: { auth: { user: { name: 'John Doe', can_manage_news: allowed } } }, url: '/manage-news' });
+        const { AppHeader } = await import('@/components/app-header');
+        render(<AppHeader />);
+        const links = screen.queryAllByRole('link', { name: 'Manage News' });
+        expect(links).toHaveLength(allowed ? 2 : 0);
+        links.forEach((link) => expect(link).toHaveAttribute('href', '/manage-news'));
+    });
+
     it('renders navigation links, breadcrumbs and user initials', async () => {
         const { AppHeader } = await import('@/components/app-header');
 
@@ -104,7 +105,7 @@ describe('AppHeader', () => {
                     { title: 'Home', href: '/' },
                     { title: 'Dashboard', href: '/dashboard' },
                 ]}
-            />
+            />,
         );
         screen
             .getAllByRole('link', { name: /dashboard/i })
@@ -120,15 +121,10 @@ describe('AppHeader', () => {
         const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
         settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/settings'));
         const navs = screen.getAllByRole('navigation');
-        expect(
-            within(navs[0]).queryByRole('link', { name: /editor settings/i })
-        ).not.toBeInTheDocument();
+        expect(within(navs[0]).queryByRole('link', { name: /editor settings/i })).not.toBeInTheDocument();
         const changelogTexts = screen.getAllByText(/changelog/i);
         const editorTexts = screen.getAllByText(/editor settings/i);
-        expect(
-            editorTexts[1].compareDocumentPosition(changelogTexts[1]) &
-                Node.DOCUMENT_POSITION_FOLLOWING
-        ).toBeTruthy();
+        expect(editorTexts[1].compareDocumentPosition(changelogTexts[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(getInitialsMock).toHaveBeenCalledWith('John Doe');
         expect(screen.getByText('JD')).toBeInTheDocument();
         expect(screen.getByTestId('breadcrumbs')).toBeInTheDocument();

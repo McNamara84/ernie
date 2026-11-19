@@ -78,6 +78,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 updateDataCiteUrls: userRole === 'admin',
                 manageUsers: userRole === 'admin' || userRole === 'group_leader',
                 accessEditorSettings: userRole === 'admin' || userRole === 'group_leader',
+                manageNews: userRole === 'admin' || userRole === 'group_leader',
             },
         [capabilities, userRole],
     );
@@ -520,6 +521,48 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                                 </p>
                             </div>
                         )}
+                    </>
+                ),
+            },
+            {
+                id: 'manage-news',
+                capability: 'manageNews',
+                title: 'Manage News',
+                icon: FileText,
+                minRole: 'group_leader',
+                content: (
+                    <>
+                        <h3>Homepage News</h3>
+                        <p>
+                            Admins and Group Leaders open <strong>Administration → Configuration → Manage News</strong> at <code>/manage-news</code>{' '}
+                            to edit the public homepage announcement.
+                        </p>
+                        <p>
+                            Enter a separate title and Markdown text, then check the preview. Headings, bold and italic text, lists, links and
+                            external HTTPS images are supported. Image syntax is <code>![description](https://example.org/image.jpg)</code>; HTML is
+                            removed.
+                        </p>
+                        <p>
+                            <strong>Save draft</strong> stores a new contribution without publishing it. For regular news, choose{' '}
+                            <strong>Set as active</strong> in the saved list. Exactly one regular announcement remains active; select another before
+                            archiving the current one. Saving changes to published or scheduled news affects their public display.
+                        </p>
+                        <p>
+                            For a temporary announcement, set a start and end in <strong>Europe/Berlin</strong>, save it and choose{' '}
+                            <strong>Schedule</strong>. It replaces the regular news from the start until the end, when the then active regular news
+                            returns. Overlapping schedules are rejected; adjacent periods are allowed. During the autumn clock change, explicitly
+                            choose +02:00 for the first occurrence of a repeated time or +01:00 for the second.
+                        </p>
+                        <p>
+                            <strong>Cancel schedule</strong> stops a temporary replacement. <strong>Archive</strong> preserves a contribution and
+                            cancels its schedule. Use <strong>Show archived news</strong> and <strong>Restore</strong> to reuse it as an unpublished
+                            draft. Expired announcements stay stored. The public homepage selects its news on each request; already open pages update
+                            on their next visit or reload.
+                        </p>
+                        <p>
+                            If another session has changed the news, your edits remain in the form. Review or copy them before using{' '}
+                            <strong>Reload latest version</strong>, which replaces the form with the current saved content.
+                        </p>
                     </>
                 ),
             },

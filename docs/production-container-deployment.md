@@ -167,8 +167,34 @@ one step, and both search pages must return HTTP 200. Use GET rather than
 and other non-GET methods. Deploy the updated `webserver` definition to apply
 the labels; changing only the application image does not apply routing changes.
 
-The initial news item lives in `resources/js/data/homepage.ts`. Administration
-through `/manage-news` is a separate future feature. Homepage topic definitions
+Homepage news are stored in `news`, with one regular selection in
+`homepage_news_state`. Deploy the migrations
+`2026_11_18_000001_create_news_tables.php` and
+`2026_11_18_000002_seed_homepage_news.php` before serving the new application and
+frontend. The data migration preserves the existing ELMO announcement as the
+active regular news on both upgrades and fresh installations. Further deployments
+do not overwrite editorial changes. Verify the singleton row (`id = 1`) references
+an existing, unarchived regular contribution before releasing traffic.
+
+Active Admins and Group Leaders manage content under `/manage-news`, reached
+through Administration → Configuration → Manage News. New contributions are
+drafts until explicitly activated or scheduled. Temporary announcements use
+Europe/Berlin time, are stored in UTC and override the regular selection only
+within their planned interval (inclusive start, exclusive end). Overlapping
+schedules are rejected. Selection happens at request time without a scheduler or
+queue worker; an already open page updates on its next request. Do not add a
+full-page cache or intermediary cache that ignores the homepage's `no-store`
+response. Preview and public display share the same server-side Markdown renderer;
+external images load directly in the browser from HTTPS URLs.
+
+Check `/` publicly, then `/manage-news` with each authorized role and a denied
+role. In a test environment, verify a temporary override and the return to the
+then selected regular news. Archive and restore preserve content without
+republishing it. Roll back application code without dropping the news tables:
+rolling back the schema migration removes editorial content. The data migration's
+rollback intentionally preserves contributions.
+
+Homepage topic definitions
 live in `App\Enums\ScienceTopic`; GCMD topics resolve against the current local
 Science Keywords vocabulary, preserving alternative matching branches. A missing
 or disabled vocabulary produces no matches rather than an unfiltered result set.
