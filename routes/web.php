@@ -60,6 +60,7 @@ use App\Http\Controllers\ResourceFilterController;
 use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\ResourceTombstoneController;
+use App\Http\Controllers\SchemaCatalogController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusReviewCompletionController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
@@ -88,6 +89,8 @@ Route::get('/health', HealthController::class)->name('health');
 Route::get('/metadata/contexts/datacite-4.7-v1.jsonld', JsonLdContextController::class)
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->name('metadata.context.datacite');
+
+Route::get('/schemas/docs', SchemaCatalogController::class)->name('schemas.docs');
 
 Route::get('/schemas/datacite/docs', [DataCiteDocumentationController::class, 'latest'])->name('schemas.datacite.docs.latest');
 Route::get('/schemas/datacite/4.7/docs', [DataCiteDocumentationController::class, 'overview'])->name('schemas.datacite.docs');

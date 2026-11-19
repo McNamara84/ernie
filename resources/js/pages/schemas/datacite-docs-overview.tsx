@@ -23,11 +23,12 @@ export default function DataCiteDocsOverviewPage({ documentation: doc }: { docum
                             <small>{c.standards}</small>
                         </span>
                     </a>
-                    <div className="igsn-doc-header-links">
+                    <div className="igsn-doc-header-links schema-doc-with-catalog">
                         <a href={doc.sourceUrl} target="_blank" rel="noreferrer">
                             {c.schemaSource}
                             <ExternalLink size={13} />
                         </a>
+                        <a href="/schemas/docs">{c.allSchemas}</a>
                     </div>
                 </div>
             </header>

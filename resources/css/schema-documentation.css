@@ -180,3 +180,104 @@
         padding: 22px;
     }
 }
+
+.schema-doc-with-catalog {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 20px;
+}
+.schema-catalog-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    margin: 32px 0 48px;
+}
+.schema-catalog .igsn-version-pill,
+.schema-catalog .igsn-doc-eyebrow {
+    font-size: 0.875rem;
+}
+.schema-catalog-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 26px;
+    background: var(--igsn-paper);
+    border: 1px solid var(--igsn-line);
+    border-radius: 8px;
+}
+.schema-catalog-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--igsn-blue);
+}
+.schema-catalog-card h3 {
+    font-size: 1.5rem;
+    font-weight: 650;
+    margin-top: 22px;
+}
+.schema-catalog .schema-catalog-kind {
+    margin-top: 8px;
+    color: var(--igsn-blue);
+    font-size: 0.875rem;
+}
+.schema-catalog-description {
+    flex-grow: 1;
+    margin: 18px 0 24px;
+}
+.schema-catalog-card .igsn-doc-primary-button {
+    font-size: 0.875rem;
+    align-self: flex-start;
+}
+.schema-catalog-files {
+    padding-top: 22px;
+    margin-top: 24px;
+    border-top: 1px solid var(--igsn-line);
+    font-size: 0.875rem;
+}
+.schema-catalog-files > div + div {
+    margin-top: 16px;
+}
+.schema-catalog-files dt {
+    color: var(--igsn-muted);
+    margin-bottom: 4px;
+}
+.schema-catalog-files a,
+.schema-catalog-manifest {
+    color: var(--igsn-blue);
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+}
+.schema-catalog-files code {
+    font-size: 0.875rem;
+}
+.schema-catalog-manifest {
+    font-size: 0.875rem;
+    margin-top: 18px;
+}
+.schema-catalog .igsn-doc-guidance h2 {
+    font-size: 1.125rem;
+    margin-top: 30px;
+    margin-bottom: 10px;
+}
+.schema-catalog-supporting {
+    padding-top: 32px;
+    margin-top: 38px;
+    border-top: 1px solid var(--igsn-line);
+}
+.schema-catalog-supporting h3 {
+    font-size: 1.125rem;
+    font-weight: 650;
+}
+.schema-catalog-supporting > p {
+    margin-top: 14px;
+}
+.schema-catalog .schema-doc-home-links {
+    font-size: 0.875rem;
+}
+@media (max-width: 1000px) {
+    .schema-catalog-cards {
+        grid-template-columns: 1fr;
+    }
+}
