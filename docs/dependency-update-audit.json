@@ -3138,12 +3138,68 @@
       "cooldown": []
     },
     "imageScan": {
-      "status": "pending"
+      "checkedOn": "2026-11-19",
+      "scanner": "Trivy 0.76.2",
+      "reports": {
+        "app": {
+          "image": "ernie-dependency-app:20261119",
+          "createdAt": "2026-11-19T16:06:44.586228917Z",
+          "high": 216,
+          "critical": 13,
+          "fixableHighCritical": 0,
+          "unfixedHighCritical": 229,
+          "gate": "passed",
+          "fullReport": ".tmp/dependency-update-20261119/scan-app.json"
+        },
+        "nginx": {
+          "image": "ernie-dependency-nginx:20261119",
+          "createdAt": "2026-11-19T16:06:49.208435994Z",
+          "high": 0,
+          "critical": 0,
+          "fixableHighCritical": 0,
+          "unfixedHighCritical": 0,
+          "gate": "passed",
+          "fullReport": ".tmp/dependency-update-20261119/scan-nginx.json"
+        },
+        "fuji": {
+          "image": "ernie-fuji-dev:4.0.1",
+          "createdAt": "2026-11-19T16:02:56.028376454Z",
+          "high": 140,
+          "critical": 1,
+          "fixableHighCritical": 0,
+          "unfixedHighCritical": 141,
+          "gate": "passed",
+          "fullReport": ".tmp/dependency-update-20261119/scan-fuji.json"
+        },
+        "mysql": {
+          "image": "mysql:9.7.4@sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8",
+          "createdAt": "2026-11-19T15:51:44.898489706Z",
+          "high": 61,
+          "critical": 2,
+          "fixableHighCritical": 63,
+          "unfixedHighCritical": 0,
+          "gate": "not part of the existing application/Nginx/F-UJI CI gate",
+          "fullReport": ".tmp/dependency-update-20261119/scan-mysql.json"
+        }
+      },
+      "mysql": {
+        "status": "unresolved",
+        "reason": "No newer official MySQL 9.7 image is available. MySQL 9.7.4 remains pinned; the current official image contains fixable operating-system, mysqlsh Python and gosu Go dependencies. No server downgrade, custom replacement or vulnerability suppression was introduced.",
+        "source": "https://hub.docker.com/_/mysql"
+      },
+      "productionBuild": {
+        "sourceCommit": "37fa1de68e149f3783a1c31bb467c95b51891ac5",
+        "context": "git archive of tracked source; local runtime data excluded",
+        "application": "ernie-dependency-app:20261119",
+        "nginx": "ernie-dependency-nginx:20261119",
+        "systemPackagesRefresh": "2026-11-19"
+      }
     }
   },
   "validation": {
-    "status": "in-progress",
+    "status": "passed",
     "checkedOn": "2026-11-19",
+    "validatedDependencyCommit": "7bb7e78ef04070cf427611fb91f27d061f028023",
     "environment": {
       "host": "Windows",
       "node": "26.13.1",
@@ -3154,7 +3210,117 @@
       "pestWorkers": 8,
       "vitestWorkers": 8
     },
-    "checks": {},
+    "checks": {
+      "frontend": {
+        "status": "passed",
+        "command": "npm run check:frontend",
+        "log": ".tmp/dependency-update-20261119/frontend-final.log",
+        "vitest": {
+          "files": 524,
+          "passed": 8951,
+          "skipped": 1
+        },
+        "tooling": {
+          "passed": 109,
+          "skipped": 5
+        },
+        "includes": [
+          "Oxlint",
+          "OpenAPI",
+          "application and test TypeScript",
+          "Node tooling tests",
+          "Vitest"
+        ]
+      },
+      "backend": {
+        "status": "passed",
+        "command": "npm run check:backend",
+        "log": ".tmp/dependency-update-20261119/backend-verified.log",
+        "pest": {
+          "serial": 44,
+          "architecture": 23,
+          "parallelPassed": 11163,
+          "skipped": 34,
+          "assertions": 64392,
+          "workers": 8
+        },
+        "phpstan": {
+          "files": 1114,
+          "errors": 0
+        },
+        "jsonld": {
+          "tests": 1,
+          "assertions": 189,
+          "dataCiteDocuments": 43,
+          "schemaOrgDocuments": 34
+        },
+        "includes": [
+          "Pint",
+          "complete Pest suite",
+          "offline JSON-LD semantics",
+          "PHPStan"
+        ]
+      },
+      "focusedCiRegression": {
+        "status": "passed",
+        "command": "npm run test:php -- <five affected test files> --compact",
+        "log": ".tmp/dependency-update-20261119/backend-ci-focused.log",
+        "tests": 29,
+        "assertions": 169
+      },
+      "npmInstallation": {
+        "status": "passed",
+        "command": "npm ci --no-audit; npm ls --depth=0 --json",
+        "problems": [],
+        "node": "26.13.1",
+        "npm": "12.2.3"
+      },
+      "composer": {
+        "status": "passed",
+        "commands": [
+          "npm run composer:app -- validate",
+          "npm run composer:app -- check-platform-reqs"
+        ],
+        "php": "8.5.13",
+        "note": "Manifest/lock valid. Existing nonblocking Composer recommendations concern the project version field and the intentional exact citeproc-php 2.7.1 pin."
+      },
+      "developmentImages": {
+        "status": "passed",
+        "log": ".tmp/dependency-update-20261119/build-dev.log",
+        "services": [
+          "app",
+          "queue",
+          "assistance-queue",
+          "scheduler",
+          "elmo-cache-refresh",
+          "assessment-queue",
+          "webserver",
+          "vite",
+          "fuji"
+        ],
+        "restartLog": ".tmp/dependency-update-20261119/dev-up.log"
+      },
+      "productionImages": {
+        "status": "passed",
+        "sourceCommit": "37fa1de68e149f3783a1c31bb467c95b51891ac5",
+        "logs": [
+          ".tmp/dependency-update-20261119/build-production-app.log",
+          ".tmp/dependency-update-20261119/build-production-nginx.log"
+        ],
+        "platformCheck": "PHP 8.5.13 and all non-development production platform requirements passed inside the built app image"
+      },
+      "fujiRuntime": {
+        "status": "passed",
+        "command": "scripts/check-fuji-runtime.py inside the updated F-UJI image",
+        "log": ".tmp/dependency-update-20261119/fuji-runtime.log",
+        "distributions": 85
+      },
+      "validationCorrections": [
+        "The initial Vitest startup found root-owned generated Wayfinder files. Restored ownership to www-data for the generated actions/routes/helper and reproduced successful generation before rerunning the full frontend check.",
+        "Reproduced the Laravel DatabaseManager teardown failure in isolation, adapted connection-only DB facade mocks to partial mocks, and verified all five affected CI paths before the complete backend run.",
+        "An initial Pint read failed for PortalMapClusterServiceTest.php during validation activity in the shared workspace. The file was present and readable; its focused Pint check passed, followed by the complete backend check."
+      ]
+    },
     "artifacts": ".tmp/dependency-update-20261119"
   }
 }
