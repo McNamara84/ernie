@@ -313,6 +313,7 @@ test('docs capabilities follow the same gates as resource actions', function () 
     $this->actingAs($groupLeader)->get(route('docs'))->assertInertia(fn (Assert $page) => $page
         ->where('capabilities.manageUsers', true)
         ->where('capabilities.accessEditorSettings', true)
+        ->where('capabilities.manageNews', true)
         ->where('capabilities.deletePublishedResources', true)
         ->missing('capabilities.importFromDataCite')
         ->where('capabilities.updateDataCiteUrls', false));

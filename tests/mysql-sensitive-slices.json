@@ -31,12 +31,18 @@
         "identifier-patterns",
         "oai-schema",
         "oai-services",
-        "curation"
+        "curation",
+        "news"
     ],
     "aliases": {
         "oai-pmh": ["oai-schema", "oai-services"]
     },
     "slices": {
+        "news": [
+            "tests/pest/Feature/News",
+            "tests/pest/Feature/Database/NewsMigrationTest.php",
+            "tests/pest/Feature/Database/NewsConcurrencyTest.php"
+        ],
         "doi-publication": [
             "tests/pest/Feature/Database/ResourceDoiPublicationSchemaTest.php",
             "tests/pest/Feature/Database/DataCiteConcurrentWriteTest.php",

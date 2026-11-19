@@ -49,6 +49,7 @@ class DocsController extends Controller
                 'updateDataCiteUrls' => $user->can('update-datacite-landing-page-urls'),
                 'manageUsers' => $user->can('manage-users'),
                 'accessEditorSettings' => $user->can('access-editor-settings'),
+                'manageNews' => $user->can('manage-news'),
             ],
             'editorSettings' => $this->getEditorSettingsForDocs(),
             'dataCite' => [

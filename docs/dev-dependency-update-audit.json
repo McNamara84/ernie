@@ -1,0 +1,579 @@
+{
+  "checkedOn": "2026-11-18",
+  "baseCommit": "b9c52857c2afa2bf05cbc2edddc1079d76707ad7",
+  "scope": "Refresh all direct npm and Composer development dependencies to the latest stable releases. Other direct application dependencies were reviewed; React Query is updated to satisfy the new Devtools peer requirement.",
+  "sources": {
+    "npm": "https://registry.npmjs.org",
+    "composer": "https://repo.packagist.org",
+    "vitestRelease": "https://github.com/vitest-dev/vitest/releases/tag/v5.1.1",
+    "picomatchAdvisory": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf"
+  },
+  "toolchain": {
+    "node": "26.13.1",
+    "npm": "12.2.2",
+    "phpMemoryLimit": "2G",
+    "pestWorkers": 8,
+    "vitestWorkers": 8
+  },
+  "npmDevelopment": [
+    {
+      "name": "@axe-core/playwright",
+      "constraint": "^4.14.0",
+      "previous": "4.14.0",
+      "installed": "4.14.0",
+      "latestStable": "4.14.0"
+    },
+    {
+      "name": "@laravel/vite-plugin-wayfinder",
+      "constraint": "^0.1.11",
+      "previous": "0.1.11",
+      "installed": "0.1.11",
+      "latestStable": "0.1.11"
+    },
+    {
+      "name": "@playwright/test",
+      "constraint": "1.65.1",
+      "previous": "1.65.1",
+      "installed": "1.65.1",
+      "latestStable": "1.65.1"
+    },
+    {
+      "name": "@redocly/cli",
+      "constraint": "^2.79.0",
+      "previous": "2.78.0",
+      "installed": "2.79.0",
+      "latestStable": "2.79.0"
+    },
+    {
+      "name": "@tanstack/react-query-devtools",
+      "constraint": "^5.108.0",
+      "previous": "5.107.1",
+      "installed": "5.108.0",
+      "latestStable": "5.108.0"
+    },
+    {
+      "name": "@testing-library/dom",
+      "constraint": "^10.4.2",
+      "previous": "10.4.2",
+      "installed": "10.4.2",
+      "latestStable": "10.4.2"
+    },
+    {
+      "name": "@testing-library/jest-dom",
+      "constraint": "^7.0.1",
+      "previous": "7.0.1",
+      "installed": "7.0.1",
+      "latestStable": "7.0.1"
+    },
+    {
+      "name": "@testing-library/react",
+      "constraint": "^16.3.3",
+      "previous": "16.3.3",
+      "installed": "16.3.3",
+      "latestStable": "16.3.3"
+    },
+    {
+      "name": "@testing-library/user-event",
+      "constraint": "^14.6.12",
+      "previous": "14.6.12",
+      "installed": "14.6.12",
+      "latestStable": "14.6.12"
+    },
+    {
+      "name": "@types/d3",
+      "constraint": "^7.4.3",
+      "previous": "7.4.3",
+      "installed": "7.4.3",
+      "latestStable": "7.4.3"
+    },
+    {
+      "name": "@types/leaflet",
+      "constraint": "^1.9.22",
+      "previous": "1.9.22",
+      "installed": "1.9.22",
+      "latestStable": "1.9.22"
+    },
+    {
+      "name": "@types/node",
+      "constraint": "^26.6.6",
+      "previous": "26.6.6",
+      "installed": "26.6.6",
+      "latestStable": "26.6.6"
+    },
+    {
+      "name": "@types/nprogress",
+      "constraint": "^0.2.3",
+      "previous": "0.2.3",
+      "installed": "0.2.3",
+      "latestStable": "0.2.3"
+    },
+    {
+      "name": "@types/papaparse",
+      "constraint": "^5.5.2",
+      "previous": "5.5.2",
+      "installed": "5.5.2",
+      "latestStable": "5.5.2"
+    },
+    {
+      "name": "@types/react",
+      "constraint": "^19.3.0",
+      "previous": "19.3.0",
+      "installed": "19.3.0",
+      "latestStable": "19.3.0"
+    },
+    {
+      "name": "@types/react-dom",
+      "constraint": "^19.3.0",
+      "previous": "19.3.0",
+      "installed": "19.3.0",
+      "latestStable": "19.3.0"
+    },
+    {
+      "name": "@types/yaireo__tagify",
+      "constraint": "^4.27.0",
+      "previous": "4.27.0",
+      "installed": "4.27.0",
+      "latestStable": "4.27.0"
+    },
+    {
+      "name": "@vitejs/devtools",
+      "constraint": "^0.8.3",
+      "previous": "0.8.3",
+      "installed": "0.8.3",
+      "latestStable": "0.8.3"
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "constraint": "^6.3.0",
+      "previous": "6.3.0",
+      "installed": "6.3.0",
+      "latestStable": "6.3.0"
+    },
+    {
+      "name": "@vitest/browser",
+      "constraint": "^5.1.1",
+      "previous": "5.1.0",
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
+    },
+    {
+      "name": "@vitest/browser-playwright",
+      "constraint": "^5.1.1",
+      "previous": "5.1.0",
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "constraint": "^5.1.1",
+      "previous": "5.1.0",
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
+    },
+    {
+      "name": "ajv",
+      "constraint": "^8.20.0",
+      "previous": "8.20.0",
+      "installed": "8.20.0",
+      "latestStable": "8.20.0"
+    },
+    {
+      "name": "dotenv",
+      "constraint": "^18.0.10",
+      "previous": "18.0.10",
+      "installed": "18.0.10",
+      "latestStable": "18.0.10"
+    },
+    {
+      "name": "eslint",
+      "constraint": "^10.15.0",
+      "previous": "10.15.0",
+      "installed": "10.15.0",
+      "latestStable": "10.15.0"
+    },
+    {
+      "name": "eslint-plugin-simple-import-sort",
+      "constraint": "^14.0.0",
+      "previous": "14.0.0",
+      "installed": "14.0.0",
+      "latestStable": "14.0.0"
+    },
+    {
+      "name": "jsdom",
+      "constraint": "^31.0.1",
+      "previous": "31.0.1",
+      "installed": "31.0.1",
+      "latestStable": "31.0.1"
+    },
+    {
+      "name": "jsonld",
+      "constraint": "9.0.0",
+      "previous": "9.0.0",
+      "installed": "9.0.0",
+      "latestStable": "9.0.0"
+    },
+    {
+      "name": "msw",
+      "constraint": "^3.0.7",
+      "previous": "3.0.6",
+      "installed": "3.0.7",
+      "latestStable": "3.0.7"
+    },
+    {
+      "name": "oxfmt",
+      "constraint": "^0.79.0",
+      "previous": "0.78.0",
+      "installed": "0.79.0",
+      "latestStable": "0.79.0"
+    },
+    {
+      "name": "oxlint",
+      "constraint": "^1.94.0",
+      "previous": "1.93.0",
+      "installed": "1.94.0",
+      "latestStable": "1.94.0"
+    },
+    {
+      "name": "playwright",
+      "constraint": "1.65.1",
+      "previous": "1.65.1",
+      "installed": "1.65.1",
+      "latestStable": "1.65.1"
+    },
+    {
+      "name": "start-server-and-test",
+      "constraint": "^3.0.13",
+      "previous": "3.0.13",
+      "installed": "3.0.13",
+      "latestStable": "3.0.13"
+    },
+    {
+      "name": "vite",
+      "constraint": "^8.3.8",
+      "previous": "8.3.8",
+      "installed": "8.3.8",
+      "latestStable": "8.3.8"
+    },
+    {
+      "name": "vitest",
+      "constraint": "^5.1.1",
+      "previous": "5.1.0",
+      "installed": "5.1.1",
+      "latestStable": "5.1.1"
+    },
+    {
+      "name": "vitest-browser-react",
+      "constraint": "^2.3.0",
+      "previous": "2.3.0",
+      "installed": "2.3.0",
+      "latestStable": "2.3.0"
+    }
+  ],
+  "composerDevelopment": [
+    {
+      "name": "brianium/paratest",
+      "constraint": "^7.29.0",
+      "previous": "v7.29.0",
+      "installed": "v7.29.0",
+      "latestStable": "v7.29.0"
+    },
+    {
+      "name": "fakerphp/faker",
+      "constraint": "^1.24.1",
+      "previous": "v1.24.1",
+      "installed": "v1.24.1",
+      "latestStable": "v1.24.1"
+    },
+    {
+      "name": "larastan/larastan",
+      "constraint": "^3.15.0",
+      "previous": "v3.15.0",
+      "installed": "v3.15.0",
+      "latestStable": "v3.15.0"
+    },
+    {
+      "name": "laravel/pail",
+      "constraint": "^1.3.0",
+      "previous": "v1.3.0",
+      "installed": "v1.3.0",
+      "latestStable": "v1.3.0"
+    },
+    {
+      "name": "laravel/pint",
+      "constraint": "^1.32.3",
+      "previous": "v1.32.3",
+      "installed": "v1.32.3",
+      "latestStable": "v1.32.3"
+    },
+    {
+      "name": "laravel/sail",
+      "constraint": "^1.71.0",
+      "previous": "v1.70.0",
+      "installed": "v1.71.0",
+      "latestStable": "v1.71.0"
+    },
+    {
+      "name": "mockery/mockery",
+      "constraint": "^1.6.15",
+      "previous": "1.6.15",
+      "installed": "1.6.15",
+      "latestStable": "1.6.15"
+    },
+    {
+      "name": "nunomaduro/collision",
+      "constraint": "^8.9.6",
+      "previous": "v8.9.6",
+      "installed": "v8.9.6",
+      "latestStable": "v8.9.6"
+    },
+    {
+      "name": "pestphp/pest",
+      "constraint": "^5.3.7",
+      "previous": "v5.3.6",
+      "installed": "v5.3.7",
+      "latestStable": "v5.3.7"
+    },
+    {
+      "name": "pestphp/pest-plugin-agent",
+      "constraint": "^5.0.0",
+      "previous": "v5.0.0",
+      "installed": "v5.0.0",
+      "latestStable": "v5.0.0"
+    },
+    {
+      "name": "pestphp/pest-plugin-browser",
+      "constraint": "^5.2.0",
+      "previous": "v5.2.0",
+      "installed": "v5.2.0",
+      "latestStable": "v5.2.0"
+    },
+    {
+      "name": "pestphp/pest-plugin-laravel",
+      "constraint": "^5.0.1",
+      "previous": "v5.0.1",
+      "installed": "v5.0.1",
+      "latestStable": "v5.0.1"
+    },
+    {
+      "name": "pestphp/pest-plugin-phpstan",
+      "constraint": "^5.3.1",
+      "previous": "v5.3.1",
+      "installed": "v5.3.1",
+      "latestStable": "v5.3.1"
+    },
+    {
+      "name": "pestphp/pest-plugin-type-coverage",
+      "constraint": "^5.1.1",
+      "previous": "v5.1.0",
+      "installed": "v5.1.1",
+      "latestStable": "v5.1.1"
+    }
+  ],
+  "requiredRuntimePeerUpdate": {
+    "name": "@tanstack/react-query",
+    "previous": "5.107.1",
+    "installed": "5.108.0",
+    "requiredBy": "@tanstack/react-query-devtools@5.108.0",
+    "peerRequirement": "^5.108.0"
+  },
+  "additionalDevelopmentLockUpdates": [
+    {
+      "name": "@vitest/mocker",
+      "previous": "5.1.0",
+      "installed": "5.1.1"
+    },
+    {
+      "name": "@vitest/pretty-format",
+      "previous": "5.1.0",
+      "installed": "5.1.1"
+    },
+    {
+      "name": "@vitest/spy",
+      "previous": "5.1.0",
+      "installed": "5.1.1"
+    },
+    {
+      "name": "@vitest/ui",
+      "previous": "5.1.0",
+      "installed": "5.1.1"
+    },
+    {
+      "name": "@vitest/utils",
+      "previous": "5.1.0",
+      "installed": "5.1.1"
+    },
+    {
+      "name": "seroval",
+      "previous": "1.8.1",
+      "installed": "1.8.2"
+    },
+    {
+      "name": "amphp/http-server",
+      "previous": "v3.4.8",
+      "installed": "v3.4.9"
+    }
+  ],
+  "installation": {
+    "host": "npm ci; npm ls --depth=0 reports no invalid or extraneous packages.",
+    "docker": "npm ci in the app container refreshes the shared node_modules volume; Vite restarted and verify-vite-dependencies.mjs passed.",
+    "scriptPolicy": "Removed the obsolete msw@3.0.6 allowScripts entry: msw@3.0.7 has no install hooks. Existing script permissions and security overrides are preserved."
+  },
+  "validation": [
+    {
+      "command": "npm ci (host and Docker app)",
+      "result": "passed"
+    },
+    {
+      "command": "npm ls --depth=0",
+      "result": "passed: no invalid or extraneous packages"
+    },
+    {
+      "command": "npm run format:check",
+      "result": "passed: 511 files"
+    },
+    {
+      "command": "npm run check:frontend",
+      "result": "passed",
+      "toolingTests": {
+        "passed": 125,
+        "skipped": 5
+      },
+      "vitest": {
+        "filesPassed": 545,
+        "testsPassed": 9389,
+        "testsSkipped": 1,
+        "projects": [
+          "jsdom",
+          "browser (chromium)"
+        ]
+      }
+    },
+    {
+      "command": "npm run check:backend",
+      "result": "passed: Pint, complete optimized Pest suite, JSON-LD, DCAT-AP and PHPStan",
+      "pintFiles": 2112,
+      "serialTestsPassed": 44,
+      "architectureTestsPassed": 23,
+      "parallelAssertions": 72105,
+      "parallelTestsSkipped": 58,
+      "jsonldDocuments": {
+        "dataCite": 43,
+        "schemaOrg": 34
+      },
+      "dcatApFixtures": 6,
+      "phpstanFiles": 1181,
+      "phpstanErrors": 0
+    },
+    {
+      "command": "npm run test:run -- tests/vitest/pages/__tests__/home.test.tsx --coverage --coverage.include=resources/js/pages/home.tsx --coverage.include=resources/js/components/home/HomeNews.tsx --coverage.reporter=json-summary --coverage.reportsDirectory=.tmp/dev-dependencies-coverage",
+      "result": "passed: 7 tests; verifies the updated V8 coverage provider",
+      "scope": "Focused provider smoke test; not a complete line coverage run"
+    },
+    {
+      "command": "npm run test:php:type-coverage",
+      "result": "passed",
+      "typeCoveragePercent": 93.5,
+      "minimumPercent": 92
+    },
+    {
+      "command": "npm run build:ssr",
+      "result": "passed: production client and SSR builds",
+      "wayfinder": "Docker app PHP with memory_limit=2G; host Node uses the pinned .node-version"
+    },
+    {
+      "command": "npm run composer:app -- validate",
+      "result": "passed with existing warnings",
+      "warnings": [
+        "Existing top-level version field",
+        "Existing exact seboettg/citeproc-php constraint"
+      ],
+      "strictResult": "--strict returns exit 1 for these same pre-existing warnings; manifest and lockfile are valid."
+    },
+    {
+      "command": "npm run composer:app -- audit --format=json",
+      "result": "passed: no advisories or abandoned packages"
+    },
+    {
+      "command": "npm audit --json",
+      "result": "six HIGH package entries from existing GHSA-fc5q-39xc-vjpf; no patched Picomatch release available"
+    },
+    {
+      "command": "npm outdated --json; npm run composer:app -- outdated --direct --locked --format=json",
+      "result": "no outdated direct development dependencies"
+    }
+  ],
+  "security": {
+    "composerAdvisories": 0,
+    "composerAbandonedPackages": 0,
+    "npm": {
+      "summary": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 6,
+        "critical": 0,
+        "total": 6
+      },
+      "distinctAdvisories": 1,
+      "advisory": "GHSA-fc5q-39xc-vjpf",
+      "status": "Unresolved: no patched Picomatch release is available as of the check date.",
+      "affectedVersions": "<=4.0.7",
+      "installedVersions": [
+        "4.0.7",
+        "2.3.1"
+      ],
+      "latestStable": "4.0.7",
+      "presentInPreviousLock": true,
+      "affectedPackages": [
+        "laravel-vite-plugin",
+        "picomatch",
+        "tinyglobby",
+        "vite",
+        "vite-plugin-full-reload",
+        "vitest"
+      ],
+      "suggestedDowngrades": {
+        "vite": "6.2.7",
+        "vitest": "3.1.4",
+        "laravel-vite-plugin": "2.1.0"
+      },
+      "resolution": "Keep the compatible current versions pending an upstream fix. No audit suppression, forced incompatible downgrade or weakened security gate."
+    }
+  },
+  "remainingDirectRuntimeUpdatesReviewed": {
+    "npm": [
+      {
+        "name": "@hookform/resolvers",
+        "installed": "7.0.6",
+        "latestStable": "7.0.7"
+      },
+      {
+        "name": "lucide-react",
+        "installed": "1.73.0",
+        "latestStable": "1.75.0"
+      },
+      {
+        "name": "maplibre-gl",
+        "installed": "6.18.0",
+        "latestStable": "6.19.0"
+      },
+      {
+        "name": "recharts",
+        "installed": "3.10.1",
+        "latestStable": "3.11.0"
+      }
+    ],
+    "composer": [
+      {
+        "name": "laravel/framework",
+        "installed": "v13.42.0",
+        "latestStable": "v13.43.0"
+      },
+      {
+        "name": "laravel/tinker",
+        "installed": "v3.1.0",
+        "latestStable": "v3.2.0"
+      }
+    ]
+  }
+}
