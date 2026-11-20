@@ -11,24 +11,37 @@ function calendar(page: Page) {
     return page.locator('[data-slot="popover-content"] [data-slot="calendar"]');
 }
 
+function calendarYear(page: Page) {
+    return page.locator('[data-slot="popover-content"][data-state="open"]').getByRole('spinbutton', { name: 'Year', exact: true });
+}
+
 async function chooseMonthAndYear(page: Page, month: string, year: string) {
     const picker = calendar(page);
     const monthSelect = picker.getByRole('combobox', { name: 'Choose the Month' });
-    const yearSelect = picker.getByRole('combobox', { name: 'Choose the Year' });
+    const yearInput = calendarYear(page);
 
     // selectOption alone bypasses the navigation overlay that caused #1461.
     await monthSelect.click({ trial: true });
-    await yearSelect.click({ trial: true });
+    await yearInput.click({ trial: true });
+    await yearInput.fill(year);
+    await yearInput.press('Enter');
     await monthSelect.selectOption(month);
-    await yearSelect.selectOption(year);
     await expect(monthSelect).toHaveValue(month);
-    await expect(yearSelect).toHaveValue(year);
+    await expect(yearInput).toHaveValue(year);
     await expect(picker).toBeVisible();
 }
 
 async function dayButton(page: Page, year: number, month: number, day: number) {
     // data-day uses the browser's locale, which can differ from the Node host.
-    const label = await page.evaluate(([year, month, day]) => new Date(year, month, day).toLocaleDateString(), [year, month, day]);
+    const label = await page.evaluate(
+        ([year, month, day]) => {
+            const date = new Date(0);
+            date.setHours(0, 0, 0, 0);
+            date.setFullYear(year, month, day);
+            return date.toLocaleDateString();
+        },
+        [year, month, day],
+    );
     return calendar(page).locator(`button[data-day="${label}"]`);
 }
 
@@ -39,8 +52,10 @@ async function chooseDay(page: Page, input: Locator, year: number, month: number
 }
 
 async function chooseDateType(page: Page, name: string) {
-    await page.getByRole('combobox', { name: 'Date Type', exact: true }).click();
+    const trigger = page.getByRole('combobox', { name: 'Date Type', exact: true });
+    await trigger.click();
     await page.getByRole('option', { name, exact: true }).click();
+    await expect(trigger).toBeFocused();
 }
 
 test.describe('Issue #1461: editor calendar dropdowns', () => {
@@ -66,7 +81,7 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
         test.describe(scenario.name, () => {
             test.use({ locale: scenario.locale, viewport: { width: scenario.width, height: 900 } });
 
-            test('can click both dropdowns and arrows before committing a historical day', async ({ page }) => {
+            test('can click month and year controls and arrows before committing a historical day', async ({ page }) => {
                 const input = page.getByRole('textbox', { name: 'Date', exact: true });
                 if (scenario.initial) {
                     await input.fill(scenario.initial);
@@ -86,7 +101,7 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
 
                 await trigger.click();
                 await expect(calendar(page).getByRole('combobox', { name: 'Choose the Month' })).toHaveValue('1');
-                await expect(calendar(page).getByRole('combobox', { name: 'Choose the Year' })).toHaveValue('1900');
+                await expect(calendarYear(page)).toHaveValue('1900');
                 await page.keyboard.press('Escape');
                 await expect(calendar(page)).toBeHidden();
                 await expect(trigger).toBeFocused();
@@ -112,19 +127,15 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
 
     test('preserves the earliest date and blocks future ordinary dates', async ({ page }) => {
         await page.getByRole('button', { name: 'Choose date', exact: true }).click();
-        await chooseMonthAndYear(page, '0', '1900');
+        await chooseMonthAndYear(page, '0', '1');
         await expect(calendar(page).getByRole('button', { name: 'Go to the Previous Month' })).toHaveAttribute('aria-disabled', 'true');
-        await expect(calendar(page).getByRole('combobox', { name: 'Choose the Year' }).locator('option[value="1899"]')).toHaveCount(0);
-        // DayPicker 10 hides days before startMonth even with showOutsideDays=true.
-        const beforeStart = calendar(page).locator('[role="gridcell"][data-day="1899-12-31"]');
-        await expect(beforeStart).toHaveAttribute('data-hidden', 'true');
-        await expect(beforeStart).toBeHidden();
-        await expect(await dayButton(page, 1899, 11, 31)).toHaveCount(0);
-        await expect(await dayButton(page, 1900, 0, 1)).toBeEnabled();
+        await expect(calendarYear(page)).toHaveAttribute('min', '1');
+        await expect(await dayButton(page, 0, 11, 31)).toHaveCount(0);
+        await expect(await dayButton(page, 1, 0, 1)).toBeEnabled();
 
         await chooseMonthAndYear(page, '9', '2026');
         await expect(calendar(page).getByRole('button', { name: 'Go to the Next Month' })).toHaveAttribute('aria-disabled', 'true');
-        await expect(calendar(page).getByRole('combobox', { name: 'Choose the Year' }).locator('option[value="2027"]')).toHaveCount(0);
+        await expect(calendarYear(page)).toHaveAttribute('max', '2026');
         await expect(await dayButton(page, 2026, 9, 12)).toBeEnabled();
         await expect(await dayButton(page, 2026, 9, 13)).toBeDisabled();
     });
@@ -133,10 +144,10 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
         await chooseDateType(page, 'Available');
         const input = page.getByRole('textbox', { name: 'Date', exact: true });
         await page.getByRole('button', { name: 'Choose date', exact: true }).click();
-        await chooseMonthAndYear(page, '0', '2028');
+        await chooseMonthAndYear(page, '0', '2299');
         await expect(input).toHaveValue('');
-        await expect(calendar(page).getByRole('combobox', { name: 'Choose the Year' }).locator('option[value="2076"]')).toHaveCount(1);
-        await chooseDay(page, input, 2028, 0, 15, '2028-01-15');
+        await expect(calendarYear(page)).toHaveAttribute('max', '9999');
+        await chooseDay(page, input, 2299, 0, 15, '2299-01-15');
     });
 
     test('supports keyboard month selection and returns focus when dismissed', async ({ page }) => {
@@ -147,13 +158,14 @@ test.describe('Issue #1461: editor calendar dropdowns', () => {
         await trigger.focus();
         await page.keyboard.press('Enter');
         const month = calendar(page).getByRole('combobox', { name: 'Choose the Month' });
-        const year = calendar(page).getByRole('combobox', { name: 'Choose the Year' });
+        const year = calendarYear(page);
         await month.focus();
         await month.press('ArrowDown');
         await expect(month).toHaveValue('9');
-        await month.press('Tab');
+        await year.focus();
         await expect(year).toBeFocused();
-        await year.press('ArrowUp');
+        await year.press('ArrowDown');
+        await year.press('Enter');
         await expect(year).toHaveValue('2019');
         await expect(input).toHaveValue('2020-09-24');
         await page.keyboard.press('Escape');

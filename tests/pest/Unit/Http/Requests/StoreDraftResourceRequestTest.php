@@ -471,7 +471,7 @@ it('enforces the editor date bounds in draft and final requests', function (stri
     $futureMonth = now()->startOfMonth()->addMonth()->format('Y-m');
     $futureYear = (string) (now()->year + 1);
 
-    foreach (['1900', '1900-01', '1900-01-01', substr($today, 0, 4), substr($today, 0, 7), $today, $today.'T23:59:59Z'] as $value) {
+    foreach (['0001', '0001-01', '0001-01-01', '1899', '1899-12', '1899-12-31', '1900', '1900-01', '1900-01-01', substr($today, 0, 4), substr($today, 0, 7), $today, $today.'T23:59:59Z'] as $value) {
         $validator = validateDraftDatePayload([
             ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => $value, 'endDate' => null],
         ], $requestClass);
@@ -479,7 +479,7 @@ it('enforces the editor date bounds in draft and final requests', function (stri
         expect($validator->errors()->has('dates.0.startDate'))->toBeFalse();
     }
 
-    foreach (['1899', '1899-12', '1899-12-31', $futureYear, $futureMonth, $futureDay, $futureDay.'T00:00Z'] as $value) {
+    foreach (['0000', '0000-01', '0000-01-01', '-0054', '10000', $futureYear, $futureMonth, $futureDay, $futureDay.'T00:00Z'] as $value) {
         $validator = validateDraftDatePayload([
             ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => $value, 'endDate' => null],
         ], $requestClass);

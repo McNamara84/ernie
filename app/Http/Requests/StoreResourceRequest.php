@@ -143,7 +143,7 @@ class StoreResourceRequest extends FormRequest
                 Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
-            'dates.*.startDate' => ['nullable', new EditorDate(allowFuture: true)],
+            'dates.*.startDate' => ['nullable', app(EditorDate::class)],
             'dates.*.endDate' => ['nullable', app(EditorDate::class)],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],

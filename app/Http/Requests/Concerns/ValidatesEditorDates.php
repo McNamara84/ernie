@@ -20,6 +20,9 @@ trait ValidatesEditorDates
      */
     private const EDITOR_PERIOD_DATE_TYPES = ['created', 'collected', 'valid', 'other'];
 
+    /** @var list<string> */
+    private const EDITOR_FUTURE_DATE_TYPES = ['available', 'collected', 'valid', 'other'];
+
     private function validateEditorDates(Validator $validator): void
     {
         $dates = $this->input('dates', []);
@@ -27,6 +30,8 @@ trait ValidatesEditorDates
         if (! is_array($dates)) {
             return;
         }
+
+        $today = now(config('app.timezone'))->toDateString();
 
         foreach ($dates as $index => $date) {
             if (! is_array($date)) {
@@ -38,13 +43,20 @@ trait ValidatesEditorDates
             $startDate = $this->nonEmptyDateValue($date['startDate'] ?? null);
             $endDate = $this->nonEmptyDateValue($date['endDate'] ?? null);
 
-            if ($dateType !== 'available' && $startDate !== null
-                && strcmp(substr($startDate, 0, 10), now(config('app.timezone'))->toDateString()) > 0) {
-                $validator->errors()->add("dates.$index.startDate", '[Dates] The start date cannot be in the future.');
+            $validStart = $startDate !== null && ! $validator->errors()->has("dates.$index.startDate");
+            $validEnd = $endDate !== null && ! $validator->errors()->has("dates.$index.endDate");
+
+            if (! in_array($dateType, self::EDITOR_FUTURE_DATE_TYPES, true)) {
+                foreach (['startDate' => $validStart ? $startDate : null, 'endDate' => $validEnd ? $endDate : null] as $field => $value) {
+                    if ($value !== null && strcmp(substr($value, 0, 10), $today) > 0) {
+                        $label = $field === 'startDate' ? 'start' : 'end';
+                        $validator->errors()->add("dates.$index.$field", "[Dates] The $label date cannot be in the future.");
+                    }
+                }
             }
 
-            if ($dateType === 'available' && $startDate !== null
-                && strcmp(substr($startDate, 0, 10), now(config('app.timezone'))->toDateString()) > 0
+            if ($dateType === 'available' && $validStart
+                && strcmp(substr($startDate, 0, 10), $today) > 0
                 && $this->input('accessLevel') !== AccessLevel::EMBARGOED->value) {
                 $validator->errors()->add("dates.$index.startDate", '[Dates] A future Available date requires Embargoed access.');
             }
@@ -98,7 +110,7 @@ trait ValidatesEditorDates
                 );
             }
 
-            if (! $hasPeriodIntent || $startDate === null || $endDate === null) {
+            if (! $hasPeriodIntent || ! $validStart || ! $validEnd) {
                 continue;
             }
 

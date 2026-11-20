@@ -6141,6 +6141,74 @@ describe('DataCiteForm', () => {
     });
 
     describe('Dates Form Group', () => {
+        it.each(['draft', 'validate'] as const)(
+            'saves the reported historical and projected date rows through %s',
+            { timeout: 60000 },
+            async (mode) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                const dates: DataCiteFormProps['initialDates'] = [
+                    { dateType: 'other', dateMode: 'range', startDate: '2006', endDate: '2099' },
+                    { dateType: 'collected', dateMode: 'range', startDate: '2100', endDate: '2299' },
+                    { dateType: 'collected', dateMode: 'range', startDate: '1861', endDate: '2005' },
+                    { dateType: 'collected', dateMode: 'range', startDate: '1661', endDate: '1860' },
+                    { dateType: 'created', dateMode: 'single', startDate: '2017', endDate: '' },
+                ];
+                await renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialYear: '2019',
+                    initialResourceType: '1',
+                    initialAccessLevel: 'open',
+                    initialTitles: [{ title: 'Historical and projected dataset dates', titleType: 'main-title' }],
+                    initialLicenses: ['MIT'],
+                    initialAuthors: [{ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }],
+                    initialDescriptions: [
+                        { type: 'Abstract', description: 'A complete abstract describing historical observations and projected model results.' },
+                    ],
+                    availableDatacenters,
+                    initialDatacenterId: 1,
+                    initialDates: dates,
+                });
+                await ensureDatesOpen(user);
+                await user.click(mode === 'draft' ? screen.getByTestId('save-draft-button') : screen.getByRole('button', { name: /^validate$/i }));
+                const endpoint = mode === 'draft' ? '/editor/resources/draft' : '/editor/resources';
+                await waitFor(() => expect(axios.post).toHaveBeenCalledWith(endpoint, expect.any(Object), expect.any(Object)));
+                const payload = vi.mocked(axios.post).mock.calls.find(([url]) => url === endpoint)![1] as { dates: unknown[]; accessLevel: string };
+                expect(payload.dates).toEqual(dates.map((date) => ({ ...date, endDate: date.endDate || null })));
+                expect(payload.accessLevel).toBe('open');
+                expect(screen.queryByText('Date validation issues')).not.toBeInTheDocument();
+            },
+        );
+
+        it.each(['Collected', 'Valid', 'Other'])(
+            'serializes both future %s timestamps without enabling an embargo',
+            { timeout: 60000 },
+            async (dateType) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                await renderDataCiteForm({
+                    initialTitles: [{ title: 'Future model results', titleType: 'main-title' }],
+                    initialAccessLevel: 'open',
+                    initialDates: [{ dateType, dateMode: 'range', startDate: '2299-01-01T09:30:45+02:00', endDate: '9999-12-31T23:59:59Z' }],
+                });
+                await user.click(screen.getByTestId('save-draft-button'));
+                await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+                const payload = vi.mocked(axios.post).mock.calls.find(([url]) => url === '/editor/resources/draft')![1] as {
+                    dates: unknown[];
+                    accessLevel: string;
+                };
+                expect(payload).toMatchObject({
+                    accessLevel: 'open',
+                    dates: [
+                        {
+                            dateType: dateType.toLowerCase(),
+                            dateMode: 'range',
+                            startDate: '2299-01-01T09:30:45+02:00',
+                            endDate: '9999-12-31T23:59:59Z',
+                        },
+                    ],
+                });
+            },
+        );
+
         const getEditorDateInputs = () =>
             Array.from(document.querySelectorAll<HTMLInputElement>('input[id$="-date"], input[id$="-startDate"], input[id$="-endDate"]'));
 
@@ -7392,7 +7460,7 @@ describe('DataCiteForm', () => {
 
             await renderDataCiteForm({
                 initialTitles: [{ title: 'Invalid Preview Date Dataset', titleType: 'main-title' }],
-                initialDates: [{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
+                initialDates: [{ dateType: 'created', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
             });
 
             const previewButton = screen.getByTestId('show-lp-preview-button');
@@ -8395,7 +8463,7 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialTitles={[{ title: 'Draft Dataset', titleType: 'main-title' }]}
-                    initialDates={[{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
+                    initialDates={[{ dateType: 'created', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
                 />,
             );
 
