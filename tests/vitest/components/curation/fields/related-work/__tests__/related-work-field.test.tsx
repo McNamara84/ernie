@@ -2,10 +2,11 @@ import '@testing-library/jest-dom/vitest';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkField from '@/components/curation/fields/related-work/related-work-field';
+import type { RelatedWorkEditorEntry } from '@/components/curation/fields/related-work/types';
+import { useRelatedWorkEditor } from '@/hooks/use-related-work-editor';
 import type { RelatedIdentifier } from '@/types';
 
 vi.mock('@/actions/App/Http/Controllers/Api/RelatedIdentifierCitationLabelController', () => ({
@@ -47,70 +48,67 @@ vi.mock('@/components/curation/fields/related-work/related-work-csv-import', () 
 
 vi.mock('@/components/curation/fields/related-work/related-work-list', () => ({
     default: ({
-        items,
+        entries,
         completedItemCount,
         onRemove,
         onItemChange,
         onIdentifierBlur,
-        onReorder,
         citationResolutionStates,
     }: {
-        items: RelatedIdentifier[];
+        entries: RelatedWorkEditorEntry[];
         completedItemCount: number;
-        onRemove: (index: number) => void;
-        onItemChange: (index: number, item: RelatedIdentifier) => void;
-        onIdentifierBlur: (index: number) => void;
-        onReorder: (items: RelatedIdentifier[]) => void;
-        citationResolutionStates?: Map<number, { status: string; message?: string }>;
+        onRemove: (clientId: string) => void;
+        onItemChange: (clientId: string, item: RelatedIdentifier) => void;
+        onIdentifierBlur: (clientId: string) => void;
+        citationResolutionStates?: Map<string, { status: string; message?: string }>;
     }) => (
         <div data-testid="related-work-list">
             <span data-testid="completed-count">{completedItemCount}</span>
-            {items.map((item, index) => (
-                <div key={index} data-testid={`item-${index}`}>
+            {entries.map(({ clientId, data: item }, index) => (
+                <div key={clientId} data-testid={`item-${index}`}>
                     <input
                         data-testid={`item-identifier-${index}`}
                         value={item.identifier}
-                        onChange={(event) => onItemChange(index, { ...item, identifier: event.target.value })}
-                        onBlur={() => onIdentifierBlur(index)}
+                        onChange={(event) => onItemChange(clientId, { ...item, identifier: event.target.value })}
+                        onBlur={() => onIdentifierBlur(clientId)}
                     />
                     <input
                         aria-label={`Citation label ${index + 1}`}
                         value={item.citation_label ?? ''}
-                        onChange={(event) => onItemChange(index, { ...item, citation_label: event.target.value })}
+                        onChange={(event) => onItemChange(clientId, { ...item, citation_label: event.target.value })}
                     />
                     <span data-testid={`identifier-type-${index}`}>{item.identifier_type}</span>
                     <span data-testid={`relation-type-${index}`}>{item.relation_type}</span>
                     <span data-testid={`position-${index}`}>{item.position}</span>
                     <span data-testid={`related-title-${index}`}>{item.related_title ?? ''}</span>
                     <span data-testid={`related-metadata-${index}`}>{item.related_metadata ? JSON.stringify(item.related_metadata) : ''}</span>
-                    <span data-testid={`resolution-status-${index}`}>{citationResolutionStates?.get(index)?.status ?? ''}</span>
-                    <button type="button" data-testid={`set-url-${index}`} onClick={() => onItemChange(index, { ...item, identifier_type: 'URL' })}>
+                    <span data-testid={`resolution-status-${index}`}>{citationResolutionStates?.get(clientId)?.status ?? ''}</span>
+                    <button
+                        type="button"
+                        data-testid={`set-url-${index}`}
+                        onClick={() => onItemChange(clientId, { ...item, identifier_type: 'URL' })}
+                    >
                         Set URL
                     </button>
                     <button
                         type="button"
                         data-testid={`set-references-${index}`}
-                        onClick={() => onItemChange(index, { ...item, relation_type: 'References' })}
+                        onClick={() => onItemChange(clientId, { ...item, relation_type: 'References' })}
                     >
                         Set References
                     </button>
                     <button
                         type="button"
                         data-testid={`manual-citation-${index}`}
-                        onClick={() => onItemChange(index, { ...item, citation_label: 'Manually curated citation' })}
+                        onClick={() => onItemChange(clientId, { ...item, citation_label: 'Manually curated citation' })}
                     >
                         Set manual citation
                     </button>
-                    <button type="button" data-testid={`remove-${index}`} onClick={() => onRemove(index)}>
+                    <button type="button" data-testid={`remove-${index}`} onClick={() => onRemove(clientId)}>
                         Remove
                     </button>
                 </div>
             ))}
-            {items.length > 1 && (
-                <button type="button" data-testid="reorder-items" onClick={() => onReorder([...items].reverse())}>
-                    Reorder
-                </button>
-            )}
         </div>
     ),
 }));
@@ -124,12 +122,13 @@ function StatefulField({
     activeIdentifierTypes?: string[];
     activeRelationTypes?: string[];
 }) {
-    const [items, setItems] = useState(initialItems);
+    const editor = useRelatedWorkEditor(initialItems);
 
     return (
         <RelatedWorkField
-            relatedWorks={items}
-            onChange={setItems}
+            entries={editor.entries}
+            displayEntries={editor.displayEntries}
+            onChange={editor.setEntries}
             activeIdentifierTypes={activeIdentifierTypes}
             activeRelationTypes={activeRelationTypes}
         />
@@ -164,7 +163,7 @@ describe('RelatedWorkField', () => {
     it('renders the empty state without creating a related work', () => {
         const onChange = vi.fn();
 
-        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+        render(<RelatedWorkField entries={[]} displayEntries={[]} onChange={onChange} />);
 
         expect(screen.getByTestId('related-work-empty-state')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^add related work$/i })).toBeInTheDocument();
@@ -688,11 +687,7 @@ describe('RelatedWorkField', () => {
     it('does not show an opposite-relation suggestion after a relation type change (Issue #1293)', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-        render(
-            <StatefulField
-                initialItems={[{ identifier: '10.5880/one', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
-            />,
-        );
+        render(<StatefulField initialItems={[{ identifier: '10.5880/one', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]} />);
 
         await user.click(screen.getByTestId('set-references-0'));
 
@@ -701,7 +696,7 @@ describe('RelatedWorkField', () => {
         expect(screen.queryByRole('button', { name: /^Use /i })).not.toBeInTheDocument();
     });
 
-    it('reindexes cards after removal and reorder', async () => {
+    it('reindexes cards after removal without offering manual reordering', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
         render(
@@ -718,9 +713,9 @@ describe('RelatedWorkField', () => {
         expect(screen.getByTestId('item-identifier-1')).toHaveValue('10.5880/c');
         expect(screen.getByTestId('position-1')).toHaveTextContent('1');
 
-        await user.click(screen.getByTestId('reorder-items'));
-        expect(screen.getByTestId('item-identifier-0')).toHaveValue('10.5880/c');
+        expect(screen.getByTestId('item-identifier-0')).toHaveValue('10.5880/a');
         expect(screen.getByTestId('position-0')).toHaveTextContent('0');
+        expect(screen.queryByTestId('reorder-items')).not.toBeInTheDocument();
     });
 
     it('opens and closes CSV import without discarding an existing empty card', async () => {
@@ -774,11 +769,7 @@ describe('RelatedWorkField', () => {
     it('skips duplicate CSV rows and clears the warning after eight seconds', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-        render(
-            <StatefulField
-                initialItems={[{ identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
-            />,
-        );
+        render(<StatefulField initialItems={[{ identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]} />);
 
         await user.click(screen.getByRole('button', { name: /import from csv/i }));
         await user.click(screen.getByTestId('csv-import-submit'));

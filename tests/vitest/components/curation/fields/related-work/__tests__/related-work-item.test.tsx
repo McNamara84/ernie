@@ -18,14 +18,12 @@ describe('RelatedWorkItem', () => {
     };
 
     const defaultProps = {
-        sortableId: 'related-work-0',
         item: defaultItem,
         index: 0,
         onChange: mockOnChange,
         onIdentifierBlur: mockOnIdentifierBlur,
         onRemove: mockOnRemove,
     };
-
 
     it('renders the card heading and current select values', () => {
         render(<RelatedWorkItem {...defaultProps} />);
@@ -38,8 +36,8 @@ describe('RelatedWorkItem', () => {
     it('gives every identifier input an index-scoped test id', () => {
         render(
             <>
-                <RelatedWorkItem {...defaultProps} sortableId="related-work-0" index={0} />
-                <RelatedWorkItem {...defaultProps} sortableId="related-work-1" index={1} />
+                <RelatedWorkItem {...defaultProps} index={0} />
+                <RelatedWorkItem {...defaultProps} index={1} />
             </>,
         );
 
@@ -289,20 +287,12 @@ describe('RelatedWorkItem', () => {
         expect(screen.getByText('Resolving citation label…').parentElement).toHaveAttribute('aria-live', 'polite');
 
         rerender(
-            <RelatedWorkItem
-                {...defaultProps}
-                item={{ ...defaultItem, citation_label: 'Resolved citation' }}
-                citationResolutionStatus="resolved"
-            />,
+            <RelatedWorkItem {...defaultProps} item={{ ...defaultItem, citation_label: 'Resolved citation' }} citationResolutionStatus="resolved" />,
         );
         expect(screen.getByText('Citation label resolved automatically.')).toBeInTheDocument();
 
         rerender(
-            <RelatedWorkItem
-                {...defaultProps}
-                citationResolutionStatus="unavailable"
-                citationResolutionMessage="No cached URL citation found."
-            />,
+            <RelatedWorkItem {...defaultProps} citationResolutionStatus="unavailable" citationResolutionMessage="No cached URL citation found." />,
         );
         expect(screen.getByText('No cached URL citation found.')).toBeInTheDocument();
     });
@@ -401,13 +391,7 @@ describe('RelatedWorkItem', () => {
 
     it('filters identifier and relation type options when active sets are provided', async () => {
         const user = userEvent.setup();
-        render(
-            <RelatedWorkItem
-                {...defaultProps}
-                activeIdentifierTypes={['DOI', 'URL']}
-                activeRelationTypes={['Cites', 'Documents']}
-            />,
-        );
+        render(<RelatedWorkItem {...defaultProps} activeIdentifierTypes={['DOI', 'URL']} activeRelationTypes={['Cites', 'Documents']} />);
 
         await user.click(screen.getByRole('combobox', { name: /^type$/i }));
 

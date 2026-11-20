@@ -4,6 +4,11 @@
         "date": "2026-11-09",
         "features": [
             {
+                "title": "Alphabetical Related Works in the Editor",
+                "description": "Opening a saved resource lists related works alphabetically by citation label, with unlabeled entries first and natural number ordering. New entries and CSV imports stay in the order added until the editor is reopened. Automatic sorting affects only the editor, preserving stored and public ordering, and replaces manual drag-and-drop reordering.",
+                "references": [{ "type": "issue", "number": 1542, "url": "https://github.com/McNamara84/ernie/issues/1542" }]
+            },
+            {
                 "title": "Managed Homepage News",
                 "description": "Admins and Group Leaders can manage homepage news in Markdown with a preview and external images. One regular announcement stays active, while scheduled temporary news replace it in Europe/Berlin time. Overlapping schedules are prevented, archived news can be reused, and the existing ELMO announcement is preserved."
             },
