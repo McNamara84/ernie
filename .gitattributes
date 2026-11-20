@@ -23,6 +23,10 @@ resources/data/scheme/igsn-core/**/upstream/** -text -whitespace
 
 # Preserve published portable revisions and their checksum manifests byte-for-byte.
 resources/data/scheme/igsn-core/2.0/preview-*/** -text -whitespace
+resources/data/scheme/igsn-core/2.0/v*/** -text -whitespace
+
+# Preserve published DataCite JSON schemas, contexts and manifests byte-for-byte.
+resources/data/scheme/datacite/4.7/v*/** -text -whitespace
 
 # Preserve checksummed DCAT-AP standards, vocabularies and public API fixtures.
 resources/data/scheme/dcat-ap/** -text -whitespace

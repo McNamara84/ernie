@@ -167,9 +167,16 @@ return [
     | vocabulary mapping for DataCite metadata expressed as Linked Data.
     |
     */
-    // DataCite Linked Data JSON-LD context configuration.
-    // Blank uses ERNIE's immutable, locally published DataCite 4.7 context.
-    // An override must implement the same compact attrs/value profile.
+    // Published revisions are immutable; retain old entries when adding a new one.
+    'schemas' => [
+        'revision' => 'v1',
+        'documentation_locale' => 'en',
+        'revisions' => [
+            'v1' => resource_path('data/scheme/datacite/4.7/v1'),
+        ],
+    ],
+
+    // Blank uses ERNIE's immutable context. An override must implement the same profile.
     'linked_data' => [
         'context_url' => env(
             'DATACITE_LINKED_DATA_CONTEXT_URL',

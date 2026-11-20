@@ -4,7 +4,7 @@ import { LandingPage } from '../helpers/page-objects/LandingPage';
 
 test('downloads validated Core XML from a published IGSN and exposes the portable schema', async ({ page }) => {
     await new LandingPage(page).goto('playwright-legacy-igsn');
-    const button = page.getByRole('button', { name: 'Download IGSN 2.0 Core metadata as XML (Preview)' });
+    const button = page.getByRole('button', { name: 'Download IGSN Core 2.0 metadata as XML' });
     await expect(button).toBeVisible();
     const [download] = await Promise.all([page.waitForEvent('download'), button.click()]);
     expect(download.suggestedFilename()).toBe('igsn-core-2.0.xml');
@@ -39,7 +39,7 @@ test('keeps Core off ordinary resource pages', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.goto('mandatory-fields-only');
     await landingPage.verifyPageLoaded();
-    await expect(page.getByText('IGSN 2.0 Core (Preview)', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('IGSN Core 2.0 XML', { exact: true })).toHaveCount(0);
 });
 
 test('shows Core validation errors without navigation or a download', async ({ page }) => {
@@ -47,7 +47,7 @@ test('shows Core validation errors without navigation or a download', async ({ p
     await page.route('**/metadata/igsn-core-2.0.xml', (route) =>
         route.fulfill({ status: 422, contentType: 'application/json', body: '{"code":"igsn_core_metadata_incomplete"}' }),
     );
-    await page.getByRole('button', { name: 'Download IGSN 2.0 Core metadata as XML (Preview)' }).click();
+    await page.getByRole('button', { name: 'Download IGSN Core 2.0 metadata as XML' }).click();
     await expect(page.getByRole('alert')).toContainText('Required metadata is missing or unsupported.');
     await expect(page).toHaveURL(/playwright-legacy-igsn$/);
 });

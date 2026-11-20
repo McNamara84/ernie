@@ -44,6 +44,7 @@ yarn-error.log
 !/.vscode/settings.json
 /.zed
 clover.xml
+docs/publications/pidinst
 
 # Docker development
 /docker/traefik/certs/*.crt

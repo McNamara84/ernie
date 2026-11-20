@@ -118,7 +118,7 @@ function calculateBounds(locations: GeoLocation[]): L.LatLngBounds {
 }
 
 /**
- * Component to fit map bounds when locations change
+ * Fit coverage to the map when locations or the container size change.
  */
 function FitBoundsControl({ bounds }: { bounds: L.LatLngBounds }) {
     const map = useMap();
@@ -127,6 +127,30 @@ function FitBoundsControl({ bounds }: { bounds: L.LatLngBounds }) {
         if (bounds.isValid()) {
             map.fitBounds(bounds, LOCATION_FIT_OPTIONS);
         }
+
+        if (typeof ResizeObserver === 'undefined') return;
+
+        // Leaflet watches window resizes, but a late layout or a grid change can
+        // resize this container without one, leaving its cached size incorrect.
+        const container = map.getContainer();
+        const observer = new ResizeObserver(([entry]) => {
+            if (!entry || entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
+            const size = map.getSize();
+            if (size.x === container.clientWidth && size.y === container.clientHeight) return;
+
+            // Let maxBounds react after the new size and coverage are both set.
+            map.invalidateSize({ animate: false, debounceMoveend: true });
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { ...LOCATION_FIT_OPTIONS, animate: false });
+            }
+            // Keep an open description inside the resized view after refitting.
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Popup && layer.isOpen()) layer.update();
+            });
+        });
+        observer.observe(container);
+
+        return () => observer.disconnect();
     }, [map, bounds]);
 
     return null;

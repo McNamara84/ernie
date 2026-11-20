@@ -1,0 +1,435 @@
+{
+    "revisions": {
+        "v1": "2.0 (current)"
+    },
+    "citation": {
+        "text": "Antipanova, T., Wieczorek, M., Heim, B., Krahl, R., Rial, K., Brauser, A., Sedeqi, M. R., Elger, K. (2026). FAIR AIMS- Automated IGSN Management System D2- IGSN Metadata Schema 2.0 by GFZ Data Services: xsd and documentation of the Core Schema (GFZ, AWI, HZB). Zenodo.",
+        "url": "https://doi.org/10.5281/zenodo.23831602"
+    },
+    "interface": {
+        "breadcrumb": "IGSN / Core / Schema",
+        "schemaActions": "Schema tools",
+        "citationTitle": "Recommended citation",
+        "citationLink": "How to cite this schema",
+        "copyCitation": "Copy citation",
+        "allSchemas": "All schemas",
+        "brand": "GFZ Data Services",
+        "standards": "Schema documentation",
+        "title": "IGSN Core XML",
+        "tagline": "An extensible schema for physical samples.",
+        "lead": "Explore the IGSN Core 2.0 schema. Find a field, understand its rules, and start with a working XML example.",
+        "schemaSource": "Schema source",
+        "publication": "Original publication",
+        "search": "Search the schema",
+        "searchPlaceholder": "Try a field, an attribute, or a topic…",
+        "clearSearch": "Clear search",
+        "allFields": "All fields",
+        "requiredFields": "Required",
+        "optionalFields": "Optional",
+        "filterLabel": "Filter elements",
+        "overview": "Start here",
+        "reference": "Element reference",
+        "examples": "XML examples",
+        "contents": "In this schema",
+        "openNavigation": "Open schema navigation",
+        "closeNavigation": "Close schema navigation",
+        "required": "Required",
+        "optional": "Optional",
+        "conditional": "Required when its parent is used",
+        "occurs": "Occurrences",
+        "type": "Data type",
+        "allowedValues": "Allowed values",
+        "attributes": "Attributes",
+        "attributeName": "Attribute",
+        "use": "Use",
+        "values": "Values",
+        "fixedValue": "Fixed value",
+        "defaultValue": "Default",
+        "childElements": "Inside this element",
+        "parent": "Parent element",
+        "xmlPath": "XML path",
+        "example": "XML example",
+        "fragment": "Example fragment",
+        "fragmentNote": "The full example declares the namespaces used here.",
+        "copy": "Copy XML",
+        "copyLink": "Copy link to this element",
+        "copied": "Copied",
+        "copyFailed": "Copy was not available. You can select and copy the text below.",
+        "downloadXml": "Download XML",
+        "openReference": "Explore the elements",
+        "minimal": "Minimal record",
+        "full": "Extended record",
+        "minimalDescription": "A small, valid record with the required elements. Use it as a starting point.",
+        "fullDescription": "A valid record with people, sample details, relationships, a location, and funding information.",
+        "rulesTitle": "A few things to know",
+        "sourcesTitle": "Sources and version",
+        "notesTitle": "Reading the PDF and XSD together",
+        "revision": "Schema revision",
+        "namespace": "Core namespace",
+        "noResults": "No matching elements",
+        "noResultsHint": "Try another word or show all fields.",
+        "results": "matching elements",
+        "element": "element",
+        "elements": "elements",
+        "requiredExplanation": "Required means that an element must be present inside its parent. If the parent is optional, its required children are needed only when you add that parent.",
+        "occurrenceExplanation": "1 means once. 0..1 means optional. 1..n means one or more. Keep elements in the order shown by the schema.",
+        "fieldNotes": "Usage notes",
+        "viewFullExample": "View the full example",
+        "rootDescription": "The XML document starts with a resource element. It holds all parts of one sample record.",
+        "sectionsLabel": "Browse by topic",
+        "backToTop": "Back to start",
+        "currentSelection": "Selected element",
+        "selectVersion": "Documentation version",
+        "print": "Print guide",
+        "manifest": "Files and checksums",
+        "expand": "Expand",
+        "collapse": "Collapse",
+        "constraints": "Value rules",
+        "minInclusive": "Minimum (included)",
+        "maxInclusive": "Maximum (included)",
+        "minExclusive": "Greater than",
+        "maxExclusive": "Less than",
+        "minLength": "Minimum length",
+        "maxLength": "Maximum length",
+        "length": "Length",
+        "pattern": "Pattern"
+    },
+    "introduction": {
+        "title": "From a sample to a clear metadata record.",
+        "description": "IGSN Core defines shared metadata for samples and sampling features. A domain profile can add more detail for a particular field of research. This guide is for people who describe samples and for developers who work with XML.",
+        "steps": [
+            {
+                "title": "Start small",
+                "description": "Open the minimal record. It shows the required elements in the correct order."
+            },
+            {
+                "title": "Find the right field",
+                "description": "Browse a topic or search for a word. Each element explains its purpose, attributes, and allowed values."
+            },
+            {
+                "title": "Check your XML",
+                "description": "Use an XML Schema validator with the matching XSD revision. The examples in this guide have been checked against that schema."
+            }
+        ],
+        "rules": [
+            {
+                "title": "Names have a namespace",
+                "description": "Core elements and Core attributes use the igsn prefix. Some reused DataCite types have unprefixed attributes or children with the daci prefix. Follow the examples."
+            },
+            {
+                "title": "Use what you know",
+                "description": "Add real names, dates, identifiers, and roles. Keep the date precision you know and leave out optional information that is not available."
+            },
+            {
+                "title": "A shared core",
+                "description": "Core provides a common structure. A full sample description or registration workflow may need a domain profile and further DataCite requirements."
+            }
+        ]
+    },
+    "compatibility": {
+        "v1": [
+            {
+                "title": "Technical rules come from this XSD",
+                "description": "The field list, occurrences, attribute use, and allowed values are read from the published schema. The FAIR AIMS PDF adds explanations and recommendations."
+            },
+            {
+                "title": "Sample type scheme",
+                "description": "The PDF calls this attribute sampleTypeScheme. The published XSD spells it sampletScheme. Use sampletScheme to create valid XML. The XSD permits one sampleType per record."
+            },
+            {
+                "title": "Contributor roles",
+                "description": "The PDF recommends a contributorType. The XSD allows this attribute to be omitted. Add a role when you know it; do not guess a person's role."
+            },
+            {
+                "title": "Polygon coordinates",
+                "description": "Put coordinateSystem on each polygonPoint. Follow the exact attribute and namespace placement in the XML example."
+            }
+        ]
+    },
+    "elements": {
+        "resource": {
+            "label": "Sample record",
+            "description": "One metadata record for one sample or sampling feature. This is the root of the XML document."
+        },
+        "identifier": {
+            "label": "IGSN identifier",
+            "description": "The persistent identifier for this sample. Use its full IGSN DOI."
+        },
+        "name": {
+            "label": "Sample name",
+            "description": "A name that people use for this sample. Add further names when the sample has other established names or local names."
+        },
+        "agents": {
+            "label": "People and organisations",
+            "description": "People and organisations connected with this sample, together with the publisher of its metadata."
+        },
+        "contributor": {
+            "label": "Contributor",
+            "description": "A person or organisation involved in collecting, creating, managing, or sharing the sample."
+        },
+        "contributorName": {
+            "label": "Contributor name",
+            "description": "The full name of this person or organisation."
+        },
+        "givenName": {
+            "label": "Given name",
+            "description": "The given name of the person, also known as the first name."
+        },
+        "familyName": {
+            "label": "Family name",
+            "description": "The family name, or surname, of the person."
+        },
+        "nameIdentifier": {
+            "label": "Person or organisation identifier",
+            "description": "A persistent identifier for this person or organisation. ORCID is useful for people; ROR is useful for organisations.",
+            "notes": ["For ROR, use the full https://ror.org/ identifier."]
+        },
+        "affiliation": {
+            "label": "Affiliation",
+            "description": "The institution or organisation with which this contributor is associated."
+        },
+        "publisher": {
+            "label": "Publisher",
+            "description": "The organisation that registered the sample's IGSN and manages its metadata record."
+        },
+        "entityTypeClassifications": {
+            "label": "Sample type and description",
+            "description": "The broad kind of object, its sample type, its material, and descriptions that help people understand it."
+        },
+        "resourceType": {
+            "label": "Kind of object",
+            "description": "The broad kind of object. The PDF suggests material sample or feature of interest when no suitable shared vocabulary is available."
+        },
+        "sampleType": {
+            "label": "Sample type",
+            "description": "A more specific kind of sample, such as a rock specimen or a grab sample. Use a shared vocabulary where possible.",
+            "notes": ["Choose one sample type for this record; the XSD allows one sampleType element."]
+        },
+        "material": {
+            "label": "Material",
+            "description": "What the sample is made of, such as rock, water, or sediment."
+        },
+        "alternateMaterial": {
+            "label": "Additional material classification",
+            "description": "Another way to describe or classify the sample's material. This can give a more specific material name from another vocabulary."
+        },
+        "description": {
+            "label": "Description",
+            "description": "Text that explains the sample. Select a description type to show what the text describes.",
+            "notes": ["For Other, name the subject of the description, for example Platform: followed by the platform information."]
+        },
+        "dates": {
+            "label": "Dates",
+            "description": "Dates for the sample and its metadata, together with the publication year."
+        },
+        "date": {
+            "label": "Sample or metadata date",
+            "description": "A date relevant to the sample or its metadata. The dateType attribute explains what the date means.",
+            "notes": ["Keep the precision you know. Do not invent a month or day."]
+        },
+        "publicationYear": {
+            "label": "Publication year",
+            "description": "The year when the record was or will be made public. This is different from the year when the sample was collected."
+        },
+        "relationshipIdentifiers": {
+            "label": "Related identifiers",
+            "description": "Identifiers for the same sample, its parent, and other resources related to it."
+        },
+        "alternateIdentifier": {
+            "label": "Another identifier for this sample",
+            "description": "Another identifier for the same sample. It must refer to the same object as the main identifier."
+        },
+        "parentIdentifier": {
+            "label": "Parent sample identifier",
+            "description": "The IGSN of the parent sample or sampling feature from which this sample comes."
+        },
+        "relatedIdentifier": {
+            "label": "Related resource identifier",
+            "description": "The identifier of another related resource, such as a publication, dataset, or sample."
+        },
+        "geoLocations": {
+            "label": "Geographic location",
+            "description": "Where the sample was collected or where it is relevant. Add place names and the relevant geographic shapes."
+        },
+        "geoLocationPlace": {
+            "label": "Place name",
+            "description": "A place name or a short description of the location."
+        },
+        "geoLocationPoint": {
+            "label": "Geographic point",
+            "description": "A location described by one longitude and one latitude.",
+            "notes": ["Coordinates use WGS84 decimal degrees."]
+        },
+        "geoLocationBox": {
+            "label": "Geographic bounding box",
+            "description": "A rectangular area defined by its western, eastern, southern, and northern bounds.",
+            "notes": ["Give all four bounds in decimal degrees."]
+        },
+        "geoLocationPolygon": {
+            "label": "Geographic polygon",
+            "description": "An area described by a sequence of points along its boundary.",
+            "notes": ["Use at least four points. Repeat the first point at the end to close the polygon."]
+        },
+        "polygonPoint": {
+            "label": "Polygon point",
+            "description": "One point on a polygon boundary, given by longitude and latitude. List the points in their boundary order."
+        },
+        "pointLongitude": {
+            "label": "Longitude",
+            "description": "The east-west position in decimal degrees. Negative values are west of Greenwich."
+        },
+        "pointLatitude": {
+            "label": "Latitude",
+            "description": "The north-south position in decimal degrees. Negative values are south of the equator."
+        },
+        "westBoundLongitude": {
+            "label": "Western longitude",
+            "description": "The longitude of the western edge of the area."
+        },
+        "eastBoundLongitude": {
+            "label": "Eastern longitude",
+            "description": "The longitude of the eastern edge of the area."
+        },
+        "southBoundLatitude": {
+            "label": "Southern latitude",
+            "description": "The latitude of the southern edge of the area."
+        },
+        "northBoundLatitude": {
+            "label": "Northern latitude",
+            "description": "The latitude of the northern edge of the area."
+        },
+        "fundingReferences": {
+            "label": "Funding",
+            "description": "Organisations and awards that supported work on this sample."
+        },
+        "fundingReference": {
+            "label": "Funding reference",
+            "description": "One funding organisation and, if known, the award that supported this sample or related work."
+        },
+        "funderName": {
+            "label": "Funder name",
+            "description": "The name of the organisation that provided funding."
+        },
+        "funderIdentifier": {
+            "label": "Funder identifier",
+            "description": "An identifier for the funding organisation, such as a ROR identifier."
+        },
+        "awardNumber": {
+            "label": "Grant or award number",
+            "description": "The grant or award number assigned by the funder."
+        },
+        "awardTitle": {
+            "label": "Grant or award title",
+            "description": "The name or title of the grant or award."
+        },
+        "language": {
+            "label": "Metadata language",
+            "description": "The main language of the sample metadata."
+        }
+    },
+    "attributes": {
+        "identifierType": {
+            "label": "Identifier type",
+            "description": "The identifier system used by the value, such as DOI, IGSN, or URL.",
+            "notes": ["The main identifier uses DOI. A parent identifier uses IGSN; the XSD fixes these values in their respective elements."]
+        },
+        "titleType": {
+            "label": "Name type",
+            "description": "The role of this name, for example an alternative or translated name."
+        },
+        "lang": {
+            "label": "Text language",
+            "description": "The language of this text, expressed as a language code.",
+            "notes": ["Check the allowed values for each element. Several fields in this XSD allow only en."]
+        },
+        "nameType": {
+            "label": "Person or organisation",
+            "description": "Whether the name identifies a person or an organisation."
+        },
+        "nameIdentifierScheme": {
+            "label": "Name identifier system",
+            "description": "The identifier system for a person or organisation, such as ORCID or ROR."
+        },
+        "affiliationIdentifier": {
+            "label": "Affiliation identifier",
+            "description": "An identifier for the institution or organisation named in the affiliation."
+        },
+        "affiliationIdentifierScheme": {
+            "label": "Affiliation identifier system",
+            "description": "The identifier system used for the affiliation, such as ROR."
+        },
+        "contributorType": {
+            "label": "Contributor role",
+            "description": "The person's or organisation's role in relation to the sample, such as DataCollector or ProjectLeader.",
+            "notes": ["The PDF marks this attribute as mandatory. In the published XSD it is optional."]
+        },
+        "publisherIdentifier": {
+            "label": "Publisher identifier",
+            "description": "An identifier for the publishing organisation or repository."
+        },
+        "publisherIdentifierScheme": {
+            "label": "Publisher identifier system",
+            "description": "The identifier system used for the publisher, such as ROR or re3data."
+        },
+        "resourceTypeGeneral": {
+            "label": "General resource type",
+            "description": "The broad DataCite resource category for this record.",
+            "notes": ["The Core XSD fixes this value to PhysicalObject."]
+        },
+        "sampletScheme": {
+            "label": "Sample type vocabulary",
+            "description": "The name of the vocabulary used for the sample type.",
+            "notes": ["The published XSD spells this attribute sampletScheme. The PDF calls it sampleTypeScheme; use the XSD spelling in XML."]
+        },
+        "subjectScheme": {
+            "label": "Material vocabulary",
+            "description": "The name of the vocabulary used to describe or classify the material."
+        },
+        "schemeURI": {
+            "label": "Vocabulary or identifier system URI",
+            "description": "The URI of the vocabulary or identifier system. This is often a web address describing that system."
+        },
+        "valueURI": {
+            "label": "Vocabulary term URI",
+            "description": "A URI that identifies this specific term within a vocabulary."
+        },
+        "classificationCode": {
+            "label": "Classification code",
+            "description": "The code for a term in the named classification or vocabulary."
+        },
+        "descriptionType": {
+            "label": "Description type",
+            "description": "The kind of description, such as Abstract or Methods."
+        },
+        "dateType": {
+            "label": "Date type",
+            "description": "What the date describes, such as Collected or Issued."
+        },
+        "dateInformation": {
+            "label": "Date details",
+            "description": "Extra information that explains a date, especially when dateType is Other."
+        },
+        "alternateIdentifierType": {
+            "label": "Additional identifier type",
+            "description": "The identifier system used by another identifier for the same sample.",
+            "notes": ["Choose a value from the identifier list. The XSD does not allow arbitrary scheme labels in this attribute."]
+        },
+        "relationType": {
+            "label": "Relationship type",
+            "description": "How this sample is related to the resource named by the identifier."
+        },
+        "coordinateSystem": {
+            "label": "Coordinate reference system",
+            "description": "The reference system used for the coordinates.",
+            "notes": ["The XSD fixes this value to WGS84. For a polygon, set it on each polygonPoint."]
+        },
+        "funderIdentifierType": {
+            "label": "Funder identifier type",
+            "description": "The identifier system used for the funder's identifier."
+        },
+        "awardURI": {
+            "label": "Grant or award link",
+            "description": "A link to the funder's page about the grant or award."
+        }
+    }
+}

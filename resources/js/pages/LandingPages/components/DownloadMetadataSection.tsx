@@ -1,8 +1,10 @@
+import { usePage } from '@inertiajs/react';
 import { BadgeCheck, Braces, FileCode, FileJson, type LucideIcon } from 'lucide-react';
 import { type MouseEvent, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { SharedData } from '@/types';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
 
 import { DarkModeImage } from './DarkModeImage';
@@ -74,6 +76,7 @@ export function DownloadMetadataSection({
     jsonLdExportUrl,
     metadataLinks = [],
 }: DownloadMetadataSectionProps) {
+    const { pathPrefix = '' } = usePage<SharedData>().props;
     const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
     const previewTrigger = useRef<HTMLButtonElement | null>(null);
     const urlFor = (format: LandingPageMetadataLink['format'], fallback: string): string =>
@@ -123,6 +126,9 @@ export function DownloadMetadataSection({
                     isPreview={isPreview}
                     onPreviewClick={openPreviewDialog}
                 />
+                <a href={`${pathPrefix}/schemas/datacite/4.7/docs`} className="text-sm underline" title="DataCite JSON and JSON-LD documentation">
+                    Format guides
+                </a>
             </div>
 
             {(showIsoMetadata || showIsoJson) && (
@@ -164,12 +170,12 @@ export function DownloadMetadataSection({
 
             {(igsnCoreLink !== undefined || (isPreview && supportsIgsnCore)) && (
                 <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
-                    <span className="text-sm font-semibold">IGSN 2.0 Core (Preview)</span>
+                    <span className="text-sm font-semibold">IGSN Core 2.0</span>
                     {isPreview ? (
                         <MetadataDownloadAction
                             icon={FileCode}
                             label="XML"
-                            title="Download as IGSN 2.0 Core XML (Preview)"
+                            title="Download as IGSN Core 2.0 XML"
                             isPreview
                             onPreviewClick={openPreviewDialog}
                         />

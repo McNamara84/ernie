@@ -6,15 +6,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DownloadMetadataSection } from '@/pages/LandingPages/components/DownloadMetadataSection';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
 
+vi.mock('@inertiajs/react', () => ({ usePage: () => ({ props: {} }) }));
+
 const link: LandingPageMetadataLink = {
     format: 'igsn-core-2.0',
     standard: 'IGSN 2.0 Core',
-    label: 'IGSN 2.0 Core (Preview)',
+    label: 'IGSN Core 2.0 XML',
     url: '/10.58052/TEST/sample/metadata/igsn-core-2.0.xml',
     mediaType: 'application/xml',
     profile: '/schemas/igsn/2.0/core.xsd',
 };
-const action = () => screen.getByRole('button', { name: 'Download IGSN 2.0 Core metadata as XML (Preview)' });
+const action = () => screen.getByRole('button', { name: 'Download IGSN Core 2.0 metadata as XML' });
 afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -24,14 +26,14 @@ afterEach(() => {
 describe('IGSN Core metadata download', () => {
     it('is absent from ordinary resource pages and does not invent a public endpoint', () => {
         render(<DownloadMetadataSection resourceId={1} supportsIgsnCore />);
-        expect(screen.queryByText('IGSN 2.0 Core (Preview)')).not.toBeInTheDocument();
+        expect(screen.queryByText('IGSN Core 2.0 XML')).not.toBeInTheDocument();
     });
 
     it('offers the preview dialog without requesting metadata', async () => {
         const fetch = vi.fn();
         vi.stubGlobal('fetch', fetch);
         render(<DownloadMetadataSection resourceId={1} isPreview supportsIgsnCore />);
-        await userEvent.click(screen.getByTitle('Download as IGSN 2.0 Core XML (Preview)'));
+        await userEvent.click(screen.getByTitle('Download as IGSN Core 2.0 XML'));
         expect(await screen.findByRole('dialog')).toHaveTextContent('Metadata download unavailable');
         expect(fetch).not.toHaveBeenCalled();
     });

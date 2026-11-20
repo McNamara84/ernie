@@ -69,14 +69,15 @@ test('exports a physical object without extension metadata through XSLT and the 
     $xpath = coreXpath($result->xml);
     expect($xpath->evaluate('string(/i:resource/i:identifier)'))->toBe($resource->doi)
         ->and($xpath->evaluate('string(//i:name)'))->toBe('Core & sample <A>')
-        ->and($xpath->evaluate('string(//i:creatorName)'))->toBe('Sample, Anna')
+        ->and($xpath->evaluate('string(//i:contributorName)'))->toBe('Sample, Anna')
+        ->and($xpath->evaluate('count(//i:contributor/@i:contributorType)'))->toBe(0.0)
         ->and($xpath->evaluate('string(//i:resourceType/@i:resourceTypeGeneral)'))->toBe('PhysicalObject')
         ->and($result->xml)->toContain('xsi:schemaLocation="urn:FAIR-AIMS:Core:1 '.url('/schemas/igsn/2.0/core.xsd').'"')
         ->not->toContain('Unknown', 'igsn.org/schema', 'Core:2');
     expect(app(IgsnCoreXmlExporter::class)->export($resource)->xml)->toBe($result->xml);
 });
 
-test('preserves snapshots, text, local names, date precision and current archives without exposing contacts', function () {
+test('preserves snapshots, text, local names and date precision while diagnosing unsupported archives', function () {
     $resource = coreSample();
     $resource->creators()->first()->update(['name_snapshot' => 'Original, Anne', 'given_name_snapshot' => 'Anne', 'family_name_snapshot' => 'Original', 'email' => 'private@example.org']);
     AlternateIdentifier::create(['resource_id' => $resource->id, 'type' => 'Local accession number', 'value' => 'ABC-001', 'position' => 0]);
@@ -89,15 +90,17 @@ test('preserves snapshots, text, local names, date precision and current archive
     $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
     expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([]);
     $xpath = coreXpath($result->xml);
-    expect($xpath->evaluate('string(//i:creatorName)'))->toBe('Original, Anne')
+    expect($xpath->evaluate('string(//i:contributorName)'))->toBe('Original, Anne')
         ->and($xpath->evaluate('string(//i:givenName)'))->toBe('Anne')
+        ->and($xpath->evaluate('string(//i:resourceType)'))->toBe('PhysicalObject')
+        ->and($xpath->evaluate('string(//i:sampleType)'))->toBe('Core')
         ->and($xpath->evaluate('string(//i:name[1])'))->toBe('ABC-001')
         ->and($xpath->evaluate('string(//i:description[@i:lang="de"])'))->toBe('Größe & Maß')
         ->and($xpath->evaluate('string(//i:date[2])'))->toBe('2019/')
         ->and($xpath->evaluate('string(//i:date[3])'))->toBe('/2021-03')
         ->and($xpath->evaluate('string(//i:date[1]/@i:dateInformation)'))->toBe('month')
-        ->and($result->xml)->toContain('Current collection')->not->toContain('private@example.org', 'Former collection', '&amp;amp;', 'contactPerson')
-        ->and($result->omissions)->toContain('historical_archive_not_supported');
+        ->and($result->xml)->not->toContain('Current collection', 'private@example.org', 'Former collection', '&amp;amp;', 'contactPerson')
+        ->and($result->omissions)->toContain('historical_archive_not_supported', 'current_archive_not_supported');
 });
 
 test('reports missing required metadata without synthesizing values', function (string $field) {
@@ -106,7 +109,6 @@ test('reports missing required metadata without synthesizing values', function (
         'identifier' => $resource->update(['doi' => null]),
         'publication_year' => $resource->update(['publication_year' => null]),
         'name' => $resource->titles()->delete(),
-        'creators' => $resource->creators()->delete(),
         'publisher' => $resource->publisher->update(['identifier' => null]),
     };
     try {
@@ -115,7 +117,7 @@ test('reports missing required metadata without synthesizing values', function (
     } catch (IgsnCoreMetadataException $exception) {
         expect($exception->fields)->toContain($field);
     }
-})->with(['identifier', 'publication_year', 'name', 'creators', 'publisher']);
+})->with(['identifier', 'publication_year', 'name', 'publisher']);
 
 test('keeps the context of Other descriptions required by the Core documentation', function (string $language, string $platformLabel, string $sampleLabel) {
     $resource = coreSample();
@@ -302,10 +304,10 @@ test('preserves institutional identities, contributor roles, controlled material
     $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
     expect(app(IgsnCoreXmlValidator::class)->validate($result->xml)->errors)->toBe([]);
     $xpath = coreXpath($result->xml);
-    expect($xpath->evaluate('string(//i:creator[2]/i:creatorName/@i:nameType)'))->toBe('Organizational')
-        ->and($xpath->evaluate('string(//i:creator[2]/i:nameIdentifier/@nameIdentifierScheme)'))->toBe('ROR')
+    expect($xpath->evaluate('string(//i:contributor[2]/i:contributorName/@i:nameType)'))->toBe('Organizational')
+        ->and($xpath->evaluate('string(//i:contributor[2]/i:nameIdentifier/@nameIdentifierScheme)'))->toBe('ROR')
         ->and($xpath->evaluate('string(//i:affiliation/@affiliationIdentifierScheme)'))->toBe('ROR')
-        ->and($xpath->evaluate('count(//i:contributor)'))->toBe(2.0)
+        ->and($xpath->evaluate('count(//i:contributor)'))->toBe(4.0)
         ->and($xpath->evaluate('string(//i:material/@i:valueURI)'))->toBe('https://example.org/lithology/basalt')
         ->and($xpath->evaluate('string(//i:awardNumber/@i:awardURI)'))->toBe('https://example.org/awards/123')
         ->and($result->xml)->not->toContain('unrelated keyword');
@@ -318,7 +320,7 @@ test('only assigns collector roles to uniquely matched existing typed creators',
         ResourceCreator::factory()->forPerson(Person::factory()->create(['given_name' => 'Anna', 'family_name' => 'Sample']))->create(['resource_id' => $resource->id, 'position' => 2]);
     }
     $result = app(IgsnCoreXmlExporter::class)->export($resource->fresh());
-    expect(coreXpath($result->xml)->evaluate('count(//i:creator[@i:creatorType="collector"])'))->toBe($ambiguous ? 0.0 : 1.0);
+    expect(coreXpath($result->xml)->evaluate('count(//i:contributor[@i:contributorType="DataCollector"])'))->toBe($ambiguous ? 0.0 : 1.0);
     if ($ambiguous) {
         expect($result->omissions)->toContain('sampled_by_unresolved');
     }

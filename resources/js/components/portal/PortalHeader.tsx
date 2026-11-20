@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { legalNotice } from '@/routes';
 import type { PortalKind } from '@/types/portal';
 
-export type PublicContentPage = 'home' | 'find' | 'data-centres' | 'data-centres-description';
+export type PublicContentPage = 'home' | 'find' | 'data-centres' | 'data-centres-description' | 'schemas';
 
 interface NavItem {
     label: string;
@@ -103,6 +103,7 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
     const homeItem = { ...NAV_ITEMS[0], active: isHome };
     const isFindItemActive = (kind: (typeof FIND_ITEMS)[number]['kind']) =>
         portalKind === kind || (kind === 'data-centres' && portalKind === 'data-centres-description');
+    const isFindActive = FIND_ITEMS.some((item) => isFindItemActive(item.kind));
 
     return (
         <header data-slot="portal-header">
@@ -149,9 +150,9 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
                                         variant="ghost"
                                         className={cn(
                                             'h-auto gap-1 rounded-sm px-3 py-2 text-sm text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground dark:hover:bg-portal-nav-active',
-                                            !isHome && 'bg-portal-nav-active font-semibold',
+                                            isFindActive && 'bg-portal-nav-active font-semibold',
                                         )}
-                                        aria-current={isHome ? undefined : 'page'}
+                                        aria-current={isFindActive ? 'page' : undefined}
                                     >
                                         Find
                                         <ChevronDown className="size-3.5" aria-hidden="true" />

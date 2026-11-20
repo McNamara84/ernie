@@ -48,7 +48,7 @@ class LandingPageMetadataLinkService
             $links[] = $this->link(
                 'igsn-core-2.0',
                 'IGSN 2.0 Core',
-                'IGSN 2.0 Core (Preview)',
+                'IGSN Core 2.0 XML',
                 "{$baseUrl}/igsn-core-2.0.xml",
                 'application/xml',
                 app(IgsnCoreSchemaResolver::class)->url(),

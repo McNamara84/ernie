@@ -17,6 +17,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
+use App\Http\Controllers\DataCiteDocumentationController;
+use App\Http\Controllers\DataCiteSchemaController;
 use App\Http\Controllers\DataCiteUrlUpdateController;
 use App\Http\Controllers\DataEmbargoReleaseController;
 use App\Http\Controllers\DebugController;
@@ -27,6 +29,7 @@ use App\Http\Controllers\EditorLoadProgressController;
 use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
+use App\Http\Controllers\IgsnCoreDocumentationController;
 use App\Http\Controllers\IgsnCoreSchemaController;
 use App\Http\Controllers\JsonLdContextController;
 use App\Http\Controllers\LandingPageController;
@@ -58,6 +61,7 @@ use App\Http\Controllers\ResourceFilterController;
 use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\ResourceTombstoneController;
+use App\Http\Controllers\SchemaCatalogController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusReviewCompletionController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
@@ -86,6 +90,34 @@ Route::get('/health', HealthController::class)->name('health');
 Route::get('/metadata/contexts/datacite-4.7-v1.jsonld', JsonLdContextController::class)
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->name('metadata.context.datacite');
+
+Route::get('/schemas/docs', SchemaCatalogController::class)->name('schemas.docs');
+
+Route::get('/schemas/datacite/docs', [DataCiteDocumentationController::class, 'latest'])->name('schemas.datacite.docs.latest');
+Route::get('/schemas/datacite/4.7/docs', [DataCiteDocumentationController::class, 'overview'])->name('schemas.datacite.docs');
+Route::get('/schemas/datacite/4.7/docs/{format}/examples/{example}.{extension}', [DataCiteDocumentationController::class, 'example'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.datacite.docs.example');
+Route::get('/schemas/datacite/4.7/docs/{format}', [DataCiteDocumentationController::class, 'format'])->name('schemas.datacite.docs.format');
+Route::get('/schemas/datacite/4.7/{revision}/docs', [DataCiteDocumentationController::class, 'overview'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.datacite.docs.revision');
+Route::get('/schemas/datacite/4.7/{revision}/docs/{format}/examples/{example}.{extension}', [DataCiteDocumentationController::class, 'revisionExample'])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.datacite.docs.revision-example');
+Route::get('/schemas/datacite/4.7/{revision}/docs/{format}', [DataCiteDocumentationController::class, 'revisionFormat'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.datacite.docs.revision-format');
+
+Route::get('/schemas/datacite/4.7/{revision}/{path}', [DataCiteSchemaController::class, 'revision'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->where('path', '.+')
+    ->name('schemas.datacite.revision');
+
+Route::get('/schemas/datacite/4.7/{path}', [DataCiteSchemaController::class, 'current'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('path', '.+')
+    ->name('schemas.datacite');
 
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
 // Sanctum itself is not installed – this lightweight route provides the
@@ -198,9 +230,20 @@ Route::get('landing-page-downloads/{landingPage}/links/{landingPageLink}', [Land
 // cannot contain slashes, so the slug is always unambiguous.
 
 // Canonical metadata downloads for published landing pages.
+Route::get('schemas/igsn/2.0/docs', [IgsnCoreDocumentationController::class, 'current'])->name('schemas.igsn-core.docs');
+Route::get('schemas/igsn/2.0/docs/examples/{example}.xml', [IgsnCoreDocumentationController::class, 'example'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.igsn-core.docs.example');
+Route::get('schemas/igsn/2.0/{revision}/docs', [IgsnCoreDocumentationController::class, 'revision'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.igsn-core.docs.revision');
+Route::get('schemas/igsn/2.0/{revision}/docs/examples/{example}.xml', [IgsnCoreDocumentationController::class, 'revisionExample'])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.igsn-core.docs.revision-example');
+
 Route::get('schemas/igsn/2.0/{revision}/{path}', [IgsnCoreSchemaController::class, 'revision'])
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
-    ->where('revision', 'preview-[1-9][0-9]*')
+    ->where('revision', 'v[1-9][0-9]*')
     ->where('path', '.+')
     ->name('schemas.igsn-core.revision');
 

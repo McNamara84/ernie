@@ -1,5 +1,10 @@
 # ERNIE DataCite JSON-LD profile
 
+The public [JSON-LD field guide](https://dataservices.gfz.de/schemas/datacite/4.7/docs/jsonld)
+provides a searchable browser reference, a format switch to the
+[JSON guide](https://dataservices.gfz.de/schemas/datacite/4.7/docs/json), and validated
+example downloads.
+
 ERNIE exports DataCite Metadata Schema 4.7 attributes through a versioned JSON-LD
 1.1 `attrs`/`value` profile. The public landing page separately embeds Schema.org
 JSON-LD for discovery. The [DataCite crosswalk](https://support.datacite.org/docs/how-can-i-map-different-metadata-formats-to-the-datacite-xml)
@@ -8,12 +13,21 @@ as a DataCite registration format. DOI registration continues to use DataCite JS
 
 ## Context and provenance
 
-The default context is `${APP_URL}/metadata/contexts/datacite-4.7-v1.jsonld`.
-Its exact contents are committed in `resources/data/contexts/datacite-4.7-v1.jsonld`.
+The default context is `${APP_URL}/schemas/datacite/4.7/v1/context.jsonld`.
+Its exact contents are committed in `resources/data/scheme/datacite/4.7/v1/context.jsonld`
+and match `resources/data/contexts/datacite-4.7-v1.jsonld` byte for byte.
 The anonymous GET/HEAD endpoint returns `application/ld+json`, an ETag, Last-Modified
 and a one-year public immutable cache policy. It supports conditional GET. Context
 URLs use the configured public origin, including an optional deployment path,
 independently of the request Host header.
+
+The short `/schemas/datacite/4.7/context.jsonld` URL selects the current published
+revision and requires cache revalidation. The previous
+`/metadata/contexts/datacite-4.7-v1.jsonld` URL retains the original immutable bytes.
+All three URLs support cross-origin browser requests. New exports use the fixed
+revision URL so their interpretation cannot change when the short alias advances.
+The same directory publishes the portable DataCite JSON Schema, manifest and
+validation instructions; see [the public schema README](../resources/data/scheme/datacite/4.7/v1/README.md).
 
 The static context route excludes session and CSRF middleware. Anonymous GET,
 HEAD and conditional 304 responses emit no cookies. Its response test explicitly
@@ -101,7 +115,7 @@ The root is `https://w3id.org/tib/datacite/class/Resource`.
 | `relatedItems[]`                                                                                                     | `relatedItems/relatedItem`                                                         | `p:relatedItem` node                                                                                                                    | Repeated structured items, with metadata nested through compact `value`                                 |
 | `relatedItems[].relatedItemType`, `relationType`, `relationTypeInformation`                                          | `relatedItem` attributes                                                           | `p:relatedItemType` → `v:resourceTypeGeneral/{value}`; `p:relationType` → `v:relationType/{value}`; `p:relationTypeInformation` literal | Type, directed relation and information restored                                                        |
 | `relatedItems[].relatedItemIdentifier` and its type/schema attributes                                                | `relatedItem/relatedItemIdentifier` and attributes                                 | `p:relatedItemIdentifier` literal; `p:relatedItemIdentifierType` → `v:relatedIdentifierType/{value}`; schema attributes as above        | Optional identifier object and all schema attributes restored                                           |
-| `relatedItems[].titles`, `creators`, `contributors`, `publicationYear`, `publisher`                                  | Corresponding children of `relatedItem`                                            | Same properties and datatypes as resource metadata                                                                                      | Recursive metadata preserved; year normalized to DataCite JSON integer                                  |
+| `relatedItems[].titles`, `creators`, `contributors`, `publicationYear`, `publisher`                                  | Corresponding children of `relatedItem`                                            | Same properties and datatypes as resource metadata                                                                                      | Recursive metadata preserved; year normalized to a DataCite JSON string                                  |
 | `relatedItems[].volume`, `issue`, `number`, `firstPage`, `lastPage`, `edition`                                       | Corresponding children of `relatedItem`                                            | Corresponding `p:` terms, `xsd:string`                                                                                                  | Bibliographic strings preserved                                                                         |
 | `relatedItems[].numberType`                                                                                          | `relatedItem/number/@numberType`                                                   | `p:numberType` → `v:numberType/{value}`                                                                                                 | Optional enum on number node                                                                            |
 | `sizes[]`, `formats[]`, `version`                                                                                    | `sizes/size`, `formats/format`, `version`                                          | `p:size`, `p:format`, `p:version`, `xsd:string`                                                                                         | Repeated sizes/formats and single version                                                               |
@@ -127,8 +141,9 @@ Linked-Data exporter; valid zero values are also retained by JSON/XML exports.
 
 ## Import compatibility and persistence
 
-The upload accepts the local v1 URL, its explicitly configured compatible override,
-and these historical ERNIE profile labels offline:
+The upload accepts the local fixed v1 URL, the short alias, the previous local
+`/metadata/contexts/datacite-4.7-v1.jsonld` URL, its explicitly configured compatible
+override, and these historical ERNIE profile labels offline:
 
 - `https://schema.stage.datacite.org/linked-data/context/fullcontext.jsonld`
 - `https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld`

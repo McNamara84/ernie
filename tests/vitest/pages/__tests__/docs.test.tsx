@@ -8,9 +8,16 @@ import Docs from '@/pages/docs';
 import type { UserRole } from '@/types';
 import type { DataCiteDocsSettings, EditorSettings } from '@/types/docs';
 
+const pageProps = vi.hoisted(() => ({ pathPrefix: '' }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    usePage: () => ({ props: pageProps }),
 }));
+
+beforeEach(() => {
+    pageProps.pathPrefix = '';
+});
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -126,6 +133,13 @@ const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) 
 
 describe('Docs page', () => {
     beforeEach(() => window.history.replaceState(null, '', '/'));
+    it.each(['', '/ernie'])('keeps the IGSN guide within deployment prefix "%s"', async (prefix) => {
+        pageProps.pathPrefix = prefix;
+        const { user } = renderDocsPage('curator');
+        await openDatasetsTab(user);
+        expect(screen.getByRole('link', { name: 'IGSN Core guide' })).toHaveAttribute('href', `${prefix}/schemas/igsn/2.0/docs`);
+    });
+
     it.each<UserRole>(['beginner', 'curator', 'group_leader', 'admin'])(
         'restricts COUNTER guidance to the matching %s capabilities',
         async (role) => {
@@ -895,7 +909,7 @@ describe('Docs page', () => {
             expect(section).toHaveTextContent('Computational Notebook');
             expect(section).toHaveTextContent('IGSNs and Physical Objects do not offer ISO JSON');
             expect(section).toHaveTextContent('does not claim support for the entire ISO metadata model');
-            expect(section).toHaveTextContent('IGSN 2.0 Core (Preview)');
+            expect(section).toHaveTextContent('IGSN Core 2.0');
             expect(section).toHaveTextContent('without Geo or Bio extensions');
             expect(section).toHaveTextContent('validates each file before download');
 
