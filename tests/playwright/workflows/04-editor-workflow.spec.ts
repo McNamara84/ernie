@@ -249,9 +249,9 @@ test.describe('Editor Form', () => {
         const docsPage = await popupPromise;
 
         await expect(docsPage.locator('#editor-validate')).toBeVisible();
-        await expect(docsPage).toHaveURL((url) => url.pathname === '/docs'
-            && url.searchParams.get('tab') === 'datasets'
-            && url.searchParams.get('section') === 'editor-validate');
+        await expect(docsPage).toHaveURL(
+            (url) => url.pathname === '/docs' && url.searchParams.get('tab') === 'datasets' && url.searchParams.get('section') === 'editor-validate',
+        );
         await expect(page).toHaveURL(/\/editor/);
         await expect(titleInput).toHaveValue('Unsaved metadata before opening help');
         await docsPage.close();
@@ -743,7 +743,7 @@ test.describe('Editor Form', () => {
 test.describe('Localized editor dates', () => {
     test.use({ locale: 'de-DE' });
 
-    test('accepts a German date, offers years from 1900, and reloads the saved ISO value', async ({ page }) => {
+    test('accepts a German date, offers historical calendar years, and reloads the saved ISO value', async ({ page }) => {
         await gotoWithLocalTlsRetry(page, '/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
@@ -764,10 +764,11 @@ test.describe('Localized editor dates', () => {
         await expect(dateInput).toHaveValue('24.09.2020');
 
         await page.getByRole('button', { name: 'Choose date' }).first().click();
-        const yearSelect = page.locator('select:has(option[value="1900"])');
-        await expect(yearSelect).toBeVisible();
-        await yearSelect.selectOption('1900');
-        await expect(yearSelect).toHaveValue('1900');
+        const yearInput = page.locator('[data-slot="popover-content"][data-state="open"]').getByRole('spinbutton', { name: 'Year' });
+        await expect(yearInput).toBeVisible();
+        await yearInput.fill('1661');
+        await yearInput.press('Enter');
+        await expect(yearInput).toHaveValue('1661');
         await page.keyboard.press('Escape');
 
         const saveResponsePromise = page.waitForResponse(

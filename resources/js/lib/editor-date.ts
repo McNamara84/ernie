@@ -11,7 +11,10 @@ export interface ParsedEditorDate {
     latest: string;
 }
 
-export const EDITOR_MIN_DATE = '1900-01-01';
+export const EDITOR_MIN_YEAR = 1;
+export const EDITOR_MAX_YEAR = 9999;
+export const EDITOR_MIN_DATE = '0001-01-01';
+export const EDITOR_MAX_DATE = '9999-12-31';
 
 export function resolveEditorDateLocale(language: string | undefined): EditorDateLocale {
     return language?.toLowerCase().split('-')[0] === 'de' ? 'de' : 'iso';
@@ -22,11 +25,19 @@ function pad2(value: number): string {
 }
 
 export function todayLocalIso(today: Date = new Date()): string {
-    return `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+    return `${String(today.getFullYear()).padStart(4, '0')}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+}
+
+/** The numeric Date constructor silently maps years 0–99 into 1900–1999. */
+export function createEditorCalendarDate(year: number, monthIndex: number, day = 1): Date {
+    const date = new Date(0);
+    date.setHours(0, 0, 0, 0);
+    date.setFullYear(year, monthIndex, day);
+    return date;
 }
 
 function lastDayOfMonth(year: number, month: number): number {
-    return new Date(year, month, 0).getDate();
+    return createEditorCalendarDate(year, month, 0).getDate();
 }
 
 /** Parse only supported forms; never let JavaScript correct an impossible date. */
@@ -39,7 +50,7 @@ export function parseEditorDate(value: string, locale: EditorDateLocale): Parsed
     const year = Number(isoMatch?.[1] ?? germanMatch?.[3]);
     const monthText = isoMatch?.[2] ?? germanMatch?.[2];
     const dayText = isoMatch?.[3] ?? germanMatch?.[1];
-    if (year < 1 || year > 9999) return null;
+    if (year < EDITOR_MIN_YEAR || year > EDITOR_MAX_YEAR) return null;
 
     if (!monthText) {
         return { iso: input, precision: 'year', earliest: `${input}-01-01`, latest: `${input}-12-31` };
@@ -79,7 +90,6 @@ export function validateEditorDate(
                     : 'Enter a valid date (YYYY, YYYY-MM, or YYYY-MM-DD).',
         };
     }
-    if (parsed.earliest < EDITOR_MIN_DATE) return { parsed, error: 'Date must be on or after 1900-01-01.' };
     if (!allowFuture && parsed.earliest > todayLocalIso(today)) return { parsed, error: 'Date cannot be in the future.' };
     return { parsed, error: null };
 }
@@ -97,7 +107,7 @@ export function editorDateToCalendarDate(value: string | null, locale: EditorDat
     const parsed = parseEditorDate(value, locale);
     if (!parsed) return undefined;
     const [year, month, day] = parsed.earliest.split('-').map(Number);
-    return new Date(year, month - 1, day);
+    return createEditorCalendarDate(year, month - 1, day);
 }
 
 export function isEditorDateRangeReversed(

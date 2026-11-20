@@ -2419,8 +2419,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Valid:</strong> Time period for which the data is valid
                             </li>
                             <li>
-                                <strong>Available:</strong> When the resource becomes publicly available. For Embargoed access, enter exactly one full
-                                calendar date (YYYY-MM-DD); DataCite uses Available as the embargo end date.
+                                <strong>Other:</strong> Other dates or periods relevant to the dataset
+                            </li>
+                            <li>
+                                <strong>Available:</strong> When the data becomes publicly available; DataCite uses this date as the embargo end date.
                             </li>
                             <li>
                                 <strong>Submitted:</strong> When the resource was submitted
@@ -2447,17 +2449,42 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             saving.
                         </p>
                         <p>
-                            In the <strong>Dates</strong> section, type a year (<code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full
-                            date (<code>YYYY-MM-DD</code>) directly into the date field. Year-only and year-month values remain editable without
-                            adding a day. With a German browser language, you can also enter a full date as <code>DD.MM.YYYY</code>; ERNIE displays
-                            full dates in that order and saves them in ISO format.
+                            The <strong>Dates</strong> section accepts years from <code>0001</code> through <code>9999</code>. Type a year (
+                            <code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full date (<code>YYYY-MM-DD</code>) directly into the date
+                            field. Year-only and year-month values remain editable without adding a day. With a German browser language, you can also
+                            enter a full date as <code>DD.MM.YYYY</code>; ERNIE displays full dates in that order and saves them in ISO format.
                         </p>
                         <p>
-                            Use the calendar button to choose a day. Its month and year menus reach back to 1900. For Created, Collected, Valid, or
-                            Other dates, select <strong>Period</strong> and enter the start and end dates in separate fields; do not type a
-                            slash-delimited range into one field. Time and timezone apply only to full dates and are cleared when you change that date
-                            to a year or year-month. Invalid dates show a field error and must be corrected before saving.
+                            Use the calendar button to choose a day. Select the month from its dropdown and enter the year directly in the{' '}
+                            <strong>Year</strong> input. Press Enter or leave the Year input to navigate to that year. Navigating between months or
+                            years keeps the existing date and its precision until you select a day. The calendar follows the future-date rules of the
+                            selected Date Type.
                         </p>
+                        <p>
+                            For Created, Collected, Valid, or Other dates, select <strong>Period</strong> and enter the start and end dates in
+                            separate fields; do not type a slash-delimited range into one field. Time and timezone apply only to full dates and are
+                            cleared when you change that date to a year or year-month. Invalid date values show a field error and must be corrected
+                            before saving.
+                        </p>
+
+                        <h4>Historical and Future Dates</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Collected, Valid, and Other:</strong> Historical dates and future dates through year 9999 are allowed,
+                                including single dates and both the start and end of a period. This supports historical observations and future model
+                                projections. These future dates do not automatically change the access level.
+                            </li>
+                            <li>
+                                <strong>Created, Copyrighted, Submitted, and Withdrawn:</strong> Dates must be in the past or present. For a Created
+                                period, this applies to both endpoints. Their calendars stop at today.
+                            </li>
+                            <li>
+                                <strong>Available:</strong> Future dates require <strong>Embargoed</strong> access. Entering or selecting a future
+                                full calendar date selects that access level automatically. Before you <strong>Validate</strong> an embargoed record,
+                                provide exactly one Available date in <code>YYYY-MM-DD</code> format, without an end date or time. Drafts can retain
+                                incomplete embargo information.
+                            </li>
+                        </ul>
                     </>
                 ),
             },
