@@ -116,7 +116,14 @@ import {
     type SerializedContributor,
     type TitleEntry,
 } from './types/datacite-form-types';
-import { type DateMode, isAvailableDateType, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
+import {
+    allowsFutureEditorDate,
+    type DateMode,
+    isAvailableDateType,
+    isDateRangeCapable,
+    isEditableDateType,
+    normalizeDateTypeSlug,
+} from './utils/date-rules';
 import { ABSTRACT_MAX_LENGTH } from './utils/description-rules';
 import {
     canAddDate,
@@ -1649,9 +1656,11 @@ export default function DataCiteForm({
             }
 
             const startValidation = date.startDate?.trim()
-                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), isAvailableDateType(date.dateType))
+                ? validateEditorDate(date.startDate, editorDateLocale, new Date(), allowsFutureEditorDate(date.dateType))
                 : null;
-            const endValidation = date.endDate?.trim() ? validateEditorDate(date.endDate, editorDateLocale) : null;
+            const endValidation = date.endDate?.trim()
+                ? validateEditorDate(date.endDate, editorDateLocale, new Date(), allowsFutureEditorDate(date.dateType))
+                : null;
 
             if (startValidation?.error) issues.push(`Date ${dateIndex} (Start): ${startValidation.error}`);
             if (endValidation?.error) issues.push(`Date ${dateIndex} (End): ${endValidation.error}`);
@@ -2633,13 +2642,17 @@ export default function DataCiteForm({
                 dateMode: date.dateMode,
                 startDate:
                     buildDateTime(
-                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, isAvailableDateType(date.dateType)),
+                        requireEditorDateIso(date.startDate ?? '', editorDateLocale, allowsFutureEditorDate(date.dateType)),
                         date.startTime,
                         date.startTimezone,
                     ) || null,
                 endDate:
                     date.dateMode === 'range'
-                        ? buildDateTime(requireEditorDateIso(date.endDate ?? '', editorDateLocale), date.endTime, date.endTimezone) || null
+                        ? buildDateTime(
+                              requireEditorDateIso(date.endDate ?? '', editorDateLocale, allowsFutureEditorDate(date.dateType)),
+                              date.endTime,
+                              date.endTimezone,
+                          ) || null
                         : null,
                 ...(date.dateInformation ? { dateInformation: date.dateInformation } : {}),
             })),

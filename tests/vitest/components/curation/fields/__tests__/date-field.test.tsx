@@ -49,6 +49,29 @@ describe('DateField', () => {
         onEndTimezoneChange: mockOnEndTimezoneChange,
     };
 
+    it.each(['collected', 'Valid', 'other'])('accepts future start and end inputs for %s', async (dateType) => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} dateType={dateType} dateMode="range" startDate="2100" endDate="2299" />);
+        await user.click(screen.getByRole('textbox', { name: 'Start Date' }));
+        await user.tab();
+        await user.click(screen.getByRole('textbox', { name: 'End Date' }));
+        await user.tab();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('revalidates both future endpoints when the type changes to Created', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<DateField {...defaultProps} dateType="collected" dateMode="range" startDate="2100" endDate="2299" />);
+        for (const name of ['Start Date', 'End Date']) {
+            await user.click(screen.getByRole('textbox', { name }));
+            await user.tab();
+        }
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        rerender(<DateField {...defaultProps} dateType="created" dateMode="range" startDate="2100" endDate="2299" />);
+        expect(screen.getAllByRole('alert')).toHaveLength(2);
+        expect(screen.getByRole('textbox', { name: 'Start Date' })).toHaveValue('2100');
+        expect(screen.getByRole('textbox', { name: 'End Date' })).toHaveValue('2299');
+    });
 
     it('renders an editable date input and a calendar button', () => {
         render(<DateField {...defaultProps} />);

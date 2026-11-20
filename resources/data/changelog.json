@@ -98,6 +98,10 @@
         ],
         "fixes": [
             {
+                "title": "Historical and Projected Dataset Dates",
+                "description": "The Data Editor accepts dates from year 0001, including future Collected, Valid and Other dates and periods up to year 9999. Saving and reopening preserves date precision and existing embargo rules."
+            },
+            {
                 "title": "Resource Format and Size Import Validation",
                 "description": "Import exceptions for legacy formats and size meanings now use server-side, user-bound evidence that expires after 24 hours and is consumed once when creating a resource. Tokens cannot authorize changes on existing resources or be replayed after a successful save. Failed saves roll back consumption so imports remain retryable. Format popularity caching now uses the central cache-key registry with consistent expiry and tagged or untagged invalidation."
             },

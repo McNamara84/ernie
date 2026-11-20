@@ -178,6 +178,22 @@ unknown, ask an Admin or Group Leader to update the registry in Settings and the
 retry. Opening an existing resource does not write names to the database; save
 the resource normally to retain any newly resolved names.
 
+### Historical and projected dataset dates
+
+The Data Editor's Dates section accepts years 0001 through 9999, including
+year-only and year-month values. Collected, Valid and Other allow future single
+dates and both endpoints of a period, so historical observations and climate
+projections can be saved together. Created, Copyrighted, Submitted and Withdrawn
+retain their restriction to past and present dates.
+
+The calendar offers a direct Year input and a month dropdown. Navigating to a
+year does not change the metadata until a day is selected. Years below 0100 keep
+their actual year, and saving or reopening retains the supplied precision.
+
+Available continues to use the existing embargo workflow. Validated embargoed
+records require one complete Available day; drafts retain their existing relaxed
+completeness rules. Future Collected, Valid and Other dates do not enable an embargo.
+
 ### Download URL suggestion default
 
 Until an order has been saved in **Settings / Download URL suggestions**, the
