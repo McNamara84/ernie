@@ -8839,6 +8839,10 @@ describe('DataCiteForm', () => {
             const view = await renderDataCiteForm({
                 initialResourceId: '42',
                 initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+                initialRelatedWorks: [
+                    { identifier: 'ark:/z', identifier_type: 'ARK', relation_type: 'Cites', citation_label: 'Zulu' },
+                    { identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+                ],
             });
 
             try {
@@ -8862,6 +8866,10 @@ describe('DataCiteForm', () => {
                         resourceId: 42,
                         intent: 'autosave',
                         titles: [{ title: 'Changed Draft', titleType: 'main-title', language: null }],
+                        relatedIdentifiers: [
+                            { identifier: 'ark:/z', identifierType: 'ARK', relationType: 'Cites', citationLabel: 'Zulu' },
+                            { identifier: 'ark:/a', identifierType: 'ARK', relationType: 'References', citationLabel: 'Alpha' },
+                        ],
                     }),
                     expect.objectContaining({
                         headers: expect.objectContaining({
@@ -8896,6 +8904,10 @@ describe('DataCiteForm', () => {
             const view = await renderDataCiteForm({
                 initialResourceId: '42',
                 initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+                initialRelatedWorks: [
+                    { identifier: 'ark:/z', identifier_type: 'ARK', relation_type: 'Cites', citation_label: 'Zulu' },
+                    { identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+                ],
             });
 
             try {
@@ -9847,6 +9859,90 @@ describe('DataCiteForm', () => {
 
             expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:12148/btv1b8449691v/f29');
             expect(screen.getByRole('textbox', { name: /Citation label/i })).toHaveValue('Curated related work');
+        });
+
+        it(
+            'preserves canonical Related Work payload order after editing, collapsing, saving and deleting sorted cards',
+            { timeout: 60000 },
+            async () => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                const post = vi.mocked(axios.post).mockResolvedValue({ data: { resource: { id: 42 }, message: 'Draft saved.' }, status: 200 });
+                await renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialTitles: [{ title: 'Sorted related works', titleType: 'main-title' }],
+                    initialRelatedWorks: [
+                        {
+                            id: 30,
+                            identifier: 'ark:/z',
+                            identifier_type: 'ARK',
+                            relation_type: 'Cites',
+                            citation_label: 'Zulu',
+                            source: 'relation_suggestion_assistant',
+                        },
+                        { id: 10, identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+                        { id: 20, identifier: 'ark:/b', identifier_type: 'ARK', relation_type: 'Documents', citation_label: 'Beta' },
+                    ],
+                });
+                const trigger = await ensureRelatedWorkOpen(user);
+                expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
+                expect(screen.getByTestId('related-work-1-identifier-input')).toHaveValue('ark:/b');
+                expect(screen.getByTestId('related-work-2-identifier-input')).toHaveValue('ark:/z');
+                fireEvent.change(screen.getAllByRole('textbox', { name: 'Citation label' })[0], { target: { value: 'ZZZ edited' } });
+                await user.click(trigger);
+                await user.click(trigger);
+                expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
+                expect(screen.getAllByRole('textbox', { name: 'Citation label' })[0]).toHaveValue('ZZZ edited');
+                await user.click(screen.getByTestId('save-draft-button'));
+                await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+                const expected = [
+                    {
+                        id: 30,
+                        identifier: 'ark:/z',
+                        identifierType: 'ARK',
+                        relationType: 'Cites',
+                        citationLabel: 'Zulu',
+                        source: 'relation_suggestion_assistant',
+                    },
+                    { id: 10, identifier: 'ark:/a', identifierType: 'ARK', relationType: 'References', citationLabel: 'ZZZ edited' },
+                    { id: 20, identifier: 'ark:/b', identifierType: 'ARK', relationType: 'Documents', citationLabel: 'Beta' },
+                ];
+                expect((post.mock.calls[0][1] as { relatedIdentifiers: unknown[] }).relatedIdentifiers).toEqual(expected);
+                expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
+                await waitFor(() => expect(screen.getByTestId('save-draft-button')).toBeEnabled());
+                await user.click(screen.getAllByRole('button', { name: 'Remove related work' })[1]);
+                await user.click(screen.getByTestId('save-draft-button'));
+                await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+                expect((post.mock.calls[1][1] as { relatedIdentifiers: unknown[] }).relatedIdentifiers).toEqual(expected.slice(0, 2));
+            },
+        );
+
+        it('sorts new Related Works only on a fresh saved-editor mount, not on the first save or section remount', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            vi.mocked(axios.post).mockResolvedValue({ data: { resource: { id: 42 }, message: 'Draft saved.' }, status: 201 });
+            const values: DataCiteFormProps['initialRelatedWorks'] = [
+                { identifier: 'ark:/z', identifier_type: 'ARK', relation_type: 'Cites', citation_label: 'Zulu' },
+                { identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+            ];
+            const view = await renderDataCiteForm({
+                initialTitles: [{ title: 'First save', titleType: 'main-title' }],
+                initialRelatedWorks: values,
+            });
+            let trigger = await ensureRelatedWorkOpen(user);
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/z');
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockRouterReplace).toHaveBeenCalled());
+            await user.click(trigger);
+            await user.click(trigger);
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/z');
+            view.unmount();
+            await renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'First save', titleType: 'main-title' }],
+                initialRelatedWorks: values,
+            });
+            trigger = await ensureRelatedWorkOpen(user);
+            expect(trigger).toHaveAttribute('aria-expanded', 'true');
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
         });
 
         it('excludes an empty Related Work card from the draft payload', { timeout: 30000 }, async () => {

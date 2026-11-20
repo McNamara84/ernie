@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
-import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkAdvancedAdd from '@/components/curation/fields/related-work/related-work-advanced-add';
 import RelatedWorkCsvImport from '@/components/curation/fields/related-work/related-work-csv-import';
 import RelatedWorkField from '@/components/curation/fields/related-work/related-work-field';
 import RelatedWorkItem from '@/components/curation/fields/related-work/related-work-item';
+import { useRelatedWorkEditor } from '@/hooks/use-related-work-editor';
 import type { RelatedIdentifier } from '@/types';
 
 const core = 'swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f';
@@ -13,8 +13,8 @@ const resolver = `https://archive.softwareheritage.org/${core}`;
 const item: RelatedIdentifier = { identifier: '', identifier_type: 'URL', relation_type: 'IsIdenticalTo' };
 
 function Editor({ initial = [item] }: { initial?: RelatedIdentifier[] }) {
-    const [items, setItems] = useState(initial);
-    return <RelatedWorkField relatedWorks={items} onChange={setItems} />;
+    const editor = useRelatedWorkEditor(initial);
+    return <RelatedWorkField entries={editor.entries} displayEntries={editor.displayEntries} onChange={editor.setEntries} />;
 }
 
 describe('SWHID editor workflows', () => {
@@ -56,24 +56,14 @@ describe('SWHID editor workflows', () => {
 
     it.each([true, false])('preserves manual selection: %s', (manual) => {
         const onChange = vi.fn();
-        render(
-            <RelatedWorkItem
-                sortableId="r"
-                index={0}
-                item={{ ...item, identifier_type_manually_selected: manual }}
-                onChange={onChange}
-                onRemove={vi.fn()}
-            />,
-        );
+        render(<RelatedWorkItem index={0} item={{ ...item, identifier_type_manually_selected: manual }} onChange={onChange} onRemove={vi.fn()} />);
         fireEvent.change(screen.getByTestId('related-work-0-identifier-input'), { target: { value: resolver } });
         expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ identifier_type: manual ? 'URL' : 'SWHID' }));
     });
 
     it('respects disabled SWHID type and retains manually curated citation labels on normalization', async () => {
         const onChange = vi.fn();
-        const { unmount } = render(
-            <RelatedWorkItem sortableId="r" index={0} item={item} onChange={onChange} onRemove={vi.fn()} activeIdentifierTypes={['URL']} />,
-        );
+        const { unmount } = render(<RelatedWorkItem index={0} item={item} onChange={onChange} onRemove={vi.fn()} activeIdentifierTypes={['URL']} />);
         fireEvent.change(screen.getByTestId('related-work-0-identifier-input'), { target: { value: core } });
         expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ identifier_type: 'URL' }));
         unmount();

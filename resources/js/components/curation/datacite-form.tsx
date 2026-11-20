@@ -40,6 +40,7 @@ import { useEditorLeaveGuard } from '@/hooks/use-editor-leave-guard';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useInstrumentNameResolution } from '@/hooks/use-instrument-name-resolution';
+import { useRelatedWorkEditor } from '@/hooks/use-related-work-editor';
 import { useResourceTypeLicenses } from '@/hooks/use-resource-type-licenses';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { RorInputDraftContext, useRorInputDrafts } from '@/hooks/use-ror-input-drafts';
@@ -65,7 +66,7 @@ import { EMPTY_FORMAT_USAGE } from '@/lib/mime-types';
 import { indexRorSuggestions } from '@/lib/ror-input';
 import { editor, resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
-import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
+import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, SharedData } from '@/types';
 import type { LandingPageConfig } from '@/types/landing-page';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
@@ -634,12 +635,13 @@ export default function DataCiteForm({
         },
         [spatialTemporalCoverages],
     );
-    const [relatedWorks, setRelatedWorks] = useState<RelatedIdentifier[]>(() => {
-        if (initialRelatedWorks && initialRelatedWorks.length > 0) {
-            return initialRelatedWorks;
-        }
-        return [];
-    });
+    const {
+        entries: relatedWorkEntries,
+        displayEntries: displayedRelatedWorkEntries,
+        relatedWorks,
+        setEntries: setRelatedWorkEntries,
+        mergeImported: mergeImportedRelatedWorks,
+    } = useRelatedWorkEditor(initialRelatedWorks, Number.isSafeInteger(Number(initialResourceId)) && Number(initialResourceId) > 0);
     const [relatedItems, setRelatedItems] = useState<Array<Record<string, unknown>>>(initialRelatedItems);
     const [fundingReferences, setFundingReferences] = useState<FundingReferenceEntry[]>(() => {
         if (initialFundingReferences && initialFundingReferences.length > 0) {
@@ -781,14 +783,7 @@ export default function DataCiteForm({
                     ]),
                 ),
             );
-            setRelatedWorks((current) =>
-                mergeImportedEntries(
-                    current,
-                    imported.relatedWorks,
-                    (item) => [identityPart(item.identifier), identityPart(item.identifier_type), identityPart(item.relation_type)].join('|'),
-                    (item) => item.identifier.trim() === '',
-                ),
-            );
+            mergeImportedRelatedWorks(imported.relatedWorks);
             setRelatedItems((current) => mergeImportedEntries(current, imported.relatedItems, (item) => JSON.stringify(item)));
             setFundingReferences((current) =>
                 mergeImportedEntries(current, imported.fundingReferences, (item) =>
@@ -806,7 +801,7 @@ export default function DataCiteForm({
                 ),
             );
         },
-        [languages, licenses, setFormats, setSizes],
+        [languages, licenses, mergeImportedRelatedWorks, setFormats, setSizes],
     );
     const [selectedDatacenterId, setSelectedDatacenterId] = useState<number | null>(initialDatacenterId);
     const [datacenterTouched, setDatacenterTouched] = useState(false);
@@ -4553,7 +4548,7 @@ export default function DataCiteForm({
                         className={SECTION_TRIGGER_CLASS_NAME}
                         actions={renderSectionActions(
                             'Related Work',
-                            'DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them.',
+                            'DOIs, URLs, Handles, and other DataCite identifier types are supported. Saved entries appear alphabetically by citation label when the editor opens, with empty labels first. New entries stay in the order added until the editor is reopened.',
                         )}
                     >
                         <AccordionSectionHeader
@@ -4565,8 +4560,9 @@ export default function DataCiteForm({
                     </AccordionTrigger>
                     <AccordionContent data-testid="related-work-accordion-content">
                         <RelatedWorkField
-                            relatedWorks={relatedWorks}
-                            onChange={setRelatedWorks}
+                            entries={relatedWorkEntries}
+                            displayEntries={displayedRelatedWorkEntries}
+                            onChange={setRelatedWorkEntries}
                             activeRelationTypes={activeRelationTypes}
                             activeIdentifierTypes={activeIdentifierTypes}
                         />
