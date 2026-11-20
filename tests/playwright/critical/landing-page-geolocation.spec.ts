@@ -279,6 +279,35 @@ for (const preview of [false, true]) {
     });
 }
 
+test('preview map keeps coverage visible after its container changes size without a window resize', async ({ page }) => {
+    await openLocationPage(page, describedLocations, true);
+    const map = page.locator('.leaflet-container');
+    const marker = map.locator('.leaflet-marker-icon');
+
+    for (const width of [320, 640]) {
+        await page.getByTestId('map-container').evaluate((element, size) => {
+            element.style.width = `${size}px`;
+        }, width);
+        await expect
+            .poll(() =>
+                marker.evaluate((element) => {
+                    const bounds = element.closest('.leaflet-container')!.getBoundingClientRect();
+                    const markerBounds = element.getBoundingClientRect();
+                    return (
+                        markerBounds.left >= bounds.left &&
+                        markerBounds.right <= bounds.right &&
+                        markerBounds.top >= bounds.top &&
+                        markerBounds.bottom <= bounds.bottom
+                    );
+                }),
+            )
+            .toBe(true);
+        await marker.click();
+        await expect(map.locator('.leaflet-popup-content')).toHaveText('Point coverage');
+        await map.getByRole('button', { name: 'Close popup' }).click();
+    }
+});
+
 for (const colorScheme of ['light', 'dark'] as const) {
     test(`map descriptions remain readable and scrollable on a narrow ${colorScheme} page`, async ({ page, browserName }) => {
         await page.setViewportSize({ width: 390, height: 844 });

@@ -1,0 +1,34 @@
+{
+    "interface": {
+        "brand": "GFZ Data Services",
+        "standards": "Schema documentation",
+        "title": "Metadata schemas",
+        "lead": "Schema URLs and documentation for IGSN Core XML, DataCite JSON, and DataCite JSON-LD.",
+        "documentation": "Read documentation",
+        "documentationLabel": "Read documentation: {name}",
+        "currentFile": "Current file",
+        "fixedFile": "Fixed revision file",
+        "checksums": "Files and checksums",
+        "revision": "Revision"
+    },
+    "entries": {
+        "igsn-core": {
+            "title": "IGSN Core XML",
+            "format": "XML",
+            "kind": "XML Schema (XSD)",
+            "description": "Describe physical samples with IGSN Core 2.0. Validate the XML metadata with the published XSD and its bundled dependencies."
+        },
+        "datacite-json": {
+            "title": "DataCite JSON",
+            "format": "JSON",
+            "kind": "JSON Schema · Draft 2020-12",
+            "description": "Check DataCite 4.7 metadata attributes, required fields, and allowed values. For a JSON API document, select data.attributes before validation."
+        },
+        "datacite-jsonld": {
+            "title": "DataCite JSON-LD",
+            "format": "JSON-LD",
+            "kind": "JSON-LD 1.1 context",
+            "description": "Share DataCite metadata as Linked Data with the compact attrs/value profile. The context defines terms and their meaning. The guide explains the full validation workflow."
+        }
+    }
+}

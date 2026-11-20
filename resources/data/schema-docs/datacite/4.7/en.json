@@ -1,0 +1,856 @@
+{
+    "revisions": {
+        "v1": "4.7 (current)"
+    },
+    "citation": {
+        "text": "DataCite Metadata Working Group. (2026). DataCite Metadata Schema for the Publication and Citation of Research Data and Other Research Outputs. Version 4.7. DataCite e.V.",
+        "url": "https://doi.org/10.14454/qdd3-ps68"
+    },
+    "interface": {
+        "schemaActions": "Schema tools",
+        "citationTitle": "Cite the DataCite metadata standard",
+        "citationLink": "How to cite the standard",
+        "copyCitation": "Copy citation",
+        "allSchemas": "All schemas",
+        "brand": "GFZ Data Services",
+        "standards": "Schema documentation",
+        "title": "DataCite JSON",
+        "tagline": "A schema for research metadata.",
+        "lead": "Explore the GFZ / ERNIE DataCite 4.7 attributes profile. Find a field, understand its rules, and start with a working example.",
+        "schemaSource": "DataCite 4.7",
+        "publication": "Original publication",
+        "search": "Search the fields",
+        "searchPlaceholder": "Try a field, a value, or a topic…",
+        "clearSearch": "Clear search",
+        "allFields": "All fields",
+        "requiredFields": "Required",
+        "optionalFields": "Optional",
+        "filterLabel": "Filter fields",
+        "overview": "Start here",
+        "reference": "Field reference",
+        "examples": "JSON examples",
+        "contents": "In this profile",
+        "openNavigation": "Open field navigation",
+        "closeNavigation": "Close field navigation",
+        "required": "Required",
+        "optional": "Optional",
+        "conditional": "Required when this parent object is used",
+        "conditionallyRequired": "Required in some cases",
+        "alternatives": "Alternatives",
+        "alternative": "Alternative {number}",
+        "alternativeRequiredFields": "Required fields",
+        "valueOneOf": "The value must match exactly one of these alternatives.",
+        "valueAnyOf": "The value must match at least one of these alternatives.",
+        "itemsOneOf": "Each array item must match exactly one of these alternatives. Do not combine fields from different alternatives in the same item.",
+        "itemsAnyOf": "Each array item must match at least one of these alternatives.",
+        "requiredInAlternative": "Required in alternative {alternatives} of {field}.",
+        "oneOf": "Exactly one alternative",
+        "anyOf": "At least one alternative",
+        "occurs": "Occurrences",
+        "type": "Data type",
+        "allowedValues": "Allowed values",
+        "attributes": "Attributes",
+        "attributeName": "Property",
+        "use": "Use",
+        "values": "Values",
+        "fixedValue": "Fixed value",
+        "defaultValue": "Default",
+        "childElements": "Fields inside",
+        "parent": "Parent element",
+        "xmlPath": "JSON path",
+        "example": "JSON example",
+        "fragment": "Example fragment",
+        "fragmentNote": "Fragment from the extended record. Validate the complete attributes object.",
+        "copy": "Copy JSON",
+        "copyLink": "Copy link to this element",
+        "copied": "Copied",
+        "copyFailed": "Copy was not available. You can select and copy the text below.",
+        "downloadXml": "Download JSON",
+        "openReference": "Explore the fields",
+        "minimal": "Minimal record",
+        "full": "Extended record",
+        "minimalDescription": "A small, valid draft with the core fields. It leaves out the DOI. Registration has additional requirements.",
+        "fullDescription": "An illustrative record with creators, subjects, relationships, locations, and funding. The values are example data.",
+        "rulesTitle": "A few things to know",
+        "sourcesTitle": "Sources and version",
+        "notesTitle": "About this profile and its sources",
+        "revision": "Schema revision",
+        "namespace": "Validation standard",
+        "noResults": "No matching fields",
+        "noResultsHint": "Try another word or show all fields.",
+        "results": "matching fields",
+        "element": "field",
+        "elements": "fields",
+        "requiredExplanation": "Required means that a property must be present in its object. Required children of an optional object are needed when you use that object.",
+        "occurrenceExplanation": "For a collection, the range describes its items. A missing optional collection counts as 0. Value rules show the limits when it is present. [] in a path means an item in a collection.",
+        "fieldNotes": "Usage notes",
+        "viewFullExample": "View the full example",
+        "rootDescription": "The DataCite attributes for one resource.",
+        "sectionsLabel": "Browse by topic",
+        "backToTop": "Back to start",
+        "currentSelection": "Selected element",
+        "selectVersion": "Documentation revision",
+        "print": "Print guide",
+        "manifest": "Files and checksums",
+        "expand": "Expand",
+        "collapse": "Collapse",
+        "constraints": "Value rules",
+        "minInclusive": "Minimum (included)",
+        "maxInclusive": "Maximum (included)",
+        "minExclusive": "Greater than",
+        "maxExclusive": "Less than",
+        "minLength": "Minimum length",
+        "maxLength": "Maximum length",
+        "length": "Length",
+        "pattern": "Pattern",
+        "fieldPath": "JSON path",
+        "downloadExample": "Download JSON",
+        "formatSwitcher": "Documentation format",
+        "compareFormats": "Compare formats",
+        "fieldNotInFormat": "This field is not part of this format. Choose another field or switch back to compare the formats.",
+        "sourceField": "DataCite JSON field",
+        "semanticRuleExplanation": "These field rules describe the DataCite attributes after conversion. The context itself does not enforce them.",
+        "linkedDataMeaning": "Linked Data meaning",
+        "iri": "Property IRI",
+        "valueType": "Value type",
+        "container": "Collection meaning",
+        "vocabulary": "Vocabulary base",
+        "showPattern": "Show regular expression",
+        "format": "Format",
+        "minimum": "Minimum (included)",
+        "maximum": "Maximum (included)",
+        "exclusiveMinimum": "Greater than",
+        "exclusiveMaximum": "Less than",
+        "multipleOf": "Multiple of",
+        "minItems": "Minimum items when present",
+        "maxItems": "Maximum items",
+        "uniqueItems": "Unique items",
+        "minProperties": "Minimum properties",
+        "maxProperties": "Maximum properties",
+        "eyebrow": "GFZ / ERNIE PROFILE",
+        "conditionalRules": "Conditional rules",
+        "showRule": "Show the schema rule"
+    },
+    "home": {
+        "title": "DataCite JSON and JSON-LD",
+        "tagline": "Research metadata in JSON and JSON-LD.",
+        "lead": "Explore the GFZ / ERNIE profiles for DataCite 4.7. Choose JSON to work with metadata attributes, or JSON-LD to work with Linked Data.",
+        "heading": "Choose the format you work with",
+        "description": "Both views explain the same DataCite concepts. Their field paths, examples, and validation instructions follow the selected format.",
+        "cards": [
+            {
+                "key": "json",
+                "title": "JSON",
+                "description": "Read the DataCite attributes, their required fields, allowed values, and JSON Schema rules.",
+                "action": "Explore JSON"
+            },
+            {
+                "key": "jsonld",
+                "title": "JSON-LD",
+                "description": "Understand the compact attrs/value profile, its context, field mappings, and Linked Data meaning.",
+                "action": "Explore JSON-LD"
+            }
+        ],
+        "differencesTitle": "What each format checks",
+        "differences": [
+            {
+                "title": "JSON Schema checks the attributes",
+                "description": "The published schema checks structure, field types, required fields, allowed values, and conditional rules. Enable URI format checks in your validator."
+            },
+            {
+                "title": "A context gives Linked Data meaning",
+                "description": "The JSON-LD context maps terms to IRIs and defines collections and value types. Processing the context does not check DataCite required fields or cardinalities."
+            },
+            {
+                "title": "These are GFZ / ERNIE profiles",
+                "description": "The guides describe the published local JSON schema and compact JSON-LD profile. The official DataCite documentation defines the metadata standard. The separate Schema.org JSON-LD embedded in landing pages serves discovery."
+            }
+        ],
+        "source": "Official DataCite 4.7 documentation",
+        "igsn": "IGSN Core XML guide",
+        "revision": "Published profile revision"
+    },
+    "introduction": {
+        "json": {
+            "title": "Start with a clear metadata record.",
+            "description": "This guide describes the GFZ / ERNIE DataCite 4.7 JSON attributes profile for metadata curators and developers. The field rules are read from the exact published JSON schema.",
+            "steps": [
+                {
+                    "title": "Start small",
+                    "description": "Open the minimal draft. Add your own metadata and a DOI when one is assigned."
+                },
+                {
+                    "title": "Find the right field",
+                    "description": "Browse a topic or search for a field. Each entry shows its JSON path, child fields, and actual schema rules."
+                },
+                {
+                    "title": "Check the record",
+                    "description": "Validate the attributes object with a Draft 2020-12 validator. Registration also applies DataCite API checks."
+                }
+            ],
+            "rules": [
+                {
+                    "title": "Validate the attributes",
+                    "description": "The JSON schema describes the attributes object. A DataCite JSON API document wraps that object inside data.attributes."
+                },
+                {
+                    "title": "Keep the precision you know",
+                    "description": "Use four-digit publication years as strings. Dates may include a year, month, day, date-time, or an open or closed range. Do not invent missing precision."
+                },
+                {
+                    "title": "Use the whole record",
+                    "description": "Some rules depend on another field. A related metadata scheme may be stated only for HasMetadata or IsMetadataFor relations. Validate the complete record to check these conditions."
+                },
+                {
+                    "title": "Metadata fields only",
+                    "description": "This profile allows the listed metadata properties. Raw DataCite API responses may also contain administrative fields such as state, prefix, or url. Keep those separate before validating the metadata."
+                }
+            ]
+        },
+        "jsonld": {
+            "title": "Connect the metadata to Linked Data.",
+            "description": "This guide describes the compact GFZ / ERNIE attrs/value profile. Browse DataCite concepts, see their actual JSON-LD paths, and follow each term to its meaning. Required labels and value rules refer to the DataCite attributes after conversion.",
+            "steps": [
+                {
+                    "title": "Use the matching context",
+                    "description": "The example points to a fixed published context. Keep the document structure and the context together."
+                },
+                {
+                    "title": "Read the wrappers",
+                    "description": "Collections have plural and singular keys. A scalar uses value; its metadata uses attrs. The examples show the exact structure."
+                },
+                {
+                    "title": "Process and validate",
+                    "description": "Process the document with a JSON-LD 1.1 processor. To check DataCite fields, also validate the supported profile and the converted JSON attributes."
+                }
+            ],
+            "rules": [
+                {
+                    "title": "One item or several",
+                    "description": "A singular collection key holds an object for one item, or an array for several. [] in this guide covers both compact forms. Polygon vertices always use an array."
+                },
+                {
+                    "title": "Order and meaning",
+                    "description": "Creators and polygon vertices use ordered lists. Other collections use their context-defined meaning. Property IRIs and value types come from the published context."
+                },
+                {
+                    "title": "Fields follow DataCite concepts",
+                    "description": "The tree groups related metadata concepts. JSON-LD paths show the actual locations, including attrs and value. Rule labels describe the converted attributes, rather than a separate JSON-LD validation schema."
+                },
+                {
+                    "title": "Check all layers",
+                    "description": "JSON-LD expansion gives the data meaning. A supported-profile check and JSON Schema validation of the converted attributes check different requirements."
+                }
+            ]
+        }
+    },
+    "rules": {
+        "objectAlternative": "This field has more than one supported form. Its child fields apply to the object form.",
+        "dependentRequired": "When {field} is present, {dependencies} must also be present.",
+        "fieldDescription": "The {field} value in this DataCite metadata record."
+    },
+    "notes": [
+        {
+            "title": "A published local profile",
+            "description": "This reference uses the checksummed schema and context served by GFZ Data Services. It describes their actual rules and the supported compact profile."
+        },
+        {
+            "title": "Drafts and registration",
+            "description": "The JSON schema permits a draft without doi. Registering a DOI requires a DOI and further DataCite API checks. These examples do not perform a registration."
+        },
+        {
+            "title": "Context provenance",
+            "description": "The JSON-LD context is derived from TIB DataCite Linked Data, maintained and created by @selgebali, under CC BY 4.0. The manifest records the source commit, checksums, and profile adjustments."
+        }
+    ],
+    "jsonldNotes": [
+        {
+            "title": "JSON-only fields",
+            "description": "The compact exporter derives identifier and @id from doi. It does not export the separate JSON identifiers or container fields, or language properties on creator and contributor objects."
+        },
+        {
+            "title": "Use the supported profile",
+            "description": "The context also contains compatibility terms. The field list follows the actual exporter and supported importer profile; the presence of a term in a context does not make every use of it supported."
+        },
+        {
+            "title": "Names and URI spellings",
+            "description": "Paths show the spelling emitted by the exporter, including attrs and value. The supported importer also recognises documented historical URI aliases."
+        }
+    ],
+    "validation": {
+        "json": {
+            "title": "Validate a JSON record",
+            "description": "Use a JSON Schema Draft 2020-12 validator. For the Python example, install jsonschema with its format dependencies: pip install \"jsonschema[format]\".",
+            "steps": [
+                {
+                    "title": "Select the attributes",
+                    "description": "Use the standalone attributes object. For a JSON API export, select data.attributes first."
+                },
+                {
+                    "title": "Choose the matching schema",
+                    "description": "Use the fixed schema URL for repeatable validation, or download that schema for offline use."
+                },
+                {
+                    "title": "Enable format checks",
+                    "description": "URI format checks need a format checker in addition to the schema rules."
+                },
+                {
+                    "title": "Apply registration checks",
+                    "description": "A schema-valid draft is a starting point. DOI registration also needs a DOI and the DataCite API requirements."
+                }
+            ],
+            "code": "import json\nfrom urllib.request import urlopen\nfrom jsonschema import Draft202012Validator, FormatChecker\n\nwith urlopen(\"{schemaUrl}\") as response:\n    schema = json.load(response)\nwith open(\"metadata.json\", encoding=\"utf-8\") as source:\n    record = json.load(source)\nattributes = record[\"data\"][\"attributes\"] if \"data\" in record else record\nDraft202012Validator.check_schema(schema)\nDraft202012Validator(schema, format_checker=FormatChecker()).validate(attributes)\nprint(\"Valid DataCite attributes\")"
+        },
+        "jsonld": {
+            "title": "Process and validate a JSON-LD record",
+            "description": "JSON-LD meaning and DataCite field validation are separate checks. Use a JSON-LD 1.1 processor with the matching context, and a converter that supports this exact compact profile.",
+            "steps": [
+                {
+                    "title": "Read valid JSON",
+                    "description": "Parse the document and keep its @context, @type, and any DOI-based @id."
+                },
+                {
+                    "title": "Check the supported profile",
+                    "description": "Check the attrs/value structure, allowed fields, collection forms, and agreement between identifier and @id."
+                },
+                {
+                    "title": "Process the context",
+                    "description": "Expand the document with a JSON-LD 1.1 processor. Check the resulting IRIs, value types, and lists. Expansion alone does not check DataCite required fields."
+                },
+                {
+                    "title": "Validate the attributes",
+                    "description": "Use the ERNIE importer or a compatible converter to recover DataCite attributes. Normalise coordinates and year representations, then validate with the JSON schema. Registration applies further checks."
+                }
+            ]
+        }
+    },
+    "fields": {
+        "doi": {
+            "label": "DOI",
+            "description": "The Digital Object Identifier for this resource. Use a bare DOI, such as 10.5880/example.dataset."
+        },
+        "types": {
+            "label": "Resource type",
+            "description": "The broad kind of resource and, when known, a more specific description."
+        },
+        "resourceTypeGeneral": {
+            "label": "General resource type",
+            "description": "Choose the broad kind of resource from the allowed values."
+        },
+        "resourceType": {
+            "label": "Specific resource type",
+            "description": "A more specific description, such as geophysical observations or a laboratory protocol."
+        },
+        "identifiers": {
+            "label": "Identifiers",
+            "description": "Identifiers stated explicitly in this attributes record. Each identifier includes its type."
+        },
+        "identifier": {
+            "label": "Identifier",
+            "description": "The identifier value for the resource."
+        },
+        "identifierType": {
+            "label": "Identifier type",
+            "description": "The identifier system, such as DOI."
+        },
+        "creators": {
+            "label": "Creators",
+            "description": "People or organisations responsible for the resource. Keep them in the intended citation order."
+        },
+        "name": {
+            "label": "Name",
+            "description": "The full name of this person or organisation."
+        },
+        "nameType": {
+            "label": "Name type",
+            "description": "State whether the name belongs to a person or an organisation."
+        },
+        "givenName": {
+            "label": "Given name",
+            "description": "The given name of the person, also known as the first name."
+        },
+        "familyName": {
+            "label": "Family name",
+            "description": "The family name, or surname, of the person."
+        },
+        "nameIdentifiers": {
+            "label": "Name identifiers",
+            "description": "Persistent identifiers for a person or organisation, such as ORCID or ROR."
+        },
+        "nameIdentifier": {
+            "label": "Name identifier",
+            "description": "The persistent identifier for this person or organisation."
+        },
+        "nameIdentifierScheme": {
+            "label": "Name identifier scheme",
+            "description": "The name of the identifier system, such as ORCID or ROR."
+        },
+        "schemeUri": {
+            "label": "Scheme URI",
+            "description": "The URI of the identifier system or vocabulary. It is often a web address."
+        },
+        "affiliation": {
+            "label": "Affiliations",
+            "description": "Organisations with which the person or organisation is associated."
+        },
+        "affiliationIdentifier": {
+            "label": "Affiliation identifier",
+            "description": "A persistent identifier for the affiliated organisation."
+        },
+        "affiliationIdentifierScheme": {
+            "label": "Affiliation identifier scheme",
+            "description": "The identifier system used for this affiliation, such as ROR."
+        },
+        "titles": {
+            "label": "Titles",
+            "description": "Names by which the resource is known. Add other established titles when needed."
+        },
+        "title": {
+            "label": "Title",
+            "description": "A title that helps people identify the resource."
+        },
+        "titleType": {
+            "label": "Title type",
+            "description": "The role of an additional title, such as an alternative or translated title."
+        },
+        "lang": {
+            "label": "Language tag",
+            "description": "The language of this text, expressed as a language tag such as en."
+        },
+        "publisher": {
+            "label": "Publisher",
+            "description": "The organisation that publishes, holds, or makes the resource available."
+        },
+        "publisherIdentifier": {
+            "label": "Publisher identifier",
+            "description": "A persistent identifier for the publisher, such as a ROR URI."
+        },
+        "publisherIdentifierScheme": {
+            "label": "Publisher identifier scheme",
+            "description": "The identifier system used for the publisher."
+        },
+        "publicationYear": {
+            "label": "Publication year",
+            "description": "The year when this resource became, or will become, publicly available. Use a four-digit string."
+        },
+        "subjects": {
+            "label": "Subjects",
+            "description": "Keywords, classifications, or topics that describe the resource."
+        },
+        "subject": {
+            "label": "Subject",
+            "description": "A keyword or classification term for the resource."
+        },
+        "subjectScheme": {
+            "label": "Subject scheme",
+            "description": "The name of the vocabulary or classification used for the subject."
+        },
+        "valueUri": {
+            "label": "Value URI",
+            "description": "A URI identifying this specific term within a vocabulary."
+        },
+        "classificationCode": {
+            "label": "Classification code",
+            "description": "The code for the selected term in its classification."
+        },
+        "contributors": {
+            "label": "Contributors",
+            "description": "People or organisations that helped create, manage, or share the resource. Select their roles."
+        },
+        "contributorType": {
+            "label": "Contributor role",
+            "description": "The role of this contributor in relation to the resource."
+        },
+        "dates": {
+            "label": "Dates",
+            "description": "Dates relevant to the resource or its metadata. The date type explains each date."
+        },
+        "date": {
+            "label": "Date",
+            "description": "A date, date-time, or date range. Keep the precision that is known."
+        },
+        "dateType": {
+            "label": "Date type",
+            "description": "The event or activity described by this date."
+        },
+        "dateInformation": {
+            "label": "Date information",
+            "description": "A short explanation of the date, when further context is helpful."
+        },
+        "language": {
+            "label": "Resource language",
+            "description": "The primary language of the resource, expressed as a language code."
+        },
+        "alternateIdentifiers": {
+            "label": "Alternate identifiers",
+            "description": "Other identifiers that refer to the same resource."
+        },
+        "alternateIdentifier": {
+            "label": "Alternate identifier",
+            "description": "Another identifier for the same resource, such as a local reference."
+        },
+        "alternateIdentifierType": {
+            "label": "Alternate identifier type",
+            "description": "The system or kind of the alternate identifier."
+        },
+        "relatedIdentifiers": {
+            "label": "Related identifiers",
+            "description": "Identifiers for other resources related to this one."
+        },
+        "relatedIdentifier": {
+            "label": "Related identifier",
+            "description": "The identifier of another related resource."
+        },
+        "relatedIdentifierType": {
+            "label": "Related identifier type",
+            "description": "The identifier system used by the related resource."
+        },
+        "relationType": {
+            "label": "Relation type",
+            "description": "How this resource relates to the other resource. Choose the direction carefully."
+        },
+        "relationTypeInformation": {
+            "label": "Relation explanation",
+            "description": "A short explanation of a relation described as Other."
+        },
+        "relatedMetadataScheme": {
+            "label": "Related metadata scheme",
+            "description": "The metadata scheme used by a related metadata record."
+        },
+        "schemeType": {
+            "label": "Scheme type",
+            "description": "The kind of schema used by the related metadata record."
+        },
+        "sizes": {
+            "label": "Sizes",
+            "description": "Human-readable descriptions of the size or extent of the resource."
+        },
+        "formats": {
+            "label": "Formats",
+            "description": "The file formats or physical forms in which the resource is available."
+        },
+        "version": {
+            "label": "Version",
+            "description": "The version label of the resource. This is separate from the metadata schema version."
+        },
+        "rightsList": {
+            "label": "Rights and licences",
+            "description": "Licences and other statements about using the resource."
+        },
+        "rights": {
+            "label": "Rights statement",
+            "description": "A licence name or a short statement about use of the resource."
+        },
+        "rightsUri": {
+            "label": "Rights URI",
+            "description": "A web address for the licence or rights statement."
+        },
+        "rightsIdentifier": {
+            "label": "Rights identifier",
+            "description": "A standard identifier for the licence, such as an SPDX identifier."
+        },
+        "rightsIdentifierScheme": {
+            "label": "Rights identifier scheme",
+            "description": "The system used for the rights identifier, such as SPDX."
+        },
+        "descriptions": {
+            "label": "Descriptions",
+            "description": "Text that explains the resource, its contents, or its methods."
+        },
+        "description": {
+            "label": "Description",
+            "description": "Text that helps people understand the resource. Select a description type."
+        },
+        "descriptionType": {
+            "label": "Description type",
+            "description": "The purpose of this description, such as Abstract or Methods."
+        },
+        "geoLocations": {
+            "label": "Geographic locations",
+            "description": "Places or geographic areas relevant to the resource."
+        },
+        "geoLocationPlace": {
+            "label": "Place name",
+            "description": "A place name or a short description of the location."
+        },
+        "geoLocationPoint": {
+            "label": "Geographic point",
+            "description": "One geographic position, described by longitude and latitude."
+        },
+        "geoLocationBox": {
+            "label": "Geographic bounding box",
+            "description": "An area described by its west, east, south, and north bounds."
+        },
+        "geoLocationPolygon": {
+            "label": "Geographic polygon",
+            "description": "An area described by points along its boundary."
+        },
+        "polygonPoint": {
+            "label": "Polygon vertices",
+            "description": "The points along the polygon boundary, in their boundary order."
+        },
+        "inPolygonPoint": {
+            "label": "Point inside the polygon",
+            "description": "An optional point inside the polygon that helps describe the area."
+        },
+        "pointLongitude": {
+            "label": "Longitude",
+            "description": "The east-west position in decimal degrees. Negative values are west of Greenwich."
+        },
+        "pointLatitude": {
+            "label": "Latitude",
+            "description": "The north-south position in decimal degrees. Negative values are south of the equator."
+        },
+        "westBoundLongitude": {
+            "label": "Western longitude",
+            "description": "The longitude of the western boundary in decimal degrees."
+        },
+        "eastBoundLongitude": {
+            "label": "Eastern longitude",
+            "description": "The longitude of the eastern boundary in decimal degrees."
+        },
+        "southBoundLatitude": {
+            "label": "Southern latitude",
+            "description": "The latitude of the southern boundary in decimal degrees."
+        },
+        "northBoundLatitude": {
+            "label": "Northern latitude",
+            "description": "The latitude of the northern boundary in decimal degrees."
+        },
+        "fundingReferences": {
+            "label": "Funding",
+            "description": "Funding organisations and awards that supported the resource."
+        },
+        "funderName": {
+            "label": "Funder name",
+            "description": "The name of the organisation that provided funding."
+        },
+        "funderIdentifier": {
+            "label": "Funder identifier",
+            "description": "A persistent identifier for the funding organisation."
+        },
+        "funderIdentifierType": {
+            "label": "Funder identifier type",
+            "description": "The identifier system used for the funder."
+        },
+        "awardNumber": {
+            "label": "Award number",
+            "description": "The grant or award number assigned by the funder."
+        },
+        "awardUri": {
+            "label": "Award URI",
+            "description": "A web address for the grant or award."
+        },
+        "awardTitle": {
+            "label": "Award title",
+            "description": "The name of the funded project or award."
+        },
+        "relatedItems": {
+            "label": "Related items",
+            "description": "Detailed metadata about related publications or other resources."
+        },
+        "relatedItemType": {
+            "label": "Related item type",
+            "description": "The broad resource type of the related item."
+        },
+        "relatedItemIdentifier": {
+            "label": "Related item identifier",
+            "description": "The identifier of the related item, with information about its identifier system."
+        },
+        "relatedItemIdentifierType": {
+            "label": "Related item identifier type",
+            "description": "The identifier system used by the related item."
+        },
+        "volume": {
+            "label": "Volume",
+            "description": "The volume in which the related item appears."
+        },
+        "issue": {
+            "label": "Issue",
+            "description": "The issue in which the related item appears."
+        },
+        "number": {
+            "label": "Number",
+            "description": "A number used to identify the related item within its publication."
+        },
+        "numberType": {
+            "label": "Number type",
+            "description": "The kind of number used for the related item."
+        },
+        "firstPage": {
+            "label": "First page",
+            "description": "The first page of the related item."
+        },
+        "lastPage": {
+            "label": "Last page",
+            "description": "The last page of the related item."
+        },
+        "edition": {
+            "label": "Edition",
+            "description": "The edition of the related item."
+        },
+        "container": {
+            "label": "Container",
+            "description": "Information about the publication or container that holds this resource."
+        },
+        "type": {
+            "label": "Container type",
+            "description": "The kind of container that holds this resource."
+        }
+    },
+    "paths": {
+        "$": {
+            "label": "DataCite attributes",
+            "description": "The metadata attributes for one resource. For a DataCite JSON API document, use the object inside data.attributes.",
+            "notes": [
+                "Only the listed metadata properties are allowed. For an API response, select data.attributes and separate fields used only for API administration."
+            ]
+        },
+        "$.publisher": {
+            "label": "Publisher",
+            "description": "The organisation that publishes, holds, or makes the resource available.",
+            "notes": [
+                "The JSON profile also accepts a plain publisher name as a string. Use the object form shown here when you need an identifier or want to convert the record to this JSON-LD profile."
+            ]
+        },
+        "$.identifiers": {
+            "label": "Identifiers",
+            "description": "Identifiers stated explicitly in this attributes record. Each identifier includes its type.",
+            "notes": ["The compact JSON-LD export creates its identifier from doi. It does not export this separate identifiers collection."]
+        },
+        "$.container": {
+            "label": "Container",
+            "description": "Information about the publication or container that holds this resource.",
+            "notes": ["This JSON property is outside the compact JSON-LD export profile."]
+        },
+        "$.relatedIdentifiers": {
+            "label": "Related identifiers",
+            "description": "Identifiers for other resources related to this one.",
+            "notes": [
+                "A metadata scheme may be stated only for HasMetadata or IsMetadataFor. URL and URN identifier types require a URI value. These conditions are checked on the complete record.",
+                "Use relationTypeInformation to explain Other relations. The published JSON schema does not make it required when Other is selected."
+            ]
+        },
+        "$.relatedIdentifiers[].relationTypeInformation": {
+            "label": "Relation explanation",
+            "description": "A short explanation of a relation described as Other.",
+            "notes": [
+                "Use this property to explain Other relations. The published JSON schema keeps it optional and does not impose a relationType condition on this property."
+            ]
+        },
+        "$.relatedItems": {
+            "label": "Related items",
+            "description": "Detailed metadata about related publications or other resources.",
+            "notes": [
+                "A metadata scheme may be stated only for HasMetadata or IsMetadataFor. URL and URN identifier types require a URI value. These conditions are checked on the complete record.",
+                "Use relationTypeInformation to explain Other relations. The published JSON schema does not make it required when Other is selected."
+            ]
+        },
+        "$.relatedItems[].relationTypeInformation": {
+            "label": "Relation explanation",
+            "description": "A short explanation of a relation described as Other.",
+            "notes": [
+                "Use this property to explain Other relations. The published JSON schema keeps it optional and does not impose a relationType condition on this property."
+            ]
+        },
+        "$.creators[].lang": {
+            "label": "Language tag",
+            "description": "The language of this text, expressed as a language tag such as en.",
+            "notes": ["This property is accepted by the JSON schema but is not carried into the compact JSON-LD profile."]
+        },
+        "$.contributors[].lang": {
+            "label": "Language tag",
+            "description": "The language of this text, expressed as a language tag such as en.",
+            "notes": ["This property is accepted by the JSON schema but is not carried into the compact JSON-LD profile."]
+        },
+        "$.relatedItems[].creators[].lang": {
+            "label": "Language tag",
+            "description": "The language of this text, expressed as a language tag such as en.",
+            "notes": ["This property is accepted by the JSON schema but is not carried into the compact JSON-LD profile."]
+        },
+        "$.relatedItems[].contributors[].lang": {
+            "label": "Language tag",
+            "description": "The language of this text, expressed as a language tag such as en.",
+            "notes": ["This property is accepted by the JSON schema but is not carried into the compact JSON-LD profile."]
+        },
+        "$.relatedItems[].relatedItemIdentifier.relatedItemIdentifier": {
+            "label": "Related item identifier",
+            "description": "The identifier of the related item, with information about its identifier system.",
+            "notes": ["Use a URI value when relatedItemIdentifierType is URL or URN. Other identifier types follow their own identifier conventions."]
+        },
+        "$.relatedIdentifiers[].relatedIdentifier": {
+            "label": "Related identifier",
+            "description": "The identifier of another related resource.",
+            "notes": ["Use a URI value when relatedIdentifierType is URL or URN. Other identifier types follow their own identifier conventions."]
+        }
+    },
+    "jsonldInterface": {
+        "valueOneOf": "After conversion to DataCite JSON, the value must match exactly one of these alternatives.",
+        "valueAnyOf": "After conversion to DataCite JSON, the value must match at least one of these alternatives.",
+        "itemsOneOf": "After conversion to DataCite JSON, each array item must match exactly one of these alternatives. Do not combine fields from different alternatives in the same converted item.",
+        "itemsAnyOf": "After conversion to DataCite JSON, each array item must match at least one of these alternatives.",
+        "requiredInAlternative": "Required in alternative {alternatives} of {field} after conversion to DataCite JSON.",
+        "lead": "Explore the compact GFZ / ERNIE DataCite 4.7 profile. Find a field, follow its context meaning, and start with a working JSON-LD example.",
+        "title": "DataCite JSON-LD",
+        "tagline": "Linked Data for research metadata.",
+        "examples": "JSON-LD examples",
+        "example": "JSON-LD example",
+        "copy": "Copy JSON-LD",
+        "downloadXml": "Download JSON-LD",
+        "downloadExample": "Download JSON-LD",
+        "namespace": "JSON-LD vocabulary",
+        "childElements": "Related metadata fields",
+        "fragmentNote": "Fragment from the extended record. The full record declares @context and @type.",
+        "requiredExplanation": "Required labels describe the converted DataCite attributes. The context maps terms and does not enforce required fields. The format notes explain the wrappers."
+    },
+    "jsonldRoot": {
+        "label": "DataCite JSON-LD record",
+        "description": "One resource in the compact GFZ / ERNIE JSON-LD profile, with its context and Linked Data meaning."
+    },
+    "jsonldPublisherNotes": [
+        "Use value for the publisher name and attrs for its identifier, scheme, and language. This compact profile uses a publisher object."
+    ],
+    "keywordNote": "This entry describes the supported compact profile. The JSON-LD context is not a validation schema.",
+    "keywordFields": {
+        "context": {
+            "name": "@context",
+            "label": "JSON-LD context",
+            "description": "The fixed published context that gives meaning to the terms in this profile.",
+            "required": true
+        },
+        "type": {
+            "name": "@type",
+            "label": "Resource class",
+            "description": "The resource class. This profile emits Resource, which the context maps to the TIB DataCite Resource class.",
+            "required": true
+        },
+        "id": {
+            "name": "@id",
+            "label": "Resource IRI",
+            "description": "The DOI resolver URL for this resource. When present, it must agree with identifier.value.",
+            "required": false
+        }
+    },
+    "links": {
+        "json": [
+            {
+                "label": "JSON Schema Draft 2020-12",
+                "url": "https://json-schema.org/draft/2020-12"
+            }
+        ],
+        "jsonld": [
+            {
+                "label": "JSON-LD 1.1",
+                "url": "https://www.w3.org/TR/json-ld11/"
+            },
+            {
+                "label": "TIB DataCite Linked Data",
+                "url": "https://tibhannover.github.io/datacite/"
+            },
+            {
+                "label": "Context licence: CC BY 4.0",
+                "url": "https://creativecommons.org/licenses/by/4.0/"
+            }
+        ]
+    }
+}

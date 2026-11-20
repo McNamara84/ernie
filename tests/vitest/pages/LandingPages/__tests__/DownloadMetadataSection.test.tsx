@@ -3,10 +3,18 @@
  */
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@tests/vitest/utils/render';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DownloadMetadataSection } from '@/pages/LandingPages/components/DownloadMetadataSection';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
+
+const pageProps = vi.hoisted(() => ({ pathPrefix: '' }));
+
+vi.mock('@inertiajs/react', () => ({ usePage: () => ({ props: pageProps }) }));
+
+beforeEach(() => {
+    pageProps.pathPrefix = '';
+});
 
 const canonicalMetadataLinks = [
     {
@@ -87,6 +95,12 @@ const isoJsonLink: LandingPageMetadataLink = {
 };
 
 describe('DownloadMetadataSection', () => {
+    it.each(['', '/ernie'])('keeps the format guides within deployment prefix "%s"', (prefix) => {
+        pageProps.pathPrefix = prefix;
+        render(<DownloadMetadataSection resourceId={42} metadataLinks={canonicalMetadataLinks} />);
+        expect(screen.getByRole('link', { name: 'Format guides' })).toHaveAttribute('href', `${prefix}/schemas/datacite/4.7/docs`);
+    });
+
     it('groups XML and JSON under ISO 19115 and preserves the precise standards in accessible labels', () => {
         render(<DownloadMetadataSection resourceId={42} metadataLinks={[...canonicalMetadataLinks, isoJsonLink]} />);
         const json = screen.getByRole('link', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' });

@@ -11,6 +11,7 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 
 vi.mock('@inertiajs/react', () => ({
+    usePage: () => ({ props: {} }),
     Head: ({ title, children }: { title?: string; children?: React.ReactNode }) => {
         if (title) document.title = title;
         return <>{children}</>;

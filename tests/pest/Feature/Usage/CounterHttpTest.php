@@ -7,7 +7,6 @@ use App\Models\Description;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
-use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\User;
@@ -78,11 +77,11 @@ it('counts a final not-modified response but excludes redirects and server error
 
 it('counts successful Core exports as investigations and excludes incomplete IGSN metadata', function () {
     $type = ResourceType::firstOrCreate(['slug' => 'physical-object'], ['name' => 'PhysicalObject']);
-    $this->page->resource->update(['resource_type_id' => $type->id]);
+    $this->page->resource->update(['resource_type_id' => $type->id, 'publication_year' => null]);
     $url = $this->page->public_url.'/metadata/igsn-core-2.0.xml';
     $this->get($url)->assertUnprocessable();
     expect(DB::table('usage_events')->count())->toBe(0);
-    ResourceCreator::factory()->create(['resource_id' => $this->page->resource_id]);
+    $this->page->resource->update(['publication_year' => 2026]);
     $this->get($url)->assertOk();
     expect(DB::table('usage_events')->count())->toBe(1);
     $event = DB::table('usage_events')->first();

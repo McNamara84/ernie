@@ -154,9 +154,6 @@ final class IgsnCoreSourceBuilder
                 $this->errors[] = 'creators';
             }
         }
-        if (! $creators->hasChildNodes()) {
-            $this->errors[] = 'creators';
-        }
         foreach ($sampledBy as $name) {
             if (isset($parties[$name]) && count($parties[$name]) === 1) {
                 $parties[$name][0]->setAttribute('role', 'collector');
@@ -245,7 +242,10 @@ final class IgsnCoreSourceBuilder
     {
         $metadata = $resource->igsnMetadata;
         $sample = $this->node($root, 'sample');
-        $this->node($sample, 'type', $this->names->filled($metadata?->sample_type) ?? (string) $resource->resourceType?->name);
+        $this->node($sample, 'type', (string) $resource->resourceType?->name);
+        if ($metadata !== null && $this->names->filled($metadata->sample_type) !== null) {
+            $this->node($sample, 'sampleType', $metadata->sample_type);
+        }
         $material = $this->names->filled($metadata?->material);
         if ($material !== null) {
             $this->material($resource, $sample, $material);
@@ -267,7 +267,7 @@ final class IgsnCoreSourceBuilder
                 }
             }
             if ($this->names->filled($metadata->current_archive) !== null) {
-                $this->node($sample, 'archive', $metadata->current_archive);
+                $this->omissions[] = 'current_archive_not_supported';
             }
             if ($this->names->filled($metadata->original_archive) !== null && $metadata->original_archive !== $metadata->current_archive) {
                 $this->omissions[] = 'historical_archive_not_supported';

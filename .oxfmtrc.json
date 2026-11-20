@@ -18,7 +18,9 @@
         "resources/data/scheme/iso-19115-4/**/json/**",
         "resources/data/scheme/dcat-ap/**",
         "resources/data/scheme/igsn-core/**/upstream/**",
-        "resources/data/scheme/igsn-core/2.0/preview-*/**"
+        "resources/data/scheme/igsn-core/2.0/preview-*/**",
+        "resources/data/scheme/igsn-core/2.0/v*/**",
+        "resources/data/scheme/datacite/4.7/v*/**"
     ],
     "overrides": [
         {

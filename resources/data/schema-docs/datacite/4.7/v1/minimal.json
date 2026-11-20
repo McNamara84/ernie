@@ -1,0 +1,20 @@
+{
+    "creators": [
+        {
+            "name": "Example Research Group"
+        }
+    ],
+    "titles": [
+        {
+            "title": "Geophysical observations"
+        }
+    ],
+    "publisher": {
+        "name": "GFZ Data Services"
+    },
+    "publicationYear": "2026",
+    "types": {
+        "resourceTypeGeneral": "Dataset",
+        "resourceType": "Geophysical observations"
+    }
+}

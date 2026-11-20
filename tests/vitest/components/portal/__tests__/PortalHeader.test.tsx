@@ -34,6 +34,7 @@ describe('PortalHeader', () => {
         ['find', 'Overview'],
         ['data-centres', 'Data Centres'],
         ['data-centres-description', null],
+        ['schemas', null],
         ['doi', 'Data Portal'],
         ['igsn', 'IGSN Portal'],
     ] as const)('keeps Overview first and marks only the current link for %s on desktop and mobile', async (portalKind, currentLabel) => {
@@ -74,15 +75,23 @@ describe('PortalHeader', () => {
         expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it.each(['find', 'data-centres', 'data-centres-description'] as const)('keeps the %s wordmark visible without adding a second main heading', (kind) => {
-        render(<PortalHeader portalKind={kind} />);
-        expect(screen.getByTestId('portal-wordmark').tagName).toBe('P');
-        expect(screen.getByTestId('portal-wordmark')).toHaveTextContent('GFZ Data Services');
-        expect(screen.getByTestId('portal-wordmark')).not.toHaveClass('sr-only');
-        expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
-        expect(screen.getByRole('button', { name: 'Find' })).toHaveClass('bg-portal-nav-active');
-    });
+    it.each(['find', 'data-centres', 'data-centres-description', 'schemas'] as const)(
+        'keeps the %s wordmark visible without adding a second main heading',
+        (kind) => {
+            render(<PortalHeader portalKind={kind} />);
+            expect(screen.getByTestId('portal-wordmark').tagName).toBe('P');
+            expect(screen.getByTestId('portal-wordmark')).toHaveTextContent('GFZ Data Services');
+            expect(screen.getByTestId('portal-wordmark')).not.toHaveClass('sr-only');
+            expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+            expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+            if (kind === 'schemas') {
+                expect(screen.getByRole('button', { name: 'Find' })).not.toHaveClass('bg-portal-nav-active');
+                expect(screen.getByRole('button', { name: 'Find' })).not.toHaveAttribute('aria-current');
+            } else {
+                expect(screen.getByRole('button', { name: 'Find' })).toHaveClass('bg-portal-nav-active');
+            }
+        },
+    );
 
     it('highlights the Data Centres section on its description page without marking the overview as the current page', async () => {
         const user = userEvent.setup();

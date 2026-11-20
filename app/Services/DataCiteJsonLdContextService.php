@@ -11,7 +11,11 @@ use App\Exceptions\JsonLdConversionException;
  */
 final class DataCiteJsonLdContextService
 {
-    public const PATH = '/metadata/contexts/datacite-4.7-v1.jsonld';
+    public const PATH = '/schemas/datacite/4.7/v1/context.jsonld';
+
+    public const ALIAS_PATH = '/schemas/datacite/4.7/context.jsonld';
+
+    public const LEGACY_PATH = '/metadata/contexts/datacite-4.7-v1.jsonld';
 
     public const FILE = 'resources/data/contexts/datacite-4.7-v1.jsonld';
 
@@ -111,7 +115,13 @@ final class DataCiteJsonLdContextService
     public function assertSupportedDocument(array $document): void
     {
         if (! is_string($document['@context'] ?? null)
-            || ! in_array($document['@context'], [$this->localUrl(), $this->url(), ...self::LEGACY_CONTEXTS], true)) {
+            || ! in_array($document['@context'], [
+                $this->localUrl(),
+                $this->url(),
+                rtrim((string) config('app.url'), '/').self::ALIAS_PATH,
+                rtrim((string) config('app.url'), '/').self::LEGACY_PATH,
+                ...self::LEGACY_CONTEXTS,
+            ], true)) {
             throw new JsonLdConversionException('Unsupported JSON-LD context. Upload an ERNIE DataCite JSON-LD export or DataCite JSON/XML.');
         }
 
