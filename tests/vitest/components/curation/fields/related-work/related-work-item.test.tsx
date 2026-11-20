@@ -16,9 +16,7 @@ describe('RelatedWorkItem variants', () => {
         ...overrides,
     });
 
-    const renderItem = (item: RelatedIdentifier) =>
-        render(<RelatedWorkItem sortableId="related-work-0" item={item} index={0} onChange={mockOnChange} onRemove={mockOnRemove} />);
-
+    const renderItem = (item: RelatedIdentifier) => render(<RelatedWorkItem item={item} index={0} onChange={mockOnChange} onRemove={mockOnRemove} />);
 
     it('renders Handle identifiers as clickable preview links', () => {
         renderItem(
@@ -86,16 +84,7 @@ describe('RelatedWorkItem variants', () => {
         expect(note).toHaveClass('text-cyan-900');
     });
     it('keeps validation icons hidden when status is validating', () => {
-        render(
-            <RelatedWorkItem
-                sortableId="related-work-0"
-                item={createItem()}
-                index={0}
-                onChange={mockOnChange}
-                onRemove={mockOnRemove}
-                validationStatus="validating"
-            />,
-        );
+        render(<RelatedWorkItem item={createItem()} index={0} onChange={mockOnChange} onRemove={mockOnRemove} validationStatus="validating" />);
 
         expect(screen.queryByLabelText('Valid')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Warning')).not.toBeInTheDocument();

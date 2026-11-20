@@ -2542,13 +2542,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     become additional Schema.org identifiers alongside the resource DOI.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={4} title="Refine and Reorder">
+                            <WorkflowSteps.Step number={4} title="Refine Citation Labels">
                                 <p>
-                                    Adjust the identifier, relation type, and Citation Label directly in the card. Drag completed cards into the order
-                                    you want; this order is preserved in the editor and reused on the landing page.
+                                    Adjust the identifier, relation type, and Citation Label directly in the card. Cards stay in place while you edit
+                                    them, including when ERNIE fills an empty label automatically.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+
+                        <h4>Alphabetical Display</h4>
+                        <p>
+                            Opening a saved resource displays Related Works alphabetically by their saved Citation Labels, across all relation types.
+                            Entries without a label appear first. Capitalization and accents are treated equally, and numbers sort naturally, such as
+                            Work 2 before Work 10. Equal labels keep their stored order. This display does not change the stored order used by landing
+                            pages and exports.
+                        </p>
+                        <p>
+                            New cards and CSV imports stay in the order added until you reopen the editor. Saving, autosave, or collapsing the section
+                            does not rearrange the cards. Full XML and JSON uploads create a saved draft, so their Related Works already appear sorted
+                            when you first open that draft.
+                        </p>
 
                         <h4>CSV Bulk Import</h4>
                         <p>

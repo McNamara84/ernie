@@ -6,10 +6,8 @@ import ContributorList from '@/components/curation/fields/contributor/contributo
 import type { ContributorEntry } from '@/components/curation/fields/contributor/types';
 import { FundingReferenceField } from '@/components/curation/fields/funding-reference/funding-reference-field';
 import type { FundingReferenceEntry } from '@/components/curation/fields/funding-reference/types';
-import RelatedWorkList from '@/components/curation/fields/related-work/related-work-list';
 import { RorCatalogContext } from '@/components/curation/fields/ror-input-feedback';
 import { indexRorSuggestions } from '@/lib/ror-input';
-import type { RelatedIdentifier } from '@/types';
 
 import { expect, page, render, test, vi } from '../helpers/test';
 
@@ -28,12 +26,6 @@ const contributors: ContributorEntry[] = ['GFZ', 'MIT'].map((institutionName, in
     affiliationsInput: '',
     roles: [],
     rolesInput: '',
-}));
-const related: RelatedIdentifier[] = ['10.5880/first', '10.5880/second'].map((identifier, position) => ({
-    identifier,
-    identifier_type: 'DOI',
-    relation_type: 'Cites',
-    position,
 }));
 const fundings: FundingReferenceEntry[] = ['GFZ', 'MIT'].map((funderName, index) => ({
     id: `funding-${index}`,
@@ -89,13 +81,6 @@ const cases: SortableCase[] = [
                 institutionRoleOptions={[]}
             />
         ),
-    },
-    {
-        name: 'related works',
-        label: 'Reorder related work 1',
-        ids: (items) => (items as RelatedIdentifier[]).map((item) => item.identifier),
-        expected: ['10.5880/second', '10.5880/first'],
-        component: (onReorder) => <RelatedWorkList items={related} onItemChange={vi.fn()} onRemove={vi.fn()} onReorder={onReorder} />,
     },
     {
         name: 'funding references',
