@@ -8,9 +8,12 @@ import type { IgsnSchemaDocumentation, IgsnSchemaField } from '@/types/igsn-core
 
 import english from '../../../../resources/data/schema-docs/igsn-core/2.0/en.json';
 
+const pageProps = vi.hoisted(() => ({ pathPrefix: '' }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
+    usePage: () => ({ props: pageProps }),
 }));
 vi.mock('@/components/app-footer', () => ({ AppFooter: () => <footer>GFZ Data Services</footer> }));
 
@@ -84,12 +87,19 @@ const props: IgsnSchemaDocumentation = {
 };
 
 beforeEach(() => {
+    pageProps.pathPrefix = '';
     window.history.replaceState({}, '', '/schemas/igsn/2.0/docs');
     Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(() => vi.restoreAllMocks());
 
 describe('public IGSN Core documentation', () => {
+    it.each(['', '/ernie'])('keeps the schema catalogue within deployment prefix "%s"', (prefix) => {
+        pageProps.pathPrefix = prefix;
+        render(<IgsnCoreDocs documentation={props} />);
+        expect(screen.getByRole('link', { name: english.interface.allSchemas })).toHaveAttribute('href', `${prefix}/schemas/docs`);
+    });
+
     it('offers the complete recommended citation and copies it with its DOI', async () => {
         const user = userEvent.setup();
         const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();

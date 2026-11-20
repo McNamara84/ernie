@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import {
     BarChart3,
     BookOpen,
@@ -38,7 +38,7 @@ import { Input } from '@/components/ui/input';
 import { DOCS_ACTIONS, docsActionHref } from '@/data/docs-actions';
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem, UserRole } from '@/types';
+import type { BreadcrumbItem, SharedData, UserRole } from '@/types';
 import type { DataCiteDocsSettings, DocsCapabilities, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
 
 interface DocsProps {
@@ -67,6 +67,7 @@ function formatConfiguredList(values: string[]): string {
 }
 
 export default function Docs({ userRole, editorSettings, dataCite, capabilities }: DocsProps) {
+    const { pathPrefix = '' } = usePage<SharedData>().props;
     const permissions = useMemo<DocsCapabilities>(
         () =>
             capabilities ?? {
@@ -3053,7 +3054,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Published IGSNs and Physical Objects also offer <strong>IGSN Core 2.0</strong> as XML, with links to the published schema
                             and the public{' '}
-                            <a href="/schemas/igsn/2.0/docs" className="underline">
+                            <a href={`${pathPrefix}/schemas/igsn/2.0/docs`} className="underline">
                                 IGSN Core guide
                             </a>
                             . This uses the published Core schema without Geo or Bio extensions. ERNIE validates each file before download. Missing
@@ -4066,7 +4067,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
         ],
-        [userRole, editorSettings, dataCite, editorActions, resourceActions, permissions],
+        [userRole, editorSettings, dataCite, editorActions, resourceActions, permissions, pathPrefix],
     );
 
     // ===========================================

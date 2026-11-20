@@ -1,12 +1,13 @@
 import '../../../css/igsn-core-docs.css';
 import '../../../css/schema-documentation.css';
 
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { ArrowDownToLine, ArrowRight, BookOpen, ChevronDown, ChevronRight, CodeXml, Copy, ExternalLink, Menu, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppFooter } from '@/components/app-footer';
 import { PortalHeader } from '@/components/portal/PortalHeader';
+import type { SharedData } from '@/types';
 import type { SchemaDocumentation, SchemaField } from '@/types/schema-documentation';
 
 import CopyButton from './CopyButton';
@@ -128,6 +129,7 @@ function TreeItem({
 }
 
 export default function SchemaDocumentationExplorer({ documentation: doc }: { documentation: SchemaDocumentation }) {
+    const { pathPrefix = '' } = usePage<SharedData>().props;
     const c = doc.copy;
     const [view, setView] = useState<View>('overview');
     const [selected, setSelected] = useState(doc.fields[0].id);
@@ -238,7 +240,7 @@ export default function SchemaDocumentationExplorer({ documentation: doc }: { do
                                 {c.schemaSource}
                                 <ExternalLink size={13} aria-hidden="true" />
                             </a>
-                            <a href="/schemas/docs">{c.allSchemas}</a>
+                            <a href={`${pathPrefix}/schemas/docs`}>{c.allSchemas}</a>
                         </nav>
                     </div>
                     <div className="schema-doc-hero-content">

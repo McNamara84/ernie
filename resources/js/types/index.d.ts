@@ -53,6 +53,7 @@ export interface AssessmentAverageSummary {
 }
 
 export interface SharedData {
+    pathPrefix?: string;
     serverToday?: string;
     canReleaseData?: boolean;
     name: string;

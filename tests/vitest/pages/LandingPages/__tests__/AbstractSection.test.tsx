@@ -2,9 +2,11 @@
  * @vitest-environment jsdom
  */
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AbstractSection } from '@/pages/LandingPages/components/AbstractSection';
+
+vi.mock('@inertiajs/react', () => ({ usePage: () => ({ props: {} }) }));
 
 // Mock data factories
 const createDescription = (overrides: Partial<{ id: number; value: string; description_type: string | null }> = {}) => ({

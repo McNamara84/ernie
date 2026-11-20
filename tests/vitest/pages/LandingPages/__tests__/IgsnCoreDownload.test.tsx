@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DownloadMetadataSection } from '@/pages/LandingPages/components/DownloadMetadataSection';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
 
+vi.mock('@inertiajs/react', () => ({ usePage: () => ({ props: {} }) }));
+
 const link: LandingPageMetadataLink = {
     format: 'igsn-core-2.0',
     standard: 'IGSN 2.0 Core',

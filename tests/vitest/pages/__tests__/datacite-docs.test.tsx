@@ -10,9 +10,12 @@ import type { SchemaDocumentation, SchemaField } from '@/types/schema-documentat
 
 import english from '../../../../resources/data/schema-docs/datacite/4.7/en.json';
 
+const pageProps = vi.hoisted(() => ({ pathPrefix: '' }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
+    usePage: () => ({ props: pageProps }),
 }));
 vi.mock('@/components/app-footer', () => ({ AppFooter: () => <footer>GFZ Data Services</footer> }));
 
@@ -125,11 +128,24 @@ const polygonDoc: SchemaDocumentation = {
 };
 
 beforeEach(() => {
+    pageProps.pathPrefix = '';
     window.history.replaceState({}, '', '/schemas/datacite/4.7/docs/json');
     Element.prototype.scrollIntoView = vi.fn();
 });
 
 describe('DataCite documentation', () => {
+    it.each(['', '/ernie'])('keeps the overview catalogue link within deployment prefix "%s"', (prefix) => {
+        pageProps.pathPrefix = prefix;
+        render(<DataCiteOverview documentation={overview} />);
+        expect(screen.getByRole('link', { name: english.interface.allSchemas })).toHaveAttribute('href', `${prefix}/schemas/docs`);
+    });
+
+    it.each(['json', 'jsonld'] as const)('keeps the %s reference catalogue link within the configured deployment', (format) => {
+        pageProps.pathPrefix = '/ernie';
+        render(<DataCiteDocs documentation={{ ...doc, format }} />);
+        expect(screen.getByRole('link', { name: english.interface.allSchemas })).toHaveAttribute('href', '/ernie/schemas/docs');
+    });
+
     it('shows the exclusive polygon choice and the requirement for each alternative', async () => {
         const user = userEvent.setup();
         window.history.replaceState({}, '', `#${polygonId}`);

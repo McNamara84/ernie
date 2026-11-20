@@ -1,15 +1,17 @@
 import '../../../css/igsn-core-docs.css';
 import '../../../css/schema-documentation.css';
 
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { ArrowRight, Braces, ExternalLink, FileJson } from 'lucide-react';
 
 import { AppFooter } from '@/components/app-footer';
 import { PortalHeader } from '@/components/portal/PortalHeader';
 import SchemaCitationBlock from '@/components/schema-documentation/SchemaCitationBlock';
+import type { SharedData } from '@/types';
 import type { DataCiteDocsOverview } from '@/types/datacite-docs';
 
 export default function DataCiteDocsOverviewPage({ documentation: doc }: { documentation: DataCiteDocsOverview }) {
+    const { pathPrefix = '' } = usePage<SharedData>().props;
     const { home, copy: c } = doc;
     return (
         <div className="igsn-docs" lang={doc.locale}>
@@ -31,7 +33,7 @@ export default function DataCiteDocsOverviewPage({ documentation: doc }: { docum
                                 {c.schemaSource}
                                 <ExternalLink size={13} aria-hidden="true" />
                             </a>
-                            <a href="/schemas/docs">{c.allSchemas}</a>
+                            <a href={`${pathPrefix}/schemas/docs`}>{c.allSchemas}</a>
                         </nav>
                     </div>
                     <div className="schema-doc-hero-content">

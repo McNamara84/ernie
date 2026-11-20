@@ -1,6 +1,39 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import { navigateWithTlsRetry, prepareHtmlInterception } from '../helpers/navigation';
+
+for (const guide of ['docs', 'docs/json']) {
+    test(`the DataCite ${guide} catalogue link preserves the deployment prefix`, async ({ page }) => {
+        await prepareHtmlInterception(page);
+        // Emulate a proxy mounting this root-based test server below /ernie.
+        // Production supplies the same prefix through its shared Inertia props.
+        await page.route('**/ernie/schemas/**', async (route) => {
+            const target = new URL(route.request().url());
+            const originalPath = target.pathname + target.search;
+            target.pathname = target.pathname.slice('/ernie'.length);
+            const response = await route.fetch({ url: target.toString() });
+            const html = (await response.text()).replace(
+                /(<script[^>]*data-page="app"[^>]*>)([\s\S]*?)(<\/script>)/,
+                (_match, open: string, raw: string, close: string) => {
+                    const payload = JSON.parse(raw);
+                    payload.props.pathPrefix = '/ernie';
+                    payload.url = originalPath;
+                    return open + JSON.stringify(payload).replaceAll('<', '\\u003c') + close;
+                },
+            );
+            await route.fulfill({ response, body: html });
+        });
+
+        await navigateWithTlsRetry(page, `/ernie/schemas/datacite/4.7/${guide}`, { waitUntil: 'domcontentloaded' });
+        const catalogue = page.getByRole('link', { name: 'All schemas', exact: true });
+        await expect(catalogue).toHaveAttribute('href', '/ernie/schemas/docs');
+        await catalogue.click();
+        await expect(page).toHaveURL(/\/ernie\/schemas\/docs$/);
+        await expect(page.getByRole('article')).toHaveCount(3);
+    });
+}
+
 test('visitors can find every metadata guide and fetch the published files from the catalogue', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 1050 });
     await page.goto('/schemas/docs');

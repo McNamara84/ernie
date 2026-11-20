@@ -1,8 +1,10 @@
+import { usePage } from '@inertiajs/react';
 import { BadgeCheck, Braces, FileCode, FileJson, type LucideIcon } from 'lucide-react';
 import { type MouseEvent, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { SharedData } from '@/types';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
 
 import { DarkModeImage } from './DarkModeImage';
@@ -74,6 +76,7 @@ export function DownloadMetadataSection({
     jsonLdExportUrl,
     metadataLinks = [],
 }: DownloadMetadataSectionProps) {
+    const { pathPrefix = '' } = usePage<SharedData>().props;
     const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
     const previewTrigger = useRef<HTMLButtonElement | null>(null);
     const urlFor = (format: LandingPageMetadataLink['format'], fallback: string): string =>
@@ -123,7 +126,7 @@ export function DownloadMetadataSection({
                     isPreview={isPreview}
                     onPreviewClick={openPreviewDialog}
                 />
-                <a href="/schemas/datacite/4.7/docs" className="text-sm underline" title="DataCite JSON and JSON-LD documentation">
+                <a href={`${pathPrefix}/schemas/datacite/4.7/docs`} className="text-sm underline" title="DataCite JSON and JSON-LD documentation">
                     Format guides
                 </a>
             </div>
