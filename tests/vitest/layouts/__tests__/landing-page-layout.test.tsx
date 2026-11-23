@@ -61,11 +61,11 @@ describe('LandingPageLayout', () => {
         );
 
         expect(screen.getByRole('link', { name: 'www.gfz-potsdam.de' })).toHaveAttribute('href', 'https://www.gfz-potsdam.de');
-        expect(screen.getByRole('link', { name: 'Data Services' })).toHaveAttribute('href', 'https://dataservices.gfz-potsdam.de');
+        expect(screen.getByRole('link', { name: 'Data Services' })).toHaveAttribute('href', 'https://gfz-data-services.gfz.de');
         expect(screen.getByRole('link', { name: 'Legal Notice' })).toHaveAttribute('href', '/legal-notice');
         expect(screen.getByRole('link', { name: 'Data Protection' })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
+            'https://gfz-data-services.gfz.de/about-us/data-protection',
         );
     });
 

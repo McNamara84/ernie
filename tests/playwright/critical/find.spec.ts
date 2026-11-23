@@ -4,6 +4,24 @@ import { openFind } from '../helpers/find';
 import { openHomepage } from '../helpers/homepage';
 
 test.describe('Find overview', () => {
+    test('navigates back from the legal notice in the current tab and in a new tab', async ({ page, context }) => {
+        await openFind(page);
+        const legalNotice = page.getByRole('navigation', { name: 'Footer navigation' }).getByRole('link', { name: 'Legal Notice' });
+        const newTabPromise = context.waitForEvent('page');
+        await legalNotice.click({ modifiers: ['ControlOrMeta'] });
+        const newTab = await newTabPromise;
+        await expect(newTab).toHaveURL(/\/legal-notice$/);
+        await newTab.getByRole('button', { name: 'Back', exact: true }).click();
+        await expect(newTab.getByRole('heading', { name: 'Welcome to GFZ Data Services' })).toBeVisible();
+        await newTab.close();
+
+        await legalNotice.click();
+        await expect(page).toHaveURL(/\/legal-notice$/);
+        await page.getByRole('button', { name: 'Back', exact: true }).click();
+        await expect(page).toHaveURL(/\/find$/);
+        await expect(page.getByRole('heading', { level: 1, name: 'Find', exact: true })).toBeVisible();
+    });
+
     for (const width of [320, 768, 1024, 1440]) {
         test(`serves the complete public overview at ${width}px`, async ({ page }, testInfo) => {
             await page.setViewportSize({ width, height: 900 });

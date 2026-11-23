@@ -32,7 +32,7 @@ describe('PortalHeader', () => {
     it.each([
         ['home', 'Home'],
         ['find', 'Overview'],
-        ['data-centres', 'Data Centres'],
+        ['data-centres', null],
         ['data-centres-description', null],
         ['schemas', null],
         ['doi', 'Data Portal'],
@@ -43,7 +43,7 @@ describe('PortalHeader', () => {
         const entries = [
             ['Overview', '/find'],
             ['Data Portal', '/doi-search'],
-            ['Data Centres', '/data-centres'],
+            ['Data Centres', 'https://gfz-data-services.gfz.de/find/data-centres'],
             ['IGSN Portal', '/igsn-search'],
         ];
 
@@ -53,7 +53,7 @@ describe('PortalHeader', () => {
         for (const [index, [label, href]] of entries.entries()) {
             const link = desktopLinks[index];
             expect(link).toHaveAttribute('href', href);
-            expect(link).toHaveAttribute('data-testid', 'inertia-link');
+            expect(link.getAttribute('data-testid')).toBe(href.startsWith('/') ? 'inertia-link' : null);
             expect(link.getAttribute('aria-current')).toBe(label === currentLabel ? 'page' : null);
         }
         await user.keyboard('{Escape}');
@@ -68,6 +68,7 @@ describe('PortalHeader', () => {
         for (const [label, href] of [['Home', '/'], ...entries]) {
             const link = mobile.getByRole('link', { name: label });
             expect(link).toHaveAttribute('href', href);
+            expect(link.getAttribute('data-testid')).toBe(href.startsWith('/') ? 'inertia-link' : null);
             expect(link.getAttribute('aria-current')).toBe(label === currentLabel ? 'page' : null);
         }
         await user.click(mobile.getByRole('link', { name: 'Overview' }));
@@ -205,20 +206,24 @@ describe('PortalHeader', () => {
             expect(homeLink).not.toHaveAttribute('aria-current');
         });
 
-        it('has correct external link targets', () => {
+        it('links to the GFZ Data Services website in both menus', async () => {
+            const user = userEvent.setup();
             render(<PortalHeader />);
-            expect(screen.getByText('Publish Data').closest('a')).toHaveAttribute(
-                'href',
-                'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions',
-            );
-            expect(screen.getByText('Samples (IGSN)').closest('a')).toHaveAttribute(
-                'href',
-                'https://dataservices.gfz-potsdam.de/web/samples/introduction',
-            );
-            expect(screen.getByText('Data Protection').closest('a')).toHaveAttribute(
-                'href',
-                'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
-            );
+            await user.click(screen.getByRole('button', { name: 'Open menu' }));
+            for (const [label, path] of [
+                ['Publish Data', '/publish-data/publication-instructions'],
+                ['Samples (IGSN)', '/samples/introduction'],
+                ['Support', '/about-us'],
+                ['About Us', '/about-us'],
+                ['Data Protection', '/about-us/data-protection'],
+            ]) {
+                const links = screen.getAllByRole('link', { name: label });
+                expect(links).toHaveLength(2);
+                for (const link of links) {
+                    expect(link).toHaveAttribute('href', `https://gfz-data-services.gfz.de${path}`);
+                    expect(link).not.toHaveAttribute('data-testid', 'inertia-link');
+                }
+            }
         });
     });
 

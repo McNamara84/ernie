@@ -1,10 +1,27 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 
+import { Button } from '@/components/ui/button';
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import PublicLayout from '@/layouts/public-layout';
 
 export default function LegalNotice() {
+    function goBack() {
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+
+        router.visit('/', { replace: true });
+    }
+
     return (
-        <PublicLayout>
+        <PublicLayout
+            headerAction={
+                <Button type="button" variant="outline" onClick={goBack}>
+                    Back
+                </Button>
+            }
+        >
             <Head title="Legal Notice" />
             <h1 className="mb-4 text-2xl font-semibold">Legal information / Provider Identification</h1>
             <p className="mb-4">
@@ -137,12 +154,7 @@ export default function LegalNotice() {
             </p>
             <hr className="my-6" />
             <p>
-                <a
-                    href="https://dataservices.gfz-potsdam.de/web/about-us/data-protection"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline"
-                >
+                <a href={gfzDataServicesUrls.dataProtection} target="_blank" rel="noreferrer" className="text-primary underline">
                     Data Privacy Protection
                 </a>
             </p>

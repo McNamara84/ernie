@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 
 import { Button } from '@/components/ui/button';
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import HomeLayout from '@/layouts/home-layout';
 
 export default function Find() {
@@ -77,7 +78,7 @@ export default function Find() {
                         <p className="max-w-5xl text-base leading-8 text-muted-foreground [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4">
                             During the past years we have developed several{' '}
                             <a
-                                href="https://dataservices.gfz-potsdam.de/web/support/glossary"
+                                href={gfzDataServicesUrls.glossary}
                                 title="A DOI is an online reference assigned to a digital resource (e.g. an article in a journal or research data) to give it a unique and permanent reference on the Internet."
                             >
                                 DOI

@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
+
 import { BackToTopButton } from './BackToTopButton';
 import { DarkModeImage } from './DarkModeImage';
 import { LandingPageToaster } from './LandingPageToaster';
@@ -57,7 +59,7 @@ export function LandingPageShell({
                                 |
                             </span>
                             <a
-                                href="https://dataservices.gfz-potsdam.de/web/about-us/data-protection"
+                                href={gfzDataServicesUrls.dataProtection}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-gray-600 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-200"

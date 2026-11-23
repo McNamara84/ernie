@@ -258,5 +258,5 @@ it('does not stop collection when usage is hidden and allows all DOI modules to 
 it('exposes the actual activation date and links the existing TYPO3 privacy statement', function () {
     $this->get('/usage-statistics')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->component('usage-statistics')->where('usageStatus.startedAt', '2026-10-01T12:00:00+00:00')
-        ->where('privacyUrl', 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection'));
+        ->where('privacyUrl', 'https://gfz-data-services.gfz.de/about-us/data-protection'));
 });

@@ -11,5 +11,5 @@ return [
     ],
     'max_list_bytes' => 2_000_000,
     'methodology_url' => '/usage-statistics',
-    'privacy_url' => 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
+    'privacy_url' => 'https://gfz-data-services.gfz.de/about-us/data-protection',
 ];

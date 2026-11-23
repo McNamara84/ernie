@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import { expect } from '@playwright/test';
+import { expect, test as guestTest } from '@playwright/test';
 
 import { test } from '../fixtures/authenticated';
 
@@ -22,13 +22,13 @@ test.describe('Usage statistics', () => {
         });
     }
 
-    test('explains the counting method and links the existing privacy policy on a narrow screen', async ({ page }) => {
+    guestTest('shows guests the counting method and privacy policy on a narrow screen', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 812 });
         await page.goto('/usage-statistics');
         await expect(page.getByRole('heading', { name: 'How we count usage' })).toBeVisible();
         await expect(page.getByRole('link', { name: 'GFZ Data Services privacy policy' })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
+            'https://gfz-data-services.gfz.de/about-us/data-protection',
         );
         await expect(page.getByText(/IGSNs describe physical samples and have views only/)).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

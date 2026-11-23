@@ -111,7 +111,7 @@ describe('UserFeedbackDialog', () => {
         expect(within(dialog).getByText(/emailed to all active ERNIE administrators/i)).toBeInTheDocument();
         expect(within(dialog).getByRole('link', { name: /data privacy protection/i })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
+            'https://gfz-data-services.gfz.de/about-us/data-protection',
         );
         expect(mocks.snapshot).toHaveBeenCalledOnce();
         expect(mocks.snapshot).toHaveBeenCalledWith(17);

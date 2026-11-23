@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 
 import { PortalHeader, type PublicContentPage } from '@/components/portal/PortalHeader';
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import { useNProgress } from '@/hooks/use-nprogress';
 
 export default function HomeLayout({ children, page = 'home' }: PropsWithChildren<{ page?: PublicContentPage }>) {
@@ -24,10 +25,10 @@ export default function HomeLayout({ children, page = 'home' }: PropsWithChildre
                         <Link href="/legal-notice" className="hover:underline">
                             Legal Notice
                         </Link>
-                        <a href="https://dataservices.gfz-potsdam.de/web/about-us/data-protection" className="hover:underline">
+                        <a href={gfzDataServicesUrls.dataProtection} className="hover:underline">
                             Data Protection
                         </a>
-                        <a href="https://dataservices.gfz-potsdam.de/web/about-us/copyrights" className="hover:underline">
+                        <a href={gfzDataServicesUrls.copyrights} className="hover:underline">
                             Copyrights
                         </a>
                     </nav>
