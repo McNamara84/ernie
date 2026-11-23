@@ -57,6 +57,7 @@ final class RecordCounterUsage
             'landing-page.metadata.iso19115-3' => 'iso19115-3',
             'landing-page.metadata.iso19115-4' => 'iso19115-4',
             'landing-page.metadata.dcat-ap' => 'dcat-ap',
+            'landing-page.metadata.epos-dcat-ap' => 'epos-dcat-ap',
             'landing-page.metadata.igsn-core' => 'igsn-core-2.0',
         ];
         if (isset($formats[$name]) && in_array($status, [200, 304], true)) {

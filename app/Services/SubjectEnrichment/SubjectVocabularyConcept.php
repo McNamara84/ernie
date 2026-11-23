@@ -22,6 +22,7 @@ final readonly class SubjectVocabularyConcept
         public string $language,
         public SubjectVocabularySource $source,
         public array $synonyms = [],
+        public ?string $definition = null,
     ) {}
 
     public function valueUri(): ?string

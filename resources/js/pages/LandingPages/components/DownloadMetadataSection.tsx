@@ -17,6 +17,7 @@ interface DownloadMetadataSectionProps {
     supportsIso19115Json?: boolean;
     supportsIgsnCore?: boolean;
     supportsDcatAp?: boolean;
+    supportsEposDcatAp?: boolean;
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
 }
@@ -73,6 +74,7 @@ export function DownloadMetadataSection({
     supportsIso19115Json = false,
     supportsIgsnCore = false,
     supportsDcatAp = false,
+    supportsEposDcatAp = false,
     jsonLdExportUrl,
     metadataLinks = [],
 }: DownloadMetadataSectionProps) {
@@ -90,7 +92,10 @@ export function DownloadMetadataSection({
         setIsPreviewDialogOpen(true);
     };
     const igsnCoreLink = metadataLinks.find((link) => link.format === 'igsn-core-2.0');
-    const dcatLink = metadataLinks.find((link) => link.format === 'dcat-ap');
+    const dcatProfiles = [
+        { format: 'dcat-ap', label: 'DCAT-AP 3.0.1', supported: supportsDcatAp },
+        { format: 'epos-dcat-ap', label: 'EPOS-DCAT-AP 3.0', supported: supportsEposDcatAp },
+    ];
 
     return (
         <section className="mt-6" aria-labelledby="heading-download-metadata">
@@ -185,20 +190,25 @@ export function DownloadMetadataSection({
                 </div>
             )}
 
-            {(dcatLink !== undefined || (isPreview && supportsDcatAp)) && (
-                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
-                    <span className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm font-semibold dark:border-gray-600">DCAT-AP 3.0.1</span>
-                    <MetadataDownloadAction
-                        href={dcatLink?.url}
-                        icon={FileCode}
-                        label="RDF/XML"
-                        title="Download as DCAT-AP 3.0.1 RDF/XML"
-                        ariaLabel="Download DCAT-AP 3.0.1 metadata as RDF/XML"
-                        isPreview={isPreview}
-                        onPreviewClick={openPreviewDialog}
-                    />
-                </div>
-            )}
+            {dcatProfiles.map(({ format, label, supported }) => {
+                const link = metadataLinks.find((metadata) => metadata.format === format);
+                if (!link && !(isPreview && supported)) return null;
+
+                return (
+                    <div key={format} className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                        <span className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm font-semibold dark:border-gray-600">{label}</span>
+                        <MetadataDownloadAction
+                            href={link?.url}
+                            icon={FileCode}
+                            label="RDF/XML"
+                            title={`Download as ${label} RDF/XML`}
+                            ariaLabel={`Download ${label} metadata as RDF/XML`}
+                            isPreview={isPreview}
+                            onPreviewClick={openPreviewDialog}
+                        />
+                    </div>
+                );
+            })}
 
             {isPreview && (
                 <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>

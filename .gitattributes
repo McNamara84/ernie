@@ -30,4 +30,5 @@ resources/data/scheme/datacite/4.7/v*/** -text -whitespace
 
 # Preserve checksummed DCAT-AP standards, vocabularies and public API fixtures.
 resources/data/scheme/dcat-ap/** -text -whitespace
+resources/data/scheme/epos-dcat-ap/** -text -whitespace
 tests/pest/Fixtures/DcatAp/*.json -text -whitespace

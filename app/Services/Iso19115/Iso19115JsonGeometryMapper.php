@@ -49,14 +49,8 @@ final class Iso19115JsonGeometryMapper
                 || ! $this->coordinate($south, 90) || ! $this->coordinate($north, 90) || $south > $north) {
                 return null;
             }
-            if ($west > $east) {
-                return ['type' => 'MultiPolygon', 'coordinates' => [
-                    [$this->ring((float) $west, (float) $south, 180.0, (float) $north)],
-                    [$this->ring(-180.0, (float) $south, (float) $east, (float) $north)],
-                ]];
-            }
 
-            return ['type' => 'Polygon', 'coordinates' => [$this->ring((float) $west, (float) $south, (float) $east, (float) $north)]];
+            return $this->box((float) $west, (float) $south, (float) $east, (float) $north);
         }
 
         if ($location->hasPoint() && $this->coordinate($location->point_longitude, 180)
@@ -65,6 +59,19 @@ final class Iso19115JsonGeometryMapper
         }
 
         return null;
+    }
+
+    /** @return array{type: string, coordinates: array<mixed>} */
+    public function box(float $west, float $south, float $east, float $north): array
+    {
+        if ($west > $east) {
+            return ['type' => 'MultiPolygon', 'coordinates' => [
+                [$this->ring($west, $south, 180.0, $north)],
+                [$this->ring(-180.0, $south, $east, $north)],
+            ]];
+        }
+
+        return ['type' => 'Polygon', 'coordinates' => [$this->ring($west, $south, $east, $north)]];
     }
 
     private function coordinate(mixed $value, int $limit): bool

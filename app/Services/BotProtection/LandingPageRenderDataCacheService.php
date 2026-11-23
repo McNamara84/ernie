@@ -49,20 +49,25 @@ class LandingPageRenderDataCacheService
     public function forgetById(int $landingPageId): bool
     {
         $cache = $this->getCacheInstance(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
-        // A flag toggle can reuse either variant before its TTL expires.
-        // Always evict both, including the currently inactive representation.
-        $disabled = $cache->forget($this->renderKey($landingPageId, false));
-        $enabled = $cache->forget($this->renderKey($landingPageId, true));
+        $forgotten = false;
+        foreach ([false, true] as $eu) {
+            foreach ([false, true] as $epos) {
+                $forgotten = $cache->forget($this->renderKey($landingPageId, $eu, $epos)) || $forgotten;
+            }
+        }
 
-        return $disabled || $enabled;
+        return $forgotten;
     }
 
-    private function renderKey(int $landingPageId, ?bool $dcatEnabled = null): string
+    private function renderKey(int $landingPageId, ?bool $dcatEnabled = null, ?bool $eposEnabled = null): string
     {
         $state = app(CounterTrackingStateService::class)->read();
         $base = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPageId);
         if ($dcatEnabled ?? config('dcatap.enabled', false)) {
             $base .= ':dcat-ap:'.config('dcatap.version').':'.config('dcatap.revision');
+        }
+        if ($eposEnabled ?? config('dcatap.epos.enabled', false)) {
+            $base .= ':epos-dcat-ap:'.config('dcatap.epos.version').':'.config('dcatap.epos.revision');
         }
         $subjectRevision = Cache::get(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key());
         if (is_string($subjectRevision)) {

@@ -10,6 +10,8 @@ use App\Support\SubjectBreadcrumbPath;
 
 final class DcatApDataThemeResolver
 {
+    public const array LABELS = ['TECH' => 'Science and technology', 'ENVI' => 'Environment', 'ENER' => 'Energy'];
+
     /** @return list<string> */
     public function resolve(Resource $resource): array
     {

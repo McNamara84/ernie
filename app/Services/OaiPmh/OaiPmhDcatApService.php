@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Enums\DcatApFormat;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\OaiPmhFormatRecord;
 use App\Models\OaiPmhHarvest;
 use App\Models\Resource;
-use App\Services\DcatAp\DcatApRdfXmlExporter;
 use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\DcatAp\DcatApRecordService;
 use App\Services\DcatAp\DcatApResourceProfileService;
@@ -23,46 +23,46 @@ final class OaiPmhDcatApService
         private readonly OaiPmhXmlResponseBuilder $xml,
         private readonly OaiPmhResumptionTokenService $tokens,
         private readonly OaiPmhHarvestService $harvests,
-        private readonly DcatApRdfXmlExporter $exporter,
         private readonly DcatApResourceProfileService $profile,
         private readonly DcatApReadinessService $readiness,
         private readonly DcatApRecordService $records,
     ) {}
 
     /** @param array<string, string> $attributes */
-    public function getRecord(string $doi, string $identifier, array $attributes): string
+    public function getRecord(DcatApFormat $format, string $doi, string $identifier, array $attributes): string
     {
         $resource = Resource::query()->where('doi', $doi)->whereHas('landingPage', fn ($q) => $q->where('is_published', true))->first();
         if ($resource !== null) {
-            $this->records->reconcile($resource->id);
+            $this->records->reconcile($resource->id, format: $format);
         }
-        $record = OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('oai_identifier', $identifier)->first();
+        $record = OaiPmhFormatRecord::where('metadata_prefix', $format->value)->where('oai_identifier', $identifier)->first();
         if ($record?->status === 'active' && $record->resource === null) {
-            $this->records->retireOrphan($record->id);
+            $this->records->retireOrphan($record->id, $format);
             $record->refresh();
         } elseif ($resource === null && $record?->resource_id !== null && $record->status === 'active') {
-            $this->records->reconcile($record->resource_id);
+            $this->records->reconcile($record->resource_id, format: $format);
             $record->refresh();
         }
         if ($record === null) {
-            $known = $resource !== null || OaiPmhDeletedRecord::where('doi', $doi)->exists();
+            $known = $resource !== null || OaiPmhDeletedRecord::where('doi', $doi)->exists()
+                || OaiPmhFormatRecord::whereIn('metadata_prefix', array_column(DcatApFormat::enabledFormats(), 'value'))->where('oai_identifier', $identifier)->exists();
 
-            return $this->error($known ? 'cannotDisseminateFormat' : 'idDoesNotExist', 'This identifier has no DCAT-AP representation', 'GetRecord', $attributes);
+            return $this->error($known ? 'cannotDisseminateFormat' : 'idDoesNotExist', 'This identifier has no '.$format->label().' representation', 'GetRecord', $attributes);
         }
         $this->xml->createEnvelope('GetRecord', $attributes);
-        $this->append($this->xml->beginGetRecord(), $record, false);
+        $this->append($this->xml->beginGetRecord(), $record, false, $format);
 
         return $this->xml->toXml();
     }
 
     /** @param array<string, string> $attributes */
-    public function listItems(string $verb, bool $headersOnly, ?string $set, ?Carbon $from, ?Carbon $until, int $cursor, int $pageSize, array $attributes, ?OaiPmhHarvest $harvest, bool $resuming, int $position): string
+    public function listItems(DcatApFormat $format, string $verb, bool $headersOnly, ?string $set, ?Carbon $from, ?Carbon $until, int $cursor, int $pageSize, array $attributes, ?OaiPmhHarvest $harvest, bool $resuming, int $position): string
     {
         if ($resuming && $harvest === null) {
             return $this->error('badResumptionToken', 'The format inventory is missing', $verb, $attributes);
         }
         if ($harvest === null) {
-            $query = OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')
+            $query = OaiPmhFormatRecord::where('metadata_prefix', $format->value)
                 ->when($set !== null, fn ($q) => $q->whereJsonContains('sets', $set))
                 ->when($from !== null, fn ($q) => $q->where('datestamp', '>=', $from))
                 ->when($until !== null, fn ($q) => $q->where('datestamp', '<=', $until));
@@ -81,19 +81,19 @@ final class OaiPmhDcatApService
             return $this->error('noRecordsMatch', 'No records match the given criteria', $verb, $attributes);
         }
         $page = $this->harvests->page($harvest, $position, $pageSize);
-        $records = OaiPmhFormatRecord::whereIn('id', array_column($page, 'id'))
-            ->with(['resource' => fn ($q) => $q->with($this->profile->requiredRelations())])->get()->keyBy('id');
+        $records = OaiPmhFormatRecord::where('metadata_prefix', $format->value)->whereIn('id', array_column($page, 'id'))
+            ->with(['resource' => fn ($q) => $q->with($this->profile->requiredRelations($format))])->get()->keyBy('id');
         // Recheck after reading the page: concurrent status/identity/set changes
         // retire the whole inventory rather than silently shrinking its count.
         foreach ($records as $record) {
             if (($from !== null && $record->datestamp->lessThan($from)) || ($until !== null && $record->datestamp->greaterThan($until))) {
                 return $this->error($resuming ? 'badResumptionToken' : 'noRecordsMatch', 'A record moved outside the requested date interval; restart harvesting', $verb, $attributes);
             }
-            if ($record->status === 'active' && ($record->resource === null || ! $this->readiness->available($record->resource))) {
+            if ($record->status === 'active' && ($record->resource === null || ! $this->readiness->available($record->resource, $format))) {
                 if ($record->resource === null) {
-                    $this->records->retireOrphan($record->id);
+                    $this->records->retireOrphan($record->id, $format);
                 } else {
-                    $this->records->reconcile($record->resource->id);
+                    $this->records->reconcile($record->resource->id, format: $format);
                 }
                 // Reconciliation reads a fresh aggregate and may find it restored,
                 // leaving the inventory active while this page still holds stale
@@ -111,11 +111,11 @@ final class OaiPmhDcatApService
         foreach ($page as $item) {
             $record = $records->get($item['id']);
             assert($record !== null);
-            $this->append($container, $record, $headersOnly);
+            $this->append($container, $record, $headersOnly, $format);
         }
         $next = $position + count($page);
         if ($next < $harvest->item_count) {
-            $token = $this->tokens->create($verb, 'dcat_ap', $set, $from, $until, $cursor + count($page), $harvest->item_count, $harvest, $next);
+            $token = $this->tokens->create($verb, $format->value, $set, $from, $until, $cursor + count($page), $harvest->item_count, $harvest, $next);
             $this->xml->addResumptionToken($container, $token->token, $harvest->item_count, $cursor, $token->expires_at->utc()->format('Y-m-d\TH:i:s\Z'));
         } elseif ($resuming) {
             $this->xml->addResumptionToken($container, null, $harvest->item_count, $cursor);
@@ -126,7 +126,7 @@ final class OaiPmhDcatApService
         return $this->xml->toXml();
     }
 
-    private function append(DOMElement $container, OaiPmhFormatRecord $record, bool $headersOnly): void
+    private function append(DOMElement $container, OaiPmhFormatRecord $record, bool $headersOnly, DcatApFormat $format): void
     {
         $timestamp = $record->datestamp->utc()->format('Y-m-d\TH:i:s\Z');
         if ($headersOnly) {
@@ -135,7 +135,7 @@ final class OaiPmhDcatApService
             $this->xml->addDeletedRecord($container, $record->oai_identifier, $timestamp, $record->sets);
         } else {
             assert($record->resource !== null);
-            $this->xml->addRecord($container, $record->oai_identifier, $timestamp, $record->sets, $this->exporter->export($record->resource));
+            $this->xml->addRecord($container, $record->oai_identifier, $timestamp, $record->sets, $format->exporter()->export($record->resource));
         }
     }
 

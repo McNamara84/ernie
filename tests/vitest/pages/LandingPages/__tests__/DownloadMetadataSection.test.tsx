@@ -63,6 +63,40 @@ describe('DCAT-AP downloads', () => {
         profile: 'https://semiceu.github.io/DCAT-AP/releases/3.0.1/',
     };
 
+    const eposLink: LandingPageMetadataLink = {
+        format: 'epos-dcat-ap',
+        standard: 'EPOS-DCAT-AP',
+        label: 'EPOS-DCAT-AP 3.0 RDF/XML',
+        url: 'https://example.org/10.5880/test/metadata/epos-dcat-ap.rdf',
+        mediaType: 'application/rdf+xml',
+        profile: 'https://epos-eu.github.io/EPOS-DCAT-AP/v3/',
+    };
+
+    it.each([
+        [true, true],
+        [true, false],
+        [false, true],
+        [false, false],
+    ])('shows only advertised profiles (EU %s, EPOS %s) in profile order', (eu, epos) => {
+        const links = [...(epos ? [eposLink] : []), ...(eu ? [dcatLink] : [])];
+        render(<DownloadMetadataSection resourceId={1} supportsDcatAp supportsEposDcatAp metadataLinks={links} />);
+        expect(screen.queryAllByRole('link', { name: /DCAT-AP/ }).map((link) => link.getAttribute('href'))).toEqual([
+            ...(eu ? [dcatLink.url] : []),
+            ...(epos ? [eposLink.url] : []),
+        ]);
+    });
+
+    it('restores focus to the EPOS preview button when both profiles are available', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={1} isPreview supportsDcatAp supportsEposDcatAp />);
+        const button = screen.getByRole('button', { name: 'Download EPOS-DCAT-AP 3.0 metadata as RDF/XML' });
+        await user.click(button);
+        expect(screen.getByRole('dialog')).toHaveTextContent(previewMessage);
+        expect(screen.queryByRole('link', { name: /EPOS/ })).toBeNull();
+        await user.keyboard('{Escape}');
+        expect(button).toHaveFocus();
+    });
+
     it('renders an accessible standalone RDF download with its version', () => {
         render(<DownloadMetadataSection resourceId={1} metadataLinks={[dcatLink]} />);
         expect(screen.getByText('DCAT-AP 3.0.1')).toBeInTheDocument();

@@ -452,6 +452,7 @@ final class SubjectVocabularyLookupService
                 language: $this->filledString($node['language'] ?? $node['lang'] ?? $node['xml:lang'] ?? null) ?? 'en',
                 source: $this->sourceByScheme[$nodeScheme] ?? $source,
                 synonyms: $this->synonyms($node),
+                definition: $this->filledString($node['description'] ?? $node['definition'] ?? null),
             );
 
             $this->indexConcept($concept);
