@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:7a14b7f7301f431a77fa8b92d1a5352a704dcd5fce2bc21eb4b69d2667e4c38d}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b548eb85217c321832cdc5ff8116286002097949cc7d8c7918d2e0791d033594}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -109,6 +109,7 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
       - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
       - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
       - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}
@@ -178,7 +179,7 @@ services:
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:cb20326c9ca80f2565ed1246881d53831bfa683a60f0dbfdf220d84cda847193}"
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:47e9a2411211b2f0345ddaa19d6504b18a3d48d048562a538feb641cf67e2f46}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -238,7 +239,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:271060402fffa1b280226053da3c489c8cbef6c0d10d6d113e043b8cc4d570ac}"
+    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:cf55b6e2e27ccc15516f936a27687bd23e85089832c9a3585d519ee3dce7aa64}"
     container_name: ernie-fuji-stage
     restart: unless-stopped
     entrypoint:
@@ -269,7 +270,7 @@ services:
       start_period: 60s
 
   queue: &ernie-queue
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:7a14b7f7301f431a77fa8b92d1a5352a704dcd5fce2bc21eb4b69d2667e4c38d}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b548eb85217c321832cdc5ff8116286002097949cc7d8c7918d2e0791d033594}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -347,6 +348,7 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
       - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
       - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
       - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}
@@ -415,7 +417,7 @@ services:
     command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:7a14b7f7301f431a77fa8b92d1a5352a704dcd5fce2bc21eb4b69d2667e4c38d}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b548eb85217c321832cdc5ff8116286002097949cc7d8c7918d2e0791d033594}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -484,6 +486,7 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
       - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
       - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
       - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}
@@ -512,7 +515,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:7a14b7f7301f431a77fa8b92d1a5352a704dcd5fce2bc21eb4b69d2667e4c38d}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:b548eb85217c321832cdc5ff8116286002097949cc7d8c7918d2e0791d033594}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped
@@ -612,6 +615,7 @@ services:
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
       - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
       - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
       - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
       - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}

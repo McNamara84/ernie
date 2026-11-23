@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DcatApFormat;
 use App\Http\Requests\LandingPage\StoreLandingPagePreviewRequest;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
@@ -286,6 +287,7 @@ class LandingPagePreviewController extends Controller
             'supportsIso19115' => $isoProfile->supports($resource),
             'supportsIso19115Json' => $isoProfile->supportsJson($resource),
             'supportsDcatAp' => app(DcatApResourceProfileService::class)->supports($resource),
+            'supportsEposDcatAp' => app(DcatApResourceProfileService::class)->supports($resource, DcatApFormat::Epos),
             'isPreview' => true,
             'embargoPending' => $embargoPending,
             'embargoDate' => $embargoPending ? app(EmbargoService::class)->availableDate($resource) : null,

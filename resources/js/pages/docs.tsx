@@ -3117,6 +3117,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </a>{' '}
                             for incremental harvesting and restarting after an invalid resumption token.
                         </p>
+                        <h4>EPOS-DCAT-AP 3.0 Resource Metadata</h4>
+                        <p>
+                            Eligible datasets, collections, models, images and sounds offer an additional RDF/XML download when EPOS is enabled. Each
+                            title and abstract language version is included as a separate text value. OAI-PMH provides the same record with
+                            <code> metadataPrefix=epos_dcat_ap</code>. The optional <code>epos-msl</code> set selects the project subset.
+                        </p>
                         {userRole === 'admin' && (
                             <p>
                                 DCAT-AP is disabled by default. Before rollout, the operator runs <code>dcat-ap:audit</code> and reviews its findings,

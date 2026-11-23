@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Enums\DcatApFormat;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\OaiPmhFormatRecord;
 use App\Models\OaiPmhHarvest;
@@ -125,8 +126,9 @@ class OaiPmhService
             ->value('earliest');
 
         $earliestDeleted = OaiPmhDeletedRecord::query()->min('datestamp');
-        if (config('dcatap.enabled', false)) {
-            $formatEarliest = OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->min('datestamp');
+        $prefixes = array_column(DcatApFormat::enabledFormats(), 'value');
+        if ($prefixes !== []) {
+            $formatEarliest = OaiPmhFormatRecord::whereIn('metadata_prefix', $prefixes)->min('datestamp');
             if ($formatEarliest !== null && ($earliestDeleted === null || $formatEarliest < $earliestDeleted)) {
                 $earliestDeleted = $formatEarliest;
             }
@@ -185,19 +187,19 @@ class OaiPmhService
                 ? OaiPmhDeletedRecord::query()->where('doi', $doi)->first()
                 : null;
 
-            $dcatRecord = config('dcatap.enabled', false)
-                ? OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('oai_identifier', $identifier)->first()
-                : null;
-            if ($resource === null && $deletedRecord === null && $dcatRecord === null) {
-                return $this->unknownIdentifierResponse('ListMetadataFormats', $identifier);
+            $dcatFormats = DcatApFormat::enabledFormats();
+            $historic = $dcatFormats === [] ? [] : OaiPmhFormatRecord::whereIn('metadata_prefix', array_column($dcatFormats, 'value'))
+                ->where('oai_identifier', $identifier)->pluck('metadata_prefix')->all();
+            if ($resource === null && $deletedRecord === null) {
+                if ($historic === []) {
+                    return $this->unknownIdentifierResponse('ListMetadataFormats', $identifier);
+                }
+                $formats = array_intersect_key($formats, array_flip($historic));
             }
-
-            if (isset($formats['dcat_ap']) && $dcatRecord === null
-                && ($resource === null || ! app(DcatApReadinessService::class)->available($resource))) {
-                unset($formats['dcat_ap']);
-            }
-            if ($resource === null && $deletedRecord === null && $dcatRecord !== null) {
-                $formats = array_intersect_key($formats, ['dcat_ap' => true]);
+            foreach ($dcatFormats as $format) {
+                if (! in_array($format->value, $historic, true) && ($resource === null || ! app(DcatApReadinessService::class)->available($resource, $format))) {
+                    unset($formats[$format->value]);
+                }
             }
 
             if (
@@ -296,8 +298,8 @@ class OaiPmhService
             );
         }
 
-        if ($metadataPrefix === 'dcat_ap') {
-            return $this->dcat->getRecord($doi, $identifier, $requestAttrs);
+        if (($format = DcatApFormat::tryFrom($metadataPrefix)) !== null) {
+            return $this->dcat->getRecord($format, $doi, $identifier, $requestAttrs);
         }
 
         // Check for deleted record first
@@ -457,8 +459,8 @@ class OaiPmhService
             }
         }
 
-        if ($metadataPrefix === 'dcat_ap') {
-            return $this->dcat->listItems($verb, $headersOnly, $setSpec, $from, $until, $cursor, $pageSize, $requestAttrs,
+        if (($format = DcatApFormat::tryFrom($metadataPrefix)) !== null) {
+            return $this->dcat->listItems($format, $verb, $headersOnly, $setSpec, $from, $until, $cursor, $pageSize, $requestAttrs,
                 is_string($resumptionToken) ? $token->harvest : null, is_string($resumptionToken),
                 is_string($resumptionToken) ? (int) $token->harvest_position : 0);
         }

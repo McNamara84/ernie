@@ -29,7 +29,7 @@ final class RdfDocument
 
     public readonly DOMElement $root;
 
-    public function __construct()
+    public function __construct(?string $schemaUrl = null)
     {
         $this->dom = new DOMDocument('1.0', 'UTF-8');
         $this->dom->formatOutput = true;
@@ -38,7 +38,7 @@ final class RdfDocument
         foreach (self::NS as $prefix => $namespace) {
             $this->root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:'.$prefix, $namespace);
         }
-        $this->root->setAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'xsi:schemaLocation', self::NS['rdf'].' '.url('/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd'));
+        $this->root->setAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'xsi:schemaLocation', self::NS['rdf'].' '.($schemaUrl ?? url('/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd')));
     }
 
     public function element(DOMElement $parent, string $name): DOMElement

@@ -4,6 +4,10 @@
         "date": "2026-11-09",
         "features": [
             {
+                "title": "EPOS-DCAT-AP 3.0 Metadata Downloads and Harvesting",
+                "description": "When enabled, published datasets, collections, models, images and sounds with the required metadata offer an EPOS-DCAT-AP 3.0 RDF/XML download. The same metadata is available through OAI-PMH with the epos_dcat_ap prefix. Each main or translated title and each abstract is preserved as a separate text value."
+            },
+            {
                 "title": "Alphabetical Related Works in the Editor",
                 "description": "Opening a saved resource lists related works alphabetically by citation label, with unlabeled entries first and natural number ordering. New entries and CSV imports stay in the order added until the editor is reopened. Automatic sorting affects only the editor, preserving stored and public ordering, and replaces manual drag-and-drop reordering.",
                 "references": [{ "type": "issue", "number": 1542, "url": "https://github.com/McNamara84/ernie/issues/1542" }]

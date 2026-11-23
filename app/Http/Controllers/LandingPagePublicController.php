@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DcatApFormat;
 use App\Enums\PublicTrafficSurface;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
@@ -427,6 +428,7 @@ class LandingPagePublicController extends Controller
                     'supportsIso19115' => $isoProfile->supports($resource),
                     'supportsIso19115Json' => $isoProfile->supportsJson($resource),
                     'supportsDcatAp' => app(DcatApResourceProfileService::class)->supports($resource),
+                    'supportsEposDcatAp' => app(DcatApResourceProfileService::class)->supports($resource, DcatApFormat::Epos),
                     'isPreview' => $isPreview,
                     'embargoDate' => $embargoDate,
                     'embargoPending' => $embargoPending,

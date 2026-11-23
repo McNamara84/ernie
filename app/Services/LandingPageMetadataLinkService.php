@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\DcatApFormat;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DcatAp\DcatApReadinessService;
@@ -77,8 +78,11 @@ class LandingPageMetadataLinkService
             );
         }
 
-        if ($this->dcatReadiness->available($resource)) {
-            $links[] = $this->link('dcat-ap', 'DCAT-AP', 'DCAT-AP '.config('dcatap.version').' RDF/XML', "{$baseUrl}/dcat-ap.rdf", 'application/rdf+xml', (string) config('dcatap.profile'));
+        foreach (DcatApFormat::enabledFormats() as $format) {
+            if ($this->dcatReadiness->available($resource, $format)) {
+                $slug = $format->slug();
+                $links[] = $this->link($slug, strtoupper($slug), $format->label().' RDF/XML', "{$baseUrl}/{$slug}.rdf", 'application/rdf+xml', (string) config($format->configKey().'.profile'));
+            }
         }
 
         return $links;

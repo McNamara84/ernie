@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DcatApFormat;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
-use App\Services\DcatAp\DcatApRdfXmlExporter;
 use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\Igsn\Export\IgsnCoreMetadataException;
 use App\Services\Igsn\Export\IgsnCoreXmlExporter;
@@ -28,12 +28,22 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PublicMetadataExportController extends Controller
 {
-    public function dcatAp(string $doiPrefix, string $slug, DcatApReadinessService $readiness, DcatApRdfXmlExporter $exporter): Response
+    public function dcatAp(string $doiPrefix, string $slug, DcatApReadinessService $readiness): Response
+    {
+        return $this->dcatDownload($doiPrefix, $slug, $readiness, DcatApFormat::Eu);
+    }
+
+    public function eposDcatAp(string $doiPrefix, string $slug, DcatApReadinessService $readiness): Response
+    {
+        return $this->dcatDownload($doiPrefix, $slug, $readiness, DcatApFormat::Epos);
+    }
+
+    private function dcatDownload(string $doiPrefix, string $slug, DcatApReadinessService $readiness, DcatApFormat $format): Response
     {
         [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
-        abort_unless($readiness->available($resource), Response::HTTP_NOT_FOUND, 'Metadata representation not found');
+        abort_unless($readiness->available($resource, $format), Response::HTTP_NOT_FOUND, 'Metadata representation not found');
 
-        return $this->xmlDownload($exporter->export($resource), "{$slug}-dcat-ap.rdf", 'application/rdf+xml');
+        return $this->xmlDownload($format->exporter()->export($resource), $slug.'-'.$format->slug().'.rdf', 'application/rdf+xml');
     }
 
     public function igsnCore(string $doiPrefix, string $slug, IgsnCoreXmlExporter $exporter, IgsnCoreXmlValidator $validator): Response

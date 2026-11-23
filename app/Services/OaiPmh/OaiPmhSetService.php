@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Enums\DcatApFormat;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\OaiPmhFormatRecord;
 use App\Models\Resource;
@@ -89,9 +90,10 @@ class OaiPmhSetService
             ];
         }
 
-        if (config('dcatap.enabled', false)) {
+        $prefixes = array_column(DcatApFormat::enabledFormats(), 'value');
+        if ($prefixes !== []) {
             $known = array_fill_keys(array_column($sets, 'spec'), true);
-            OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->where('status', 'deleted')
+            OaiPmhFormatRecord::whereIn('metadata_prefix', $prefixes)->where('status', 'deleted')
                 ->select(['id', 'sets'])->chunkById(200, function ($records) use (&$sets, &$known): void {
                     foreach ($records as $record) {
                         foreach ($record->sets as $spec) {
