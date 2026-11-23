@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\DcatAp;
 
+use App\Enums\DcatApFormat;
 use App\Models\LandingPage;
 use App\Models\OaiPmhFormatRecord;
 use App\Models\OaiPmhHarvest;
@@ -25,7 +26,6 @@ final class DcatApRecordService
     public function __construct(
         private readonly DcatApResourceProfileService $profile,
         private readonly DcatApReadinessService $readiness,
-        private readonly DcatApRdfXmlExporter $exporter,
         private readonly OaiPmhSetService $sets,
     ) {
         $this->pending = new WeakMap;
@@ -33,7 +33,7 @@ final class DcatApRecordService
 
     public function schedule(int $resourceId, bool $touch = true): void
     {
-        if (! $this->profile->isEnabled()) {
+        if (DcatApFormat::enabledFormats() === []) {
             return;
         }
         /** @var DatabaseTransactionsManager $manager */
@@ -79,54 +79,28 @@ final class DcatApRecordService
         $batch[$current] = $requests;
     }
 
-    public function reconcile(int $resourceId, bool $touch = false): void
+    public function reconcile(int $resourceId, bool $touch = false, ?DcatApFormat $format = null): void
     {
-        if (! $this->profile->isEnabled()) {
+        $formats = $format === null ? DcatApFormat::enabledFormats() : ($format->enabled() ? [$format] : []);
+        if ($formats === []) {
             return;
         }
         $this->readiness->validateConfiguration();
-        DB::transaction(function () use ($resourceId, $touch): void {
+        DB::transaction(function () use ($resourceId, $touch, $formats): void {
             $resource = Resource::query()->lockForUpdate()->find($resourceId);
-            $resource?->loadMissing($this->profile->requiredRelations());
+            $relations = in_array(DcatApFormat::Epos, $formats, true) ? DcatApFormat::Epos : DcatApFormat::Eu;
+            $resource?->loadMissing($this->profile->requiredRelations($relations));
             $available = $resource !== null && $this->readiness->errors($resource) === [];
             $doi = $resource === null ? null : IdentifierUrl::doi($resource->doi);
             $identifier = $doi === null ? null : config('oaipmh.identifier_prefix').':'.$doi;
-            $records = OaiPmhFormatRecord::query()->where('metadata_prefix', 'dcat_ap')
-                ->where('resource_id', $resourceId)->lockForUpdate()->get();
-            foreach ($records as $record) {
-                if ((! $available || $record->oai_identifier !== $identifier) && $record->status !== 'deleted') {
-                    $this->retire($record);
-                }
-            }
-            if ($resource === null || ! $available || $doi === null || $identifier === null) {
-                return;
-            }
-            if ($touch && ($resource->updated_at === null || $resource->updated_at->lessThan(now()->startOfSecond()))) {
+            if ($resource !== null && $available && $touch && ($resource->updated_at === null || $resource->updated_at->lessThan(now()->startOfSecond()))) {
                 $resource->updated_at = now()->startOfSecond();
                 Resource::query()->whereKey($resourceId)->update(['updated_at' => $resource->updated_at]);
             }
-            $sets = $this->sets->getSetsForResource($resource);
-            $fingerprint = hash('sha256', $this->exporter->export($resource).json_encode($sets, JSON_THROW_ON_ERROR));
-            $record = OaiPmhFormatRecord::query()->where('metadata_prefix', 'dcat_ap')->where('oai_identifier', $identifier)->lockForUpdate()->first();
-            if ($record !== null && $record->resource_id === $resourceId && $record->status === 'active' && $record->fingerprint === $fingerprint
-                && $record->export_revision === (int) config('dcatap.revision')) {
-                return;
+            $sets = $resource !== null && $available ? $this->sets->getSetsForResource($resource) : [];
+            foreach ($formats as $activeFormat) {
+                $this->reconcileFormat($activeFormat, $resourceId, $resource, $available, $doi, $identifier, $sets);
             }
-            if ($record !== null && ($record->resource_id !== $resourceId || $record->status !== 'active' || $record->sets !== $sets)) {
-                $this->invalidate($record->id);
-            }
-            $datestamp = now()->startOfSecond();
-            foreach ([$resource->updated_at, $resource->landingPage?->published_at, $record?->datestamp] as $time) {
-                if ($time !== null && $time->greaterThan($datestamp)) {
-                    $datestamp = $time->copy();
-                }
-            }
-            OaiPmhFormatRecord::updateOrCreate(['metadata_prefix' => 'dcat_ap', 'oai_identifier' => $identifier], [
-                'doi' => $doi, 'resource_id' => $resourceId, 'status' => 'active',
-                'first_available_at' => $record->first_available_at ?? $datestamp,
-                'datestamp' => $datestamp, 'sets' => $sets, 'resource_type' => $resource->resourceType?->slug,
-                'is_igsn' => false, 'export_revision' => (int) config('dcatap.revision'), 'fingerprint' => $fingerprint,
-            ]);
         });
         $landing = LandingPage::where('resource_id', $resourceId)->first();
         if ($landing !== null) {
@@ -134,15 +108,51 @@ final class DcatApRecordService
         }
     }
 
-    public function retireOrphan(int $recordId): void
+    /** @param list<string> $sets */
+    private function reconcileFormat(DcatApFormat $format, int $resourceId, ?Resource $resource, bool $available, ?string $doi, ?string $identifier, array $sets): void
     {
-        if (! $this->profile->isEnabled()) {
+        $records = OaiPmhFormatRecord::query()->where('metadata_prefix', $format->value)
+            ->where('resource_id', $resourceId)->lockForUpdate()->get();
+        foreach ($records as $record) {
+            if ((! $available || $record->oai_identifier !== $identifier) && $record->status !== 'deleted') {
+                $this->retire($record);
+            }
+        }
+        if ($resource === null || ! $available || $doi === null || $identifier === null) {
             return;
         }
-        DB::transaction(function () use ($recordId): void {
+        $fingerprint = hash('sha256', $format->exporter()->export($resource).json_encode($sets, JSON_THROW_ON_ERROR));
+        $record = OaiPmhFormatRecord::query()->where('metadata_prefix', $format->value)->where('oai_identifier', $identifier)->lockForUpdate()->first();
+        if ($record !== null && $record->resource_id === $resourceId && $record->status === 'active' && $record->fingerprint === $fingerprint
+            && $record->export_revision === (int) config($format->configKey().'.revision')) {
+            return;
+        }
+        if ($record !== null && ($record->resource_id !== $resourceId || $record->status !== 'active' || $record->sets !== $sets)) {
+            $this->invalidate($record->id);
+        }
+        $datestamp = now()->startOfSecond();
+        foreach ([$resource->updated_at, $resource->landingPage?->published_at, $record?->datestamp] as $time) {
+            if ($time !== null && $time->greaterThan($datestamp)) {
+                $datestamp = $time->copy();
+            }
+        }
+        OaiPmhFormatRecord::updateOrCreate(['metadata_prefix' => $format->value, 'oai_identifier' => $identifier], [
+            'doi' => $doi, 'resource_id' => $resourceId, 'status' => 'active',
+            'first_available_at' => $record->first_available_at ?? $datestamp,
+            'datestamp' => $datestamp, 'sets' => $sets, 'resource_type' => $resource->resourceType?->slug,
+            'is_igsn' => false, 'export_revision' => (int) config($format->configKey().'.revision'), 'fingerprint' => $fingerprint,
+        ]);
+    }
+
+    public function retireOrphan(int $recordId, DcatApFormat $format = DcatApFormat::Eu): void
+    {
+        if (! $format->enabled()) {
+            return;
+        }
+        DB::transaction(function () use ($recordId, $format): void {
             // Recheck under the history lock: another reconciliation may have
             // restored the link since the caller discovered this orphan.
-            $record = OaiPmhFormatRecord::query()->where('metadata_prefix', 'dcat_ap')->where('status', 'active')
+            $record = OaiPmhFormatRecord::query()->where('metadata_prefix', $format->value)->where('status', 'active')
                 ->whereDoesntHave('resource')->lockForUpdate()->find($recordId);
             if ($record !== null) {
                 $this->retire($record);

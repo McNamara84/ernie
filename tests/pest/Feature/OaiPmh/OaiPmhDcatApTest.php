@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\DcatApFormat;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\Format;
@@ -202,7 +203,8 @@ it('embeds the same RDF as the public download', function () {
     $this->post('/oai-pmh', ['verb' => 'GetRecord', ...$arguments])->assertOk()->assertSee('http://www.w3.org/ns/dcat#Dataset', false);
 });
 
-it('persists format-only deletion and restores eligibility with an incremental datestamp', function () {
+it('persists format-only deletion and restores eligibility with an incremental datestamp', function (DcatApFormat $profile) {
+    config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
     $resource = oaiDcatResource();
     $record = OaiPmhFormatRecord::where('resource_id', $resource->id)->firstOrFail();
     $initial = $record->datestamp->copy();
@@ -210,13 +212,13 @@ it('persists format-only deletion and restores eligibility with an incremental d
     $resource->descriptions->first()->delete();
     expect($record->refresh()->status)->toBe('deleted')->and($record->datestamp->greaterThan($initial))->toBeTrue();
     $arguments = ['identifier' => config('oaipmh.identifier_prefix').':'.$resource->doi];
-    $this->get(oaiDcatQuery('GetRecord', [...$arguments, 'metadataPrefix' => 'dcat_ap']))->assertSee('status="deleted"', false)->assertDontSee('<metadata>', false);
+    $this->get(oaiDcatQuery('GetRecord', [...$arguments, 'metadataPrefix' => $profile->value]))->assertSee('status="deleted"', false)->assertDontSee('<metadata>', false);
     $this->get(oaiDcatQuery('GetRecord', [...$arguments, 'metadataPrefix' => 'oai_dc']))->assertDontSee('status="deleted"', false)->assertSee('<metadata>', false);
     $this->travel(1)->hours();
     Description::factory()->abstract()->create(['resource_id' => $resource->id]);
     expect($record->refresh()->status)->toBe('active')->and(OaiPmhFormatRecord::count())->toBe(1);
-    $this->get(oaiDcatQuery('ListIdentifiers', ['metadataPrefix' => 'dcat_ap', 'from' => $initial->addHour()->format('Y-m-d\TH:i:s\Z')]))->assertSee($resource->doi);
-});
+    $this->get(oaiDcatQuery('ListIdentifiers', ['metadataPrefix' => $profile->value, 'from' => $initial->addHour()->format('Y-m-d\TH:i:s\Z')]))->assertSee($resource->doi);
+})->with(DcatApFormat::cases());
 
 it('serializes supported date precision as valid XSD literals through both export paths', function (string $value, string $normalized, string $datatype): void {
     $resource = oaiDcatResource();
@@ -293,16 +295,17 @@ it('invalidates snapshots when eligibility changes and preserves other page iden
     $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $token]))->assertSee('code="badResumptionToken"', false);
 });
 
-it('retains old DOI and last eligible sets after identity changes, unpublishing and deletion', function () {
+it('retains old DOI and last eligible sets after identity changes, unpublishing and deletion', function (DcatApFormat $profile) {
+    config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
     $resource = oaiDcatResource(['doi' => '10.5880/dcat.old', 'publication_year' => 2020]);
     $old = config('oaipmh.identifier_prefix').':'.$resource->doi;
     $resource->update(['doi' => '10.5880/dcat.new']);
-    $this->get(oaiDcatQuery('GetRecord', ['metadataPrefix' => 'dcat_ap', 'identifier' => $old]))->assertSee('status="deleted"', false);
+    $this->get(oaiDcatQuery('GetRecord', ['metadataPrefix' => $profile->value, 'identifier' => $old]))->assertSee('status="deleted"', false);
     $resource->refresh()->landingPage->update(['is_published' => false]);
-    $this->get(oaiDcatQuery('ListIdentifiers', ['metadataPrefix' => 'dcat_ap', 'set' => 'year:2020']))->assertSee('dcat.old')->assertSee('dcat.new');
+    $this->get(oaiDcatQuery('ListIdentifiers', ['metadataPrefix' => $profile->value, 'set' => 'year:2020']))->assertSee('dcat.old')->assertSee('dcat.new');
     $resource->delete();
     expect(OaiPmhFormatRecord::where('status', 'deleted')->count())->toBe(2);
-});
+})->with(DcatApFormat::cases());
 
 it('rejects a DCAT snapshot containing an unlinked active record', function (?int $resourceId, string $verb): void {
     $resources = [oaiDcatResource(), oaiDcatResource(), oaiDcatResource()];
@@ -575,30 +578,32 @@ it('updates incremental timestamps for download metadata and shared publisher ch
     expect($record->refresh()->getAttributes())->toBe($before);
 });
 
-it('retains only the last eligible sets when a type becomes unsupported and exposes historical sets', function () {
+it('retains only the last eligible sets when a type becomes unsupported and exposes historical sets', function (DcatApFormat $profile) {
+    config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
     $resource = oaiDcatResource(['publication_year' => 1980]);
     $software = ResourceType::firstOrCreate(['slug' => 'software'], ['name' => 'Software']);
     $resource->update(['resource_type_id' => $software->id, 'publication_year' => 2000]);
     $record = OaiPmhFormatRecord::where('resource_id', $resource->id)->firstOrFail();
     expect($record->status)->toBe('deleted')->and($record->sets)->toContain('resourcetype:dataset', 'year:1980')->not->toContain('resourcetype:software');
     $this->get(oaiDcatQuery('ListSets'))->assertSee('<setSpec>year:1980</setSpec>', false);
-    $this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => 'dcat_ap', 'set' => 'resourcetype:software']))->assertSee('code="noRecordsMatch"', false);
-});
+    $this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => $profile->value, 'set' => 'resourcetype:software']))->assertSee('code="noRecordsMatch"', false);
+})->with(DcatApFormat::cases());
 
-it('rejects expired, wrong-verb and disabled-format tokens and validates normal date arguments', function () {
+it('rejects expired, wrong-verb and disabled-format tokens and validates normal date arguments', function (DcatApFormat $profile) {
+    config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
     oaiDcatResource();
     oaiDcatResource();
     oaiDcatResource();
-    $xml = oaiDcatXPath($this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => 'dcat_ap']))->getContent());
+    $xml = oaiDcatXPath($this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => $profile->value]))->getContent());
     $token = $xml->evaluate('string(//oai:resumptionToken)');
     $this->get(oaiDcatQuery('ListIdentifiers', ['resumptionToken' => $token]))->assertSee('code="badResumptionToken"', false);
-    $this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => 'dcat_ap', 'from' => '2026-01-01', 'until' => '2026-01-02T00:00:00Z']))->assertSee('code="badArgument"', false);
-    config(['dcatap.enabled' => false]);
+    $this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => $profile->value, 'from' => '2026-01-01', 'until' => '2026-01-02T00:00:00Z']))->assertSee('code="badArgument"', false);
+    config([$profile->configKey().'.enabled' => false]);
     $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $token]))->assertSee('code="badResumptionToken"', false);
-    config(['dcatap.enabled' => true]);
+    config([$profile->configKey().'.enabled' => true]);
     $this->travel(2)->days();
     $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $token]))->assertSee('code="badResumptionToken"', false);
-});
+})->with(DcatApFormat::cases());
 
 it('does not retire records because of a global configuration failure', function () {
     $resource = oaiDcatResource();
@@ -607,19 +612,21 @@ it('does not retire records because of a global configuration failure', function
     expect(OaiPmhFormatRecord::where('resource_id', $resource->id)->first()->status)->toBe('active');
 });
 
-it('rejects continued date-bounded harvests after a record moves beyond until', function () {
+it('rejects continued date-bounded harvests after a record moves beyond until', function (DcatApFormat $profile) {
+    config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
     $this->freezeSecond();
     $resources = collect([oaiDcatResource(), oaiDcatResource(), oaiDcatResource()]);
-    $arguments = ['metadataPrefix' => 'dcat_ap', 'from' => now()->format('Y-m-d\TH:i:s\Z'), 'until' => now()->format('Y-m-d\TH:i:s\Z')];
+    $arguments = ['metadataPrefix' => $profile->value, 'from' => now()->format('Y-m-d\TH:i:s\Z'), 'until' => now()->format('Y-m-d\TH:i:s\Z')];
     $first = oaiDcatXPath($this->post('/oai-pmh', ['verb' => 'ListRecords', ...$arguments])->assertOk()->getContent());
     expect($first->evaluate('string(//oai:resumptionToken/@completeListSize)'))->toBe('3');
     $token = $first->evaluate('string(//oai:resumptionToken)');
     $this->travel(1)->hours();
     $resources[2]->titles->first()->update(['value' => 'Updated after the requested interval']);
     $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $token]))->assertSee('code="badResumptionToken"', false);
-});
+})->with(DcatApFormat::cases());
 
-it('eager loads metadata without adding a query for every harvested resource', function () {
+it('eager loads metadata without adding a query for every harvested resource', function (DcatApFormat $profile) {
+    config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
     for ($index = 0; $index < 10; $index++) {
         oaiDcatResource();
     }
@@ -629,7 +636,7 @@ it('eager loads metadata without adding a query for every harvested resource', f
         foreach ([2, 10] as $size) {
             config(['oaipmh.page_size' => $size]);
             DB::flushQueryLog();
-            $response = $this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => 'dcat_ap']))->assertOk();
+            $response = $this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => $profile->value]))->assertOk();
             $counts[] = count(DB::getQueryLog());
             expect(oaiDcatXPath($response->getContent())->evaluate('count(//oai:record)'))->toBe((float) $size);
         }
@@ -638,4 +645,94 @@ it('eager loads metadata without adding a query for every harvested resource', f
         DB::flushQueryLog();
     }
     expect($counts[1])->toBeLessThanOrEqual($counts[0] + 3);
+})->with(DcatApFormat::cases());
+
+it('backfills only the selected profile and keeps its history stable through reads and repeated syncs', function () {
+    $this->freezeSecond();
+    $resource = oaiDcatResource(['updated_at' => '2001-01-01']);
+    $identifier = config('oaipmh.identifier_prefix').':'.$resource->doi;
+    $eu = OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->sole();
+    $initialEu = $eu->getAttributes();
+    $this->travel(1)->days();
+    config(['dcatap.epos.enabled' => true]);
+    $this->artisan('dcat-ap:sync')->assertSuccessful();
+    expect(OaiPmhFormatRecord::count())->toBe(1);
+    $args = ['--profile' => 'epos_dcat_ap'];
+    $this->artisan('dcat-ap:sync', $args)->assertSuccessful();
+    $epos = OaiPmhFormatRecord::where('metadata_prefix', 'epos_dcat_ap')->sole();
+    $initial = $epos->getAttributes();
+    expect($epos->first_available_at->equalTo(now()))->toBeTrue()
+        ->and($epos->fingerprint)->not->toBe($eu->fingerprint)
+        ->and($eu->refresh()->getAttributes())->toBe($initialEu);
+    $this->travel(1)->days();
+    $this->get(oaiDcatQuery('ListMetadataFormats', ['identifier' => $identifier]))->assertSee(DcatApFormat::Epos->schemaUrl(), false);
+    $this->get(oaiDcatQuery('GetRecord', ['metadataPrefix' => 'epos_dcat_ap', 'identifier' => $identifier]))->assertSee('<metadata>', false);
+    $this->artisan('dcat-ap:sync', $args)->assertSuccessful();
+    expect($epos->refresh()->getAttributes())->toBe($initial);
+    config(['dcatap.epos.revision' => $epos->export_revision + 1]);
+    $this->artisan('dcat-ap:sync', $args)->assertSuccessful();
+    expect($epos->refresh()->datestamp->equalTo(now()))->toBeTrue()
+        ->and($epos->fingerprint)->toBe($initial['fingerprint'])
+        ->and($eu->refresh()->getAttributes())->toBe($initialEu);
+    config(['dcatap.epos.enabled' => false]);
+    $this->get(oaiDcatQuery('ListMetadataFormats', ['identifier' => $identifier]))->assertDontSee('<metadataPrefix>epos_dcat_ap</metadataPrefix>', false);
+    expect(OaiPmhFormatRecord::where('metadata_prefix', 'epos_dcat_ap')->count())->toBe(1);
+});
+
+it('reconciles committed instrument changes for EPOS while keeping the EU record stable', function () {
+    $this->freezeSecond();
+    config(['dcatap.epos.enabled' => true]);
+    $resource = oaiDcatResource();
+    $eu = OaiPmhFormatRecord::where('metadata_prefix', 'dcat_ap')->sole();
+    $epos = OaiPmhFormatRecord::where('metadata_prefix', 'epos_dcat_ap')->sole();
+    $initialEu = $eu->getAttributes();
+    $original = $epos->fingerprint;
+    $this->travel(1)->hours();
+    $instrument = DB::transaction(fn () => $resource->instruments()->create(['instrument_pid' => '10.5880/sensor',
+        'instrument_pid_type' => 'DOI', 'instrument_name' => 'Station A']));
+    expect($epos->refresh()->fingerprint)->not->toBe($original)
+        ->and($epos->datestamp->equalTo(now()))->toBeTrue();
+    $initialEpos = $epos->getAttributes();
+    $this->travel(1)->hours();
+    DB::beginTransaction();
+    $instrument->update(['instrument_name' => 'Rolled back']);
+    DB::rollBack();
+    expect($epos->refresh()->getAttributes())->toBe($initialEpos);
+    $instrument->refresh()->update(['instrument_name' => 'Station B']);
+    $args = ['metadataPrefix' => 'epos_dcat_ap', 'identifier' => $epos->oai_identifier];
+    $this->get(oaiDcatQuery('GetRecord', $args))->assertSee('Station B')->assertDontSee('Rolled back');
+    $this->travel(1)->hours();
+    $instrument->delete();
+    expect($epos->refresh()->fingerprint)->toBe($original)
+        ->and($epos->datestamp->equalTo(now()))->toBeTrue()
+        ->and($eu->refresh()->getAttributes())->toBe($initialEu);
+});
+
+it('harvests EPOS independently of project membership and paginates each format separately', function () {
+    config(['dcatap.epos.enabled' => true, 'oaipmh.page_size' => 1]);
+    $member = oaiDcatResource();
+    $member->subjects()->create(['value' => 'EPOS']);
+    $outside = oaiDcatResource();
+    $this->get(oaiDcatQuery('ListIdentifiers', ['metadataPrefix' => 'epos_dcat_ap', 'set' => 'epos-msl']))
+        ->assertSee($member->doi)->assertDontSee($outside->doi);
+    $tokens = [];
+    foreach (DcatApFormat::cases() as $format) {
+        $page = oaiDcatXPath($this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => $format->value]))->assertOk()->getContent());
+        expect($page->evaluate('string(//oai:resumptionToken/@completeListSize)'))->toBe('2');
+        $tokens[$format->value] = $page->evaluate('string(//oai:resumptionToken)');
+    }
+    config(['dcatap.enabled' => false]);
+    $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $tokens['dcat_ap']]))->assertSee('code="badResumptionToken"', false);
+    $this->get(oaiDcatQuery('ListRecords', ['resumptionToken' => $tokens['epos_dcat_ap']]))
+        ->assertSee(DcatApFormat::Epos->schemaUrl(), false)->assertDontSee('<error', false);
+    $formats = oaiDcatXPath($this->get(oaiDcatQuery('ListMetadataFormats'))->assertOk()->getContent());
+    $epos = '//oai:metadataFormat[oai:metadataPrefix="epos_dcat_ap"]';
+    expect($formats->evaluate("string($epos/oai:metadataNamespace)"))->toBe(RdfDocument::NS['rdf'])
+        ->and($formats->evaluate("string($epos/oai:schema)"))->toBe(DcatApFormat::Epos->schemaUrl());
+    $never = Resource::factory()->create();
+    LandingPage::factory()->published()->create(['resource_id' => $never->id]);
+    foreach ([$never->doi => 'cannotDisseminateFormat', '10.5880/no-such-resource' => 'idDoesNotExist'] as $doi => $error) {
+        $this->get(oaiDcatQuery('GetRecord', ['metadataPrefix' => 'epos_dcat_ap', 'identifier' => config('oaipmh.identifier_prefix').':'.$doi]))
+            ->assertSee('code="'.$error.'"', false);
+    }
 });

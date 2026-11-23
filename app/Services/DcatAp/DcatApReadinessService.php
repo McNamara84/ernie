@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\DcatAp;
 
+use App\Enums\DcatApFormat;
 use App\Models\Resource;
 use App\Services\DescriptionFormattingService;
 use App\Support\IdentifierUrl;
 
 final class DcatApReadinessService
 {
-    public function __construct(private readonly DcatApResourceProfileService $profile, private readonly DescriptionFormattingService $text) {}
+    public function __construct(private readonly DescriptionFormattingService $text) {}
 
-    public function available(Resource $resource): bool
+    public function available(Resource $resource, DcatApFormat $format = DcatApFormat::Eu): bool
     {
-        return $this->profile->isEnabled() && $this->errors($resource) === [];
+        return $format->enabled() && $this->errors($resource) === [];
     }
 
     /**

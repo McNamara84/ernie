@@ -14,6 +14,14 @@ interface MetadataFormat {
     namespace: string;
 }
 
+const formatDescriptions: Record<string, string> = {
+    oai_dc: 'Dublin Core (mandatory)',
+    oai_datacite: 'DataCite Kernel 4.7',
+    dcat_ap: 'DCAT-AP 3.0.1 RDF/XML (selective)',
+    epos_dcat_ap: 'EPOS-DCAT-AP 3.0 RDF/XML (selective)',
+    iso19115_3: 'ISO 19115-3:2023 (selective)',
+};
+
 interface Props {
     baseUrl: string;
     projectSet: { spec: string; name: string; description: string };
@@ -234,15 +242,7 @@ export default function OaiPmhDocs({
                                         <TableCell>
                                             <code>{prefix}</code>
                                         </TableCell>
-                                        <TableCell>
-                                            {prefix === 'oai_dc'
-                                                ? 'Dublin Core (mandatory)'
-                                                : prefix === 'oai_datacite'
-                                                  ? 'DataCite Kernel 4.7'
-                                                  : prefix === 'dcat_ap'
-                                                    ? 'DCAT-AP 3.0.1 RDF/XML (selective)'
-                                                    : 'ISO 19115-3:2023 (selective)'}
-                                        </TableCell>
+                                        <TableCell>{formatDescriptions[prefix] ?? prefix}</TableCell>
                                         <TableCell>
                                             <a
                                                 href={format.schema}
@@ -271,6 +271,17 @@ export default function OaiPmhDocs({
                                     require SHACL.
                                 </p>
                                 <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=dcat_ap`} />
+                            </div>
+                        )}
+                        {metadataFormats.epos_dcat_ap && (
+                            <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
+                                <p>
+                                    <code>epos_dcat_ap</code> provides EPOS-DCAT-AP 3.0 RDF/XML for eligible published datasets, collections, models,
+                                    images and sounds. Titles and abstracts include every language version as a separate text value. Use
+                                    <code> set=epos-msl</code> to select the project subset. Incremental harvesting includes format-specific deleted
+                                    headers.
+                                </p>
+                                <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=epos_dcat_ap`} />
                             </div>
                         )}
                         {isoEligibleResourceTypeSlugs.length > 0 && (

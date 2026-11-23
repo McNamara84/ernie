@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\DcatApFormat;
 use App\Models\Resource;
 use App\Services\DataCite\DataCiteDateFormatService;
 use App\Services\DcatAp\DcatApGeometryMapper;
@@ -11,18 +12,25 @@ use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\DcatAp\DcatApResourceProfileService;
 use App\Services\DcatAp\DcatApRightsMapper;
 use App\Services\DcatAp\DcatApVocabularyMapper;
+use App\Services\DcatAp\EposDcatApConceptLookupService;
 use App\Services\LandingPageContentLinkService;
 use App\Support\IdentifierUrl;
 use Illuminate\Console\Command;
 
 final class AuditDcatAp extends Command
 {
-    protected $signature = 'dcat-ap:audit {--format=json : json or csv}';
+    protected $signature = 'dcat-ap:audit {--profile=dcat_ap : dcat_ap or epos_dcat_ap} {--format=json : json or csv}';
 
     protected $description = 'Read-only DCAT-AP readiness report, including blocked records and optional omissions';
 
     public function handle(DcatApReadinessService $readiness, DcatApResourceProfileService $profile, DcatApRightsMapper $rights, DcatApVocabularyMapper $vocabulary, DcatApGeometryMapper $geometry, LandingPageContentLinkService $content): int
     {
+        $metadataFormat = DcatApFormat::tryFrom((string) $this->option('profile'));
+        if ($metadataFormat === null) {
+            $this->error('Supported profiles: dcat_ap, epos_dcat_ap');
+
+            return self::FAILURE;
+        }
         $format = $this->option('format');
         if (! in_array($format, ['json', 'csv'], true)) {
             $this->error('Supported formats: json, csv');
@@ -33,10 +41,29 @@ final class AuditDcatAp extends Command
         $first = true;
         $counts = ['total' => 0, 'available' => 0, 'blocked' => 0, 'with_warnings' => 0];
         $this->output->write($format === 'json' ? '{"records":[' : "resource_id,doi,type,published,tombstone,available,errors,warnings\n");
-        Resource::query()->with($profile->requiredRelations())->chunkById(200, function ($resources) use ($readiness, $rights, $vocabulary, $geometry, $content, $format, &$first, &$counts): void {
+        Resource::query()->with($profile->requiredRelations($metadataFormat))->chunkById(200, function ($resources) use ($readiness, $rights, $vocabulary, $geometry, $content, $format, $metadataFormat, &$first, &$counts): void {
             foreach ($resources as $resource) {
                 $errors = $readiness->errors($resource);
                 $warnings = [];
+                if ($metadataFormat === DcatApFormat::Epos) {
+                    $warnings[] = 'eu_theme_labels_as_keywords';
+                    $subjects = app(EposDcatApConceptLookupService::class);
+                    foreach ($resource->subjects as $subject) {
+                        if ($subject->isControlled() && $subjects->concept($subject) === null) {
+                            $warnings[] = 'controlled_subject_as_keyword';
+                        }
+                    }
+                    foreach ($resource->geoLocations as $location) {
+                        if (($location->hasLine() || $location->hasPolygon()) && $geometry->map($location) !== null) {
+                            $warnings[] = 'geometry_as_bounding_box';
+                        }
+                    }
+                    foreach ($resource->alternateIdentifiers as $identifier) {
+                        if (blank($identifier->type)) {
+                            $warnings[] = 'missing_identifier_scheme';
+                        }
+                    }
+                }
                 if ($rights->resolve($resource)['ambiguous']) {
                     $warnings[] = 'ambiguous_licenses';
                 }

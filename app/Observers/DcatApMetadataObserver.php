@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Enums\DcatApFormat;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
+use App\Models\ResourceInstrument;
 use App\Services\DcatAp\DcatApRecordService;
 use Illuminate\Database\Eloquent\Model;
 
@@ -28,7 +30,10 @@ final class DcatApMetadataObserver
 
     private function schedule(Model $model): void
     {
-        if (! config('dcatap.enabled', false)) {
+        if (DcatApFormat::enabledFormats() === []) {
+            return;
+        }
+        if ($model instanceof ResourceInstrument && ! DcatApFormat::Epos->enabled()) {
             return;
         }
         $resourceId = $model instanceof Resource ? $model->getKey() : $model->getAttribute('resource_id');
@@ -39,7 +44,7 @@ final class DcatApMetadataObserver
             $resourceId = ResourceContributor::whereKey($model->getAttribute('resource_contributor_id'))->value('resource_id');
         }
         if (is_numeric($resourceId)) {
-            app(DcatApRecordService::class)->schedule((int) $resourceId, ! $model instanceof Resource);
+            app(DcatApRecordService::class)->schedule((int) $resourceId, ! $model instanceof Resource && ! $model instanceof ResourceInstrument);
         }
     }
 }

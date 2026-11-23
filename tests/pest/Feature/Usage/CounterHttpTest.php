@@ -89,20 +89,20 @@ it('counts successful Core exports as investigations and excludes incomplete IGS
         ->and($event->target_hash)->toBe(app(CounterSessionHasherService::class)->target('igsn-core-2.0'));
 });
 
-it('counts successful DCAT downloads and excludes missing or disabled representations', function () {
-    config(['dcatap.enabled' => true]);
-    $url = $this->page->public_url.'/metadata/dcat-ap.rdf';
+it('counts successful DCAT downloads and excludes missing or disabled representations', function (string $config, string $slug) {
+    config([$config => true]);
+    $url = $this->page->public_url.'/metadata/'.$slug.'.rdf';
     $this->get($url)->assertNotFound();
     expect(DB::table('usage_events')->count())->toBe(0);
     Description::factory()->abstract()->create(['resource_id' => $this->page->resource_id]);
     $this->get($url)->assertOk();
     $event = DB::table('usage_events')->sole();
     expect($event->event_type)->toBe('investigation')
-        ->and($event->target_hash)->toBe(app(CounterSessionHasherService::class)->target('dcat-ap'));
-    config(['dcatap.enabled' => false]);
+        ->and($event->target_hash)->toBe(app(CounterSessionHasherService::class)->target($slug));
+    config([$config => false]);
     $this->get($url)->assertNotFound();
     expect(DB::table('usage_events')->count())->toBe(1);
-});
+})->with([['dcatap.enabled', 'dcat-ap'], ['dcatap.epos.enabled', 'epos-dcat-ap']]);
 
 it('refreshes the displayed calendar window at the UTC month boundary before the next aggregation', function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-31 23:59:59', 'UTC'));

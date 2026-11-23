@@ -42,6 +42,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceContributorTypePivot;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\ResourceInstrument;
 use App\Models\ResourceRight;
 use App\Models\ResourceRightPivot;
 use App\Models\ResourceType;
@@ -82,6 +83,7 @@ use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\DcatAp\DcatApRecordService;
 use App\Services\DcatAp\DcatApVocabularyMapper;
+use App\Services\DcatAp\EposDcatApConceptLookupService;
 use App\Services\InteractiveApiRequestContextService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalCacheVersionService;
@@ -127,6 +129,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ResourceListingProjectorService::class);
         $this->app->singleton(DcatApVocabularyMapper::class);
         $this->app->singleton(DcatApRecordService::class);
+        $this->app->scoped(EposDcatApConceptLookupService::class);
         $this->app->singleton(ResourceListingProjectionRefreshService::class);
         $this->app->singleton(DatabaseDumpProcessRunner::class, SymfonyDatabaseDumpProcessRunner::class);
         $this->app->singleton(DatabaseServerInfoProvider::class, LaravelDatabaseServerInfoProvider::class);
@@ -148,7 +151,7 @@ class AppServiceProvider extends ServiceProvider
 
         foreach ([Resource::class, LandingPage::class, Title::class, Description::class, ResourceCreator::class,
             ResourceContributor::class, ResourceContributorTypePivot::class, ResourceDate::class, ResourceRight::class,
-            ResourceRightPivot::class, IgsnMetadata::class, Format::class, Size::class, LandingPageFile::class,
+            ResourceRightPivot::class, ResourceInstrument::class, IgsnMetadata::class, Format::class, Size::class, LandingPageFile::class,
             LandingPageLink::class, Subject::class, GeoLocation::class, AlternateIdentifier::class, RelatedIdentifier::class] as $model) {
             $model::observe(DcatApMetadataObserver::class);
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Enums\DcatApFormat;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\DescriptionType;
@@ -58,7 +59,7 @@ final class DcatApSharedMetadataObserver
     /** @return list<int> */
     private function resourceIds(Model $model): array
     {
-        if (! config('dcatap.enabled', false)) {
+        if (DcatApFormat::enabledFormats() === []) {
             return [];
         }
         $query = Resource::query();

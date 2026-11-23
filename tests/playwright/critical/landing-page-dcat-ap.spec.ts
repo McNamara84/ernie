@@ -5,6 +5,8 @@ import { navigateWithTlsRetry, prepareHtmlInterception } from '../helpers/naviga
 
 let appHtml: string | undefined;
 const actionName = 'Download DCAT-AP 3.0.1 metadata as RDF/XML';
+const eposAction = 'Download EPOS-DCAT-AP 3.0 metadata as RDF/XML';
+const eposUrl = '/10.5880/dcat-browser/metadata/epos-dcat-ap.rdf';
 const exportUrl = '/10.5880/dcat-browser/metadata/dcat-ap.rdf';
 
 // Exercise the real application template and CSS with controlled transport props.
@@ -32,6 +34,7 @@ async function openPage(page: Page, preview = false, eligible = true, igsn = fal
                     ...payload.props,
                     isPreview: preview,
                     supportsDcatAp: eligible && !igsn,
+                    supportsEposDcatAp: eligible && !igsn,
                     metadataLinks:
                         eligible && !preview && !igsn
                             ? [
@@ -42,6 +45,14 @@ async function openPage(page: Page, preview = false, eligible = true, igsn = fal
                                       url: exportUrl,
                                       mediaType: 'application/rdf+xml',
                                       profile: 'https://semiceu.github.io/DCAT-AP/releases/3.0.1/',
+                                  },
+                                  {
+                                      format: 'epos-dcat-ap',
+                                      standard: 'EPOS-DCAT-AP',
+                                      label: 'EPOS-DCAT-AP 3.0 RDF/XML',
+                                      url: eposUrl,
+                                      mediaType: 'application/rdf+xml',
+                                      profile: 'https://epos-eu.github.io/EPOS-DCAT-AP/v3/',
                                   },
                               ]
                             : [],
@@ -76,6 +87,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
         await openPage(page);
         const link = page.getByRole('link', { name: actionName });
         await expect(link).toHaveAttribute('href', exportUrl);
+        const epos = page.getByRole('link', { name: eposAction });
+        await expect(epos).toHaveAttribute('href', eposUrl);
         await expect(page.getByText('DCAT-AP 3.0.1', { exact: true })).toBeVisible();
         for (const width of [375, 1440]) {
             await page.setViewportSize({ width, height: 900 });
@@ -84,6 +97,9 @@ for (const colorScheme of ['light', 'dark'] as const) {
             const bounds = await link.boundingBox();
             expect(bounds!.x).toBeGreaterThanOrEqual(0);
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+            const eposBounds = await epos.boundingBox();
+            expect(eposBounds!.y).toBeGreaterThan(bounds!.y);
+            expect(eposBounds!.x + eposBounds!.width).toBeLessThanOrEqual(width);
             const section = 'section[aria-labelledby="heading-download-metadata"]';
             const logo = page.locator(section).getByRole('img', { name: 'DataCite', exact: true });
             await expect(logo).toBeVisible();
@@ -103,20 +119,23 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
 test('DCAT preview opens and closes its dialog using the keyboard', async ({ page }) => {
     await openPage(page, true);
-    const button = page.getByRole('button', { name: actionName });
-    await button.focus();
-    await page.keyboard.press('Enter');
-    const dialog = page.getByRole('dialog', { name: 'Metadata download unavailable' });
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(dialog).not.toBeVisible();
-    await expect(button).toBeFocused();
+    for (const name of [actionName, eposAction]) {
+        const button = page.getByRole('button', { name });
+        await button.focus();
+        await page.keyboard.press('Enter');
+        const dialog = page.getByRole('dialog', { name: 'Metadata download unavailable' });
+        await expect(dialog).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(dialog).not.toBeVisible();
+        await expect(button).toBeFocused();
+    }
 });
 
 for (const igsn of [false, true]) {
     test(`does not offer DCAT for ${igsn ? 'IGSNs' : 'unavailable resources'}`, async ({ page }) => {
         await openPage(page, false, false, igsn);
         await expect(page.getByRole('link', { name: actionName })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: eposAction })).toHaveCount(0);
         await expect(page.getByText('DCAT-AP 3.0.1', { exact: true })).toHaveCount(0);
     });
 }
