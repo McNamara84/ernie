@@ -78,12 +78,10 @@ use App\Http\Controllers\VocabularyController;
 use App\Http\Middleware\PrioritizeInteractiveApiRequests;
 use App\Models\Resource;
 use App\Models\User;
-use App\Services\Usage\CounterReadService;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Inertia\Inertia;
 
 Route::get('/health', HealthController::class)->name('health');
 
@@ -144,10 +142,7 @@ Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
 Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');
 
-Route::get('/usage-statistics', fn () => Inertia::render('usage-statistics', [
-    'usageStatus' => app(CounterReadService::class)->status(),
-    'privacyUrl' => config('usage.privacy_url'),
-]))->name('usage-statistics');
+Route::get('/usage-statistics', [StaticPageController::class, 'usageStatistics'])->name('usage-statistics');
 
 // Public Portals (DOI and IGSN discovery)
 // ===========================================================
