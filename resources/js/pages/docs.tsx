@@ -1049,7 +1049,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <a href="/usage-statistics" className="underline">
                                 How we count
                             </a>{' '}
-                            page explains the counting rules and links the existing privacy policy.
+                            page explains the counting rules and links the privacy policy. When opened from Statistics, it offers links to the public
+                            Data Portal and IGSN Portal.
                         </p>
 
                         <h4>Dashboard modules</h4>
@@ -3059,8 +3060,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <a href="/usage-statistics" className="underline">
                                 How we count
                             </a>{' '}
-                            for the counting method and the existing privacy policy. Admins and Group Leaders can configure module visibility in a
-                            custom template; hiding Usage does not stop collection.
+                            for the counting method and privacy policy. From a published landing page, use <strong>Back to resource</strong> or{' '}
+                            <strong>Back to IGSN sample</strong> to return to the same item. Review links and editor previews open the method in a new
+                            tab so you can continue working in the original one. Admins and Group Leaders can configure module visibility in a custom
+                            template; hiding Usage does not stop collection.
                         </p>
                         <h4>Reading Coverage Descriptions on the Map</h4>
                         <p>

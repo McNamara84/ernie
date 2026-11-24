@@ -27,12 +27,14 @@ const usage: UsageData = {
     paused: false,
     incompleteDays: [],
     methodologyUrl: '/usage-statistics',
+    publicMethodologyUrl: '/usage-statistics?landing_page=42',
     views: 12345,
     downloads: 2345,
     months: [
         { month: '2026-01', views: 100, downloads: 20, partial: true, incomplete: false },
         { month: '2026-02', views: 0, downloads: 0, partial: false, incomplete: false },
         { month: '2026-03', views: 1, downloads: 1, partial: true, incomplete: true },
+        { month: '2026-04', views: null, downloads: null, partial: true, incomplete: false },
     ],
 };
 
@@ -42,7 +44,9 @@ describe('UsageSection', () => {
         expect(screen.getByText('12,345')).toBeInTheDocument();
         expect(screen.getByText('2,345')).toBeInTheDocument();
         expect(screen.getByText(/Data through 2026-03-01/)).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'How we count' })).toHaveAttribute('href', '/usage-statistics');
+        const methodLink = screen.getByRole('link', { name: 'How we count' });
+        expect(methodLink).toHaveAttribute('href', '/usage-statistics?landing_page=42');
+        expect(methodLink).not.toHaveAttribute('target');
         expect(screen.getAllByTestId('chart-series')).toHaveLength(2);
         fireEvent.click(screen.getByText('Monthly data table'));
         const table = screen.getByRole('table');
@@ -50,6 +54,16 @@ describe('UsageSection', () => {
         expect(within(table).getByText('100')).toBeInTheDocument();
         expect(within(table).getByText('Complete month')).toBeInTheDocument();
         expect(within(table).getByText('Missing observations')).toBeInTheDocument();
+        const pendingMonth = within(table).getByRole('row', { name: /2026-04/ });
+        expect(within(pendingMonth).getAllByText('Pending')).toHaveLength(3);
+    });
+
+    it.each(['placeholder', 'ready'] as const)('opens the bare method URL privately in a new tab for a %s preview', (state) => {
+        render(<UsageSection usage={{ ...usage, state, publicMethodologyUrl: undefined }} />);
+        const link = screen.getByRole('link', { name: 'How we count (opens in a new tab)' });
+        expect(link).toHaveAttribute('href', '/usage-statistics');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it('omits all download UI for physical samples', () => {
@@ -79,13 +93,17 @@ describe('UsageSection', () => {
                     paused: true,
                     views: 0,
                     downloads: 0,
-                    months: [{ month: '2026-03', views: 0, downloads: 0, partial: true, incomplete: true }],
+                    months: [
+                        { month: '2026-03', views: 0, downloads: 0, partial: true, incomplete: true },
+                        { month: '2026-04', views: null, downloads: null, partial: true, incomplete: false },
+                    ],
                 }}
             />,
         );
         expect(screen.getByRole('status')).toHaveTextContent('Totals may be incomplete');
         expect(screen.getByText('Collection is currently paused.')).toBeInTheDocument();
         expect(screen.getByText('No usage recorded in the displayed months.')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'How we count' })).toHaveAttribute('href', usage.publicMethodologyUrl);
         expect(screen.queryByTestId('chart-series')).not.toBeInTheDocument();
     });
 

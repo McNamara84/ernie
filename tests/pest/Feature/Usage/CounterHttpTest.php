@@ -136,15 +136,21 @@ it('does not count final Inertia version conflicts, HEAD, prefetch, failures or 
 
 it('propagates review exclusion to download and metadata links without contaminating cached public URLs', function () {
     $preview = '?preview='.$this->page->preview_token;
+    $methodUrl = '/usage-statistics?landing_page='.$this->page->id;
     $this->get($this->page->public_url.$preview)->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('usage.methodologyUrl', '/usage-statistics')
+            ->missing('usage.publicMethodologyUrl')
             ->where('landingPage.tracked_ftp_url', fn (string $url) => str_ends_with($url, $preview))
             ->where('metadataLinks.0.url', fn (string $url) => str_ends_with($url, $preview)));
     $this->get(route('landing-page.download.primary', $this->page).$preview)->assertStatus(302);
     $this->get($this->page->public_url.'/metadata/datacite.json'.$preview)->assertOk();
     expect(DB::table('usage_events')->count())->toBe(0);
     $this->get($this->page->public_url)->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('usage.publicMethodologyUrl', $methodUrl)
         ->where('landingPage.tracked_ftp_url', fn (string $url) => ! str_contains($url, 'preview=')));
+    $this->get($this->page->public_url.$preview)->assertInertia(fn (AssertableInertia $page) => $page
+        ->missing('usage.publicMethodologyUrl'));
     expect(DB::table('usage_events')->count())->toBe(1);
 });
 
@@ -167,6 +173,8 @@ it('counts only authorized download links and deduplicates the same external tar
 it('keeps tombstone investigations and historical requests but blocks new requests', function () {
     $this->get(route('landing-page.download.primary', $this->page))->assertStatus(302);
     $this->page->forceFill(['is_tombstone' => true, 'tombstone_reason' => 'data_lost', 'tombstoned_at' => now()])->save();
+    $this->get('/usage-statistics?landing_page='.$this->page->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('returnTarget.href', $this->page->getPublicPath()));
     $this->get($this->page->public_url)->assertOk();
     $this->get($this->page->public_url.'/metadata/datacite.json')->assertOk();
     $this->get(route('landing-page.download.primary', $this->page))->assertStatus(410);
@@ -258,7 +266,45 @@ it('does not stop collection when usage is hidden and allows all DOI modules to 
 it('exposes the actual activation date and links the existing TYPO3 privacy statement', function () {
     $this->get('/usage-statistics')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->component('usage-statistics')->where('usageStatus.startedAt', '2026-10-01T12:00:00+00:00')
+        ->where('returnTarget', null)
         ->where('privacyUrl', 'https://gfz-data-services.gfz.de/about-us/data-protection'));
+});
+
+it('returns the current public landing page from the counting method', function (string $slug, string $name, string $kind) {
+    $type = ResourceType::firstOrCreate(['slug' => $slug], ['name' => $name]);
+    $this->page->resource->update(['resource_type_id' => $type->id]);
+
+    $this->get('/usage-statistics?landing_page='.$this->page->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('returnTarget', ['href' => '/10.5880/counter.test/counter-test', 'kind' => $kind]));
+})->with([['dataset', 'Dataset', 'resource'], ['physical-object', 'PhysicalObject', 'igsn']]);
+
+it('serves the public counting method for an invalid landing page parameter', function (string $query) {
+    $this->get('/usage-statistics?'.$query)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('usage-statistics')->where('returnTarget', null));
+})->with(['landing_page=0', 'landing_page=-1', 'landing_page=1x', 'landing_page[]=1', 'landing_page=/dashboard']);
+
+it('falls back to the portals when a formerly public destination becomes unavailable', function () {
+    $methodUrl = '/usage-statistics?landing_page='.$this->page->id;
+    $this->page->unpublish();
+    $this->get($this->page->preview_url)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('usage.methodologyUrl', '/usage-statistics')->missing('usage.publicMethodologyUrl'));
+    $this->get($methodUrl)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('returnTarget', null));
+
+    $this->page->update(['is_published' => true, 'template' => 'external']);
+    $this->get($methodUrl)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('returnTarget', null));
+
+    $this->page->delete();
+    $this->get($methodUrl)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('returnTarget', null));
+});
+
+it('opens the generic counting method from an editor preview of a published page', function () {
+    $this->actingAs(User::factory()->admin()->create());
+    $preview = $this->postJson(route('landing-page.preview.store', $this->page->resource_id), [
+        'template' => 'default_gfz', 'ftp_url' => $this->page->ftp_url,
+    ])->assertCreated();
+
+    $this->get($preview->json('preview_url'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('isPreview', true)->where('usage.methodologyUrl', '/usage-statistics')->missing('usage.publicMethodologyUrl'));
 });
 
 it('builds the usage privacy link from the configured GFZ website and path', function () {

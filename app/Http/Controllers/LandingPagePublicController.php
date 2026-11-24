@@ -490,6 +490,8 @@ class LandingPagePublicController extends Controller
 
                 return $link;
             }, $renderData['props']['metadataLinks'] ?? []);
+        } elseif ($isPublished) {
+            $renderData['props']['usage']['publicMethodologyUrl'] = route('usage-statistics', ['landing_page' => $landingPage->id], absolute: false);
         }
 
         $inertiaResponse = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);

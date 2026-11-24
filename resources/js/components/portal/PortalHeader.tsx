@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { legalNotice } from '@/routes';
 import type { PortalKind } from '@/types/portal';
 
-export type PublicContentPage = 'home' | 'find' | 'data-centres' | 'data-centres-description' | 'schemas';
+export type PublicContentPage = 'home' | 'find' | 'data-centres' | 'data-centres-description' | 'schemas' | 'usage-statistics';
 
 interface NavItem {
     label: string;

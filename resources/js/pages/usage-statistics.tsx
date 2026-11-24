@@ -1,15 +1,38 @@
 import { Head } from '@inertiajs/react';
 
-import PublicLayout from '@/layouts/public-layout';
+import { Button } from '@/components/ui/button';
+import HomeLayout from '@/layouts/home-layout';
 
 import type { UsageStatus } from './LandingPages/components/UsageSection';
 
-export default function UsageStatistics({ usageStatus, privacyUrl }: { usageStatus: UsageStatus; privacyUrl: string }) {
+interface UsageStatisticsProps {
+    usageStatus: Pick<UsageStatus, 'startedAt'>;
+    privacyUrl: string;
+    returnTarget: { href: string; kind: 'resource' | 'igsn' } | null;
+}
+
+export default function UsageStatistics({ usageStatus, privacyUrl, returnTarget }: UsageStatisticsProps) {
     return (
-        <PublicLayout>
+        <HomeLayout page="usage-statistics">
             <Head title="How we count usage" />
-            <article className="mx-auto max-w-3xl space-y-5">
+            <article className="mx-auto max-w-3xl space-y-5 px-5 py-10 sm:px-8">
                 <h1 className="text-3xl font-semibold">How we count usage</h1>
+                <nav aria-label="Usage navigation" className="flex flex-wrap gap-3">
+                    {returnTarget ? (
+                        <Button asChild variant="outline">
+                            <a href={returnTarget.href}>{returnTarget.kind === 'igsn' ? 'Back to IGSN sample' : 'Back to resource'}</a>
+                        </Button>
+                    ) : (
+                        <>
+                            <Button asChild variant="outline">
+                                <a href="/doi-search">Data Portal</a>
+                            </Button>
+                            <Button asChild variant="outline">
+                                <a href="/igsn-search">IGSN Portal</a>
+                            </Button>
+                        </>
+                    )}
+                </nav>
                 <p>
                     Usage statistics follow the{' '}
                     <a className="underline" href="https://coprd.countermetrics.org/en/1.0.1/">
@@ -75,6 +98,6 @@ export default function UsageStatistics({ usageStatus, privacyUrl }: { usageStat
                     </a>
                 </p>
             </article>
-        </PublicLayout>
+        </HomeLayout>
     );
 }
