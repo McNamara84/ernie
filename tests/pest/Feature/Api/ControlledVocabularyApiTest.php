@@ -5,9 +5,13 @@ declare(strict_types=1);
 use App\Http\Controllers\VocabularyController;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
+use App\Services\MslVocabularyService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\UnableToCheckFileExistence;
+use Opis\JsonSchema\Errors\ErrorFormatter;
+use Opis\JsonSchema\Validator;
 
 use function Pest\Laravel\getJson;
 
@@ -149,12 +153,44 @@ it('wraps a legacy ROR list using its file timestamp and preserves the 1.1 respo
     getJson('/api/v1/ror-affiliations/elmo', ['X-API-Key' => 'vocabulary-key'])->assertOk()->assertExactJson($records);
 });
 
-it('preserves the MSL concept hierarchy in both supported snapshot formats', function (bool $wrapped): void {
-    $tree = [['id' => 'material', 'text' => 'Material', 'children' => [['id' => 'rock', 'text' => 'Rock', 'children' => []]]]];
-    $payload = $wrapped ? ['lastUpdated' => '2026-11-09T12:00:00Z', 'data' => $tree] : $tree;
-    Storage::put('msl-vocabulary.json', json_encode($payload, JSON_THROW_ON_ERROR));
-    getJson('/api/v1/vocabularies/data/msl', ['X-API-Key' => 'vocabulary-key'])->assertOk()->assertExactJson($payload);
-})->with([false, true]);
+it('serves the MSL producer tree according to the published schema in both snapshot formats', function (bool $wrapped): void {
+    Http::fake(['*msl_vocabularies*' => Http::response([[
+        'text' => 'Materials',
+        'extra' => ['uri' => 'https://epos-msl.uu.nl/voc/materials'],
+        'children' => [
+            ['text' => 'Rock', 'extra' => ['uri' => 'https://epos-msl.uu.nl/voc/rock'], 'children' => []],
+            ['text' => 'Other materials'],
+        ],
+    ]])]);
+    $service = new MslVocabularyService;
+    expect($service->downloadAndTransformVocabulary())->toBeTrue();
+    $payload = $service->getVocabulary();
+    if ($wrapped) {
+        $payload = ['lastUpdated' => '2026-11-09T12:00:00Z', 'data' => $payload];
+        Storage::put('msl-vocabulary.json', json_encode($payload, JSON_THROW_ON_ERROR));
+    }
+
+    $response = getJson('/api/v1/vocabularies/data/msl', ['X-API-Key' => 'vocabulary-key'])->assertOk()->assertExactJson($payload);
+    $snapshot = $response->getData();
+    $tree = $wrapped ? $snapshot->data : $snapshot;
+    $leaf = $tree[0]->children[0];
+    expect($leaf->text)->toBe('Rock')->and($leaf)->not->toHaveProperty('children')
+        ->and($tree[0]->children[1]->id)->toBe('');
+
+    $docUrl = url('/api/v1/doc');
+    $validator = new Validator;
+    $validator->resolver()->registerRaw(getJson($docUrl)->assertOk()->getContent(), $docUrl);
+    $schema = $docUrl.'#/components/schemas/MslKeywords';
+    $result = $validator->validate($snapshot, $schema);
+    expect((new ErrorFormatter)->formatOutput($result->error(), 'basic'))->toBe(['valid' => true]);
+
+    $leaf->children = null;
+    expect($validator->validate($snapshot, $schema)->isValid())->toBeFalse();
+    $leaf->children = [];
+    expect($validator->validate($snapshot, $schema)->isValid())->toBeTrue();
+    unset($leaf->text);
+    expect($validator->validate($snapshot, $schema)->isValid())->toBeFalse();
+})->with(['plain tree' => false, 'legacy wrapper' => true]);
 
 it('documents each vocabulary schema and deprecates precisely the superseded operations', function (): void {
     $spec = getJson('/api/v1/doc')->assertOk()->assertJsonPath('openapi', '3.2.1')->assertJsonPath('info.version', '1.2.0')->json();

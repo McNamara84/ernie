@@ -6996,7 +6996,7 @@
                     {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                            "$ref": "#/components/schemas/MslKeywordConcept"
                         }
                     },
                     {
@@ -7008,13 +7008,53 @@
                             "data": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/GcmdKeywordConcept"
+                                    "$ref": "#/components/schemas/MslKeywordConcept"
                                 }
                             }
                         },
                         "required": ["data"]
                     }
                 ]
+            },
+            "MslKeywordConcept": {
+                "type": "object",
+                "description": "A node in the EPOS MSL keyword tree.",
+                "required": ["id", "text", "language", "scheme", "schemeURI", "description"],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Concept URI, or an empty string when the source node has no URI.",
+                        "anyOf": [{ "format": "uri" }, { "const": "" }]
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Preferred label of the concept."
+                    },
+                    "language": {
+                        "type": "string",
+                        "examples": ["en"]
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "examples": ["EPOS MSL vocabulary"]
+                    },
+                    "schemeURI": {
+                        "type": "string",
+                        "format": "uri",
+                        "examples": ["https://epos-msl.uu.nl/voc"]
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Definition of the concept, or an empty string when unavailable."
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "Child concepts. Leaves may omit this property or have an empty array.",
+                        "items": {
+                            "$ref": "#/components/schemas/MslKeywordConcept"
+                        }
+                    }
+                }
             },
             "IdentifierSemanticValidation": {
                 "type": "object",
