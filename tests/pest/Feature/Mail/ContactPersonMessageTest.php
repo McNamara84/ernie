@@ -149,6 +149,8 @@ describe('content', function () {
     });
 
     it('passes correct data to the view', function () {
+        config(['services.gfz_data_services.host' => 'data.example.test']);
+
         $mailable = new ContactPersonMessage(
             contactMessage: $this->contactMessage,
             resource: $this->resource,
@@ -159,6 +161,7 @@ describe('content', function () {
         $content = $mailable->content();
 
         expect($content->with)->toMatchArray([
+            'gfzDataServicesHost' => 'data.example.test',
             'senderName' => 'Jane Doe',
             'senderEmail' => 'jane@example.com',
             'messageContent' => 'I have a question about your dataset.',

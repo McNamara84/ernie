@@ -260,3 +260,11 @@ it('exposes the actual activation date and links the existing TYPO3 privacy stat
         ->component('usage-statistics')->where('usageStatus.startedAt', '2026-10-01T12:00:00+00:00')
         ->where('privacyUrl', 'https://gfz-data-services.gfz.de/about-us/data-protection'));
 });
+
+it('builds the usage privacy link from the configured GFZ website and path', function () {
+    config(['services.gfz_data_services' => ['host' => 'data.example.test', 'dataProtectionPath' => '/privacy']]);
+
+    $usage = require config_path('usage.php');
+
+    expect($usage['privacy_url'])->toBe('https://data.example.test/privacy');
+});
