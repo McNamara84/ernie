@@ -8,19 +8,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LegalNotice from '@/pages/legal-notice';
 
 const mockUsePage = vi.hoisted(() => vi.fn());
+const mockUseRemember = vi.hoisted(() => vi.fn((initial: boolean) => [initial]));
 
 vi.mock('@inertiajs/react', async () => {
     const { createInertiaMock } = await import('@tests/vitest/test-helpers/inertia-mocks');
-    return createInertiaMock({ usePageFn: mockUsePage });
+    return { ...createInertiaMock({ usePageFn: mockUsePage }), useRemember: mockUseRemember };
 });
 vi.mock('@/hooks/use-nprogress', () => ({ useNProgress: vi.fn() }));
 
 describe('LegalNotice integration', () => {
     beforeEach(() => {
         document.title = '';
+        vi.mocked(router.visit).mockClear();
         mockUsePage.mockReturnValue({ url: '/legal-notice', props: { auth: { user: null } } });
     });
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+    });
 
     it('sets the document title', () => {
         render(<LegalNotice />);
@@ -50,6 +55,31 @@ describe('LegalNotice integration', () => {
 
         await user.click(screen.getByRole('button', { name: 'Back' }));
         expect(router.visit).toHaveBeenCalledWith('/', { replace: true });
+    });
+
+    it('uses the remembered first entry when the browser cannot report navigation entries', async () => {
+        const user = userEvent.setup();
+        vi.stubGlobal('navigation', undefined);
+        vi.spyOn(window.history, 'length', 'get').mockReturnValue(2);
+        mockUseRemember.mockReturnValueOnce([false]);
+        const back = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+        render(<LegalNotice />);
+
+        await user.click(screen.getByRole('button', { name: 'Back' }));
+        expect(back).not.toHaveBeenCalled();
+        expect(router.visit).toHaveBeenCalledWith('/', { replace: true });
+    });
+
+    it('goes back to a previous site outside the same-origin navigation entries', async () => {
+        const user = userEvent.setup();
+        vi.stubGlobal('navigation', { canGoBack: false, entries: () => [{}] });
+        vi.spyOn(window.history, 'length', 'get').mockReturnValue(2);
+        const back = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+        render(<LegalNotice />);
+
+        await user.click(screen.getByRole('button', { name: 'Back' }));
+        expect(back).toHaveBeenCalledOnce();
+        expect(router.visit).not.toHaveBeenCalled();
     });
 });
 

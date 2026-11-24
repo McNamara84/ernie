@@ -1,13 +1,18 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, useRemember } from '@inertiajs/react';
 
 import { Button } from '@/components/ui/button';
 import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import PublicLayout from '@/layouts/public-layout';
 
 export default function LegalNotice() {
+    const [hadPreviousEntry] = useRemember(typeof window !== 'undefined' && window.history.length > 1, 'LegalNotice.hasPreviousEntry');
+
     function goBack() {
-        if (window.history.length > 1) {
-            window.history.back();
+        const { history, navigation } = window;
+        // The Navigation API exposes only same-origin entries. A previous site can still be reached with history.back().
+        const hasUnlistedEntries = history.length > (navigation?.entries().length ?? 1);
+        if (navigation?.canGoBack || (hadPreviousEntry && hasUnlistedEntries)) {
+            history.back();
             return;
         }
 

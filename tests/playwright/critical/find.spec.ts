@@ -1,15 +1,19 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
 
 import { openFind } from '../helpers/find';
 import { openHomepage } from '../helpers/homepage';
 
+async function openInNewTab(link: Locator) {
+    const newTab = link.page().context().waitForEvent('page');
+    await link.click({ modifiers: ['ControlOrMeta'] });
+    return newTab;
+}
+
 test.describe('Find overview', () => {
-    test('navigates back from the legal notice in the current tab and in a new tab', async ({ page, context }) => {
+    test('navigates back from the legal notice in the current tab and in a new tab', async ({ page }) => {
         await openFind(page);
         const legalNotice = page.getByRole('navigation', { name: 'Footer navigation' }).getByRole('link', { name: 'Legal Notice' });
-        const newTabPromise = context.waitForEvent('page');
-        await legalNotice.click({ modifiers: ['ControlOrMeta'] });
-        const newTab = await newTabPromise;
+        const newTab = await openInNewTab(legalNotice);
         await expect(newTab).toHaveURL(/\/legal-notice$/);
         await newTab.getByRole('button', { name: 'Back', exact: true }).click();
         await expect(newTab.getByRole('heading', { name: 'Welcome to GFZ Data Services' })).toBeVisible();
@@ -20,6 +24,21 @@ test.describe('Find overview', () => {
         await page.getByRole('button', { name: 'Back', exact: true }).click();
         await expect(page).toHaveURL(/\/find$/);
         await expect(page.getByRole('heading', { level: 1, name: 'Find', exact: true })).toBeVisible();
+    });
+
+    test('returns to the homepage when the legal notice has only forward history', async ({ page }) => {
+        await openFind(page);
+        const tab = await openInNewTab(page.getByRole('navigation', { name: 'Footer navigation' }).getByRole('link', { name: 'Legal Notice' }));
+        await expect(tab).toHaveURL(/\/legal-notice$/);
+        expect(await tab.evaluate(() => window.history.length)).toBe(1);
+        await tab.getByRole('contentinfo').getByRole('link', { name: 'About', exact: true }).click();
+        await expect(tab.getByRole('heading', { name: 'About ERNIE' })).toBeVisible();
+
+        await tab.goBack();
+        await expect(tab).toHaveURL(/\/legal-notice$/);
+        expect(await tab.evaluate(() => window.history.length)).toBeGreaterThan(1);
+        await tab.getByRole('button', { name: 'Back', exact: true }).click();
+        await expect(tab.getByRole('heading', { name: 'Welcome to GFZ Data Services' })).toBeVisible();
     });
 
     for (const width of [320, 768, 1024, 1440]) {
