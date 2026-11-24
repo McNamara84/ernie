@@ -7,8 +7,6 @@ use App\Enums\EditorContext;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use App\Models\User;
-use App\Services\CgiSimpleLithologyVocabularyService;
-use App\Services\MslLaboratoryVocabularyService;
 use App\Support\CgiSimpleLithologyVocabularyParser;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -56,9 +54,26 @@ it('never exposes internal B2INST provenance to any editor, including cached sna
 it('checks each editor before reading shared cached vocabulary data', function (string $type, string $slug, string $file, bool $pid): void {
     $model = $pid ? PidSetting::class : ThesaurusSetting::class;
     $setting = $model::firstOrCreate(['type' => $type], ['display_name' => $type]);
-    $payload = ['data' => [$type === 'pid4inst'
-        ? ['id' => 'test', 'pid' => '21.test/a', 'pidType' => 'Handle', 'name' => 'Test']
-        : ['id' => 'test', 'text' => 'Test', 'children' => [['id' => 'child', 'text' => 'Nested term']]]]];
+    $concept = [
+        'id' => 'https://example.org/concepts/child', 'text' => 'Nested term', 'language' => 'en',
+        'scheme' => 'Test', 'schemeURI' => 'https://example.org/concepts', 'description' => '', 'children' => [],
+    ];
+    if ($type === 'analytical_methods') {
+        $concept['notation'] = 'T';
+    }
+    $record = match ($type) {
+        'pid4inst' => ['id' => 'test', 'pid' => '21.test/a', 'pidType' => 'Handle', 'name' => 'Test'],
+        'raid' => [
+            'id' => 'test', 'doi' => '10.1234/test', 'raidId' => null, 'title' => 'Test', 'description' => '',
+            'url' => null, 'dates' => [], 'contributors' => [], 'organisations' => [], 'relatedIdentifiers' => [],
+            'subjects' => [], 'searchTerms' => ['Test'],
+        ],
+        default => array_replace($concept, ['id' => 'https://example.org/concepts/root', 'text' => 'Test', 'children' => [$concept]]),
+    };
+    $payload = ['lastUpdated' => '2026-11-01T00:00:00Z', 'data' => [$record]];
+    if ($pid) {
+        $payload['total'] = 1;
+    }
     Storage::put($file, json_encode($payload));
 
     for ($flags = 0; $flags < 8; $flags++) {
@@ -114,13 +129,11 @@ it('preserves missing and corrupt file errors for enabled MSL vocabularies', fun
     $this->getJson('/api/v1/elmo-msl/vocabularies/msl', ['X-API-Key' => 'editor-test-key'])->assertStatus(500);
 });
 
-it('isolates validated vocabulary services and their availability for every editor', function (string $type, string $slug, string $service): void {
-    $payload = ['total' => 1, 'data' => [['id' => 'test', 'text' => 'Test']]];
+it('isolates validated vocabulary services and their availability for every editor', function (string $type, string $slug): void {
     if ($type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
-        $this->mock($service, function ($mock) use ($payload): void {
-            $mock->shouldReceive('getPublicPayload')->andReturn($payload);
-            $mock->shouldReceive('getLocalPayload')->andReturn($payload);
-        });
+        $payload = ['version' => '1.2', 'lastUpdated' => '2026-11-01T00:00:00Z', 'total' => 0, 'data' => []];
+        $source = ['repository' => 'msl', 'ref' => 'main', 'path' => 'labs.json', 'sha' => str_repeat('a', 40)];
+        Storage::put('msl-laboratories.json', json_encode($payload + ['source' => $source], JSON_THROW_ON_ERROR));
     } else {
         config(['simple_lithology.min_concepts' => 1]);
         $payload = app(CgiSimpleLithologyVocabularyParser::class)->buildPayload([[
@@ -151,6 +164,6 @@ it('isolates validated vocabulary services and their availability for every edit
         }
     }
 })->with([
-    [ThesaurusSetting::TYPE_MSL_LABORATORIES, 'msl-laboratories', MslLaboratoryVocabularyService::class],
-    [ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY, 'cgi-simple-lithology', CgiSimpleLithologyVocabularyService::class],
+    [ThesaurusSetting::TYPE_MSL_LABORATORIES, 'msl-laboratories'],
+    [ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY, 'cgi-simple-lithology'],
 ]);

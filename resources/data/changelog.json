@@ -92,7 +92,7 @@
         "improvements": [
             {
                 "title": "Shared vocabulary downloads in ERNIE API 1.2",
-                "description": "ELMO and ELMO-MSL can each read the visibility of ten thesauri and three PID registries in one request. Both editors use the same URL to download a vocabulary, including its full hierarchy when hidden. The OpenAPI documentation marks all 30 superseded endpoints as deprecated and lists their replacements. Existing clients can continue using those endpoints during migration."
+                "description": "ELMO and ELMO-MSL can each read the visibility of ten thesauri and three PID registries in one request. Both editors use the same URL to download a vocabulary, including its full hierarchy when hidden. The download returns HTTP 500 for malformed snapshots and streams validated ROR registries on repeat requests. The OpenAPI documentation marks all 30 superseded endpoints as deprecated and lists their replacements. Existing clients can continue using those endpoints during migration."
             },
             {
                 "title": "Reliable PIDINST Synchronization",

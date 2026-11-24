@@ -14,10 +14,11 @@ use App\Models\ThesaurusSetting;
 use App\Services\CgiSimpleLithologyVocabularyService;
 use App\Services\MslLaboratoryVocabularyService;
 use App\Services\Pid4instVocabularyService;
+use App\Services\PublicVocabularySnapshotService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
-use League\Flysystem\FilesystemException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class VocabularyController extends Controller
 {
@@ -64,20 +65,24 @@ class VocabularyController extends Controller
         return response()->json($visibility);
     }
 
-    public function data(string $vocab): JsonResponse
+    public function data(string $vocab, PublicVocabularySnapshotService $snapshots): JsonResponse|StreamedResponse
     {
-        try {
-            if (isset(self::THESAURI[$vocab])) {
-                return $this->readThesaurus(self::THESAURI[$vocab]);
-            }
+        $setting = match (true) {
+            isset(self::THESAURI[$vocab]) => new ThesaurusSetting(['type' => self::THESAURI[$vocab]]),
+            isset(self::PID_REGISTRIES[$vocab]) => new PidSetting(['type' => self::PID_REGISTRIES[$vocab]]),
+            default => null,
+        };
+        if ($setting === null) {
+            return response()->json(['error' => 'Unknown vocabulary.'], 404);
+        }
 
-            return match (self::PID_REGISTRIES[$vocab] ?? null) {
-                PidSetting::TYPE_PID4INST => $this->readPid4instInstruments(),
-                PidSetting::TYPE_RAID => $this->readRaidProjects(),
-                PidSetting::TYPE_ROR => $this->readRorAffiliations(normalizeSnapshot: true),
-                default => response()->json(['error' => 'Unknown vocabulary.'], 404),
-            };
-        } catch (FilesystemException $exception) {
+        try {
+            return $snapshots->response($vocab, $setting);
+        } catch (VocabularyNotFoundException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 404);
+        } catch (VocabularyCorruptedException|VocabularyReadException|\JsonException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 500);
+        } catch (\Exception $exception) {
             report($exception);
 
             return response()->json(['error' => 'Failed to read vocabulary file.'], 500);
@@ -378,11 +383,6 @@ class VocabularyController extends Controller
             return response()->json(['error' => 'ROR is disabled'], 404);
         }
 
-        return $this->readRorAffiliations(normalizeSnapshot: false);
-    }
-
-    private function readRorAffiliations(bool $normalizeSnapshot): JsonResponse
-    {
         $filePath = 'ror/ror-affiliations.json';
 
         if (! Storage::exists($filePath)) {
@@ -397,25 +397,6 @@ class VocabularyController extends Controller
             return response()->json([
                 'error' => 'Failed to read vocabulary file.',
             ], 500);
-        }
-
-        if ($normalizeSnapshot) {
-            $root = ltrim($content)[0] ?? '';
-            if (! in_array($root, ['{', '['], true) || ! json_validate($content)) {
-                return response()->json(['error' => 'Invalid ROR vocabulary file.'], 500);
-            }
-
-            // Older snapshots store only the list and have no embedded update time.
-            if ($root === '[') {
-                /** @var list<mixed> $records */
-                $records = json_decode($content);
-
-                return response()->json([
-                    'lastUpdated' => gmdate(DATE_ATOM, Storage::lastModified($filePath)),
-                    'total' => count($records),
-                    'data' => $records,
-                ]);
-            }
         }
 
         // Keep the full ROR registry as raw JSON to avoid materializing a second copy.

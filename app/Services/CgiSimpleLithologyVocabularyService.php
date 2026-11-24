@@ -82,6 +82,12 @@ SPARQL;
             throw new RuntimeException('The local CGI Simple Lithology vocabulary cannot be read.');
         }
 
+        return $this->decodeLocalPayload($contents);
+    }
+
+    /** @return array<string, mixed> */
+    public function decodeLocalPayload(string $contents): array
+    {
         $payload = json_decode($contents, true);
         if (! is_array($payload)) {
             throw new RuntimeException('The local CGI Simple Lithology vocabulary is invalid.');

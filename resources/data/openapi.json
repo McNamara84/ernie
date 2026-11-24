@@ -5960,11 +5960,10 @@
             "GcmdScienceKeywords": {
                 "type": "object",
                 "description": "GCMD Science Keywords from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T11:54:31Z"
                     },
                     "data": {
@@ -5979,11 +5978,10 @@
             "GcmdPlatforms": {
                 "type": "object",
                 "description": "GCMD Platforms from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T12:13:45Z"
                     },
                     "data": {
@@ -5998,11 +5996,10 @@
             "GcmdInstruments": {
                 "type": "object",
                 "description": "GCMD Instruments from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T12:22:38Z"
                     },
                     "data": {
@@ -6102,11 +6099,10 @@
             "ChronostratTimescale": {
                 "type": "object",
                 "description": "ICS Chronostratigraphic Timescale from ARDC Linked Data API (International Chronostratigraphic Chart / Geologic Time Scale 2020)",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-12-15T09:30:00Z"
                     },
                     "data": {
@@ -6121,11 +6117,10 @@
             "GemetThesaurus": {
                 "type": "object",
                 "description": "GEMET (GEneral Multilingual Environmental Thesaurus) from the EIONET REST API",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2026-03-12T10:00:00Z"
                     },
                     "data": {
@@ -6140,11 +6135,10 @@
             "AnalyticalMethodsVocabulary": {
                 "type": "object",
                 "description": "Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the ARDC Linked Data API (EarthChem/GEOROC)",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2026-04-15T12:00:00Z"
                     },
                     "data": {
@@ -6369,6 +6363,14 @@
                         }
                     }
                 }
+            },
+            "ThesaurusSnapshotTimestamp": {
+                "type": "string",
+                "description": "Update time in RFC 3339 format or in the YYYY-MM-DD HH:mm:ss format written by earlier thesaurus imports.",
+                "anyOf": [
+                    { "format": "date-time" },
+                    { "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]) ([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$" }
+                ]
             },
             "GcmdKeywordConcept": {
                 "type": "object",
@@ -6813,7 +6815,8 @@
                     },
                     "total": {
                         "type": "integer",
-                        "description": "Total number of organizations in the dataset",
+                        "minimum": 0,
+                        "description": "Number of organization entries in data.",
                         "example": 109876
                     },
                     "data": {
