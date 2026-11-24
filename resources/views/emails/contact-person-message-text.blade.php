@@ -37,5 +37,5 @@ You can reply directly to this email to respond to the sender.
 
 ================================================================================
 GFZ German Research Centre for Geosciences
-https://dataservices.gfz-potsdam.de
+https://{{ $gfzDataServicesHost }}
 ================================================================================

@@ -639,8 +639,9 @@ verify them after reopening:
       behavior and both search portals remain available. Restore the intended
       switch values before continuing the content checks.
 
-- [ ] `Find → Data Centres` opens `/data-centres` on desktop and mobile. The
-      homepage and Find overview link to the same local page. Every tile opens
+- [ ] `Find → Data Centres` opens `https://gfz-data-services.gfz.de/find/data-centres`
+      on desktop and mobile. The homepage and Find overview link to the local
+      `/data-centres` catalogue. Every tile opens
       `/doi-search` with exactly its datacenter selected; GEOFON Events and
       GEOFON Networks remain separate. Compare the catalogue with the portal's
       published DOI datacenter facet.

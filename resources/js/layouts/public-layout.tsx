@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { type PropsWithChildren } from 'react';
+import type { PropsWithChildren, ReactNode } from 'react';
 
 import { AppFooter } from '@/components/app-footer';
 import { PageTransition } from '@/components/page-transition';
@@ -7,7 +7,7 @@ import { useNProgress } from '@/hooks/use-nprogress';
 import { dashboard, login } from '@/routes';
 import { type SharedData } from '@/types';
 
-export default function PublicLayout({ children }: PropsWithChildren) {
+export default function PublicLayout({ children, headerAction }: PropsWithChildren<{ headerAction?: ReactNode }>) {
     const { auth } = usePage<SharedData>().props;
     useNProgress();
 
@@ -15,13 +15,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
         <div className="flex min-h-screen flex-col bg-background text-foreground">
             <header className="border-b border-sidebar-border/80 bg-background">
                 <nav className="mx-auto flex h-16 w-full max-w-4xl items-center justify-end gap-4 px-6">
-                    {auth.user ? (
-                        <Link href={dashboard()} className="rounded-sm border px-5 py-1.5">
-                            Dashboard
-                        </Link>
-                    ) : (
-                        <Link href={login()} className="rounded-sm border px-5 py-1.5">
-                            Log in
+                    {headerAction ?? (
+                        <Link href={auth.user ? dashboard() : login()} className="rounded-sm border px-5 py-1.5">
+                            {auth.user ? 'Dashboard' : 'Log in'}
                         </Link>
                     )}
                 </nav>

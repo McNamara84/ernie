@@ -11,5 +11,9 @@ return [
     ],
     'max_list_bytes' => 2_000_000,
     'methodology_url' => '/usage-statistics',
-    'privacy_url' => 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
+    'privacy_url' => sprintf(
+        'https://%s%s',
+        config()->string('services.gfz_data_services.host'),
+        config()->string('services.gfz_data_services.dataProtectionPath'),
+    ),
 ];
