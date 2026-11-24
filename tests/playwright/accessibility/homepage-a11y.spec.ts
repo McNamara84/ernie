@@ -223,7 +223,7 @@ test.describe('Homepage accessibility', () => {
         await page.keyboard.press('ArrowDown');
         const dataCentres = page.getByRole('menuitem', { name: 'Data Centres', exact: true });
         await expect(dataCentres).toBeFocused();
-        await expect(dataCentres).toHaveAttribute('href', '/data-centres');
+        await expect(dataCentres).toHaveAttribute('href', 'https://gfz-data-services.gfz.de/find/data-centres');
         await expectContrastingFocus(dataCentres);
         await page.keyboard.press('ArrowDown');
         await expect(page.getByRole('menuitem', { name: 'IGSN Portal', exact: true })).toBeFocused();

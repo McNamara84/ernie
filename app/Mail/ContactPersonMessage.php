@@ -80,6 +80,7 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
             view: 'emails.contact-person-message',
             text: 'emails.contact-person-message-text',
             with: [
+                'gfzDataServicesHost' => config()->string('services.gfz_data_services.host'),
                 'senderName' => $this->contactMessage->sender_name,
                 'senderEmail' => $this->contactMessage->sender_email,
                 'messageContent' => $this->contactMessage->message,

@@ -108,17 +108,24 @@ test.describe('Data Centres', () => {
     });
 
     for (const width of [390, 1440]) {
-        test(`navigates through the live catalogue into the filtered DOI portal at ${width}px`, async ({ page }) => {
+        test(`opens the external Data Centres menu link and explores the local catalogue at ${width}px`, async ({ page }) => {
             await page.setViewportSize({ width, height: 900 });
+            const externalUrl = 'https://gfz-data-services.gfz.de/find/data-centres';
+            await page.route(externalUrl, (route) => route.fulfill({ contentType: 'text/html', body: '<title>Data Centres</title>' }));
             await openFind(page);
             const mobile = width < 768;
             await page.getByRole('button', { name: mobile ? 'Open menu' : 'Find', exact: true }).click();
             const menu = mobile ? page.getByTestId('mobile-menu') : page.getByRole('menu');
-            await menu.getByRole(mobile ? 'link' : 'menuitem', { name: 'Data Centres', exact: true }).click();
+            const menuLink = menu.getByRole(mobile ? 'link' : 'menuitem', { name: 'Data Centres', exact: true });
+            await menuLink.click();
+            await expect(page).toHaveURL(externalUrl);
+            await page.goBack();
+            await expect(page).toHaveURL(/\/find$/);
+            await page.getByRole('main').getByRole('link', { name: 'Data Centres', exact: true }).click();
             await expect(page).toHaveURL(/\/data-centres$/);
             await expect(page.getByRole('heading', { level: 1 })).toHaveText('Data Centres');
             await page.getByRole('button', { name: mobile ? 'Open menu' : 'Find', exact: true }).click();
-            await expect(page.getByRole(mobile ? 'link' : 'menuitem', { name: 'Data Centres', exact: true })).toHaveAttribute('aria-current', 'page');
+            await expect(menuLink).not.toHaveAttribute('aria-current');
             await page.keyboard.press('Escape');
             const links = page.getByRole('main').getByRole('link', { name: /^View publications:/ });
             if ((await links.count()) === 0) {

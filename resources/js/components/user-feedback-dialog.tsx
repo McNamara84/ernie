@@ -11,6 +11,7 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { Textarea } from '@/components/ui/textarea';
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import { createFeedbackTechnicalSnapshot } from '@/lib/feedback-diagnostics';
 import { cn } from '@/lib/utils';
 import type { SharedData } from '@/types';
@@ -345,7 +346,7 @@ export function UserFeedbackDialog() {
                         </a>
                         . Read the{' '}
                         <a
-                            href="https://dataservices.gfz-potsdam.de/web/about-us/data-protection"
+                            href={gfzDataServicesUrls.dataProtection}
                             target="_blank"
                             rel="noreferrer"
                             className="font-medium text-primary underline underline-offset-2"

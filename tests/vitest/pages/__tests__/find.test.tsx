@@ -58,7 +58,7 @@ describe('Find overview', () => {
             'href',
             '/data-centres',
         );
-        expect(within(region).getByRole('link', { name: 'DOI' })).toHaveAttribute('href', 'https://dataservices.gfz-potsdam.de/web/support/glossary');
+        expect(within(region).getByRole('link', { name: 'DOI' })).toHaveAttribute('href', 'https://gfz-data-services.gfz.de/support/glossary');
     });
 
     it('preserves both infrastructure paragraphs and links the discovery portal name to its website', () => {
@@ -99,7 +99,10 @@ describe('Find overview', () => {
         expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
         const footer = within(screen.getByRole('navigation', { name: 'Footer navigation' }));
         expect(footer.getByRole('link', { name: 'Legal Notice' })).toHaveAttribute('href', '/legal-notice');
-        expect(footer.getByRole('link', { name: 'Data Protection' })).toBeVisible();
+        expect(footer.getByRole('link', { name: 'Data Protection' })).toHaveAttribute(
+            'href',
+            'https://gfz-data-services.gfz.de/about-us/data-protection',
+        );
         expect(footer.getByRole('link', { name: 'Copyrights' })).toBeVisible();
     });
 

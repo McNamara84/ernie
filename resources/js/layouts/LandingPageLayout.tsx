@@ -1,6 +1,8 @@
 import { Head } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
 
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
+
 interface LandingPageLayoutProps extends PropsWithChildren {
     isPreview?: boolean;
     title?: string;
@@ -104,7 +106,7 @@ export default function LandingPageLayout({
                                 </a>
                                 <span className="text-gray-300 dark:text-gray-600">•</span>
                                 <a
-                                    href="https://dataservices.gfz-potsdam.de"
+                                    href={gfzDataServicesUrls.home}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="transition-colors hover:text-gray-900 hover:underline dark:hover:text-white"
@@ -117,7 +119,7 @@ export default function LandingPageLayout({
                                 </a>
                                 <span className="text-gray-300 dark:text-gray-600">•</span>
                                 <a
-                                    href="https://dataservices.gfz-potsdam.de/web/about-us/data-protection"
+                                    href={gfzDataServicesUrls.dataProtection}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="transition-colors hover:text-gray-900 hover:underline dark:hover:text-white"

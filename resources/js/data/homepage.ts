@@ -1,3 +1,5 @@
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
+
 export const elmoUrl = 'https://dataservices.gfz.de/elmo';
 
 export const homepageLinkGroups = [
@@ -8,18 +10,18 @@ export const homepageLinkGroups = [
             { label: 'Data Centres', href: '/data-centres' },
             { label: 'ELMO - GFZ Metadata Editor 2.0', href: elmoUrl },
             { label: 'ELMO-MSL - GFZ Metadata Editor for the EPOS Multi-scale laboratories', href: 'https://dataservices.gfz.de/elmo-msl' },
-            { label: 'GFZ IGSN Service', href: 'https://dataservices.gfz-potsdam.de/web/samples/introduction' },
+            { label: 'GFZ IGSN Service', href: gfzDataServicesUrls.igsnService },
         ],
     },
     {
         title: 'Guides',
         links: [
             { label: 'Data Description Templates', href: 'https://gfzpublic.gfz.de/pubman/item/item_5007103' },
-            { label: 'Publication Instructions', href: 'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions' },
+            { label: 'Publication Instructions', href: gfzDataServicesUrls.publicationInstructions },
             { label: 'ELMO Guide (GFZ Metadata Editor 2.0)', href: 'https://dataservices.gfz.de/elmo/doc/help.php' },
-            { label: 'Quick Start Guide for Data Publications', href: 'https://dataservices.gfz-potsdam.de/web/publish-data/quick-start-guide' },
-            { label: 'File Instructions', href: 'https://dataservices.gfz-potsdam.de/web/publish-data/data-file-instructions' },
-            { label: 'FAIR SAMPLES Template (for IGSN)', href: 'https://dataservices.gfz-potsdam.de/web/samples/fair-samples-template' },
+            { label: 'Quick Start Guide for Data Publications', href: gfzDataServicesUrls.quickStartGuide },
+            { label: 'File Instructions', href: gfzDataServicesUrls.fileInstructions },
+            { label: 'FAIR SAMPLES Template (for IGSN)', href: gfzDataServicesUrls.fairSamplesTemplate },
         ],
     },
     {

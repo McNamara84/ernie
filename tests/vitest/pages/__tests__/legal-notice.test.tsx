@@ -11,6 +11,7 @@ vi.mock('@/layouts/public-layout', () => ({
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    useRemember: (initial: boolean) => [initial],
 }));
 
 describe('LegalNotice', () => {

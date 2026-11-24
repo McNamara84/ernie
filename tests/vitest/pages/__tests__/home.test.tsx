@@ -116,11 +116,11 @@ describe('GFZ Data Services homepage', () => {
         expect(within(screen.getByRole('region', { name: 'External Links to our data' })).getAllByRole('link')).toHaveLength(5);
         expect(screen.getByRole('link', { name: 'Publication Instructions' })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions',
+            'https://gfz-data-services.gfz.de/publish-data/publication-instructions',
         );
         expect(screen.getByRole('link', { name: 'Copyrights' })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/about-us/copyrights',
+            'https://gfz-data-services.gfz.de/about-us/copyrights',
         );
         expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#home-content');
         expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
