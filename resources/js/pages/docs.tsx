@@ -36,6 +36,7 @@ import { type DocsTabId, DocsTabs } from '@/components/docs/docs-tabs';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
 import { Input } from '@/components/ui/input';
 import { DOCS_ACTIONS, docsActionHref } from '@/data/docs-actions';
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, SharedData, UserRole } from '@/types';
@@ -2859,10 +2860,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Exploring Data Centres</h4>
                         <p>
-                            Select <strong>Find → Data Centres</strong> to open the <a href="/data-centres">Data Centres overview</a>. Each hexagon
-                            opens the Data Portal with that data centre selected in the Datacenters filter. You can refine the search while keeping
-                            the selection, share its URL, or use Clear to reset the filters. The overview includes centres with published DOI
-                            resources.
+                            In the main menu, <a href={gfzDataServicesUrls.dataCentres}>Find → Data Centres</a> opens the Data Centres page on the GFZ
+                            Data Services website.
+                        </p>
+                        <p>
+                            To open the <a href="/data-centres">local Data Centres catalogue</a>, select <strong>Data Centres</strong> on the Find
+                            overview or under <strong>Services</strong> on the homepage. The catalogue includes centres with published DOI resources.
+                            Each hexagon opens the Data Portal with that data centre selected in the Datacenters filter. You can refine the search
+                            while keeping the selection, share its URL, or use Clear to reset the filters.
                         </p>
                         <p>
                             Follow About this data centre or open the <a href="/data-centres/description">Data Centre Descriptions</a> to learn about

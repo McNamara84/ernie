@@ -1619,7 +1619,10 @@ describe('Docs page', () => {
         expect(screen.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
         expect(screen.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         expect(screen.getByRole('heading', { name: 'Exploring Data Centres', level: 4 })).toBeVisible();
-        expect(screen.getByRole('link', { name: 'Data Centres overview' })).toHaveAttribute('href', '/data-centres');
+        expect(screen.getByRole('link', { name: 'Find → Data Centres' })).toHaveAttribute('href', 'https://gfz-data-services.gfz.de/find/data-centres');
+        const catalogue = screen.getByRole('link', { name: 'local Data Centres catalogue' });
+        expect(catalogue).toHaveAttribute('href', '/data-centres');
+        expect(catalogue.closest('p')).toHaveTextContent('select Data Centres on the Find overview or under Services on the homepage');
         expect(screen.getByRole('link', { name: 'Data Centre Descriptions' })).toHaveAttribute('href', '/data-centres/description');
         const heading = screen.getByRole('heading', { name: 'Starting with a Science Topic', level: 4 });
         expect(screen.getByRole('link', { name: 'GFZ Data Services homepage' })).toHaveAttribute('href', '/');

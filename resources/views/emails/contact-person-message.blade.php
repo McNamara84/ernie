@@ -118,7 +118,9 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://dataservices.gfz-potsdam.de/images/gfz-ds-logo.png" alt="GFZ Data Services">
+            <a href="https://{{ $gfzDataServicesHost }}">
+                <img src="{{ $message->embed(public_path('images/gfz-ds-logo.png')) }}" alt="GFZ Data Services">
+            </a>
             <h1>Contact Request</h1>
         </div>
 
@@ -156,16 +158,16 @@
 
         <div class="footer">
             <p>
-                <a href="https://www.gfz-potsdam.de">
-                    <img src="https://dataservices.gfz-potsdam.de/images/gfz-logo-en.gif" alt="GFZ">
+                <a href="https://www.gfz.de">
+                    <img src="{{ $message->embed(public_path('images/gfz-logo-en.gif')) }}" alt="GFZ">
                 </a>
                 <a href="https://www.helmholtz.de">
-                    <img src="https://dataservices.gfz-potsdam.de/images/helmholtz-logo-blue.png" alt="Helmholtz">
+                    <img src="{{ $message->embed(public_path('images/helmholtz-logo-blue.png')) }}" alt="Helmholtz">
                 </a>
             </p>
             <p>
                 GFZ German Research Centre for Geosciences<br>
-                <a href="https://dataservices.gfz-potsdam.de">dataservices.gfz-potsdam.de</a>
+                <a href="https://{{ $gfzDataServicesHost }}">{{ $gfzDataServicesHost }}</a>
             </p>
         </div>
     </div>
