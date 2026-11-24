@@ -373,8 +373,14 @@ enum CacheKey: string
         }
 
         $tags = $this->tags($suffix);
+        if ($tags !== [] && Cache::supportsTags()) {
+            return Cache::tags($tags);
+        }
 
-        return $tags !== [] && Cache::supportsTags() ? Cache::tags($tags) : Cache::store();
+        // An isolated worker can bind its repository directly in place of the cache manager.
+        $root = Cache::getFacadeRoot();
+
+        return $root instanceof Repository ? $root : Cache::store();
     }
 
     /**

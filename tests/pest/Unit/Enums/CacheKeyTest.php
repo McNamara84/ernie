@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 covers(CacheKey::class);
 
@@ -156,6 +158,31 @@ it('preserves the API 1.2 snapshot key pattern and the tags of both ROR entries'
         ->and($key->ttl())->toBe(86400)
         ->and(CacheKey::vocabularyKeys())->not->toContain($key);
 });
+
+it('forgets only the entry in the cache repository bound by a worker', function (CacheKey $key, string $driver): void {
+    $manager = Cache::getFacadeRoot();
+    $application = $key->repository('test-worker');
+    $worker = $manager->build(['driver' => $driver, 'path' => Storage::fake('worker-cache')->path('cache')]);
+    $tags = $key->tags('test-worker');
+    $workerEntries = $tags !== [] && $worker->supportsTags() ? $worker->tags($tags) : $worker;
+    $name = $key->key('test-worker');
+    $application->forever($name, 'application');
+    $workerEntries->forever($name, 'worker');
+
+    Cache::swap($worker);
+    try {
+        expect($key->forget('test-worker'))->toBeTrue()
+            ->and($workerEntries->has($name))->toBeFalse()
+            ->and($application->get($name))->toBe('application');
+    } finally {
+        Cache::swap($manager);
+        $application->forget($name);
+    }
+})->with([
+    'untagged entry on a taggable store' => [CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS, 'array'],
+    'tagged vocabulary entry' => [CacheKey::PUBLIC_VOCABULARY_SNAPSHOT, 'array'],
+    'vocabulary entry on a file store' => [CacheKey::PUBLIC_VOCABULARY_SNAPSHOT, 'file'],
+]);
 
 it('returns correct tags for ROR', function () {
     expect(CacheKey::ROR_AFFILIATION->tags())->toBe(['ror', 'affiliations']);
