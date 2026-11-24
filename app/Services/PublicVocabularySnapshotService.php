@@ -4,26 +4,23 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
 use App\Exceptions\VocabularyCorruptedException;
 use App\Exceptions\VocabularyNotFoundException;
 use App\Exceptions\VocabularyReadException;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
-use App\Support\Traits\ChecksCacheTagging;
 use Closure;
 use GuzzleHttp\Psr7\CachingStream;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Psr\Http\Message\StreamInterface;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class PublicVocabularySnapshotService
 {
-    use ChecksCacheTagging;
-
     public function __construct(
         private readonly PublicVocabularySchemaService $schemas,
         private readonly MslLaboratoryVocabularyService $laboratories,
@@ -152,10 +149,8 @@ final class PublicVocabularySnapshotService
     private function remember(string $slug, string $revision, Closure $prepare): ?string
     {
         $revision .= ':'.$this->schemas->revision();
-        $key = 'vocabularies:public:1.2:'.$slug;
-        $cache = in_array($slug, ['msl-laboratories', 'pid4inst-instruments'], true)
-            ? Cache::store('file')
-            : $this->getCacheInstance(str_starts_with($slug, 'ror-affiliations') ? ['vocabularies', 'ror'] : ['vocabularies']);
+        $key = CacheKey::PUBLIC_VOCABULARY_SNAPSHOT->key($slug);
+        $cache = CacheKey::PUBLIC_VOCABULARY_SNAPSHOT->repository($slug);
         $cached = $cache->get($key);
         if (is_array($cached) && $cached['revision'] === $revision) {
             return $cached['projection'];

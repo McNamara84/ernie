@@ -145,6 +145,18 @@ it('returns correct tags for vocabularies', function () {
     expect(CacheKey::RAID_PROJECTS->tags())->toBe(['vocabularies']);
 });
 
+it('preserves the API 1.2 snapshot key pattern and the tags of both ROR entries', function (): void {
+    $key = CacheKey::PUBLIC_VOCABULARY_SNAPSHOT;
+
+    expect($key->key('msl'))->toBe('vocabularies:public:1.2:msl')
+        ->and($key->key('ror-affiliations:file'))->toBe('vocabularies:public:1.2:ror-affiliations:file')
+        ->and($key->tags('msl'))->toBe(['vocabularies'])
+        ->and($key->tags('ror-affiliations'))->toBe(['vocabularies', 'ror'])
+        ->and($key->tags('ror-affiliations:file'))->toBe(['vocabularies', 'ror'])
+        ->and($key->ttl())->toBe(86400)
+        ->and(CacheKey::vocabularyKeys())->not->toContain($key);
+});
+
 it('returns correct tags for ROR', function () {
     expect(CacheKey::ROR_AFFILIATION->tags())->toBe(['ror', 'affiliations']);
 });

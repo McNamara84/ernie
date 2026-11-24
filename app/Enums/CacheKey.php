@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -38,6 +39,7 @@ enum CacheKey: string
     case ANALYTICAL_METHODS = 'vocabularies:analytical_methods';
     case EUROSCIVOC = 'vocabularies:euroscivoc';
     case CGI_SIMPLE_LITHOLOGY = 'vocabularies:cgi:simple_lithology';
+    case PUBLIC_VOCABULARY_SNAPSHOT = 'vocabularies:public:1.2';
 
     // ROR affiliation cache keys
     case ROR_AFFILIATION = 'ror:affiliation';
@@ -251,8 +253,9 @@ enum CacheKey: string
             // Published landing page render data - short-lived and configurable
             self::LANDING_PAGE_RENDER_DATA => max(0, (int) config('bot_protection.landing_cache_ttl', 600)),
 
-            // Subject vocabulary revisions and download URL suggestions use forever storage and explicit invalidation.
+            // Snapshot entries, subject vocabulary revisions and download URL suggestions use forever storage.
             // This TTL acts only as a safe default if the enum is reused elsewhere.
+            self::PUBLIC_VOCABULARY_SNAPSHOT,
             self::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION,
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => 86400,
 
@@ -264,7 +267,7 @@ enum CacheKey: string
      *
      * @return array<string> Array of cache tags
      */
-    public function tags(): array
+    public function tags(string|int|null $suffix = null): array
     {
         return match ($this) {
             self::RESOURCE_LIST,
@@ -290,6 +293,9 @@ enum CacheKey: string
             self::ANALYTICAL_METHODS,
             self::EUROSCIVOC => ['vocabularies'],
             self::CGI_SIMPLE_LITHOLOGY => ['vocabularies'],
+            self::PUBLIC_VOCABULARY_SNAPSHOT => str_starts_with((string) $suffix, 'ror-affiliations')
+                ? ['vocabularies', 'ror']
+                : ['vocabularies'],
 
             self::ROR_AFFILIATION => ['ror', 'affiliations'],
 
@@ -359,6 +365,18 @@ enum CacheKey: string
         };
     }
 
+    public function repository(string|int|null $suffix = null): Repository
+    {
+        // Large public projections use the file store even when the default store limits item size.
+        if ($this === self::PUBLIC_VOCABULARY_SNAPSHOT && in_array($suffix, ['msl-laboratories', 'pid4inst-instruments'], true)) {
+            return Cache::store('file');
+        }
+
+        $tags = $this->tags($suffix);
+
+        return $tags !== [] && Cache::supportsTags() ? Cache::tags($tags) : Cache::store();
+    }
+
     /**
      * Forget this cache key, using tag-aware invalidation when the store supports tagging.
      *
@@ -370,14 +388,7 @@ enum CacheKey: string
      */
     public function forget(string|int|null $suffix = null): bool
     {
-        $fullKey = $this->key($suffix);
-        $tags = $this->tags();
-
-        if ($tags !== [] && method_exists(Cache::getStore(), 'tags')) {
-            return Cache::tags($tags)->forget($fullKey);
-        }
-
-        return Cache::forget($fullKey);
+        return $this->repository($suffix)->forget($this->key($suffix));
     }
 
     /**
@@ -393,7 +404,7 @@ enum CacheKey: string
     }
 
     /**
-     * Get all vocabulary-related cache keys.
+     * Get the fixed vocabulary payload keys whose TTLs can be refreshed.
      *
      * @return array<int, self>
      */

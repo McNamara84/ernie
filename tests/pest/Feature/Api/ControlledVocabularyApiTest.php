@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\VocabularyController;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
@@ -202,6 +203,27 @@ it('revalidates an unchanged snapshot when its published schema changes', functi
             ->assertOk()->assertExactJson([]);
     }
 });
+
+it('invalidates a public snapshot entry in the same store and tag namespace used by the API', function (string $suffix, string $source, array $tags): void {
+    config(['cache.stores.file.path' => Storage::path('snapshot-cache')]);
+    $slug = explode(':', $suffix, 2)[0];
+    Storage::put(publicVocabularyContract()[$slug][1], $source);
+    $this->travel(5)->seconds(); // Allow the local ROR file to use its stable-file cache entry.
+    getJson('/api/v1/vocabularies/data/'.$slug, ['X-API-Key' => 'vocabulary-key'])->assertOk();
+
+    $pattern = CacheKey::PUBLIC_VOCABULARY_SNAPSHOT;
+    $key = $pattern->key($suffix);
+    $cache = $tags === [] ? Cache::store('file') : Cache::tags($tags);
+    expect($cache->has($key))->toBeTrue()
+        ->and($pattern->forget($suffix))->toBeTrue()
+        ->and($cache->has($key))->toBeFalse();
+})->with([
+    'vocabulary marker' => ['msl', '[]', ['vocabularies']],
+    'ROR content marker' => ['ror-affiliations', '[]', ['vocabularies', 'ror']],
+    'ROR file marker' => ['ror-affiliations:file', '[]', ['vocabularies', 'ror']],
+    'public instruments on disk' => ['pid4inst-instruments', '{"lastUpdated":"2026-11-01T00:00:00Z","total":0,"data":[]}', []],
+    'public laboratories on disk' => ['msl-laboratories', '{"version":"1.2","lastUpdated":"2026-11-01T00:00:00Z","total":0,"source":{"repository":"msl","ref":"main","path":"labs.json","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"data":[]}', []],
+]);
 
 it('rejects scalar vocabulary data', function (string $slug, string $file): void {
     Storage::put($file, 'false');
