@@ -3,8 +3,8 @@
     "info": {
         "title": "ERNIE API",
         "summary": "Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.",
-        "version": "1.1.0",
-        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems. Version 1.1 adds ELMO-MSL editor configuration. ERNIE, ELMO and ELMO-MSL activation and resource-type license exclusions are independent. SWHID validation is available as a stateless POST operation with the ernie-swhid-v1 profile.",
+        "version": "1.2.0",
+        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems. Version 1.2 introduces one vocabulary visibility endpoint per external editor and a shared data endpoint for ten thesauri and three PID registries. ERNIE, ELMO and ELMO-MSL activation and resource-type license exclusions are independent. SWHID validation is available as a stateless POST operation with the ernie-swhid-v1 profile.",
         "termsOfService": "https://ernie.rz-vm182.gfz.de/legal-notice",
         "contact": {
             "name": "Holger Ehrmann",
@@ -36,7 +36,7 @@
         {
             "name": "Vocabularies",
             "summary": "Controlled vocabularies and availability endpoints",
-            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory), PID registries (b2inst and RAiD), and ROR (Research Organization Registry)"
+            "description": "Editor-specific visibility settings and shared downloads for ten controlled vocabularies and the PID4INST, RAiD and ROR registries."
         },
         {
             "name": "DataCite",
@@ -677,11 +677,247 @@
                 }
             }
         },
+        "/api/v1/elmo/vocabularies/visibility": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "operationId": "getElmoVocabularyVisibility",
+                "summary": "Get vocabulary visibility for ELMO",
+                "description": "Returns the editor setting for each of the 13 vocabulary slugs. A value of true enables display in ELMO, including when the source file is missing. Use any returned slug with GET /api/v1/vocabularies/data/{vocab}.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configured vocabulary visibility for ELMO.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VocabularyVisibility"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/visibility": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "operationId": "getElmoMslVocabularyVisibility",
+                "summary": "Get vocabulary visibility for ELMO-MSL",
+                "description": "Returns the editor setting for each of the 13 vocabulary slugs. A value of true enables display in ELMO-MSL, including when the source file is missing. Use any returned slug with GET /api/v1/vocabularies/data/{vocab}.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configured vocabulary visibility for ELMO-MSL.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VocabularyVisibility"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/vocabularies/data/{vocab}": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "operationId": "getControlledVocabularyData",
+                "summary": "Get a complete controlled vocabulary or PID registry",
+                "description": "ELMO and ELMO-MSL share this endpoint. It returns the public content in the format of the requested vocabulary, including its hierarchy or registry metadata. A hidden vocabulary is still available for download. For a legacy flat ROR list, lastUpdated is the source file's modification time.",
+                "parameters": [
+                    {
+                        "name": "vocab",
+                        "in": "path",
+                        "required": true,
+                        "description": "Vocabulary slug from either editor's visibility response. The matching response schema is labelled with this slug.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "gcmd-science-keywords",
+                                "gcmd-platforms",
+                                "gcmd-instruments",
+                                "msl",
+                                "msl-laboratories",
+                                "chronostrat-timescale",
+                                "gemet",
+                                "analytical-methods",
+                                "euroscivoc",
+                                "cgi-simple-lithology",
+                                "pid4inst-instruments",
+                                "raid-projects",
+                                "ror-affiliations"
+                            ]
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The public snapshot for the requested vocabulary.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "title": "gcmd-science-keywords",
+                                            "$ref": "#/components/schemas/GcmdScienceKeywords"
+                                        },
+                                        {
+                                            "title": "gcmd-platforms",
+                                            "$ref": "#/components/schemas/GcmdPlatforms"
+                                        },
+                                        {
+                                            "title": "gcmd-instruments",
+                                            "$ref": "#/components/schemas/GcmdInstruments"
+                                        },
+                                        {
+                                            "title": "msl",
+                                            "$ref": "#/components/schemas/MslKeywords"
+                                        },
+                                        {
+                                            "title": "msl-laboratories",
+                                            "$ref": "#/components/schemas/MslLaboratoriesResponse"
+                                        },
+                                        {
+                                            "title": "chronostrat-timescale",
+                                            "$ref": "#/components/schemas/ChronostratTimescale"
+                                        },
+                                        {
+                                            "title": "gemet",
+                                            "$ref": "#/components/schemas/GemetThesaurus"
+                                        },
+                                        {
+                                            "title": "analytical-methods",
+                                            "$ref": "#/components/schemas/AnalyticalMethodsVocabulary"
+                                        },
+                                        {
+                                            "title": "euroscivoc",
+                                            "$ref": "#/components/schemas/EuroSciVocVocabulary"
+                                        },
+                                        {
+                                            "title": "cgi-simple-lithology",
+                                            "$ref": "#/components/schemas/CgiSimpleLithologyVocabulary"
+                                        },
+                                        {
+                                            "title": "pid4inst-instruments",
+                                            "$ref": "#/components/schemas/Pid4instInstruments"
+                                        },
+                                        {
+                                            "title": "raid-projects",
+                                            "$ref": "#/components/schemas/RaidProjects"
+                                        },
+                                        {
+                                            "title": "ror-affiliations",
+                                            "$ref": "#/components/schemas/RorAffiliations"
+                                        }
+                                    ]
+                                },
+                                "examples": {
+                                    "platforms": {
+                                        "summary": "gcmd-platforms",
+                                        "value": {
+                                            "lastUpdated": "2026-11-09T12:00:00Z",
+                                            "data": [
+                                                {
+                                                    "id": "https://example.org/platforms/satellites",
+                                                    "text": "Satellites",
+                                                    "language": "en",
+                                                    "scheme": "GCMD Platforms",
+                                                    "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms",
+                                                    "description": "Satellite platforms",
+                                                    "children": [
+                                                        {
+                                                            "id": "https://example.org/platforms/landsat",
+                                                            "text": "Landsat",
+                                                            "language": "en",
+                                                            "scheme": "GCMD Platforms",
+                                                            "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms",
+                                                            "description": "Landsat satellites",
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "ror": {
+                                        "summary": "ror-affiliations",
+                                        "value": {
+                                            "lastUpdated": "2026-11-09T12:00:00Z",
+                                            "total": 1,
+                                            "data": [
+                                                {
+                                                    "prefLabel": "GFZ Helmholtz Centre for Geosciences",
+                                                    "rorId": "https://ror.org/04z8jg394",
+                                                    "otherLabel": ["GFZ"]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Unknown vocabulary slug or no local snapshot available.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "The local vocabulary could not be read or is malformed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/gcmd-science-keywords": {
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Science Keywords vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-science-keywords for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -727,7 +963,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Platforms vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-platforms for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -773,7 +1010,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Instruments vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-instruments for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -819,7 +1057,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get MSL laboratories vocabulary",
-                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl-laboratories for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -883,7 +1122,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ICS Chronostratigraphic Timescale vocabulary",
-                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/chronostrat-timescale for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -929,7 +1169,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GEMET Thesaurus vocabulary",
-                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gemet for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -975,7 +1216,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get Analytical Methods for Geochemistry vocabulary",
-                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/analytical-methods for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1021,7 +1263,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get European Science Vocabulary (EuroSciVoc)",
-                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/euroscivoc for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1067,7 +1310,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get CGI Simple Lithology vocabulary",
-                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/cgi-simple-lithology for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1113,7 +1357,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get PIDINST instruments vocabulary",
-                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/pid4inst-instruments for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1159,7 +1404,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get RAiD projects for ELMO",
-                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/raid-projects for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1243,7 +1489,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ROR affiliations for ELMO",
-                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/ror-affiliations for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1289,7 +1536,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check thesauri availability for ELMO",
-                "description": "Returns the availability status of all configured thesauri from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead.",
+                "description": "Returns the availability status of all configured thesauri from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead. Deprecated since API 1.2.0. Use GET /api/v1/elmo/vocabularies/visibility for ELMO. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1319,7 +1567,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check PID registry availability for ELMO",
-                "description": "Returns the availability status of all configured PID registries from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead.",
+                "description": "Returns the availability status of all configured PID registries from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead. Deprecated since API 1.2.0. Use GET /api/v1/elmo/vocabularies/visibility for ELMO. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -3727,7 +3976,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Science Keywords vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-science-keywords for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -3774,7 +4024,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Platforms vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-platforms for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -3821,7 +4072,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Instruments vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-instruments for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -3868,7 +4120,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get MSL laboratories vocabulary",
-                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl-laboratories for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -3933,7 +4186,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ICS Chronostratigraphic Timescale vocabulary",
-                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/chronostrat-timescale for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -3980,7 +4234,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GEMET Thesaurus vocabulary",
-                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gemet for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4027,7 +4282,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get Analytical Methods for Geochemistry vocabulary",
-                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/analytical-methods for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4074,7 +4330,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get European Science Vocabulary (EuroSciVoc)",
-                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/euroscivoc for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4121,7 +4378,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get CGI Simple Lithology vocabulary",
-                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/cgi-simple-lithology for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4168,7 +4426,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get PIDINST instruments vocabulary",
-                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/pid4inst-instruments for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4215,7 +4474,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get RAiD projects for ELMO-MSL",
-                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/raid-projects for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4262,7 +4522,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ROR affiliations for ELMO-MSL",
-                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/ror-affiliations for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4309,7 +4570,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check thesauri availability for ELMO-MSL",
-                "description": "Returns the availability status of all configured thesauri from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the availability status of all configured thesauri from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/elmo-msl/vocabularies/visibility for ELMO-MSL. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4340,7 +4602,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check PID registry availability for ELMO-MSL",
-                "description": "Returns the availability status of all configured PID registries from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the availability status of all configured PID registries from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/elmo-msl/vocabularies/visibility for ELMO-MSL. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4442,7 +4705,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get EPOS MSL keywords",
-                "description": "Returns the local MSL keyword tree when independently enabled for ELMO.",
+                "description": "Returns the local MSL keyword tree when independently enabled for ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4489,7 +4753,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get EPOS MSL keywords for ELMO-MSL",
-                "description": "Returns the local MSL keyword tree when independently enabled for ELMO-MSL.",
+                "description": "Returns the local MSL keyword tree when independently enabled for ELMO-MSL. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -5695,11 +5960,10 @@
             "GcmdScienceKeywords": {
                 "type": "object",
                 "description": "GCMD Science Keywords from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T11:54:31Z"
                     },
                     "data": {
@@ -5714,11 +5978,10 @@
             "GcmdPlatforms": {
                 "type": "object",
                 "description": "GCMD Platforms from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T12:13:45Z"
                     },
                     "data": {
@@ -5733,11 +5996,10 @@
             "GcmdInstruments": {
                 "type": "object",
                 "description": "GCMD Instruments from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T12:22:38Z"
                     },
                     "data": {
@@ -5837,11 +6099,10 @@
             "ChronostratTimescale": {
                 "type": "object",
                 "description": "ICS Chronostratigraphic Timescale from ARDC Linked Data API (International Chronostratigraphic Chart / Geologic Time Scale 2020)",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-12-15T09:30:00Z"
                     },
                     "data": {
@@ -5856,11 +6117,10 @@
             "GemetThesaurus": {
                 "type": "object",
                 "description": "GEMET (GEneral Multilingual Environmental Thesaurus) from the EIONET REST API",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2026-03-12T10:00:00Z"
                     },
                     "data": {
@@ -5875,11 +6135,10 @@
             "AnalyticalMethodsVocabulary": {
                 "type": "object",
                 "description": "Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the ARDC Linked Data API (EarthChem/GEOROC)",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2026-04-15T12:00:00Z"
                     },
                     "data": {
@@ -6105,6 +6364,14 @@
                     }
                 }
             },
+            "ThesaurusSnapshotTimestamp": {
+                "type": "string",
+                "description": "Update time in RFC 3339 format or in the YYYY-MM-DD HH:mm:ss format written by earlier thesaurus imports.",
+                "anyOf": [
+                    { "format": "date-time" },
+                    { "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]) ([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$" }
+                ]
+            },
             "GcmdKeywordConcept": {
                 "type": "object",
                 "properties": {
@@ -6249,6 +6516,84 @@
                     }
                 },
                 "required": ["id", "pid", "pidType", "name"]
+            },
+            "VocabularyVisibility": {
+                "type": "object",
+                "description": "Display settings for one editor, keyed by the slug accepted by the shared data endpoint. Each key is present. A missing setting uses the editor defaults: CGI Simple Lithology is hidden and all other sources are visible.",
+                "required": [
+                    "gcmd-science-keywords",
+                    "gcmd-platforms",
+                    "gcmd-instruments",
+                    "msl",
+                    "msl-laboratories",
+                    "chronostrat-timescale",
+                    "gemet",
+                    "analytical-methods",
+                    "euroscivoc",
+                    "cgi-simple-lithology",
+                    "pid4inst-instruments",
+                    "raid-projects",
+                    "ror-affiliations"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "gcmd-science-keywords": {
+                        "type": "boolean"
+                    },
+                    "gcmd-platforms": {
+                        "type": "boolean"
+                    },
+                    "gcmd-instruments": {
+                        "type": "boolean"
+                    },
+                    "msl": {
+                        "type": "boolean"
+                    },
+                    "msl-laboratories": {
+                        "type": "boolean"
+                    },
+                    "chronostrat-timescale": {
+                        "type": "boolean"
+                    },
+                    "gemet": {
+                        "type": "boolean"
+                    },
+                    "analytical-methods": {
+                        "type": "boolean"
+                    },
+                    "euroscivoc": {
+                        "type": "boolean"
+                    },
+                    "cgi-simple-lithology": {
+                        "type": "boolean"
+                    },
+                    "pid4inst-instruments": {
+                        "type": "boolean"
+                    },
+                    "raid-projects": {
+                        "type": "boolean"
+                    },
+                    "ror-affiliations": {
+                        "type": "boolean"
+                    }
+                },
+                "examples": [
+                    {
+                        "gcmd-science-keywords": true,
+                        "gcmd-platforms": false,
+                        "gcmd-instruments": true,
+                        "msl": true,
+                        "msl-laboratories": true,
+                        "chronostrat-timescale": true,
+                        "gemet": true,
+                        "analytical-methods": true,
+                        "euroscivoc": true,
+                        "cgi-simple-lithology": false,
+                        "pid4inst-instruments": true,
+                        "raid-projects": true,
+                        "ror-affiliations": true
+                    }
+                ]
             },
             "ThesauriAvailability": {
                 "type": "object",
@@ -6470,7 +6815,8 @@
                     },
                     "total": {
                         "type": "integer",
-                        "description": "Total number of organizations in the dataset",
+                        "minimum": 0,
+                        "description": "Number of organization entries in data.",
                         "example": 109876
                     },
                     "data": {
@@ -6653,7 +6999,7 @@
                     {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                            "$ref": "#/components/schemas/MslKeywordConcept"
                         }
                     },
                     {
@@ -6665,13 +7011,53 @@
                             "data": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/GcmdKeywordConcept"
+                                    "$ref": "#/components/schemas/MslKeywordConcept"
                                 }
                             }
                         },
                         "required": ["data"]
                     }
                 ]
+            },
+            "MslKeywordConcept": {
+                "type": "object",
+                "description": "A node in the EPOS MSL keyword tree.",
+                "required": ["id", "text", "language", "scheme", "schemeURI", "description"],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Concept URI, or an empty string when the source node has no URI.",
+                        "anyOf": [{ "format": "uri" }, { "const": "" }]
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Preferred label of the concept."
+                    },
+                    "language": {
+                        "type": "string",
+                        "examples": ["en"]
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "examples": ["EPOS MSL vocabulary"]
+                    },
+                    "schemeURI": {
+                        "type": "string",
+                        "format": "uri",
+                        "examples": ["https://epos-msl.uu.nl/voc"]
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Definition of the concept, or an empty string when unavailable."
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "Child concepts. Leaves may omit this property or have an empty array.",
+                        "items": {
+                            "$ref": "#/components/schemas/MslKeywordConcept"
+                        }
+                    }
+                }
             },
             "IdentifierSemanticValidation": {
                 "type": "object",

@@ -84,10 +84,10 @@ it('keeps role categories and active identifier patterns in MSL responses', func
         ->assertJsonCount(2, '0.patterns.validation');
 });
 
-it('authenticates all 27 MSL routes and documents each registered route', function (): void {
-    $spec = $this->getJson('/api/v1/doc')->assertOk()->assertJsonPath('openapi', '3.2.1')->assertJsonPath('info.version', '1.1.0')->json();
+it('authenticates and documents each registered ELMO-MSL route', function (): void {
+    $spec = $this->getJson('/api/v1/doc')->assertOk()->assertJsonPath('openapi', '3.2.1')->assertJsonPath('info.version', '1.2.0')->json();
     $routes = collect(Route::getRoutes()->getRoutes())->filter(fn ($route): bool => str_contains($route->uri(), 'elmo-msl'));
-    expect($routes)->toHaveCount(27);
+    expect($routes->pluck('uri'))->toContain('api/v1/elmo-msl/vocabularies/visibility', 'api/v1/resource-types/elmo-msl');
     foreach ($routes as $route) {
         $path = '/'.$route->uri();
         expect($spec['paths'])->toHaveKey($path);

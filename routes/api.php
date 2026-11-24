@@ -73,6 +73,12 @@ Route::middleware(['throttle:orcid-api', PrioritizeInteractiveApiRequests::class
     Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
     Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
 });
+Route::middleware('ernie.api-key')->group(function () {
+    Route::get('/v1/elmo/vocabularies/visibility', [VocabularyController::class, 'visibility'])->defaults('editor', 'elmo');
+    Route::get('/v1/elmo-msl/vocabularies/visibility', [VocabularyController::class, 'visibility'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/vocabularies/data/{vocab}', [VocabularyController::class, 'data']);
+});
+
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords'])->defaults('editor', 'elmo');
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms'])->defaults('editor', 'elmo');
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])->defaults('editor', 'elmo');

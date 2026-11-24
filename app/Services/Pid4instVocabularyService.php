@@ -68,9 +68,10 @@ final class Pid4instVocabularyService
     }
 
     /** @return Snapshot */
-    public function getPublicPayload(): array
+    public function getPublicPayload(?string $snapshot = null): array
     {
-        $payload = array_intersect_key($this->getLocalPayload(), array_flip(['lastUpdated', 'total', 'data']));
+        $local = $snapshot === null ? $this->getLocalPayload() : $this->decode($snapshot);
+        $payload = array_intersect_key($local, array_flip(['lastUpdated', 'total', 'data']));
         // Project on every read, including cache hits.
         $payload['data'] = array_map(function (array $record): array {
             unset($record['lookupIdentifiers']);

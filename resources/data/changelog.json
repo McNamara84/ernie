@@ -91,6 +91,10 @@
         ],
         "improvements": [
             {
+                "title": "Shared vocabulary downloads in ERNIE API 1.2",
+                "description": "ELMO and ELMO-MSL can each read the visibility of ten thesauri and three PID registries in one request. Both editors use the same URL to download a vocabulary, including its full hierarchy when hidden. The download returns HTTP 500 for malformed snapshots and streams validated ROR registries on repeat requests. The OpenAPI documentation marks all 30 superseded endpoints as deprecated and lists their replacements. Existing clients can continue using those endpoints during migration."
+            },
+            {
                 "title": "Reliable PIDINST Synchronization",
                 "description": "Instrument lists now synchronize with B2INST v3 using complete-list validation, migrated Handle identity checks and safe publication that preserves existing dataset links. Admins and Group Leaders can refresh metadata even when record counts are unchanged; excluded records no longer cause repeated update notices. Administrators can preview changes with get-pid4inst-instruments --dry-run and recover pending cache or ELMO refreshes with --refresh-caches without downloading the registry again. User documentation explains the workflow and recovery steps.",
                 "references": [{ "type": "pull_request", "number": 1511, "url": "https://github.com/McNamara84/ernie/pull/1511" }]
