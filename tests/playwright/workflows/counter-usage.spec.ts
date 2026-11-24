@@ -1,24 +1,46 @@
 import { readFile } from 'node:fs/promises';
 
-import { expect, test as guestTest } from '@playwright/test';
+import { expect, type Page, test as guestTest } from '@playwright/test';
 
 import { test } from '../fixtures/authenticated';
+import { LandingPage } from '../helpers/page-objects/LandingPage';
+
+async function expectPublicPortals(page: Page) {
+    const navigation = page.getByRole('navigation', { name: 'Usage navigation' });
+    await expect(navigation.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
+    await expect(navigation.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
+    await expect(navigation.getByRole('link')).toHaveCount(2);
+    await expect(page.locator('a[href="/login"], a[href="/dashboard"], a[href="/changelog"]')).toHaveCount(0);
+}
 
 test.describe('Usage statistics', () => {
     for (const fixture of [
         { path: '/10.1234/playwright-published/playwright-published', igsn: false },
         { path: '/10.60510/gfbno7002exz3001/playwright-legacy-igsn', igsn: true },
     ]) {
-        test(`shows the ${fixture.igsn ? 'IGSN' : 'DOI'} usage module and method link`, async ({ page }) => {
+        guestTest(`returns guests to the originating ${fixture.igsn ? 'IGSN' : 'DOI'} landing page`, async ({ page, context }) => {
             await page.setViewportSize({ width: 390, height: 844 });
             await page.goto(fixture.path);
             const usage = page.locator('[aria-label="Usage"]');
             await expect(usage.getByRole('heading', { name: 'Usage', exact: true })).toBeVisible();
-            await expect(usage.getByRole('link', { name: 'How we count', exact: true })).toHaveAttribute('href', '/usage-statistics');
             if (fixture.igsn) {
                 await expect(usage).not.toContainText(/downloads/i);
             }
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+            await usage.getByRole('link', { name: 'How we count', exact: true }).click();
+            await expect(page).toHaveURL(/\/usage-statistics\?landing_page=[1-9]\d*$/);
+            const methodUrl = page.url();
+            await page.reload();
+            const label = fixture.igsn ? 'Back to IGSN sample' : 'Back to resource';
+            const returnLink = page.getByRole('link', { name: label });
+            await expect(returnLink).toHaveAttribute('href', fixture.path);
+            await returnLink.press('Enter');
+            await expect(page).toHaveURL(fixture.path);
+
+            const freshTab = await context.newPage();
+            await freshTab.goto(methodUrl);
+            await freshTab.getByRole('link', { name: label }).click();
+            await expect(freshTab).toHaveURL(fixture.path);
         });
     }
 
@@ -26,6 +48,7 @@ test.describe('Usage statistics', () => {
         await page.setViewportSize({ width: 375, height: 812 });
         await page.goto('/usage-statistics');
         await expect(page.getByRole('heading', { name: 'How we count usage' })).toBeVisible();
+        await expectPublicPortals(page);
         await expect(page.getByRole('link', { name: 'GFZ Data Services privacy policy' })).toHaveAttribute(
             'href',
             'https://gfz-data-services.gfz.de/about-us/data-protection',
@@ -33,6 +56,28 @@ test.describe('Usage statistics', () => {
         await expect(page.getByText(/IGSNs describe physical samples and have views only/)).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
+
+    guestTest('keeps a token-protected review open while the method opens in a new tab', async ({ page, context }) => {
+        await new LandingPage(page).gotoPreview('playwright-review');
+        const [method] = await Promise.all([
+            context.waitForEvent('page'),
+            page.getByRole('link', { name: 'How we count (opens in a new tab)' }).click(),
+        ]);
+        await expect(method).toHaveURL('/usage-statistics');
+        await expectPublicPortals(method);
+        expect(await method.evaluate(() => document.referrer)).toBe('');
+        await method.close();
+        await expect(page.getByText('Preview Mode', { exact: true })).toBeVisible();
+    });
+
+    for (const origin of ['/statistics', '/docs?tab=datasets&section=landing-pages']) {
+        test(`shows public navigation when staff open the method from ${origin}`, async ({ page }) => {
+            await page.goto(origin);
+            await page.getByRole('link', { name: 'How we count', exact: true }).click();
+            await expect(page).toHaveURL('/usage-statistics');
+            await expectPublicPortals(page);
+        });
+    }
 
     for (const width of [390, 1440]) {
         test(`preserves filters and separates the historical dashboard at ${width}px`, async ({ page }) => {

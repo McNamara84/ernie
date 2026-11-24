@@ -1049,7 +1049,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <a href="/usage-statistics" className="underline">
                                 How we count
                             </a>{' '}
-                            page explains the counting rules and links the existing privacy policy.
+                            page explains the counting rules and links the privacy policy. When opened from Statistics, it offers links to the public
+                            Data Portal and IGSN Portal.
                         </p>
 
                         <h4>Dashboard modules</h4>
@@ -1555,7 +1556,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>REST API</h3>
-                        <p>ERNIE API 1.1 follows OpenAPI 3.2.1. Existing API URLs remain under /api/v1/.</p>
+                        <p>ERNIE API 1.2 follows OpenAPI 3.2.1 and serves versioned endpoints under /api/v1/.</p>
 
                         <p>The published specification is linted and validated with Redocly during local quality checks and CI runs.</p>
 
@@ -1580,10 +1581,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             ELMO selections; subsequent changes affect only the selected editor.
                         </p>
                         <p>
-                            Use <code>/api/v1/resource-types/elmo</code> for ELMO and <code>/api/v1/resource-types/elmo-msl</code> for ELMO-MSL.
-                            ELMO-MSL vocabularies and availability endpoints use <code>/api/v1/elmo-msl/vocabularies/</code>. Both external editors
-                            accept the existing API key through <code>X-API-Key</code> or <code>Authorization: Bearer</code>. Disabling an entry for
-                            ERNIE no longer disables it for ELMO or ELMO-MSL.
+                            Use <code>/api/v1/resource-types/elmo</code> for ELMO and <code>/api/v1/resource-types/elmo-msl</code> for ELMO-MSL. Both
+                            external editors authenticate with <code>X-API-Key</code> or <code>Authorization: Bearer</code>.
+                        </p>
+
+                        <h4>Controlled vocabularies in API 1.2</h4>
+                        <p>
+                            ELMO reads <code>/api/v1/elmo/vocabularies/visibility</code> and ELMO-MSL reads{' '}
+                            <code>/api/v1/elmo-msl/vocabularies/visibility</code>. Each response maps the slugs of ten thesauri and three PID
+                            registries to booleans. For example, read <code>visibility['gcmd-platforms']</code> for the old{' '}
+                            <code>platforms.available</code> setting. A true value means the editor is configured to display the vocabulary.
+                        </p>
+                        <p>
+                            Use the slug to fetch the full vocabulary, for example <code>/api/v1/vocabularies/data/gcmd-platforms</code>. Both editors
+                            receive the complete hierarchy even when visibility is false. A missing snapshot returns HTTP 404 and an unreadable or
+                            malformed snapshot returns HTTP 500. Swagger UI marks the 1.1 vocabulary endpoints as deprecated and lists their
+                            replacements. Those endpoints serve their original responses during migration.
                         </p>
 
                         <h4>Key Endpoints</h4>
@@ -1598,29 +1611,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
                             </li>
                             <li>
-                                <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
+                                <code>/api/v1/vocabularies/data/raid-projects</code> – RAiD research activity identifiers
                             </li>
                             <li>
-                                <code>/api/v1/vocabularies/msl-laboratories</code> - Versioned Multi-Scale Laboratories vocabulary
+                                <code>/api/v1/vocabularies/data/msl-laboratories</code> – Versioned Multi-Scale Laboratories vocabulary
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/data/chronostrat-timescale</code> – ICS Chronostratigraphic Chart
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/data/gemet</code> – GEMET environmental thesaurus
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/data/cgi-simple-lithology</code> – CGI Simple Lithology vocabulary
                             </li>
                             <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/gcmd-*</code> – NASA GCMD controlled vocabularies
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/chronostrat-timescale</code> – ICS Chronostratigraphic Chart
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/gemet</code> – GEMET environmental thesaurus
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/cgi-simple-lithology</code> – CGI Simple Lithology vocabulary
-                            </li>
-                            <li>
-                                <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns
-                                is_elmo_active)
                             </li>
                         </ul>
                     </>
@@ -3054,8 +3060,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <a href="/usage-statistics" className="underline">
                                 How we count
                             </a>{' '}
-                            for the counting method and the existing privacy policy. Admins and Group Leaders can configure module visibility in a
-                            custom template; hiding Usage does not stop collection.
+                            for the counting method and privacy policy. From a published landing page, use <strong>Back to resource</strong> or{' '}
+                            <strong>Back to IGSN sample</strong> to return to the same item. Review links and editor previews open the method in a new
+                            tab so you can continue working in the original one. Admins and Group Leaders can configure module visibility in a custom
+                            template; hiding Usage does not stop collection.
                         </p>
                         <h4>Reading Coverage Descriptions on the Map</h4>
                         <p>

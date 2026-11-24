@@ -101,8 +101,13 @@ accepts an omitted `mode` or `mode=counter`; `mode=legacy` is a validation error
 (HTTP 422 for JSON clients, or a redirect with a field error for browser requests).
 Historical counters have no CSV export.
 
-The public method explanation is `/usage-statistics`. It links to the existing
-TYPO3-managed privacy policy; ERNIE neither copies nor edits that policy.
+The public method explanation at `/usage-statistics` links to the TYPO3-managed
+privacy policy. Published DOI and IGSN cards pass their landing-page ID so the
+method page can link back to the same resource or sample. A direct visit or a
+link to a page that is no longer public offers the Data Portal and IGSN Portal.
+The internal statistics and documentation links also open this public view.
+Drafts, review links and editor previews open the method in a new tab and keep
+the review token in the original tab.
 
 Run focused backend coverage with `npm run test:php -- tests/pest/Feature/Usage`.
 Use the repository's MySQL-sensitive usage slice for SQL and lock verification,

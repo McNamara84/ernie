@@ -14,6 +14,7 @@ export interface UsageStatus {
 }
 
 export interface UsageData extends UsageStatus {
+    publicMethodologyUrl?: string;
     views: number;
     downloads: number | null;
     months: { month: string; views: number | null; downloads: number | null; partial: boolean; incomplete: boolean }[];
@@ -130,8 +131,13 @@ export function UsageSection({ usage }: { usage: UsageData }) {
                 </p>
             )}
             {usage.paused && <p className="text-sm">Collection is currently paused.</p>}
-            <a className="mt-3 inline-block text-sm underline" href={usage.methodologyUrl}>
-                How we count
+            <a
+                className="mt-3 inline-block text-sm underline"
+                href={usage.publicMethodologyUrl ?? usage.methodologyUrl}
+                target={usage.publicMethodologyUrl ? undefined : '_blank'}
+                rel={usage.publicMethodologyUrl ? undefined : 'noopener noreferrer'}
+            >
+                How we count{!usage.publicMethodologyUrl && ' (opens in a new tab)'}
             </a>
         </LandingPageCard>
     );

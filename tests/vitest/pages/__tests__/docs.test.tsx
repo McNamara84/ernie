@@ -666,11 +666,15 @@ describe('Docs page', () => {
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
-    it('mentions API 1.1 and OpenAPI 3.2.1', () => {
+    it('documents API 1.2 vocabulary visibility and the shared download URL', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(screen.getByText(/OpenAPI 3\.2\.1/i)).toBeInTheDocument();
-        expect(screen.getByText(/API 1\.1/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Controlled vocabularies in API 1.2' })).toBeInTheDocument();
+        expect(screen.getByText('/api/v1/elmo/vocabularies/visibility')).toBeInTheDocument();
+        expect(screen.getByText('/api/v1/elmo-msl/vocabularies/visibility')).toBeInTheDocument();
+        expect(screen.getByText('/api/v1/vocabularies/data/gcmd-platforms')).toBeInTheDocument();
+        expect(screen.getByText(/marks the 1\.1 vocabulary endpoints as deprecated/i)).toBeInTheDocument();
     });
 
     it('documents personal settings through the user menu and route-specific settings pages', () => {
