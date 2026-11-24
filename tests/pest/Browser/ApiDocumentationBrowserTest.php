@@ -12,9 +12,11 @@ it('renders the built Swagger UI in the CI testing environment', function (): vo
 
     visit('/api/v1/doc')
         ->assertSee('ERNIE API')
-        ->assertSee('1.1.0')
+        ->assertSee('1.2.0')
         ->assertSee('OAS 3.2')
-        ->assertCount('#swagger-ui .opblock-summary-path[data-path*="elmo-msl"]', 27)
+        ->assertPresent('#swagger-ui .opblock-summary-path[data-path="/api/v1/vocabularies/data/{vocab}"]')
+        ->assertPresent('#swagger-ui .opblock-summary-path[data-path="/api/v1/elmo-msl/vocabularies/visibility"]')
+        ->assertPresent('#swagger-ui .opblock-deprecated [data-path="/api/v1/elmo/vocabularies/pid-availability"]')
         ->assertNotPresent('#swagger-ui .fallback')
         ->assertNotPresent('#swagger-ui .errors-wrapper')
         ->assertNoSmoke();

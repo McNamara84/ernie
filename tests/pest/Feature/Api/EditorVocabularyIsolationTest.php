@@ -48,7 +48,7 @@ it('never exposes internal B2INST provenance to any editor, including cached sna
         Cache::put(CacheKey::PID4INST_INSTRUMENTS->key(), $internal);
     }
     $this->actingAs(User::factory()->create());
-    foreach (['/vocabularies/', '/api/v1/vocabularies/', '/api/v1/elmo-msl/vocabularies/'] as $prefix) {
+    foreach (['/vocabularies/', '/api/v1/vocabularies/', '/api/v1/elmo-msl/vocabularies/', '/api/v1/vocabularies/data/'] as $prefix) {
         $this->getJson($prefix.'pid4inst-instruments', ['X-API-Key' => 'editor-test-key'])->assertExactJson($public);
     }
 })->with([false, true]);
@@ -58,7 +58,7 @@ it('checks each editor before reading shared cached vocabulary data', function (
     $setting = $model::firstOrCreate(['type' => $type], ['display_name' => $type]);
     $payload = ['data' => [$type === 'pid4inst'
         ? ['id' => 'test', 'pid' => '21.test/a', 'pidType' => 'Handle', 'name' => 'Test']
-        : ['id' => 'test', 'text' => 'Test']]];
+        : ['id' => 'test', 'text' => 'Test', 'children' => [['id' => 'child', 'text' => 'Nested term']]]]];
     Storage::put($file, json_encode($payload));
 
     for ($flags = 0; $flags < 8; $flags++) {
@@ -67,6 +67,8 @@ it('checks each editor before reading shared cached vocabulary data', function (
             'is_elmo_active' => (bool) ($flags & 2),
             'is_elmo_msl_active' => (bool) ($flags & 4),
         ]);
+        $this->getJson('/api/v1/vocabularies/data/'.$slug, ['X-API-Key' => 'editor-test-key'])
+            ->assertOk()->assertExactJson($payload);
         foreach (EditorContext::cases() as $index => $editor) {
             $url = match ($editor) {
                 EditorContext::ERNIE => '/vocabularies/'.$slug,
@@ -91,13 +93,19 @@ it('checks each editor before reading shared cached vocabulary data', function (
 it('uses MSL-specific ROR activation and never infers an editor from a header', function (): void {
     $setting = PidSetting::firstOrCreate(['type' => 'ror'], ['display_name' => 'ROR']);
     $setting->update(['is_active' => false, 'is_elmo_active' => true, 'is_elmo_msl_active' => false]);
-    Storage::put('ror/ror-affiliations.json', json_encode(['total' => 1, 'data' => [['id' => 'ror-test']]]));
+    $payload = ['lastUpdated' => '2026-11-09T12:00:00Z', 'total' => 1, 'data' => [[
+        'prefLabel' => 'GFZ', 'rorId' => 'https://ror.org/04z8jg394', 'otherLabel' => ['GFZ Potsdam'],
+    ]]];
+    Storage::put('ror/ror-affiliations.json', json_encode($payload));
     $this->getJson('/api/v1/ror-affiliations/elmo', ['X-API-Key' => 'editor-test-key'])->assertOk();
     $this->getJson('/api/v1/ror-affiliations/elmo-msl', ['X-API-Key' => 'editor-test-key'])->assertNotFound();
     $this->getJson('/api/v1/vocabularies/pid-availability', ['X-API-Key' => 'editor-test-key'])->assertJsonPath('ror.available', false);
     $setting->update(['is_elmo_active' => false, 'is_elmo_msl_active' => true]);
     $this->getJson('/api/v1/ror-affiliations/elmo-msl', ['Authorization' => 'Bearer editor-test-key'])->assertOk()->assertJsonPath('total', 1);
     $this->getJson('/api/v1/ror-affiliations/elmo', ['X-API-Key' => 'editor-test-key'])->assertNotFound();
+    $setting->update(['is_elmo_msl_active' => false]);
+    $this->getJson('/api/v1/vocabularies/data/ror-affiliations', ['X-API-Key' => 'editor-test-key'])
+        ->assertOk()->assertExactJson($payload);
 });
 
 it('preserves missing and corrupt file errors for enabled MSL vocabularies', function (): void {
@@ -125,6 +133,8 @@ it('isolates validated vocabulary services and their availability for every edit
     $setting = ThesaurusSetting::where('type', $type)->firstOrFail();
     for ($flags = 0; $flags < 8; $flags++) {
         $setting->update(['is_active' => (bool) ($flags & 1), 'is_elmo_active' => (bool) ($flags & 2), 'is_elmo_msl_active' => (bool) ($flags & 4)]);
+        $this->getJson('/api/v1/vocabularies/data/'.$slug, ['X-API-Key' => 'editor-test-key'])
+            ->assertOk()->assertExactJson($payload);
         foreach (EditorContext::cases() as $index => $editor) {
             $prefix = match ($editor) {
                 EditorContext::ERNIE => '/vocabularies/',
