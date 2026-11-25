@@ -41,6 +41,44 @@ beforeEach(function () {
     );
 });
 
+it('keeps worldwide, regional, and disabled map searches consistent with their counts', function (string $portal) {
+    $type = $portal === 'doi' ? $this->datasetType : $this->physicalObjectType;
+    $berlin = createPublishedResource($type, 'Berlin');
+    $fiji = createPublishedResource($type, 'Fiji');
+    createPublishedResource($type, 'No coordinates');
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $berlin->id]);
+    GeoLocation::factory()->withPoint(178.4, -18.1)->create(['resource_id' => $fiji->id]);
+
+    $worldFingerprint = $this->getJson(route("portal.{$portal}.count"))->assertOk()->json('filter_fingerprint');
+    $region = ['north' => 53, 'south' => 52, 'east' => 14, 'west' => 13];
+    foreach ([
+        [[], true, null],
+        [['north' => 90, 'south' => -90, 'east' => 180, 'west' => -180], true, null],
+        [['north' => 53], true, null],
+        [['map_filter' => '0'], false, null],
+        [['map_filter' => '0', ...$region], false, null],
+        [$region, true, $berlin->id],
+        [['north' => 0, 'south' => -30, 'east' => -170, 'west' => 170], true, $fiji->id],
+    ] as [$params, $enabled, $regionalId]) {
+        $page = $this->get(route("portal.{$portal}", $params))->assertOk();
+        $props = $page->viewData('page')['props'];
+        $fingerprint = $props['pagination']['filter_fingerprint'];
+        expect($props['filters']['mapFilterEnabled'])->toBe($enabled);
+        if ($regionalId === null) {
+            expect($props['filters']['bounds'])->toBeNull()
+                ->and($props['resources'])->toHaveCount(3)
+                ->and($fingerprint)->toBe($worldFingerprint);
+        } else {
+            expect(array_column($props['resources'], 'id'))->toBe([$regionalId])
+                ->and($fingerprint)->not->toBe($worldFingerprint);
+        }
+
+        $this->getJson(route("portal.{$portal}.count", $params))->assertOk()
+            ->assertJsonPath('total', count($props['resources']))
+            ->assertJsonPath('filter_fingerprint', $fingerprint);
+    }
+})->with(['doi', 'igsn']);
+
 it('publishes separate DOI and IGSN portal endpoint families', function () {
     expect(route('portal.doi', absolute: false))->toBe('/doi-search')
         ->and(route('portal.doi.count', absolute: false))->toBe('/doi-search/count')

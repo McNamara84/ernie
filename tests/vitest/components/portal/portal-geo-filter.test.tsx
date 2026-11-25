@@ -47,13 +47,13 @@ describe('PortalGeoFilter', () => {
     });
 
     describe('Enabled State', () => {
-        it('shows coordinate fields when enabled', () => {
+        it('prefills the entire world when enabled without a regional selection', () => {
             render(<PortalGeoFilter {...defaultProps} enabled={true} />);
 
-            expect(screen.getByLabelText('N')).toBeInTheDocument();
-            expect(screen.getByLabelText('S')).toBeInTheDocument();
-            expect(screen.getByLabelText('E')).toBeInTheDocument();
-            expect(screen.getByLabelText('W')).toBeInTheDocument();
+            expect(screen.getByLabelText('N')).toHaveValue(90);
+            expect(screen.getByLabelText('S')).toHaveValue(-90);
+            expect(screen.getByLabelText('E')).toHaveValue(180);
+            expect(screen.getByLabelText('W')).toHaveValue(-180);
         });
 
         it('shows description text when enabled', () => {
@@ -151,6 +151,7 @@ describe('PortalGeoFilter', () => {
             const user = userEvent.setup();
             render(<PortalGeoFilter {...defaultProps} enabled={true} />);
 
+            await user.clear(screen.getByLabelText('N'));
             await user.click(screen.getByRole('button', { name: /apply/i }));
 
             expect(screen.getByText('All four coordinates are required.')).toBeInTheDocument();
@@ -225,6 +226,7 @@ describe('PortalGeoFilter', () => {
             render(<PortalGeoFilter {...defaultProps} enabled={true} />);
 
             // First trigger an error
+            await user.clear(screen.getByLabelText('N'));
             await user.click(screen.getByRole('button', { name: /apply/i }));
             expect(screen.getByText('All four coordinates are required.')).toBeInTheDocument();
 
@@ -313,7 +315,8 @@ describe('PortalGeoFilter', () => {
 
             fireEvent.change(screen.getByLabelText('N'), { target: { value: '53' } });
             fireEvent.change(screen.getByLabelText('S'), { target: { value: '51' } });
-            // Leave E and W empty
+            await user.clear(screen.getByLabelText('E'));
+            await user.clear(screen.getByLabelText('W'));
 
             await user.click(screen.getByRole('button', { name: /apply/i }));
 

@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { Filter, List, Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -15,6 +15,7 @@ import { usePortalFilters } from '@/hooks/use-portal-filters';
 import { usePortalPagination } from '@/hooks/use-portal-pagination';
 import PortalLayout from '@/layouts/portal-layout';
 import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
+import { isPortalWorld, PORTAL_WORLD_BOUNDS, portalBoundsKey } from '@/lib/portal-map-bounds';
 import { cn } from '@/lib/utils';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
 
@@ -29,13 +30,21 @@ export default function Portal({
     mapConfig,
     resources,
     pagination,
-    filters,
+    filters: serverFilters,
     thesaurusFacets = [],
     igsnFacets = null,
     temporalRange,
     resourceTypeFacets,
     datacenterFacets,
 }: PortalPageProps) {
+    const { url } = usePage();
+    const filters = useMemo(() => {
+        if (serverFilters.mapFilterEnabled !== undefined) return serverFilters;
+        const enabled = new URL(url, 'http://localhost').searchParams.get('map_filter') !== '0';
+        const bounds = enabled && serverFilters.bounds && !isPortalWorld(serverFilters.bounds) ? serverFilters.bounds : null;
+        return { ...serverFilters, mapFilterEnabled: enabled, bounds };
+    }, [serverFilters, url]);
+    const geoFilterEnabled = filters.mapFilterEnabled !== false;
     const isDesktop = useMediaQuery(DESKTOP_QUERY);
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
     const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -88,7 +97,7 @@ export default function Portal({
         setGeologicalAges,
         setGeologicalUnits,
         setBounds,
-        clearBounds,
+        setMapFilterEnabled,
         setTemporal,
         clearFilters,
         clearTopic,
@@ -101,51 +110,78 @@ export default function Portal({
         [filters.freeKeywords, filters.keywords, hasLegacyKeywordFilters],
     );
 
-    const [geoFilterEnabled, setGeoFilterEnabled] = useState(() => filters.bounds !== null);
     const [temporalFilterEnabled, setTemporalFilterEnabled] = useState(() => filters.temporal !== null);
-    const [flyToBounds, setFlyToBounds] = useState<GeoBounds | null>(null);
+    const [viewportSearch, setViewportSearch] = useState<string | null>(null);
+    const [mapViewRevision, setMapViewRevision] = useState(0);
     const [geoCount, setGeoCount] = useState(0);
     const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    useEffect(() => setGeoFilterEnabled(filters.bounds !== null), [filters.bounds]);
     useEffect(() => setTemporalFilterEnabled(filters.temporal !== null), [filters.temporal]);
+
+    const cancelViewportUpdate = useCallback(() => {
+        if (viewportTimerRef.current !== null) clearTimeout(viewportTimerRef.current);
+        viewportTimerRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        setViewportSearch(null);
+        if (!geoFilterEnabled) cancelViewportUpdate();
+    }, [cancelViewportUpdate, filters, geoFilterEnabled]);
 
     const handleViewportChange = useCallback(
         (bounds: GeoBounds) => {
-            if (!geoFilterEnabled) return;
-            if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
-            viewportTimerRef.current = setTimeout(() => setBounds(bounds), 500);
+            cancelViewportUpdate();
+            if (!geoFilterEnabled || (isRefreshing && viewportSearch === null)) return;
+            const key = portalBoundsKey(bounds);
+            if (key === (viewportSearch ?? portalBoundsKey(filters.bounds ?? PORTAL_WORLD_BOUNDS))) return;
+            viewportTimerRef.current = setTimeout(() => {
+                viewportTimerRef.current = null;
+                setViewportSearch(key);
+                setBounds(bounds);
+            }, 500);
         },
-        [geoFilterEnabled, setBounds],
+        [cancelViewportUpdate, filters.bounds, geoFilterEnabled, isRefreshing, setBounds, viewportSearch],
     );
 
-    useEffect(
-        () => () => {
-            if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
-        },
-        [],
-    );
+    useEffect(() => {
+        const cancelPendingPan = () => {
+            if (viewportTimerRef.current !== null) {
+                cancelViewportUpdate();
+                setMapViewRevision((revision) => revision + 1);
+            }
+        };
+        const unsubscribe = router.on('before', cancelPendingPan);
+        const restoreHistory = () => {
+            cancelPendingPan();
+            setViewportSearch(null);
+        };
+        window.addEventListener('popstate', restoreHistory);
+        return () => {
+            unsubscribe();
+            window.removeEventListener('popstate', restoreHistory);
+            cancelViewportUpdate();
+        };
+    }, [cancelViewportUpdate]);
 
     const handleGeoFilterToggle = useCallback(
         (enabled: boolean) => {
-            setGeoFilterEnabled(enabled);
-            if (!enabled) {
-                if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
-                viewportTimerRef.current = null;
-                clearBounds();
-                setFlyToBounds(null);
-            }
+            cancelViewportUpdate();
+            setViewportSearch(null);
+            setMapFilterEnabled(enabled);
         },
-        [clearBounds],
+        [cancelViewportUpdate, setMapFilterEnabled],
     );
 
     const handleBoundsChange = useCallback(
         (bounds: GeoBounds | null) => {
-            setFlyToBounds(bounds);
-            if (bounds) setBounds(bounds);
-            else clearBounds();
+            cancelViewportUpdate();
+            setViewportSearch(null);
+            if (portalBoundsKey(bounds ?? PORTAL_WORLD_BOUNDS) === portalBoundsKey(filters.bounds ?? PORTAL_WORLD_BOUNDS)) {
+                setMapViewRevision((revision) => revision + 1);
+            }
+            setBounds(bounds);
         },
-        [clearBounds, setBounds],
+        [cancelViewportUpdate, filters.bounds, setBounds],
     );
 
     const handleTemporalChange = useCallback((temporal: TemporalFilterValue | null) => setTemporal(temporal), [setTemporal]);
@@ -165,14 +201,13 @@ export default function Portal({
     );
 
     const handleClearAllFilters = useCallback(() => {
-        if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
-        viewportTimerRef.current = null;
-        setGeoFilterEnabled(false);
+        cancelViewportUpdate();
+        setViewportSearch(null);
+        if (geoFilterEnabled && filters.bounds === null) setMapViewRevision((revision) => revision + 1);
         setTemporalFilterEnabled(false);
-        setFlyToBounds(null);
         setSearchDraft('');
         clearFilters();
-    }, [clearFilters]);
+    }, [cancelViewportUpdate, clearFilters, filters.bounds, geoFilterEnabled]);
 
     const handlePageChange = useCallback(
         (page: number) => router.get(buildPortalFilterUrl(filters, portal.basePath), { page }, { preserveState: true, preserveScroll: false }),
@@ -198,6 +233,7 @@ export default function Portal({
         onClearFilters: handleClearAllFilters,
         onClearTopic: clearTopic,
         hasActiveFilters,
+        geoFormRevision: mapViewRevision,
         thesaurusFacets,
         igsnFacets,
         geoFilterEnabled,
@@ -235,7 +271,8 @@ export default function Portal({
             geoFilterEnabled={geoFilterEnabled}
             onViewportChange={handleViewportChange}
             onLocationCountChange={setGeoCount}
-            flyToBounds={flyToBounds}
+            viewportSearch={viewportSearch}
+            viewRevision={mapViewRevision}
         />
     );
 

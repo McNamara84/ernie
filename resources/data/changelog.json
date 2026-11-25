@@ -96,6 +96,11 @@
         ],
         "improvements": [
             {
+                "title": "Worldwide Map Search by Default",
+                "description": "The DOI and IGSN portals start with the whole world selected, including records without coordinates. Zoom or pan to narrow the results, or turn off the map filter and share that choice in the search link.",
+                "references": [{ "type": "issue", "number": 1581, "url": "https://github.com/McNamara84/ernie/issues/1581" }]
+            },
+            {
                 "title": "ORCID person search in the editor",
                 "description": "Curators can start an ORCID search with Enter or Search and preview profiles before selecting a person.",
                 "references": [{ "type": "issue", "number": 1575, "url": "https://github.com/McNamara84/ernie/issues/1575" }]

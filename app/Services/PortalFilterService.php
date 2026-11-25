@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
  */
 final class PortalFilterService
 {
+    private const WORLD_BOUNDS = ['north' => 90.0, 'south' => -90.0, 'east' => 180.0, 'west' => -180.0];
+
     /**
      * @param  array<string, array{min: int, max: int}>  $temporalRange
      * @return array{
@@ -95,7 +97,7 @@ final class PortalFilterService
                 ? $this->normalizeStringFilters($request->query('geological_units', []))
                 : [],
             'datacenter' => $this->normalizeStringFilters($request->query('datacenter', [])),
-            'bounds' => $this->parseBounds($request),
+            'bounds' => $this->mapFilterEnabled($request) ? $this->parseBounds($request) : null,
             'temporal' => $this->parseTemporal($request, $temporalRange),
             'page' => max(1, (int) $request->query('page', 1)),
             'per_page' => 20,
@@ -108,7 +110,7 @@ final class PortalFilterService
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    public function forFrontend(array $filters): array
+    public function forFrontend(array $filters, bool $mapFilterEnabled = true): array
     {
         return [
             'query' => $filters['query'],
@@ -124,9 +126,15 @@ final class PortalFilterService
             'geologicalAges' => array_values($filters['geological_ages']),
             'geologicalUnits' => array_values($filters['geological_units']),
             'datacenter' => array_values($filters['datacenter']),
+            'mapFilterEnabled' => $mapFilterEnabled,
             'bounds' => $filters['bounds'],
             'temporal' => $filters['temporal'],
         ];
+    }
+
+    public function mapFilterEnabled(Request $request): bool
+    {
+        return $request->query('map_filter') !== '0';
     }
 
     private function topicFromRequest(Request $request): ?string
@@ -175,7 +183,8 @@ final class PortalFilterService
             return null;
         }
 
-        return $bounds;
+        // Worldwide searches also include resources without coordinates.
+        return $bounds === self::WORLD_BOUNDS ? null : $bounds;
     }
 
     /**

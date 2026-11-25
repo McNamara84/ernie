@@ -1,5 +1,6 @@
 import type { PortalBasePath, PortalFilters, PortalMapViewport } from '@/types/portal';
 
+import { isPortalWorld } from './portal-map-bounds';
 import { clampPortalMapZoom } from './portal-map-zoom';
 
 function appendArrayParams(params: URLSearchParams, key: string, values: string[]): void {
@@ -108,7 +109,9 @@ export function buildPortalFilterUrl(filters: PortalFilters, basePath: PortalBas
         appendArrayParams(params, 'geological_units', filters.geologicalUnits ?? []);
     }
 
-    if (filters.bounds) {
+    if (filters.mapFilterEnabled === false) {
+        params.set('map_filter', '0');
+    } else if (filters.bounds && !isPortalWorld(filters.bounds)) {
         params.set('north', filters.bounds.north.toFixed(6));
         params.set('south', filters.bounds.south.toFixed(6));
         params.set('east', filters.bounds.east.toFixed(6));
