@@ -6,7 +6,7 @@
  * - ORCID Auto-Fill and Verification
  * - CSV Bulk Import
  * - Drag & Drop Reordering
- * The ORCID search dialog is covered in workflows/issue-1575-orcid-search.spec.ts.
+ * See `tests/pest/Browser/OrcidSearchTest.php` for end-to-end coverage of the ORCID search dialog.
  */
 
 import { expect, test } from '@playwright/test';
