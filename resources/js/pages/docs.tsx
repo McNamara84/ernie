@@ -2116,12 +2116,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
 
                         <h4>ORCID Integration</h4>
-                        <p>ERNIE integrates with the ORCID Public API for researcher identification:</p>
+                        <p>
+                            In the ORCID field for an author or contributor, select the magnifying glass labeled <strong>Search for ORCID</strong>.
+                            Enter at least two characters, then press <kbd>Enter</kbd> in the search field or select <strong>Search</strong>.
+                        </p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Search for researchers by name</li>
-                            <li>Auto-fill author details from ORCID profiles</li>
-                            <li>Validate ORCID iDs in real-time</li>
+                            <li>
+                                Search by a single name such as <code>Ehrmann</code>, or enter the full name as <code>Holger Ehrmann</code> or{' '}
+                                <code>Ehrmann, Holger</code>.
+                            </li>
+                            <li>
+                                To narrow the search by public affiliation, enter the institution after a second comma, as in{' '}
+                                <code>Ehrmann, Holger, GFZ</code>.
+                            </li>
                         </ul>
+                        <p>
+                            The profile link beside each result opens ORCID.org in a new tab. To use a result for the current person, click the result
+                            or move to it with the arrow keys and press <kbd>Enter</kbd>. ERNIE fills empty name fields from the selected profile and
+                            offers differing names and new affiliations for review. You can also enter a known ORCID iD directly in the ORCID field
+                            for validation.
+                        </p>
 
                         <h4>ROR Affiliations</h4>
                         <p>Institution affiliations use the Research Organization Registry (ROR):</p>

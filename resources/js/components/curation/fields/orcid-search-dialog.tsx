@@ -150,9 +150,10 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                     <ul ref={list} aria-label="ORCID search results" className="min-h-0 divide-y overflow-y-auto">
                         {state.results.map((result, index) => (
                             <li key={result.orcid} className="flex items-center gap-1 p-1">
-                                <button
+                                <Button
                                     type="button"
-                                    className="flex min-w-0 flex-1 flex-col items-start gap-1 rounded-md p-2 text-left hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                                    variant="ghost"
+                                    className="h-auto min-w-0 flex-1 flex-col items-start gap-1 p-2 text-left text-base font-normal wrap-anywhere whitespace-normal"
                                     onKeyDown={(event) => navigateResults(event, index)}
                                     onClick={() => {
                                         changeOpen(false);
@@ -166,7 +167,7 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                                     {result.institutions.length > 0 && (
                                         <span className="text-xs text-muted-foreground">{result.institutions.join(' • ')}</span>
                                     )}
-                                </button>
+                                </Button>
                                 {/* An explicit tab stop keeps the profile link reachable with Tab in WebKit. */}
                                 <Button asChild variant="ghost" size="icon">
                                     <a

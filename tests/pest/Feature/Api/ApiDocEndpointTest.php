@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\ScienceTopic;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
+use Opis\JsonSchema\Errors\ErrorFormatter;
+use Opis\JsonSchema\Validator;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
@@ -363,6 +366,56 @@ it('returns the OpenAPI documentation as JSON', function () {
             ...$igsnFilterParameters,
         )
         ->not->toContain('zoom');
+});
+
+it('publishes the ORCID search parameters and schemas matching its API responses', function () {
+    $path = '/api/v1/orcid/search';
+    $docUrl = url('/api/v1/doc');
+    $document = getJson($docUrl)->assertOk();
+    $operation = $document->json('paths')[$path]['get'];
+    $parameters = array_column($operation['parameters'], null, 'name');
+
+    expect($operation['security'])->toBe([])
+        ->and($parameters['q']['required'])->toBeTrue()
+        ->and($parameters['q']['schema'])->toMatchArray(['minLength' => 2, 'maxLength' => 200])
+        ->and($parameters['mode']['required'])->toBeFalse()
+        ->and($parameters['mode']['schema']['enum'])->toBe(['person'])
+        ->and($parameters['limit']['schema'])->toMatchArray(['default' => 10, 'minimum' => 1, 'maximum' => 50]);
+
+    Http::fake([
+        '*/expanded-search/*' => Http::sequence()
+            ->push(['num-found' => 2, 'expanded-result' => [['orcid-id' => '0000-0002-1825-0097']]])
+            ->pushStatus(429)
+            ->pushStatus(503),
+        '*/v3.0/search*' => Http::sequence()
+            ->push(['num-found' => 0, 'result' => []])
+            ->pushStatus(500),
+    ]);
+    $personSearch = $path.'?'.http_build_query(['q' => 'Carberry, Josiah', 'mode' => 'person', 'limit' => 1]);
+    $validator = new Validator;
+    $validator->resolver()->registerRaw($document->getContent(), $docUrl);
+
+    $responses = [
+        getJson($personSearch)->assertOk(),
+        getJson($path.'?q=Carberry')->assertOk(),
+        getJson($path.'?q=Carberry')->assertStatus(400),
+        getJson($path)->assertUnprocessable(),
+        getJson($path.'?q=Carberry,,GFZ&mode=person')->assertUnprocessable(),
+        getJson($personSearch)->assertStatus(429),
+        getJson($personSearch)->assertStatus(503),
+    ];
+
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.75']);
+    for ($attempt = 0; $attempt < 30; $attempt++) {
+        getJson($path)->assertUnprocessable();
+    }
+    $responses[] = getJson($path)->assertTooManyRequests()->assertHeader('Retry-After')->assertJsonMissingPath('success');
+
+    foreach ($responses as $response) {
+        $schema = $operation['responses'][$response->status()]['content']['application/json']['schema']['$ref'];
+        $result = $validator->validate($response->getData(), $docUrl.$schema);
+        expect((new ErrorFormatter)->formatOutput($result->error(), 'basic'))->toBe(['valid' => true]);
+    }
 });
 
 it('documents the complete DOI-only science-topic contract for each public filter endpoint', function (string $path) {

@@ -19,6 +19,41 @@ test('searches the intercepted ORCID API, selects a record and restores trigger 
     await expect.element(trigger).toHaveFocus();
 });
 
+test('wraps long results on a narrow screen and keeps the profile link separately reachable', async ({ user }) => {
+    const { innerWidth, innerHeight } = window;
+    const institution = 'Helmholtz Centre for Geosciences, Department of Geodesy and Earth Observation';
+    const person = { ...result, institutions: [institution] };
+    await commands.mockApi([{ path: '/api/v1/orcid/search', body: { success: true, data: { results: [person], total: 1 } } }]);
+    const onSelect = vi.fn();
+    try {
+        await page.viewport(360, 740);
+        await render(<OrcidSearchDialog onSelect={onSelect} />);
+        await page.getByRole('button', { name: 'Search for ORCID' }).click();
+        await page.getByRole('searchbox').fill('Lovelace, Ada');
+        await user.keyboard('{Enter}');
+        const choice = page.getByRole('button', { name: /Lovelace, Ada/ });
+        await expect.element(choice).toBeVisible();
+
+        const affiliation = page.getByText(institution, { exact: true }).element();
+        const textRange = document.createRange();
+        textRange.selectNodeContents(affiliation);
+        expect(textRange.getClientRects().length).toBeGreaterThan(1);
+        expect(textRange.getBoundingClientRect().bottom).toBeLessThanOrEqual(choice.element().getBoundingClientRect().bottom);
+        const row = page.getByRole('listitem').element();
+        expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
+
+        await user.keyboard('{ArrowDown}');
+        await expect.element(choice).toHaveFocus();
+        await user.keyboard('{Tab}');
+        await expect.element(page.getByRole('link', { name: `View ${person.orcid} on ORCID.org` })).toHaveFocus();
+        expect(onSelect).not.toHaveBeenCalled();
+        await user.keyboard('{Shift>}{Tab}{/Shift}{Enter}');
+        expect(onSelect).toHaveBeenCalledExactlyOnceWith(person);
+    } finally {
+        await page.viewport(innerWidth, innerHeight);
+    }
+});
+
 test('shows an empty search and resets it when the dialog is reopened', async ({ user }) => {
     await commands.mockApi([{ path: '/api/v1/orcid/search', body: { success: true, data: { results: [], total: 0 } } }]);
     await render(<OrcidSearchDialog onSelect={vi.fn()} />);
