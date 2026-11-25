@@ -135,6 +135,7 @@ export function PortalResultList({
                                     <Button
                                         key={page}
                                         variant={page === current_page ? 'default' : 'outline'}
+                                        aria-current={page === current_page ? 'page' : undefined}
                                         size="sm"
                                         onClick={() => onPageChange(page as number)}
                                         disabled={isLoading}
@@ -186,10 +187,6 @@ function generatePageNumbers(current: number, total: number): (number | '...')[]
         pages.push('...');
     }
 
-    // Always show last page
-    if (total > 1) {
-        pages.push(total);
-    }
-
+    pages.push(total);
     return pages;
 }
