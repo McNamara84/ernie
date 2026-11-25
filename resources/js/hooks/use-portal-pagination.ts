@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useEffect, useMemo } from 'react';
@@ -9,6 +10,7 @@ import type { PortalBasePath, PortalPagination } from '@/types/portal';
 type PortalCount = Pick<PortalPagination, 'filter_fingerprint' | 'total' | 'last_page'>;
 
 export function usePortalPagination(basePath: PortalBasePath, pagination: PortalPagination) {
+    const { props: pageProps } = usePage();
     const { filter_fingerprint: fingerprint, per_page: perPage, count_status: status, total, last_page: lastPage } = pagination;
     const queryKey = useMemo(() => queryKeys.portal.count(basePath, fingerprint, perPage), [basePath, fingerprint, perPage]);
     const client = useQueryClient();
@@ -20,18 +22,23 @@ export function usePortalPagination(basePath: PortalBasePath, pagination: Portal
             return data;
         },
         enabled: Boolean(fingerprint) && status !== 'ready',
-        staleTime: Infinity,
+        staleTime: 30_000,
         gcTime: 0,
         retry: false,
     });
 
-    // A server-provided count also belongs to subsequent pages of this search.
+    // Inertia can reuse every individual prop when a search is repeated. The outer
+    // props object identifies the new response even when the URL and results are equal.
     useEffect(() => {
-        if (status === 'ready' && fingerprint) {
+        if (!fingerprint) return;
+
+        if (status === 'ready') {
             void client.cancelQueries({ queryKey, exact: true });
             client.setQueryData<PortalCount>(queryKey, { filter_fingerprint: fingerprint, total, last_page: lastPage });
+        } else {
+            void client.refetchQueries({ queryKey, exact: true, stale: true }, { cancelRefetch: false });
         }
-    }, [client, queryKey, fingerprint, status, total, lastPage]);
+    }, [pageProps, client, queryKey, fingerprint, status, total, lastPage]);
 
     let resolved = pagination;
     if (status !== 'ready') {

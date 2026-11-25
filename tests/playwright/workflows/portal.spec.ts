@@ -348,6 +348,7 @@ test.describe('Numbered result pages', () => {
 
     async function provideResults(page: Page, path: PortalBasePath) {
         const isIgsn = path === '/igsn-search';
+        let perPage: number;
         const resources: PortalResource[] = Array.from({ length: 45 }, (_, i) => ({
             id: i + 1,
             title: `Result ${i + 1}`,
@@ -367,8 +368,9 @@ test.describe('Numbered result pages', () => {
                 const response = await route.fetch();
                 const payload: { props: PortalPageProps } = await response.json();
                 const { pagination } = payload.props;
-                const offset = (pagination.current_page - 1) * pagination.per_page;
-                payload.props.resources = resources.slice(offset, offset + pagination.per_page);
+                perPage = pagination.per_page;
+                const offset = (pagination.current_page - 1) * perPage;
+                payload.props.resources = resources.slice(offset, offset + perPage);
                 pagination.from = offset + 1;
                 pagination.to = offset + payload.props.resources.length;
                 pagination.has_more = pagination.to < resources.length;
@@ -379,9 +381,13 @@ test.describe('Numbered result pages', () => {
             (url) => url.pathname === `${path}/count` && url.searchParams.get('q') === query,
             async (route) => {
                 const response = await route.fetch();
-                await route.fulfill({ response, json: { ...(await response.json()), total: resources.length, last_page: 3 } });
+                await route.fulfill({
+                    response,
+                    json: { ...(await response.json()), total: resources.length, last_page: Math.max(1, Math.ceil(resources.length / perPage)) },
+                });
             },
         );
+        return resources;
     }
 
     for (const path of ['/doi-search', '/igsn-search'] as const) {
@@ -412,6 +418,29 @@ test.describe('Numbered result pages', () => {
             await expect(button('Next')).toBeDisabled();
             await button('Previous').click();
             await expectPage(2, 21, 40);
+        });
+
+        test(`updates the last page when repeating the same search on ${path}`, async ({ page }) => {
+            const countedAt = Date.now();
+            await page.clock.setFixedTime(countedAt);
+            await page.setViewportSize({ width: 1440, height: 900 });
+            await openPortal(page, path);
+            const resources = await provideResults(page, path);
+            const search = page.getByRole('button', { name: 'Search', exact: true });
+            const results = page.getByTestId('portal-results-list');
+            const thirdPage = results.getByRole('button', { name: '3', exact: true });
+            await searchInput(page).fill(query);
+            await search.click();
+            await expect(results.getByText('Showing 1-20 of 45 results')).toBeVisible();
+            await expect(thirdPage).toBeVisible();
+
+            // Only later pages change, so Inertia can reuse every result and pagination prop on page one.
+            resources.splice(25);
+            await page.clock.setFixedTime(countedAt + 30_000);
+            await search.click();
+            await expect(results.getByText('Showing 1-20 of 25 results')).toBeVisible();
+            await expect(results.getByRole('button', { name: '2', exact: true })).toBeVisible();
+            await expect(thirdPage).toHaveCount(0);
         });
     }
 });

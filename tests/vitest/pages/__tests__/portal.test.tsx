@@ -9,6 +9,7 @@ import Portal from '@/pages/portal';
 import type { PortalBasemapConfig, PortalPageProps, PortalPagination } from '@/types/portal';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
+const usePageMock = vi.hoisted(() => vi.fn());
 const axiosGetMock = vi.hoisted(() => vi.fn());
 const isDesktopMock = vi.hoisted(() => vi.fn(() => true));
 const headTitleMock = vi.hoisted(() => vi.fn());
@@ -19,6 +20,7 @@ vi.mock('@inertiajs/react', () => ({
         return null;
     },
     router: routerMock,
+    usePage: usePageMock,
 }));
 
 vi.mock('axios', () => ({
@@ -356,9 +358,16 @@ const pendingPagination: PortalPagination = {
 const secondPage = { ...pendingPagination, current_page: 2, from: 21, to: 40 };
 const countResponse = { data: { filter_fingerprint: 'current-filter', total: 45, last_page: 3, count_status: 'ready' } };
 
+function resultPage(pagination: PortalPagination) {
+    const props = { ...defaultProps, pagination };
+    usePageMock.mockReturnValue({ props });
+    return <Portal {...props} />;
+}
+
 describe('Portal', () => {
     beforeEach(() => {
         axiosGetMock.mockReset();
+        usePageMock.mockReturnValue({ props: defaultProps });
         headTitleMock.mockReset();
         localStorage.clear();
         window.history.replaceState(null, '', '/doi-search');
@@ -437,16 +446,75 @@ describe('Portal', () => {
 
     it('keeps the resolved count when Inertia supplies the next result page with the same filters', async () => {
         axiosGetMock.mockResolvedValue(countResponse);
-        const { rerender } = render(<Portal {...defaultProps} pagination={pendingPagination} />);
+        const { rerender } = render(resultPage(pendingPagination));
         await screen.findByText('45 results');
 
-        rerender(<Portal {...defaultProps} pagination={secondPage} />);
+        rerender(resultPage(secondPage));
 
         expect(screen.getByTestId('current-page')).toHaveTextContent('2');
         expect(screen.getByTestId('page-range')).toHaveTextContent('21-40');
         expect(screen.getByTestId('last-page')).toHaveTextContent('3');
         expect(screen.getByText('45 results')).toBeInTheDocument();
         expect(axiosGetMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('revalidates an expired count on the next result page and shares the in-flight refresh across pages', async () => {
+        const countedAt = Date.now();
+        using clock = vi.spyOn(Date, 'now').mockReturnValue(countedAt);
+        const refresh = Promise.withResolvers<typeof countResponse>();
+        axiosGetMock.mockResolvedValueOnce(countResponse).mockReturnValueOnce(refresh.promise);
+        const { rerender } = render(resultPage(pendingPagination));
+        await screen.findByText('45 results');
+
+        clock.mockReturnValue(countedAt + 29_999);
+        rerender(resultPage(pendingPagination));
+        expect(axiosGetMock).toHaveBeenCalledTimes(1);
+
+        clock.mockReturnValue(countedAt + 30_000);
+        // A local render still has the same Inertia response.
+        rerender(<Portal {...defaultProps} pagination={pendingPagination} />);
+        expect(axiosGetMock).toHaveBeenCalledTimes(1);
+        rerender(resultPage(secondPage));
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+        expect(screen.getByTestId('page-range')).toHaveTextContent('21-40');
+        expect(screen.getByText('45 results')).toBeInTheDocument();
+        expect(screen.getByTestId('last-page')).toHaveTextContent('3');
+
+        rerender(resultPage(pendingPagination));
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+        expect(axiosGetMock.mock.calls[1][1].signal.aborted).toBe(false);
+        refresh.resolve({ data: { ...countResponse.data, total: 65, last_page: 4 } });
+        await screen.findByText('65 results');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('4');
+        expect(screen.getByTestId('current-page')).toHaveTextContent('1');
+
+        clock.mockReturnValue(countedAt + 45_000);
+        rerender(resultPage(secondPage));
+        expect(screen.getByText('65 results')).toBeInTheDocument();
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the cached count after a failed refresh and retries on an identical search response', async () => {
+        const countedAt = Date.now();
+        using clock = vi.spyOn(Date, 'now').mockReturnValue(countedAt);
+        axiosGetMock
+            .mockResolvedValueOnce(countResponse)
+            .mockRejectedValueOnce(new Error('count unavailable'))
+            .mockResolvedValueOnce({ data: { ...countResponse.data, total: 25, last_page: 2 } });
+        const { rerender } = render(resultPage(pendingPagination));
+        await screen.findByText('45 results');
+
+        clock.mockReturnValue(countedAt + 30_000);
+        await act(async () => rerender(resultPage(pendingPagination)));
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+        expect(screen.getByText('45 results')).toBeInTheDocument();
+        expect(screen.getByTestId('last-page')).toHaveTextContent('3');
+        expect(screen.getByTestId('count-status')).toHaveTextContent('ready');
+
+        rerender(resultPage(pendingPagination));
+        await screen.findByText('25 results');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('2');
+        expect(axiosGetMock).toHaveBeenCalledTimes(3);
     });
 
     it('uses the supplied page range without requesting a count when the fingerprint is missing', () => {

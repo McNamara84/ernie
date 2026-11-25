@@ -122,7 +122,7 @@
         "fixes": [
             {
                 "title": "Numbered Search Results in the DOI and IGSN Portals",
-                "description": "Page numbers and the total result count stay visible when you browse to another page of the same search.",
+                "description": "Page numbers and the total result count stay visible while browsing. Paging or repeating a search refreshes older counts in the background.",
                 "references": [{ "type": "issue", "number": 1579, "url": "https://github.com/McNamara84/ernie/issues/1579" }]
             },
             {
