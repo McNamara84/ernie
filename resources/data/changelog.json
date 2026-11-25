@@ -121,6 +121,11 @@
         ],
         "fixes": [
             {
+                "title": "Numbered Search Results in the DOI and IGSN Portals",
+                "description": "Page numbers and the total result count stay visible when you browse to another page of the same search.",
+                "references": [{ "type": "issue", "number": 1579, "url": "https://github.com/McNamara84/ernie/issues/1579" }]
+            },
+            {
                 "title": "Historical and Projected Dataset Dates",
                 "description": "The editor accepts dates from year 0001 and future Collected, Valid and Other dates through 9999."
             },

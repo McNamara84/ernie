@@ -1,5 +1,4 @@
 import { Head, router } from '@inertiajs/react';
-import axios, { isAxiosError } from 'axios';
 import { Filter, List, Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -13,17 +12,11 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useNavigationStatus } from '@/hooks/use-navigation-status';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
+import { usePortalPagination } from '@/hooks/use-portal-pagination';
 import PortalLayout from '@/layouts/portal-layout';
-import { buildPortalCountUrl, buildPortalFilterUrl } from '@/lib/portal-filter-url';
+import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import { cn } from '@/lib/utils';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
-
-interface PortalCountResponse {
-    filter_fingerprint: string;
-    total: number;
-    last_page: number;
-    count_status: 'ready';
-}
 
 const STORAGE_KEY_COLLAPSED = 'portal-map-collapsed';
 const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
@@ -48,42 +41,13 @@ export default function Portal({
     const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
     const [mobileView, setMobileView] = useState<'results' | 'map'>('results');
     const [searchDraft, setSearchDraft] = useState(filters.query ?? '');
-    const [resolvedPagination, setResolvedPagination] = useState(pagination);
-    const [countAttempt, setCountAttempt] = useState(0);
+    const { pagination: resolvedPagination, retryCount } = usePortalPagination(portal.basePath, pagination);
     const { isNavigating: isRefreshing } = useNavigationStatus('results');
 
-    useEffect(() => setResolvedPagination(pagination), [pagination]);
     useEffect(() => setSearchDraft(filters.query ?? ''), [filters.query]);
     useEffect(() => {
         if (isDesktop) setIsFilterDrawerOpen(false);
     }, [isDesktop]);
-
-    useEffect(() => {
-        if (!pagination.filter_fingerprint || pagination.count_status === 'ready') return;
-
-        const controller = new AbortController();
-        const expectedFingerprint = pagination.filter_fingerprint;
-        const countUrl = buildPortalCountUrl(window.location.search, portal.basePath);
-
-        void axios
-            .get<PortalCountResponse>(countUrl, { signal: controller.signal })
-            .then(({ data }) => {
-                if (data.filter_fingerprint !== expectedFingerprint) return;
-                setResolvedPagination((current) =>
-                    current.filter_fingerprint === data.filter_fingerprint
-                        ? { ...current, total: data.total, last_page: data.last_page, count_status: 'ready' }
-                        : current,
-                );
-            })
-            .catch((error: unknown) => {
-                if (controller.signal.aborted || (isAxiosError(error) && error.code === 'ERR_CANCELED')) return;
-                setResolvedPagination((current) =>
-                    current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current,
-                );
-            });
-
-        return () => controller.abort();
-    }, [countAttempt, filters, pagination.count_status, pagination.filter_fingerprint, portal.basePath]);
 
     const [isMapCollapsed, setIsMapCollapsed] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -257,7 +221,7 @@ export default function Portal({
             isLoading={isRefreshing}
             hasActiveFilters={hasActiveFilters}
             onClearFilters={handleClearAllFilters}
-            onRetryCount={() => setCountAttempt((attempt) => attempt + 1)}
+            onRetryCount={() => void retryCount()}
         />
     );
 
