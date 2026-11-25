@@ -1,32 +1,32 @@
 [
     {
-        "version": "1.2.0dev",
-        "date": "2026-11-09",
+        "version": "1.2.0",
+        "date": "2026-11-30",
         "features": [
             {
                 "title": "EPOS-DCAT-AP 3.0 Metadata Downloads and Harvesting",
-                "description": "When enabled, published datasets, collections, models, images and sounds with the required metadata offer an EPOS-DCAT-AP 3.0 RDF/XML download. The same metadata is available through OAI-PMH with the epos_dcat_ap prefix. Each main or translated title and each abstract is preserved as a separate text value."
+                "description": "Eligible resources support RDF/XML downloads and OAI-PMH harvesting when EPOS-DCAT-AP is enabled."
             },
             {
                 "title": "Alphabetical Related Works in the Editor",
-                "description": "Opening a saved resource lists related works alphabetically by citation label, with unlabeled entries first and natural number ordering. New entries and CSV imports stay in the order added until the editor is reopened. Automatic sorting affects only the editor, preserving stored and public ordering, and replaces manual drag-and-drop reordering.",
+                "description": "Reopening a resource in the editor sorts related works alphabetically by citation label.",
                 "references": [{ "type": "issue", "number": 1542, "url": "https://github.com/McNamara84/ernie/issues/1542" }]
             },
             {
                 "title": "Managed Homepage News",
-                "description": "Admins and Group Leaders can manage homepage news in Markdown with a preview and external images. One regular announcement stays active, while scheduled temporary news replace it in Europe/Berlin time. Overlapping schedules are prevented, archived news can be reused, and the existing ELMO announcement is preserved."
+                "description": "Admins and Group Leaders can publish homepage news in Markdown and schedule temporary announcements."
             },
             {
                 "title": "DataCite Instruments in PIDINST",
-                "description": "The PIDINST update in Settings now combines public instruments from B2INST and DataCite worldwide. Instruments with the same DOI appear once, using B2INST metadata. Source counts are checked separately, and a failed or incomplete fetch preserves the previous instrument list. DataCite DOI instruments can be selected in the editor, saved and exported, and recognized again when importing DataCite XML or JSON. Only untyped legacy DOI references use local vocabulary matching; explicit resource types take precedence. The combined list is also available to ELMO and ELMO-MSL."
+                "description": "Curators can link datasets to instruments from DataCite as well as B2INST."
             },
             {
                 "title": "Format and Size Editing in the Data Editor",
-                "description": "Curators can add and edit resource formats and sizes in a dedicated Format & Size section, even before configuring a landing page. Formats use a searchable catalog of all registered IANA MIME types, displayed with familiar names and ordered by their use across ERNIE Resources. MIME types remain the stored values. Sizes combine an aligned decimal input and unit dropdown with decimal or binary units. Existing assistant values, size meanings and download assignments are preserved, while XML and JSON uploads include these fields. Format and size controls have been removed from landing-page setup. Concurrent metadata changes are detected before they can be overwritten."
+                "description": "Curators can set resource formats and sizes in the Data Editor before creating a landing page."
             },
             {
                 "title": "DCAT-AP 3.0.1 Resource Metadata",
-                "description": "Eligible published resources offer the same DCAT-AP 3.0.1 RDF/XML on their landing pages and through the dcat_ap OAI-PMH format. Discovery links, distribution formats and sizes, controlled EU themes, contact details, geographic coverage and rights are included. IGSNs are excluded. A read-only audit reports missing required metadata and ambiguous licenses; persistent format-specific deletion history keeps incremental harvesting reliable. Withdrawn resources retain metadata without direct downloads. Offline RDF parser and SHACL checks cover real and synthetic datasets. The format has an independent feature flag and a documented audit and synchronization rollout.",
+                "description": "Readers can download DCAT-AP metadata as RDF/XML from eligible landing pages or harvest it via OAI-PMH.",
                 "references": [
                     { "type": "issue", "number": 1374, "url": "https://github.com/McNamara84/ernie/issues/1374" },
                     { "type": "issue", "number": 1375, "url": "https://github.com/McNamara84/ernie/issues/1375" },
@@ -35,12 +35,12 @@
             },
             {
                 "title": "ICGEM Model Harvesting",
-                "description": "The new icgem OAI-PMH set provides published Model resources whose own DOI contains 10.5880/icgem, ignoring letter case. ICGEM clients can harvest current DataCite metadata and reconcile active models through identifier lists. Historical withdrawals are included when the saved resource type identifies a model. Metadata-only editor changes are included in incremental harvests. The public harvesting documentation explains selection, pagination, incremental updates and safe handling of resource-type changes.",
+                "description": "Harvesters can track new, updated and withdrawn ICGEM models through a dedicated OAI-PMH set.",
                 "references": [{ "type": "issue", "number": 1433, "url": "https://github.com/McNamara84/ernie/issues/1433" }]
             },
             {
                 "title": "Software Heritage Identifiers",
-                "description": "Related Work recognizes, normalizes and validates core and qualified SWHIDs, including archive URLs and CSV imports. Clear validation errors preserve editable drafts. Landing pages and the relation browser provide archive links and readable object and qualifier labels; SWHIDs marked IsIdenticalTo also appear as additional Schema.org identifiers alongside the DOI. An authenticated API offers the same complete validation for ELMO and other clients.",
+                "description": "Curators can link related works to archived software using Software Heritage identifiers (SWHIDs).",
                 "references": [
                     { "type": "issue", "number": 1384, "url": "https://github.com/McNamara84/ernie/issues/1384" },
                     { "type": "issue", "number": 1385, "url": "https://github.com/McNamara84/ernie/issues/1385" },
@@ -49,7 +49,7 @@
             },
             {
                 "title": "Contact Persons Overview and Filters",
-                "description": "Administrators, Group Leaders and Curators can open Contact Persons under Tools to search current contact details across resources and IGSNs of every status. Contacts are grouped by valid ORCID while preserving recorded name and email variants; contacts without a valid ORCID remain separate by person. Email addresses can be copied, and each variant links to the exact matching resources or IGSNs through a visible, removable contact filter.",
+                "description": "Curators can search contact details and open the matching resources or IGSN samples from the Contact Persons tool.",
                 "references": [
                     { "type": "issue", "number": 1352, "url": "https://github.com/McNamara84/ernie/issues/1352" },
                     { "type": "pull_request", "number": 1513, "url": "https://github.com/McNamara84/ernie/pull/1513" }
@@ -57,97 +57,89 @@
             },
             {
                 "title": "IGSN 2.0 Core Metadata Downloads",
-                "description": "Published IGSN and Physical Object landing pages offer an IGSN 2.0 Core XML preview download, including supported relationships and geographic coordinates while protecting private parent identifiers and contact details. Metadata is mapped with XSLT and validated before delivery against a pinned development schema with portable relative imports. The public schema at /schemas/igsn/2.0/core.xsd supports external validation, with fixed revision URLs, dependencies and provenance available alongside it. Unreleased commit-addressed schema URLs have been removed. The export uses Core only, without Geo or Bio extensions or IGSN 1.3. Missing required metadata and validation failures produce clear errors instead of invalid downloads. Mapping documentation and automated tests cover the new format."
+                "description": "Readers can download IGSN Core XML metadata from published IGSN and Physical Object landing pages."
+            },
+            {
+                "title": "Public Metadata Schema Catalog",
+                "description": "The catalog offers searchable guides and examples for IGSN Core XML, DataCite JSON and DataCite JSON-LD.",
+                "references": [{ "type": "pull_request", "number": 1564, "url": "https://github.com/McNamara84/ernie/pull/1564" }]
             },
             {
                 "title": "ISO JSON Metadata Downloads",
-                "description": "Eligible resource landing pages automatically offer an ISO/TR 19115-4 JSON preview download alongside ISO 19115-3 XML. Both formats appear under ISO 19115 with concise XML and JSON buttons; tooltips and accessible labels identify the specific standards and JSON preview status. The export includes supported metadata and geographic features, validates against a pinned local schema set, and is discoverable through machine-readable metadata links. Scientific plain text and date precision are preserved, and successful anonymous downloads contribute to COUNTER investigations. User documentation explains availability, eligible resource types, and preview limitations. IGSNs and Physical Objects retain their existing download formats."
+                "description": "Eligible resource landing pages offer an ISO/TR 19115-4 JSON preview alongside ISO 19115-3 XML."
             },
             {
                 "title": "Funding Award URI Assistant",
-                "description": "Administrators and Group Leaders can review missing funding award URIs found through Crossref Grants and CORDIS. Suggestions require matching award numbers and verified funders, preserve existing URI values, and show their evidence before acceptance. Individual and batch reviews retain the source evidence, previous value, reviewer and time permanently; stale or ambiguous proposals cannot be accepted.",
+                "description": "Admins and Group Leaders can add missing award links after reviewing matches from Crossref Grants and CORDIS.",
                 "references": [{ "type": "issue", "number": 774, "url": "https://github.com/McNamara84/ernie/issues/774" }]
             },
             {
                 "title": "Resource Curation Tracking",
-                "description": "DOI resources have an internal curation workspace with a thirteen-point checklist, lead and team assignments, handovers, notes and activity history. Curators can track waiting periods, requests for help, deadlines and data locations. A new overview provides workflow tabs, combined filters, a My Resources view and CSV export, with personal counters on the dashboard. Beginners have read-only access. Existing unpublished resources can be initialized explicitly, while published legacy resources require an individual start.",
+                "description": "Curators can assign DOI resources to colleagues and track checklists, deadlines and handovers.",
                 "references": [{ "type": "issue", "number": 409, "url": "https://github.com/McNamara84/ernie/issues/409" }]
             },
             {
                 "title": "Research Data Usage Statistics",
-                "description": "Published DOI and IGSN landing pages show unique regular usage, monthly trends, an accessible data table and the actual aggregation date. IGSNs display views only. A new How we count page explains research-data COUNTER rules, exclusions, incomplete periods and the limits of measuring downloads through link clicks.",
+                "description": "DOI and IGSN landing pages show monthly counts of unique views, with download clicks on DOI pages.",
                 "references": [{ "type": "issue", "number": 1428, "url": "https://github.com/McNamara84/ernie/issues/1428" }]
             },
             {
                 "title": "COUNTER Dashboard and Monthly Export",
-                "description": "Administrators and Group Leaders can switch between total and unique resource usage and regular or machine access, inspect daily trends and successful portal searches, and export monthly metrics as CSV. Earlier counters remain available in a separate Before COUNTER view. IGSN download counts are excluded throughout.",
+                "description": "Admins and Group Leaders can compare usage trends and export monthly COUNTER metrics as CSV.",
                 "references": [{ "type": "issue", "number": 1429, "url": "https://github.com/McNamara84/ernie/issues/1429" }]
             },
             {
                 "title": "Hide Resource Landing Page Modules",
-                "description": "Custom DOI templates now support a hidden area for all configurable modules, alongside the left and right columns. Modules can be hidden and restored with keyboard-accessible controls. The new Usage module is initially visible on existing DOI and IGSN templates; hiding it does not stop usage collection.",
+                "description": "Admins and Group Leaders can hide and restore individual modules in custom DOI landing page templates.",
                 "references": [{ "type": "issue", "number": 267, "url": "https://github.com/McNamara84/ernie/issues/267" }]
             }
         ],
         "improvements": [
             {
                 "title": "ORCID person search in the editor",
-                "description": "Curators can enter a name at their own pace and start the search with Enter or Search. The author and contributor dialogs accept both name orders and an optional institution, such as Ehrmann, Holger, GFZ. Curators can open a profile in a separate tab before selecting a person, and retry a search if ORCID is unavailable.",
+                "description": "Curators can start an ORCID search with Enter or Search and preview profiles before selecting a person.",
                 "references": [{ "type": "issue", "number": 1575, "url": "https://github.com/McNamara84/ernie/issues/1575" }]
             },
             {
-                "title": "Return from usage statistics to the resource or IGSN sample",
-                "description": "Readers can return from “How we count usage” to the published resource or sample they came from, even after reloading or sharing the link. Direct visits offer the Data Portal and IGSN Portal. The page uses public GFZ navigation, and previews open the explanation in a separate tab.",
+                "title": "Return from Usage Statistics",
+                "description": "Readers can return from “How we count usage” to the resource or IGSN sample they were viewing.",
                 "references": [{ "type": "issue", "number": 1574, "url": "https://github.com/McNamara84/ernie/issues/1574" }]
             },
             {
                 "title": "Shared vocabulary downloads in ERNIE API 1.2",
-                "description": "ELMO and ELMO-MSL can each read the visibility of ten thesauri and three PID registries in one request. Both editors use the same URL to download a vocabulary, including its full hierarchy when hidden. The download returns HTTP 500 for malformed snapshots and streams validated ROR registries on repeat requests. The OpenAPI documentation marks all 30 superseded endpoints as deprecated and lists their replacements. Existing clients can continue using those endpoints during migration."
+                "description": "ELMO and ELMO-MSL share download links, with one request per editor to check vocabulary visibility."
             },
             {
-                "title": "Reliable PIDINST Synchronization",
-                "description": "Instrument lists now synchronize with B2INST v3 using complete-list validation, migrated Handle identity checks and safe publication that preserves existing dataset links. Admins and Group Leaders can refresh metadata even when record counts are unchanged; excluded records no longer cause repeated update notices. Administrators can preview changes with get-pid4inst-instruments --dry-run and recover pending cache or ELMO refreshes with --refresh-caches without downloading the registry again. User documentation explains the workflow and recovery steps.",
+                "title": "Instrument Registry Refresh in Settings",
+                "description": "Admins and Group Leaders can refresh instrument metadata even when the number of records stays the same.",
                 "references": [{ "type": "pull_request", "number": 1511, "url": "https://github.com/McNamara84/ernie/pull/1511" }]
             },
             {
                 "title": "Legacy Resource and IGSN Import Retired",
-                "description": "Following the completed migration, the legacy import buttons, dialogs, endpoints, background jobs and migration repair commands have been removed. Citation labels and public pages no longer depend on the retired legacy services. Existing resources, IGSNs, landing pages and stored images remain available, as do regular file uploads and legacy database exports for final backups."
-            },
-            {
-                "title": "Consistent Usage Collection and Retention",
-                "description": "An explicit activation starts new usage statistics and freezes all legacy counters. Successful public responses are classified with versioned robot and research-client rules, repeated actions are filtered, and completed UTC days are aggregated atomically. Raw pseudonymous events are deleted after aggregation and within seven days; ERNIE database dumps exclude their contents.",
-                "references": [{ "type": "issue", "number": 1427, "url": "https://github.com/McNamara84/ernie/issues/1427" }]
+                "description": "With legacy database imports retired, users can upload DataCite files and IGSN CSVs from the dashboard."
             }
         ],
         "fixes": [
             {
                 "title": "Historical and Projected Dataset Dates",
-                "description": "The Data Editor accepts dates from year 0001, including future Collected, Valid and Other dates and periods up to year 9999. Saving and reopening preserves date precision and existing embargo rules."
-            },
-            {
-                "title": "Resource Format and Size Import Validation",
-                "description": "Import exceptions for legacy formats and size meanings now use server-side, user-bound evidence that expires after 24 hours and is consumed once when creating a resource. Tokens cannot authorize changes on existing resources or be replayed after a successful save. Failed saves roll back consumption so imports remain retryable. Format popularity caching now uses the central cache-key registry with consistent expiry and tagged or untagged invalidation."
+                "description": "The editor accepts dates from year 0001 and future Collected, Valid and Other dates through 9999."
             },
             {
                 "title": "DCAT-AP Harvest Recovery for Missing Resources",
-                "description": "Synchronization and OAI-PMH requests recover from missing resource links in DCAT-AP history. Orphaned records return persistent deleted headers without crashing GetRecord or repeatedly blocking fresh harvests. Affected pagination tokens require a restart, while unrelated harvests remain valid. Eligible resources regain detached history links even when their metadata is unchanged."
+                "description": "DCAT-AP harvests report missing resources as deleted so other records can still be retrieved."
             },
             {
                 "title": "Duplicate Controlled Keywords",
-                "description": "Imports, editor saves and landing pages now combine equivalent keyword variants confirmed by local vocabularies, including historical hierarchy paths and incomplete GCMD instrument entries. Different languages and conflicting metadata remain separate. Administrators can audit existing duplicates and apply a reviewed, snapshot-checked report with recovery logging. GCMD category names containing Instruments or Platforms are preserved during path resolution.",
+                "description": "Imports, the editor and landing pages now merge duplicate vocabulary keywords while preserving language variants.",
                 "references": [{ "type": "issue", "number": 1531, "url": "https://github.com/McNamara84/ernie/issues/1531" }]
             },
             {
-                "title": "PID4INST Updates with Empty Measured Variables",
-                "description": "Registry updates retain instruments whose optional measured-variable list contains empty entries. Meaningful values are preserved, while invalid types and identity conflicts remain protected. Hard validation errors in existing records now stop processing immediately, avoiding unnecessary checks of later instruments."
+                "title": "Instrument Registry Updates with Incomplete Records",
+                "description": "Updates keep instruments with blank measured variables and skip those with only an unregistered Handle."
             },
             {
-                "title": "PID4INST Updates with Unregistered Handles",
-                "description": "The B2INST v3 registry update now excludes instruments whose metadata Handle is explicitly unregistered and has no provider PID, including entries from the previous selection, while updating the remaining instruments. Settings shows persistent exclusion details and the actual published count. Existing dataset instrument links and curated names are preserved. Network failures, identity conflicts and incomplete downloads continue to retain the previous registry."
-            },
-            {
-                "title": "Instrument Names from B2INST v3 Snapshots",
-                "description": "Instrument name resolution also uses the original metadata and ePIC identifiers retained by B2INST v3 synchronization. Imported and saved PIDs remain unchanged, differing identifiers stay visible, and registry refreshes make updated names available immediately. Public vocabulary responses omit internal provenance and lookup identifiers.",
+                "title": "Instrument Names for B2INST Identifiers",
+                "description": "The editor finds instrument names using alternate B2INST identifiers while preserving the identifier you entered.",
                 "references": [
                     { "type": "issue", "number": 1498, "url": "https://github.com/McNamara84/ernie/issues/1498" },
                     { "type": "pull_request", "number": 1521, "url": "https://github.com/McNamara84/ernie/pull/1521" },
@@ -156,19 +148,21 @@
             },
             {
                 "title": "OAI-PMH Harvesting Guidance",
-                "description": "Bounded ICGEM and EPOS-MSL harvest examples now limit the next checkpoint to the earlier of the requested until boundary and the first response date, with overlap to avoid missed updates. The identifier documentation explains why the persistent repository namespace can retain a historical hostname after the public endpoint changes."
+                "description": "The public guide shows how to resume ICGEM and EPOS-MSL harvests without missing updates."
             },
             {
-                "title": "JavaScript Dependency Security",
-                "description": "Updated indirect HTTP and validation dependencies to address credential handling during redirects and denial-of-service vulnerabilities in email and file-pattern processing. Swagger UI retains its current functionality, with regression tests covering its file allowlist and the affected dependency behavior."
+                "title": "GFZ Links and Legal Notice Navigation",
+                "description": "Portal links now reach GFZ Data Services, and the Legal Notice has a Back button.",
+                "references": [{ "type": "pull_request", "number": 1573, "url": "https://github.com/McNamara84/ernie/pull/1573" }]
             },
             {
-                "title": "Email Header Security",
-                "description": "Updated the email MIME library to address CVE-2026-45070 and reject invalid parameter names in structured email headers."
+                "title": "Landing Page Map Resizing",
+                "description": "Landing page maps keep the full geographic coverage in view when the layout changes.",
+                "references": [{ "type": "pull_request", "number": 1564, "url": "https://github.com/McNamara84/ernie/pull/1564" }]
             },
             {
                 "title": "Reliable Settings Section Links",
-                "description": "Links to the thesaurus settings wait for fonts and layout to finish loading before focusing and scrolling to the requested card. This prevents incorrect initial scroll positions in WebKit on narrow screens and preserves focus when users start editing another field while the page loads."
+                "description": "Links to thesaurus settings now scroll to the correct card even on narrow screens."
             }
         ]
     },
