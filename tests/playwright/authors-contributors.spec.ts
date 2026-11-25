@@ -6,7 +6,7 @@
  * - ORCID Auto-Fill and Verification
  * - CSV Bulk Import
  * - Drag & Drop Reordering
- * - ORCID Search Dialog
+ * The ORCID search dialog is covered in workflows/issue-1575-orcid-search.spec.ts.
  */
 
 import { expect, test } from '@playwright/test';
@@ -209,46 +209,6 @@ test.describe('Drag and Drop Reordering', () => {
         
         // Verify order changed
         // Note: This would need to verify actual DOM order change
-    });
-});
-
-test.describe('ORCID Search Dialog', () => {
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/editor');
-        await page.click('button:has-text("Add First Author")');
-    });
-
-    test('should open ORCID search dialog', async ({ page }) => {
-        // Click ORCID search button (magnifying glass icon)
-        await page.click('button[aria-label="Search for ORCID"]');
-        
-        // Verify dialog opens
-        await expect(page.locator('text=Search for ORCID')).toBeVisible();
-    });
-
-    test('should perform ORCID search', async ({ page }) => {
-        await page.click('button[aria-label="Search for ORCID"]');
-        
-        // Enter search query
-        await page.fill('input[placeholder*="name"]', 'John Doe');
-        await page.click('button:has-text("Search")');
-        
-        // Wait for results (requires mock or test API)
-        await page.waitForTimeout(2000);
-        
-        // Verify results table appears
-        await expect(page.locator('table')).toBeVisible();
-    });
-
-    test('should close ORCID search dialog', async ({ page }) => {
-        await page.click('button[aria-label="Search for ORCID"]');
-        await expect(page.locator('text=Search for ORCID')).toBeVisible();
-        
-        // Close dialog
-        await page.keyboard.press('Escape');
-        
-        // Verify dialog closed
-        await expect(page.locator('text=Search for ORCID')).not.toBeVisible();
     });
 });
 

@@ -91,6 +91,11 @@
         ],
         "improvements": [
             {
+                "title": "ORCID person search in the editor",
+                "description": "Curators can enter a name at their own pace and start the search with Enter or Search. The author and contributor dialogs accept both name orders and an optional institution, such as Ehrmann, Holger, GFZ. Curators can open a profile in a separate tab before selecting a person, and retry a search if ORCID is unavailable.",
+                "references": [{ "type": "issue", "number": 1575, "url": "https://github.com/McNamara84/ernie/issues/1575" }]
+            },
+            {
                 "title": "Return from usage statistics to the resource or IGSN sample",
                 "description": "Readers can return from “How we count usage” to the published resource or sample they came from, even after reloading or sharing the link. Direct visits offer the Data Portal and IGSN Portal. The page uses public GFZ navigation, and previews open the explanation in a separate tab.",
                 "references": [{ "type": "issue", "number": 1574, "url": "https://github.com/McNamara84/ernie/issues/1574" }]

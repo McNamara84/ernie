@@ -9,6 +9,8 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use UnexpectedValueException;
 
 /**
  * ORCID Service
@@ -363,6 +365,94 @@ class OrcidService
                 'error' => 'An error occurred while fetching ORCID data',
             ];
         }
+    }
+
+    /**
+     * Search from the editor dialog. Expanded search includes public names and affiliations in one response.
+     *
+     * @return array{success: true, data: array{results: list<array{orcid: string, firstName: string, lastName: string, creditName: string|null, institutions: list<string>}>, total: int}}|array{success: false, error: string, status: int}
+     */
+    public function searchPeople(string $query, int $limit = 10): array
+    {
+        $expression = $this->personSearchExpression($query);
+        if ($expression === null) {
+            return ['success' => false, 'error' => 'Enter a name, or use Last, First followed by an optional institution.', 'status' => 422];
+        }
+
+        try {
+            $this->respectRateLimit();
+            $response = Http::timeout(10)->accept('application/vnd.orcid+json')
+                ->get(self::API_BASE_URL.'/expanded-search/', ['q' => $expression, 'rows' => $limit]);
+
+            if ($response->tooManyRequests()) {
+                return ['success' => false, 'error' => 'ORCID is receiving too many requests. Please try again shortly.', 'status' => 429];
+            }
+
+            $payload = $response->throw()->json();
+            $total = $payload['num-found'] ?? null;
+            $rows = $payload['expanded-result'] ?? [];
+            if (! is_int($total) || ! is_array($rows) || ! array_is_list($rows) || $total < count($rows) || ($total > 0 && $rows === [])) {
+                throw new UnexpectedValueException('Invalid ORCID expanded search response.');
+            }
+
+            $results = [];
+            foreach ($rows as $row) {
+                $orcid = $row['orcid-id'] ?? null;
+                if (! is_string($orcid) || ! OrcidNormalizer::isValidFormat($orcid)) {
+                    throw new UnexpectedValueException('Missing or invalid ID in ORCID expanded search result.');
+                }
+                $institutions = $row['institution-name'] ?? [];
+                if (! is_array($institutions) || ! array_is_list($institutions) || ! array_all($institutions, static fn (mixed $name): bool => is_string($name))) {
+                    throw new UnexpectedValueException('Invalid institutions in ORCID expanded search result.');
+                }
+                $results[] = [
+                    'orcid' => strtoupper(OrcidNormalizer::extractBareId($orcid)),
+                    'firstName' => is_string($row['given-names'] ?? null) ? $row['given-names'] : '',
+                    'lastName' => is_string($row['family-names'] ?? null) ? $row['family-names'] : '',
+                    'creditName' => is_string($row['credit-name'] ?? null) ? $row['credit-name'] : null,
+                    'institutions' => $institutions,
+                ];
+            }
+
+            return ['success' => true, 'data' => ['results' => $results, 'total' => $total]];
+        } catch (\Exception $e) {
+            Log::warning('ORCID person search failed', ['error' => $e->getMessage()]);
+
+            return ['success' => false, 'error' => 'ORCID search is temporarily unavailable.', 'status' => 503];
+        }
+    }
+
+    private function personSearchExpression(string $input): ?string
+    {
+        $text = Str::squish($input);
+        $text = trim(Str::chopEnd($text, ','));
+        if (mb_strlen($text) < 2 || mb_strlen($text) > 200) {
+            return null;
+        }
+        $parts = array_map(trim(...), explode(',', $text, 3));
+        if (in_array('', $parts, true)) {
+            return null;
+        }
+
+        // Inside a quoted Solr phrase only backslashes and quotes need escaping.
+        $quote = static fn (string $value): string => '"'.addcslashes($value, '"\\').'"';
+        if (count($parts) === 1) {
+            $names = explode(' ', $text, 2);
+            if (count($names) === 1) {
+                $name = $quote($text);
+
+                return "(given-names:$name OR family-name:$name OR other-names:$name)";
+            }
+            [$given, $family] = $names;
+        } else {
+            [$family, $given] = $parts;
+        }
+        $expression = 'family-name:'.$quote($family).' AND given-names:'.$quote($given);
+        if (isset($parts[2])) {
+            $expression .= ' AND affiliation-org-name:'.$quote($parts[2]);
+        }
+
+        return $expression;
     }
 
     /**
