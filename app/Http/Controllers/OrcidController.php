@@ -64,13 +64,15 @@ class OrcidController extends Controller
     /**
      * Search for ORCID records
      *
-     * GET /api/v1/orcid/search?q={query}&limit={limit}
+     * The optional person mode accepts name and institution fields from the editor dialog.
+     * GET /api/v1/orcid/search?q={query}&limit={limit}&mode=person
      */
     public function search(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'q' => 'required|string|min:2|max:200',
             'limit' => 'nullable|integer|min:1|max:50',
+            'mode' => 'sometimes|string|in:person',
         ]);
 
         if ($validator->fails()) {
@@ -84,13 +86,15 @@ class OrcidController extends Controller
         $query = $request->input('q');
         $limit = (int) $request->input('limit', 10);
 
-        $result = $this->orcidService->searchOrcid($query, $limit);
+        $result = $request->input('mode') === 'person'
+            ? $this->orcidService->searchPeople($query, $limit ?: 10)
+            : $this->orcidService->searchOrcid($query, $limit);
 
         if (! $result['success']) {
             return response()->json([
                 'success' => false,
-                'message' => $result['error'],
-            ], 400);
+                'message' => $result['error'] ?? 'Search request failed',
+            ], $result['status'] ?? 400);
         }
 
         return response()->json([

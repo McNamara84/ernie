@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Services\OrcidService;
 use App\Services\RorLookupService;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\Helpers\NativeSleep;
@@ -317,6 +318,80 @@ describe('Search', function () {
                 && isset($params['rows'])
                 && (int) $params['rows'] === 200;
         });
+    });
+});
+
+describe('Expanded person search', function () {
+    it('sends a quoted expression in a single expanded search request', function (string $input, string $expected) {
+        Http::fake(['*/expanded-search/*' => Http::response(['num-found' => 0, 'expanded-result' => null])]);
+
+        expect($this->service->searchPeople($input))->toBe(['success' => true, 'data' => ['results' => [], 'total' => 0]]);
+        Http::assertSentCount(1);
+        Http::assertSent(function (Request $request) use ($expected): bool {
+            parse_str(parse_url($request->url(), PHP_URL_QUERY), $params);
+
+            return parse_url($request->url(), PHP_URL_PATH) === '/v3.0/expanded-search/'
+                && $request->hasHeader('Accept', 'application/vnd.orcid+json')
+                && $params === ['q' => $expected, 'rows' => '10'];
+        });
+    })->with([
+        'short surname' => ['Li', '(given-names:"Li" OR family-name:"Li" OR other-names:"Li")'],
+        'surname with a trailing comma' => ['Li,', '(given-names:"Li" OR family-name:"Li" OR other-names:"Li")'],
+        'given name first' => ['Holger   Ehrmann', 'family-name:"Ehrmann" AND given-names:"Holger"'],
+        'family name first' => ['  Ehrmann , Holger ', 'family-name:"Ehrmann" AND given-names:"Holger"'],
+        'institution' => ['Ehrmann, Holger, GFZ', 'family-name:"Ehrmann" AND given-names:"Holger" AND affiliation-org-name:"GFZ"'],
+        'trailing comma' => ['Ehrmann, Holger,', 'family-name:"Ehrmann" AND given-names:"Holger"'],
+        'compound names' => ["van der Meer, Ana-María Renée, Institut d'Études, Paris", "family-name:\"van der Meer\" AND given-names:\"Ana-María Renée\" AND affiliation-org-name:\"Institut d'Études, Paris\""],
+        'literal punctuation' => ['Taylor, Alex, A\B "West"', 'family-name:"Taylor" AND given-names:"Alex" AND affiliation-org-name:"A\\\\B \"West\""'],
+    ]);
+
+    it('rejects incomplete input before contacting ORCID', function (string $input) {
+        Http::fake();
+        expect($this->service->searchPeople($input))->toMatchArray(['success' => false, 'status' => 422]);
+        Http::assertNothingSent();
+    })->with([' ', 'A,', ',Holger', 'Ehrmann,,GFZ', str_repeat('a', 201)]);
+
+    it('returns twenty public summaries and the full count without requesting profiles', function () {
+        $rows = [];
+        for ($index = 0; $index < 20; $index++) {
+            $rows[] = ['orcid-id' => sprintf('0000-0000-0000-%04d', $index)];
+        }
+        $rows[0] += ['given-names' => 'Holger', 'family-names' => 'Ehrmann', 'credit-name' => 'H. Ehrmann', 'institution-name' => ['GFZ', 'Example University']];
+        $rows[1]['institution-name'] = null;
+        $rows[2]['orcid-id'] = 'https://orcid.org/0000-0002-9079-593x';
+        Http::fake(['*/expanded-search/*' => Http::response(['num-found' => 84, 'expanded-result' => $rows])]);
+
+        $response = $this->service->searchPeople('Holger Ehrmann', 20);
+        expect($response['data']['total'])->toBe(84)
+            ->and($response['data']['results'])->toHaveCount(20)
+            ->and($response['data']['results'][0])->toBe([
+                'orcid' => $rows[0]['orcid-id'], 'firstName' => 'Holger', 'lastName' => 'Ehrmann', 'creditName' => 'H. Ehrmann', 'institutions' => ['GFZ', 'Example University'],
+            ])
+            ->and($response['data']['results'][1])->toBe([
+                'orcid' => $rows[1]['orcid-id'], 'firstName' => '', 'lastName' => '', 'creditName' => null, 'institutions' => [],
+            ])
+            ->and($response['data']['results'][2]['orcid'])->toBe('0000-0002-9079-593X');
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'rows=20'));
+        Http::assertSentCount(1);
+    });
+
+    it('distinguishes service failures from empty results', function (mixed $body, int $status, int $expectedStatus) {
+        Http::fake(['*/expanded-search/*' => Http::response($body, $status)]);
+        expect($this->service->searchPeople('Li'))->toMatchArray(['success' => false, 'status' => $expectedStatus]);
+    })->with([
+        'provider rate limit' => [[], 429, 429],
+        'provider outage' => [[], 500, 503],
+        'invalid JSON' => ['Not JSON', 200, 503],
+        'missing rows' => [['num-found' => 2], 200, 503],
+        'inconsistent total' => [['num-found' => 0, 'expanded-result' => [['orcid-id' => '0000-0002-1825-0097']]], 200, 503],
+        'row missing identity' => [['num-found' => 1, 'expanded-result' => [['given-names' => 'Alex']]], 200, 503],
+        'unusable institutions' => [['num-found' => 1, 'expanded-result' => [['orcid-id' => '0000-0002-1825-0097', 'institution-name' => 'GFZ']]], 200, 503],
+        'invalid institution entry' => [['num-found' => 1, 'expanded-result' => [['orcid-id' => '0000-0002-1825-0097', 'institution-name' => [42]]]], 200, 503],
+    ]);
+
+    it('returns a retryable failure on a connection error', function () {
+        Http::fake(['*/expanded-search/*' => Http::failedConnection()]);
+        expect($this->service->searchPeople('Li'))->toMatchArray(['success' => false, 'status' => 503]);
     });
 });
 

@@ -52,6 +52,11 @@
             "name": "Changelog",
             "summary": "Authenticated release history endpoint",
             "description": "Session-protected endpoint for retrieving ERNIE releases and their related GitHub context."
+        },
+        {
+            "name": "ORCID",
+            "summary": "Researcher identification",
+            "description": "Look up researchers using public ORCID records."
         }
     ],
     "security": [],
@@ -1590,6 +1595,121 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/orcid/search": {
+            "get": {
+                "tags": ["ORCID"],
+                "operationId": "searchOrcid",
+                "summary": "Search public ORCID records by name",
+                "description": "The default search accepts a name. The author and contributor dialogs use person mode to search by name and optional institution. ERNIE shares a limit of 30 requests per minute per IP address across its ORCID endpoints.",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "description": "A single name matches given, family or other names. A full name can use First Last (Holger Ehrmann). With mode=person, Last, First (Ehrmann, Holger) also accepts multiword names. Last, First, Institution (Ehrmann, Holger, GFZ) requires a matching public affiliation. Further commas are part of the institution name. Person mode ignores a trailing comma and rejects missing name components such as Ehrmann,,GFZ.",
+                        "schema": { "type": "string", "minLength": 2, "maxLength": 200 },
+                        "example": "Josiah Carberry"
+                    },
+                    {
+                        "name": "mode",
+                        "in": "query",
+                        "required": false,
+                        "description": "Omit for the default name search. Set to person to use the expanded ORCID search and its comma-separated name and institution syntax.",
+                        "schema": { "type": "string", "enum": ["person"] }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "Maximum number of results to return. The editor requests 20.",
+                        "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Matching researcher summaries and the total number of matches. A search with no matches returns an empty results array and a total of zero.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchResponse" },
+                                "example": {
+                                    "success": true,
+                                    "data": {
+                                        "results": [
+                                            {
+                                                "orcid": "0000-0002-1825-0097",
+                                                "firstName": "Josiah",
+                                                "lastName": "Carberry",
+                                                "creditName": null,
+                                                "institutions": []
+                                            }
+                                        ],
+                                        "total": 1
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The default name search failed while contacting ORCID or reading its response.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchError" },
+                                "example": { "success": false, "message": "Search request failed" }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The query parameters are invalid, or the name in person mode has missing components. Parameter validation includes field-level errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchError" },
+                                "examples": {
+                                    "invalidParameter": {
+                                        "value": { "success": false, "message": "Validation failed", "errors": { "q": ["The q field is required."] } }
+                                    },
+                                    "incompleteName": {
+                                        "value": {
+                                            "success": false,
+                                            "message": "Enter a name, or use Last, First followed by an optional institution."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "ERNIE's per-IP rate limit was reached, or ORCID rate-limited a person search.",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry when ERNIE enforces its local limit.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchRateLimit" },
+                                "examples": {
+                                    "ernieLimit": { "value": { "message": "Too Many Attempts." } },
+                                    "orcidLimit": {
+                                        "value": { "success": false, "message": "ORCID is receiving too many requests. Please try again shortly." }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The person search could not reach ORCID or received an unusable response. Retry later.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchError" },
+                                "example": { "success": false, "message": "ORCID search is temporarily unavailable." }
+                            }
+                        }
                     }
                 }
             }
@@ -5109,6 +5229,62 @@
                 },
                 "required": ["version", "date", "features", "improvements", "fixes"],
                 "additionalProperties": false
+            },
+            "OrcidSearchResult": {
+                "type": "object",
+                "description": "Public summary of one researcher.",
+                "properties": {
+                    "orcid": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$", "description": "Bare ORCID iD." },
+                    "firstName": { "type": "string", "description": "Given names, or an empty string if unavailable." },
+                    "lastName": { "type": "string", "description": "Family name, or an empty string if unavailable." },
+                    "creditName": { "type": ["string", "null"], "description": "Published credit name, or null if unavailable." },
+                    "institutions": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Public institution names, empty if unavailable."
+                    }
+                },
+                "required": ["orcid", "firstName", "lastName", "creditName", "institutions"]
+            },
+            "OrcidSearchResponse": {
+                "type": "object",
+                "properties": {
+                    "success": { "type": "boolean", "const": true },
+                    "data": {
+                        "type": "object",
+                        "properties": {
+                            "results": { "type": "array", "maxItems": 50, "items": { "$ref": "#/components/schemas/OrcidSearchResult" } },
+                            "total": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Number of matching records before applying the result limit."
+                            }
+                        },
+                        "required": ["results", "total"]
+                    }
+                },
+                "required": ["success", "data"]
+            },
+            "OrcidSearchError": {
+                "type": "object",
+                "properties": {
+                    "success": { "type": "boolean", "const": false },
+                    "message": { "type": "string" },
+                    "errors": {
+                        "type": "object",
+                        "description": "Field-level messages included when query parameter validation fails with HTTP 422.",
+                        "additionalProperties": { "type": "array", "items": { "type": "string" } }
+                    }
+                },
+                "required": ["success", "message"]
+            },
+            "OrcidSearchRateLimit": {
+                "type": "object",
+                "properties": {
+                    "message": { "type": "string" },
+                    "success": { "type": "boolean", "const": false, "description": "Included when ORCID rate-limits a person search." }
+                },
+                "required": ["message"]
             },
             "RelatedIdentifierCitationLabelResponse": {
                 "type": "object",
