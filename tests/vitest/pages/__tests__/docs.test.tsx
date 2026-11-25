@@ -1529,6 +1529,19 @@ describe('Docs page', () => {
         expect(screen.getByText('Series Information:')).toBeInTheDocument();
     });
 
+    it('explains how to search, inspect a profile and select an ORCID for an author or contributor', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const section = screen.getByRole('heading', { name: 'ORCID Integration' }).closest('section');
+        expect(section).toHaveTextContent('press Enter in the search field or select Search');
+        for (const example of ['Ehrmann', 'Holger Ehrmann', 'Ehrmann, Holger', 'Ehrmann, Holger, GFZ']) {
+            expect(section).toContainElement(screen.getByText(example, { selector: 'code' }));
+        }
+        expect(section).toHaveTextContent('profile link beside each result opens ORCID.org in a new tab');
+        expect(section).toHaveTextContent('click the result or move to it with the arrow keys and press Enter');
+    });
+
     it('keeps dataset field documentation close to the editor accordion order', async () => {
         const { user } = renderDocsPage('beginner');
 

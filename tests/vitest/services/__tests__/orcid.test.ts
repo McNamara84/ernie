@@ -115,16 +115,13 @@ describe('OrcidService', () => {
             expect(result.error).toBe('HTTP 500: Failed to fetch ORCID');
         });
 
-        it('returns error when API returns success=false', async () => {
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ success: false, message: 'Invalid ORCID' }),
-            });
-
-            const result = await OrcidService.fetchOrcidRecord('invalid');
-
-            expect(result.success).toBe(false);
-            expect(result.error).toBe('Invalid ORCID');
+        it.each([
+            [{ success: false, message: 'Invalid ORCID' }, 'Invalid ORCID'],
+            [{ success: false, error: 'Record unavailable' }, 'Record unavailable'],
+            [{ success: true }, 'Failed to fetch ORCID data'],
+        ])('reports a profile failure for %j', async (body, error) => {
+            mockFetch.mockResolvedValueOnce({ ok: true, json: async () => body });
+            await expect(OrcidService.fetchOrcidRecord('0000-0002-1825-0097')).resolves.toEqual({ success: false, error });
         });
 
         it('returns network error on fetch failure', async () => {
@@ -221,6 +218,25 @@ describe('OrcidService', () => {
 
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('q=John+Doe'), expect.any(Object));
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=20'), expect.any(Object));
+            expect(mockFetch.mock.calls[0][0]).not.toContain('mode=');
+        });
+
+        it('sends the explicit person search mode, literal query and cancellation signal', async () => {
+            mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: { results: [], total: 0 } }) });
+            const { signal } = new AbortController();
+            await OrcidService.searchOrcid('Ehrmann, Holger, GFZ', 20, { mode: 'person', signal });
+            expect(mockFetch).toHaveBeenCalledWith(
+                '/api/v1/orcid/search?q=Ehrmann%2C+Holger%2C+GFZ&limit=20&mode=person',
+                expect.objectContaining({ signal }),
+            );
+        });
+
+        it('propagates an intentional abort without reporting a network failure', async () => {
+            using diagnostic = vi.spyOn(console, 'error');
+            const signal = AbortSignal.abort();
+            mockFetch.mockRejectedValueOnce(signal.reason);
+            await expect(OrcidService.searchOrcid('Li', 20, { mode: 'person', signal })).rejects.toBe(signal.reason);
+            expect(diagnostic).not.toHaveBeenCalled();
         });
 
         it('limits results to maximum of 50', async () => {
@@ -256,6 +272,7 @@ describe('OrcidService', () => {
 
             expect(result.success).toBe(false);
             expect(result.error).toBe('Rate limit exceeded');
+            expect(result.status).toBe(429);
         });
 
         it('returns fallback error when API error has no message', async () => {
@@ -273,16 +290,13 @@ describe('OrcidService', () => {
             expect(result.error).toBe('HTTP 500: Search failed');
         });
 
-        it('returns error when API returns success=false', async () => {
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ success: false, error: 'Search error' }),
-            });
-
-            const result = await OrcidService.searchOrcid('test');
-
-            expect(result.success).toBe(false);
-            expect(result.error).toBe('Search error');
+        it.each([
+            [{ success: false, error: 'Search error' }, 'Search error'],
+            [{ success: false, message: 'Temporarily unavailable' }, 'Temporarily unavailable'],
+            [{ success: true }, 'Search failed'],
+        ])('reports a search failure for %j', async (body, error) => {
+            mockFetch.mockResolvedValueOnce({ ok: true, json: async () => body });
+            await expect(OrcidService.searchOrcid('test')).resolves.toEqual({ success: false, error });
         });
 
         it('returns network error on fetch failure', async () => {

@@ -163,6 +163,7 @@ export class OrcidService {
     static async searchOrcid(
         query: string,
         limit: number = 10,
+        options: { mode?: 'person'; signal?: AbortSignal } = {},
     ): Promise<{
         success: boolean;
         data?: {
@@ -170,15 +171,18 @@ export class OrcidService {
             total: number;
         };
         error?: string;
+        status?: number;
     }> {
         try {
             const params = new URLSearchParams({
                 q: query,
                 limit: Math.min(limit, 50).toString(),
             });
+            if (options.mode) params.set('mode', options.mode);
 
             const response = await fetch(`/api/v1/orcid/search?${params.toString()}`, {
                 method: 'GET',
+                signal: options.signal,
                 headers: {
                     Accept: 'application/json',
                 },
@@ -189,6 +193,7 @@ export class OrcidService {
                 return {
                     success: false,
                     error: errorData?.message || `HTTP ${response.status}: Search failed`,
+                    status: response.status,
                 };
             }
 
@@ -209,6 +214,7 @@ export class OrcidService {
                 data: result.data,
             };
         } catch (error) {
+            if (options.signal?.aborted) throw error;
             console.error('ORCID search error:', error);
             return {
                 success: false,
