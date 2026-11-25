@@ -1,5 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import type { PortalBasePath, PortalPageProps, PortalResource } from '../../../resources/js/types/portal';
+
 /**
  * Portal E2E Tests
  *
@@ -284,20 +286,6 @@ test.describe('Portal Page', () => {
             }).toPass();
         });
 
-        test('pagination appears when there are multiple pages', async ({ page }) => {
-            const resultsText = page.getByText(/showing \d+-\d+ of [\d,.]+ results/i).first();
-
-            if (await resultsText.isVisible()) {
-                const text = await resultsText.textContent();
-                const match = text?.match(/of ([\d,.]+) results/i);
-                const total = match ? Number.parseInt(match[1].replace(/[,.]/g, ''), 10) : 0;
-
-                if (total > 20) {
-                    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeVisible();
-                }
-            }
-        });
-
         test('keeps pagination visible while the result cards scroll inside the workspace', async ({ page }) => {
             await page.setViewportSize({ width: 1280, height: 500 });
             await openPortal(page);
@@ -326,6 +314,7 @@ test.describe('Portal Page', () => {
 
             await nextButton.click();
             await expect(page).toHaveURL(/[?&]page=2(?:&|$)/);
+            await expect(results.getByRole('button', { name: '2', exact: true })).toBeInViewport();
         });
     });
 
@@ -352,6 +341,108 @@ test.describe('Portal Page', () => {
             await expect(input).toHaveValue('keyboard test');
         });
     });
+});
+
+test.describe('Numbered result pages', () => {
+    const query = 'pagination-fixture';
+
+    async function provideResults(page: Page, path: PortalBasePath) {
+        const isIgsn = path === '/igsn-search';
+        let perPage: number;
+        const resources: PortalResource[] = Array.from({ length: 45 }, (_, i) => ({
+            id: i + 1,
+            title: `Result ${i + 1}`,
+            creators: [],
+            searchMatches: [],
+            doi: null,
+            year: null,
+            resourceType: isIgsn ? 'Physical Object' : 'Dataset',
+            resourceTypeSlug: isIgsn ? 'physical-object' : 'dataset',
+            isIgsn,
+            geoLocations: [],
+            landingPageUrl: null,
+        }));
+        await page.route(
+            (url) => url.pathname === path && url.searchParams.get('q') === query,
+            async (route) => {
+                const response = await route.fetch();
+                const payload: { props: PortalPageProps } = await response.json();
+                const { pagination } = payload.props;
+                perPage = pagination.per_page;
+                const offset = (pagination.current_page - 1) * perPage;
+                payload.props.resources = resources.slice(offset, offset + perPage);
+                pagination.from = offset + 1;
+                pagination.to = offset + payload.props.resources.length;
+                pagination.has_more = pagination.to < resources.length;
+                await route.fulfill({ response, json: payload });
+            },
+        );
+        await page.route(
+            (url) => url.pathname === `${path}/count` && url.searchParams.get('q') === query,
+            async (route) => {
+                const response = await route.fetch();
+                await route.fulfill({
+                    response,
+                    json: { ...(await response.json()), total: resources.length, last_page: Math.max(1, Math.ceil(resources.length / perPage)) },
+                });
+            },
+        );
+        return resources;
+    }
+
+    for (const path of ['/doi-search', '/igsn-search'] as const) {
+        test(`keeps numbered pages and the result count visible when browsing ${path}`, async ({ page }) => {
+            await page.setViewportSize({ width: 1440, height: 900 });
+            await openPortal(page, path);
+            await provideResults(page, path);
+            await searchInput(page).fill(query);
+            await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+            const results = page.getByTestId('portal-results-list');
+            const button = (name: string) => results.getByRole('button', { name, exact: true });
+            const expectPage = async (current: number, from: number, to: number) => {
+                await expect(results.getByText(`Showing ${from}-${to} of 45 results`)).toBeVisible();
+                await expect(results.getByTestId('portal-result-title').first()).toHaveText(`Result ${from}`);
+                for (const number of ['1', '2', '3']) {
+                    await expect(button(number)).toBeVisible();
+                }
+                await expect(button(String(current))).toHaveAttribute('aria-current', 'page');
+            };
+
+            await expectPage(1, 1, 20);
+            await expect(button('Previous')).toBeDisabled();
+            await button('Next').click();
+            await expectPage(2, 21, 40);
+            await button('3').click();
+            await expectPage(3, 41, 45);
+            await expect(button('Next')).toBeDisabled();
+            await button('Previous').click();
+            await expectPage(2, 21, 40);
+        });
+
+        test(`updates the last page when repeating the same search on ${path}`, async ({ page }) => {
+            const countedAt = Date.now();
+            await page.clock.setFixedTime(countedAt);
+            await page.setViewportSize({ width: 1440, height: 900 });
+            await openPortal(page, path);
+            const resources = await provideResults(page, path);
+            const search = page.getByRole('button', { name: 'Search', exact: true });
+            const results = page.getByTestId('portal-results-list');
+            const thirdPage = results.getByRole('button', { name: '3', exact: true });
+            await searchInput(page).fill(query);
+            await search.click();
+            await expect(results.getByText('Showing 1-20 of 45 results')).toBeVisible();
+            await expect(thirdPage).toBeVisible();
+
+            // Only later pages change, so Inertia can reuse every result and pagination prop on page one.
+            resources.splice(25);
+            await page.clock.setFixedTime(countedAt + 30_000);
+            await search.click();
+            await expect(results.getByText('Showing 1-20 of 25 results')).toBeVisible();
+            await expect(results.getByRole('button', { name: '2', exact: true })).toBeVisible();
+            await expect(thirdPage).toHaveCount(0);
+        });
+    }
 });
 
 test.describe('IGSN Portal Page', () => {
