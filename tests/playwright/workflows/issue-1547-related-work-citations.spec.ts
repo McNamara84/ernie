@@ -16,7 +16,7 @@ function fixture(info: TestInfo, action: 'create' | 'clean', id: string) {
     );
 }
 
-test('reviews a stored paper citation and displays and copies the approved APA text on the public page', async ({ page }, info) => {
+test('resumes a rate-limited review and displays and copies the approved APA citation on the public page', async ({ page }, info) => {
     test.setTimeout(240_000);
     const tag = randomUUID();
     try {
@@ -29,6 +29,11 @@ test('reviews a stored paper citation and displays and copies the approved APA t
         await page.goto('/resources?search=' + encodeURIComponent(tag));
         await page.getByTestId('resources-row-checkbox-' + data.id).click();
         await page.getByTestId('resources-actions-menu-trigger').click();
+        await page.route(
+            '**/resources/citation-labels/preview',
+            (route) => route.fulfill({ status: 429, headers: { 'Retry-After': '1' }, json: { message: 'Too Many Attempts.' } }),
+            { times: 1 },
+        );
         await page.getByTestId('resources-action-review-citation-labels').click();
         const dialog = page.getByRole('dialog', { name: 'Review citation labels' });
         await expect(dialog.getByText(data.old)).toBeVisible();

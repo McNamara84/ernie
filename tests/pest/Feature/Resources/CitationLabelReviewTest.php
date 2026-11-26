@@ -195,6 +195,32 @@ it('isolates transient lookup failures per reviewer and review for thirty minute
     Http::assertSentCount(2);
 });
 
+it('limits preview pages per user before DOI lookups and lets reviewed proposals be applied', function (): void {
+    $this->freezeTime();
+    $this->actingAs($this->user);
+    Http::fake(['doi.org/*' => Http::response($this->metadata)]);
+    $row = ($this->row)($this->old);
+    $first = ($this->preview)()->assertOk()->assertHeader('X-RateLimit-Limit', '6');
+    $token = $first->json('candidates.0.token');
+
+    $nextPage = ['cursor' => $row->id, 'review_id' => (string) Str::uuid()];
+    foreach (range(1, 5) as $_) {
+        ($this->preview)($nextPage)->assertOk();
+    }
+    ($this->row)('Old label', identifier: '10.1234/next-paper');
+    ($this->preview)(['review_id' => (string) Str::uuid()] + $nextPage)
+        ->assertTooManyRequests()->assertHeader('Retry-After', '60');
+    Http::assertSentCount(1);
+    ($this->applyLabels)([$token])->assertOk()->assertJsonPath('results.0.status', 'applied');
+
+    $this->actingAs(User::factory()->create());
+    ($this->preview)($nextPage)->assertOk()->assertHeader('X-RateLimit-Remaining', '5');
+    Http::assertSentCount(2);
+    $this->actingAs($this->user);
+    $this->travel(61)->seconds();
+    ($this->preview)($nextPage)->assertOk()->assertHeader('X-RateLimit-Remaining', '5');
+});
+
 it('backfills missing labels and typography together for repeated DOI forms', function () {
     Http::fake(['doi.org/*' => Http::response($this->metadata)]);
     $missing = ($this->row)(null);

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import { useEffect, useState } from 'react';
 
 import { CitationLabelText } from '@/components/citations/citation-label-text';
@@ -42,7 +42,25 @@ interface ApplyResult {
     status: keyof typeof statusLabels;
 }
 
-async function loadPreview(ids: number[], signal: AbortSignal): Promise<Preview> {
+function waitForPreviewRetry(seconds: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        signal.throwIfAborted();
+        const cancel = () => {
+            window.clearTimeout(timer);
+            reject(signal.reason);
+        };
+        const timer = window.setTimeout(
+            () => {
+                signal.removeEventListener('abort', cancel);
+                resolve();
+            },
+            Math.max(1, seconds) * 1000,
+        );
+        signal.addEventListener('abort', cancel, { once: true });
+    });
+}
+
+async function loadPreview(ids: number[], signal: AbortSignal, setWaitingForLimit: (waiting: boolean) => void): Promise<Preview> {
     const preview: Preview = {
         candidates: [],
         skipped: { other_type: 0, changed_text: 0, insufficient_metadata: 0, lookup_failed: 0 },
@@ -50,17 +68,29 @@ async function loadPreview(ids: number[], signal: AbortSignal): Promise<Preview>
     };
     const reviewId = crypto.randomUUID();
     for (let offset = 0; offset < ids.length; offset += 100) {
+        const batch = ids.slice(offset, offset + 100);
         let cursor: number | null = null;
-        do {
-            const { data }: { data: Preview } = await axios.post(
+        while (true) {
+            const { data, status, headers }: AxiosResponse<Preview> = await axios.post<Preview>(
                 '/resources/citation-labels/preview',
-                { ids: ids.slice(offset, offset + 100), cursor, review_id: reviewId },
-                { signal },
+                { ids: batch, cursor, review_id: reviewId },
+                { signal, validateStatus: (status) => status === 200 || status === 429 },
             );
+            if (status === 429) {
+                const seconds = Number(headers['retry-after']);
+                if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds * 1000 > 2 ** 31 - 1) {
+                    throw new Error('Invalid Retry-After for citation preview.');
+                }
+                setWaitingForLimit(true);
+                await waitForPreviewRetry(seconds, signal);
+                setWaitingForLimit(false);
+                continue;
+            }
             preview.candidates.push(...data.candidates);
             for (const key of Object.keys(skipLabels) as (keyof SkipCounts)[]) preview.skipped[key] += data.skipped[key];
             cursor = data.next_cursor;
-        } while (cursor !== null);
+            if (cursor === null) break;
+        }
     }
     return preview;
 }
@@ -70,12 +100,13 @@ export function CitationLabelReviewDialog({ ids, onClose }: { ids: number[]; onC
     const [selected, setSelected] = useState<number[]>([]);
     const [results, setResults] = useState<Record<number, ApplyResult['status']>>({});
     const [error, setError] = useState('');
+    const [waitingForLimit, setWaitingForLimit] = useState(false);
     const [attempt, setAttempt] = useState(0);
     const [applying, setApplying] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
-        loadPreview(ids, controller.signal)
+        loadPreview(ids, controller.signal, setWaitingForLimit)
             .then((data) => {
                 if (!controller.signal.aborted) setPreview(data);
             })
@@ -133,7 +164,11 @@ export function CitationLabelReviewDialog({ ids, onClose }: { ids: number[]; onC
                             Retry preview
                         </Button>
                     ) : (
-                        <p role="status">Looking up DOI metadata…</p>
+                        <p role="status">
+                            {waitingForLimit
+                                ? 'Waiting for the DOI preview limit to reset. Your review will resume automatically.'
+                                : 'Looking up DOI metadata…'}
+                        </p>
                     ))}
                 {preview && (
                     <>

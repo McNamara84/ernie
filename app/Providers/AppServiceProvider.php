@@ -283,6 +283,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by((string) $identifier);
         });
 
+        // Each preview page can resolve up to 16 related DOIs.
+        RateLimiter::for('citation-label-preview', fn (Request $request): Limit => Limit::perMinute(6)
+            ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
         // Limit external review invitations independently for each user.
         RateLimiter::for('resource-review-links', function (Request $request) {
             $user = $request->user();

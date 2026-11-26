@@ -578,7 +578,9 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
         ->middleware('throttle:30,1')
         ->name('api.citation-lookup');
 
-    Route::post('resources/citation-labels/preview', [CitationLabelReviewController::class, 'preview'])->name('resources.citation-labels.preview');
+    Route::post('resources/citation-labels/preview', [CitationLabelReviewController::class, 'preview'])
+        ->middleware('throttle:citation-label-preview')
+        ->name('resources.citation-labels.preview');
     Route::post('resources/citation-labels/apply', [CitationLabelReviewController::class, 'apply'])->name('resources.citation-labels.apply');
 
     Route::post('resources/batch-register', [BatchResourceRegistrationController::class, 'register'])
