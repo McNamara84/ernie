@@ -28,7 +28,7 @@ async function openPortal(page: Page, path = '/doi-search') {
     await expect(page.getByTestId('portal-workspace')).toBeVisible();
 }
 
-async function openFilterSection(page: Page, name: 'Resource Type' | 'Datacenter') {
+async function openFilterSection(page: Page, name: 'Resource Type' | 'Datacenter' | 'Location') {
     const trigger = page.getByRole('button', { name: new RegExp(`^${name}(?: \\d+)?$`) });
     await trigger.scrollIntoViewIfNeeded();
 
@@ -416,7 +416,14 @@ test.describe('Numbered result pages', () => {
             await button('3').click();
             await expectPage(3, 41, 45);
             await expect(button('Next')).toBeDisabled();
+            await openFilterSection(page, 'Location');
+            await page.getByRole('switch', { name: 'Filter by map area' }).click();
+            await expect(page).toHaveURL((url) => url.searchParams.get('map_filter') === '0' && url.searchParams.get('page') === '3');
             await button('Previous').click();
+            await expectPage(2, 21, 40);
+            await expect(page).toHaveURL((url) => url.searchParams.get('map_filter') === '0' && url.searchParams.get('page') === '2');
+            await page.getByRole('switch', { name: 'Filter by map area' }).click();
+            await expect(page).toHaveURL((url) => !url.searchParams.has('map_filter') && url.searchParams.get('q') === query && url.searchParams.get('page') === '2');
             await expectPage(2, 21, 40);
         });
 
@@ -488,6 +495,60 @@ for (const portal of [
     { path: '/doi-search', typeSlug: 'dataset', typeName: 'Dataset' },
     { path: '/igsn-search', typeSlug: 'physical-object', typeName: 'Physical Object' },
 ] as const) {
+    test(`${portal.path} follows the map from worldwide search and restores the default on reset`, async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await openPortal(page, portal.path);
+        await openFilterSection(page, 'Location');
+        const toggle = page.getByRole('switch', { name: 'Filter by map area' });
+        const north = page.getByRole('spinbutton', { name: 'North latitude' });
+        await expect(toggle).toBeChecked();
+        await expect(north).toHaveValue('90.0000');
+        await expect(page.getByRole('button', { name: 'Clear all filters' })).toHaveCount(0);
+
+        await page.locator('.leaflet-control-zoom-in').click();
+        await expect(page).toHaveURL((url) => url.searchParams.has('north'));
+        await north.fill('53');
+        await page.getByRole('spinbutton', { name: 'South latitude' }).fill('52');
+        await page.getByRole('spinbutton', { name: 'West longitude' }).fill('13');
+        await page.getByRole('spinbutton', { name: 'East longitude' }).fill('14');
+        await page.getByRole('button', { name: 'Apply', exact: true }).click();
+        await expect(page).toHaveURL((url) => url.searchParams.get('north') === '53.000000');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(north).toHaveValue('53.0000');
+        await page.getByRole('button', { name: 'Clear', exact: true }).click();
+        await expect(page).toHaveURL((url) => url.search === '?map_filter=0');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await openFilterSection(page, 'Location');
+        await expect(toggle).not.toBeChecked();
+        await page.getByRole('button', { name: 'Clear all filters' }).click();
+        await expect(page).toHaveURL((url) => url.pathname === portal.path && url.search === '');
+        await openFilterSection(page, 'Location');
+        await expect(toggle).toBeChecked();
+        await expect(north).toHaveValue('90.0000');
+    });
+
+    test(`${portal.path} opens a saved regional map from the mobile results tab`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const bounds = { north: '53', south: '52', east: '14', west: '13' };
+        await openPortal(page, `${portal.path}?${new URLSearchParams(bounds)}`);
+        await expect(page.getByTestId('portal-mobile-results-view')).toBeVisible();
+        const mapRequest = page.waitForRequest((request) => {
+            const url = new URL(request.url());
+            return (
+                url.pathname === `${portal.path}/map` &&
+                Number(url.searchParams.get('zoom')) > 2 &&
+                Number(url.searchParams.get('viewport[north]')) >= 53 &&
+                Number(url.searchParams.get('viewport[south]')) <= 52 &&
+                Number(url.searchParams.get('viewport[west]')) <= 13 &&
+                Number(url.searchParams.get('viewport[east]')) >= 14
+            );
+        });
+        await page.getByTestId('portal-mobile-map-tab').click();
+        await mapRequest;
+        await page.getByTestId('portal-mobile-results-tab').click();
+        await expect.poll(() => Object.fromEntries(new URL(page.url()).searchParams)).toEqual(bounds);
+    });
+
     test(`${portal.path} cluster navigation stays monotone and exposes colocated records`, async ({ page }) => {
         const requestedZooms: number[] = [];
         const delayedResponseControl: { release?: () => void } = {};

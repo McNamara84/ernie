@@ -2183,6 +2183,287 @@
                 }
             }
         },
+        "/{portal}-search": {
+            "get": {
+                "tags": ["Portal"],
+                "summary": "Open the DOI or IGSN search page",
+                "description": "Opens the public results page for a shareable search URL. The page accepts the same search filters as `GET /{portal}-search/count`. A browser visit returns HTML. An Inertia request with `X-Inertia: true` and the current asset version returns the page object as JSON.",
+                "operationId": "getPortalSearchPage",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "portal",
+                        "in": "path",
+                        "required": true,
+                        "description": "Select the DOI or IGSN discovery portal.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Portal full-text search term.",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 500
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
+                    },
+                    {
+                        "name": "type[]",
+                        "in": "query",
+                        "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "datacenter[]",
+                        "in": "query",
+                        "description": "Selected datacenter names.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "keywords[]",
+                        "in": "query",
+                        "description": "Legacy combined keyword filters.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "free_keywords[]",
+                        "in": "query",
+                        "description": "Exact free-keyword filters.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "thesaurus_keywords[]",
+                        "in": "query",
+                        "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 2048
+                            }
+                        }
+                    },
+                    {
+                        "name": "sample_types[]",
+                        "in": "query",
+                        "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "materials[]",
+                        "in": "query",
+                        "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "classifications[]",
+                        "in": "query",
+                        "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "geological_ages[]",
+                        "in": "query",
+                        "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "geological_units[]",
+                        "in": "query",
+                        "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "date_type",
+                        "in": "query",
+                        "description": "Date field used by the optional temporal filter.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["Created", "Collected", "Coverage"]
+                        }
+                    },
+                    {
+                        "name": "year_from",
+                        "in": "query",
+                        "description": "Inclusive first year of the optional temporal filter.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2000
+                        }
+                    },
+                    {
+                        "name": "year_to",
+                        "in": "query",
+                        "description": "Inclusive last year of the optional temporal filter.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2026
+                        }
+                    },
+                    {
+                        "name": "topic",
+                        "in": "query",
+                        "description": "Curated science topic for the DOI portal. Unknown topic slugs return HTTP 422. The IGSN portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalScienceTopic"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "description": "Results page to display.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
+                    },
+                    {
+                        "name": "north",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/north"
+                        }
+                    },
+                    {
+                        "name": "south",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/south"
+                        }
+                    },
+                    {
+                        "name": "east",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/east"
+                        }
+                    },
+                    {
+                        "name": "west",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/west"
+                        }
+                    },
+                    {
+                        "name": "X-Inertia",
+                        "in": "header",
+                        "description": "Send `true` for an Inertia page visit.",
+                        "schema": {
+                            "type": "string",
+                            "const": "true"
+                        }
+                    },
+                    {
+                        "name": "X-Inertia-Version",
+                        "in": "header",
+                        "description": "The asset version from the current Inertia page, when present.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Portal search results and applied filters.",
+                        "content": {
+                            "text/html": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["component", "props"],
+                                    "properties": {
+                                        "component": {
+                                            "type": "string",
+                                            "const": "portal"
+                                        },
+                                        "props": {
+                                            "type": "object",
+                                            "properties": {
+                                                "filters": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "mapFilterEnabled": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "bounds": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "$ref": "#/components/schemas/PortalMapBounds"
+                                                                },
+                                                                {
+                                                                    "type": "null"
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The Inertia asset version has changed. Reload the URL in the X-Inertia-Location response header."
+                    },
+                    "422": {
+                        "description": "A portal search filter is invalid."
+                    },
+                    "429": {
+                        "description": "Public portal rate limit exceeded."
+                    }
+                }
+            }
+        },
         "/{portal}-search/free-keyword-suggestions": {
             "get": {
                 "tags": ["Portal"],
@@ -2574,6 +2855,9 @@
                             "$ref": "#/components/schemas/PortalScienceTopic"
                         },
                         "example": "volcanism"
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
                     }
                 ],
                 "responses": {
@@ -3131,6 +3415,9 @@
                             "$ref": "#/components/schemas/PortalScienceTopic"
                         },
                         "example": "volcanism"
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
                     }
                 ],
                 "responses": {
@@ -3575,6 +3862,9 @@
                             "$ref": "#/components/schemas/PortalScienceTopic"
                         },
                         "example": "volcanism"
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
                     }
                 ],
                 "responses": {
@@ -5094,6 +5384,19 @@
         }
     },
     "components": {
+        "parameters": {
+            "PortalMapFilter": {
+                "name": "map_filter",
+                "in": "query",
+                "required": false,
+                "description": "Only the string `0` disables filtering by the search bounds `north`, `south`, `east` and `west`. Omit the parameter or pass another string to enable it. Omitting all four bounds or using the whole world (90, -90, 180, -180 respectively) includes records without coordinates in lists and counts. Map and cluster requests always require their separate `viewport[...]` parameters and validate any supplied search bounds.",
+                "schema": {
+                    "type": "string",
+                    "default": "1"
+                },
+                "example": "0"
+            }
+        },
         "securitySchemes": {
             "ElmoApiKey": {
                 "type": "apiKey",
@@ -5370,6 +5673,14 @@
                         "$ref": "#/components/schemas/MessageResponse"
                     }
                 ]
+            },
+            "PortalFilterValues": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                    "type": "string",
+                    "maxLength": 255
+                }
             },
             "PortalScienceTopic": {
                 "type": "string",

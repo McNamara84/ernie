@@ -27,7 +27,7 @@ interface UsePortalFiltersReturn {
     setGeologicalAges: (values: string[]) => void;
     setGeologicalUnits: (values: string[]) => void;
     setBounds: (bounds: GeoBounds | null) => void;
-    clearBounds: () => void;
+    setMapFilterEnabled: (enabled: boolean) => void;
     setTemporal: (temporal: TemporalFilterValue | null) => void;
     clearFilters: () => void;
     clearTopic: () => void;
@@ -130,14 +130,15 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
 
     const setBounds = useCallback(
         (bounds: GeoBounds | null) => {
-            updateFilters({ bounds }, true);
+            updateFilters({ mapFilterEnabled: true, bounds }, true);
         },
         [updateFilters],
     );
 
-    const clearBounds = useCallback(() => {
-        updateFilters({ bounds: null }, true);
-    }, [updateFilters]);
+    const setMapFilterEnabled = useCallback(
+        (enabled: boolean) => updateFilters({ mapFilterEnabled: enabled, bounds: null }, filters.bounds !== null),
+        [filters.bounds, updateFilters],
+    );
 
     const setTemporal = useCallback(
         (temporal: TemporalFilterValue | null) => {
@@ -197,7 +198,7 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
         setGeologicalAges,
         setGeologicalUnits,
         setBounds,
-        clearBounds,
+        setMapFilterEnabled,
         setTemporal,
         clearFilters,
         clearTopic,

@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { usePortalMapClusterMembers } from '@/hooks/use-portal-map-cluster-members';
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
+import { PORTAL_WORLD_BOUNDS, portalBoundsKey } from '@/lib/portal-map-bounds';
 import { formatAuthorsShort, getMaterialCategoryStyle, getMaterialDisplayLabel, getPresentationShapePathOptions } from '@/lib/portal-map-config';
 import { normalizeLongitude, unwrapLongitudeBounds, unwrapPathLongitudes } from '@/lib/portal-map-longitude';
 import { normalizePortalMapMaxZoom, PORTAL_MAP_MIN_ZOOM } from '@/lib/portal-map-zoom';
@@ -41,7 +42,8 @@ interface PortalMapProps {
     geoFilterEnabled?: boolean;
     onViewportChange?: (bounds: GeoBounds) => void;
     onLocationCountChange?: (count: number) => void;
-    flyToBounds?: GeoBounds | null;
+    viewportSearch?: string | null;
+    viewRevision?: number;
 }
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
@@ -49,6 +51,7 @@ const PORTAL_MAP_WIDE_LAYOUT_QUERY = '(min-width: 1536px)';
 const PORTAL_MAP_MIN_LATITUDE = -90;
 const PORTAL_MAP_MAX_LATITUDE = 90;
 const PORTAL_MAP_LONGITUDE_GUARD_HALF_SPAN = 180;
+const WEB_MERCATOR_MAX_LATITUDE = 85.0511287798;
 
 function LatitudeBoundsGuard() {
     const map = useMap();
@@ -84,7 +87,7 @@ function LatitudeBoundsGuard() {
     return null;
 }
 
-function MapResizeHandler() {
+function MapResizeHandler({ skipFilterUpdate }: { skipFilterUpdate: React.RefObject<boolean> }) {
     const map = useMap();
 
     useEffect(() => {
@@ -95,7 +98,12 @@ function MapResizeHandler() {
             if (rafId !== null) return;
             rafId = requestAnimationFrame(() => {
                 rafId = null;
-                map.invalidateSize();
+                skipFilterUpdate.current = true;
+                try {
+                    map.invalidateSize();
+                } finally {
+                    skipFilterUpdate.current = false;
+                }
             });
         };
 
@@ -113,7 +121,7 @@ function MapResizeHandler() {
             window.removeEventListener('resize', scheduleInvalidate);
             if (rafId !== null) cancelAnimationFrame(rafId);
         };
-    }, [map]);
+    }, [map, skipFilterUpdate]);
 
     return null;
 }
@@ -138,6 +146,7 @@ function ViewportTracker({
 
     useEffect(() => {
         let resizeTimer: number | null = null;
+        let moving = false;
 
         const reportViewport = (updateFilter: boolean) => {
             const container = map.getContainer();
@@ -159,16 +168,21 @@ function ViewportTracker({
                 zoom: map.getZoom(),
             });
 
-            if (updateFilter) {
-                if (skipFilterUpdate.current) {
-                    skipFilterUpdate.current = false;
-                } else {
-                    filterRef.current?.(bounds);
-                }
+            if (updateFilter && !skipFilterUpdate.current) {
+                const showsWholeWorld =
+                    longitudeSpan >= 360 && bounds.north >= WEB_MERCATOR_MAX_LATITUDE && bounds.south <= -WEB_MERCATOR_MAX_LATITUDE;
+                filterRef.current?.(showsWholeWorld ? PORTAL_WORLD_BOUNDS : bounds);
             }
         };
 
-        const reportMoveEnd = () => reportViewport(true);
+        // Leaflet also emits moveend during layout changes, without a movestart.
+        const startMove = () => {
+            moving = !skipFilterUpdate.current;
+        };
+        const reportMoveEnd = () => {
+            reportViewport(moving);
+            moving = false;
+        };
         const reportResize = () => {
             if (resizeTimer !== null) window.clearTimeout(resizeTimer);
             resizeTimer = window.setTimeout(() => {
@@ -177,6 +191,7 @@ function ViewportTracker({
             }, VIEWPORT_RESIZE_DEBOUNCE_MS);
         };
 
+        map.on('movestart', startMove);
         map.on('moveend', reportMoveEnd);
         map.on('resize', reportResize);
         const initialTimer = window.setTimeout(() => reportViewport(false), 0);
@@ -184,6 +199,7 @@ function ViewportTracker({
         return () => {
             window.clearTimeout(initialTimer);
             if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+            map.off('movestart', startMove);
             map.off('moveend', reportMoveEnd);
             map.off('resize', reportResize);
         };
@@ -192,7 +208,7 @@ function ViewportTracker({
     return null;
 }
 
-function FitExtentControl({ extent, skipFilterUpdate }: { extent: GeoBounds | null; skipFilterUpdate: React.RefObject<boolean> }) {
+function FitExtentControl({ extent }: { extent: GeoBounds | null }) {
     const map = useMap();
     const previousExtent = useRef<string | null>(null);
 
@@ -202,42 +218,67 @@ function FitExtentControl({ extent, skipFilterUpdate }: { extent: GeoBounds | nu
         const key = `${extent.north},${extent.south},${extent.east},${extent.west}`;
         if (previousExtent.current === key) return;
         previousExtent.current = key;
-        skipFilterUpdate.current = true;
         map.invalidateSize();
 
         const displayLongitudes = unwrapLongitudeBounds(extent, map.getCenter().lng);
         const bounds = L.latLngBounds([extent.south, displayLongitudes.west], [extent.north, displayLongitudes.east]);
         if (bounds.isValid() && bounds.getNorthEast().equals(bounds.getSouthWest())) {
-            map.setView(bounds.getCenter(), 10);
+            map.setView(bounds.getCenter(), 10, { animate: false });
         } else if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
+            map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10, animate: false });
         }
-    }, [extent, map, skipFilterUpdate]);
+    }, [extent, map]);
 
     return null;
 }
 
-function MapBoundsUpdater({ bounds, skipFilterUpdate }: { bounds: GeoBounds | null; skipFilterUpdate: React.RefObject<boolean> }) {
+function MapBoundsUpdater({
+    bounds,
+    viewportSearch,
+    revision,
+    skipFilterUpdate,
+}: {
+    bounds: GeoBounds;
+    viewportSearch: string | null;
+    revision: number;
+    skipFilterUpdate: React.RefObject<boolean>;
+}) {
     const map = useMap();
-    const previousBounds = useRef<string | null>(null);
+    const applied = useRef<{ key: string; revision: number } | null>(null);
 
     useEffect(() => {
-        if (!bounds) return;
+        const key = portalBoundsKey(bounds);
+        const fit = () => {
+            const previous = applied.current;
+            if (previous?.key === key && previous.revision === revision) return;
+            const container = map.getContainer();
+            if (!container.clientWidth || !container.clientHeight) return;
+            applied.current = { key, revision };
+            // A pan has already positioned this map. A newly mounted map still needs the saved search area.
+            if (previous?.revision === revision && viewportSearch === key) return;
 
-        const key = `${bounds.north},${bounds.south},${bounds.east},${bounds.west}`;
-        if (previousBounds.current === key) return;
-        previousBounds.current = key;
-        skipFilterUpdate.current = true;
-
-        const displayLongitudes = unwrapLongitudeBounds(bounds, map.getCenter().lng);
-        map.fitBounds(
-            [
-                [bounds.south, displayLongitudes.west],
-                [bounds.north, displayLongitudes.east],
-            ],
-            { padding: [20, 20], animate: true },
-        );
-    }, [bounds, map, skipFilterUpdate]);
+            const { west, east } = unwrapLongitudeBounds(bounds, map.getCenter().lng);
+            skipFilterUpdate.current = true;
+            try {
+                map.fitBounds(
+                    [
+                        [bounds.south, west],
+                        [bounds.north, east],
+                    ],
+                    { padding: [20, 20], animate: false },
+                );
+            } finally {
+                skipFilterUpdate.current = false;
+            }
+        };
+        fit();
+        if (!applied.current || applied.current.key !== key || applied.current.revision !== revision) {
+            map.on('resize', fit);
+            return () => {
+                map.off('resize', fit);
+            };
+        }
+    }, [bounds, map, revision, skipFilterUpdate, viewportSearch]);
 
     return null;
 }
@@ -337,10 +378,11 @@ export function PortalMap({
     basemap,
     className,
     hideHeader = false,
-    geoFilterEnabled = false,
+    geoFilterEnabled = filters.mapFilterEnabled !== false,
     onViewportChange,
     onLocationCountChange,
-    flyToBounds,
+    viewportSearch = null,
+    viewRevision = 0,
 }: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [request, setRequest] = useState<{ viewport: PortalMapViewport; includeExtent: boolean } | null>(null);
@@ -417,19 +459,28 @@ export function PortalMap({
                 center={[30, 0]}
                 zoom={Math.min(2, compatibleMaxZoom)}
                 minZoom={PORTAL_MAP_MIN_ZOOM}
+                trackResize={false}
                 maxZoom={compatibleMaxZoom}
                 className="h-full w-full"
             >
                 <PortalBasemap config={basemap} maxZoom={compatibleMaxZoom} onStatusChange={handleBasemapStatusChange} />
                 <LatitudeBoundsGuard />
-                <MapResizeHandler />
+                <MapResizeHandler skipFilterUpdate={skipFilterUpdate} />
                 <ViewportTracker
                     onTechnicalViewport={handleTechnicalViewport}
                     onFilterViewport={geoFilterEnabled ? onViewportChange : undefined}
                     skipFilterUpdate={skipFilterUpdate}
                 />
-                {!geoFilterEnabled && <FitExtentControl extent={extent} skipFilterUpdate={skipFilterUpdate} />}
-                <MapBoundsUpdater bounds={flyToBounds ?? null} skipFilterUpdate={skipFilterUpdate} />
+                {geoFilterEnabled ? (
+                    <MapBoundsUpdater
+                        bounds={filters.bounds ?? PORTAL_WORLD_BOUNDS}
+                        viewportSearch={viewportSearch}
+                        revision={viewRevision}
+                        skipFilterUpdate={skipFilterUpdate}
+                    />
+                ) : (
+                    <FitExtentControl extent={extent} />
+                )}
                 <ClusterLayer
                     features={features}
                     maxZoom={compatibleMaxZoom}

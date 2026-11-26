@@ -53,6 +53,7 @@ interface PortalFiltersProps {
     thesaurusFacets?: PortalThesaurusFacet[];
     igsnFacets?: PortalIgsnFacets | null;
     geoFilterEnabled: boolean;
+    geoFormRevision?: number;
     onGeoFilterToggle: (enabled: boolean) => void;
     onBoundsChange: (bounds: GeoBounds | null) => void;
     temporalRange: TemporalRange;
@@ -110,6 +111,7 @@ export function PortalFilters({
     thesaurusFacets = [],
     igsnFacets = null,
     geoFilterEnabled,
+    geoFormRevision,
     onGeoFilterToggle,
     onBoundsChange,
     temporalRange,
@@ -131,7 +133,7 @@ export function PortalFilters({
         if (isIgsnPortal && (filters.geologicalAges?.length ?? 0) > 0) active.push('geological-age');
         if (isIgsnPortal && (filters.geologicalUnits?.length ?? 0) > 0) active.push('geological-unit');
         if (temporalFilterEnabled) active.push('temporal');
-        if (geoFilterEnabled) active.push('geographic');
+        if (filters.bounds) active.push('geographic');
         if (!isIgsnPortal && (filters.type.length > 0 || filters.exclude_type)) active.push('resource-type');
         if (filters.datacenter.length > 0) active.push('datacenter');
         return active;
@@ -145,7 +147,7 @@ export function PortalFilters({
         filters.sampleTypes?.length,
         filters.thesaurusKeywords,
         filters.type.length,
-        geoFilterEnabled,
+        filters.bounds,
         isIgsnPortal,
         temporalFilterEnabled,
     ]);
@@ -187,7 +189,7 @@ export function PortalFilters({
                     {hasActiveFilters && <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />}
                 </div>
                 <div className="flex items-center gap-1">
-                    {hasActiveFilters && (
+                    {(hasActiveFilters || !geoFilterEnabled) && (
                         <Button variant="ghost" size="sm" onClick={onClearFilters} className="h-8 px-2 text-xs" aria-label="Clear all filters">
                             <X className="mr-1 h-3.5 w-3.5" /> Clear
                         </Button>
@@ -385,10 +387,11 @@ export function PortalFilters({
                                 <Globe className="h-4 w-4" />
                                 Location
                             </span>
-                            <CountBadge count={geoFilterEnabled ? 1 : 0} />
+                            <CountBadge count={filters.bounds ? 1 : 0} />
                         </AccordionTrigger>
                         <AccordionContent>
                             <PortalGeoFilter
+                                key={geoFormRevision}
                                 hideTitle
                                 enabled={geoFilterEnabled}
                                 onToggle={onGeoFilterToggle}

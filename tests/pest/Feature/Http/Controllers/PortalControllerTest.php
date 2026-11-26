@@ -338,13 +338,13 @@ describe('bounds parameter parsing', function () {
             ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
     });
 
-    it('accepts boundary values at range limits', function () {
-        $response = $this->get('/doi-search?north=90&south=-90&east=180&west=-180');
+    it('preserves a regional latitude band that covers all longitudes', function () {
+        $response = $this->get('/doi-search?north=89.999999&south=-90&east=180&west=-180');
 
         $response->assertOk()
             ->assertInertia(
                 fn ($page) => $page
-                    ->where('filters.bounds', fn ($bounds) => $bounds['north'] == 90
+                    ->where('filters.bounds', fn ($bounds) => $bounds['north'] == 89.999999
                         && $bounds['south'] == -90
                         && $bounds['east'] == 180
                         && $bounds['west'] == -180

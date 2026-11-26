@@ -27,8 +27,8 @@ const usePortalMapClusterMembersMock = vi.hoisted(() => vi.fn(() => clusterMembe
 const useMediaQueryMock = vi.hoisted(() => vi.fn(() => false));
 const latLngBoundsMock = vi.hoisted(() =>
     vi.fn(() => ({
-        isValid: () => true,
-        getNorthEast: () => ({ equals: () => false }),
+        isValid: (): boolean => true,
+        getNorthEast: () => ({ equals: (): boolean => false }),
         getSouthWest: () => ({}),
         getCenter: () => ({ lat: 52, lng: 13 }),
     })),
@@ -73,10 +73,10 @@ const mockMap = vi.hoisted(() => ({
     on: vi.fn((event: string, callback: () => void) => mapEvents.set(event, callback)),
     off: vi.fn((event: string) => mapEvents.delete(event)),
     getBounds: vi.fn(() => ({
-        getNorth: () => 53,
-        getSouth: () => 51,
-        getEast: () => 14,
-        getWest: () => 12,
+        getNorth: (): number => 53,
+        getSouth: (): number => 51,
+        getEast: (): number => 14,
+        getWest: (): number => 12,
     })),
     getContainer: vi.fn(() => {
         const element = document.createElement('div');
@@ -260,7 +260,7 @@ describe('PortalMap', () => {
             expect(usePortalMapDataMock).toHaveBeenCalledWith(
                 filters,
                 expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
-                true,
+                false,
                 '/doi-search',
                 18,
             ),
@@ -276,7 +276,7 @@ describe('PortalMap', () => {
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-language', 'en');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-style-url', basemap.styleUrl);
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '7');
-        await waitFor(() => expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 7));
+        await waitFor(() => expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 7));
     });
 
     it('renders only one Leaflet and MapLibre map for each responsive layout', () => {
@@ -314,7 +314,7 @@ describe('PortalMap', () => {
         expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-initial-zoom', '1');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-max-zoom', '1');
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '1');
-        await waitFor(() => expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 1));
+        await waitFor(() => expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 1));
     });
 
     it('shows a distinct accessible error when the map background fails', () => {
@@ -475,9 +475,9 @@ describe('PortalMap', () => {
         );
     });
 
-    it('keeps wrapped fly-to navigation on the adjacent longitude world copy', async () => {
+    it('opens a regional link on the adjacent longitude world copy', async () => {
         render(
-            <PortalMap filters={filters} maxZoom={18} basemap={basemap} hideHeader flyToBounds={{ north: 10, south: -10, west: 170, east: -170 }} />,
+            <PortalMap filters={{ ...filters, bounds: { north: 10, south: -10, west: 170, east: -170 } }} maxZoom={18} basemap={basemap} hideHeader />,
         );
 
         await waitFor(() =>
@@ -486,7 +486,7 @@ describe('PortalMap', () => {
                     [-10, 170],
                     [10, 190],
                 ],
-                { padding: [20, 20], animate: true },
+                { padding: [20, 20], animate: false },
             ),
         );
     });
@@ -537,6 +537,9 @@ describe('PortalMap', () => {
 
         await waitFor(() => expect(mapEvents.has('moveend')).toBe(true));
         act(() => mapEvents.get('moveend')?.());
+        expect(onViewportChange).not.toHaveBeenCalled();
+        act(() => mapEvents.get('movestart')?.());
+        act(() => mapEvents.get('moveend')?.());
 
         expect(onViewportChange).toHaveBeenCalledWith({ north: 53, south: 51, east: 14, west: 12 });
         expect(usePortalMapDataMock).toHaveBeenLastCalledWith(
@@ -546,6 +549,121 @@ describe('PortalMap', () => {
             '/doi-search',
             18,
         );
+    });
+
+    it('fits the world and direct links, ignores a pan acknowledgement, and refits on reset', () => {
+        const onViewportChange = vi.fn();
+        const mapProps = { maxZoom: 18, basemap, onViewportChange };
+        mockMap.getCenter.mockReturnValue({ lat: 0, lng: 0 });
+        mockMap.fitBounds.mockImplementation(() => {
+            mapEvents.get('movestart')?.();
+            mapEvents.get('moveend')?.();
+        });
+        try {
+            const view = render(<PortalMap {...mapProps} filters={filters} />);
+            expect(mockMap.fitBounds).toHaveBeenLastCalledWith([[-90, -180], [90, 180]], expect.anything());
+            const regional = { ...filters, bounds: { north: 53, south: 51, east: 14, west: 12 } };
+            mockMap.fitBounds.mockClear();
+            view.rerender(<PortalMap {...mapProps} filters={regional} viewportSearch="53.000000,51.000000,14.000000,12.000000" />);
+            expect(mockMap.fitBounds).not.toHaveBeenCalled();
+            view.rerender(<PortalMap {...mapProps} filters={regional} viewRevision={1} />);
+            expect(mockMap.fitBounds).toHaveBeenLastCalledWith([[51, 12], [53, 14]], expect.anything());
+            view.rerender(<PortalMap {...mapProps} filters={filters} viewRevision={1} />);
+            expect(mockMap.fitBounds).toHaveBeenLastCalledWith([[-90, -180], [90, 180]], expect.anything());
+            expect(onViewportChange).not.toHaveBeenCalled();
+        } finally {
+            mockMap.fitBounds.mockReset();
+        }
+    });
+
+    it.each([
+        [86, -86, 90, -90],
+        [60, -70, 60, -70],
+    ])('distinguishes a visible world from a full-width latitude band at %s to %s', (north, south, expectedNorth, expectedSouth) => {
+        const onViewportChange = vi.fn();
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} onViewportChange={onViewportChange} />);
+        mockMap.getBounds.mockReturnValueOnce({ getNorth: () => north, getSouth: () => south, getEast: () => 190, getWest: () => -190 });
+        act(() => {
+            mapEvents.get('movestart')?.();
+            mapEvents.get('moveend')?.();
+        });
+        expect(onViewportChange).toHaveBeenCalledWith({ north: expectedNorth, south: expectedSouth, east: 180, west: -180 });
+    });
+
+    it('waits for a hidden container before fitting a saved region', () => {
+        const container = document.createElement('div');
+        let width = 0;
+        Object.defineProperties(container, { clientWidth: { get: () => width }, clientHeight: { value: 400 } });
+        mockMap.getContainer.withImplementation(() => container, () => {
+            const bounds = { north: 53, south: 52, west: 13, east: 14 };
+            render(<PortalMap filters={{ ...filters, bounds }} maxZoom={18} basemap={basemap} />);
+            expect(mockMap.fitBounds).not.toHaveBeenCalled();
+            width = 400;
+            act(() => mapEvents.get('resize')?.());
+            expect(mockMap.fitBounds).toHaveBeenCalledWith([[52, 13], [53, 14]], expect.anything());
+        });
+    });
+
+    it('coalesces window resizes and keeps the next user pan active', () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('ResizeObserver', undefined);
+        try {
+            const onViewportChange = vi.fn();
+            const move = () => {
+                mapEvents.get('movestart')?.();
+                mapEvents.get('moveend')?.();
+            };
+            const { unmount } = render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} onViewportChange={onViewportChange} />);
+            mockMap.invalidateSize.mockImplementationOnce(move);
+            act(() => {
+                window.dispatchEvent(new Event('resize'));
+                window.dispatchEvent(new Event('resize'));
+                vi.advanceTimersToNextFrame();
+            });
+            expect(mockMap.invalidateSize).toHaveBeenCalledTimes(1);
+            expect(onViewportChange).not.toHaveBeenCalled();
+            act(move);
+            expect(onViewportChange).toHaveBeenCalledTimes(1);
+
+            window.dispatchEvent(new Event('resize'));
+            unmount();
+            act(() => vi.advanceTimersToNextFrame());
+            expect(mockMap.invalidateSize).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.unstubAllGlobals();
+            vi.useRealTimers();
+        }
+    });
+
+    it.each([
+        { shape: 'one point', north: 52, east: 13, singlePoint: true },
+        { shape: 'several locations', north: 53, east: 14, singlePoint: false },
+    ])('fits the extent of $shape when the map filter is off', async ({ north, east, singlePoint }) => {
+        const extent = { north, south: 52, east, west: 13 };
+        mapQueryState.result.data = response({ meta: { ...response().meta, extent } });
+        const bounds = {
+            isValid: () => true,
+            getNorthEast: () => ({ equals: () => singlePoint }),
+            getSouthWest: () => ({}),
+            getCenter: () => ({ lat: 52, lng: 13 }),
+        };
+        await latLngBoundsMock.withImplementation(() => bounds, async () => {
+            const onViewportChange = vi.fn();
+            render(
+                <PortalMap filters={{ ...filters, mapFilterEnabled: false }} maxZoom={18} basemap={basemap} onViewportChange={onViewportChange} />,
+            );
+            await waitFor(() => expect(latLngBoundsMock).toHaveBeenCalledWith([52, 13], [north, east]));
+            if (singlePoint) {
+                expect(mockMap.setView).toHaveBeenCalledWith(bounds.getCenter(), 10, { animate: false });
+            } else {
+                expect(mockMap.fitBounds).toHaveBeenCalledWith(bounds, { padding: [30, 30], maxZoom: 10, animate: false });
+            }
+            act(() => {
+                mapEvents.get('movestart')?.();
+                mapEvents.get('moveend')?.();
+            });
+            expect(onViewportChange).not.toHaveBeenCalled();
+        });
     });
 
     it('debounces resize-driven technical viewport requests', () => {
@@ -619,7 +737,7 @@ describe('PortalMap', () => {
 
         render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} hideHeader />);
         await waitFor(() =>
-            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 18),
+            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 18),
         );
 
         fireEvent.click(screen.getByTestId('cluster-layer'));
@@ -648,7 +766,7 @@ describe('PortalMap', () => {
         const onLocationCountChange = vi.fn();
         mapQueryState.result.data = response({ meta: { ...response().meta, totalLocations: 35_638, visibleLocations: 120 } });
 
-        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} onLocationCountChange={onLocationCountChange} />);
+        render(<PortalMap filters={{ ...filters, mapFilterEnabled: false }} maxZoom={18} basemap={basemap} onLocationCountChange={onLocationCountChange} />);
 
         expect(onLocationCountChange).toHaveBeenCalledWith(35_638);
         expect(screen.getAllByText(/35[.,]638 locations/)[0]).toBeInTheDocument();
