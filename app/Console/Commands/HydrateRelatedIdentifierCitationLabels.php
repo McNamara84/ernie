@@ -10,6 +10,7 @@ use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\OaiPmh\OaiPmhDatestampService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -122,6 +123,7 @@ class HydrateRelatedIdentifierCitationLabels extends Command
                     ]);
 
                     app(OaiPmhDatestampService::class)->touchResource($resource->id);
+                    app(ResourceListingProjectionRefreshService::class)->schedule($resource->id);
                     if (($page = $resource->landingPage) !== null) {
                         DB::afterCommit(fn () => app(LandingPageRenderDataCacheService::class)->forgetById($page->id));
                     }

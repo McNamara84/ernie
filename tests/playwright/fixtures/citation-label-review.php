@@ -33,11 +33,10 @@ if ($argv[1] === 'clean') {
 if ($argv[1] !== 'create') {
     throw new RuntimeException('Unknown citation fixture action.');
 }
-$data = DB::transaction(function () use ($doi, $paper, $tag, $cache, $key): array {
-    $metadata = json_decode(file_get_contents(base_path('tests/fixtures/citations/ordinary-water.json')), true, flags: JSON_THROW_ON_ERROR);
-    $metadata['DOI'] = $paper;
+$metadata = json_decode(file_get_contents(base_path('tests/fixtures/citations/ordinary-water.json')), true, flags: JSON_THROW_ON_ERROR);
+$metadata['DOI'] = $paper;
+$data = DB::transaction(function () use ($doi, $paper, $tag, $metadata): array {
     $old = app(DataCiteApiService::class)->buildCitationFromMetadata($metadata);
-    $cache->put($key->key($paper), $metadata, 600);
     $resource = Resource::factory()->create(['doi' => $doi]);
     $resource->titles()->create(['title_type_id' => TitleType::where('slug', 'MainTitle')->firstOrFail()->id, 'value' => 'APA browser '.$tag]);
     $row = $resource->relatedIdentifiers()->create([
@@ -49,4 +48,6 @@ $data = DB::transaction(function () use ($doi, $paper, $tag, $cache, $key): arra
 
     return ['id' => $resource->id, 'row' => $row->id, 'path' => $page->getPublicPath(), 'old' => $old, 'doi' => $paper];
 });
+// On file-backed stacks, the resource's after-commit callbacks clear the entire cache.
+$cache->put($key->key($paper), $metadata, 600);
 echo json_encode($data, JSON_THROW_ON_ERROR);

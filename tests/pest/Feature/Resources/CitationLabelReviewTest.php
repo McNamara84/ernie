@@ -9,9 +9,11 @@ use App\Models\LandingPage;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
+use App\Models\ResourceListingProjection;
 use App\Models\User;
 use App\Services\Citations\CitationLabelReviewService;
 use App\Services\DataCiteApiService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Database\Seeders\IdentifierTypeSeeder;
 use Database\Seeders\RelationTypeSeeder;
 use Database\Seeders\TitleTypeSeeder;
@@ -74,6 +76,45 @@ it('compares exact old labels, groups DOI variants and applies only the selected
     ($this->preview)()->assertOk()->assertJsonCount(0, 'candidates');
     Http::assertSentCount(1);
 });
+
+it('refreshes updated sorting and the cached listing only for successful citation writes', function (string $operation): void {
+    $this->actingAs($this->user);
+    Http::fake(['doi.org/*' => Http::response($this->metadata)]);
+    $other = Resource::factory()->create();
+    LandingPage::factory()->published()->create(['resource_id' => $other->id]);
+    $ids = [$this->resource->id, $other->id];
+    foreach ([$this->resource, $other] as $resource) {
+        ($this->row)($operation === 'hydrate' ? null : $this->old, resource: $resource);
+    }
+    $unchanged = Resource::factory()->create();
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    $sortDate = fn (int $id): string => ResourceListingProjection::findOrFail($id)->updated_sort;
+    $unchangedDate = $sortDate($unchanged->id);
+    $cache = CacheKey::RESOURCE_LIST->repository();
+    $key = CacheKey::RESOURCE_LIST->key('updated-sort');
+    $cache->put($key, $ids, 600);
+    $this->travel(1)->hour();
+
+    if ($operation === 'hydrate') {
+        $save = fn () => $this->artisan('related-identifiers:hydrate-citation-labels')->assertSuccessful()->run();
+    } else {
+        $tokens = array_column(($this->preview)(['ids' => $ids])->assertOk()->json('candidates'), 'token');
+        expect($tokens)->toHaveCount(2);
+        $save = fn () => ($this->applyLabels)($tokens)->assertOk();
+    }
+    $save();
+
+    foreach ($ids as $id) {
+        expect($sortDate($id))->toBe(Resource::findOrFail($id)->updated_at->toIso8601String())
+            ->and($sortDate($id))->toBeGreaterThan($unchangedDate);
+    }
+    expect($sortDate($unchanged->id))->toBe($unchangedDate)->and($cache->has($key))->toBeFalse();
+
+    $cache->put($key, $ids, 600);
+    $this->travel(1)->minute();
+    $save();
+    expect($cache->get($key))->toBe($ids);
+})->with(['hydrate', 'apply']);
 
 it('counts missing metadata, unrelated works and unknown sources separately', function () {
     $this->actingAs($this->user);

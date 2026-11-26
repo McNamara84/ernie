@@ -5598,6 +5598,11 @@
                         "minLength": 1,
                         "example": "Doe, J. (2026): Resolved DOI citation."
                     },
+                    "citation_proof": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Signed proof returned for citations with formatted text. Submit it unchanged as citationProof alongside the unedited citationLabel to preserve its italic formatting."
+                    },
                     "identifier": {
                         "type": "string",
                         "minLength": 1,

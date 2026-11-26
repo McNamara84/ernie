@@ -21,7 +21,12 @@ import {
 } from '@/components/curation/related-items-section-copy';
 import { ReleaseDataEmbargoButton } from '@/components/curation/release-data-embargo-button';
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
-import { draftAutosaveSignature, snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curation/utils/editor-content-snapshot';
+import {
+    draftAutosaveSignature,
+    snapshotEditorContent,
+    snapshotWithSavedCitationLabels,
+    snapshotWithSavedDoi,
+} from '@/components/curation/utils/editor-content-snapshot';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { hasMslLaboratoryTrigger } from '@/components/curation/utils/msl-laboratories';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
@@ -166,15 +171,7 @@ function parseCurationAccordionRevision(value: unknown): number | null {
     return Number.isSafeInteger(revision) && revision > 0 ? revision : null;
 }
 
-type DraftSaveResponse = {
-    contentMetadata?: ContentMetadata;
-    geoLocationChanges?: GeoLocationChanges;
-    relatedWorkLabels?: SavedWorkLabel[];
-    message?: string;
-    resource?: { id: number; publicStatus?: ResourcePublicStatus; canEditDoi?: boolean };
-};
-
-type ValidatedSaveResponse = {
+type EditorSaveResponse = {
     contentMetadata?: ContentMetadata;
     geoLocationChanges?: GeoLocationChanges;
     relatedWorkLabels?: SavedWorkLabel[];
@@ -2381,6 +2378,7 @@ export default function DataCiteForm({
         ],
     );
     const [savedEditorSnapshot, setSavedEditorSnapshot] = useState(editorSnapshot);
+    const savedEditorSnapshotRef = useRef(editorSnapshot);
     const currentEditorSnapshotRef = useRef(editorSnapshot);
     currentEditorSnapshotRef.current = editorSnapshot;
     const [hasUnpersistedInitialData, setHasUnpersistedInitialData] = useState(hasUnpersistedPrefill);
@@ -2392,6 +2390,7 @@ export default function DataCiteForm({
                 parsed.contentMetadata = contentMetadataSnapshot(saved.formats, saved.sizes);
                 snapshot = snapshotEditorContent(parsed);
             }
+            savedEditorSnapshotRef.current = snapshot;
             setSavedEditorSnapshot(snapshot);
             setHasUnpersistedInitialData(false);
         },
@@ -2784,8 +2783,14 @@ export default function DataCiteForm({
         isSubmittingDataCite;
     const { allowNextInternalVisit } = useEditorLeaveGuard(hasUnsavedChanges);
 
-    const recordSavedPayload = useCallback(
-        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+    const recordEditorSave = useCallback(
+        (payload: ReturnType<typeof buildPayload>, submittedSnapshot: string, data: EditorSaveResponse | null, resourceId = data?.resource?.id) => {
+            const labels = data?.relatedWorkLabels;
+            const changes = data?.geoLocationChanges;
+            acknowledgeSavedLabels(labels);
+            applySavedGeoLocations(changes);
+            applySavedContentMetadata(data?.contentMetadata, payload);
+
             const saved = lastSavedContentMetadata.current;
             const metadata = saved
                 ? {
@@ -2795,15 +2800,25 @@ export default function DataCiteForm({
                       contentMetadataChanged: false,
                   }
                 : {};
-            const savedPayload = { ...payload, ...metadata, ...(resourceId ? { resourceId } : {}) };
+            const savedPayload = {
+                ...payload,
+                ...metadata,
+                ...(changes && {
+                    spatialTemporalCoverages: applyGeoLocationChanges(payload.spatialTemporalCoverages, payload.spatialTemporalCoverages, changes),
+                }),
+                ...(resourceId ? { resourceId } : {}),
+            };
             if (resourceId) delete savedPayload.relatedItems;
 
             try {
-                lastDraftAutosaveSignatureRef.current = draftAutosaveSignature(savedPayload);
+                lastDraftAutosaveSignatureRef.current = draftAutosaveSignature(savedPayload, labels);
             } catch (error) {
                 console.error('Failed to serialize draft autosave signature', error);
                 lastDraftAutosaveSignatureRef.current = null;
             }
+
+            const geoSnapshot = snapshotWithSavedGeoLocations(submittedSnapshot, spatialTemporalCoverages, changes);
+            markEditorSaved(snapshotWithSavedCitationLabels(geoSnapshot, labels));
 
             const savedSubmittedDate = dates.find((date) => date.dateType === 'submitted' && date.startDate?.trim());
             if (
@@ -2822,7 +2837,16 @@ export default function DataCiteForm({
                 });
             }
         },
-        [dates, persistedSubmittedDateIds, lastSavedContentMetadata],
+        [
+            acknowledgeSavedLabels,
+            applySavedContentMetadata,
+            applySavedGeoLocations,
+            dates,
+            lastSavedContentMetadata,
+            markEditorSaved,
+            persistedSubmittedDateIds,
+            spatialTemporalCoverages,
+        ],
     );
 
     const replaceSavedDraftUrl = useCallback(
@@ -2845,16 +2869,6 @@ export default function DataCiteForm({
             });
         },
         [currentPageUrl],
-    );
-
-    const markDraftAutosaveSaved = useCallback(
-        (payload: ReturnType<typeof buildPayload>, snapshot: string, resourceId?: number) => {
-            recordSavedPayload(payload, resourceId);
-            markEditorSaved(snapshot);
-            setLastDraftAutosaveAt(new Date());
-            setDraftAutosaveStatus('saved');
-        },
-        [markEditorSaved, recordSavedPayload],
     );
 
     useEffect(() => {
@@ -2927,10 +2941,7 @@ export default function DataCiteForm({
                 },
             );
 
-            const data = response.data as DraftSaveResponse | null;
-            acknowledgeSavedLabels(data?.relatedWorkLabels);
-            applySavedGeoLocations(data?.geoLocationChanges);
-            applySavedContentMetadata(data?.contentMetadata, payload);
+            const data = response.data as EditorSaveResponse | null;
             const savedResourceId = data?.resource?.id;
 
             if (resolvedResourceId === null && !savedResourceId) {
@@ -2948,14 +2959,9 @@ export default function DataCiteForm({
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
 
-            const changes = data?.geoLocationChanges;
-            const savedPayload = changes
-                ? {
-                      ...payload,
-                      spatialTemporalCoverages: applyGeoLocationChanges(payload.spatialTemporalCoverages, payload.spatialTemporalCoverages, changes),
-                  }
-                : payload;
-            markDraftAutosaveSaved(savedPayload, snapshotWithSavedGeoLocations(editorSnapshot, spatialTemporalCoverages, changes), savedResourceId);
+            recordEditorSave(payload, editorSnapshot, data);
+            setLastDraftAutosaveAt(new Date());
+            setDraftAutosaveStatus('saved');
         } catch (error) {
             console.error('Failed to autosave draft', error);
             setDraftAutosaveStatus('error');
@@ -2967,9 +2973,6 @@ export default function DataCiteForm({
         }
     }, [
         activeDateInputId,
-        applySavedGeoLocations,
-        acknowledgeSavedLabels,
-        applySavedContentMetadata,
         contentMetadataErrors,
         buildPayload,
         dateValidationIssues.length,
@@ -2982,8 +2985,7 @@ export default function DataCiteForm({
         isSaving,
         isSavingDraft,
         isSubmittingDataCite,
-        markDraftAutosaveSaved,
-        spatialTemporalCoverages,
+        recordEditorSave,
         replaceSavedDraftUrl,
         registrationSuccess,
         resolvedResourceId,
@@ -3169,7 +3171,7 @@ export default function DataCiteForm({
     const persistValidatedResource = async (
         payload: ReturnType<typeof buildPayload>,
         submittedSnapshot: string,
-    ): Promise<ValidatedSaveResponse | null> => {
+    ): Promise<EditorSaveResponse | null> => {
         if (importInFlightRef.current || dataReleaseInFlightRef.current) return null;
         try {
             const response = await axios.post(saveUrl, payload, {
@@ -3178,10 +3180,7 @@ export default function DataCiteForm({
                     Accept: 'application/json',
                 },
             });
-            const data = response.data as ValidatedSaveResponse | null;
-            acknowledgeSavedLabels(data?.relatedWorkLabels);
-            applySavedGeoLocations(data?.geoLocationChanges);
-            applySavedContentMetadata(data?.contentMetadata, payload);
+            const data = response.data as EditorSaveResponse | null;
 
             if (data?.resource?.id) {
                 setResolvedResourceId(data.resource.id);
@@ -3195,21 +3194,7 @@ export default function DataCiteForm({
             }
 
             setHasAttemptedSubmit(false);
-            const changes = data?.geoLocationChanges;
-            recordSavedPayload(
-                changes
-                    ? {
-                          ...payload,
-                          spatialTemporalCoverages: applyGeoLocationChanges(
-                              payload.spatialTemporalCoverages,
-                              payload.spatialTemporalCoverages,
-                              changes,
-                          ),
-                      }
-                    : payload,
-                data?.resource?.id,
-            );
-            markEditorSaved(snapshotWithSavedGeoLocations(submittedSnapshot, spatialTemporalCoverages, changes));
+            recordEditorSave(payload, submittedSnapshot, data);
 
             return data;
         } catch (error) {
@@ -3337,7 +3322,7 @@ export default function DataCiteForm({
             const { doi, mode, publishedRecordCounts, updated } = response.data;
             const modeLabel = mode === 'test' ? 'Test' : 'Production';
 
-            const savedSnapshotWithDoi = snapshotWithSavedDoi(pendingDataCiteSnapshot ?? editorSnapshot, doi);
+            const savedSnapshotWithDoi = snapshotWithSavedDoi(savedEditorSnapshotRef.current, doi);
             const currentSnapshotWithDoi = snapshotWithSavedDoi(currentEditorSnapshotRef.current, doi);
             markEditorSaved(savedSnapshotWithDoi);
             const canLeaveWithoutWarning =
@@ -3463,10 +3448,7 @@ export default function DataCiteForm({
                 },
             );
 
-            const data = response.data as DraftSaveResponse | null;
-            acknowledgeSavedLabels(data?.relatedWorkLabels);
-            applySavedGeoLocations(data?.geoLocationChanges);
-            applySavedContentMetadata(data?.contentMetadata, payload);
+            const data = response.data as EditorSaveResponse | null;
             const successMsg = data?.message || 'Draft saved successfully.';
 
             // Persist the resource ID so subsequent saves update rather than duplicate (PR #639 review)
@@ -3480,21 +3462,7 @@ export default function DataCiteForm({
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            const changes = data?.geoLocationChanges;
-            recordSavedPayload(
-                changes
-                    ? {
-                          ...payload,
-                          spatialTemporalCoverages: applyGeoLocationChanges(
-                              payload.spatialTemporalCoverages,
-                              payload.spatialTemporalCoverages,
-                              changes,
-                          ),
-                      }
-                    : payload,
-                savedResourceId,
-            );
-            markEditorSaved(snapshotWithSavedGeoLocations(submittedSnapshot, spatialTemporalCoverages, changes));
+            recordEditorSave(payload, submittedSnapshot, data, savedResourceId);
 
             setHasAttemptedSubmit(false);
             toast.success(successMsg);
@@ -3567,10 +3535,7 @@ export default function DataCiteForm({
                 },
             );
 
-            const data = response.data as DraftSaveResponse | null;
-            acknowledgeSavedLabels(data?.relatedWorkLabels);
-            applySavedGeoLocations(data?.geoLocationChanges);
-            applySavedContentMetadata(data?.contentMetadata, payload);
+            const data = response.data as EditorSaveResponse | null;
             const savedResourceId = data?.resource?.id ?? resolvedResourceId;
 
             if (!savedResourceId) {
@@ -3586,21 +3551,7 @@ export default function DataCiteForm({
             if (typeof data?.resource?.canEditDoi === 'boolean') {
                 setCurrentCanEditDoi(data.resource.canEditDoi);
             }
-            const changes = data?.geoLocationChanges;
-            recordSavedPayload(
-                changes
-                    ? {
-                          ...payload,
-                          spatialTemporalCoverages: applyGeoLocationChanges(
-                              payload.spatialTemporalCoverages,
-                              payload.spatialTemporalCoverages,
-                              changes,
-                          ),
-                      }
-                    : payload,
-                savedResourceId,
-            );
-            markEditorSaved(snapshotWithSavedGeoLocations(submittedSnapshot, spatialTemporalCoverages, changes));
+            recordEditorSave(payload, submittedSnapshot, data, savedResourceId);
             setHasAttemptedSubmit(false);
 
             return { resourceId: savedResourceId };
@@ -3635,9 +3586,6 @@ export default function DataCiteForm({
         }
     }, [
         applyBackendValidationErrors,
-        applySavedGeoLocations,
-        acknowledgeSavedLabels,
-        applySavedContentMetadata,
         buildPayload,
         clearBackendErrors,
         dateValidationIssues,
@@ -3646,12 +3594,10 @@ export default function DataCiteForm({
         checkRorInputs,
         checkContentMetadataInputs,
         isDraftSaveable,
-        markEditorSaved,
         replaceSavedDraftUrl,
         resolvedResourceId,
         revealValidationErrors,
-        spatialTemporalCoverages,
-        recordSavedPayload,
+        recordEditorSave,
     ]);
 
     const handleShowLandingPagePreview = useCallback(async () => {

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\DataCiteApiService;
 use App\Services\OaiPmh\OaiPmhDatestampService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ final readonly class CitationLabelReviewService
         private RelatedIdentifierCitationLabelService $labels,
         private RelatedWorkCitationFormatter $formatter,
         private OaiPmhDatestampService $datestamps,
+        private ResourceListingProjectionRefreshService $listingRefresh,
         private LandingPageRenderDataCacheService $cache,
     ) {}
 
@@ -194,6 +196,7 @@ final readonly class CitationLabelReviewService
             }
             foreach ($changed as $resourceId => $landingPageId) {
                 $this->datestamps->touchResource($resourceId);
+                $this->listingRefresh->schedule($resourceId);
                 DB::afterCommit(fn () => $this->cache->forgetById($landingPageId));
             }
 

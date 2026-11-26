@@ -621,6 +621,25 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    const createPreopenedPreviewWindow = () => {
+        const close = vi.fn();
+        const documentClose = vi.fn();
+        const documentOpen = vi.fn();
+        const documentWrite = vi.fn();
+        const previewWindow = {
+            location: { href: 'about:blank' },
+            close,
+            document: {
+                close: documentClose,
+                open: documentOpen,
+                write: documentWrite,
+            },
+            opener: { source: 'test-opener' },
+        } as unknown as Window;
+
+        return { close, documentClose, documentOpen, documentWrite, previewWindow };
+    };
+
     describe('resource formats and sizes', () => {
         it('uses resource popularity for readable format choices while posting the MIME type', async () => {
             const user = userEvent.setup();
@@ -838,6 +857,104 @@ describe('DataCiteForm', () => {
             window.dispatchEvent(event);
             return event.defaultPrevented;
         };
+
+        it.each(['autosave', 'save-draft', 'validate', 'landing-page-preview'] as const)(
+            'accepts returned citation labels without a leave warning or a second autosave after %s',
+            async (mode) => {
+                vi.useFakeTimers();
+                const post = vi.mocked(axios.post).mockResolvedValue({
+                    data: {
+                        resource: { id: 42 },
+                        relatedWorkLabels: [
+                            { id: 11, citation_label: 'Generated APA citation', citation_label_hash: 'new' },
+                            { id: 12, citation_label: 'Concurrent correction', citation_label_hash: 'corrected' },
+                        ],
+                    },
+                });
+                const open = vi.spyOn(window, 'open').mockReturnValue(createPreopenedPreviewWindow().previewWindow);
+                const view = await renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialTitles: [{ title: 'Citation changes', titleType: 'main-title' }],
+                    initialYear: '2025',
+                    initialResourceType: '1',
+                    initialLicenses: ['MIT'],
+                    initialAuthors: [{ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }],
+                    initialDescriptions: [{ type: 'Abstract', description: 'A complete abstract describing this dataset for validation.' }],
+                    availableDatacenters,
+                    initialDatacenterId: 1,
+                    initialLandingPage: {
+                        id: 7,
+                        is_published: false,
+                        status: 'draft',
+                        public_url: 'https://example.test/public',
+                        preview_url: 'https://example.test/preview',
+                    },
+                    initialRelatedWorks: [
+                        { identifier: '10.1234/one', identifier_type: 'DOI', relation_type: 'Cites', source: 'relation_suggestion_assistant' },
+                        { identifier: '10.1234/two', identifier_type: 'DOI', relation_type: 'References', citation_label: 'Earlier text' },
+                    ],
+                });
+                try {
+                    const section = screen.getByTestId('related-work-accordion-trigger');
+                    if (section.getAttribute('aria-expanded') === 'false') fireEvent.click(section);
+                    fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Changed title' } });
+                    await act(async () => {
+                        if (mode === 'autosave') vi.advanceTimersByTime(60_000);
+                        else if (mode === 'validate') fireEvent.click(screen.getByRole('button', { name: /^validate$/i }));
+                        else fireEvent.click(screen.getByTestId(mode === 'save-draft' ? 'save-draft-button' : 'show-lp-preview-button'));
+                    });
+                    expect(post).toHaveBeenCalledTimes(1);
+                    expect(post.mock.calls[0][0]).toBe(mode === 'validate' ? '/editor/resources' : '/editor/resources/draft');
+                    if (mode !== 'validate') expect(post.mock.calls[0][1]).toMatchObject({ intent: mode });
+                    expect(screen.getByDisplayValue('Generated APA citation')).toBeInTheDocument();
+                    expect(screen.getByDisplayValue('Concurrent correction')).toBeInTheDocument();
+                    expect(unloadIsBlocked()).toBe(false);
+                    await act(async () => {
+                        vi.advanceTimersByTime(60_000);
+                    });
+                    expect(post).toHaveBeenCalledTimes(1);
+                } finally {
+                    open.mockRestore();
+                    view.unmount();
+                    vi.useRealTimers();
+                }
+            },
+        );
+
+        it('keeps a citation edited during a draft request dirty until that edit is saved', async () => {
+            vi.useFakeTimers();
+            const saved = (label: string) => ({
+                data: { resource: { id: 42 }, relatedWorkLabels: [{ id: 11, citation_label: label, citation_label_hash: 'hash' }] },
+            });
+            const first = createDeferred<ReturnType<typeof saved>>();
+            const post = vi.mocked(axios.post).mockReturnValueOnce(first.promise).mockResolvedValue(saved('Edited while saving'));
+            const view = await renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Concurrent edits', titleType: 'main-title' }],
+                initialRelatedWorks: [{ identifier: '10.1234/one', identifier_type: 'DOI', relation_type: 'Cites', citation_label: 'Stored label' }],
+            });
+            try {
+                const section = screen.getByTestId('related-work-accordion-trigger');
+                if (section.getAttribute('aria-expanded') === 'false') fireEvent.click(section);
+                fireEvent.click(screen.getByTestId('save-draft-button'));
+                expect(post).toHaveBeenCalledTimes(1);
+                fireEvent.change(screen.getByDisplayValue('Stored label'), { target: { value: 'Edited while saving' } });
+                await act(async () => first.resolve(saved('Stored label')));
+                expect(screen.getByDisplayValue('Edited while saving')).toBeInTheDocument();
+                expect(unloadIsBlocked()).toBe(true);
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(post.mock.calls[1][1]).toMatchObject({
+                    intent: 'autosave',
+                    relatedIdentifiers: [{ id: 11, citationLabel: 'Edited while saving', originalCitationLabelHash: 'hash' }],
+                });
+                expect(unloadIsBlocked()).toBe(false);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
 
         it('drains an in-flight embargo autosave and pauses new writes until release finishes', async () => {
             vi.useFakeTimers();
@@ -7414,25 +7531,6 @@ describe('DataCiteForm', () => {
     });
 
     describe('Landing page preview (Issue #968)', () => {
-        const createPreopenedPreviewWindow = () => {
-            const close = vi.fn();
-            const documentClose = vi.fn();
-            const documentOpen = vi.fn();
-            const documentWrite = vi.fn();
-            const previewWindow = {
-                location: { href: 'about:blank' },
-                close,
-                document: {
-                    close: documentClose,
-                    open: documentOpen,
-                    write: documentWrite,
-                },
-                opener: { source: 'test-opener' },
-            } as unknown as Window;
-
-            return { close, documentClose, documentOpen, documentWrite, previewWindow };
-        };
-
         it('renders the preview button and enables it after a Main Title is entered', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -9596,7 +9694,11 @@ describe('DataCiteForm', () => {
                 mockedAxios.post.mockImplementation((url: string) => {
                     if (url === '/editor/resources') {
                         return Promise.resolve({
-                            data: { message: 'Validated', resource: { id: 42, publicStatus: 'published' } },
+                            data: {
+                                message: 'Validated',
+                                resource: { id: 42, publicStatus: 'published' },
+                                relatedWorkLabels: [{ id: 11, citation_label: 'Accepted citation', citation_label_hash: 'accepted' }],
+                            },
                             status: 200,
                         });
                     }
@@ -9636,6 +9738,7 @@ describe('DataCiteForm', () => {
                     initialYear: '2024',
                     initialResourceType: '1',
                     initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
+                    initialRelatedWorks: [{ identifier: '10.1234/related', identifier_type: 'DOI', relation_type: 'Cites' }],
                     initialLicenses: ['MIT'],
                     availableDatacenters,
                     initialDatacenterId: 1,
@@ -9673,6 +9776,9 @@ describe('DataCiteForm', () => {
                 }
                 expect(mockRouterVisit).toHaveBeenCalledWith('/resources');
                 expect(screen.queryByTestId('doi-registration-success-dialog')).not.toBeInTheDocument();
+                const unload = new Event('beforeunload', { cancelable: true });
+                window.dispatchEvent(unload);
+                expect(unload.defaultPrevented).toBe(false);
 
                 expect(diagnostic).toHaveBeenCalledTimes(outcome === 'success' ? 0 : 1);
                 if (outcome !== 'success')
