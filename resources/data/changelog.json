@@ -126,6 +126,11 @@
         ],
         "fixes": [
             {
+                "title": "Scrolling in the Related Item Manager",
+                "description": "Long lists and forms now scroll inside the dialog, so all fields and the Save button are reachable on smaller screens.",
+                "references": [{ "type": "issue", "number": 1580, "url": "https://github.com/McNamara84/ernie/issues/1580" }]
+            },
+            {
                 "title": "Numbered Search Results in the DOI and IGSN Portals",
                 "description": "Page numbers and the total result count stay visible while browsing. Paging or repeating a search refreshes older counts in the background.",
                 "references": [{ "type": "issue", "number": 1579, "url": "https://github.com/McNamara84/ernie/issues/1579" }]

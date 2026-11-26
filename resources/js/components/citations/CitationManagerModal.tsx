@@ -97,83 +97,83 @@ export function CitationManagerModal({ open, onOpenChange, resourceId, resourceT
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col overflow-hidden">
+                <DialogHeader className="shrink-0">
                     <DialogTitle>Related Item Manager</DialogTitle>
                     <DialogDescription>Manage DataCite related items for this resource.</DialogDescription>
                 </DialogHeader>
 
-                {mode.type === 'list' ? (
-                    <div className="space-y-3" data-slot="citation-manager-list">
-                        {isLoading ? (
-                            <div className="flex items-center justify-center p-8">
-                                <Spinner />
-                            </div>
-                        ) : error ? (
-                            <p className="text-sm text-destructive">{error}</p>
-                        ) : items.length === 0 ? (
-                            <EmptyState title="No related items yet" description="Add related resources with full metadata." />
-                        ) : (
-                            items.map((item) => (
-                                <CitationCard
-                                    key={item.id}
-                                    item={item}
-                                    relationLabel={relationLabelOf(item)}
-                                    editable
-                                    onEdit={(it) => setMode({ type: 'edit', item: it })}
-                                    onDelete={handleDelete}
-                                />
-                            ))
-                        )}
+                <div key={mode.type} data-slot={`citation-manager-${mode.type}`} className="-m-1 min-h-0 overflow-y-auto overscroll-y-contain p-1">
+                    {mode.type === 'list' ? (
+                        <div className="space-y-3">
+                            {isLoading ? (
+                                <div className="flex items-center justify-center p-8">
+                                    <Spinner />
+                                </div>
+                            ) : error ? (
+                                <p className="text-sm text-destructive">{error}</p>
+                            ) : items.length === 0 ? (
+                                <EmptyState title="No related items yet" description="Add related resources with full metadata." />
+                            ) : (
+                                items.map((item) => (
+                                    <CitationCard
+                                        key={item.id}
+                                        item={item}
+                                        relationLabel={relationLabelOf(item)}
+                                        editable
+                                        onEdit={(it) => setMode({ type: 'edit', item: it })}
+                                        onDelete={handleDelete}
+                                    />
+                                ))
+                            )}
 
-                        <DialogFooter className="gap-2 sm:justify-between">
-                            <Button variant="outline" onClick={() => onOpenChange(false)}>
-                                Close
-                            </Button>
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button
-                                    variant="outline"
-                                    disabled={!canCreateForthcoming}
-                                    aria-describedby={!canCreateForthcoming ? 'forthcoming-preset-unavailable' : undefined}
-                                    onClick={() => setMode({ type: 'create', preset: 'forthcoming' })}
-                                >
-                                    Add forthcoming publication
+                            <DialogFooter className="gap-2 sm:justify-between">
+                                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                                    Close
                                 </Button>
-                                <Button onClick={() => setMode({ type: 'create' })}>Add related item</Button>
-                            </div>
-                            {!canCreateForthcoming ? (
-                                <p id="forthcoming-preset-unavailable" className="sr-only">
-                                    The forthcoming publication preset is unavailable because its required vocabularies are missing.
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    <Button
+                                        variant="outline"
+                                        disabled={!canCreateForthcoming}
+                                        aria-describedby={!canCreateForthcoming ? 'forthcoming-preset-unavailable' : undefined}
+                                        onClick={() => setMode({ type: 'create', preset: 'forthcoming' })}
+                                    >
+                                        Add forthcoming publication
+                                    </Button>
+                                    <Button onClick={() => setMode({ type: 'create' })}>Add related item</Button>
+                                </div>
+                                {!canCreateForthcoming ? (
+                                    <p id="forthcoming-preset-unavailable" className="sr-only">
+                                        The forthcoming publication preset is unavailable because its required vocabularies are missing.
+                                    </p>
+                                ) : null}
+                            </DialogFooter>
+                        </div>
+                    ) : mode.type === 'create' ? (
+                        <>
+                            {mode.preset === 'forthcoming' ? (
+                                <p className="mb-4 text-sm text-muted-foreground" data-slot="forthcoming-publication-help">
+                                    Add the publication title now. The identifier is optional and can be added to this item later.
                                 </p>
                             ) : null}
-                        </DialogFooter>
-                    </div>
-                ) : mode.type === 'create' ? (
-                    <div data-slot="citation-manager-create">
-                        {mode.preset === 'forthcoming' ? (
-                            <p className="mb-4 text-sm text-muted-foreground" data-slot="forthcoming-publication-help">
-                                Add the publication title now. The identifier is optional and can be added to this item later.
-                            </p>
-                        ) : null}
-                        <RelatedItemForm
-                            initialValue={
-                                mode.preset === 'forthcoming' && forthcomingRelation
-                                    ? {
-                                          related_item_type: 'JournalArticle',
-                                          relation_type_id: forthcomingRelation.id,
-                                      }
-                                    : undefined
-                            }
-                            resourceTypes={resourceTypes}
-                            relationTypes={relationTypes}
-                            contributorTypes={contributorTypes}
-                            submitting={submitting}
-                            onCancel={() => setMode({ type: 'list' })}
-                            onSubmit={handleCreate}
-                        />
-                    </div>
-                ) : (
-                    <div data-slot="citation-manager-edit">
+                            <RelatedItemForm
+                                initialValue={
+                                    mode.preset === 'forthcoming' && forthcomingRelation
+                                        ? {
+                                              related_item_type: 'JournalArticle',
+                                              relation_type_id: forthcomingRelation.id,
+                                          }
+                                        : undefined
+                                }
+                                resourceTypes={resourceTypes}
+                                relationTypes={relationTypes}
+                                contributorTypes={contributorTypes}
+                                submitting={submitting}
+                                onCancel={() => setMode({ type: 'list' })}
+                                onSubmit={handleCreate}
+                            />
+                        </>
+                    ) : (
                         <RelatedItemForm
                             initialValue={mode.item}
                             resourceTypes={resourceTypes}
@@ -185,8 +185,8 @@ export function CitationManagerModal({ open, onOpenChange, resourceId, resourceT
                                 if (mode.item.id) return handleUpdate(mode.item.id, values);
                             }}
                         />
-                    </div>
-                )}
+                    )}
+                </div>
             </DialogContent>
 
             <AlertDialog
