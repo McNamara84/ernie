@@ -191,6 +191,8 @@ vi.mock('@/components/portal/PortalMap', () => ({
         onViewportChange,
         onLocationCountChange,
         geoFilterEnabled,
+        viewRevision,
+        viewportSearch,
     }: {
         filters: { query: string | null };
         maxZoom: number;
@@ -198,8 +200,10 @@ vi.mock('@/components/portal/PortalMap', () => ({
         onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
         onLocationCountChange?: (count: number) => void;
         geoFilterEnabled?: boolean;
+        viewRevision: number;
+        viewportSearch: string | null;
     }) => (
-        <div data-testid="portal-map">
+        <div data-testid="portal-map" data-view-revision={viewRevision} data-viewport-search={viewportSearch}>
             <span data-testid="map-filter-query">{filters.query ?? ''}</span>
             <span data-testid="map-max-zoom">{maxZoom}</span>
             <span data-testid="map-basemap">{`${basemap.provider}:${basemap.styleUrl}:${basemap.language}`}</span>
@@ -1124,12 +1128,38 @@ describe('Portal', () => {
             try {
                 const view = render(<Portal {...defaultProps} />);
                 fireEvent.click(screen.getByTestId('trigger-viewport-change'));
-                if (action === 'popstate') act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
-                else if (action === 'navigation') act(() => routerMock.on.mock.lastCall![1]());
+                if (action === 'popstate') {
+                    fireEvent.popState(window);
+                    expect(screen.getByTestId('portal-map')).toHaveAttribute('data-view-revision', '1');
+                } else if (action === 'navigation') act(() => routerMock.on.mock.lastCall![1]());
                 else if (action === 'unmount') view.unmount();
                 else fireEvent.click(screen.getByTestId(action));
                 act(() => vi.advanceTimersByTime(500));
                 expect(setBoundsMock).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('refits the last completed search when going back while a pan request is in flight', () => {
+            vi.useFakeTimers();
+            try {
+                const filters = { ...defaultProps.filters, bounds: { north: 53, south: 51, east: 14, west: 12 } };
+                const view = render(<Portal {...defaultProps} filters={filters} />);
+                const map = screen.getByTestId('portal-map');
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                act(() => vi.advanceTimersByTime(500));
+                expect(setBoundsMock).toHaveBeenCalledWith({ north: 54, south: 50, east: 15, west: 11 });
+
+                useNavigationStatusMock.mockReturnValue({ isNavigating: true });
+                view.rerender(<Portal {...defaultProps} filters={filters} />);
+                expect(map).toHaveAttribute('data-viewport-search');
+                expect(map).toHaveAttribute('data-view-revision', '0');
+
+                fireEvent.popState(window);
+                expect(map).toHaveAttribute('data-view-revision', '1');
+                expect(map).not.toHaveAttribute('data-viewport-search');
+                expect(setBoundsMock).toHaveBeenCalledTimes(1);
             } finally {
                 vi.useRealTimers();
             }

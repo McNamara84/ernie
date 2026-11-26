@@ -152,8 +152,10 @@ export default function Portal({
         };
         const unsubscribe = router.on('before', cancelPendingPan);
         const restoreHistory = () => {
-            cancelPendingPan();
+            cancelViewportUpdate();
             setViewportSearch(null);
+            // A pan can have an in-flight request even after its debounce timer has fired.
+            setMapViewRevision((revision) => revision + 1);
         };
         window.addEventListener('popstate', restoreHistory);
         return () => {
