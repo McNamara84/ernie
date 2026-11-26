@@ -7,6 +7,7 @@ interface BulkActionsToolbarProps {
     selectedCount: number;
     onDelete: () => void;
     onRegister?: () => void;
+    onReviewCitations?: () => void;
     canDelete: boolean;
     isDeleting?: boolean;
     isRegistering?: boolean;
@@ -21,6 +22,7 @@ export function BulkActionsToolbar({
     selectedCount,
     onDelete,
     onRegister,
+    onReviewCitations,
     canDelete,
     isDeleting = false,
     isRegistering = false,
@@ -35,6 +37,11 @@ export function BulkActionsToolbar({
                 {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
             </span>
             <div className="flex items-center gap-2">
+                {onReviewCitations && (
+                    <Button variant="outline" size="sm" onClick={onReviewCitations} disabled={isDeleting || isRegistering}>
+                        Review citation labels
+                    </Button>
+                )}
                 {onRegister && (
                     <Button variant="default" size="sm" onClick={onRegister} disabled={isRegistering || isDeleting}>
                         {isRegistering ? (

@@ -1938,7 +1938,7 @@ class ResourceStorageService
         if ($isUpdate) {
             /** @var array<int, RelatedIdentifier> $existingRelatedIdentifiersById */
             $existingRelatedIdentifiersById = $resource->relatedIdentifiers()
-                ->get()
+                ->orderBy('id')->lockForUpdate()->get()
                 ->keyBy('id')
                 ->all();
         }
@@ -1960,6 +1960,23 @@ class ResourceStorageService
                     : null;
 
                 $existingRelatedIdentifier = $this->existingRelatedIdentifierForUpdate($relatedIdentifier, $existingRelatedIdentifiersById);
+                $parts = $relatedIdentifier['citationLabelParts'] ?? null;
+                $sameTarget = $existingRelatedIdentifier !== null && $existingRelatedIdentifier->identifier === trim($relatedIdentifier['identifier'])
+                    && $existingRelatedIdentifier->identifier_type_id === ($relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null);
+                if ($sameTarget) {
+                    $current = $existingRelatedIdentifier->citation_label;
+                    $original = $relatedIdentifier['originalCitationLabelHash'] ?? null;
+                    if (is_string($original) && $original !== hash('sha256', (string) $current) && $current !== $citationLabel) {
+                        if ($original !== hash('sha256', (string) $citationLabel)) {
+                            throw ValidationException::withMessages(["relatedIdentifiers.{$index}.citationLabel" => 'This citation changed after you opened the editor. Reload the resource to review it.']);
+                        }
+                        $citationLabel = $current;
+                        $parts = $existingRelatedIdentifier->citation_label_parts;
+                    }
+                    if ($current === $citationLabel) {
+                        $parts ??= $existingRelatedIdentifier->citation_label_parts;
+                    }
+                }
                 $attributes = [
                     'identifier' => $relatedIdentifier['identifierType'] === 'SWHID'
                         ? Swhid::normalize($relatedIdentifier['identifier'])
@@ -1968,6 +1985,7 @@ class ResourceStorageService
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                     'relation_type_information' => isset($relatedIdentifier['relationTypeInformation']) && trim($relatedIdentifier['relationTypeInformation']) !== '' ? trim($relatedIdentifier['relationTypeInformation']) : null,
                     'citation_label' => $citationLabel,
+                    'citation_label_parts' => $parts,
                     'source' => $this->preservedRelatedIdentifierSource($existingRelatedIdentifier),
                     'position' => $index,
                 ];

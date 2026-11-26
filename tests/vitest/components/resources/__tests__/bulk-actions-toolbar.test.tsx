@@ -11,6 +11,7 @@ const makeActions = (
 ): Record<ResourcesActionKey, ResourcesActionState> => ({
     edit: { available: false, reason: 'Select one or more resources first.' },
     'setup-landing-page': { available: false, reason: 'Select exactly one resource.' },
+    'review-citation-labels': { available: true },
     'manage-related-items': { available: false, reason: 'Select exactly one resource.' },
     'export-datacite-json': { available: false, reason: 'Select one or more resources first.' },
     'export-datacite-xml': { available: false, reason: 'Select one or more resources first.' },

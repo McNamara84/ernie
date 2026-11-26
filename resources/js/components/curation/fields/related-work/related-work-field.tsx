@@ -24,8 +24,10 @@ interface RelatedWorkFieldProps {
 const BULK_IMPORT_CITATION_HYDRATION_CONCURRENCY = 3;
 const CITATION_RESOLUTION_IDENTIFIER_TYPES = new Set(['DOI', 'URL']);
 
+type ResolvedLabel = Pick<RelatedIdentifier, 'citation_label' | 'citation_proof'>;
+
 interface CitationLookupResult {
-    citation: string | null;
+    citation: ResolvedLabel | null;
     cacheable: boolean;
 }
 
@@ -108,8 +110,8 @@ export default function RelatedWorkField({ entries, displayEntries, onChange, ac
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
     const [citationResolutionStates, setCitationResolutionStates] = useState<Record<string, CitationResolutionState>>({});
     const relatedWorksRef = useRef(entries);
-    const citationCacheRef = useRef(new Map<string, string | null>());
-    const citationRequestsRef = useRef(new Map<string, Promise<string | null>>());
+    const citationCacheRef = useRef(new Map<string, ResolvedLabel | null>());
+    const citationRequestsRef = useRef(new Map<string, Promise<ResolvedLabel | null>>());
     const defaultIdentifierType = getPreferredActiveOption<IdentifierType>('DOI', activeIdentifierTypes);
     const defaultRelationType = getPreferredActiveOption<RelationType>('Cites', activeRelationTypes);
     const hasEmptyCard = entries.some(({ data }) => data.identifier.trim() === '');
@@ -131,7 +133,7 @@ export default function RelatedWorkField({ entries, displayEntries, onChange, ac
         }));
     };
 
-    const resolveCitation = async (identifier: string, identifierType: string): Promise<string | null> => {
+    const resolveCitation = async (identifier: string, identifierType: string): Promise<ResolvedLabel | null> => {
         if (!CITATION_RESOLUTION_IDENTIFIER_TYPES.has(identifierType)) {
             return null;
         }
@@ -190,11 +192,17 @@ export default function RelatedWorkField({ entries, displayEntries, onChange, ac
                     return { citation: null, cacheable: false };
                 }
 
-                const payload = (await response.json()) as { citation?: unknown };
+                const payload = (await response.json()) as { citation?: unknown; citation_proof?: unknown };
                 const citation = typeof payload.citation === 'string' ? payload.citation.trim() : '';
 
                 return {
-                    citation: citation === '' ? null : citation,
+                    citation:
+                        citation === ''
+                            ? null
+                            : {
+                                  citation_label: citation,
+                                  ...(typeof payload.citation_proof === 'string' ? { citation_proof: payload.citation_proof } : {}),
+                              },
                     cacheable: citation !== '',
                 };
             })
@@ -244,7 +252,7 @@ export default function RelatedWorkField({ entries, displayEntries, onChange, ac
                     !item.citation_label?.trim()
                 ) {
                     didUpdate = true;
-                    return { ...entry, data: { ...item, citation_label: citationLabel } };
+                    return { ...entry, data: { ...item, ...citationLabel } };
                 }
 
                 return entry;
@@ -410,6 +418,7 @@ export default function RelatedWorkField({ entries, displayEntries, onChange, ac
                 ...entry,
                 data: {
                     ...updatedItem,
+                    ...(identifierChanged ? { citation_proof: undefined } : {}),
                     citation_label: identifierChanged ? null : (updatedItem.citation_label ?? null),
                     related_title: identifierChanged ? null : (updatedItem.related_title ?? null),
                     related_metadata: identifierChanged ? null : (updatedItem.related_metadata ?? null),

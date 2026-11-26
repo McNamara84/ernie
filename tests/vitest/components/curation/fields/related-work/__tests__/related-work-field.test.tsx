@@ -77,6 +77,7 @@ vi.mock('@/components/curation/fields/related-work/related-work-list', () => ({
                         value={item.citation_label ?? ''}
                         onChange={(event) => onItemChange(clientId, { ...item, citation_label: event.target.value })}
                     />
+                    <span data-testid={`citation-proof-${index}`}>{item.citation_proof}</span>
                     <span data-testid={`identifier-type-${index}`}>{item.identifier_type}</span>
                     <span data-testid={`relation-type-${index}`}>{item.relation_type}</span>
                     <span data-testid={`position-${index}`}>{item.position}</span>
@@ -427,7 +428,7 @@ describe('RelatedWorkField', () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
-            json: vi.fn().mockResolvedValue({ citation: 'Cached citation' }),
+            json: vi.fn().mockResolvedValue({ citation: 'Cached citation', citation_proof: 'signed-label' }),
         }) as unknown as typeof fetch;
 
         render(<StatefulField />);
@@ -442,6 +443,7 @@ describe('RelatedWorkField', () => {
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
         expect(screen.getByLabelText('Citation label 1')).toHaveValue('Cached citation');
+        expect(screen.getByTestId('citation-proof-0')).toHaveTextContent('signed-label');
     });
 
     it('preserves a citation label entered while a lookup is pending', async () => {
@@ -753,7 +755,7 @@ describe('RelatedWorkField', () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         global.fetch = vi
             .fn()
-            .mockResolvedValueOnce({ ok: true, json: vi.fn().mockResolvedValue({ citation: 'Imported DOI citation' }) })
+            .mockResolvedValueOnce({ ok: true, json: vi.fn().mockResolvedValue({ citation: 'Imported DOI citation', citation_proof: 'doi-proof' }) })
             .mockResolvedValueOnce({ ok: true, json: vi.fn().mockResolvedValue({ citation: 'Imported URL citation' }) }) as unknown as typeof fetch;
 
         render(<StatefulField />);
@@ -764,6 +766,7 @@ describe('RelatedWorkField', () => {
         expect(global.fetch).toHaveBeenCalledTimes(2);
         expect(screen.getByLabelText('Citation label 1')).toHaveValue('Imported DOI citation');
         expect(screen.getByLabelText('Citation label 2')).toHaveValue('Imported URL citation');
+        expect(screen.getByTestId('citation-proof-0')).toHaveTextContent('doi-proof');
     });
 
     it('skips duplicate CSV rows and clears the warning after eight seconds', async () => {

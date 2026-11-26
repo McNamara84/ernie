@@ -6,6 +6,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CitationLabelReviewDialog } from '@/components/citations/citation-label-review-dialog';
 import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
 import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
@@ -1401,6 +1402,7 @@ function ResourcesPage({
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
+    const [citationReviewIds, setCitationReviewIds] = useState<number[] | null>(null);
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
     const [isUpdateMetadataDialogOpen, setIsUpdateMetadataDialogOpen] = useState(false);
     const [reviewLinkEmailKind, setReviewLinkEmailKind] = useState<ReviewLinkEmailKind | null>(null);
@@ -1895,6 +1897,7 @@ function ResourcesPage({
             available: selectedCount === 1,
             reason: selectedCount === 0 ? noSelectionReason : singleRecordReason,
         },
+        'review-citation-labels': { available: selectedCount > 0, reason: noSelectionReason },
         'manage-related-items': {
             available: selectedCount === 1 && !citationVocabulariesLoading,
             reason: selectedCount === 0 ? noSelectionReason : selectedCount > 1 ? singleRecordReason : 'Related item vocabularies are still loading.',
@@ -1998,6 +2001,9 @@ function ResourcesPage({
                         handleSetupLandingPage(singleSelectedResource);
                     }
                     break;
+                case 'review-citation-labels':
+                    setCitationReviewIds(selectedResourceIds);
+                    break;
                 case 'manage-related-items':
                     if (singleSelectedResource) {
                         setCitationManagerResourceId(singleSelectedResource.id);
@@ -2033,6 +2039,7 @@ function ResourcesPage({
             handleOpenDeleteDialog,
             handleRegisterDoi,
             handleSetupLandingPage,
+            selectedResourceIds,
             singleSelectedResource,
         ],
     );
@@ -2911,6 +2918,7 @@ function ResourcesPage({
                     initialRun={dataCiteUrlUpdateRun}
                 />
             )}
+            {citationReviewIds && <CitationLabelReviewDialog ids={citationReviewIds} onClose={() => setCitationReviewIds(null)} />}
         </AppLayout>
     );
 }

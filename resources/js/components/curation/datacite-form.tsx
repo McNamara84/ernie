@@ -21,7 +21,7 @@ import {
 } from '@/components/curation/related-items-section-copy';
 import { ReleaseDataEmbargoButton } from '@/components/curation/release-data-embargo-button';
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
-import { snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curation/utils/editor-content-snapshot';
+import { draftAutosaveSignature, snapshotEditorContent, snapshotWithSavedDoi } from '@/components/curation/utils/editor-content-snapshot';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { hasMslLaboratoryTrigger } from '@/components/curation/utils/msl-laboratories';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
@@ -40,7 +40,7 @@ import { useEditorLeaveGuard } from '@/hooks/use-editor-leave-guard';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useInstrumentNameResolution } from '@/hooks/use-instrument-name-resolution';
-import { useRelatedWorkEditor } from '@/hooks/use-related-work-editor';
+import { type SavedWorkLabel, useRelatedWorkEditor } from '@/hooks/use-related-work-editor';
 import { useResourceTypeLicenses } from '@/hooks/use-resource-type-licenses';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { RorInputDraftContext, useRorInputDrafts } from '@/hooks/use-ror-input-drafts';
@@ -169,6 +169,7 @@ function parseCurationAccordionRevision(value: unknown): number | null {
 type DraftSaveResponse = {
     contentMetadata?: ContentMetadata;
     geoLocationChanges?: GeoLocationChanges;
+    relatedWorkLabels?: SavedWorkLabel[];
     message?: string;
     resource?: { id: number; publicStatus?: ResourcePublicStatus; canEditDoi?: boolean };
 };
@@ -176,6 +177,7 @@ type DraftSaveResponse = {
 type ValidatedSaveResponse = {
     contentMetadata?: ContentMetadata;
     geoLocationChanges?: GeoLocationChanges;
+    relatedWorkLabels?: SavedWorkLabel[];
     message?: string;
     resource?: { id: number; publicStatus?: ResourcePublicStatus; canEditDoi?: boolean };
 };
@@ -641,6 +643,7 @@ export default function DataCiteForm({
         relatedWorks,
         setEntries: setRelatedWorkEntries,
         mergeImported: mergeImportedRelatedWorks,
+        acknowledgeSavedLabels,
     } = useRelatedWorkEditor(initialRelatedWorks, Number.isSafeInteger(Number(initialResourceId)) && Number(initialResourceId) > 0);
     const [relatedItems, setRelatedItems] = useState<Array<Record<string, unknown>>>(initialRelatedItems);
     const [fundingReferences, setFundingReferences] = useState<FundingReferenceEntry[]>(() => {
@@ -2575,6 +2578,8 @@ export default function DataCiteForm({
                 relationType: string;
                 relationTypeInformation?: string;
                 citationLabel?: string;
+                citationProof?: string;
+                originalCitationLabelHash?: string;
                 source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif';
             }[];
             fundingReferences: {
@@ -2692,6 +2697,8 @@ export default function DataCiteForm({
                         relationType: rw.relation_type,
                         ...(relationTypeInformation ? { relationTypeInformation } : {}),
                         ...(citationLabel ? { citationLabel } : {}),
+                        ...(rw.citation_proof ? { citationProof: rw.citation_proof } : {}),
+                        ...(rw.citation_label_hash ? { originalCitationLabelHash: rw.citation_label_hash } : {}),
                         ...(rw.source ? { source: rw.source } : {}),
                     };
                 }),
@@ -2792,7 +2799,7 @@ export default function DataCiteForm({
             if (resourceId) delete savedPayload.relatedItems;
 
             try {
-                lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
+                lastDraftAutosaveSignatureRef.current = draftAutosaveSignature(savedPayload);
             } catch (error) {
                 console.error('Failed to serialize draft autosave signature', error);
                 lastDraftAutosaveSignatureRef.current = null;
@@ -2856,7 +2863,7 @@ export default function DataCiteForm({
         }
 
         try {
-            lastDraftAutosaveSignatureRef.current = JSON.stringify(buildPayload());
+            lastDraftAutosaveSignatureRef.current = draftAutosaveSignature(buildPayload());
         } catch (error) {
             console.error('Failed to initialize draft autosave signature', error);
             lastDraftAutosaveSignatureRef.current = null;
@@ -2889,7 +2896,7 @@ export default function DataCiteForm({
 
         try {
             payload = buildPayload();
-            signature = JSON.stringify(payload);
+            signature = draftAutosaveSignature(payload);
         } catch (error) {
             console.error('Failed to prepare draft autosave payload', error);
             setDraftAutosaveStatus('error');
@@ -2921,6 +2928,7 @@ export default function DataCiteForm({
             );
 
             const data = response.data as DraftSaveResponse | null;
+            acknowledgeSavedLabels(data?.relatedWorkLabels);
             applySavedGeoLocations(data?.geoLocationChanges);
             applySavedContentMetadata(data?.contentMetadata, payload);
             const savedResourceId = data?.resource?.id;
@@ -2960,6 +2968,7 @@ export default function DataCiteForm({
     }, [
         activeDateInputId,
         applySavedGeoLocations,
+        acknowledgeSavedLabels,
         applySavedContentMetadata,
         contentMetadataErrors,
         buildPayload,
@@ -3170,6 +3179,7 @@ export default function DataCiteForm({
                 },
             });
             const data = response.data as ValidatedSaveResponse | null;
+            acknowledgeSavedLabels(data?.relatedWorkLabels);
             applySavedGeoLocations(data?.geoLocationChanges);
             applySavedContentMetadata(data?.contentMetadata, payload);
 
@@ -3454,6 +3464,7 @@ export default function DataCiteForm({
             );
 
             const data = response.data as DraftSaveResponse | null;
+            acknowledgeSavedLabels(data?.relatedWorkLabels);
             applySavedGeoLocations(data?.geoLocationChanges);
             applySavedContentMetadata(data?.contentMetadata, payload);
             const successMsg = data?.message || 'Draft saved successfully.';
@@ -3557,6 +3568,7 @@ export default function DataCiteForm({
             );
 
             const data = response.data as DraftSaveResponse | null;
+            acknowledgeSavedLabels(data?.relatedWorkLabels);
             applySavedGeoLocations(data?.geoLocationChanges);
             applySavedContentMetadata(data?.contentMetadata, payload);
             const savedResourceId = data?.resource?.id ?? resolvedResourceId;
@@ -3624,6 +3636,7 @@ export default function DataCiteForm({
     }, [
         applyBackendValidationErrors,
         applySavedGeoLocations,
+        acknowledgeSavedLabels,
         applySavedContentMetadata,
         buildPayload,
         clearBackendErrors,

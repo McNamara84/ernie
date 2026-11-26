@@ -10,6 +10,7 @@ use App\Models\SuggestedRelation;
 use App\Services\Citations\CitationLookupResult;
 use App\Services\Citations\CitationLookupService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Citations\RelatedWorkCitation;
 use App\Services\DataCiteEventDataService;
 use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
@@ -106,10 +107,12 @@ describe('RelationDiscoveryService', function (): void {
             ->andReturn(DataCiteSyncResult::notRequired());
 
         $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $citationLabelService->shouldReceive('resolveBestEffort')
+        $citationLabelService->shouldReceive('lookupBestEffort')
             ->once()
             ->with('10.5880/related.2026.001', 'DOI', Mockery::type('float'))
-            ->andReturn('Doe, J. (2026): Suggested related work. GFZ.');
+            ->andReturn(new RelatedWorkCitation('Suggested paper. Science.', [
+                ['text' => 'Suggested paper. ', 'italic' => false], ['text' => 'Science', 'italic' => true], ['text' => '.', 'italic' => false],
+            ]));
 
         $service = new RelationDiscoveryService(
             Mockery::mock(ScholExplorerService::class),
@@ -125,13 +128,14 @@ describe('RelationDiscoveryService', function (): void {
 
         expect($result['success'])->toBeTrue()
             ->and($relatedIdentifier)->not->toBeNull()
-            ->and($relatedIdentifier?->citation_label)->toBe('Doe, J. (2026): Suggested related work. GFZ.')
+            ->and($relatedIdentifier?->citation_label)->toBe('Suggested paper. Science.')
+            ->and($relatedIdentifier?->citation_label_parts[1])->toEqual(['text' => 'Science', 'italic' => true])
             ->and($relatedIdentifier?->source)->toBe(RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT)
             ->and($relatedIdentifier?->isRepositoryCuration())->toBeTrue()
             ->and(SuggestedRelation::query()->find($suggestion->id))->toBeNull();
     });
 
-    it('falls back to suggestion metadata when citation resolution does not produce a label', function (): void {
+    it('uses the stored suggestion fallback only when the unresolved work is not a known paper', function (?string $sourceType, ?string $expected): void {
         $resource = Resource::factory()->create();
         $identifierTypeId = IdentifierType::query()->where('slug', 'DOI')->value('id');
         $relationTypeId = RelationType::query()->where('slug', 'References')->value('id');
@@ -145,6 +149,7 @@ describe('RelationDiscoveryService', function (): void {
             'identifier_type_id' => $identifierTypeId,
             'relation_type_id' => $relationTypeId,
             'source' => 'scholexplorer',
+            'source_type' => $sourceType,
             'source_title' => 'Fallback related work',
             'source_publisher' => 'GFZ Data Services',
             'source_publication_date' => '2024-03-11',
@@ -158,7 +163,7 @@ describe('RelationDiscoveryService', function (): void {
             ->andReturn(DataCiteSyncResult::notRequired());
 
         $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $citationLabelService->shouldReceive('resolveBestEffort')
+        $citationLabelService->shouldReceive('lookupBestEffort')
             ->once()
             ->with('10.5880/related.2024.002', 'DOI', Mockery::type('float'))
             ->andReturnNull();
@@ -176,8 +181,8 @@ describe('RelationDiscoveryService', function (): void {
         $relatedIdentifier = RelatedIdentifier::query()->where('resource_id', $resource->id)->first();
 
         expect($relatedIdentifier)->not->toBeNull()
-            ->and($relatedIdentifier?->citation_label)->toBe('Fallback related work (2024). GFZ Data Services.');
-    });
+            ->and($relatedIdentifier?->citation_label)->toBe($expected);
+    })->with([[null, 'Fallback related work (2024). GFZ Data Services.'], ['JournalArticle', null]]);
 
     it('preserves an existing curated citation label when accepting a duplicate suggestion', function (): void {
         $resource = Resource::factory()->create();
@@ -215,7 +220,7 @@ describe('RelationDiscoveryService', function (): void {
             ->andReturn(DataCiteSyncResult::notRequired());
 
         $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $citationLabelService->shouldNotReceive('resolveBestEffort');
+        $citationLabelService->shouldNotReceive('lookupBestEffort');
 
         $service = new RelationDiscoveryService(
             Mockery::mock(ScholExplorerService::class),

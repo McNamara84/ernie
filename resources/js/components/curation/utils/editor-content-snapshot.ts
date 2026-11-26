@@ -9,6 +9,7 @@ function normalize(value: unknown, parentKey?: string): unknown {
             .filter(
                 ([key, entry]) =>
                     entry !== undefined &&
+                    !(parentKey === 'relatedWorks' && ['id', 'citation_proof', 'citation_label_hash'].includes(key)) &&
                     !(parentKey === 'instruments' && key === 'resolution') &&
                     !(key === 'id' && (parentKey === 'spatialTemporalCoverages' || (typeof entry === 'string' && CLIENT_UUID.test(entry)))) &&
                     !(parentKey === 'spatialTemporalCoverages' && (key === 'storageId' || key === 'copyFromId')),
@@ -21,6 +22,19 @@ function normalize(value: unknown, parentKey?: string): unknown {
 /** Compare editable content independently of generated row IDs and object key order. */
 export function snapshotEditorContent(value: unknown): string {
     return JSON.stringify(normalize(value));
+}
+
+export function draftAutosaveSignature(payload: {
+    relatedIdentifiers: { id?: number; citationProof?: string; originalCitationLabelHash?: string }[];
+}): string {
+    const relatedIdentifiers = payload.relatedIdentifiers.map((item) => {
+        const fields = { ...item };
+        delete fields.id;
+        delete fields.citationProof;
+        delete fields.originalCitationLabelHash;
+        return fields;
+    });
+    return JSON.stringify({ ...payload, relatedIdentifiers });
 }
 
 export function snapshotWithSavedDoi(snapshot: string, doi: string): string {

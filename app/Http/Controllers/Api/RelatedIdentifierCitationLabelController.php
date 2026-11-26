@@ -32,16 +32,17 @@ class RelatedIdentifierCitationLabelController extends Controller
             ], 422);
         }
 
-        $citation = $this->citationLabels->resolve($identifier, $identifierType);
+        $citation = $this->citationLabels->lookup($identifier, $identifierType);
 
-        if (! is_string($citation) || trim($citation) === '') {
+        if ($citation === null) {
             return response()->json([
                 'error' => 'No citation label could be resolved for this identifier.',
             ], 404);
         }
 
         return response()->json([
-            'citation' => trim($citation),
+            'citation' => $citation->text,
+            ...($citation->parts !== null ? ['citation_proof' => $citation->proof()] : []),
             'identifier' => $identifier,
             'identifier_type' => $identifierType,
         ]);

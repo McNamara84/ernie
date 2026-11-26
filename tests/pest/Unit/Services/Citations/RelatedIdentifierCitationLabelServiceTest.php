@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Services\Citations\CrossrefClient;
+use App\Services\Citations\LandingPageCitationService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Citations\RelatedWorkCitationFormatter;
 use App\Services\DataCiteApiService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -19,7 +22,7 @@ beforeEach(function (): void {
 
 function relatedIdentifierCitationLabelService(DataCiteApiService $dataCite): RelatedIdentifierCitationLabelService
 {
-    return new RelatedIdentifierCitationLabelService($dataCite);
+    return new RelatedIdentifierCitationLabelService($dataCite, new RelatedWorkCitationFormatter($dataCite, app(LandingPageCitationService::class), app(CrossrefClient::class)));
 }
 
 it('resolves a citation label for DOI identifiers', function () {

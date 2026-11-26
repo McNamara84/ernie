@@ -17,9 +17,15 @@ class RelatedIdentifierCitationLabelService
 
     public function __construct(
         private readonly DataCiteApiService $dataCite,
+        private readonly RelatedWorkCitationFormatter $formatter,
     ) {}
 
     public function resolve(string $identifier, string $identifierType, ?float $timeoutSeconds = null): ?string
+    {
+        return $this->lookup($identifier, $identifierType, $timeoutSeconds)?->text;
+    }
+
+    public function lookup(string $identifier, string $identifierType, ?float $timeoutSeconds = null): ?RelatedWorkCitation
     {
         $identifier = trim($identifier);
         $identifierType = trim($identifierType);
@@ -34,6 +40,11 @@ class RelatedIdentifierCitationLabelService
     }
 
     public function resolveBestEffort(string $identifier, string $identifierType, float $deadline): ?string
+    {
+        return $this->lookupBestEffort($identifier, $identifierType, $deadline)?->text;
+    }
+
+    public function lookupBestEffort(string $identifier, string $identifierType, float $deadline): ?RelatedWorkCitation
     {
         $identifier = trim($identifier);
         $identifierType = trim($identifierType);
@@ -117,7 +128,10 @@ class RelatedIdentifierCitationLabelService
             }
 
             foreach ($indexes as $index) {
-                $relatedIdentifiers[$index]['citationLabel'] = $citation;
+                $relatedIdentifiers[$index]['citationLabel'] = $citation->text;
+                if ($citation->parts !== null) {
+                    $relatedIdentifiers[$index]['citationLabelParts'] = $citation->parts;
+                }
             }
         }
 
@@ -225,16 +239,19 @@ class RelatedIdentifierCitationLabelService
                     continue;
                 }
 
-                $citation = trim($this->dataCite->buildCitationFromMetadata($outcome['metadata']));
+                $citation = $this->formatter->format($doi, $outcome['metadata']);
 
-                if ($citation === '') {
+                if ($citation === null) {
                     $unresolved[$doi] = 'The DOI metadata did not produce a citation label.';
 
                     continue;
                 }
 
                 foreach ($indexes as $index) {
-                    $relatedIdentifiers[$index]['citationLabel'] = $citation;
+                    $relatedIdentifiers[$index]['citationLabel'] = $citation->text;
+                    if ($citation->parts !== null) {
+                        $relatedIdentifiers[$index]['citationLabelParts'] = $citation->parts;
+                    }
                 }
 
                 $metadataHitCount++;
@@ -289,6 +306,7 @@ class RelatedIdentifierCitationLabelService
                 unset($relatedIdentifiers[$index]['citationLabel']);
             }
 
+            unset($relatedIdentifiers[$index]['citationLabelParts']);
             $resolutionCandidates[$index] = [
                 'relatedIdentifier' => $identifier,
                 'relatedIdentifierType' => $identifierType,
@@ -308,6 +326,14 @@ class RelatedIdentifierCitationLabelService
 
             if ($citationLabel !== '') {
                 $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+                $parts = $resolvedCandidate['citationLabelParts'] ?? null;
+                if ($parts === null && is_string($proof = $relatedIdentifiers[$index]['citationProof'] ?? null)) {
+                    $doi = $this->normalizeResolvableDoi($resolutionCandidates[$index]['relatedIdentifier'], $resolutionCandidates[$index]['relatedIdentifierType']);
+                    $parts = RelatedWorkCitation::verifiedParts($proof, $doi, $citationLabel);
+                }
+                if ($parts !== null) {
+                    $relatedIdentifiers[$index]['citationLabelParts'] = $parts;
+                }
             } else {
                 unset($relatedIdentifiers[$index]['citationLabel']);
             }
@@ -339,8 +365,9 @@ class RelatedIdentifierCitationLabelService
         return mb_strtolower($doi);
     }
 
-    private function resolveFromDoiMetadata(string $doi, ?float $timeoutSeconds = null): ?string
+    private function resolveFromDoiMetadata(string $doi, ?float $timeoutSeconds = null): ?RelatedWorkCitation
     {
+        $deadline = $timeoutSeconds === null ? null : microtime(true) + $timeoutSeconds;
         $metadata = $timeoutSeconds === null
             ? $this->dataCite->getMetadata($doi)
             : $this->dataCite->getMetadata($doi, $timeoutSeconds, false);
@@ -349,8 +376,6 @@ class RelatedIdentifierCitationLabelService
             return null;
         }
 
-        $citation = trim($this->dataCite->buildCitationFromMetadata($metadata));
-
-        return $citation !== '' ? $citation : null;
+        return $this->formatter->format($doi, $metadata, $deadline);
     }
 }

@@ -418,6 +418,7 @@ final class UploadedResourceDraftService
                 'relationType' => $relationType,
                 'relationTypeInformation' => $this->stringOrNull($item['relationTypeInformation'] ?? $item['relation_type_information'] ?? null),
                 'citationLabel' => $this->stringOrNull($item['citationLabel'] ?? $item['citation_label'] ?? null),
+                ...(isset($item['citation_proof']) ? ['citationProof' => $item['citation_proof']] : []),
                 'position' => $item['position'] ?? $index,
             ];
         }

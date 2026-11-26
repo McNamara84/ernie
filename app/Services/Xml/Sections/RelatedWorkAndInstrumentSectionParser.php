@@ -27,7 +27,7 @@ final readonly class RelatedWorkAndInstrumentSectionParser
 
     /**
      * @return array{
-     *     relatedWorks: array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, position: int}>,
+     *     relatedWorks: array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null, citation_proof?: string|null, position: int}>,
      *     instruments: array<int, array{pid: string, pidType: string, name: string}>,
      * }
      */
@@ -55,12 +55,14 @@ final readonly class RelatedWorkAndInstrumentSectionParser
                 continue;
             }
 
+            $citation = $this->citationLabelService->lookupBestEffort($identifier, $identifierType, $citationResolutionDeadline);
             $relatedWorks[] = [
                 'identifier' => $identifier,
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
                 'relation_type_information' => $relatedIdentifier['relationTypeInformation'] ?? null,
-                'citation_label' => $this->citationLabelService->resolveBestEffort($identifier, $identifierType, $citationResolutionDeadline),
+                'citation_label' => $citation?->text,
+                ...($citation?->parts !== null ? ['citation_proof' => $citation->proof()] : []),
                 'position' => count($relatedWorks),
             ];
         }

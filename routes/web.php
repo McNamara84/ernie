@@ -9,6 +9,7 @@ use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ChangelogController;
+use App\Http\Controllers\CitationLabelReviewController;
 use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\ContactPersonController;
 use App\Http\Controllers\CsrfCookieController;
@@ -576,6 +577,9 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     Route::get('api/v1/citation-lookup', [CitationLookupController::class, 'lookup'])
         ->middleware('throttle:30,1')
         ->name('api.citation-lookup');
+
+    Route::post('resources/citation-labels/preview', [CitationLabelReviewController::class, 'preview'])->name('resources.citation-labels.preview');
+    Route::post('resources/citation-labels/apply', [CitationLabelReviewController::class, 'apply'])->name('resources.citation-labels.apply');
 
     Route::post('resources/batch-register', [BatchResourceRegistrationController::class, 'register'])
         ->name('resources.batch-register');

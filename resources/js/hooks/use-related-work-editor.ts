@@ -5,6 +5,8 @@ import { identityPart, mergeImportedEntries } from '@/lib/imported-metadata';
 import { getRelatedWorkDisplayOrder } from '@/lib/related-work-ordering';
 import type { RelatedIdentifier } from '@/types';
 
+export type SavedWorkLabel = Required<Pick<RelatedIdentifier, 'id' | 'citation_label' | 'citation_label_hash'>>;
+
 /** Own the display order above the accordion, for the lifetime of the editor. */
 export function useRelatedWorkEditor(initialItems: RelatedIdentifier[], sortInitially = false) {
     const [state, setState] = useState(() => {
@@ -46,11 +48,43 @@ export function useRelatedWorkEditor(initialItems: RelatedIdentifier[], sortInit
         [setEntries],
     );
 
+    const acknowledgeSavedLabels = useCallback(
+        (saved?: SavedWorkLabel[]) => {
+            if (!saved) return;
+            const submitted = state.entries.filter(({ data }) => data.identifier.trim() !== '');
+            if (submitted.length !== saved.length) return;
+            const byClientId = new Map(submitted.map((entry, index) => [entry.clientId, { before: entry.data, after: saved[index] }]));
+            setEntries((current) => {
+                let changed = false;
+                const updated = current.map((entry) => {
+                    const snapshot = byClientId.get(entry.clientId);
+                    if (!snapshot) return entry;
+                    const { before, after } = snapshot;
+                    const data = entry.data;
+                    const edited =
+                        data.citation_label !== before.citation_label ||
+                        data.identifier !== before.identifier ||
+                        data.identifier_type !== before.identifier_type;
+                    const label = edited ? data.citation_label : after.citation_label;
+                    const hash =
+                        edited && (before.citation_label ?? '').trim() !== (after.citation_label ?? '')
+                            ? data.citation_label_hash
+                            : after.citation_label_hash;
+                    if (data.id === after.id && data.citation_label === label && data.citation_label_hash === hash) return entry;
+                    changed = true;
+                    return { ...entry, data: { ...data, id: after.id, citation_label: label, citation_label_hash: hash } };
+                });
+                return changed ? updated : current;
+            });
+        },
+        [state.entries, setEntries],
+    );
+
     const relatedWorks = useMemo(() => state.entries.map(({ data }) => data), [state.entries]);
     const displayEntries = useMemo(() => {
         const byId = new Map(state.entries.map((entry) => [entry.clientId, entry]));
         return state.displayOrder.map((clientId) => byId.get(clientId)!);
     }, [state]);
 
-    return { entries: state.entries, displayEntries, relatedWorks, setEntries, mergeImported };
+    return { entries: state.entries, displayEntries, relatedWorks, setEntries, mergeImported, acknowledgeSavedLabels };
 }

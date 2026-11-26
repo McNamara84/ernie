@@ -6,10 +6,14 @@ namespace App\Console\Commands;
 
 use App\Models\IdentifierType;
 use App\Models\RelatedIdentifier;
+use App\Models\Resource;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\OaiPmh\OaiPmhDatestampService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 #[Description('Hydrate missing citation labels for existing DOI and URL related identifiers.')]
 #[Signature('related-identifiers:hydrate-citation-labels
@@ -104,17 +108,26 @@ class HydrateRelatedIdentifierCitationLabels extends Command
                     continue;
                 }
 
-                $relatedIdentifier->refresh();
+                $updated += DB::transaction(function () use ($relatedIdentifier, $resolvedPayload, $index, $citationLabel): int {
+                    $resource = Resource::query()->lockForUpdate()->find($relatedIdentifier->resource_id);
+                    $current = RelatedIdentifier::query()->lockForUpdate()->find($relatedIdentifier->id);
+                    if ($resource === null || $current === null || $current->resource_id !== $resource->id || $current->identifier !== $relatedIdentifier->identifier
+                        || $current->identifier_type_id !== $relatedIdentifier->identifier_type_id || trim((string) $current->citation_label) !== '') {
+                        return 0;
+                    }
 
-                if (is_string($relatedIdentifier->citation_label) && trim($relatedIdentifier->citation_label) !== '') {
-                    continue;
-                }
+                    $current->update([
+                        'citation_label' => $citationLabel,
+                        'citation_label_parts' => $resolvedPayload[$index]['citationLabelParts'] ?? null,
+                    ]);
 
-                $relatedIdentifier->forceFill([
-                    'citation_label' => $citationLabel,
-                ])->save();
+                    app(OaiPmhDatestampService::class)->touchResource($resource->id);
+                    if (($page = $resource->landingPage) !== null) {
+                        DB::afterCommit(fn () => app(LandingPageRenderDataCacheService::class)->forgetById($page->id));
+                    }
 
-                $updated++;
+                    return 1;
+                });
             }
         });
 
