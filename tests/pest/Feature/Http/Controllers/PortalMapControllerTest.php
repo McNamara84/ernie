@@ -453,15 +453,17 @@ it('preserves IGSN material details when resolving terminal cluster members', fu
         ->assertJsonPath('members.1.resource.igsn.sampleType', 'Individual Sample');
 });
 
-it('keeps terminal cluster members in the portal scope and current viewport', function (): void {
+it('keeps terminal cluster members in the portal scope and current viewport', function (array $searchFilters): void {
     $dataset = createPublishedPortalMapResource($this->datasetType, 'Scoped dataset');
     $secondDataset = createPublishedPortalMapResource($this->datasetType, 'Second scoped dataset');
     $sample = createPublishedPortalMapResource($this->physicalObjectType, 'Scoped sample');
     GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $dataset->id]);
     GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $secondDataset->id]);
     GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $sample->id]);
-    $query = portalMapRequestQuery(['zoom' => 18]);
-    $clusterId = $this->getJson(route('portal.doi.map', $query))->json('features.0.id');
+    $query = portalMapRequestQuery(['zoom' => 18, ...$searchFilters]);
+    $clusterId = $this->getJson(route('portal.doi.map', $query))->assertOk()
+        ->assertJsonPath('features.0.count', 2)
+        ->json('features.0.id');
 
     $this->getJson(route('portal.doi.map-cluster-members', [
         'clusterId' => $clusterId,
@@ -471,17 +473,18 @@ it('keeps terminal cluster members in the portal scope and current viewport', fu
         ->assertJsonPath('total', 2)
         ->assertJsonMissing(['title' => 'Scoped sample']);
 
-    $outsideViewport = portalMapRequestQuery([
-        'zoom' => 18,
-        'viewport' => ['north' => 10, 'south' => -10, 'east' => 10, 'west' => -10, 'width' => 1000, 'height' => 700],
-    ]);
+    $outsideViewport = $query;
+    $outsideViewport['viewport'] = ['north' => 10, 'south' => -10, 'east' => 10, 'west' => -10, 'width' => 1000, 'height' => 700];
     $this->getJson(route('portal.doi.map-cluster-members', [
         'clusterId' => $clusterId,
         ...portalMapClusterMembersRequestQuery($outsideViewport),
     ]))
         ->assertNotFound()
         ->assertJsonPath('message', 'The requested map cluster was not found.');
-});
+})->with([
+    'worldwide' => [[]],
+    'disabled with search bounds outside the viewport' => [['map_filter' => '0', 'north' => 10, 'south' => -10, 'east' => 10, 'west' => -10]],
+]);
 
 it('validates cluster member requests and respects the map feature flag', function (): void {
     $this->getJson(route('portal.doi.map-cluster-members', [

@@ -15,6 +15,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
+use Inertia\Inertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
@@ -58,6 +59,8 @@ it('keeps worldwide, regional, and disabled map searches consistent with their c
         [['map_filter' => '0'], false, null],
         [['map_filter' => '0', ...$region], false, null],
         [$region, true, $berlin->id],
+        [['map_filter' => '1', ...$region], true, $berlin->id],
+        [['map_filter' => 'false', ...$region], true, $berlin->id],
         [['north' => 0, 'south' => -30, 'east' => -170, 'west' => 170], true, $fiji->id],
     ] as [$params, $enabled, $regionalId]) {
         $page = $this->get(route("portal.{$portal}", $params))->assertOk();
@@ -77,6 +80,14 @@ it('keeps worldwide, regional, and disabled map searches consistent with their c
             ->assertJsonPath('total', count($props['resources']))
             ->assertJsonPath('filter_fingerprint', $fingerprint);
     }
+
+    $this->get(route("portal.{$portal}", ['map_filter' => '0', ...$region]), [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => Inertia::getVersion(),
+    ])->assertOk()->assertHeader('X-Inertia', 'true')
+        ->assertJsonPath('component', 'portal')
+        ->assertJsonPath('props.filters.mapFilterEnabled', false)
+        ->assertJsonPath('props.filters.bounds', null);
 })->with(['doi', 'igsn']);
 
 it('publishes separate DOI and IGSN portal endpoint families', function () {
