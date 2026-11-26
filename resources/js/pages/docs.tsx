@@ -2954,7 +2954,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>Click an individual marker or shape to open its record preview, including Material and Sample Type for IGSNs</li>
                             <li>Boxes, polygons, and lines appear when you zoom in far enough to inspect their geographic detail</li>
-                            <li>Enable the spatial filter when you want the result list to follow the selected map area</li>
+                            <li>
+                                Both portals start with <strong>Filter by map area</strong> on and the whole world selected. The worldwide list
+                                includes records without coordinates. Zoom, pan, or apply coordinates under <strong>Location</strong> to search a
+                                region.
+                            </li>
+                            <li>
+                                Turn the switch off to explore the map independently of the results. The search link remembers this choice when you
+                                browse pages, reload, or share it. Clear all filters to return to the worldwide search with the switch on.
+                            </li>
                             <li>
                                 IGSN values marked Not applicable, records without Material, and unexpected legacy Material values have separate
                                 legend entries and marker styles

@@ -694,8 +694,8 @@ describe('usePortalFilters', () => {
         });
     });
 
-    describe('clearBounds', () => {
-        it('navigates without bounds params', () => {
+    describe('setMapFilterEnabled', () => {
+        it('removes regional bounds and records an explicit opt-out', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: {
@@ -712,12 +712,18 @@ describe('usePortalFilters', () => {
             );
 
             act(() => {
-                result.current.clearBounds();
+                result.current.setMapFilterEnabled(false);
             });
 
             const calledUrl = routerMock.get.mock.calls[0][0] as string;
-            expect(calledUrl).not.toContain('north');
-            expect(calledUrl).not.toContain('south');
+            expect(calledUrl).toBe('/doi-search?map_filter=0');
+        });
+
+        it('returns to worldwide search and keeps other filters and the page when the result set is unchanged', () => {
+            const filters = { ...defaultFilters, query: 'core', mapFilterEnabled: false };
+            const { result } = renderHook(() => usePortalFilters({ filters, currentPage: 2, basePath: '/igsn-search' }));
+            act(() => result.current.setMapFilterEnabled(true));
+            expect(routerMock.get.mock.calls[0][0]).toBe('/igsn-search?q=core&page=2');
         });
     });
 

@@ -447,6 +447,38 @@ it('documents the complete DOI-only science-topic contract for each public filte
     'cluster members' => '/{portal}-search/map/clusters/{clusterId}',
 ]);
 
+it('publishes the map area filter on every portal operation that uses search bounds', function () {
+    $response = getJson('/api/v1/doc')->assertOk();
+    $parameter = $response->json('components.parameters.PortalMapFilter');
+
+    expect($parameter)->toMatchArray([
+        'name' => 'map_filter',
+        'in' => 'query',
+        'required' => false,
+        'schema' => ['type' => 'string', 'default' => '1'],
+        'example' => '0',
+    ]);
+
+    $reference = ['$ref' => '#/components/parameters/PortalMapFilter'];
+    $operations = collect($response->json('paths'))
+        ->filter(static fn (array $path): bool => in_array($reference, $path['get']['parameters'] ?? [], true));
+
+    expect($operations->keys()->all())->toEqualCanonicalizing([
+        '/{portal}-search',
+        '/{portal}-search/count',
+        '/{portal}-search/map',
+        '/{portal}-search/map/clusters/{clusterId}',
+    ]);
+
+    $page = $operations['/{portal}-search']['get'];
+    $count = $operations['/{portal}-search/count']['get'];
+    $pageFilters = collect($page['parameters'])->where('in', 'query')->pluck('name')->all();
+    $countFilters = collect($count['parameters'])->where('in', 'query')->pluck('name')->all();
+
+    expect($pageFilters)->toEqualCanonicalizing([...$countFilters, 'page'])
+        ->and($page['responses']['200']['content'])->toHaveKeys(['text/html', 'application/json']);
+});
+
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
     $spec = getJson('/api/v1/doc')
         ->assertOk()

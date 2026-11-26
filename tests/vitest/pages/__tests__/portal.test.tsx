@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Portal from '@/pages/portal';
 import type { PortalBasemapConfig, PortalPageProps, PortalPagination } from '@/types/portal';
 
-const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
+const routerMock = vi.hoisted(() => ({ get: vi.fn(), on: vi.fn((_event: string, _callback: () => void) => vi.fn()) }));
 const usePageMock = vi.hoisted(() => vi.fn());
 const axiosGetMock = vi.hoisted(() => vi.fn());
 const isDesktopMock = vi.hoisted(() => vi.fn(() => true));
@@ -48,7 +48,7 @@ const setGeologicalAgesMock = vi.fn();
 const setGeologicalUnitsMock = vi.fn();
 const clearFiltersMock = vi.fn();
 const setBoundsMock = vi.fn();
-const clearBoundsMock = vi.fn();
+const setMapFilterEnabledMock = vi.fn();
 const setTemporalMock = vi.fn();
 const useNavigationStatusMock = vi.fn();
 
@@ -69,7 +69,7 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         setGeologicalAges: setGeologicalAgesMock,
         setGeologicalUnits: setGeologicalUnitsMock,
         setBounds: setBoundsMock,
-        clearBounds: clearBoundsMock,
+        setMapFilterEnabled: setMapFilterEnabledMock,
         setTemporal: setTemporalMock,
         clearFilters: clearFiltersMock,
         hasActiveFilters: false,
@@ -191,6 +191,8 @@ vi.mock('@/components/portal/PortalMap', () => ({
         onViewportChange,
         onLocationCountChange,
         geoFilterEnabled,
+        viewRevision,
+        viewportSearch,
     }: {
         filters: { query: string | null };
         maxZoom: number;
@@ -198,8 +200,10 @@ vi.mock('@/components/portal/PortalMap', () => ({
         onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
         onLocationCountChange?: (count: number) => void;
         geoFilterEnabled?: boolean;
+        viewRevision: number;
+        viewportSearch: string | null;
     }) => (
-        <div data-testid="portal-map">
+        <div data-testid="portal-map" data-view-revision={viewRevision} data-viewport-search={viewportSearch}>
             <span data-testid="map-filter-query">{filters.query ?? ''}</span>
             <span data-testid="map-max-zoom">{maxZoom}</span>
             <span data-testid="map-basemap">{`${basemap.provider}:${basemap.styleUrl}:${basemap.language}`}</span>
@@ -878,9 +882,10 @@ describe('Portal', () => {
     });
 
     describe('Geo Filter Integration', () => {
-        it('passes geoFilterEnabled to PortalFilters', () => {
+        it('starts worldwide in the sidebar and map', () => {
             render(<Portal {...defaultProps} />);
-            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
+            expect(screen.getByTestId('map-geo-enabled')).toHaveTextContent('true');
         });
 
         it('initializes geoFilterEnabled from URL bounds', () => {
@@ -907,16 +912,17 @@ describe('Portal', () => {
             expect(screen.getByText('Spatial filter')).toBeInTheDocument();
         });
 
-        it('does not show spatial filter badge when enabled but no bounds applied', async () => {
-            const user = userEvent.setup();
+        it('does not mark the worldwide default as a regional filter', () => {
             render(<Portal {...defaultProps} />);
-
-            // Enable geo filter (no bounds yet)
-            await user.click(screen.getByTestId('geo-toggle'));
-            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
-
-            // Badge should NOT be shown since bounds are null
             expect(screen.queryByText('Spatial filter')).not.toBeInTheDocument();
+        });
+
+        it('restores the opt-out from an older history entry and preserves it on pagination', async () => {
+            usePageMock.mockReturnValue({ url: '/doi-search?map_filter=0#results', props: defaultProps });
+            render(<Portal {...defaultProps} />);
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+            await userEvent.setup().click(screen.getAllByTestId('next-page')[0]);
+            expect(routerMock.get.mock.calls[0][0]).toBe('/doi-search?map_filter=0');
         });
 
         it('renders geo toggle button in filter panel', () => {
@@ -957,15 +963,11 @@ describe('Portal', () => {
 
         it('calls handleGeoFilterToggle when geo toggle is clicked (enable)', async () => {
             const user = userEvent.setup();
-            render(<Portal {...defaultProps} />);
-
-            // Initially geo filter is disabled
+            const view = render(<Portal {...defaultProps} filters={{ ...defaultProps.filters, mapFilterEnabled: false }} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
-
-            // Click the geo toggle to enable
             await user.click(screen.getByTestId('geo-toggle'));
-
-            // After toggling, geo filter should be enabled
+            expect(setMapFilterEnabledMock).toHaveBeenCalledWith(true);
+            view.rerender(<Portal {...defaultProps} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
         });
 
@@ -978,17 +980,12 @@ describe('Portal', () => {
                     bounds: { north: 53, south: 51, east: 14, west: 12 },
                 },
             };
-            render(<Portal {...propsWithBounds} />);
-
-            // Initially geo filter is enabled (has bounds)
+            const view = render(<Portal {...propsWithBounds} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
-
-            // Click the geo toggle to disable
             await user.click(screen.getByTestId('geo-toggle'));
-
-            // After toggling, geo filter should be disabled and clearBounds called
+            expect(setMapFilterEnabledMock).toHaveBeenCalledWith(false);
+            view.rerender(<Portal {...defaultProps} filters={{ ...defaultProps.filters, mapFilterEnabled: false }} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
-            expect(clearBoundsMock).toHaveBeenCalled();
         });
 
         it('calls handleBoundsChange when apply bounds is clicked', async () => {
@@ -1019,9 +1016,8 @@ describe('Portal', () => {
             // Click clear all filters
             await user.click(screen.getByTestId('clear-filters'));
 
-            // clearFilters should have been called and geo filter disabled
             expect(clearFiltersMock).toHaveBeenCalled();
-            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
         });
 
         it('calls handleViewportChange via PortalMap callback with debounce', () => {
@@ -1124,8 +1120,65 @@ describe('Portal', () => {
             // Click the clear bounds button
             await user.click(screen.getByTestId('clear-bounds'));
 
-            // clearBounds should have been called
-            expect(clearBoundsMock).toHaveBeenCalled();
+            expect(setBoundsMock).toHaveBeenCalledWith(null);
+        });
+
+        it.each(['geo-toggle', 'clear-filters', 'popstate', 'navigation', 'unmount'])('cancels a pending pan on %s', (action) => {
+            vi.useFakeTimers();
+            try {
+                const view = render(<Portal {...defaultProps} />);
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                if (action === 'popstate') {
+                    fireEvent.popState(window);
+                    expect(screen.getByTestId('portal-map')).toHaveAttribute('data-view-revision', '1');
+                } else if (action === 'navigation') act(() => routerMock.on.mock.lastCall![1]());
+                else if (action === 'unmount') view.unmount();
+                else fireEvent.click(screen.getByTestId(action));
+                act(() => vi.advanceTimersByTime(500));
+                expect(setBoundsMock).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('refits the last completed search when going back while a pan request is in flight', () => {
+            vi.useFakeTimers();
+            try {
+                const filters = { ...defaultProps.filters, bounds: { north: 53, south: 51, east: 14, west: 12 } };
+                const view = render(<Portal {...defaultProps} filters={filters} />);
+                const map = screen.getByTestId('portal-map');
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                act(() => vi.advanceTimersByTime(500));
+                expect(setBoundsMock).toHaveBeenCalledWith({ north: 54, south: 50, east: 15, west: 11 });
+
+                useNavigationStatusMock.mockReturnValue({ isNavigating: true });
+                view.rerender(<Portal {...defaultProps} filters={filters} />);
+                expect(map).toHaveAttribute('data-viewport-search');
+                expect(map).toHaveAttribute('data-view-revision', '0');
+
+                fireEvent.popState(window);
+                expect(map).toHaveAttribute('data-view-revision', '1');
+                expect(map).not.toHaveAttribute('data-viewport-search');
+                expect(setBoundsMock).toHaveBeenCalledTimes(1);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('skips list navigation for an unchanged viewport or a disabled filter', () => {
+            vi.useFakeTimers();
+            try {
+                const bounds = { north: 54, south: 50, east: 15, west: 11 };
+                const view = render(<Portal {...defaultProps} filters={{ ...defaultProps.filters, bounds }} />);
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                act(() => vi.advanceTimersByTime(500));
+                view.rerender(<Portal {...defaultProps} filters={{ ...defaultProps.filters, mapFilterEnabled: false }} />);
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                act(() => vi.advanceTimersByTime(500));
+                expect(setBoundsMock).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('preserves keywords params on page change', async () => {

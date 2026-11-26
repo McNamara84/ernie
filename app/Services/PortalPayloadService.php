@@ -72,7 +72,7 @@ final class PortalPayloadService
                 'count_status' => 'pending',
                 'filter_fingerprint' => $filterFingerprint,
             ],
-            'filters' => $this->filterService->forFrontend($filters),
+            'filters' => $this->filterService->forFrontend($filters, $this->filterService->mapFilterEnabled($request)),
             'thesaurusFacets' => $scope === PortalScope::DOI
                 ? $this->keywordService->getThesaurusFacets($scope)
                 : [],
