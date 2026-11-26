@@ -103,11 +103,12 @@ final readonly class CitationLabelReviewService
      */
     private function reviewMetadata(array $dois, int $userId, ?string $reviewId): array
     {
-        $cache = CacheKey::DOI_CITATION->repository();
+        $snapshots = CacheKey::CITATION_REVIEW_SNAPSHOT;
+        $cache = $snapshots->repository();
         $keys = [];
         if ($reviewId !== null) {
             foreach ($dois as $doi) {
-                $keys[$doi] = 'citations:review:'.$userId.':'.$reviewId.':'.hash('sha256', $doi);
+                $keys[$doi] = $snapshots->key($userId.':'.$reviewId.':'.hash('sha256', $doi));
             }
         }
         $cached = $keys === [] ? [] : $cache->many(array_values($keys));
@@ -143,7 +144,7 @@ final readonly class CitationLabelReviewService
             }
         }
         if ($new !== []) {
-            $cache->putMany($new, now()->addMinutes(30));
+            $cache->putMany($new, $snapshots->ttl());
         }
 
         return $results;

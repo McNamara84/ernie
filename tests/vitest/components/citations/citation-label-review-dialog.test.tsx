@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -53,6 +54,32 @@ it('can retry a failed preview and close before any change is applied', async ()
     expect(post.mock.calls.map(([url]) => url)).toEqual(['/resources/citation-labels/preview', '/resources/citation-labels/preview']);
 });
 
+it('supports keyboard selection and announces a partially selected review', async () => {
+    const user = userEvent.setup();
+    post.mockResolvedValueOnce({ data: { candidates: [candidate(1), candidate(2)], skipped, next_cursor: null } });
+    render(<CitationLabelReviewDialog ids={[1, 2]} onClose={vi.fn()} />);
+    const selectAll = await screen.findByRole('checkbox', { name: 'Select all' });
+    const first = screen.getByRole('checkbox', { name: /Resource 1/ });
+    const second = screen.getByRole('checkbox', { name: /Resource 2/ });
+    selectAll.focus();
+    await user.tab();
+    expect(first).toHaveFocus();
+    await user.keyboard('[Space]');
+    expect(first).toBeChecked();
+    expect(second).not.toBeChecked();
+    expect(selectAll).toBePartiallyChecked();
+
+    await user.tab({ shift: true });
+    expect(selectAll).toHaveFocus();
+    await user.keyboard('[Space]');
+    expect(selectAll).toBeChecked();
+    expect(second).toBeChecked();
+    await user.click(screen.getByText('Select all'));
+    expect(first).not.toBeChecked();
+    expect(second).not.toBeChecked();
+    expect(screen.getByRole('button', { name: /Apply selected/ })).toBeDisabled();
+});
+
 it('keeps pending selections for a safe retry after a failed confirmation', async () => {
     post.mockResolvedValueOnce({ data: { candidates: [candidate(3)], skipped, next_cursor: null } })
         .mockRejectedValueOnce(new Error())
@@ -64,5 +91,6 @@ it('keeps pending selections for a safe retry after a failed confirmation', asyn
     await screen.findByRole('alert');
     fireEvent.click(apply);
     await waitFor(() => expect(screen.getByText('Already applied')).toBeVisible());
+    expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeDisabled();
     expect(post.mock.calls[2]).toEqual(post.mock.calls[1]);
 });

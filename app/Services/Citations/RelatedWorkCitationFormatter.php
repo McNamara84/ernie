@@ -74,8 +74,12 @@ final readonly class RelatedWorkCitationFormatter
         }
 
         try {
-            $cacheKey = 'citations:related-work:apa-7:'.hash('sha256', serialize($item));
-            $parts = CacheKey::DOI_CITATION->repository()->remember($cacheKey, now()->addDay(), fn () => $this->renderer->formatApaParts($item));
+            $apaParts = CacheKey::CITATION_APA_PARTS;
+            $parts = $apaParts->repository()->remember(
+                $apaParts->key(hash('sha256', serialize($item))),
+                $apaParts->ttl(),
+                fn () => $this->renderer->formatApaParts($item),
+            );
         } catch (Throwable $exception) {
             report($exception);
 
@@ -185,8 +189,10 @@ final readonly class RelatedWorkCitationFormatter
      */
     private function nativeMetadata(string $doi, float $deadline): array
     {
-        $key = 'citations:native-paper:'.hash('sha256', $doi);
-        $cached = CacheKey::DOI_CITATION->repository()->get($key);
+        $nativePaper = CacheKey::CITATION_NATIVE_PAPER;
+        $cache = $nativePaper->repository();
+        $key = $nativePaper->key(hash('sha256', $doi));
+        $cached = $cache->get($key);
         if (is_array($cached)) {
             return $cached;
         }
@@ -209,7 +215,7 @@ final readonly class RelatedWorkCitationFormatter
             return [];
         }
 
-        CacheKey::DOI_CITATION->repository()->put($key, $fields, now()->addDay());
+        $cache->put($key, $fields, $nativePaper->ttl());
 
         return $fields;
     }

@@ -32,9 +32,12 @@ test('reviews a stored paper citation and displays and copies the approved APA t
         await page.getByTestId('resources-action-review-citation-labels').click();
         const dialog = page.getByRole('dialog', { name: 'Review citation labels' });
         await expect(dialog.getByText(data.old)).toBeVisible();
-        await dialog.getByRole('checkbox', { name: /Journal article/ }).check();
+        const selectAll = dialog.getByRole('checkbox', { name: 'Select all' });
+        await dialog.getByRole('checkbox', { name: /Journal article/ }).press('Space');
+        await expect(selectAll).toBeChecked();
         await dialog.getByRole('button', { name: /Apply selected/ }).click();
         await expect(dialog.getByRole('status')).toHaveText('Applied');
+        await expect(selectAll).toBeDisabled();
         await dialog.getByRole('button', { name: 'Close', exact: true }).first().click();
         await page.goto(data.path);
         const text = 'Frank, H. S. (1970). The structure of ordinary water. Science, 169(3946), 635–641. https://doi.org/' + data.doi;

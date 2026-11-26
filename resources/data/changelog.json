@@ -127,7 +127,7 @@
         "fixes": [
             {
                 "title": "APA 7 Citations for Related Papers",
-                "description": "Related journal articles, conference papers and preprints now cite their publication source in APA 7. Landing pages show the appropriate italics, and curators can preview and update matching published labels.",
+                "description": "Related journal articles, conference papers and preprints now cite their publication source in APA 7. Landing pages show the appropriate italics. Curators can preview matching published labels, see partial selections and apply the selected updates.",
                 "references": [{ "type": "issue", "number": 1547, "url": "https://github.com/McNamara84/ernie/issues/1547" }]
             },
             {

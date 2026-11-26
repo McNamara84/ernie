@@ -70,6 +70,9 @@ enum CacheKey: string
 
     // DOI citation cache keys
     case DOI_CITATION = 'doi:citation';
+    case CITATION_REVIEW_SNAPSHOT = 'citations:review';
+    case CITATION_NATIVE_PAPER = 'citations:native-paper';
+    case CITATION_APA_PARTS = 'citations:related-work:apa-7';
 
     // DataCite REST API metadata cache keys
     case DOI_DATACITE_METADATA = 'doi:datacite_metadata';
@@ -209,7 +212,12 @@ enum CacheKey: string
             self::PORTAL_MAP_EXTENT => max(0, (int) config('portal_map.extent_cache_ttl', 300)),
 
             // DOI citations and DataCite metadata are relatively stable - 24 hours
-            self::DOI_CITATION, self::DOI_DATACITE_METADATA, self::CITATION_LOOKUP => 86400,
+            self::DOI_CITATION,
+            self::DOI_DATACITE_METADATA,
+            self::CITATION_LOOKUP,
+            self::CITATION_NATIVE_PAPER,
+            self::CITATION_APA_PARTS => 86400,
+            self::CITATION_REVIEW_SNAPSHOT => 1800,
 
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
@@ -326,11 +334,13 @@ enum CacheKey: string
             self::PORTAL_MAP_PAYLOAD => ['portal_map_payloads'],
             self::PORTAL_MAP_EXTENT => ['portal_map_extents'],
 
-            self::DOI_CITATION => ['doi', 'citations'],
+            self::DOI_CITATION,
+            self::CITATION_LOOKUP,
+            self::CITATION_REVIEW_SNAPSHOT,
+            self::CITATION_NATIVE_PAPER,
+            self::CITATION_APA_PARTS => ['doi', 'citations'],
 
             self::DOI_DATACITE_METADATA => ['doi', 'datacite_metadata'],
-
-            self::CITATION_LOOKUP => ['doi', 'citations'],
 
             self::CACHE_STATS => ['system'],
 

@@ -174,7 +174,7 @@ it('requires authenticated, authorized selections and paginates repeated works',
     ($this->preview)()->assertForbidden();
 });
 
-it('records a transient lookup failure once per review and allows a fresh preview to retry it', function () {
+it('isolates transient lookup failures per reviewer and review for thirty minutes', function () {
     $this->actingAs($this->user);
     Http::fakeSequence()->push([], 503)->push($this->metadata);
     foreach (range(1, 17) as $i) {
@@ -182,9 +182,16 @@ it('records a transient lookup failure once per review and allows a fresh previe
     }
     $run = ['review_id' => (string) Str::uuid()];
     $first = ($this->preview)($run)->assertOk()->assertJsonPath('skipped.lookup_failed', 16);
+    $this->travel(29)->minutes();
     ($this->preview)($run + ['cursor' => $first->json('next_cursor')])->assertOk()->assertJsonPath('skipped.lookup_failed', 1);
     Http::assertSentCount(1);
+    $this->actingAs(User::factory()->create());
+    ($this->preview)($run)->assertOk()->assertJsonCount(16, 'candidates');
+    $this->actingAs($this->user);
     ($this->preview)(['review_id' => (string) Str::uuid()])->assertOk()->assertJsonCount(16, 'candidates');
+    ($this->preview)($run)->assertOk()->assertJsonPath('skipped.lookup_failed', 16);
+    $this->travel(2)->minutes();
+    ($this->preview)($run)->assertOk()->assertJsonCount(16, 'candidates');
     Http::assertSentCount(2);
 });
 

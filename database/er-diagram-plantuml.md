@@ -660,6 +660,7 @@ entity "related_identifiers" as related_identifiers {
     * relation_type_id : BIGINT <<FK>>
     relation_type_information : VARCHAR //DataCite 4.7//
     citation_label : MEDIUMTEXT
+    citation_label_parts : JSON <<nullable>>
     source : VARCHAR(100) <<nullable>>
     resource_type_general : VARCHAR(100) <<nullable>>
     related_metadata_scheme : VARCHAR

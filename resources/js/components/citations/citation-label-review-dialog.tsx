@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 
 import { CitationLabelText } from '@/components/citations/citation-label-text';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getSelectAllState } from '@/lib/select-all';
 import type { CitationLabelPart } from '@/types/landing-page';
 
 interface Candidate {
@@ -84,8 +86,10 @@ export function CitationLabelReviewDialog({ ids, onClose }: { ids: number[]; onC
     }, [ids, attempt]);
 
     const available = preview?.candidates.filter((row) => !results[row.id]) ?? [];
+    const selectedIds = new Set(selected);
+    const selectAll = getSelectAllState(available.map((row) => selectedIds.has(row.id)));
     async function applySelected() {
-        const rows = available.filter((row) => selected.includes(row.id));
+        const rows = available.filter((row) => selectedIds.has(row.id));
         setApplying(true);
         setError('');
         try {
@@ -138,23 +142,24 @@ export function CitationLabelReviewDialog({ ids, onClose }: { ids: number[]; onC
                         ) : (
                             <>
                                 <label className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        disabled={applying || !available.length}
-                                        checked={available.length > 0 && available.every((row) => selected.includes(row.id))}
-                                        onChange={(event) => setSelected(event.target.checked ? available.map((row) => row.id) : [])}
+                                    <Checkbox
+                                        disabled={applying || selectAll.isEmpty}
+                                        checked={selectAll.allChecked}
+                                        indeterminate={selectAll.indeterminate}
+                                        onCheckedChange={(checked) => setSelected(checked === true ? available.map((row) => row.id) : [])}
                                     />
                                     Select all
                                 </label>
                                 {preview.candidates.map((row) => (
                                     <div key={row.id} className="space-y-2 border-t py-3">
                                         <label className="flex items-center gap-2 font-medium">
-                                            <input
-                                                type="checkbox"
+                                            <Checkbox
                                                 disabled={applying || !!results[row.id]}
-                                                checked={selected.includes(row.id)}
-                                                onChange={(event) =>
-                                                    setSelected(event.target.checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))
+                                                checked={selectedIds.has(row.id)}
+                                                onCheckedChange={(checked) =>
+                                                    setSelected((current) =>
+                                                        checked === true ? [...current, row.id] : current.filter((id) => id !== row.id),
+                                                    )
                                                 }
                                             />
                                             {row.resource} (#{row.resource_id}) · {row.work_type} · {row.doi}

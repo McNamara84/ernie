@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Services\Citations\RelatedWorkCitation;
 use App\Services\Citations\RelatedWorkCitationFormatter;
 use Illuminate\Support\Facades\Http;
@@ -35,6 +36,22 @@ it('keeps the legacy text for other and ambiguous records', function (string $ty
     expect($citation->text)->toBe('Frank, H. S. (1970): The structure of ordinary water. American Association for the Advancement of Science. https://doi.org/10.1126/science.169.3946.635')
         ->and($citation->parts)->toBeNull();
 })->with(['dataset', 'software', 'book', 'proceedings', 'article']);
+
+it('reuses saved APA parts for the exact CSL item until the entry is forgotten', function (): void {
+    $doi = '10.1234/cached-paper';
+    $metadata = ['title' => 'First title', 'type' => 'article-journal'];
+    $item = ['id' => $doi, 'DOI' => $doi, 'URL' => 'https://doi.org/'.$doi, ...$metadata];
+    $key = CacheKey::CITATION_APA_PARTS;
+    $suffix = hash('sha256', serialize($item));
+    $parts = [['text' => 'Previously rendered citation', 'italic' => true]];
+    $key->repository()->put($key->key($suffix), $parts, $key->ttl());
+
+    $formatter = app(RelatedWorkCitationFormatter::class);
+    expect($formatter->format($doi, $metadata)->parts)->toBe($parts)
+        ->and($formatter->format($doi, [...$metadata, 'title' => 'Revised title'])->text)->toContain('Revised title')
+        ->and($key->forget($suffix))->toBeTrue()
+        ->and($formatter->format($doi, $metadata)->text)->toContain('First title');
+});
 
 it('renders a conference chapter with its proceedings and a preprint with its archive', function () {
     $formatter = app(RelatedWorkCitationFormatter::class);
@@ -71,6 +88,9 @@ it('uses the native preprint subtype for ambiguous CSL and caches the exact DOI 
     expect($formatter->format('10.1234/p', $metadata)->text)->toContain('EarthArXiv');
     expect($formatter->format('10.1234/p', $metadata)->workType)->toBe('Preprint');
     Http::assertSentCount(1);
+    expect(CacheKey::CITATION_NATIVE_PAPER->forget(hash('sha256', '10.1234/p')))->toBeTrue()
+        ->and($formatter->format('10.1234/p', $metadata)->workType)->toBe('Preprint');
+    Http::assertSentCount(2);
 });
 
 it('formats serial conference contributions and presentations according to their source', function () {

@@ -22,6 +22,15 @@ function loadAddCitationLabelMigration(): Migration
     return $migration;
 }
 
+it('documents nullable JSON citation parts on related identifiers in both ER diagrams', function (): void {
+    $columns = array_column(Schema::getColumns('related_identifiers'), null, 'name');
+    expect($columns['citation_label_parts']['nullable'])->toBeTrue()
+        ->and(file_get_contents(database_path('er-diagram.md')))
+        ->toMatch('/\brelated_identifiers \{[^}]*\bjson citation_label_parts "nullable"/')
+        ->and(file_get_contents(database_path('er-diagram-plantuml.md')))
+        ->toMatch('/entity "related_identifiers" as related_identifiers \{[^}]*\bcitation_label_parts : JSON <<nullable>>/');
+});
+
 it('drops and re-adds the citation_label column on related_identifiers', function (): void {
     $migration = loadAddCitationLabelMigration();
 
