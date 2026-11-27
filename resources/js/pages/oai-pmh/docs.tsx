@@ -331,29 +331,26 @@ export default function OaiPmhDocs({
                                 <code>&lt;setSpec&gt;{projectSet.spec}&lt;/setSpec&gt;</code>
                             </p>
                         </div>
-                        <div className="space-y-2" aria-label="ICGEM model set">
+                        <div className="space-y-2" aria-label="ICGEM set">
                             <h4 className="font-medium">{icgemSet.name}</h4>
                             <Badge variant="outline">{icgemSet.spec}</Badge>
                             <p className="text-sm text-muted-foreground">{icgemSet.description}</p>
                             <p className="text-sm text-muted-foreground">
-                                Both conditions must hold: the resource&apos;s own DOI contains <code>10.5880/icgem</code> anywhere, ignoring ASCII
-                                letter case, and its DataCite Resource Type is <code>Model</code>. Related identifiers and datacenter affiliation do
-                                not determine membership. For example, <code>10.5880/icgem.2026.004</code> and <code>10.5880/icgem.2015.1</code>{' '}
-                                qualify when published as models. A matching DOI with type Dataset does not qualify.
+                                A Model with DOI <code>10.5880/icgem.2026.004</code> and a Dataset with DOI <code>10.5880/ICGEM.2015.1</code> both
+                                qualify. The check uses the resource&apos;s own DOI, independently of its related identifiers, keywords and
+                                datacenter.
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                The set remains discoverable even when empty; an empty harvest returns <code>noRecordsMatch</code>. Records need a
-                                published landing page and their own DOI. Membership appears in filtered and unfiltered headers, including{' '}
-                                <code>GetRecord</code>: <code>&lt;setSpec&gt;{icgemSet.spec}&lt;/setSpec&gt;</code>.
+                                Records need a published landing page. Filtered lists, unfiltered lists and <code>GetRecord</code> show membership
+                                through <code>&lt;setSpec&gt;{icgemSet.spec}&lt;/setSpec&gt;</code> in the header. An empty set appears in{' '}
+                                <code>ListSets</code> and returns <code>noRecordsMatch</code> when harvested.
                             </p>
                             <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${icgemSet.spec}`} />
                             <ExampleUrl url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=${icgemSet.spec}`} />
                             <p className="text-sm text-muted-foreground">
-                                Start with a complete harvest without date filters. Earlier deleted or depublished models are included when their
-                                stored DOI matches and their saved type set is <code>resourcetype:model</code>. Their original deletion datestamps are
-                                preserved. Historical records without saved type evidence cannot be classified as models. Deleted headers do not count
-                                towards the active inventory. Use <code>oai_datacite</code> for DataCite metadata, <code>oai_dc</code> for Dublin
-                                Core, or <code>iso19115_3</code> for models when ISO export is enabled.
+                                Earlier withdrawals qualify by their stored DOI even when the saved type is missing. Their deleted headers carry the
+                                original deletion datestamp. Use <code>oai_datacite</code> or <code>oai_dc</code> to harvest all resource types. ISO
+                                and DCAT-AP exports cover the records eligible for each enabled format.
                             </p>
                         </div>
                         <div>
@@ -516,28 +513,26 @@ export default function OaiPmhDocs({
                 <Card aria-label="ICGEM harvesting guidance">
                     <CardHeader>
                         <CardTitle>Keeping an ICGEM Harvest in Sync</CardTitle>
-                        <CardDescription>Metadata updates, withdrawals and resource-type changes</CardDescription>
+                        <CardDescription>Initial harvest and incremental updates</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <p>
-                            After the complete first harvest, request incremental updates with overlapping inclusive UTC date boundaries and follow
-                            every resumption token. Save the next checkpoint only after every page succeeds. An invalid or expired token requires
-                            restarting the list request.
+                            For the first harvest, request the entire set without date filters. For incremental updates, use overlapping UTC date
+                            ranges with inclusive boundaries. Follow every resumption token and save the next checkpoint only after every page
+                            succeeds. An invalid or expired token requires restarting the list request.
                         </p>
                         <ExampleUrl
                             url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${icgemSet.spec}&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z`}
                         />
                         <HarvestCheckpointGuidance />
                         <p>
-                            Changing a resource from Model to another type removes it from this set without deleting it from ERNIE. This set exit does
-                            not generate a deleted header and cannot be reported by an incremental request restricted to this set. Periodically
-                            reconcile all active identifiers using a complete list without date filters, such as a weekly reconciliation alongside
-                            daily incremental updates. Process persistent deleted headers separately.
+                            Changing a Model to a Dataset keeps it in ICGEM and updates its resource-type set. A DOI replacement retires the old
+                            identifier. The replacement DOI determines membership for the new identifier. Process deleted headers as withdrawals.
                         </p>
                         <p>
-                            Never remove local records based on an incomplete or failed harvest. Before removing missing candidates, check them with{' '}
-                            <code>GetRecord</code>: retain and refresh records still carrying <code>{icgemSet.spec}</code>; a valid record without
-                            that membership confirms a set exit, and a deleted header confirms withdrawal. Technical errors do not confirm removal.
+                            Never remove local records based on an incomplete or failed harvest. Check missing identifiers with <code>GetRecord</code>
+                            . A live header without <code>{icgemSet.spec}</code> confirms a set exit. A deleted header confirms withdrawal. Technical
+                            errors do not confirm removal.
                         </p>
                     </CardContent>
                 </Card>

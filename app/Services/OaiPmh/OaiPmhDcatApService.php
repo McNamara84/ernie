@@ -23,6 +23,7 @@ final class OaiPmhDcatApService
         private readonly OaiPmhXmlResponseBuilder $xml,
         private readonly OaiPmhResumptionTokenService $tokens,
         private readonly OaiPmhHarvestService $harvests,
+        private readonly OaiPmhSetService $sets,
         private readonly DcatApResourceProfileService $profile,
         private readonly DcatApReadinessService $readiness,
         private readonly DcatApRecordService $records,
@@ -61,9 +62,12 @@ final class OaiPmhDcatApService
         if ($resuming && $harvest === null) {
             return $this->error('badResumptionToken', 'The format inventory is missing', $verb, $attributes);
         }
+        $inventory = OaiPmhFormatRecord::where('metadata_prefix', $format->value);
+        if ($set !== null) {
+            $this->sets->applyStoredSetFilter($inventory, $set);
+        }
         if ($harvest === null) {
-            $query = OaiPmhFormatRecord::where('metadata_prefix', $format->value)
-                ->when($set !== null, fn ($q) => $q->whereJsonContains('sets', $set))
+            $query = (clone $inventory)
                 ->when($from !== null, fn ($q) => $q->where('datestamp', '>=', $from))
                 ->when($until !== null, fn ($q) => $q->where('datestamp', '<=', $until));
             $harvest = DB::transaction(function () use ($query): OaiPmhHarvest {
@@ -81,7 +85,7 @@ final class OaiPmhDcatApService
             return $this->error('noRecordsMatch', 'No records match the given criteria', $verb, $attributes);
         }
         $page = $this->harvests->page($harvest, $position, $pageSize);
-        $records = OaiPmhFormatRecord::where('metadata_prefix', $format->value)->whereIn('id', array_column($page, 'id'))
+        $records = $inventory->whereIn('id', array_column($page, 'id'))
             ->with(['resource' => fn ($q) => $q->with($this->profile->requiredRelations($format))])->get()->keyBy('id');
         // Recheck after reading the page: concurrent status/identity/set changes
         // retire the whole inventory rather than silently shrinking its count.
@@ -129,13 +133,14 @@ final class OaiPmhDcatApService
     private function append(DOMElement $container, OaiPmhFormatRecord $record, bool $headersOnly, DcatApFormat $format): void
     {
         $timestamp = $record->datestamp->utc()->format('Y-m-d\TH:i:s\Z');
+        $sets = $this->sets->getSetsForStoredRecord($record);
         if ($headersOnly) {
-            $this->xml->addHeader($container, $record->oai_identifier, $timestamp, $record->sets, $record->status === 'deleted');
+            $this->xml->addHeader($container, $record->oai_identifier, $timestamp, $sets, $record->status === 'deleted');
         } elseif ($record->status === 'deleted') {
-            $this->xml->addDeletedRecord($container, $record->oai_identifier, $timestamp, $record->sets);
+            $this->xml->addDeletedRecord($container, $record->oai_identifier, $timestamp, $sets);
         } else {
             assert($record->resource !== null);
-            $this->xml->addRecord($container, $record->oai_identifier, $timestamp, $record->sets, $format->exporter()->export($record->resource));
+            $this->xml->addRecord($container, $record->oai_identifier, $timestamp, $sets, $format->exporter()->export($record->resource));
         }
     }
 

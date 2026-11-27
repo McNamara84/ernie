@@ -315,7 +315,7 @@ class OaiPmhService
                 $container,
                 $deletedRecord->oai_identifier,
                 $deletedRecord->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                $this->setService->getSetsForDeletedRecord($deletedRecord),
+                $this->setService->getSetsForStoredRecord($deletedRecord),
             );
 
             return $builder->toXml();
@@ -487,14 +487,14 @@ class OaiPmhService
             ->when($until !== null, fn ($q) => $q->where('datestamp', '<=', $until));
 
         if ($setSpec !== null) {
-            $this->setService->applyDeletedSetFilter($deletedQuery, $setSpec);
+            $this->setService->applyStoredSetFilter($deletedQuery, $setSpec);
         }
 
         if ($this->isIsoMetadataPrefix($metadataPrefix)) {
             $this->isoProfile->applyToDeletedRecordQuery($deletedQuery);
         }
 
-        // Old tokens remain usable until their original TTL. New requests freeze
+        // Legacy tokens resume against the current results. New requests freeze
         // identities so set exits, deletions and updates cannot shift later pages.
         if (! is_string($resumptionToken) || $token->harvest_id !== null) {
             return $this->listSnapshotItems(
@@ -535,7 +535,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        $this->setService->getSetsForDeletedRecord($deleted),
+                        $this->setService->getSetsForStoredRecord($deleted),
                         deleted: true,
                     );
                 } else {
@@ -543,7 +543,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        $this->setService->getSetsForDeletedRecord($deleted),
+                        $this->setService->getSetsForStoredRecord($deleted),
                     );
                 }
                 $emitted++;
@@ -581,7 +581,11 @@ class OaiPmhService
             }
         }
 
-        // Add resumption token if more results exist
+        // The legacy token's count can include records that no longer match the filters.
+        if ($emitted === 0) {
+            return $this->errorResponse('badResumptionToken', 'No records remain at the stored cursor. Restart the list request.', $verb, $requestAttrs);
+        }
+
         $nextCursor = $cursor + $emitted;
 
         if ($nextCursor < $completeListSize) {
@@ -673,7 +677,7 @@ class OaiPmhService
                 }
                 $identifier = $deleted->oai_identifier;
                 $datestamp = $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z');
-                $sets = $this->setService->getSetsForDeletedRecord($deleted);
+                $sets = $this->setService->getSetsForStoredRecord($deleted);
                 if ($headersOnly) {
                     $builder->addHeader($container, $identifier, $datestamp, $sets, deleted: true);
                 } else {

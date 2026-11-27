@@ -34,8 +34,8 @@
                 ]
             },
             {
-                "title": "ICGEM Model Harvesting",
-                "description": "Harvesters can track new, updated and withdrawn ICGEM models through a dedicated OAI-PMH set.",
+                "title": "ICGEM Resource Harvesting",
+                "description": "The icgem OAI-PMH set includes published resources of any type whose own DOI starts with 10.5880/icgem, ignoring case.",
                 "references": [{ "type": "issue", "number": 1433, "url": "https://github.com/McNamara84/ernie/issues/1433" }]
             },
             {
