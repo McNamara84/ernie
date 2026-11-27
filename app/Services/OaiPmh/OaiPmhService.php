@@ -315,7 +315,7 @@ class OaiPmhService
                 $container,
                 $deletedRecord->oai_identifier,
                 $deletedRecord->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                $this->setService->getSetsForDeletedRecord($deletedRecord),
+                $this->setService->getSetsForStoredRecord($deletedRecord),
             );
 
             return $builder->toXml();
@@ -487,7 +487,7 @@ class OaiPmhService
             ->when($until !== null, fn ($q) => $q->where('datestamp', '<=', $until));
 
         if ($setSpec !== null) {
-            $this->setService->applyDeletedSetFilter($deletedQuery, $setSpec);
+            $this->setService->applyStoredSetFilter($deletedQuery, $setSpec);
         }
 
         if ($this->isIsoMetadataPrefix($metadataPrefix)) {
@@ -535,7 +535,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        $this->setService->getSetsForDeletedRecord($deleted),
+                        $this->setService->getSetsForStoredRecord($deleted),
                         deleted: true,
                     );
                 } else {
@@ -543,7 +543,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        $this->setService->getSetsForDeletedRecord($deleted),
+                        $this->setService->getSetsForStoredRecord($deleted),
                     );
                 }
                 $emitted++;
@@ -673,7 +673,7 @@ class OaiPmhService
                 }
                 $identifier = $deleted->oai_identifier;
                 $datestamp = $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z');
-                $sets = $this->setService->getSetsForDeletedRecord($deleted);
+                $sets = $this->setService->getSetsForStoredRecord($deleted);
                 if ($headersOnly) {
                     $builder->addHeader($container, $identifier, $datestamp, $sets, deleted: true);
                 } else {

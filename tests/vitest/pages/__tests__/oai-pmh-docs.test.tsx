@@ -21,7 +21,7 @@ const defaultProps = {
     icgemSet: {
         spec: 'icgem',
         name: 'ICGEM Models',
-        description: 'Published models whose own DOI contains 10.5880/icgem.',
+        description: 'Published resources of any type whose own DOI starts with 10.5880/icgem, ignoring ASCII letter case.',
     },
     adminEmail: 'datapub@gfz.de',
     metadataFormats: {
@@ -189,30 +189,26 @@ describe('OaiPmhDocs', () => {
         );
     });
 
-    it('documents the model and own-DOI intersection, historical evidence and formats', () => {
+    it('documents DOI-based membership, historical withdrawals and the transition to the expanded set', () => {
         render(<OaiPmhDocs {...defaultProps} />);
-        const set = screen.getByLabelText('ICGEM model set');
+        const set = screen.getByLabelText('ICGEM set');
         for (const text of [
             defaultProps.icgemSet.name,
             defaultProps.icgemSet.description,
-            'Both conditions must hold',
-            'anywhere, ignoring ASCII letter case',
-            'Resource Type is Model',
-            'Related identifiers and datacenter affiliation do not determine membership',
-            '10.5880/icgem.2026.004',
-            '10.5880/icgem.2015.1',
+            'a Dataset with DOI 10.5880/ICGEM.2015.1',
             'noRecordsMatch',
             '<setSpec>icgem</setSpec>',
-            'resourcetype:model',
-            'original deletion datestamps are preserved',
-            'without saved type evidence cannot be classified',
-            'Deleted headers do not count towards the active inventory',
-            'iso19115_3 for models when ISO export is enabled',
+            'stored DOI even when the saved type is missing',
+            'original deletion datestamp',
+            'oai_datacite or oai_dc to harvest all resource types',
+            'records eligible for each enabled format',
         ]) {
             expect(set).toHaveTextContent(text);
         }
         expect(screen.getByText('Keeping an ICGEM Harvest in Sync')).toBeInTheDocument();
-        expect(screen.getByText(/Changing a resource from Model to another type/)).toHaveTextContent('does not generate a deleted header');
+        const guidance = screen.getByLabelText('ICGEM harvesting guidance');
+        expect(guidance).toHaveTextContent('start a new complete harvest without date filters');
+        expect(guidance).toHaveTextContent('Changing a Model to a Dataset keeps it in ICGEM');
         expect(screen.getByText(/An invalid or expired token requires/)).toBeInTheDocument();
     });
 
@@ -226,6 +222,6 @@ describe('OaiPmhDocs', () => {
         ]) {
             expect(screen.getByText(`${baseUrl}?${query}`)).toBeInTheDocument();
         }
-        expect(screen.getByLabelText('ICGEM model set')).toHaveTextContent('<setSpec>custom-icgem</setSpec>');
+        expect(screen.getByLabelText('ICGEM set')).toHaveTextContent('<setSpec>custom-icgem</setSpec>');
     });
 });

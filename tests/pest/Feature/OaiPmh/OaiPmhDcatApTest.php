@@ -9,6 +9,7 @@ use App\Models\Format;
 use App\Models\LandingPage;
 use App\Models\OaiPmhFormatRecord;
 use App\Models\OaiPmhHarvest;
+use App\Models\OaiPmhResumptionToken;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Title;
@@ -587,6 +588,73 @@ it('retains only the last eligible sets when a type becomes unsupported and expo
     expect($record->status)->toBe('deleted')->and($record->sets)->toContain('resourcetype:dataset', 'year:1980')->not->toContain('resourcetype:software');
     $this->get(oaiDcatQuery('ListSets'))->assertSee('<setSpec>year:1980</setSpec>', false);
     $this->get(oaiDcatQuery('ListRecords', ['metadataPrefix' => $profile->value, 'set' => 'resourcetype:software']))->assertSee('code="noRecordsMatch"', false);
+})->with(DcatApFormat::cases());
+
+it('derives ICGEM from the DOI when reading historical format sets', function (DcatApFormat $profile, string $doi, string $type, bool $member, bool $withdrawn) {
+    config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
+    $resource = oaiDcatResource([
+        'doi' => $doi, 'publication_year' => 2020,
+        'resource_type_id' => ResourceType::firstOrCreate(['slug' => $type], ['name' => ucfirst($type)])->id,
+    ]);
+    if ($withdrawn) {
+        $resource->delete();
+    }
+    $record = OaiPmhFormatRecord::where('metadata_prefix', $profile->value)->sole();
+    $savedSets = ['resourcetype:'.$type, 'year:2020'];
+    if (! $member) {
+        $savedSets[] = 'icgem';
+    }
+    $record->update(['sets' => $savedSets]);
+    $original = $record->fresh()->getAttributes();
+
+    $args = ['metadataPrefix' => $profile->value];
+    $urls = [];
+    foreach (['ListIdentifiers', 'ListRecords'] as $verb) {
+        $selected = oaiDcatQuery($verb, [...$args, 'set' => 'icgem']);
+        if ($member) {
+            $urls[] = $selected;
+        } else {
+            $this->get($selected)->assertOk()->assertSee('code="noRecordsMatch"', false);
+        }
+        $urls[] = oaiDcatQuery($verb, $args);
+    }
+    $urls[] = oaiDcatQuery('GetRecord', [...$args, 'identifier' => $record->oai_identifier]);
+
+    foreach ($urls as $url) {
+        $xml = oaiDcatXPath($this->get($url)->assertOk()->getContent());
+        expect($xml->evaluate('string(//oai:header/oai:identifier)'))->toBe($record->oai_identifier)
+            ->and($xml->evaluate('string(//oai:header/@status)'))->toBe($withdrawn ? 'deleted' : '')
+            ->and($xml->evaluate('count(//oai:header/oai:setSpec[.="icgem"])'))->toBe($member ? 1.0 : 0.0)
+            ->and($xml->evaluate('count(//oai:header/oai:setSpec[.="resourcetype:'.$type.'" or .="year:2020"])'))->toBe(2.0);
+    }
+    if ($withdrawn) {
+        expect($record->fresh()->getAttributes())->toBe($original);
+    }
+})->with(DcatApFormat::cases())->with([
+    'previously excluded dataset' => ['10.5880/ICGEM.dataset', 'dataset', true],
+    'previously included substring' => ['10.5880/alt.10.5880/icgem.model', 'model', false],
+])->with([false, true]);
+
+it('rejects an ICGEM format token containing an old substring match', function (DcatApFormat $profile) {
+    config([$profile->configKey().'.enabled' => true, 'oaipmh.page_size' => 1]);
+    $model = ResourceType::firstOrCreate(['slug' => 'model'], ['name' => 'Model']);
+    $first = oaiDcatResource(['doi' => '10.5880/icgem.first', 'resource_type_id' => $model->id]);
+    $outside = oaiDcatResource(['doi' => '10.5880/alt.10.5880/icgem.second', 'resource_type_id' => $model->id]);
+    $record = OaiPmhFormatRecord::where('metadata_prefix', $profile->value)->where('resource_id', $outside->id)->sole();
+    $record->update(['sets' => [...$record->sets, 'icgem']]);
+    $text = ResourceType::firstOrCreate(['slug' => 'text'], ['name' => 'Text']);
+    oaiDcatResource(['doi' => '10.5880/icgem.text', 'resource_type_id' => $text->id]);
+
+    // These two models are exactly the inventory the former ICGEM rule selected.
+    $args = ['metadataPrefix' => $profile->value, 'set' => 'resourcetype:model'];
+    $page = oaiDcatXPath($this->get(oaiDcatQuery('ListIdentifiers', $args))->assertOk()->getContent());
+    $token = $page->evaluate('string(//oai:resumptionToken)');
+    OaiPmhResumptionToken::where('token', $token)->sole()->update(['set_spec' => 'icgem']);
+    $this->get(oaiDcatQuery('ListIdentifiers', ['resumptionToken' => $token]))->assertSee('code="badResumptionToken"', false);
+
+    $fresh = oaiDcatXPath($this->get(oaiDcatQuery('ListIdentifiers', ['metadataPrefix' => $profile->value, 'set' => 'icgem']))->assertOk()->getContent());
+    expect($fresh->evaluate('string(//oai:header/oai:identifier)'))->toBe(config('oaipmh.identifier_prefix').':'.$first->doi)
+        ->and($fresh->evaluate('count(//oai:resumptionToken)'))->toBe(0.0);
 })->with(DcatApFormat::cases());
 
 it('rejects expired, wrong-verb and disabled-format tokens and validates normal date arguments', function (DcatApFormat $profile) {
