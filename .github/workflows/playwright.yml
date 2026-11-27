@@ -14,6 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ERNIE_API_KEY: playwright-identifier-api-test-key
+      REDIS_HOST: 127.0.0.1
+    services:
+      redis:
+        image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 20
     strategy:
       fail-fast: false
       matrix:
@@ -33,6 +40,7 @@ jobs:
       uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
       with:
         php-version: '8.5'
+        extensions: redis
         tools: composer:v2
     - name: Setup Node
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -151,7 +159,7 @@ jobs:
         DB_CONNECTION: sqlite
         SESSION_DRIVER: file
         SESSION_PATH: /
-        CACHE_DRIVER: file
+        CACHE_STORE: redis
         QUEUE_CONNECTION: sync
         BROADCAST_DRIVER: log
         # Portal behavior is covered here without starting a WebGL renderer in
@@ -185,6 +193,8 @@ jobs:
       run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 --workers=${{ matrix.browser == 'webkit' && 1 || 2 }} --reporter=github,html
       env:
         CI: true
+        # Fixtures and the web server share tagged DOI metadata across parallel resource writes.
+        CACHE_STORE: redis
         PLAYWRIGHT_HTML_OPEN: never
         # These Linux runners have no hardware GPU. Render directly with Skia
         # instead of routing WebKit's rasterization through software OpenGL.

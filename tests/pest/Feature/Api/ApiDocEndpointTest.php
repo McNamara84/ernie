@@ -151,6 +151,8 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/v1/related-identifiers/citation-label.get.responses.422.content.application/json.schema.oneOf.0.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./api/v1/related-identifiers/citation-label.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.additionalProperties', false)
+        ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.required', ['citation', 'identifier', 'identifier_type'])
+        ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.properties.citation_proof.type', 'string')
         ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.properties.identifier_type.enum.1', 'URL')
         ->assertJsonPath('components.schemas.ErrorResponse.required.0', 'error')
         // Public portal keyword suggestion, count, resource preview, and map endpoints

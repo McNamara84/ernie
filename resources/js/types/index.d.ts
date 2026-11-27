@@ -194,6 +194,8 @@ export interface RelatedIdentifier {
     relation_type: string;
     relation_type_information?: string | null;
     citation_label?: string | null;
+    citation_proof?: string;
+    citation_label_hash?: string;
     source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif' | null;
     is_repository_curation?: boolean;
     position?: number;
@@ -207,6 +209,8 @@ export interface RelatedIdentifierFormData {
     relationType: string;
     relationTypeInformation?: string | null;
     citationLabel?: string | null;
+    citationProof?: string;
+    originalCitationLabelHash?: string;
 }
 
 export type IdentifierType =

@@ -290,7 +290,7 @@ export default function RelatedWorkItem({
                         <Textarea
                             id={`related-work-${index}-citation-label`}
                             value={item.citation_label ?? ''}
-                            onChange={(event) => updateItem({ citation_label: event.target.value })}
+                            onChange={(event) => updateItem({ citation_label: event.target.value, citation_proof: undefined })}
                             rows={3}
                             placeholder="Optional formatted citation shown on landing pages"
                         />

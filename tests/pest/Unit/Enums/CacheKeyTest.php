@@ -235,6 +235,22 @@ it('defines successful relation correction cache lifetimes and ownership', funct
     expect($key->ttl())->toBe(86400)->and($key->tags())->toBe(['assistance', 'relation_correction']);
 })->with([CacheKey::RELATION_CORRECTION_RAW, CacheKey::RELATION_CORRECTION_SUPPORT]);
 
+it('preserves citation cache keys and lifetimes and invalidates them with the citations tag', function (CacheKey $key, string $prefix, int $ttl): void {
+    $name = $key->key('sample');
+    expect($name)->toBe($prefix.':sample')
+        ->and($key->ttl())->toBe($ttl)
+        ->and($key->tags())->toBe(CacheKey::DOI_CITATION->tags());
+
+    $cache = $key->repository();
+    $cache->put($name, 'cached', $key->ttl());
+    Cache::tags(['citations'])->flush();
+    expect($cache->has($name))->toBeFalse();
+})->with([
+    'review snapshot' => [CacheKey::CITATION_REVIEW_SNAPSHOT, 'citations:review', 1800],
+    'native paper metadata' => [CacheKey::CITATION_NATIVE_PAPER, 'citations:native-paper', 86400],
+    'rendered APA parts' => [CacheKey::CITATION_APA_PARTS, 'citations:related-work:apa-7', 86400],
+]);
+
 it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();
 

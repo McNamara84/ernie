@@ -540,6 +540,11 @@ export interface LandingPageLicense {
 /**
  * Related identifier entry for landing pages
  */
+export interface CitationLabelPart {
+    text: string;
+    italic: boolean;
+}
+
 export interface LandingPageRelatedIdentifier {
     id: number;
     /** The identifier value (e.g., DOI URL) */
@@ -550,6 +555,7 @@ export interface LandingPageRelatedIdentifier {
     relation_type: string;
     /** Persisted citation label for display without runtime DOI lookups */
     citation_label?: string | null;
+    citation_label_parts?: CitationLabelPart[] | null;
     /** Internal ERNIE provenance assigned by a trusted server-side workflow */
     source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif' | null;
     /** True when ERNIE added the identifier through repository curation */

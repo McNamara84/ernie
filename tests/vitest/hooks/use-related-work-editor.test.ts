@@ -11,6 +11,30 @@ function work(identifier: string, citation_label: string | null = identifier, ex
 }
 
 describe('useRelatedWorkEditor', () => {
+    it('reconciles saved labels by submitted card even when a user edits or removes a row while saving', () => {
+        const items = [work('a', 'Before', { citation_label_hash: 'old' }), work('b', 'Original'), work('c', 'Curated')];
+        const { result } = renderHook(() => useRelatedWorkEditor(items));
+        const acknowledge = result.current.acknowledgeSavedLabels;
+        act(() =>
+            result.current.setEntries((current) =>
+                current
+                    .slice(0, 2)
+                    .map((entry, index) => (index === 0 ? { ...entry, data: { ...entry.data, citation_label: 'Edited while saving' } } : entry)),
+            ),
+        );
+        act(() =>
+            acknowledge([
+                { id: 10, citation_label: 'Concurrent correction', citation_label_hash: 'new' },
+                { id: 11, citation_label: 'Accepted APA', citation_label_hash: 'apa' },
+                { id: 12, citation_label: 'Curated', citation_label_hash: 'curated' },
+            ]),
+        );
+        expect(result.current.relatedWorks).toEqual([
+            work('a', 'Edited while saving', { id: 10, citation_label_hash: 'old' }),
+            work('b', 'Accepted APA', { id: 11, citation_label_hash: 'apa' }),
+        ]);
+    });
+
     it('sorts only the saved display and exposes unchanged canonical data without editor keys', () => {
         const items = [work('z', 'Zulu', { id: 30 }), work('a', 'Alpha', { id: 10 }), work('empty', null)];
         const originalSnapshot = snapshotEditorContent({ relatedWorks: items });

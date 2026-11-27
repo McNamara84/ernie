@@ -2603,10 +2603,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>DOI and URL Citation Labels</h4>
                         <p>
-                            When you leave a valid DOI or URL identifier field, ERNIE tries to resolve a formatted Citation Label. DOI metadata may be
-                            retrieved from DataCite; URL labels are available only when that exact URL already exists in ERNIE's metadata cache. An
-                            unavailable label never prevents editing or saving, and ERNIE never overwrites a label you entered manually. Stored labels
-                            are reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load time.
+                            When you leave a DOI or DOI resolver URL field, ERNIE looks up the work. Journal articles, conference contributions and
+                            preprints receive APA 7 citations. The editor and clipboard use plain text. Landing pages display the italics for the
+                            work’s publication type. A manually entered label takes precedence. You can also save an identifier when metadata is
+                            unavailable.
+                        </p>
+                        <p>
+                            To update previously published labels, select rows in Resources or IGSNs and choose{' '}
+                            <strong>Review citation labels</strong>. ERNIE offers a change when the stored text exactly matches the previous formatter
+                            and the paper has a verified source. Compare both versions, check the desired entries, and choose{' '}
+                            <strong>Apply selected</strong>.
                         </p>
 
                         <h4>On Resource Landing Pages</h4>

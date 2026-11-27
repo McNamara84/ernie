@@ -1338,8 +1338,8 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'DOI and URL Citation Labels', level: 4 })).toBeInTheDocument();
-        expect(screen.getByText(/URL labels are available only when that exact URL already exists/i)).toBeInTheDocument();
-        expect(screen.getByText(/ERNIE never overwrites a label you entered manually/i)).toBeInTheDocument();
+        expect(screen.getByText(/preprints receive APA 7 citations/i)).toBeInTheDocument();
+        expect(screen.getByText(/a manually entered label takes precedence/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'CSV Bulk Import', level: 4 })).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {

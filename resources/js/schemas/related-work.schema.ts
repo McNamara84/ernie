@@ -112,6 +112,8 @@ export const relatedIdentifierSchema = z.object({
     relation_type: relationTypeSchema,
     relation_type_information: z.string().max(255).optional().nullable(),
     citation_label: z.string().optional().nullable(),
+    citation_proof: z.string().optional(),
+    citation_label_hash: z.string().optional(),
     source: z.enum(['relation_suggestion_assistant', 'legacy_igsn_dif']).optional().nullable(),
     is_repository_curation: z.boolean().optional(),
     position: z.number().optional(),
@@ -139,6 +141,8 @@ export const relatedWorkFormSchema = z.object({
     relationType: relationTypeSchema,
     relationTypeInformation: z.string().max(255).optional().nullable(),
     citationLabel: z.string().optional().nullable(),
+    citationProof: z.string().optional(),
+    originalCitationLabelHash: z.string().optional(),
 });
 
 export type RelatedWorkFormData = z.infer<typeof relatedWorkFormSchema>;

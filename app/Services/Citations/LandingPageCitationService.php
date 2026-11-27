@@ -66,19 +66,7 @@ final class LandingPageCitationService
      */
     public function formatStyle(Resource $resource, string $styleId): array
     {
-        $style = null;
-
-        foreach ($this->registry->styles() as $candidate) {
-            if ($candidate['id'] === $styleId) {
-                $style = $candidate;
-
-                break;
-            }
-        }
-
-        if ($style === null) {
-            throw new InvalidArgumentException("Unknown landing-page citation style [{$styleId}].");
-        }
+        $style = $this->findStyle($styleId);
 
         try {
             $item = $this->mapper->map($resource);
@@ -89,6 +77,30 @@ final class LandingPageCitationService
         }
 
         return $this->formatMappedStyle($resource, $style, $item);
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return list<array{text: string, italic: bool}>
+     */
+    public function formatApaParts(array $item): array
+    {
+        [$html] = $this->renderStyle($this->findStyle('apa-7'), $item);
+
+        return $this->sanitizer->toTextParts($html);
+    }
+
+    /** @return array{id: string, label: string, path: string, locale: string} */
+    private function findStyle(string $styleId): array
+    {
+
+        foreach ($this->registry->styles() as $candidate) {
+            if ($candidate['id'] === $styleId) {
+                return $candidate;
+            }
+        }
+
+        throw new InvalidArgumentException("Unknown landing-page citation style [{$styleId}].");
     }
 
     /**
@@ -184,33 +196,19 @@ final class LandingPageCitationService
     {
         $markers = $this->engineTextMarkers($item);
 
-        foreach (['title', 'publisher', 'version', 'genre'] as $textKey) {
-            if (isset($item[$textKey]) && is_string($item[$textKey])) {
-                $item[$textKey] = $this->escapeEngineText($item[$textKey], $markers);
+        array_walk_recursive($item, function (mixed &$value) use ($markers): void {
+            if (is_string($value)) {
+                $value = $this->escapeEngineText($value, $markers);
             }
-        }
+        });
 
-        if (isset($item['author']) && is_array($item['author'])) {
-            foreach ($item['author'] as &$author) {
-                if (is_array($author)) {
-                    foreach (['family', 'given', 'literal'] as $nameKey) {
-                        if (isset($author[$nameKey]) && is_string($author[$nameKey])) {
-                            $author[$nameKey] = $this->escapeEngineText($author[$nameKey], $markers);
-                        }
-                    }
-                }
-
-                if (
-                    is_array($author)
-                    && isset($author['literal'])
-                    && is_string($author['literal'])
-                    && ! isset($author['family'])
-                ) {
-                    $author['given'] = '';
-                    $author['family'] = $author['literal'];
+        foreach (['author', 'editor', 'collection-editor'] as $role) {
+            foreach ($item[$role] ?? [] as $index => $name) {
+                if (is_array($name) && isset($name['literal']) && ! isset($name['family'])) {
+                    $item[$role][$index]['given'] = '';
+                    $item[$role][$index]['family'] = $name['literal'];
                 }
             }
-            unset($author);
         }
 
         $decoded = json_decode(

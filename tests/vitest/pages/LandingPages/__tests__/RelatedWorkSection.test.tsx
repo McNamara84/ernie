@@ -451,6 +451,28 @@ describe('RelatedWorkSection', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    it.each([false, true])('shows APA italics and copies plain text on the resource or IGSN page (IGSN %s)', async (useIgsnHandles) => {
+        const text = 'A < B. Science, 169.';
+        const entry = makeRelatedIdentifier({
+            citation_label: text,
+            citation_label_parts: [
+                { text: 'A < B. ', italic: false },
+                { text: 'Science', italic: true },
+                { text: ', ', italic: false },
+                { text: '169', italic: true },
+                { text: '.', italic: false },
+            ],
+        });
+        const { rerender } = render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={[entry]} useIgsnHandles={useIgsnHandles} />);
+        const link = screen.getByRole('link', { name: /A < B/ });
+        expect(link.textContent).toBe(text);
+        expect(Array.from(link.querySelectorAll('em'), (em) => em.textContent)).toEqual(['Science', '169']);
+        fireEvent.click(screen.getByRole('button', { name: 'Copy citation to clipboard' }));
+        await waitFor(() => expect(writeText).toHaveBeenCalledWith(text));
+        rerender(<RelatedWorkSection resource={mockResource} relatedIdentifiers={[{ ...entry, citation_label: 'Edited text' }]} />);
+        expect(screen.getByRole('link', { name: 'Edited text' }).querySelector('em')).toBeNull();
+    });
+
     it('copies the complete trimmed citation while preserving the independent related-work link', async () => {
         const citation = 'Smith, J. (2024). A complete citation. https://doi.org/10.5880/test';
 
