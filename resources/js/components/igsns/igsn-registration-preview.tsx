@@ -1,9 +1,11 @@
 import axios from 'axios';
 import { Copy } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PreviewItem {
     id: number;
@@ -18,7 +20,7 @@ interface PreviewPage {
     pagination: { last_page: number };
 }
 
-const registrationMessage = 'Test successfull! When test Mode is off, this JSON-String would be send to DataCite for the Registration of this IGSN:';
+const registrationMessage = 'Test successful! With test mode off, ERNIE would send this JSON to DataCite to register this IGSN.';
 
 function JsonBody({ json }: { json: string }) {
     const tokens = json.split(/("(?:\\.|[^"\\])*":?|-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\b(?:true|false|null)\b)/g);
@@ -46,6 +48,7 @@ function JsonBody({ json }: { json: string }) {
 }
 
 export function IgsnRegistrationPreview({ runId }: { runId: string }) {
+    const samplePickerId = useId();
     const [page, setPage] = useState(1);
     const [items, setItems] = useState<PreviewItem[]>([]);
     const [lastPage, setLastPage] = useState(1);
@@ -93,27 +96,31 @@ export function IgsnRegistrationPreview({ runId }: { runId: string }) {
     return (
         <section className="min-w-0 space-y-3" aria-label="Simulation results">
             {items.length > 0 && (
-                <label className="block space-y-1 text-sm font-medium">
-                    <span>IGSN</span>
-                    <select
-                        className="block w-full rounded-md border bg-background p-2"
-                        value={selectedId ?? ''}
-                        onChange={(event) => {
-                            const nextId = Number(event.target.value);
+                <div className="space-y-1">
+                    <Label htmlFor={samplePickerId}>IGSN</Label>
+                    <Select
+                        value={selectedId?.toString() ?? ''}
+                        onValueChange={(value) => {
+                            const nextId = Number(value);
                             if (nextId === selectedId) return;
                             setJson('');
                             setError('');
                             setSelectedId(nextId);
                         }}
                     >
-                        {items.map((item) => (
-                            <option key={item.id} value={item.id}>
-                                {item.identifier}
-                                {item.status === 'preview_ready' ? '' : ` (${item.status})`}
-                            </option>
-                        ))}
-                    </select>
-                </label>
+                        <SelectTrigger id={samplePickerId}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {items.map((item) => (
+                                <SelectItem key={item.id} value={String(item.id)}>
+                                    {item.identifier}
+                                    {item.status === 'preview_ready' ? '' : ` (${item.status})`}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             )}
             {lastPage > 1 && (
                 <div className="flex items-center gap-3 text-sm">

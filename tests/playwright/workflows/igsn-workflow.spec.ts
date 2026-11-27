@@ -114,12 +114,9 @@ async function prepareRegistrationSample(page: Page, sample: CsvFixture): Promis
     const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: sample.igsn, exact: true }) });
     await row.getByRole('button', { name: 'Setup Landing Page' }).click();
     const dialog = page.getByRole('dialog');
-    const saved = page.waitForResponse(
-        (response) => response.request().method() === 'POST' && /\/resources\/\d+\/landing-page$/.test(new URL(response.url()).pathname),
-    );
     await dialog.getByRole('button', { name: 'Create Preview' }).click();
-    expect((await saved).ok()).toBe(true);
-    await page.keyboard.press('Escape');
+    await expect(dialog.getByRole('button', { name: 'Update', exact: true })).toBeEnabled();
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(row.getByRole('button', { name: 'Register at DataCite' })).toBeEnabled();
     return row;
 }
@@ -264,8 +261,15 @@ test.describe('IGSN Workflow', () => {
         const dialog = page.getByRole('dialog', { name: 'IGSN registration preview' });
         const samples = dialog.getByRole('combobox', { name: 'IGSN' });
         await expect(samples).toBeVisible({ timeout: 60_000 });
+        await samples.press('Enter');
+        const listbox = page.getByRole('listbox');
+        await expect(listbox.getByRole('option')).toHaveCount(2);
+        await page.keyboard.press('Escape');
+        await expect(samples).toBeFocused();
         for (const sample of [doveCsv, diveCsv]) {
-            await samples.selectOption({ label: sample.igsn });
+            await samples.click();
+            await listbox.getByRole('option', { name: sample.igsn, exact: true }).click();
+            await expect(samples).toHaveText(sample.igsn);
             await expect(dialog.getByLabel('DataCite JSON request')).toContainText(sample.igsn.toLowerCase());
         }
         await dialog.getByRole('button', { name: 'Close preview', exact: true }).click();
