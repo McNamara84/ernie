@@ -513,14 +513,13 @@ export default function OaiPmhDocs({
                 <Card aria-label="ICGEM harvesting guidance">
                     <CardHeader>
                         <CardTitle>Keeping an ICGEM Harvest in Sync</CardTitle>
-                        <CardDescription>Full harvest after the set change and subsequent incremental updates</CardDescription>
+                        <CardDescription>Initial harvest and incremental updates</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <p>
-                            After the switch to DOI-based membership, start a new complete harvest without date filters. Older Datasets and other
-                            newly included records can have datestamps before your previous checkpoint. Follow every resumption token and save the
-                            next checkpoint only after every page succeeds. Then resume incremental requests with overlapping inclusive UTC
-                            boundaries. An invalid or expired token requires restarting the list request.
+                            For the first harvest, request the entire set without date filters. For incremental updates, use overlapping UTC date
+                            ranges with inclusive boundaries. Follow every resumption token and save the next checkpoint only after every page
+                            succeeds. An invalid or expired token requires restarting the list request.
                         </p>
                         <ExampleUrl
                             url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${icgemSet.spec}&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z`}

@@ -189,7 +189,7 @@ describe('OaiPmhDocs', () => {
         );
     });
 
-    it('documents DOI-based membership, historical withdrawals and the transition to the expanded set', () => {
+    it('documents ICGEM membership, withdrawals and the first harvest', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         const set = screen.getByLabelText('ICGEM set');
         for (const text of [
@@ -207,7 +207,9 @@ describe('OaiPmhDocs', () => {
         }
         expect(screen.getByText('Keeping an ICGEM Harvest in Sync')).toBeInTheDocument();
         const guidance = screen.getByLabelText('ICGEM harvesting guidance');
-        expect(guidance).toHaveTextContent('start a new complete harvest without date filters');
+        expect(guidance).toHaveTextContent('For the first harvest, request the entire set without date filters');
+        expect(guidance).toHaveTextContent('For incremental updates, use overlapping UTC date ranges');
+        expect(guidance).not.toHaveTextContent(/after the set change|after the switch/i);
         expect(guidance).toHaveTextContent('Changing a Model to a Dataset keeps it in ICGEM');
         expect(screen.getByText(/An invalid or expired token requires/)).toBeInTheDocument();
     });
