@@ -39,7 +39,7 @@ beforeEach(function (): void {
     config([
         'queue.default' => 'database',
         'datacite.queue' => 'datacite',
-        'datacite.test_mode' => true,
+        'datacite.test_mode' => false,
         'datacite.test.client_id' => 'test.repo',
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.password' => 'test-password',
@@ -70,7 +70,7 @@ beforeEach(function (): void {
 function createQueuedIgsn(array $resourceOverrides = [], array $metadataOverrides = [], bool $withLandingPage = true): Resource
 {
     $resource = Resource::factory()->create(array_merge([
-        'doi' => '10.83279/'.strtoupper(fake()->unique()->bothify('QUEUE-####??')),
+        'doi' => '10.60510/'.strtoupper(fake()->unique()->bothify('QUEUE-####??')),
         'publication_year' => 2020,
     ], $resourceOverrides));
 
@@ -101,7 +101,7 @@ function createQueuedIgsnsInBulk(int $count): Collection
 
     foreach (range(1, $count) as $index) {
         $resourceRows[] = [
-            'doi' => sprintf('10.83279/BULK-REGISTER-%04d', $index),
+            'doi' => sprintf('10.60510/BULK-REGISTER-%04d', $index),
             'identifier_type' => 'DOI',
             'publication_year' => 2020,
             'created_at' => $now,
@@ -111,7 +111,7 @@ function createQueuedIgsnsInBulk(int $count): Collection
 
     Resource::query()->insert($resourceRows);
     $resources = Resource::query()
-        ->where('doi', 'like', '10.83279/BULK-REGISTER-%')
+        ->where('doi', 'like', '10.60510/BULK-REGISTER-%')
         ->orderBy('id')
         ->get();
 
@@ -148,9 +148,9 @@ function runQueuedIgsnRegistrationStep(string $runId): void
 }
 
 test('batch registration creates a persistent run and queues it', function (): void {
-    $first = createQueuedIgsn(['doi' => '10.83279/QUEUE-FIRST']);
+    $first = createQueuedIgsn(['doi' => '10.60510/QUEUE-FIRST']);
     $second = createQueuedIgsn(
-        ['doi' => '10.83279/QUEUE-SECOND'],
+        ['doi' => '10.60510/QUEUE-SECOND'],
         ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
     );
 
@@ -159,7 +159,7 @@ test('batch registration creates a persistent run and queues it', function (): v
         ->assertAccepted()
         ->assertJsonPath('run.status', IgsnRegistrationRunStatus::QUEUED->value)
         ->assertJsonPath('run.total', 2)
-        ->assertJsonPath('run.test_mode', true);
+        ->assertJsonPath('run.test_mode', false);
 
     $runId = $response->json('run.id');
     expect($runId)->toBeString();
@@ -194,7 +194,7 @@ test('activity retains the original actor without an auth session and does not d
     runQueuedIgsnRegistrationStep($run->id);
     Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'igsnregistration.completed'
         && $context['activity']['actor']['name'] === 'Original Initiator'
-        && $context['activity']['operation_id'] === $run->id && $context['activity']['test_mode'] === true)->once();
+        && $context['activity']['operation_id'] === $run->id && $context['activity']['test_mode'] === false)->once();
     Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
     expect(Http::recorded(fn (Request $request) => $request->method() === 'POST'))->toHaveCount(1);
 });
@@ -272,11 +272,11 @@ test('beginner run snapshots test mode when production mode is configured', func
         ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
         ->assertAccepted()
         ->assertJsonPath('run.test_mode', true)
-        ->assertJsonPath('run.datacite_endpoint', 'https://api.test.datacite.org');
+        ->assertJsonPath('run.is_simulation', true);
 
     $run = IgsnRegistrationRun::query()->firstOrFail();
     expect($run->test_mode)->toBeTrue()
-        ->and($run->datacite_endpoint)->toBe('https://api.test.datacite.org');
+        ->and($run->datacite_endpoint)->toBe('');
 });
 
 test('active runs cannot overlap on the same IGSN', function (): void {
@@ -369,8 +369,8 @@ test('issues endpoint is paginated and filters failed and cancelled items', func
 });
 
 test('job registers one item per invocation and completes the run', function (): void {
-    $first = createQueuedIgsn(['doi' => '10.83279/JOB-FIRST', 'publication_year' => 2020]);
-    $second = createQueuedIgsn(['doi' => '10.83279/JOB-SECOND', 'publication_year' => 2019]);
+    $first = createQueuedIgsn(['doi' => '10.60510/JOB-FIRST', 'publication_year' => 2020]);
+    $second = createQueuedIgsn(['doi' => '10.60510/JOB-SECOND', 'publication_year' => 2019]);
     $run = app(IgsnRegistrationRunService::class)->start([$first->id, $second->id], $this->curator);
 
     fakeIgsnMemberApi();
@@ -418,7 +418,7 @@ test('job locks out concurrent resource registration and defers an untouched ite
 
 test('job updates registered metadata without changing publication year', function (): void {
     $resource = createQueuedIgsn(
-        ['doi' => '10.83279/JOB-UPDATE', 'publication_year' => 2018],
+        ['doi' => '10.60510/JOB-UPDATE', 'publication_year' => 2018],
         ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
     );
     $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
@@ -436,7 +436,7 @@ test('job updates registered metadata without changing publication year', functi
 
 test('job isolates item failures and continues with later registrations', function (): void {
     $invalid = createQueuedIgsn(['doi' => '10.99999/INVALID-PREFIX']);
-    $valid = createQueuedIgsn(['doi' => '10.83279/VALID-AFTER-FAILURE']);
+    $valid = createQueuedIgsn(['doi' => '10.60510/VALID-AFTER-FAILURE']);
     $run = app(IgsnRegistrationRunService::class)->start([$invalid->id, $valid->id], $this->curator);
 
     fakeIgsnMemberApi();
@@ -476,7 +476,7 @@ test('job fails only an item whose resource or landing page disappeared after qu
 test('job pauses before writing when the configured DataCite endpoint changed', function (): void {
     $resource = createQueuedIgsn();
     $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
-    config(['datacite.test.endpoint' => 'https://different.test.datacite.org']);
+    config(['datacite.production.endpoint' => 'https://different.example.org']);
 
     runQueuedIgsnRegistrationStep($run->id);
 
@@ -488,7 +488,7 @@ test('job pauses before writing when the configured DataCite endpoint changed', 
 });
 
 test('resumed processing reconciles a remotely created IGSN without a duplicate create request', function (): void {
-    $resource = createQueuedIgsn(['doi' => '10.83279/RECOVERED-REMOTE', 'publication_year' => 2017]);
+    $resource = createQueuedIgsn(['doi' => '10.60510/RECOVERED-REMOTE', 'publication_year' => 2017]);
     $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
     $item = $run->items()->firstOrFail();
     $item->update([
@@ -553,10 +553,10 @@ test('retry failed resets only failed items and recalculates run counters', func
     Queue::assertPushedOn('datacite', ProcessIgsnRegistrationRunJob::class);
 });
 
-test('queued beginner registration uses test credentials without an auth context', function (): void {
+test('queued beginner registration prepares a local preview without an auth context', function (): void {
     config(['datacite.test_mode' => false]);
     $beginner = User::factory()->beginner()->create();
-    $resource = createQueuedIgsn(['doi' => '10.83279/BEGINNER-QUEUE']);
+    $resource = createQueuedIgsn(['doi' => '10.60510/BEGINNER-QUEUE']);
     $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $beginner);
     Auth::logout();
 
@@ -564,10 +564,57 @@ test('queued beginner registration uses test credentials without an auth context
 
     runQueuedIgsnRegistrationStep($run->id);
 
-    Http::assertSent(fn (Request $request): bool => str_starts_with($request->url(), 'https://api.test.datacite.org/dois')
-        && $request->header('Authorization')[0] === 'Basic '.base64_encode('TEST.USER:test-password'));
+    Http::assertNothingSent();
+    expect($run->items()->sole()->status)->toBe(IgsnRegistrationItemStatus::PREVIEW_READY);
     expect($run->fresh()->status)->toBe(IgsnRegistrationRunStatus::COMPLETED);
 });
+
+test('a local batch confirms successful samples and isolates validation errors', function (): void {
+    config(['datacite.test_mode' => true]);
+    Http::fake();
+    $first = createQueuedIgsn();
+    $missingTitle = createQueuedIgsn();
+    $missingTitle->titles()->delete();
+    $last = createQueuedIgsn();
+    $run = app(IgsnRegistrationRunService::class)->start([$first->id, $missingTitle->id, $last->id], $this->curator);
+    $base = "/igsns/batch-register/{$run->id}";
+    $this->actingAs($this->curator)->postJson("{$base}/confirm-preview")->assertConflict();
+    foreach (range(1, 3) as $step) {
+        runQueuedIgsnRegistrationStep($run->id);
+    }
+    $items = $this->getJson("{$base}/items")->assertOk()->assertJsonPath('items.1.status', 'failed')
+        ->assertJsonPath('items.2.status', 'preview_ready')->json('items');
+    $this->getJson("{$base}/items/{$items[1]['id']}/preview")->assertNotFound();
+    $this->getJson("{$base}/items/{$items[2]['id']}/preview")->assertOk()->assertJsonPath('payload.data.attributes.doi', $last->doi);
+    $this->postJson("{$base}/confirm-preview")->assertOk()->assertJsonPath('run.failed', 1);
+    expect($first->fresh()->igsnMetadata->simulated_registered_at)->not->toBeNull()
+        ->and($last->fresh()->igsnMetadata->simulated_registered_at)->not->toBeNull()
+        ->and($missingTitle->fresh()->igsnMetadata->simulated_registered_at)->toBeNull()
+        ->and($missingTitle->fresh()->igsnMetadata->upload_status)->toBe('uploaded');
+
+    $first->titles()->firstOrFail()->replicate()->fill(['resource_id' => $missingTitle->id, 'value' => 'Corrected title'])->save();
+    $this->postJson("{$base}/retry-failed")->assertOk();
+    runQueuedIgsnRegistrationStep($run->id);
+    $this->getJson("{$base}/items/{$items[1]['id']}/preview")->assertOk()->assertJsonPath('payload.data.attributes.titles.0.title', 'Corrected title');
+    $this->postJson("{$base}/confirm-preview")->assertOk()->assertJsonPath('run.failed', 0);
+    expect($missingTitle->fresh()->igsnMetadata->simulated_registered_at)->not->toBeNull();
+    Http::assertNothingSent();
+});
+
+test('workers pause an old sandbox run or a simulation whose mode changed', function (bool $oldRun): void {
+    config(['datacite.test_mode' => true]);
+    Http::fake();
+    $resource = createQueuedIgsn();
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    if ($oldRun) {
+        $run->update(['is_simulation' => false]);
+    } else {
+        config(['datacite.test_mode' => false]);
+    }
+    runQueuedIgsnRegistrationStep($run->id);
+    expect($run->fresh()->status)->toBe(IgsnRegistrationRunStatus::PAUSED)->and($run->fresh()->processed)->toBe(0);
+    Http::assertNothingSent();
+})->with([true, false]);
 
 test('job honours cancellation and marks remaining items terminal', function (): void {
     $first = createQueuedIgsn();
@@ -664,7 +711,7 @@ test('queued publication rejects changed approved metadata without sending a req
 test('queued IGSN registration pauses after a repository change', function (): void {
     $resource = createQueuedIgsn();
     $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
-    config(['datacite.test.client_id' => 'changed.repository']);
+    config(['datacite.production.igsn_client_id' => 'changed.repository']);
     Http::fake();
     runQueuedIgsnRegistrationStep($run->id);
     expect($run->fresh()->status)->toBe(IgsnRegistrationRunStatus::PAUSED)->and($run->fresh()->processed)->toBe(0);

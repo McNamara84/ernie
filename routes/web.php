@@ -722,6 +722,10 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
         ->name('igsns.batch-register.show');
     Route::get('igsns/batch-register/{registrationRun}/items', [BatchIgsnRegistrationController::class, 'items'])
         ->name('igsns.batch-register.items');
+    Route::get('igsns/batch-register/{registrationRun}/items/{item}/preview', [BatchIgsnRegistrationController::class, 'preview'])
+        ->whereNumber('item')->name('igsns.batch-register.preview');
+    Route::post('igsns/batch-register/{registrationRun}/confirm-preview', [BatchIgsnRegistrationController::class, 'confirm'])
+        ->name('igsns.batch-register.confirm-preview');
     Route::post('igsns/batch-register/{registrationRun}/cancel', [BatchIgsnRegistrationController::class, 'cancel'])
         ->name('igsns.batch-register.cancel');
     Route::post('igsns/batch-register/{registrationRun}/resume', [BatchIgsnRegistrationController::class, 'resume'])

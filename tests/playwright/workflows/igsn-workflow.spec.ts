@@ -107,6 +107,23 @@ function isolatedCsv(original: { filename: string; igsn: string }): CsvFixture {
     };
 }
 
+async function prepareRegistrationSample(page: Page, sample: CsvFixture): Promise<Locator> {
+    await page.goto('/dashboard');
+    await page.getByTestId('unified-file-input').setInputFiles(sample.file);
+    await openIgsnListAfterDashboardUpload(page);
+    const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: sample.igsn, exact: true }) });
+    await row.getByRole('button', { name: 'Setup Landing Page' }).click();
+    const dialog = page.getByRole('dialog');
+    const saved = page.waitForResponse(
+        (response) => response.request().method() === 'POST' && /\/resources\/\d+\/landing-page$/.test(new URL(response.url()).pathname),
+    );
+    await dialog.getByRole('button', { name: 'Create Preview' }).click();
+    expect((await saved).ok()).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(row.getByRole('button', { name: 'Register at DataCite' })).toBeEnabled();
+    return row;
+}
+
 const test = base.extend<{ doveCsv: CsvFixture; diveCsv: CsvFixture }>({
     // Playwright requires an object pattern for dependency-free fixtures.
     // eslint-disable-next-line no-empty-pattern
@@ -202,6 +219,58 @@ test.describe('IGSN Workflow', () => {
         // Verify both materials are displayed
         await expect(page.getByRole('cell', { name: 'Sediment' }).first()).toBeVisible();
         await expect(page.getByRole('cell', { name: 'Rock' }).first()).toBeVisible();
+    });
+
+    test('previews a CSV sample with a draft page and persists the simulated badge', async ({ page, doveCsv }) => {
+        expect((await (await page.request.get('/api/datacite/prefixes')).json()).test_mode).toBe(true);
+        const row = await prepareRegistrationSample(page, doveCsv);
+        await row.getByRole('button', { name: 'Register at DataCite' }).click();
+        const dialog = page.getByRole('dialog', { name: 'IGSN registration preview' });
+        const json = dialog.getByLabel('DataCite JSON request');
+        await expect(json).toBeVisible();
+        expect(JSON.parse(await json.innerText()).data.attributes).toMatchObject({
+            doi: `10.60510/${doveCsv.igsn.toLowerCase()}`,
+            types: { resourceTypeGeneral: 'PhysicalObject' },
+            event: 'publish',
+        });
+        await dialog.getByRole('button', { name: 'Close preview', exact: true }).click();
+        await expect(row.getByText('Registered', { exact: true })).toBeVisible();
+        await page.reload();
+        await expect(row.getByText('Registered', { exact: true })).toBeVisible();
+    });
+
+    test('confirms both checkbox-selected samples with the persistent Docker worker', async ({ page, doveCsv, diveCsv }, info) => {
+        test.setTimeout(150_000);
+        expect((await (await page.request.get('/api/datacite/prefixes')).json()).test_mode).toBe(true);
+        const first = await prepareRegistrationSample(page, doveCsv);
+        const second = await prepareRegistrationSample(page, diveCsv);
+        await first.getByRole('checkbox').check();
+        await second.getByRole('checkbox').check();
+        const started = page.waitForResponse(
+            (response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/igsns/batch-register',
+        );
+        await page.getByRole('button', { name: /Register Selected/i }).click();
+        const response = await started;
+        if (response.status() === 422 && !info.config.configFile?.endsWith('playwright.docker.config.ts')) {
+            // The synchronous browser profiles exercise the queue-configuration error through the same UI.
+            const message = 'A persistent queue connection is required for IGSN batch registration.';
+            expect((await response.json()).errors.queue).toContain(message);
+            await expect(page.getByText(message, { exact: true })).toBeVisible();
+            await expect(first.getByText('Uploaded', { exact: true })).toBeVisible();
+            await expect(second.getByText('Uploaded', { exact: true })).toBeVisible();
+            return;
+        }
+        expect(response.status()).toBe(202);
+        const dialog = page.getByRole('dialog', { name: 'IGSN registration preview' });
+        const samples = dialog.getByRole('combobox', { name: 'IGSN' });
+        await expect(samples).toBeVisible({ timeout: 60_000 });
+        for (const sample of [doveCsv, diveCsv]) {
+            await samples.selectOption({ label: sample.igsn });
+            await expect(dialog.getByLabel('DataCite JSON request')).toContainText(sample.igsn.toLowerCase());
+        }
+        await dialog.getByRole('button', { name: 'Close preview', exact: true }).click();
+        await expect(first.getByText('Registered', { exact: true })).toBeVisible();
+        await expect(second.getByText('Registered', { exact: true })).toBeVisible();
     });
 
     test('rejects duplicate IGSN upload with clear error message', async ({ page, doveCsv }) => {

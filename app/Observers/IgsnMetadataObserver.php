@@ -31,7 +31,7 @@ final class IgsnMetadataObserver
 
     public function updated(IgsnMetadata $metadata): void
     {
-        if ($metadata->wasChanged('upload_status')) {
+        if ($metadata->wasChanged(['upload_status', 'simulated_registered_at'])) {
             $this->listingCountService->scheduleInternalInvalidationAfterCommit();
         }
 

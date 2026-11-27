@@ -79,6 +79,76 @@ describe('IgsnRegistrationRunModal', () => {
         expect(mockGet).toHaveBeenCalledWith(`/igsns/batch-register/${baseRun.id}`);
     });
 
+    it('renders the exact formatted JSON, copies it and confirms the batch on Escape', async () => {
+        const user = userEvent.setup();
+        const run = { ...baseRun, status: 'completed' as const, is_simulation: true, total: 2, processed: 2, failed: 0, cancelled: 0 };
+        const items = ['sample-A', 'sample-B'].map((identifier, id) => ({ id, identifier, status: 'preview_ready', operation: 'register' }));
+        const payload = { data: { attributes: { titles: ['<sample>', 'A "quoted" title'], value: -1.5, checked: true, missing: null } } };
+        mockGet.mockImplementation(async (url: string) => {
+            if (url.endsWith('/items')) return { data: { items, pagination: { last_page: 1 } } };
+            if (url.endsWith('/preview')) return { data: { payload } };
+            return { data: { run } };
+        });
+        mockPost.mockResolvedValue({ data: { run: { ...run, preview_confirmed_at: '2026-11-27' } } });
+        const close = vi.fn();
+        const refresh = vi.fn();
+        render(<IgsnRegistrationRunModal open onOpenChange={close} onTerminal={refresh} initialRun={run} />);
+        expect(
+            await screen.findByText(
+                'Test successfull! When test Mode is off, this JSON-String would be send to DataCite for the Registration of this IGSN:',
+            ),
+        ).toBeVisible();
+        const samples = screen.getByRole('combobox', { name: 'IGSN' });
+        await user.selectOptions(samples, '0');
+        expect(screen.getByLabelText('DataCite JSON request')).toBeVisible();
+        await user.selectOptions(samples, '1');
+        const code = await screen.findByLabelText('DataCite JSON request');
+        expect(code.textContent).toBe(JSON.stringify(payload, null, 2));
+        expect(code.querySelectorAll('span[class]').length).toBeGreaterThan(5);
+        expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('/items/1/preview'), expect.anything());
+        await user.click(screen.getByRole('button', { name: 'Copy JSON' }));
+        expect(await navigator.clipboard.readText()).toBe(code.textContent);
+        expect(mockPost).not.toHaveBeenCalled();
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+        expect(mockPost).toHaveBeenCalledWith(`/igsns/batch-register/${run.id}/confirm-preview`, {}, expect.anything());
+        expect(refresh).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a finished preview open when confirmation fails and allows retry', async () => {
+        const run = { ...baseRun, status: 'completed' as const, is_simulation: true, processed: 1, failed: 0, cancelled: 0 };
+        mockGet.mockImplementation(async (url: string) => (url.endsWith('/items') ? { data: emptyIssues } : { data: { run } }));
+        mockPost.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ data: { run: { ...run, preview_confirmed_at: 'now' } } });
+        const close = vi.fn();
+        render(<IgsnRegistrationRunModal open onOpenChange={close} initialRun={run} />);
+        await userEvent.click(screen.getByRole('button', { name: 'Close preview' }));
+        expect(await screen.findByText(/simulation could not be saved/i)).toBeVisible();
+        expect(close).not.toHaveBeenCalled();
+        await userEvent.click(screen.getByRole('button', { name: 'Close preview' }));
+        await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+    });
+
+    it('keeps the newly selected run when a slower response for the preceding run arrives', async () => {
+        const newer = { ...baseRun, id: 'second-run' };
+        let finishEarlier: (value: { data: { run: IgsnRegistrationRun } }) => void = () => {};
+        mockGet
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishEarlier = resolve;
+                }),
+            )
+            .mockResolvedValueOnce({ data: { run: newer } });
+        const onRunChange = vi.fn();
+        const props = { open: true, onOpenChange: vi.fn(), onRunChange };
+        const { rerender } = render(<IgsnRegistrationRunModal {...props} initialRun={baseRun} />);
+        rerender(<IgsnRegistrationRunModal {...props} initialRun={newer} />);
+        await waitFor(() => expect(onRunChange).toHaveBeenCalledWith(newer));
+        await act(async () => {
+            finishEarlier({ data: { run: baseRun } });
+        });
+        expect(onRunChange).toHaveBeenCalledTimes(1);
+    });
+
     it('polls a non-terminal registration while the dialog is open', async () => {
         vi.useFakeTimers();
         mockGet.mockResolvedValue({ data: { run: baseRun } });

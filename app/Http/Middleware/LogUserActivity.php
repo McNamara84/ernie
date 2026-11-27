@@ -101,6 +101,9 @@ final class LogUserActivity
         if (in_array($route, ['resources.register-doi', 'igsns.register'], true)) {
             $verb = ($payload['updated'] ?? false) ? 'updated DataCite metadata for' : 'registered at DataCite';
         }
+        if ($route === 'igsns.register' && ($payload['mode'] ?? null) === 'simulation') {
+            $verb = 'previewed IGSN registration for';
+        }
         if ($route === 'landing-page.destroy' && $resource !== null) {
             $after = $this->activities->snapshot($resource, true);
             $fields = $this->activities->changedFields($before, $after);

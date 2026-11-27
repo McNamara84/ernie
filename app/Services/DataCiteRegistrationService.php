@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Exceptions\DataCiteVerificationException;
+use App\Models\IgsnMetadata;
 use App\Models\Resource;
-use App\Support\DataCiteSchemaVersion;
+use App\Support\IgsnIdentifier;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -106,6 +106,15 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         return $this->publicationService()->publish($resource, igsn: true, actorId: $actorId);
     }
 
+    public function shouldUpdateIgsn(Resource $resource): bool
+    {
+        if ($resource->igsnMetadata?->upload_status === IgsnMetadata::STATUS_UNVERIFIED) {
+            return in_array($this->getRegistrationState(IgsnIdentifier::forRegistration((string) $resource->doi, $this->client->igsnPrefix())), ['registered', 'findable'], true);
+        }
+
+        return $resource->igsnMetadata?->isRegistered() === true;
+    }
+
     public function getRegistrationState(string $doi): string
     {
         return app(DataCiteRegistrationVerifierService::class)->verify($this->client, $doi)->state;
@@ -130,46 +139,8 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         // A queued job or editor can hold an older access level or landing page.
         $resource = Resource::query()->with(Resource::DATACITE_EXPORT_RELATIONS)->findOrFail($resource->id);
 
-        // Validate resource has a DOI
-        if (! $resource->doi) {
-            throw new \RuntimeException(
-                "Resource #{$resource->id} must have a DOI to update metadata."
-            );
-        }
-
-        // Check if resource has a landing page
-        $resource->loadMissing('landingPage');
-        $landingPage = $resource->landingPage;
-        if ($landingPage === null) {
-            throw new \RuntimeException(
-                "Resource #{$resource->id} must have a landing page to update metadata."
-            );
-        }
-
-        $embargo = app(EmbargoService::class);
-        $embargo->assertCanUpdateMetadata($resource);
-        if (! $landingPage->is_published) {
-            throw new DataCiteVerificationException('landing_page_not_published', 'Publish the landing page explicitly before updating DataCite metadata. Local changes remain saved.');
-        }
-
-        // Generate DataCite metadata using the existing exporter
-        $jsonExporter = new DataCiteJsonExporter;
-        $dataCiteData = $jsonExporter->export($resource);
-
-        // Build the update payload
-        $payload = [
-            'data' => [
-                'type' => 'dois',
-                'id' => $resource->doi,
-                'attributes' => array_merge(
-                    $dataCiteData['data']['attributes'],
-                    [
-                        'url' => $landingPage->public_url,
-                        'schemaVersion' => DataCiteSchemaVersion::KERNEL_4,
-                    ]
-                ),
-            ],
-        ];
+        $payload = app(DataCitePayloadService::class)->metadataUpdate($resource,
+            $resource->igsnMetadata !== null && ! $this->testMode ? $this->client->igsnPrefix() : null);
 
         Log::info('Updating DOI metadata with DataCite', [
             'resource_id' => $resource->id,
@@ -178,11 +149,8 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         ]);
 
         try {
-            // URL-encode DOI to prevent potential issues with special characters
-            // Safe because we validated $resource->doi is not null above (lines 220-224)
-            assert($resource->doi !== null); // PHPStan hint: DOI is validated above
-            // Send PUT request to DataCite API
-            $response = $this->client->updateDoi($resource->doi, $payload);
+            $doi = $payload['data']['id'];
+            $response = $this->client->updateDoi($doi, $payload);
             $response->throw();
 
             $responseData = $response->json();
@@ -201,6 +169,10 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                 'resource_id' => $resource->id,
                 'doi' => $resource->doi,
             ]);
+
+            if ($doi !== $resource->doi) {
+                Resource::whereKey($resource->id)->where('doi', $resource->doi)->update(['doi' => $doi]);
+            }
 
             return $responseData;
         } catch (RequestException $e) {

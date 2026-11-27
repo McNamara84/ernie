@@ -8,6 +8,7 @@ enum IgsnRegistrationItemStatus: string
 {
     case PENDING = 'pending';
     case PROCESSING = 'processing';
+    case PREVIEW_READY = 'preview_ready';
     case REGISTERED = 'registered';
     case UPDATED = 'updated';
     case FAILED = 'failed';
