@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Services\OaiPmh;
 
 use App\Models\OaiPmhDeletedRecord;
+use App\Models\OaiPmhFormatRecord;
 use App\Models\Resource;
 use Illuminate\Database\Eloquent\Builder;
 
-/** Select ICGEM models by their own DOI and immutable resource-type slug. */
+/** Select resources whose own GFZ DOI suffix starts with "icgem". */
 final class IcgemSetService
 {
     public const string SPEC = 'icgem';
@@ -19,55 +20,32 @@ final class IcgemSetService
         return [
             'spec' => self::SPEC,
             'name' => 'ICGEM Models',
-            'description' => 'Published resources of type Model whose own DOI contains 10.5880/icgem, '
-                .'ignoring ASCII letter case. Datacenter affiliation does not affect membership.',
+            'description' => 'Published resources of any type whose own DOI starts with 10.5880/icgem, ignoring ASCII letter case.',
         ];
     }
 
-    public function matches(?string $doi, ?string $typeSlug): bool
+    public function matches(?string $doi): bool
     {
-        return $typeSlug === 'model' && str_contains(strtolower($doi ?? ''), '10.5880/icgem');
-    }
-
-    public function matchesDeletedRecord(OaiPmhDeletedRecord $record): bool
-    {
-        return $this->matches($record->doi, in_array('resourcetype:model', $record->sets ?? [], true) ? 'model' : null);
+        return str_starts_with(strtolower($doi ?? ''), '10.5880/icgem');
     }
 
     /**
-     * @param  Builder<Resource>  $query
-     * @return Builder<Resource>
+     * @template T of Resource|OaiPmhDeletedRecord|OaiPmhFormatRecord
+     *
+     * @param  Builder<T>  $query
+     * @return Builder<T>
      */
-    public function applyToResourceQuery(Builder $query): Builder
-    {
-        $this->applyDoiFilter($query);
-
-        return $query->whereHas('resourceType', fn (Builder $type) => $type->where('slug', 'model'));
-    }
-
-    /**
-     * @param  Builder<OaiPmhDeletedRecord>  $query
-     * @return Builder<OaiPmhDeletedRecord>
-     */
-    public function applyToDeletedRecordQuery(Builder $query): Builder
-    {
-        $this->applyDoiFilter($query);
-
-        return $query->whereJsonContains('sets', 'resourcetype:model');
-    }
-
-    /** @param Builder<Resource>|Builder<OaiPmhDeletedRecord> $query */
-    private function applyDoiFilter(Builder $query): void
+    public function applyDoiFilter(Builder $query): Builder
     {
         /** @var literal-string $column */
         $column = $query->getQuery()->getGrammar()->wrap($query->getModel()->qualifyColumn('doi'));
 
         // Explicit ASCII alternatives avoid accent-insensitive collations and
-        // Unicode case folding, matching PHP's strtolower/str_contains exactly.
+        // Unicode case folding, matching PHP's prefix check.
         if ($query->getModel()->getConnection()->getDriverName() === 'mysql') {
-            $query->whereRaw("REGEXP_LIKE({$column}, ?, 'c')", ['10[.]5880/[iI][cC][gG][eE][mM]']);
-        } else {
-            $query->whereRaw("{$column} GLOB ?", ['*10.5880/[iI][cC][gG][eE][mM]*']);
+            return $query->whereRaw("REGEXP_LIKE({$column}, ?, 'c')", ['^10[.]5880/[iI][cC][gG][eE][mM]']);
         }
+
+        return $query->whereRaw("{$column} GLOB ?", ['10.5880/[iI][cC][gG][eE][mM]*']);
     }
 }

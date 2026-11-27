@@ -125,7 +125,7 @@ final class DeleteAllResourcesService
                         $sets[] = 'year:'.$resource->publication_year;
                     }
 
-                    if ($this->icgemSet->matches($resource->doi, $resource->resource_type_slug)) {
+                    if ($this->icgemSet->matches($resource->doi)) {
                         $sets[] = IcgemSetService::SPEC;
                     }
 

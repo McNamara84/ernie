@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
  * - resourcetype:{slug} – By resource type slug (lowercase, e.g. dataset, physical-object)
  * - year:{YYYY} – By publication year
  * - epos-msl – By the free project keywords EPOS or MSL
- * - icgem – Models whose own DOI contains 10.5880/icgem
+ * - icgem – Resources whose own DOI starts with 10.5880/icgem
  */
 class OaiPmhSetService
 {
@@ -118,7 +118,7 @@ class OaiPmhSetService
     public function applySetFilter(Builder $query, string $setSpec): Builder
     {
         return match (true) {
-            $setSpec === IcgemSetService::SPEC => $this->icgemSet->applyToResourceQuery($query),
+            $setSpec === IcgemSetService::SPEC => $this->icgemSet->applyDoiFilter($query),
             $setSpec === EposMslSetService::SPEC => $query->whereHas(
                 'subjects',
                 fn (Builder $q) => $this->projectSet->applyToSubjects($q),
@@ -157,7 +157,7 @@ class OaiPmhSetService
             $sets[] = EposMslSetService::SPEC;
         }
 
-        if ($this->icgemSet->matches($resource->doi, $typeSlug)) {
+        if ($this->icgemSet->matches($resource->doi)) {
             $sets[] = IcgemSetService::SPEC;
         }
 
@@ -165,21 +165,24 @@ class OaiPmhSetService
     }
 
     /**
-     * @param  Builder<OaiPmhDeletedRecord>  $query
-     * @return Builder<OaiPmhDeletedRecord>
+     * @template T of OaiPmhDeletedRecord|OaiPmhFormatRecord
+     *
+     * @param  Builder<T>  $query
+     * @return Builder<T>
      */
-    public function applyDeletedSetFilter(Builder $query, string $setSpec): Builder
+    public function applyStoredSetFilter(Builder $query, string $setSpec): Builder
     {
         return $setSpec === IcgemSetService::SPEC
-            ? $this->icgemSet->applyToDeletedRecordQuery($query)
+            ? $this->icgemSet->applyDoiFilter($query)
             : $query->whereJsonContains('sets', $setSpec);
     }
 
     /** @return list<string> */
-    public function getSetsForDeletedRecord(OaiPmhDeletedRecord $record): array
+    public function getSetsForStoredRecord(OaiPmhDeletedRecord|OaiPmhFormatRecord $record): array
     {
-        $sets = array_values($record->sets ?? []);
-        if ($this->icgemSet->matchesDeletedRecord($record) && ! in_array(IcgemSetService::SPEC, $sets, true)) {
+        // Snapshots created under the earlier rule can omit ICGEM or contain a substring match.
+        $sets = array_values(array_diff($record->sets ?? [], [IcgemSetService::SPEC]));
+        if ($this->icgemSet->matches($record->doi)) {
             $sets[] = IcgemSetService::SPEC;
         }
 
