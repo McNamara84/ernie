@@ -396,7 +396,16 @@ export default function Portal({
                         </div>
 
                         <Sheet open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
-                            <SheetContent side="left" className="w-[min(92vw,20rem)] gap-0 p-0 sm:max-w-xs">
+                            <SheetContent
+                                side="left"
+                                className="w-[min(92vw,20rem)] gap-0 p-0 sm:max-w-xs"
+                                onEscapeKeyDown={(event) => {
+                                    // The sheet receives Escape before the focused search field.
+                                    if (event.target instanceof Element && event.target.matches('input[role="combobox"][aria-expanded="true"]')) {
+                                        event.preventDefault();
+                                    }
+                                }}
+                            >
                                 <SheetHeader className="sr-only">
                                     <SheetTitle>Search filters</SheetTitle>
                                     <SheetDescription>Filter published datasets and samples.</SheetDescription>
