@@ -2978,9 +2978,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Text Search and Free Keyword Suggestions</h4>
                         <p>
                             The single <strong>Search</strong> field accepts arbitrary text and suggests free keywords used by published records after
-                            you enter at least two characters. Choose a suggestion to add it as an exact keyword chip, or submit the typed value with
-                            Enter or the magnifying-glass button to run a normal full-text search. Text and multiple exact keyword chips can be
-                            combined, and each chip can be removed independently.
+                            you enter at least two characters. Choose a suggestion to add it as an exact keyword chip. You can combine text with
+                            multiple keyword chips and remove each chip independently.
+                        </p>
+                        <p>
+                            The suggestions menu closes when no keywords match or you have already selected every match. With no suggestion
+                            highlighted, press Enter to search for the text you typed, even when the menu is closed. The magnifying-glass button also
+                            runs a full-text search.
                         </p>
                         <p>
                             In both the DOI Data Portal and the IGSN Portal, normal text search also finds Authors, Contributors, and Contact Persons

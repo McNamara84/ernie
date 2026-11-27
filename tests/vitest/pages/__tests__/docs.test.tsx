@@ -1571,6 +1571,8 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
+        const menuHelp = screen.getByText(/the suggestions menu closes when no keywords match or you have already selected every match/i);
+        expect(menuHelp).toHaveTextContent('press Enter to search for the text you typed, even when the menu is closed');
         expect(
             screen.getByText(/normal text search also finds Authors, Contributors, and Contact Persons by person or institution name/i),
         ).toBeInTheDocument();
