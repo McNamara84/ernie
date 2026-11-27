@@ -127,7 +127,7 @@
         "fixes": [
             {
                 "title": "Keyword Suggestions in Portal Searches",
-                "description": "The DOI and IGSN search portals hide the keyword menu when no new matches are available. Press Enter to search the text you typed."
+                "description": "The DOI and IGSN search portals hide the keyword menu when no new matches are available. Escape closes the menu, including loading and error messages. Enter searches your text when no suggestion is highlighted."
             },
             {
                 "title": "APA 7 Citations for Related Papers",

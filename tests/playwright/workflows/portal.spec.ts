@@ -527,6 +527,25 @@ for (const portal of [
         await expect(north).toHaveValue('90.0000');
     });
 
+    test(`${portal.path} dismisses keyword feedback before the mobile filter drawer`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await openPortal(page, portal.path);
+        await page.route(`**${portal.path}/free-keyword-suggestions?*`, (route) => route.fulfill({ status: 429, json: {} }));
+        await page.getByTestId('portal-filter-drawer-trigger').click();
+        const drawer = page.getByRole('dialog', { name: 'Search filters' });
+        const input = searchInput(page);
+        await input.fill('climate');
+        await expect(drawer.getByText('Keyword suggestions are unavailable.')).toBeVisible();
+
+        await input.press('Escape');
+        await expect(input).toHaveAttribute('aria-expanded', 'false');
+        await expect(input).toBeFocused();
+        await expect(drawer).toBeVisible();
+
+        await input.press('Escape');
+        await expect(drawer).toBeHidden();
+    });
+
     test(`${portal.path} opens a saved regional map from the mobile results tab`, async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         const bounds = { north: '53', south: '52', east: '14', west: '13' };

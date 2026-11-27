@@ -222,6 +222,40 @@ describe('PortalSearchInput', () => {
         expect(onSubmit).toHaveBeenCalledWith('climate');
     });
 
+    it.each([
+        { state: 'loading', message: 'Loading keywords...' },
+        { state: 'error', message: 'Keyword suggestions are unavailable.' },
+    ])('dismisses the $state popup with Escape while keeping the search field focused', async ({ state, message }) => {
+        const user = userEvent.setup();
+        suggestionsState.data = [];
+        suggestionsState.isFetching = state === 'loading';
+        suggestionsState.isError = state === 'error';
+        const onSubmit = vi.fn();
+        const { rerender } = render(<Harness initialValue="seis" onSubmit={onSubmit} />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+        await user.click(input);
+        expect(screen.getByRole('listbox')).toHaveTextContent(message);
+
+        await user.keyboard('{Escape}');
+
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(input).toHaveAttribute('aria-expanded', 'false');
+        expect(input).not.toHaveAttribute('aria-controls');
+        expect(input).toHaveFocus();
+        expect(input).toHaveValue('seis');
+        expect(onSubmit).not.toHaveBeenCalled();
+
+        suggestionsState.isFetching = false;
+        suggestionsState.isError = false;
+        suggestionsState.data = [{ value: 'Seismology', scheme: null, count: 12 }];
+        rerender(<Harness initialValue="seis" onSubmit={onSubmit} />);
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        await user.keyboard('{Enter}');
+        expect(onSubmit).toHaveBeenCalledWith('seis');
+        await user.keyboard('m');
+        expect(screen.getByRole('option')).toHaveTextContent('Seismology');
+    });
+
     it('removes exact keyword chips without changing the text query', async () => {
         const user = userEvent.setup();
         const onKeywordsChange = vi.fn();

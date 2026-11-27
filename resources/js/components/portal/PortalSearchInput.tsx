@@ -28,14 +28,14 @@ export function PortalSearchInput({
 }: PortalSearchInputProps) {
     const listboxId = useId();
     const inputRef = useRef<HTMLInputElement>(null);
-    const [isFocused, setIsFocused] = useState(false);
+    const [canShowSuggestions, setCanShowSuggestions] = useState(false);
     const [highlightedKeyword, setHighlightedKeyword] = useState<string | null>(null);
     const { data: suggestions = [], isFetching, isError } = usePortalKeywordSuggestions(value, basePath);
     const visibleSuggestions = suggestions.filter((suggestion) => !selectedKeywords.includes(suggestion.value));
     const highlightedIndex = visibleSuggestions.findIndex((suggestion) => suggestion.value === highlightedKeyword);
     const showLoading = isFetching && suggestions.length === 0;
     const showError = isError && visibleSuggestions.length === 0;
-    const showSuggestions = isFocused && value.trim().length >= 2 && (visibleSuggestions.length > 0 || showLoading || showError);
+    const showSuggestions = canShowSuggestions && value.trim().length >= 2 && (visibleSuggestions.length > 0 || showLoading || showError);
 
     useEffect(() => {
         setHighlightedKeyword(null);
@@ -68,7 +68,16 @@ export function PortalSearchInput({
 
     const handleKeyDown = useCallback(
         (event: React.KeyboardEvent<HTMLInputElement>) => {
-            if (!showSuggestions || visibleSuggestions.length === 0) return;
+            if (!showSuggestions) return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setCanShowSuggestions(false);
+                setHighlightedKeyword(null);
+                return;
+            }
+
+            if (visibleSuggestions.length === 0) return;
 
             if (event.key === 'ArrowDown') {
                 event.preventDefault();
@@ -81,8 +90,6 @@ export function PortalSearchInput({
             } else if (event.key === 'Enter' && highlightedIndex >= 0) {
                 event.preventDefault();
                 selectKeyword(visibleSuggestions[highlightedIndex].value);
-            } else if (event.key === 'Escape') {
-                setIsFocused(false);
             }
         },
         [highlightedIndex, selectKeyword, showSuggestions, visibleSuggestions],
@@ -127,9 +134,12 @@ export function PortalSearchInput({
                         autoComplete="off"
                         placeholder={selectedKeywords.length > 0 ? 'Add text or keyword...' : 'Search text or keywords...'}
                         value={value}
-                        onChange={(event) => onValueChange(event.target.value)}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => window.setTimeout(() => setIsFocused(false), 100)}
+                        onChange={(event) => {
+                            onValueChange(event.target.value);
+                            setCanShowSuggestions(true);
+                        }}
+                        onFocus={() => setCanShowSuggestions(true)}
+                        onBlur={() => window.setTimeout(() => setCanShowSuggestions(false), 100)}
                         onKeyDown={handleKeyDown}
                         className="h-8 min-w-28 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
                     />

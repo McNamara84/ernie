@@ -2982,7 +2982,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             multiple keyword chips and remove each chip independently.
                         </p>
                         <p>
-                            The suggestions menu closes when no keywords match or you have already selected every match. With no suggestion
+                            The suggestions menu closes when no keywords match or you have already selected every match. Press Escape to close the
+                            menu, even while keywords are loading or after a lookup error. Your search text stays in the field. With no suggestion
                             highlighted, press Enter to search for the text you typed, even when the menu is closed. The magnifying-glass button also
                             runs a full-text search.
                         </p>
