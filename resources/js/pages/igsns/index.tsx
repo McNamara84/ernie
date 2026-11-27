@@ -4,6 +4,7 @@ import { Braces, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudUp
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CitationLabelReviewDialog } from '@/components/citations/citation-label-review-dialog';
 import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
@@ -211,6 +212,7 @@ function IgsnsPage({
     const attemptedPreferenceRestoreRef = useRef(false);
 
     // Selection state for bulk actions
+    const [citationReviewIds, setCitationReviewIds] = useState<number[] | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
     // Update state when props change (after navigation)
@@ -753,6 +755,7 @@ function IgsnsPage({
                             <BulkActionsToolbar
                                 selectedCount={selectedIds.size}
                                 onDelete={handleBulkDeleteClick}
+                                onReviewCitations={() => setCitationReviewIds([...selectedIds])}
                                 onRegister={canRegister ? handleBulkRegister : undefined}
                                 canDelete={canDelete}
                                 isDeleting={isDeleting}
@@ -1101,6 +1104,7 @@ function IgsnsPage({
                     onTerminal={handleRegistrationTerminal}
                 />
             )}
+            {citationReviewIds && <CitationLabelReviewDialog ids={citationReviewIds} onClose={() => setCitationReviewIds(null)} />}
         </AppLayout>
     );
 }

@@ -122,6 +122,8 @@ describe('Services', function () {
             'App\Services\Orcid\OrcidPreflightIssue',
             'App\Services\Orcid\OrcidPreflightResult',
             'App\Services\Orcid\OrcidPreflightValidator',
+            'App\Services\Citations\RelatedWorkCitation',
+            'App\Services\Citations\RelatedWorkCitationFormatter',
             'App\Services\Citations\CitationFormatter',
             'App\Services\Citations\CitationLookupResult',
             'App\Services\Citations\CrossrefClient',

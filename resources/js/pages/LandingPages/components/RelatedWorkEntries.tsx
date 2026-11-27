@@ -1,5 +1,6 @@
 import { Check, Copy, ExternalLink, Quote } from 'lucide-react';
 
+import { CitationLabelText } from '@/components/citations/citation-label-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { isRepositoryCurationRelatedIdentifier } from '@/lib/related-identifier-provenance';
@@ -86,7 +87,7 @@ function RelatedIdentifierLabel({
     const qualifierLabel = swhid ? getSwhidQualifierLabel(swhid) : '';
     return (
         <span id={id} className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-            {getRelatedIdentifierLabel(relatedIdentifier, useIgsnHandles)}
+            <CitationLabelText text={getRelatedIdentifierLabel(relatedIdentifier, useIgsnHandles)} parts={relatedIdentifier.citation_label_parts} />
             {qualifierLabel && <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">{qualifierLabel}</span>}
         </span>
     );

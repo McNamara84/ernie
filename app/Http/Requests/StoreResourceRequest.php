@@ -200,6 +200,8 @@ class StoreResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
+            'relatedIdentifiers.*.citationProof' => ['sometimes', 'string'],
+            'relatedIdentifiers.*.originalCitationLabelHash' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
             'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in(RelatedIdentifier::INTERNAL_SOURCES)],
 
@@ -802,6 +804,7 @@ class StoreResourceRequest extends FormRequest
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
                 ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
+                ...array_intersect_key($relatedIdentifier, array_flip(['citationProof', 'originalCitationLabelHash'])),
                 ...($source !== '' ? ['source' => $source] : []),
             ];
         }

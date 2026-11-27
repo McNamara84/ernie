@@ -12,6 +12,7 @@ export type ResourcesActionKey =
     | 'edit'
     | 'setup-landing-page'
     | 'manage-related-items'
+    | 'review-citation-labels'
     | 'export-datacite-json'
     | 'export-datacite-xml'
     | 'export-jsonld'
@@ -60,6 +61,12 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
         key: 'manage-related-items',
         label: 'Manage Related Items',
         consequence: 'Opens the local relationship editor; DataCite is not updated.',
+        icon: <Quote aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'review-citation-labels',
+        label: 'Review citation labels',
+        consequence: 'Compare APA citations and apply selected changes to published landing pages.',
         icon: <Quote aria-hidden="true" className="size-4" />,
     },
     {

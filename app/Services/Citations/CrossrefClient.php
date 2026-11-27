@@ -25,13 +25,21 @@ class CrossrefClient
     public function lookup(string $doi): CitationLookupResult
     {
         $doi = $this->normalizeDoi($doi);
+        $work = $this->lookupWork($doi);
+
+        return $work->data === null ? $work : CitationLookupResult::hit('crossref', $this->transform($work->data, $doi));
+    }
+
+    /** Fetch the native work record for a normalized DOI, preserving its type and subtype. */
+    public function lookupWork(string $doi, ?float $timeoutSeconds = null): CitationLookupResult
+    {
         if ($doi === '') {
             return CitationLookupResult::error('crossref', 'Invalid DOI.');
         }
 
         $baseUrl = (string) config('crossref.base_url', 'https://api.crossref.org/works/');
         $mailto = (string) config('crossref.mailto', '');
-        $timeout = (int) config('crossref.timeout', 8);
+        $timeout = $timeoutSeconds ?? (float) config('crossref.timeout', 8);
 
         try {
             $response = $this->http
@@ -64,7 +72,7 @@ class CrossrefClient
             return CitationLookupResult::notFound('crossref');
         }
 
-        return CitationLookupResult::hit('crossref', $this->transform($json['message'], $doi));
+        return CitationLookupResult::hit('crossref', $json['message']);
     }
 
     /**

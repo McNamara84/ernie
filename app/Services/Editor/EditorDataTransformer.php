@@ -776,7 +776,7 @@ class EditorDataTransformer
     /**
      * Transform related identifiers to frontend format.
      *
-     * @return array<int, array{id: int, identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null, source: string|null, is_repository_curation: bool}>
+     * @return array<int, array{id: int, identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null, citation_label_hash: string, source: string|null, is_repository_curation: bool}>
      */
     public function transformRelatedIdentifiers(Resource $resource): array
     {
@@ -789,6 +789,7 @@ class EditorDataTransformer
                 'relation_type' => $relatedId->relationType->slug,
                 'relation_type_information' => $relatedId->relation_type_information,
                 'citation_label' => $relatedId->citation_label,
+                'citation_label_hash' => hash('sha256', (string) $relatedId->citation_label),
                 'source' => $relatedId->source,
                 'is_repository_curation' => $relatedId->isRepositoryCuration(),
             ])

@@ -155,6 +155,7 @@ class ResourceController extends Controller
         return response()->json([
             'message' => $message,
             'geoLocationChanges' => $changes,
+            'relatedWorkLabels' => $this->savedWorkLabels($resource),
             'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'resource' => [
                 'id' => $resource->id,
@@ -214,6 +215,7 @@ class ResourceController extends Controller
         return response()->json([
             'message' => $message,
             'geoLocationChanges' => $changes,
+            'relatedWorkLabels' => $this->savedWorkLabels($resource),
             'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'resource' => [
                 'id' => $resource->id,
@@ -221,6 +223,14 @@ class ResourceController extends Controller
                 'canEditDoi' => $request->user()?->can('editDoi', $resource) ?? false,
             ],
         ], $status);
+    }
+
+    /** @return array<int, array{id: int, citation_label: string|null, citation_label_hash: string}> */
+    private function savedWorkLabels(Resource $resource): array
+    {
+        return $resource->relatedIdentifiers->sortBy('position')->map(fn ($row) => [
+            'id' => $row->id, 'citation_label' => $row->citation_label, 'citation_label_hash' => hash('sha256', (string) $row->citation_label),
+        ])->values()->all();
     }
 
     /**

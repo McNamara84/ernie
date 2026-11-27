@@ -916,12 +916,14 @@ class UploadJsonController extends Controller
                 continue;
             }
 
+            $citation = $this->citationLabelService->lookupBestEffort($identifier, $identifierType, $citationResolutionDeadline);
             $relatedWorks[] = [
                 'identifier' => $identifier,
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
                 'relation_type_information' => is_string($relationTypeInformation) && trim($relationTypeInformation) !== '' ? trim($relationTypeInformation) : null,
-                'citation_label' => $this->citationLabelService->resolveBestEffort($identifier, $identifierType, $citationResolutionDeadline),
+                'citation_label' => $citation?->text,
+                ...($citation?->parts !== null ? ['citation_proof' => $citation->proof()] : []),
                 'position' => count($relatedWorks),
             ];
         }

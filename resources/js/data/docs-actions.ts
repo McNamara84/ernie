@@ -144,6 +144,18 @@ export const DOCS_ACTIONS: DocsAction[] = [
             'A failed setup must be corrected before DOI registration can continue. Unavailable registration verification hides new tombstone activation and can be retried; active tombstones remain accessible. A failed DataCite tombstone sync leaves the local change active, displays the pending or failed status and supports retry.',
     },
     {
+        id: 'resources-review-citation-labels',
+        label: 'Review citation labels',
+        area: 'resources',
+        requirements: 'Select resources or IGSNs with published ERNIE landing pages.',
+        onClick: 'Compares stored DOI labels with the historical formatter and previews matching papers in APA 7.',
+        afterConfirmation: 'Apply selected updates only the checked proposals that still match their preview.',
+        localEffect: 'Saves the reviewed text and italics on each selected related identifier.',
+        externalEffect: 'Reads DOI metadata to identify the paper and its source.',
+        publicEffect: 'The published landing page displays the updated citation immediately.',
+        failure: 'Review skipped counts and reopen the preview for entries that changed.',
+    },
+    {
         id: 'resources-related-items',
         label: 'Manage Related Items',
         area: 'resources',

@@ -6,8 +6,8 @@ namespace App\Services\Citations;
 
 /**
  * Immutable DTO representing the result of a DOI lookup against either
- * Crossref or the DataCite API. The `data` array matches the schema the
- * React Related Item Manager form expects (camelCased sub-fields).
+ * Crossref or the DataCite API. The Related Item Manager receives mapped form
+ * fields. The native Crossref lookup supplies registry fields to the APA formatter.
  */
 final readonly class CitationLookupResult
 {

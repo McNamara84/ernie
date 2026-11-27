@@ -96,6 +96,51 @@ final class CitationHtmlSanitizerService
         return trim($normalized ?? $text);
     }
 
+    /** Return inline APA text in display order, with the same whitespace normalization as clipboard text.
+     * @return list<array{text: string, italic: bool}>
+     */
+    public function toTextParts(string $sanitizedHtml): array
+    {
+        $document = $this->loadDocument($sanitizedHtml);
+        $entry = $this->firstEntry($document);
+        if ($entry === null) {
+            throw new UnexpectedValueException('Missing formatted citation.');
+        }
+
+        $xpath = new DOMXPath($document);
+        $parts = [];
+        foreach ($xpath->query('.//text() | .//br', $entry) ?: [] as $node) {
+            if (! $node instanceof DOMNode) {
+                continue;
+            }
+            $text = preg_replace('/[\s\p{Z}]+/u', ' ', $node instanceof DOMText ? $node->data : ' ') ?? '';
+            $last = array_key_last($parts);
+            if ($last === null || str_ends_with($parts[$last]['text'], ' ')) {
+                $text = ltrim($text, ' ');
+            }
+            if ($text === '') {
+                continue;
+            }
+
+            $italic = (bool) $xpath->evaluate('boolean(ancestor::i | ancestor::em)', $node);
+            if ($last !== null && $parts[$last]['italic'] === $italic) {
+                $parts[$last]['text'] .= $text;
+            } else {
+                $parts[] = ['text' => $text, 'italic' => $italic];
+            }
+        }
+
+        if ($parts !== []) {
+            $last = array_key_last($parts);
+            $parts[$last]['text'] = rtrim($parts[$last]['text']);
+            if ($parts[$last]['text'] === '') {
+                array_pop($parts);
+            }
+        }
+
+        return $parts;
+    }
+
     private function loadDocument(string $html): DOMDocument
     {
         $document = new DOMDocument('1.0', 'UTF-8');
