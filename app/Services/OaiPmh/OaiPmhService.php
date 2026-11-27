@@ -494,7 +494,7 @@ class OaiPmhService
             $this->isoProfile->applyToDeletedRecordQuery($deletedQuery);
         }
 
-        // Old tokens remain usable until their original TTL. New requests freeze
+        // Legacy tokens resume against the current results. New requests freeze
         // identities so set exits, deletions and updates cannot shift later pages.
         if (! is_string($resumptionToken) || $token->harvest_id !== null) {
             return $this->listSnapshotItems(
@@ -581,7 +581,11 @@ class OaiPmhService
             }
         }
 
-        // Add resumption token if more results exist
+        // The legacy token's count can include records that no longer match the filters.
+        if ($emitted === 0) {
+            return $this->errorResponse('badResumptionToken', 'No records remain at the stored cursor. Restart the list request.', $verb, $requestAttrs);
+        }
+
         $nextCursor = $cursor + $emitted;
 
         if ($nextCursor < $completeListSize) {

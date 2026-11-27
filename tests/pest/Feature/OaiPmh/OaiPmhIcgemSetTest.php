@@ -400,16 +400,44 @@ test('a type change between ICGEM pages retains the record at its snapshot posit
     expect(icgemIdentifiers($last))->toBe([icgemId($third->doi)]);
 })->with(['ListIdentifiers', 'ListRecords']);
 
-test('legacy ICGEM tokens also derive historical deleted headers', function (string $verb) {
+test('a legacy ICGEM token cannot resume past the last prefix match', function (string $verb) {
+    config(['oaipmh.page_size' => 1]);
+    $member = createIcgemResource('10.5880/icgem.first');
+    createIcgemResource('10.5880/archive.10.5880/icgem.second');
+
+    // The first page returned the member. The old substring filter counted both models.
+    $token = app(OaiPmhResumptionTokenService::class)->create($verb, 'oai_dc', 'icgem', null, null, cursor: 1, completeListSize: 2);
+    $xml = simplexml_load_string($this->get('/oai-pmh?verb='.$verb.'&resumptionToken='.$token->token)->assertOk()->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badResumptionToken')
+        ->and((string) $xml->request['resumptionToken'])->toBe($token->token)
+        ->and(isset($xml->{$verb}))->toBeFalse();
+    $this->assertDatabaseCount('oai_pmh_resumption_tokens', 1);
+
+    $restart = $this->get('/oai-pmh?verb='.$verb.'&metadataPrefix=oai_dc&set=icgem')->assertOk()->getContent();
+    expect(icgemIdentifiers($restart))->toBe([icgemId($member->doi)])
+        ->and(isset(simplexml_load_string($restart)->{$verb}->resumptionToken))->toBeFalse();
+})->with(['ListIdentifiers', 'ListRecords']);
+
+test('legacy ICGEM tokens can advance from historical deleted headers to live records', function (string $verb) {
+    config(['oaipmh.page_size' => 1]);
     OaiPmhDeletedRecord::create([
         'doi' => '10.5880/icgem.legacy', 'oai_identifier' => icgemId('10.5880/icgem.legacy'),
         'datestamp' => now(), 'sets' => null,
     ]);
-    $token = app(OaiPmhResumptionTokenService::class)->create($verb, 'oai_dc', 'icgem', null, null, 0, 1);
+    $live = createIcgemResource('10.5880/icgem.live');
+    $token = app(OaiPmhResumptionTokenService::class)->create($verb, 'oai_dc', 'icgem', null, null, 0, 2);
     expect($token->harvest_id)->toBeNull();
-    $content = $this->get('/oai-pmh?verb='.$verb.'&resumptionToken='.$token->token)->getContent();
+    $content = $this->get('/oai-pmh?verb='.$verb.'&resumptionToken='.$token->token)->assertOk()->getContent();
     expect($content)->toContain('<setSpec>icgem</setSpec>')
         ->and((string) icgemHeaders($content)[0]['status'])->toBe('deleted');
+
+    $next = (string) simplexml_load_string($content)->{$verb}->resumptionToken;
+    $last = $this->get('/oai-pmh?verb='.$verb.'&resumptionToken='.$next)->assertOk()->getContent();
+    $end = simplexml_load_string($last)->{$verb}->resumptionToken;
+    expect(icgemIdentifiers($last))->toBe([icgemId($live->doi)])
+        ->and((string) $end['cursor'])->toBe('1')
+        ->and((string) $end)->toBe('');
 })->with(['ListIdentifiers', 'ListRecords']);
 
 test('ICGEM responses validate against the offline OAI and Dublin Core schemas', function () {
