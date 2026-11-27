@@ -209,7 +209,7 @@ describe('OaiPmhDocs', () => {
         const guidance = screen.getByLabelText('ICGEM harvesting guidance');
         expect(guidance).toHaveTextContent('For the first harvest, request the entire set without date filters');
         expect(guidance).toHaveTextContent('For incremental updates, use overlapping UTC date ranges');
-        expect(guidance).not.toHaveTextContent(/after the set change|after the switch/i);
+        expect(guidance.textContent).not.toMatch(/after\s+the\s+(?:set\s+change|switch)/i);
         expect(guidance).toHaveTextContent('Changing a Model to a Dataset keeps it in ICGEM');
         expect(screen.getByText(/An invalid or expired token requires/)).toBeInTheDocument();
     });
