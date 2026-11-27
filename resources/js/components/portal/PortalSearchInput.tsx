@@ -28,21 +28,24 @@ export function PortalSearchInput({
 }: PortalSearchInputProps) {
     const listboxId = useId();
     const inputRef = useRef<HTMLInputElement>(null);
-    const [isFocused, setIsFocused] = useState(false);
-    const [highlightedIndex, setHighlightedIndex] = useState(-1);
+    const [canShowSuggestions, setCanShowSuggestions] = useState(false);
+    const [highlightedKeyword, setHighlightedKeyword] = useState<string | null>(null);
     const { data: suggestions = [], isFetching, isError } = usePortalKeywordSuggestions(value, basePath);
     const visibleSuggestions = suggestions.filter((suggestion) => !selectedKeywords.includes(suggestion.value));
-    const showSuggestions = isFocused && value.trim().length >= 2;
+    const highlightedIndex = visibleSuggestions.findIndex((suggestion) => suggestion.value === highlightedKeyword);
+    const showLoading = isFetching && suggestions.length === 0;
+    const showError = isError && visibleSuggestions.length === 0;
+    const showSuggestions = canShowSuggestions && value.trim().length >= 2 && (visibleSuggestions.length > 0 || showLoading || showError);
 
     useEffect(() => {
-        setHighlightedIndex(-1);
+        setHighlightedKeyword(null);
     }, [value]);
 
     const selectKeyword = useCallback(
         (keyword: string) => {
             onKeywordSelect(keyword);
             onValueChange('');
-            setHighlightedIndex(-1);
+            setHighlightedKeyword(null);
             inputRef.current?.focus();
         },
         [onKeywordSelect, onValueChange],
@@ -65,19 +68,28 @@ export function PortalSearchInput({
 
     const handleKeyDown = useCallback(
         (event: React.KeyboardEvent<HTMLInputElement>) => {
-            if (!showSuggestions || visibleSuggestions.length === 0) return;
+            if (!showSuggestions) return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setCanShowSuggestions(false);
+                setHighlightedKeyword(null);
+                return;
+            }
+
+            if (visibleSuggestions.length === 0) return;
 
             if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                setHighlightedIndex((current) => (current + 1) % visibleSuggestions.length);
+                const nextIndex = (highlightedIndex + 1) % visibleSuggestions.length;
+                setHighlightedKeyword(visibleSuggestions[nextIndex].value);
             } else if (event.key === 'ArrowUp') {
                 event.preventDefault();
-                setHighlightedIndex((current) => (current <= 0 ? visibleSuggestions.length - 1 : current - 1));
+                const previousIndex = highlightedIndex <= 0 ? visibleSuggestions.length - 1 : highlightedIndex - 1;
+                setHighlightedKeyword(visibleSuggestions[previousIndex].value);
             } else if (event.key === 'Enter' && highlightedIndex >= 0) {
                 event.preventDefault();
                 selectKeyword(visibleSuggestions[highlightedIndex].value);
-            } else if (event.key === 'Escape') {
-                setIsFocused(false);
             }
         },
         [highlightedIndex, selectKeyword, showSuggestions, visibleSuggestions],
@@ -122,9 +134,12 @@ export function PortalSearchInput({
                         autoComplete="off"
                         placeholder={selectedKeywords.length > 0 ? 'Add text or keyword...' : 'Search text or keywords...'}
                         value={value}
-                        onChange={(event) => onValueChange(event.target.value)}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => window.setTimeout(() => setIsFocused(false), 100)}
+                        onChange={(event) => {
+                            onValueChange(event.target.value);
+                            setCanShowSuggestions(true);
+                        }}
+                        onFocus={() => setCanShowSuggestions(true)}
+                        onBlur={() => window.setTimeout(() => setCanShowSuggestions(false), 100)}
                         onKeyDown={handleKeyDown}
                         className="h-8 min-w-28 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
                     />
@@ -148,11 +163,13 @@ export function PortalSearchInput({
                 {showSuggestions && (
                     <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
                         <ul id={listboxId} role="listbox" aria-label="Free keyword suggestions" className="max-h-64 overflow-y-auto p-1">
-                            {isFetching && suggestions.length === 0 ? (
+                            {showLoading ? (
                                 <li className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                                     <LoaderCircle className="h-4 w-4 animate-spin" /> Loading keywords...
                                 </li>
-                            ) : visibleSuggestions.length > 0 ? (
+                            ) : showError ? (
+                                <li className="px-3 py-2 text-sm text-muted-foreground">Keyword suggestions are unavailable.</li>
+                            ) : (
                                 visibleSuggestions.map((suggestion, index) => (
                                     <li
                                         id={`${listboxId}-${index}`}
@@ -165,7 +182,7 @@ export function PortalSearchInput({
                                             highlightedIndex === index ? 'bg-accent text-accent-foreground' : 'hover:bg-accent',
                                         )}
                                         onMouseDown={(event) => event.preventDefault()}
-                                        onMouseEnter={() => setHighlightedIndex(index)}
+                                        onMouseEnter={() => setHighlightedKeyword(suggestion.value)}
                                         onClick={() => selectKeyword(suggestion.value)}
                                     >
                                         <Tag className="h-3.5 w-3.5 shrink-0" />
@@ -173,10 +190,6 @@ export function PortalSearchInput({
                                         <span className="text-xs text-muted-foreground tabular-nums">{suggestion.count}</span>
                                     </li>
                                 ))
-                            ) : isError ? (
-                                <li className="px-3 py-2 text-sm text-muted-foreground">Keyword suggestions are unavailable.</li>
-                            ) : (
-                                <li className="px-3 py-2 text-sm text-muted-foreground">No matching keywords. Press Enter to search as text.</li>
                             )}
                         </ul>
                     </div>
