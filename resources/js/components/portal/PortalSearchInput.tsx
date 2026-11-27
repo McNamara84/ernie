@@ -139,7 +139,7 @@ export function PortalSearchInput({
                             setCanShowSuggestions(true);
                         }}
                         onFocus={() => setCanShowSuggestions(true)}
-                        onBlur={() => window.setTimeout(() => setCanShowSuggestions(false), 100)}
+                        onBlur={() => setCanShowSuggestions(false)}
                         onKeyDown={handleKeyDown}
                         className="h-8 min-w-28 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
                     />

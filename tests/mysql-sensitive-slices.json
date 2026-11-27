@@ -45,6 +45,7 @@
         ],
         "doi-publication": [
             "tests/pest/Feature/Database/ResourceDoiPublicationSchemaTest.php",
+            "tests/pest/Feature/Database/IgsnRegistrationPreviewMigrationTest.php",
             "tests/pest/Feature/Database/DataCiteConcurrentWriteTest.php",
             "tests/pest/Feature/Services/ResourceDoiPublicationTest.php"
         ],

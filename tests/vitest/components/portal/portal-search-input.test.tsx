@@ -4,7 +4,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -112,6 +112,18 @@ describe('PortalSearchInput', () => {
 
         expect(onKeywordSelect).toHaveBeenCalledWith('Seismology');
         expect(input).toHaveValue('');
+    });
+
+    it('dismisses suggestions on blur and reopens them immediately on refocus', () => {
+        render(<Harness initialValue="seis" />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+
+        fireEvent.focus(input);
+        expect(screen.getByRole('listbox')).toBeVisible();
+        fireEvent.blur(input);
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        fireEvent.focus(input);
+        expect(screen.getByRole('listbox')).toBeVisible();
     });
 
     it('selects only a keyboard-highlighted suggestion on Enter', async () => {
