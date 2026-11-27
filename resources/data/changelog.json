@@ -126,6 +126,10 @@
         ],
         "fixes": [
             {
+                "title": "Keyword Suggestions in Portal Searches",
+                "description": "The DOI and IGSN search portals hide the keyword menu when no new matches are available. Press Enter to search the text you typed."
+            },
+            {
                 "title": "APA 7 Citations for Related Papers",
                 "description": "Related journal articles, conference papers and preprints now cite their publication source in APA 7. Landing pages show the appropriate italics. Curators can preview matching published labels, see partial selections and apply the selected updates. Large previews resume automatically when the per-user preview limit resets.",
                 "references": [{ "type": "issue", "number": 1547, "url": "https://github.com/McNamara84/ernie/issues/1547" }]
