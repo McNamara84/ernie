@@ -310,7 +310,9 @@ it.each(['javascript:alert(1)', 'data:text/html,bad', 'file:///server/private', 
 );
 
 it('only linkifies web URLs in plain text', () => {
-    render(<CurationText text="<script>bad</script> javascript:alert(1) https://example.org" />);
-    expect(screen.getAllByRole('link')).toHaveLength(1);
-    expect(screen.getByText(/<script>/)).toBeVisible();
+    const plainText = '<script>bad</script> javascript:alert(1)';
+    const { container } = render(<CurationText text={`${plainText} https://example.org`} />);
+    expect(screen.getByText(plainText, { exact: false })).toBeVisible();
+    expect(container.querySelector('script')).toBeNull();
+    expect(screen.getByRole('link')).toHaveAttribute('href', 'https://example.org');
 });

@@ -69,7 +69,8 @@ test('renders repaired keyword identities and retains distinct same-label subjec
     await expect(aquiferLink).toHaveCount(1);
     await expect(section.getByRole('link', { name: 'In Situ/Laboratory Instruments', exact: true })).toHaveCount(1);
     await expect(section.getByRole('link', { name: 'heat storage', exact: true })).toHaveCount(2);
-    await expect(aquiferLink).toHaveAttribute('href', new RegExp(encodeURIComponent(aquifer)));
+    const expectedUrl = `/doi-search?${new URLSearchParams({ 'thesaurus_keywords[]': aquifer })}`;
+    await expect(aquiferLink).toHaveAttribute('href', expectedUrl);
     await aquiferLink.click();
-    await expect(page).toHaveURL(new RegExp('/doi-search\\?.*' + encodeURIComponent(aquifer)));
+    await expect(page).toHaveURL(expectedUrl);
 });
