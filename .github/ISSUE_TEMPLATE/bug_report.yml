@@ -1,24 +1,62 @@
 name: Bug Report
 description: Report a bug or unexpected behavior in ERNIE
-title: "[BUG] "
-labels: ["bug", "DoR not met"]
+type: Bug
+labels: ["DoR not met"]
 projects: ["McNamara84/14"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug! Please fill out the sections below.
+        Use the page names shown in ERNIE. When relevant, link the affected Resource or identify the physical sample by its IGSN.
 
-        ## Use ERNIE terms
+  # The workflow reads these two dropdowns before any free-text answers.
+  - type: dropdown
+    id: affected-areas
+    attributes:
+      label: Affected areas
+      description: Select all areas that apply. Your selections become issue labels. Leave blank if unsure.
+      multiple: true
+      options:
+        - Data Editor
+        - Resources List
+        - IGSN Curation & Registration
+        - DOI Search Portal
+        - IGSN Search Portal
+        - IGSN Landing Pages
+        - Resource Landing Pages
+        - Metadata Import
+        - Metadata Export
+        - APIs & Integrations
+        - OAI-PMH
+        - Controlled Vocabularies
+        - Assistant
+        - Documentation
 
-        Please use the exact terms shown in ERNIE. Do not use abbreviations. For example, a digital dataset is named **Resource**, and a physical sample is named **IGSN**.
+  - type: dropdown
+    id: stakeholder
+    attributes:
+      label: Stakeholder
+      description: Select the stakeholder who reported the bug, if known. Your choice appears in the issue text.
+      multiple: false
+      options:
+        - All DataCurators
+        - Repository Manager
+        - IT Services
+        - Data Protection Officer
+        - DataHub
+        - EPOS MSL
+        - SysAdmin
+        - Head of Section
+        - Data Curator K
+        - Data Curator A
+        - Data Curator M
+        - FAIR AIMS
 
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: A clear and concise description of the bug.
-      placeholder: Describe the bug...
+      label: Actual Behavior
+      description: What happened, and on which page, route, or workflow? Include your user role if relevant.
     validations:
       required: true
 
@@ -27,9 +65,10 @@ body:
     attributes:
       label: Steps to Reproduce
       description: Step-by-step instructions to reproduce the behavior.
-      value: |
-        1. Open ERNIE
-        2. Navigate to page ... with route /...
+      placeholder: |
+        1. Open the IGSN Portal at /igsn-search.
+        2. Choose a sample type.
+        3. Open the second page of results.
     validations:
       required: true
 
@@ -63,17 +102,15 @@ body:
     id: browser
     attributes:
       label: Browser
-      description: Which browser are you using?
-      placeholder: e.g. Chrome 120, Firefox 121
+      description: Which browser and version are you using?
     validations:
       required: false
 
   - type: input
     id: ernie-version
     attributes:
-      label: ERNIE Version / Branch
-      description: Which version or branch of ERNIE are you using?
-      placeholder: e.g. v1.2.0, main
+      label: ERNIE Version / Environment
+      description: Where did you see the bug (production, staging, or local)? Include the version or branch if known.
     validations:
       required: false
 
