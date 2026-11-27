@@ -434,6 +434,55 @@ test('job updates registered metadata without changing publication year', functi
     Http::assertSent(fn (Request $request): bool => $request->method() === 'PUT');
 });
 
+test('retrying a failed verify item classifies the DOI again before choosing its write', function (string $state): void {
+    config(['datacite.transport_transient_attempts' => 1]);
+    $resource = createQueuedIgsn(['doi' => 'ICDP1001', 'publication_year' => 2018], ['upload_status' => IgsnMetadata::STATUS_UNVERIFIED]);
+    $resource->landingPage->publish();
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    $doi = '10.60510/icdp1001';
+    $available = false;
+    Http::fake(function (Request $request) use ($doi, $state, &$available) {
+        if ($request->method() === 'GET') {
+            expect(rawurldecode($request->url()))->toEndWith('/dois/'.$doi);
+            if (! $available) {
+                return Http::response([], 503);
+            }
+
+            return $state === 'missing' ? Http::response([], 404) : Http::response(dataCiteRecord($doi, $state, 'igsn.repo'));
+        }
+        if ($request->method() === 'HEAD') {
+            return Http::response();
+        }
+
+        $writtenState = ($request['data']['attributes']['event'] ?? null) === 'publish' ? 'findable' : $state;
+
+        return Http::response(dataCiteRecord($doi, $writtenState, 'igsn.repo', $request['data']['attributes']));
+    });
+
+    runQueuedIgsnRegistrationStep($run->id);
+    $item = $run->items()->sole();
+    expect($item->status)->toBe(IgsnRegistrationItemStatus::FAILED)
+        ->and($item->operation)->toBe('verify')
+        ->and($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_ERROR);
+    Http::assertSentCount(1);
+
+    $available = true;
+    $this->actingAs($this->curator)->postJson(route('igsns.batch-register.retry-failed', $run))->assertOk();
+    runQueuedIgsnRegistrationStep($run->id);
+
+    $existing = in_array($state, ['registered', 'findable'], true);
+    $writes = Http::recorded(fn (Request $request): bool => in_array($request->method(), ['POST', 'PUT'], true));
+    expect($writes)->toHaveCount(1);
+    $write = $writes->sole()[0];
+    expect($item->fresh()->operation)->toBe($existing ? 'update' : 'register')
+        ->and($item->fresh()->attempts)->toBe(2)
+        ->and($run->fresh()->failed)->toBe(0)
+        ->and($write->method())->toBe($state === 'missing' ? 'POST' : 'PUT')
+        ->and($write['data']['attributes']['event'] ?? null)->toBe($existing ? null : 'publish')
+        ->and($write['data']['attributes']['publicationYear'])->toBe($existing ? '2018' : (string) now()->year)
+        ->and($resource->fresh()->publication_year)->toBe($existing ? 2018 : now()->year);
+})->with(['registered', 'findable', 'draft', 'missing']);
+
 test('job isolates item failures and continues with later registrations', function (): void {
     $invalid = createQueuedIgsn(['doi' => '10.99999/INVALID-PREFIX']);
     $valid = createQueuedIgsn(['doi' => '10.60510/VALID-AFTER-FAILURE']);

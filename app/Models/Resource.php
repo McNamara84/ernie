@@ -609,6 +609,16 @@ class Resource extends Model
         return $this->resourceType?->slug === 'physical-object';
     }
 
+    /** Internal landing-page routes require a complete DOI, even before a CSV sample is registered. */
+    public function doiForLandingPage(): ?string
+    {
+        if ($this->doi !== null && IgsnIdentifier::isValidHandle($this->doi) && $this->igsnMetadata !== null) {
+            return IgsnIdentifier::forRegistration($this->doi);
+        }
+
+        return $this->doi;
+    }
+
     /**
      * @param  Builder<static>  $query
      * @return Builder<static>

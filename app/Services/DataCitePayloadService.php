@@ -76,10 +76,11 @@ final class DataCitePayloadService
     /** @return array{data: array{type: string, id: string, attributes: array<string, mixed>}} */
     public function metadataUpdate(Resource $resource, ?string $igsnPrefix = null): array
     {
-        if (! $resource->doi) {
+        $identifier = $resource->doi;
+        if (! $identifier) {
             throw new DataCiteVerificationException('missing_doi', "Resource #{$resource->id} must have a DOI to update metadata.");
         }
-        $doi = $igsnPrefix !== null ? IgsnIdentifier::forRegistration($resource->doi, $igsnPrefix) : $resource->doi;
+        $doi = $igsnPrefix !== null ? IgsnIdentifier::forRegistration($identifier, $igsnPrefix) : $identifier;
         if ($igsnPrefix !== null && (! str_starts_with(strtolower($doi), $igsnPrefix.'/')
             || ! preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $doi))) {
             throw new DataCiteVerificationException('invalid_doi_prefix', 'The DOI or prefix is not permitted in the IGSN repository.');
@@ -91,6 +92,10 @@ final class DataCitePayloadService
         app(EmbargoService::class)->assertCanUpdateMetadata($resource);
         if (! $page->is_published) {
             throw new DataCiteVerificationException('landing_page_not_published', 'Publish the landing page explicitly before updating DataCite metadata. Local changes remain saved.');
+        }
+        if ($igsnPrefix !== null) {
+            $page = clone $page;
+            $page->useRegistrationDoi($identifier, $doi);
         }
         $attributes = $this->exporter->export($resource)['data']['attributes'];
         if ($resource->igsnMetadata !== null) {

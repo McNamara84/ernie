@@ -7,6 +7,7 @@ use App\Jobs\ProcessIgsnRegistrationRunJob;
 use App\Models\IgsnMetadata;
 use App\Models\IgsnRegistrationRun;
 use App\Models\LandingPage;
+use App\Models\OaiPmhDeletedRecord;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -17,6 +18,8 @@ use App\Services\DataCiteRegistrationService;
 use App\Services\IgsnRegistrationExclusionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
@@ -177,6 +180,147 @@ test('production checks the IGSN repository before choosing a write for a histor
         ->and($resource->fresh()->doi)->toBe($doi)
         ->and($resource->fresh()->igsnMetadata->isRegistered())->toBeTrue();
 })->with([true, false]);
+
+test('a CSV handle has a routable public target when DataCite receives the request', function (bool $update, bool $legacyPage, bool $published) {
+    $handle = 'ICDP1001';
+    $doi = '10.60510/icdp1001';
+    $resource = createIgsnWithMetadata(['doi' => $handle], ['upload_status' => $update ? 'registered' : 'uploaded']);
+    // Normal setup derives the prefix from the sample. Older pages persisted the bare handle.
+    $page = $resource->landingPage()->create([
+        'template' => 'default_gfz', 'slug' => 'borehole', 'is_published' => $published,
+        ...($legacyPage ? ['doi_prefix' => $handle] : []),
+    ]);
+    $canonical = url('/'.$doi.'/borehole');
+    $stable = url('/datasets/'.$resource->id);
+    $expectedTarget = $update ? $canonical : $stable;
+    $expectedPrefix = $legacyPage ? $handle : $doi;
+    expect($page->doi_prefix)->toBe($expectedPrefix);
+    $headUrls = [];
+    Http::fake(function (Request $request) use ($resource, $handle, $doi, $update, $stable, $canonical, $expectedTarget, &$headUrls) {
+        if ($request->method() === 'HEAD') {
+            // Dispatch both the reachability probe and its redirect through ERNIE's real public router.
+            $headUrls[] = $request->url();
+            $response = $this->head($request->url());
+
+            return Http::response('', $response->status(), $response->headers->all());
+        }
+        if ($request->method() === 'GET') {
+            return $update ? Http::response(dataCiteRecord($doi, 'registered', 'igsn.repo')) : Http::response([], 404);
+        }
+        expect($resource->fresh()->doi)->toBe($handle)
+            ->and($request['data']['attributes']['url'])->toBe($expectedTarget);
+        $redirect = $this->get($stable)->assertRedirect($canonical);
+        $this->get($redirect->headers->get('Location'))->assertOk();
+
+        return Http::response(dataCiteRecord($doi, $update ? 'registered' : 'findable', 'igsn.repo', $request['data']['attributes']));
+    });
+
+    config(['datacite.test_mode' => true]);
+    $runId = $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")->assertOk()->json('run.id');
+    $preview = IgsnRegistrationRun::findOrFail($runId)->items()->sole()->preview_payload;
+    expect($preview['data']['attributes']['url'])->toBe($expectedTarget)
+        ->and($page->fresh()->doi_prefix)->toBe($expectedPrefix)
+        ->and($page->fresh()->is_published)->toBe($published)
+        ->and($resource->fresh()->doi)->toBe($handle);
+    Http::assertNothingSent();
+
+    config(['datacite.test_mode' => false]);
+    Cache::put("landing-page.{$handle}.borehole", true);
+    Cache::put("landing-page.{$doi}.borehole", true);
+    $service = app(DataCiteRegistrationService::class);
+    auth()->logout();
+    $response = $update ? $service->updateMetadata($resource) : $service->registerIgsn($resource);
+    expect($response['data']['id'])->toBe($doi)
+        ->and($headUrls)->toBe($update ? [] : [$stable, $canonical])
+        ->and($resource->fresh()->doi)->toBe($doi)
+        ->and($page->fresh()->doi_prefix)->toBe($doi)
+        ->and($page->fresh()->public_url)->toBe($canonical)
+        ->and(Cache::has("landing-page.{$handle}.borehole"))->toBeFalse()
+        ->and(Cache::has("landing-page.{$doi}.borehole"))->toBeFalse()
+        ->and(OaiPmhDeletedRecord::where('doi', $handle)->exists())->toBeTrue();
+    Http::assertSent(fn (Request $request): bool => $request->method() === ($update ? 'PUT' : 'POST') && $request->data() == $preview);
+    $this->followingRedirects()->get($expectedTarget)->assertOk();
+})->with([
+    'new landing page' => [false, false, false],
+    'legacy draft landing page' => [false, true, false],
+    'legacy published landing page' => [false, true, true],
+    'existing DOI with a new landing page' => [true, false, true],
+    'existing DOI with a legacy page' => [true, true, true],
+]);
+
+test('a concurrent DOI edit survives confirmation of a metadata update for the original CSV handle', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001'], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    $doi = '10.60510/icdp1001';
+    $edited = '10.60510/curator-edit';
+    Http::fake(function (Request $request) use ($resource, $doi, $edited) {
+        if ($request->method() === 'PUT') {
+            $resource->fresh()->update(['doi' => $edited]);
+        }
+
+        return Http::response(dataCiteRecord($doi, 'registered', 'igsn.repo'));
+    });
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(RuntimeException::class, 'The IGSN changed while DataCite was updating its metadata.');
+    expect($resource->fresh()->doi)->toBe($edited)->and($page->fresh()->doi_prefix)->toBe($edited);
+});
+
+test('a rejected metadata update keeps the CSV handle and its routable landing page for a retry', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001'], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    $doi = '10.60510/icdp1001';
+    Http::fake(fn (Request $request) => $request->method() === 'PUT'
+        ? Http::response([], 422)
+        : Http::response(dataCiteRecord($doi, 'registered', 'igsn.repo')));
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(RequestException::class);
+    expect($resource->fresh()->doi)->toBe('ICDP1001')->and($page->fresh()->doi_prefix)->toBe($doi)
+        ->and(OaiPmhDeletedRecord::where('doi', 'ICDP1001')->exists())->toBeFalse();
+    $this->followingRedirects()->get('/datasets/'.$resource->id)->assertOk();
+});
+
+test('an already normalized resource repairs a legacy bare landing-page prefix on its next metadata update', function () {
+    $doi = '10.60510/icdp1001';
+    $resource = createIgsnWithMetadata(['doi' => $doi], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    fakeIgsnMemberApi([$doi => 'registered']);
+
+    app(DataCiteRegistrationService::class)->updateMetadata($resource);
+
+    $page->refresh();
+    expect($page->doi_prefix)->toBe($doi);
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'PUT' && $request['data']['attributes']['url'] === $page->public_url);
+    $this->followingRedirects()->get('/datasets/'.$resource->id)->assertOk();
+});
+
+test('an external target changed during verification prevents the stale metadata PUT', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001'], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->external()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    Http::fake(function () use ($page) {
+        $page->update(['external_path' => 'corrected-sample']);
+
+        return Http::response(dataCiteRecord('10.60510/icdp1001', 'registered', 'igsn.repo'));
+    });
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(RuntimeException::class, 'The landing page changed before the metadata update.');
+    Http::assertNotSent(fn (Request $request): bool => $request->method() === 'PUT');
+    expect($page->fresh()->doi_prefix)->toBe('ICDP1001')->and($resource->fresh()->doi)->toBe('ICDP1001');
+});
+
+test('editing an unregistered CSV handle invalidates both canonical landing-page URLs', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001']);
+    $page = $resource->landingPage()->create(['template' => 'default_gfz', 'slug' => 'borehole']);
+    foreach (['10.60510/icdp1001', '10.60510/icdp1002'] as $doi) {
+        Cache::put("landing-page.{$doi}.borehole", true);
+    }
+    $resource->update(['doi' => 'ICDP1002']);
+    expect($page->fresh()->doi_prefix)->toBe('10.60510/icdp1002')
+        ->and(Cache::has('landing-page.10.60510/icdp1001.borehole'))->toBeFalse()
+        ->and(Cache::has('landing-page.10.60510/icdp1002.borehole'))->toBeFalse();
+});
 
 test('a preview uses the configured external URL without contacting the landing page', function () {
     config(['datacite.test_mode' => true]);

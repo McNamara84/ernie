@@ -496,7 +496,7 @@ class IgsnController extends Controller
         $previousUploadState = $metadata->only(['upload_status', 'upload_error_message']);
         try {
             $service = app(DataCiteRegistrationFactoryService::class)->forMode(false);
-            $wasAlreadyRegistered = $service->shouldUpdateIgsn($resource);
+            $wasAlreadyRegistered = $service->shouldUpdateIgsn($resource, $metadata->registrationOperation());
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
 
             if ($wasAlreadyRegistered) {

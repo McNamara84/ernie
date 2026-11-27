@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Support\IgsnIdentifier;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -106,13 +106,15 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         return $this->publicationService()->publish($resource, igsn: true, actorId: $actorId);
     }
 
-    public function shouldUpdateIgsn(Resource $resource): bool
+    public function shouldUpdateIgsn(Resource $resource, string $operation): bool
     {
-        if ($resource->igsnMetadata?->upload_status === IgsnMetadata::STATUS_UNVERIFIED) {
-            return in_array($this->getRegistrationState(IgsnIdentifier::forRegistration((string) $resource->doi, $this->client->igsnPrefix())), ['registered', 'findable'], true);
+        if ($operation === 'verify') {
+            $doi = IgsnIdentifier::forRegistration((string) $resource->doi, $this->client->igsnPrefix());
+
+            return app(DataCiteRegistrationVerifierService::class)->verify($this->client, $doi)->isRegistered();
         }
 
-        return $resource->igsnMetadata?->isRegistered() === true;
+        return $operation === 'update';
     }
 
     public function getRegistrationState(string $doi): string
@@ -139,8 +141,9 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         // A queued job or editor can hold an older access level or landing page.
         $resource = Resource::query()->with(Resource::DATACITE_EXPORT_RELATIONS)->findOrFail($resource->id);
 
-        $payload = app(DataCitePayloadService::class)->metadataUpdate($resource,
-            $resource->igsnMetadata !== null && ! $this->testMode ? $this->client->igsnPrefix() : null);
+        $igsnPrefix = $resource->igsnMetadata !== null && ! $this->testMode ? $this->client->igsnPrefix() : null;
+        $payload = app(DataCitePayloadService::class)->metadataUpdate($resource, $igsnPrefix);
+        $doi = $payload['data']['id'];
 
         Log::info('Updating DOI metadata with DataCite', [
             'resource_id' => $resource->id,
@@ -149,8 +152,10 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         ]);
 
         try {
-            $doi = $payload['data']['id'];
-            $response = $this->client->updateDoi($doi, $payload);
+            $beforeWrite = $igsnPrefix === null ? null : function () use ($resource, $doi, $payload): void {
+                $this->prepareIgsnUpdateTarget($resource, $doi, $payload['data']['attributes']['url']);
+            };
+            $response = $this->client->updateDoi($doi, $payload, beforeWrite: $beforeWrite);
             $response->throw();
 
             $responseData = $response->json();
@@ -165,14 +170,19 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                 throw new \RuntimeException('Received invalid JSON response from DataCite API');
             }
 
-            Log::info('DOI metadata updated successfully', [
-                'resource_id' => $resource->id,
-                'doi' => $resource->doi,
-            ]);
-
             if ($doi !== $resource->doi) {
-                Resource::whereKey($resource->id)->where('doi', $resource->doi)->update(['doi' => $doi]);
+                DB::transaction(function () use ($resource, $doi): void {
+                    $current = Resource::query()->lockForUpdate()->findOrFail($resource->id);
+                    if ($current->doi === $resource->doi) {
+                        $current->doi = $doi;
+                        $current->save();
+                    } elseif ($current->doi !== $doi) {
+                        throw new \RuntimeException('The IGSN changed while DataCite was updating its metadata. Review the sample before retrying.');
+                    }
+                });
             }
+
+            Log::info('DOI metadata updated successfully', ['resource_id' => $resource->id, 'doi' => $doi]);
 
             return $responseData;
         } catch (RequestException $e) {
@@ -190,6 +200,24 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
 
             throw $e;
         }
+    }
+
+    private function prepareIgsnUpdateTarget(Resource $resource, string $doi, string $target): void
+    {
+        DB::transaction(function () use ($resource, $doi, $target): void {
+            $current = Resource::query()->lockForUpdate()->findOrFail($resource->id);
+            if ($current->doi !== $resource->doi) {
+                throw new \RuntimeException('The IGSN changed before the metadata update. Review the sample and retry.');
+            }
+            $page = $current->landingPage()->lockForUpdate()->firstOrFail();
+            $page->useRegistrationDoi((string) $current->doi, $doi);
+            if (! $page->is_published || $page->public_url !== $target) {
+                throw new \RuntimeException('The landing page changed before the metadata update. Review the sample and retry.');
+            }
+            if ($page->isDirty('doi_prefix')) {
+                $page->save();
+            }
+        });
     }
 
     /**

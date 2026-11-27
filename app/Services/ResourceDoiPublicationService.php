@@ -89,8 +89,13 @@ class ResourceDoiPublicationService
                 $current = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
                 $this->assertCurrent($current, $publication);
                 $page = $current->landingPage()->lockForUpdate()->firstOrFail();
+                if ($publication->operation === 'igsn_publication' && $publication->doi !== null) {
+                    $page->useRegistrationDoi((string) $current->doi, $publication->doi);
+                }
                 if (! $page->is_published) {
                     $page->publish();
+                } elseif ($page->isDirty('doi_prefix')) {
+                    $page->save();
                 }
                 $publication->update(['status' => 'landing_page_published', 'last_error' => null]);
             });

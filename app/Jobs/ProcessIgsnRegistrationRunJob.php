@@ -188,7 +188,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             return;
         }
 
-        $operation = $item->operation ?? ($metadata->isRegistered() ? 'update' : 'register');
+        $operation = $item->operation ?? $metadata->registrationOperation();
         if ($operation !== 'update' && $item->approval_fingerprint !== ResourceDoiPublicationService::approvalFingerprint($resource)
             && ! $resource->latestDoiPublication()->whereIn('status', ['remote_write_started', 'pending_reconciliation'])->exists()) {
             $message = 'The approved metadata or landing page changed after this registration was queued. Start a new confirmed registration.';
@@ -201,9 +201,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
         $originalPublicationYear = $resource->publication_year;
 
         try {
-            if ($operation === 'verify') {
-                $operation = $service->shouldUpdateIgsn($resource) ? 'update' : 'register';
-            }
+            $operation = $service->shouldUpdateIgsn($resource, $operation) ? 'update' : 'register';
             $item->update(['operation' => $operation]);
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
             $response = $operation === 'update'
