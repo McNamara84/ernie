@@ -11,6 +11,32 @@ require_once __DIR__.'/Helpers/NativeSleep.php';
 require_once __DIR__.'/Helpers/NativeServiceDelays.php';
 
 /**
+ * Exercise native file metadata or fsync while Pest TIA instruments file:// reads.
+ *
+ * @template T
+ *
+ * @param  Closure(): T  $operation
+ * @return T
+ */
+function withNativeFileStreams(Closure $operation): mixed
+{
+    $probe = fopen(__FILE__, 'rb');
+    $wrapper = stream_get_meta_data($probe)['wrapper_data'] ?? null;
+    fclose($probe);
+    if (! is_object($wrapper)) {
+        return $operation();
+    }
+
+    stream_wrapper_restore('file');
+    try {
+        return $operation();
+    } finally {
+        stream_wrapper_unregister('file');
+        stream_wrapper_register('file', $wrapper::class);
+    }
+}
+
+/**
  * Complete the two-step Inertia handshake used for an existing resource.
  */
 function loadExistingResourceInEditor(TestCase $testCase, int $resourceId): TestResponse

@@ -12,6 +12,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\ResourceCacheService;
 use App\Services\Subjects\SubjectDuplicateCleanupService;
 use App\Services\Subjects\SubjectEquivalentCleanupService;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -39,11 +40,14 @@ it('audits then applies each reported case and rejects reuse of the original sna
     $this->travel(2)->seconds();
     $reportPath = Storage::disk('local')->path('review.json');
     $journalPath = Storage::disk('local')->path('apply.jsonl');
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--report' => $reportPath])->assertSuccessful();
+    $run = fn (array $options): int => withNativeFileStreams(
+        fn () => $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', ...$options])->run()
+    );
+    expect($run(['--report' => $reportPath]))->toBe(Command::SUCCESS);
     $report = json_decode(file_get_contents($reportPath), true, flags: JSON_THROW_ON_ERROR);
     expect($resource->subjects()->count())->toBe(2)
         ->and($report['resources'][0]['analysis']['groups'])->toHaveCount(1);
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--apply' => true, '--from-report' => $reportPath, '--report' => $journalPath])->assertSuccessful();
+    expect($run(['--apply' => true, '--from-report' => $reportPath, '--report' => $journalPath]))->toBe(Command::SUCCESS);
     expect($resource->subjects()->count())->toBe(1)
         ->and($resource->fresh()->updated_at->greaterThan($datestamp))->toBeTrue()
         ->and(AssistantSuggestion::find($suggestion->id))->toBeNull()
@@ -51,8 +55,8 @@ it('audits then applies each reported case and rejects reuse of the original sna
         ->and(file_get_contents($journalPath))->toContain('"status":"before"', '"status":"applied"', '"suggestions"')
         ->and($cache->remember($page, fn () => ['template' => 'default_gfz', 'props' => ['new' => true]])['props'])->toBe(['new' => true])
         ->and(app(DataCiteJsonExporter::class)->export($resource->fresh())['data']['attributes']['subjects'])->toHaveCount(1);
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--apply' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('retry.jsonl')])->assertFailed();
-    $this->artisan('subjects:deduplicate', ['--mode' => 'equivalent', '--refresh-caches' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('cache-retry.jsonl')])->assertSuccessful();
+    expect($run(['--apply' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('retry.jsonl')]))->toBe(Command::FAILURE);
+    expect($run(['--refresh-caches' => true, '--from-report' => $reportPath, '--report' => Storage::disk('local')->path('cache-retry.jsonl')]))->toBe(Command::SUCCESS);
     expect($resource->subjects()->count())->toBe(1);
     Http::assertNothingSent();
 })->with(['aquifers', 'instruments']);

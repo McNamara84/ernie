@@ -209,7 +209,7 @@ it('invalidates a public snapshot entry in the same store and tag namespace used
     $slug = explode(':', $suffix, 2)[0];
     Storage::put(publicVocabularyContract()[$slug][1], $source);
     $this->travel(5)->seconds(); // Allow the local ROR file to use its stable-file cache entry.
-    getJson('/api/v1/vocabularies/data/'.$slug, ['X-API-Key' => 'vocabulary-key'])->assertOk();
+    withNativeFileStreams(fn () => getJson('/api/v1/vocabularies/data/'.$slug, ['X-API-Key' => 'vocabulary-key']))->assertOk();
 
     $pattern = CacheKey::PUBLIC_VOCABULARY_SNAPSHOT;
     $key = $pattern->key($suffix);
@@ -281,7 +281,7 @@ it('does not read the stable local ROR file until the warm response body is sent
     Storage::shouldReceive('disk')->andReturn($disk);
     $disk->shouldReceive('exists')->with($file)->andReturn(true);
     $disk->shouldReceive('readStream')->with($file)->twice()->andReturnUsing(static function () use ($path, $counter) {
-        $handle = fopen($path, 'rb');
+        $handle = withNativeFileStreams(static fn () => fopen($path, 'rb'));
         stream_filter_append($handle, 'ernie.test.ror-read-count', STREAM_FILTER_READ, $counter);
 
         return $handle;

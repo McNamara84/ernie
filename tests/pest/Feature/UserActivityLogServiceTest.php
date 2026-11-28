@@ -6,18 +6,9 @@ use App\Models\Resource;
 use App\Services\ApplicationLogSourceService;
 use App\Services\LogService;
 use Illuminate\Support\Facades\File;
+use Tests\Support\WithTemporaryLogStorage;
 
-beforeEach(function () {
-    $this->originalStorage = app()->storagePath();
-    $this->testStorage = sys_get_temp_dir().'/ernie-activity-'.bin2hex(random_bytes(8));
-    File::ensureDirectoryExists($this->testStorage.'/logs');
-    app()->useStoragePath($this->testStorage);
-});
-
-afterEach(function () {
-    app()->useStoragePath($this->originalStorage);
-    File::deleteDirectory($this->testStorage);
-});
+uses(WithTemporaryLogStorage::class);
 
 it('merges daily and single logs with unique entry identities and deterministic ordering', function () {
     File::put(storage_path('logs/laravel.log'), "[2026-10-09 10:00:00] local.INFO: Single\n");
